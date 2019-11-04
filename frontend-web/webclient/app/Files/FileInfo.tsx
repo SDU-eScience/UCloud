@@ -89,7 +89,8 @@ function FileInfo(props: Readonly<FileInfo>) {
                         onReclassify={async sensitivity => {
                             props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud}));
                             props.fetchFileStat(path());
-                        }} />
+                        }}
+                    />
                     {activity.items.length ? (
                         <Flex flexDirection="row" justifyContent="center">
                             <Card mt="1em" maxWidth={"75%"} mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
@@ -144,7 +145,7 @@ const FileView = ({file, onFavorite, onReclassify}: FileViewProps) =>
                 <Attribute name="Favorite">
                     <Icon
                         name={file.favorited ? "starFilled" : "starEmpty"}
-                        onClick={() => onFavorite()}
+                        onClick={onFavorite}
                         color="blue"
                     />
                 </Attribute>
@@ -188,4 +189,4 @@ const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
     setActivePage: () => dispatch(setActivePage(SidebarPages.Files))
 });
 
-export default connect<FileInfoReduxObject, FileInfoOperations>(mapStateToProps, mapDispatchToProps)(FileInfo);
+export default connect(mapStateToProps, mapDispatchToProps)(FileInfo);

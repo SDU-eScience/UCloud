@@ -32,7 +32,7 @@ const View: React.FunctionComponent = () => {
 
     useEffect(() => reload(), [id]);
 
-    const onSubmit = async e => {
+    const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const inputField = newMemberRef.current!;
         const username = inputField.value;

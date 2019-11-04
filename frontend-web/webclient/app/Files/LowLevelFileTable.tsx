@@ -731,22 +731,23 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                     {/* Launch cell */}
                                     {checkedFiles.size > 0 || file.fileType !== "FILE" ||
                                         (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
-                                        (!applications.has(file.path) || applications.get(file.path)!.length < 1) ? null : (
-                                            <ClickableDropdown
-                                                width="175px"
-                                                left="-160px"
-                                                trigger={<Icon name="play" size="1em" />}
-                                            >
-                                                <QuickLaunchApps
-                                                    file={file}
-                                                    applications={applications.get(file.path)}
-                                                    history={history}
-                                                    ml="-17px"
-                                                    mr="-17px"
-                                                    pl="15px"
-                                                />
-                                            </ClickableDropdown>
-                                        )}
+                                        (!applications.has(file.path) || applications.get(file.path)!.length < 1) ?
+                                            null : (
+                                                <ClickableDropdown
+                                                    width="175px"
+                                                    left="-160px"
+                                                    trigger={<Icon name="play" size="1em" />}
+                                                >
+                                                    <QuickLaunchApps
+                                                        file={file}
+                                                        applications={applications.get(file.path)}
+                                                        history={history}
+                                                        ml="-17px"
+                                                        mr="-17px"
+                                                        pl="15px"
+                                                    />
+                                                </ClickableDropdown>
+                                            )}
                                 </TableCell>
                             )}
 
@@ -794,8 +795,7 @@ const mapStateToProps = ({responsive}: ReduxObject) => {
 const mapDispatchToProps = (dispatch: Dispatch) => ({
     showUploader: (path: string) => dispatch(setUploaderVisible(true, path)),
     setUploaderCallback: (cb?: () => void) => dispatch(setUploaderCallback(cb)),
-    /* FIXME: Missing type information. Add interface for function  */
-    appendUpload: upload => dispatch(appendUpload(upload)),
+    appendUpload: (upload: Upload) => dispatch(appendUpload(upload)),
 });
 
 export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(LowLevelFileTable_);
@@ -946,7 +946,7 @@ const setNotSticky = ({notSticky}: {notSticky?: boolean}): {position: "sticky"} 
     notSticky ? null : {position: "sticky"};
 
 const FileTableHeaderCell = styled(TableHeaderCell) <{notSticky?: boolean}>`
-    background-color: ${({theme}) => theme.colors.white};
+    background-color: ${p => p.theme.colors.white};
     top: 144px; //topmenu + header size
     z-index: 10;
     ${setNotSticky}
@@ -1102,4 +1102,3 @@ function getSortingColumns(): [SortBy, SortBy] {
 function setSortingColumnAt(column: SortBy, columnIndex: 0 | 1) {
     window.localStorage.setItem(`filesSorting${columnIndex}`, column);
 }
-

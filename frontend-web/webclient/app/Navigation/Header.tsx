@@ -48,7 +48,7 @@ import {ThemeToggler} from "ui-components/ThemeToggle";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
-import {inDevEnvironment, isLightThemeStored, prettierString} from "UtilityFunctions";
+import {inDevEnvironment, isLightThemeStored, prettierString, stopPropagationAndPreventDefault} from "UtilityFunctions";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -138,7 +138,7 @@ function Header(props: HeaderProps) {
                 <Flex cursor="auto">
                     <ThemeToggler
                         isLightTheme={isLightThemeStored()}
-                        onClick={e => (e.preventDefault(), e.stopPropagation(), props.toggleTheme())}
+                        onClick={e => (stopPropagationAndPreventDefault(e), props.toggleTheme())}
                     />
                 </Flex>
             </ClickableDropdown>
@@ -175,8 +175,8 @@ const HeaderContainer = styled(Flex)`
 
 const Logo = () => (
     <Link to={"/"}>
-        <Flex alignItems={"center"} ml="15px">
-            <Icon name={"logoEsc"} size={"38px"} />
+        <Flex alignItems="center" ml="15px">
+            <Icon name="logoEsc" size="38px" />
             <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
             <Text
                 ml="4px"

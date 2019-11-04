@@ -7,7 +7,10 @@ export const USER_LOGOUT = "USER_LOGOUT";
 export const USER_LOGIN = "USER_LOGIN";
 export const CONTEXT_SWITCH = "CONTEXT_SWITCH";
 
-const header = (state: HeaderSearchReduxObject = initHeader(), {type, payload}: HeaderActions): HeaderSearchReduxObject => {
+const header = (
+    state: HeaderSearchReduxObject = initHeader(),
+    {type, payload}: HeaderActions
+): HeaderSearchReduxObject => {
     switch (type) {
         case SET_REFRESH_FUNCTION:
         case SET_PRIORITIZED_SEARCH:

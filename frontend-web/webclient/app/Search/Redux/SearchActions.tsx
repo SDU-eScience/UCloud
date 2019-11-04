@@ -18,7 +18,8 @@ export const setFilesLoading = (loading: boolean): SetFilesLoading => ({
     payload: {filesLoading: loading}
 });
 
-type SetApplicationsLoading = PayloadAction<typeof SSActionTypes.SET_SIMPLE_APPLICATIONS_LOADING, {applicationsLoading: boolean}>
+type SetApplicationsLoading =
+    PayloadAction<typeof SSActionTypes.SET_SIMPLE_APPLICATIONS_LOADING, {applicationsLoading: boolean}>
 export const setApplicationsLoading = (loading: boolean): SetApplicationsLoading => ({
     type: SSActionTypes.SET_SIMPLE_APPLICATIONS_LOADING,
     payload: {applicationsLoading: loading}
@@ -51,13 +52,16 @@ export async function searchApplications(body: AppSearchRequest): Promise<any> {
     }
 }
 
-type ReceiveFiles = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE, {files: Page<File>, filesLoading: false}>
+type ReceiveFiles =
+    PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE, {files: Page<File>, filesLoading: false}>
 export const receiveFiles = (files: Page<File>): ReceiveFiles => ({
     type: SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE,
     payload: {files, filesLoading: false}
 });
 
-export type ReceiveApplications = PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE, {applications: Page<FullAppInfo>, applicationsLoading: false}>
+export type ReceiveApplications = PayloadAction<
+    typeof SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE, {applications: Page<FullAppInfo>, applicationsLoading: false}
+>
 export const receiveApplications = (applications: Page<FullAppInfo>): ReceiveApplications => ({
     type: SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE,
     payload: {applications, applicationsLoading: false}
