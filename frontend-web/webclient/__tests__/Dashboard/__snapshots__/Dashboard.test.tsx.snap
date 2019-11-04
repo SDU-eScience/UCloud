@@ -27,6 +27,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   padding-right: 16px;
   padding-top: 8px;
   padding-bottom: 8px;
+  background-color: #f5f7f9;
   color: #53657d;
 }
 
