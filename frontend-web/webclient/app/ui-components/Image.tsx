@@ -1,15 +1,12 @@
 import styled from "styled-components";
-import theme from "./theme";
+import {space, SpaceProps} from "styled-system";
 
-const Image = styled.img`
+const Image = styled.img<SpaceProps>`
   max-width: 100%;
   height: auto;
+  ${space}
 `;
 
 Image.displayName = "Image";
-
-Image.defaultProps = {
-  theme
-};
 
 export default Image;

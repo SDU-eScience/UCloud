@@ -80,53 +80,7 @@ export const Playground: React.FunctionComponent = () => {
     };
     return (
         <MainContainer
-            main={(
-                <CardToolContainer appImage="arjio" mt="30px">
-                    <Spacer
-                        alignItems="center"
-                        left={<Heading.h3> {appTag} </Heading.h3>}
-                        right={(
-                            <ShowAllTagItem tag={appTag}>
-                                <Heading.h5><strong> Show All</strong></Heading.h5>
-                            </ShowAllTagItem>
-                        )}
-                    />
-                    <ScrollBox>
-                        <Grid
-                            py="10px"
-                            pl="10px"
-                            gridTemplateRows="repeat(2, 1fr)"
-                            gridTemplateColumns="repeat(9, 1fr)"
-                            gridGap="8px"
-                            gridAutoFlow="column"
-                        >
-                            {appPage.items.map(application => {
-                                const [first, second, third] = getColorFromName(application.metadata.name);
-                                const withoutTag = removeTagFromTitle(appTag, application.metadata.title);
-                                return (
-                                    <div key={application.metadata.name}>
-                                        <SmallCard
-                                            title={withoutTag}
-                                            color1={first}
-                                            color2={second}
-                                            color3={third}
-                                            to={Pages.viewApplication(application.metadata)}
-                                            color="white"
-                                        >
-                                            <EllipsedText>{withoutTag}</EllipsedText>
-                                        </SmallCard>
-                                    </div>
-                                );
-                            })}
-                        </Grid>
-                    </ScrollBox>
-                    <Flex mt="14px" flexDirection={"row"} alignItems={"flex-start"} >
-                        {[...tags].filter(it => it !== appTag).map(tag => (
-                            <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
-                        ))}
-                    </Flex>
-                </CardToolContainer>
-            )}
+            main={(null)}
         />
     );
 };

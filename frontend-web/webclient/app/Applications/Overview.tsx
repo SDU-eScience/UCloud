@@ -103,7 +103,13 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                 />
                             </div>
                             <Box pl="10px" style={{overflowX: "scroll"}} pb="5px">
-                                <Grid pt="20px" gridTemplateRows="repeat(3, 1fr)" gridTemplateColumns="repeat(7, 1fr)" gridGap="15px" style={{gridAutoFlow: "column"}}>
+                                <Grid
+                                    pt="20px"
+                                    gridTemplateRows="repeat(3, 1fr)"
+                                    gridTemplateColumns="repeat(7, 1fr)"
+                                    gridGap="15px"
+                                    style={{gridAutoFlow: "column"}}
+                                >
                                     {page.items.map((app, index) => (
                                         <ApplicationCard
                                             key={index}
@@ -142,7 +148,6 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
             const page = this.props.applications.has(tag) ? this.props.applications.get(tag)! : emptyPage;
             this.props.receiveAppsByKey(page.itemsPerPage, page.pageNumber, tag);
         });
-
     }
 
     private itemsPerPage(props: ApplicationsProps = this.props): number {
@@ -167,6 +172,39 @@ const ScrollBox = styled(Box)`
     overflow-x: scroll;
 `;
 
+const ToolGroupWrapper = styled(Flex)`
+    width: 100%;
+    height: 200px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-top: 30px;
+    background-color: ${props => props.theme.colors.appCard};
+    box-shadow: ${(theme.shadows as any).sm};
+    border-radius: 5px;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
+`;
+
+const ToolImageWrapper = styled(Box)`
+    display: flex;
+    width: 200px;
+    justify-items: center;
+    justify-content: center;
+    align-items: center;
+    margin-right: 10px;
+`;
+
+const ToolImage = styled.img`
+    max-width: 200px;
+    max-height: 190px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: auto;
+    margin-bottom: auto;
+    height: auto;
+    width: 100%;
+`;
+
 // tslint:disable-next-line: variable-name
 const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}) => {
     const allTags = props.page.items.map(it => it.tags);
@@ -176,51 +214,56 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
     const [, setLoadedImage] = useState(true);
     useEffect(() => setLoadedImage(true));
     return (
-        <CardToolContainer appImage={url} mt="30px">
-            <Spacer
-                alignItems={"center"}
-                left={<Heading.h3> {props.tag} </Heading.h3>}
-                right={(
-                    <ShowAllTagItem tag={props.tag}>
-                        <Heading.h5><strong> Show All</strong></Heading.h5>
-                    </ShowAllTagItem>
-                )}
-            />
-            <ScrollBox>
-                <Grid
-                    py="10px"
-                    pl="10px"
-                    gridTemplateRows="repeat(2, 1fr)"
-                    gridTemplateColumns="repeat(9, 1fr)"
-                    gridGap="8px"
-                    gridAutoFlow="column"
-                >
-                    {props.page.items.map(application => {
-                        const [first, second, third] = getColorFromName(application.metadata.name);
-                        const withoutTag = removeTagFromTitle(props.tag, application.metadata.title);
-                        return (
-                            <div key={application.metadata.name}>
-                                <SmallCard
-                                    title={withoutTag}
-                                    color1={first}
-                                    color2={second}
-                                    color3={third}
-                                    to={Pages.viewApplication(application.metadata)}
-                                    color={`white`}
-                                >
-                                    <EllipsedText>{withoutTag}</EllipsedText>
-                                </SmallCard>
-                            </div>
-                        );
-                    })}
-                </Grid>
-            </ScrollBox>
-            <Flex mt="14px" flexDirection={"row"} alignItems={"flex-start"} >
-                {[...tags].filter(it => it !== props.tag).map(tag => (
-                    <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
-                ))}
-            </Flex>
-        </CardToolContainer>
+        <ToolGroupWrapper>
+            <ToolImageWrapper>
+                <ToolImage src={url} />
+            </ToolImageWrapper>
+            <CardToolContainer>
+                <Spacer
+                    alignItems="center"
+                    left={<Heading.h3> {props.tag} </Heading.h3>}
+                    right={(
+                        <ShowAllTagItem tag={props.tag}>
+                            <Heading.h5><strong> Show All</strong></Heading.h5>
+                        </ShowAllTagItem>
+                    )}
+                />
+                <ScrollBox>
+                    <Grid
+                        py="10px"
+                        pl="10px"
+                        gridTemplateRows="repeat(2, 1fr)"
+                        gridTemplateColumns="repeat(9, 1fr)"
+                        gridGap="8px"
+                        gridAutoFlow="column"
+                    >
+                        {props.page.items.map(application => {
+                            const [first, second, third] = getColorFromName(application.metadata.name);
+                            const withoutTag = removeTagFromTitle(props.tag, application.metadata.title);
+                            return (
+                                <div key={application.metadata.name}>
+                                    <SmallCard
+                                        title={withoutTag}
+                                        color1={first}
+                                        color2={second}
+                                        color3={third}
+                                        to={Pages.viewApplication(application.metadata)}
+                                        color="white"
+                                    >
+                                        <EllipsedText>{withoutTag}</EllipsedText>
+                                    </SmallCard>
+                                </div>
+                            );
+                        })}
+                    </Grid>
+                </ScrollBox>
+                <Flex mt="14px" flexDirection="row" alignItems="flex-start">
+                    {[...tags].filter(it => it !== props.tag).map(tag => (
+                        <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
+                    ))}
+                </Flex>
+            </CardToolContainer >
+        </ToolGroupWrapper>
     );
 };
 
@@ -245,6 +288,7 @@ const mapToolGroupStateToProps = (
 ): {page: Page<WithAppMetadata>} => {
     const {applications} = applicationsBrowse;
     const page = applications.get(ownProps.tag);
+    /* FIXME: Replace with null check from TS 3.7 */
     if (page != null) return {page};
     return {page: emptyPage};
 };

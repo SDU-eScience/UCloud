@@ -136,7 +136,6 @@ export const AppCard = styled(Link)`
 
     &:hover {
         transition: transform ${p => `${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall}`};
-        transform: scale(1.02);
         box-shadow: ${p => p.theme.shadowsmd};
     }
 
@@ -350,52 +349,13 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     }
 };
 
-export const CardToolContainer = styled(Box) <{appImage: string}>`
-    padding-bottom: 10px;
-    padding-bottom: 10px;
-    padding-left: 210px;
-    padding-right: 10px;
-    width: 100%;
-    height: 200px;
+export const CardToolContainer = styled(Box)`
     display: grid;
-    gridAutoFlow: column;
     flex-direction: column;
     align-items: flex-start;
-    border-radius: 5px;//${props => props.theme.radius};
+    border-radius: 5px;
     overflow: hidden;
-    box-shadow: ${p => p.theme.shadows.sm};
-
-    will-change: transform;
-
-    // Background
-    &:before {
-        pointer-events: none;
-        content: "";
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        top: 0;
-        left: 0;
-        z-index: -1;
-        background-color: ${props => props.theme.colors.appCard};
-        background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
-    }
-
-    &:after {
-        content: "";
-        position: absolute;
-        width: 200px;
-        height: 100%;
-        top: 0;
-        left: 0;
-        z-index: 1;
-        background-image: url(${props => props.appImage});
-        background-size: contain;
-        background-position: center;
-        border-radius-image: ${props => props.theme.radius};
-        pointer-events: none; //needed for star-badge
-    }
-
+    width: 100%;
 `;
 
 export const SmallCard = styled(Link) <{color1: string, color2: string, color3: string}>`
@@ -403,14 +363,12 @@ export const SmallCard = styled(Link) <{color1: string, color2: string, color3: 
     padding: 10px;
     width: 150px;
     height: 50px;
-
+    border-radius: 5px;
     font-size: ${p => p.theme.fontSizes[1]};
     text-align: center;
     align-items: center;
     justify-content: center;
     background-color: ${p => p.color2};
-    // background: linear-gradient(180deg, ${p => `${p.color1}, ${p.color3}`});
-    // background: radial-gradient(ellipse at bottom left, ${p => `${p.color3}, ${p.color1}`});
     border-radius: 5px
 
     box-shadow: ${p => p.theme.shadows.sm};
