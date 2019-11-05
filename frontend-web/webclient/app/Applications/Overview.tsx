@@ -172,6 +172,39 @@ const ScrollBox = styled(Box)`
     overflow-x: scroll;
 `;
 
+const ToolGroupWrapper = styled(Flex)`
+    width: 100%;
+    height: 200px;
+    padding-bottom: 10px;
+    padding-left: 10px;
+    padding-right: 10px;
+    margin-top: 30px;
+    background-color: ${props => props.theme.colors.appCard};
+    box-shadow: ${(theme.shadows as any).sm};
+    border-radius: 5px;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
+`;
+
+const ToolImageWrapper = styled(Box)`
+    display: flex;
+    width: 200px;
+    justify-items: center;
+    justify-content: center;
+    align-items: center;
+    margin-right: 10px;
+`;
+
+const ToolImage = styled.img`
+    max-width: 200px;
+    max-height: 190px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: auto;
+    margin-bottom: auto;
+    height: auto;
+    width: 100%;
+`;
+
 // tslint:disable-next-line: variable-name
 const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}) => {
     const allTags = props.page.items.map(it => it.tags);
@@ -181,34 +214,10 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
     const [, setLoadedImage] = useState(true);
     useEffect(() => setLoadedImage(true));
     return (
-        <div
-            style={{
-                width: "100%",
-                height: "200px",
-                display: "flex",
-                paddingBottom: "10px",
-                paddingLeft: "10px",
-                paddingRight: "10px",
-                marginBottom: "10px",
-                marginTop: "30px",
-                boxShadow: (theme.shadows as any).sm,
-                borderRadius: "5px",
-                backgroundColor: theme.colors.appCard,
-                backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=")`
-            }}
-        >
-            <Box width="200px">
-                <img
-                    src={url}
-                    style={{
-                        marginRight: "10px",
-                        maxWidth: 200,
-                        maxHeight: 190,
-                        height: "auto",
-                        width: "200px",
-                    }}
-                />
-            </Box>
+        <ToolGroupWrapper>
+            <ToolImageWrapper>
+                <ToolImage src={url} />
+            </ToolImageWrapper>
             <CardToolContainer>
                 <Spacer
                     alignItems="center"
@@ -254,7 +263,7 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
                     ))}
                 </Flex>
             </CardToolContainer >
-        </div >
+        </ToolGroupWrapper>
     );
 };
 
@@ -279,6 +288,7 @@ const mapToolGroupStateToProps = (
 ): {page: Page<WithAppMetadata>} => {
     const {applications} = applicationsBrowse;
     const page = applications.get(ownProps.tag);
+    /* FIXME: Replace with null check from TS 3.7 */
     if (page != null) return {page};
     return {page: emptyPage};
 };

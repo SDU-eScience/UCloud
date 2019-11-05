@@ -136,7 +136,6 @@ export const AppCard = styled(Link)`
 
     &:hover {
         transition: transform ${p => `${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall}`};
-        transform: scale(1.02);
         box-shadow: ${p => p.theme.shadowsmd};
     }
 
