@@ -17,10 +17,7 @@ import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertNull
+import kotlin.test.*
 
 class FileAnnotationServiceTest {
     private val service = FileAnnotationService()
@@ -104,13 +101,12 @@ class FileAnnotationServiceTest {
             statusCode = remoteStatusCode
         )
 
-        val exception = runCatching {
+        val noFavorites = runCatching {
             service.annotate(setOf(FileResource.FAVORITES), listOf(fileA), ClientMock.authenticatedClient)
-        }.exceptionOrNull()
+        }
 
-        assertThatInstance(
-            exception,
-            matcher = { it is RPCException && it.httpStatusCode == remoteStatusCode })
+        noFavorites.getOrNull()?.forEach { it.favorited?.let { favorite -> assertFalse(favorite) }}
+
         return@runBlocking
     }
 }
