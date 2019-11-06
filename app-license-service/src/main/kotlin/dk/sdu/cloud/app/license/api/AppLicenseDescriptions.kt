@@ -9,10 +9,8 @@ import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
-data class PermissionRequest(val appName: String, val appVersion: String)
+data class PermissionRequest(val server_name: String, val server_version: String)
 data class PermissionResponse(val echo: String)
-data class ListServersRequest(val appName: String, val appVersion: String)
-data class ListServersResponse(val echo: String)
 
 
 

@@ -16,9 +16,8 @@ data class PermissionEntry(
 
     @Embeddable
     data class Key(
-        @get:Column(length = 2048) var application_name: String,
-        @get:Column(length = 2048) var application_version: String,
-        @get:Column(length = 2048) var entity: String,
+        @get:Column(length = 255) var server_id: String,
+        @get:Column(length = 255) var entity: String,
         @get:Enumerated(EnumType.STRING) var permission: AccessRight
     ) : Serializable
 }
@@ -51,7 +50,9 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ): Boolean {
         return session
             .criteria<PermissionEntry> {
-                anyOf(licenseServer.address)
+                (entity[PermissionEntry::key][PermissionEntry.Key::entity] equal username) and
+                        (entity[PermissionEntry::key][PermissionEntry.Key::server_id] equal licenseServer.id) and
+                        (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal permission)
             }
             .list()
             .isNotEmpty()

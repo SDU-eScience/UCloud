@@ -13,7 +13,7 @@ class AppLicenseController(appLicenseService: AppLicenseService) : Controller {
         implement(AppLicenseDescriptions.permission) {
             val entity = ctx.securityPrincipal.username
 
-            appLicenseService.hasPermission(entity, request.appName, request.appVersion)
+            appLicenseService.hasPermission(entity, request.name, request.version)
 
             ok(PermissionResponse(request.message))
         }

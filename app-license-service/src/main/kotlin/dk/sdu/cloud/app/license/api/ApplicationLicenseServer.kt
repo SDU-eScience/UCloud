@@ -6,12 +6,13 @@ import dk.sdu.cloud.service.db.withTransaction
 
 class ApplicationLicenseServer<Session>(
     private val aclService: AclService<Session>,
-    val server: String,
+    val id: String,
+    val name: String,
     val version: String,
     val address: String) {
 
     public suspend fun hasPermission(entity: String, permission: AccessRight) : Boolean {
-        return aclService.hasPermission(this, entity, permission)
+        return aclService.hasPermission(this.id, entity, permission)
     }
 
     public fun updatePermission(entity: String, right: AccessRight) {}

@@ -11,11 +11,10 @@ create table application_license_servers
 );
 
 create table permissions (
-    application_name varchar(255) not null,
-    application_version varchar(255) not null,
+    server_id varchar(255) not null,
     username varchar(2048) not null,
     permission varchar(255),
-    primary key (application_name, application_version, username, permission)
+    primary key (server_id, username, permission)
 );
 
-create index permissions_lookup_index on permissions (application_name, application_version, username);
+create index permissions_lookup_index on permissions (server_id, username);
