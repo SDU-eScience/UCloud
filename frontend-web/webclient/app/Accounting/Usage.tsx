@@ -34,7 +34,7 @@ const Container: React.FunctionComponent = props => (
 
 const Quota: React.FunctionComponent<{usage: API.Usage}> = props => {
     const {usage} = props;
-    if (usage.quota === null || usage.quota === undefined) return null;
+    if (usage.quota == null) return null;
 
     const percentage = ((usage.usage / usage.quota) * 100).toFixed(2);
     return <>({percentage}%)</>;

@@ -59,7 +59,7 @@ class DetailedPage extends React.Component<DetailedPageProps> {
     public renderHeader(): React.ReactNode {
         const chartContent = this.props.chart.content;
         if (!chartContent) return null;
-        return <Heading.h2>{chartContent.chart.dataTitle || this.props.match.params.subResource}</Heading.h2>;
+        return <Heading.h2>{chartContent.chart.dataTitle ?? this.props.match.params.subResource}</Heading.h2>;
     }
 
     public renderMain(): React.ReactNode {

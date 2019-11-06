@@ -329,7 +329,7 @@ interface CopyToClipboard {
 
 export function copyToClipboard({value, message}: CopyToClipboard) {
     const input = document.createElement("input");
-    input.value = value || "";
+    input.value = value ?? "";
     document.body.appendChild(input);
     input.select();
     document.execCommand("copy");
@@ -347,7 +347,7 @@ export function errorMessageOrDefault(
             return err.response;
         } else {
             if (err.response.why) return err.response.why;
-            return HTTP_STATUS_CODES[err.request.status] || defaultMessage;
+            return HTTP_STATUS_CODES[err.request.status] ?? defaultMessage;
         }
     } catch {
         return defaultMessage;
@@ -366,7 +366,7 @@ export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
     return (target = "default-target") => {
         /* FIXME: use null coalescing  */
-        const idCount = (store.get(target) || 0) + 1;
+        const idCount = (store.get(target) ?? 0) + 1;
         store.set(target, idCount);
         return `${target}${idCount}`;
     };

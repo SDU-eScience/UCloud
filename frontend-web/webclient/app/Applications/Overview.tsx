@@ -288,7 +288,6 @@ const mapToolGroupStateToProps = (
 ): {page: Page<WithAppMetadata>} => {
     const {applications} = applicationsBrowse;
     const page = applications.get(ownProps.tag);
-    /* FIXME: Replace with null check from TS 3.7 */
     if (page != null) return {page};
     return {page: emptyPage};
 };

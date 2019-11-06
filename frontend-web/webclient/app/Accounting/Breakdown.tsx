@@ -31,7 +31,7 @@ interface BreakdownProps {
 }
 
 function Breakdown(props: BreakdownProps) {
-    const events: API.AccountingEvent[] = props.events || MockEvents.items;
+    const events: API.AccountingEvent[] = props.events ?? MockEvents.items;
     return (
         <Table>
             <LeftAlignedTableHeader>

@@ -10,7 +10,7 @@ interface ChartProps {
 }
 
 function getOrElse<T>(idx: number, otherwise: T, array?: Array<T | null>): T {
-    if (array === null || array === undefined) return otherwise;
+    if (array == null) return otherwise;
     if (array.length < idx + 1) return otherwise;
     const element = array[idx];
     if (element === null) return otherwise;
@@ -19,7 +19,7 @@ function getOrElse<T>(idx: number, otherwise: T, array?: Array<T | null>): T {
 
 function Chart(props: ChartProps) {
 
-    const chart: API.Chart<API.DataPoint2D> = props.chart || MockedChart.chart;
+    const chart: API.Chart<API.DataPoint2D> = props.chart ?? MockedChart.chart;
 
     const normalizedData = chart.data.map(d => {
         const xType = getOrElse(0, DataTypes.NUMBER, chart.dataTypes);
@@ -58,7 +58,7 @@ function Chart(props: ChartProps) {
                     stroke="#006aff"
                     dataKey="value"
                     strokeWidth="3px"
-                    name={chart.dataTitle || "Value"}
+                    name={chart.dataTitle ?? "Value"}
                 />
             </LineChart>
         </Container>

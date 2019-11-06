@@ -17,7 +17,7 @@ export const InputFileParameter = (props: InputFileParameterProps) => (
         <FileInputSelector
             showError={props.initialSubmit || props.parameter.optional}
             key={props.parameter.name}
-            path={props.parameterRef.current && props.parameterRef.current.value || ""}
+            path={props.parameterRef.current?.value ?? ""}
             onFileSelect={file => {
                 props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))
             }}
@@ -34,7 +34,7 @@ export const InputDirectoryParameter = (props: InputFileParameterProps) => (
             defaultValue={props.defaultValue}
             showError={props.initialSubmit || props.parameter.optional}
             key={props.parameter.name}
-            path={props.parameterRef.current && props.parameterRef.current.value || ""}
+            path={props.parameterRef.current?.value ?? ""}
             onFileSelect={file => {
                 props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)))
             }}

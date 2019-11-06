@@ -9,7 +9,7 @@ export interface Reducer {
 
 function genericReduce(state: ReduxType, resource: string, newPartialState: Partial<ResourceState>): ReduxType {
     const result = JSON.parse(JSON.stringify(state));
-    const currentState: ResourceState = result.resources[resource] || emptyResourceState();
+    const currentState: ResourceState = result.resources[resource] ?? emptyResourceState();
     result.resources[resource] = {...currentState, ...newPartialState};
     return result;
 }
