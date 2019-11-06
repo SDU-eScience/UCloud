@@ -10,11 +10,14 @@ import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.runScriptHandler
 
+data class TolerationKeyAndValue(val key: String, val value: String)
+
 data class Configuration(
     val cookieName: String = "appRefreshToken",
     val prefix: String = "app-",
     val domain: String = "cloud.sdu.dk",
-    val performAuthentication: Boolean = true
+    val performAuthentication: Boolean = true,
+    val toleration: TolerationKeyAndValue? = null
 )
 
 fun main(args: Array<String>) {

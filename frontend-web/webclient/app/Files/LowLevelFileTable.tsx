@@ -537,11 +537,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                         <Box flexGrow={1} />
 
                         {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
+                        {/*
                         <a href={"/app/login?dav=true"}>
                             <OutlineButton>
                                 Use your files locally
                             </OutlineButton>
                         </a>
+                        */}
                     </VerticalButtonGroup>
                 </Box>
             )}

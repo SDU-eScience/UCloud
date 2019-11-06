@@ -82,7 +82,8 @@ class Server(override val micro: Micro, private val configuration: Configuration
             networkPolicyService,
             sharedFileSystemMountService,
             broadcastingStream,
-            hostAliasesService
+            hostAliasesService,
+            configuration.toleration
         )
 
         val envoyConfigurationService = EnvoyConfigurationService(
