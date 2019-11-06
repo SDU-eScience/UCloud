@@ -100,6 +100,11 @@ fun compareDocs(context: String, localValue: Any?, remoteValue: Any?) {
             }
         }
 
+        is String -> {
+            if (remoteValue !is String) return complain()
+            if (localValue.trim() != remoteValue.trim()) return complain()
+        }
+
         else -> {
             if (localValue != remoteValue) {
                 complain()
