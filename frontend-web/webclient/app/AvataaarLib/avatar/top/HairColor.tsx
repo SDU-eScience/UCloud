@@ -62,5 +62,4 @@ export default function HairColor(props: Props) {
     case Color.SilverGray:
       return <SilverGray maskID={props.maskID} />;
   }
-  return null;
 }

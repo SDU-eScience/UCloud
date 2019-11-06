@@ -86,8 +86,9 @@ export const reducer = (
 
             return associateBy(updates, it => it.jobId);
         }
+        default:
+            return state;
     }
-    return state;
 };
 
 function insertTimestamps(speeds: Speed[]): Speed[] {

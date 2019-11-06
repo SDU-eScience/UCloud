@@ -75,6 +75,4 @@ export default function Colors(props: Props) {
     case HatColor.White:
       return <White maskID={props.maskID} />;
   }
-  /* FIXME: Remove after avatar-service runs at least 1.3.0 */
-  return <Black maskID={props.maskID} />;
 }
