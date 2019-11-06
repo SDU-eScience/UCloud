@@ -104,8 +104,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
 
     const AvatarComponent = (props: {username: string}) => {
         let avatar = defaultAvatar;
-        const loadedAvatar =
-            !!avatars.data && !!avatars.data.avatars ? avatars.data.avatars[props.username] : undefined;
+        const loadedAvatar = avatars.data?.avatars[props.username] ?? undefined;
         if (!!loadedAvatar) avatar = loadedAvatar;
         return <UserAvatar avatar={avatar} mr={"10px"} />;
     };

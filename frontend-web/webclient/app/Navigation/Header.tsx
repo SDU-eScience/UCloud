@@ -323,14 +323,14 @@ const _Search = (props: SearchProps) => {
         props.searchFiles({
             ...fileSearchBody(
                 props.fileSearch,
-                itemsPerPage || props.files.itemsPerPage,
+                itemsPerPage ?? props.files.itemsPerPage,
                 props.files.pageNumber
             ), fileName: search
         });
         props.searchApplications({
             ...applicationSearchBody(
                 props.appSearch,
-                itemsPerPage || props.applications.itemsPerPage,
+                itemsPerPage ?? props.applications.itemsPerPage,
                 props.applications.pageNumber
             ), query: search
         });

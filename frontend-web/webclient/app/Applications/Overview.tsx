@@ -83,7 +83,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
 
     public render() {
         const {applications} = this.props;
-        const featured = applications.has("Featured") ? applications.get("Featured")! : emptyPage;
+        const featured = applications.get("Featured") ?? emptyPage;
         const main = (
             <>
                 <Installed header={null} />
@@ -287,9 +287,8 @@ const mapToolGroupStateToProps = (
     ownProps: {tag: string}
 ): {page: Page<WithAppMetadata>} => {
     const {applications} = applicationsBrowse;
-    const page = applications.get(ownProps.tag);
-    if (page != null) return {page};
-    return {page: emptyPage};
+    const page = applications.get(ownProps.tag) ?? emptyPage;
+    return {page};
 };
 
 const ToolGroup = connect(mapToolGroupStateToProps)(ToolGroup_);

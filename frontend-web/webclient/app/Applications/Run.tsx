@@ -558,7 +558,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
 
         const {name} = this.state.schedulingOptions;
-        const jobName = name.current && name.current.value;
+        const jobName = name.current?.value;
         let reservation = this.state.reservation.current ? this.state.reservation.current.value : null;
         if (reservation === "") reservation = null;
 
@@ -737,7 +737,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     parametersFromUser.forEach(key => {
                         thisApp.invocation.parameters.find(it => it.name === key)!.visible = true;
                         const ref = this.state.parameterValues.get(key);
-                        if (ref && ref.current) {
+                        if (ref?.current) {
                             if ("value" in ref.current) ref.current.value = userInputValues[key];
                             else (ref.current.setState(() => ({bounds: userInputValues[key] as any})));
                             this.state.parameterValues.set(key, ref);

@@ -183,10 +183,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
             this.setState(() => ({isConnectedToAccount: true}));
         } catch (res) {
             const response = res.response;
-            let why: string = "Could not submit verification code. Try again later";
-            if (response !== undefined && response.why !== undefined) {
-                why = response.why;
-            }
+            const why: string = response?.why ?? "Could not submit verification code. Try again later";
             snackbarStore.addSnack({message: why, type: SnackType.Failure});
         } finally {
             this.props.setLoading(false);

@@ -245,7 +245,6 @@ export function defaultErrorHandler(
     const request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
     let why: string | null = null;
-
     if (!!error.response && !!error.response.why) {
         why = error.response.why;
     }
