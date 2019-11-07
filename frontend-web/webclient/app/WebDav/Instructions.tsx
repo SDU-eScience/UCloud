@@ -238,17 +238,17 @@ const ClickableBox = styled(Box)`
     border-bottom: 1px solid black;
 `;
 
-const ContentContainer = styled("div")`
+const ContentContainer = styled.div`
     width: 800px;
     margin: 0 auto;
 `;
 
-const Screenshot = styled("img")`
+const Screenshot = styled.img`
     max-height: 400px;
     text-align: center;
 `;
 
-const Step = styled("div")`
+const Step = styled.div`
     margin-top: 16px;
 `;
 

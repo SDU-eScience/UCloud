@@ -3,6 +3,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import styled from "styled-components";
+import {theme} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
@@ -72,7 +73,7 @@ const MachineBox: React.FunctionComponent<{machine: MachineReservation}> = ({mac
 const MachineDropdown = styled(Box)`
     cursor: pointer;
     border-radius: 5px;
-    border: ${({theme}) => theme.borderWidth} solid ${({theme}) => theme.colors.midGray};
+    border: ${theme.borderWidth} solid ${({theme}) => theme.colors.midGray};
     padding: 15px;
     width: 100%;
 

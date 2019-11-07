@@ -5,6 +5,7 @@ import {
   width, WidthProps
 } from "styled-system";
 import Text from "./Text";
+import theme from "./theme";
 
 export const borders = ({color, theme, noBorder}: {color?: string, theme?: any, noBorder?: boolean}) => {
   if (noBorder) return {"border-width": "0px"};
@@ -91,7 +92,7 @@ export interface InputLabelProps extends WidthProps {
 }
 
 export const InputLabel = styled(Text) <InputLabelProps>`
-  border: ${({theme}) => theme.colors.borderGray} solid ${({theme}) => theme.borderWidth};
+  border: ${({theme}) => theme.colors.borderGray} solid ${theme.borderWidth};
   ${leftLabel}
   ${rightLabel}
   ${width}
