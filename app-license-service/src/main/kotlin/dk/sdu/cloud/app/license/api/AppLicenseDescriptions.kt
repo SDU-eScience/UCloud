@@ -9,15 +9,13 @@ import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
-data class PermissionRequest(val server_name: String, val server_version: String)
-data class PermissionResponse(val echo: String)
-
-
+data class LicenseServerRequest(val server_id: String)
+data class LicenseServerResponse(val address: String)
 
 object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
     val baseContext = "/api/app/license"
 
-    val permission = call<PermissionRequest, PermissionResponse, CommonErrorMessage>("permission") {
+    val permission = call<LicenseServerRequest, LicenseServerResponse, CommonErrorMessage>("get") {
         auth {
             access = AccessRight.READ
         }
@@ -27,24 +25,6 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                +"permission"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val list = call<ListServersRequest, ListServersResponse, CommonErrorMessage>("list") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"list"
             }
 
             body { bindEntireRequestFromBody() }

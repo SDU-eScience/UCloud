@@ -23,35 +23,16 @@ data class PermissionEntry(
 }
 
 class AclHibernateDao : AclDao<HibernateSession> {
-    /*override fun updatePermissions(
-        session: HibernateSession,
-        path: String,
-        username: String,
-        permissions: Set<AccessRight>
-    ) {
-        val entries =
-            permissions.map { PermissionEntry(path.parent().normalize(), PermissionEntry.Key(path, username, it)) }
-        entries.forEach { session.saveOrUpdate(it) }
-
-        session.deleteCriteria<PermissionEntry> {
-            val key = entity[PermissionEntry::key]
-
-            (key[PermissionEntry.Key::username] equal username) and
-                    (key[PermissionEntry.Key::path] equal path) and
-                    (not(key[PermissionEntry.Key::permission] isInCollection permissions))
-        }.executeUpdate()
-    }*/
-
     override fun hasPermission(
         session: HibernateSession,
-        licenseServer: ApplicationLicenseServer<HibernateSession>,
+        serverId: String,
         username: String,
         permission: AccessRight
     ): Boolean {
         return session
             .criteria<PermissionEntry> {
                 (entity[PermissionEntry::key][PermissionEntry.Key::entity] equal username) and
-                        (entity[PermissionEntry::key][PermissionEntry.Key::server_id] equal licenseServer.id) and
+                        (entity[PermissionEntry::key][PermissionEntry.Key::server_id] equal serverId) and
                         (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal permission)
             }
             .list()
