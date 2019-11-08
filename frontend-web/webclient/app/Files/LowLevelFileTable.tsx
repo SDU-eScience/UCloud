@@ -35,7 +35,7 @@ import {TextSpan} from "ui-components/Text";
 import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {Upload} from "Uploader";
-import {appendUpload, setUploaderCallback, setUploaderVisible, setUploads} from "Uploader/Redux/UploaderActions";
+import {appendUpload, setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {
     createFolder, favoriteFile,
     getFilenameFromPath,
@@ -489,7 +489,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                         left={(
                             <BreadCrumbs
                                 currentPath={props.path ? props.path : ""}
-                                navigate={path => onFileNavigation(path)}
+                                navigate={onFileNavigation}
                                 homeFolder={Cloud.homeFolder}
                             />
                         )}
@@ -500,7 +500,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                     {!isEmbedded && props.path ? null : (
                                         <Refresh
                                             spin={isAnyLoading}
-                                            onClick={() => callbacks.requestReload()}
+                                            onClick={callbacks.requestReload}
                                         />
                                     )}
 
@@ -537,11 +537,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                         <Box flexGrow={1} />
 
                         {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
+                        {/*
                         <a href={"/app/login?dav=true"}>
                             <OutlineButton>
                                 Use your files locally
                             </OutlineButton>
                         </a>
+                        */}
                     </VerticalButtonGroup>
                 </Box>
             )}
@@ -569,7 +571,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                 alignItems="center"
                                 onClick={() => setSorting(SortBy.PATH, invertSortOrder(order))}
                             >
-                                <Box mx="9px" onClick={e => e.stopPropagation()}>
+                                <Box mx="9px" onClick={UF.stopPropagation}>
                                     {isEmbedded ? null : (
                                         <Label>
                                             <Checkbox
@@ -577,7 +579,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                 onClick={() => setChecked(allFiles, !isMasterChecked)}
                                                 checked={isMasterChecked}
                                                 disabled={isMasterDisabled}
-                                                onChange={e => e.stopPropagation()}
+                                                onChange={UF.stopPropagation}
                                             />
                                         </Label>
                                     )}
@@ -694,7 +696,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                                     disabled={file.mockTag !== undefined}
                                                     checked={checkedFiles.has(file.fileId!) &&
                                                         file.mockTag === undefined}
-                                                    onChange={e => e.stopPropagation()}
+                                                    onChange={UF.stopPropagation}
                                                     onClick={() => setChecked([file])}
                                                 />
                                             </Label>
@@ -731,22 +733,23 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                     {/* Launch cell */}
                                     {checkedFiles.size > 0 || file.fileType !== "FILE" ||
                                         (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
-                                        (typeof applications.get(file.path) === "undefined" || applications.get(file.path)!.length < 1) ? null : (
-                                            <ClickableDropdown
-                                                width="175px"
-                                                left="-160px"
-                                                trigger={<Icon name="play" size="1em" />}
-                                            >
-                                                <QuickLaunchApps
-                                                    file={file}
-                                                    applications={applications.get(file.path)}
-                                                    history={history}
-                                                    ml="-17px"
-                                                    mr="-17px"
-                                                    pl="15px"
-                                                />
-                                            </ClickableDropdown>
-                                        )}
+                                        (!applications.has(file.path) || applications.get(file.path)!.length < 1) ?
+                                            null : (
+                                                <ClickableDropdown
+                                                    width="175px"
+                                                    left="-160px"
+                                                    trigger={<Icon name="play" size="1em" />}
+                                                >
+                                                    <QuickLaunchApps
+                                                        file={file}
+                                                        applications={applications.get(file.path)}
+                                                        history={history}
+                                                        ml="-17px"
+                                                        mr="-17px"
+                                                        pl="15px"
+                                                    />
+                                                </ClickableDropdown>
+                                            )}
                                 </TableCell>
                             )}
 
@@ -794,8 +797,7 @@ const mapStateToProps = ({responsive}: ReduxObject) => {
 const mapDispatchToProps = (dispatch: Dispatch) => ({
     showUploader: (path: string) => dispatch(setUploaderVisible(true, path)),
     setUploaderCallback: (cb?: () => void) => dispatch(setUploaderCallback(cb)),
-    /* FIXME: Missing type information. Add interface for function  */
-    appendUpload: upload => dispatch(appendUpload(upload)),
+    appendUpload: (upload: Upload) => dispatch(appendUpload(upload)),
 });
 
 export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(LowLevelFileTable_);
@@ -899,7 +901,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
         return (
             <>
-                <Flex data-tag={"fileName"} flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
+                <Flex data-tag="fileName" flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
                     <Box title={replaceHomeFolder(props.file.path, Cloud.homeFolder)} width="100%">
                         {props.file.fileType !== "DIRECTORY" ? nameComponent : (
                             <BaseLink
@@ -946,7 +948,7 @@ const setNotSticky = ({notSticky}: {notSticky?: boolean}): {position: "sticky"} 
     notSticky ? null : {position: "sticky"};
 
 const FileTableHeaderCell = styled(TableHeaderCell) <{notSticky?: boolean}>`
-    background-color: ${({theme}) => theme.colors.white};
+    background-color: ${p => p.theme.colors.white};
     top: 144px; //topmenu + header size
     z-index: 10;
     ${setNotSticky}
@@ -976,8 +978,8 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
             break;
     }
 
-    const badge = <SensitivityBadge data-tag={"sensitivityBadge"} bg={def.color}>{def.shortText}</SensitivityBadge>;
-    return <Tooltip right={"0"} top={"1"} mb="50px" trigger={badge}>{def.text}</Tooltip>;
+    const badge = <SensitivityBadge data-tag="sensitivityBadge" bg={def.color}>{def.shortText}</SensitivityBadge>;
+    return <Tooltip right="0" top="1" mb="50px" trigger={badge}>{def.text}</Tooltip>;
 };
 
 const SensitivityBadge = styled.div<{bg: string}>`
@@ -1102,4 +1104,3 @@ function getSortingColumns(): [SortBy, SortBy] {
 function setSortingColumnAt(column: SortBy, columnIndex: 0 | 1) {
     window.localStorage.setItem(`filesSorting${columnIndex}`, column);
 }
-

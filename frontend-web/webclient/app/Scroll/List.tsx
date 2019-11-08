@@ -242,7 +242,9 @@ export class List<Item, OffsetType> extends React.Component<ListProps<Item, Offs
                 <Button
                     onClick={() => this.requestMore(true)}
                     disabled={loading}
-                >Load more</Button>
+                >
+                    Load more
+                </Button>
             </Flex>
         );
     }

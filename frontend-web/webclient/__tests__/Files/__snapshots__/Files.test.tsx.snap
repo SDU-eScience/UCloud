@@ -133,16 +133,6 @@ exports[`Mount Files component 1`] = `
           <div
             className="sc-htpNat gsvqod"
           />
-          <a
-            href="/app/login?dav=true"
-          >
-            <button
-              className="sc-bZQynM sc-gzVnrw hHlzxg"
-              color="blue"
-            >
-              Use your files locally
-            </button>
-          </a>
         </div>
       </div>
     </div>
@@ -183,16 +173,6 @@ exports[`Mount Files component 1`] = `
           <div
             className="sc-htpNat gsvqod"
           />
-          <a
-            href="/app/login?dav=true"
-          >
-            <button
-              className="sc-bZQynM sc-gzVnrw hHlzxg"
-              color="blue"
-            >
-              Use your files locally
-            </button>
-          </a>
         </div>
       </div>
     </div>

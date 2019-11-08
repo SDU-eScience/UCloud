@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.app.kubernetes.TolerationKeyAndValue
 import dk.sdu.cloud.app.kubernetes.services.K8NameAllocator.Companion.JOB_ID_LABEL
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.store.api.ContainerDescription
@@ -19,6 +20,7 @@ import io.fabric8.kubernetes.api.model.PodSecurityContext
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
 import io.fabric8.kubernetes.api.model.Quantity
 import io.fabric8.kubernetes.api.model.ResourceRequirements
+import io.fabric8.kubernetes.api.model.Toleration
 import io.fabric8.kubernetes.api.model.VolumeMount
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.PodResource
@@ -42,7 +44,8 @@ class K8JobCreationService(
     private val networkPolicyService: NetworkPolicyService,
     private val sharedFileSystemMountService: SharedFileSystemMountService,
     private val broadcastingStream: BroadcastingStream,
-    private val hostAliasesService: HostAliasesService
+    private val hostAliasesService: HostAliasesService,
+    private val toleration: TolerationKeyAndValue? = null
 ) {
     fun create(verifiedJob: VerifiedJob) {
         log.info("Creating new job with name: ${verifiedJob.id}")
@@ -319,6 +322,12 @@ class K8JobCreationService(
 
                                     *sharedVolumes.toTypedArray()
                                 )
+
+                                if (toleration != null) {
+                                    withTolerations(
+                                        Toleration("NoSchedule", toleration.key, "Equal", null, toleration.value)
+                                    )
+                                }
                             }
                         }.build()
                     )

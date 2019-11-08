@@ -118,7 +118,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
                 <DashboardNotifications
                     onNotificationAction={onNotificationAction}
                     notifications={notifications}
-                    readAll={() => props.readAll()}
+                    readAll={props.readAll}
                 />
                 <Box>
                     <Box mb="6px" height="142px">

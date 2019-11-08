@@ -25,6 +25,7 @@ import {
     DETAILED_FILES_REMOVE_SENSITIVITIES,
     DETAILED_FILES_REMOVE_TAGS
 } from "./Redux/DetailedFileSearchReducer";
+import {stopPropagation} from "UtilityFunctions";
 
 interface DetailedFileSearchGivenProps {
     defaultFilename?: string;
@@ -148,7 +149,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                             <Label fontSize={1} color="black">
                                 <Checkbox
                                     checked={allowFolders}
-                                    onChange={e => e.stopPropagation()}
+                                    onChange={stopPropagation}
                                     onClick={props.toggleFolderAllowed}
                                 />
                                 Folders
@@ -156,7 +157,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                             <Label fontSize={1} color="black">
                                 <Checkbox
                                     checked={allowFiles}
-                                    onChange={e => e.stopPropagation()}
+                                    onChange={stopPropagation}
                                     onClick={props.toggleFilesAllowed}
                                 />
                                 Files
@@ -167,7 +168,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                             <Label fontSize={1} color="black">
                                 <Checkbox
                                     checked={(includeShares)}
-                                    onChange={e => e.stopPropagation()}
+                                    onChange={stopPropagation}
                                     onClick={props.toggleIncludeShares}
                                 />
                             </Label>
@@ -195,7 +196,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                         <ClickableDropdown
                             width="100%"
                             chevron
-                            trigger={"Extension presets"}
+                            trigger="Extension presets"
                             onChange={onAddPresets}
                             options={extensionPresets}
                         />

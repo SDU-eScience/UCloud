@@ -89,7 +89,7 @@ class WorkspaceService<Ctx : FSUserContext>(
 
             try {
                 val file = File(translateAndCheckFile(fsRoot, it.source)).toPath()
-                transferFileNoAccessCheck(
+                transferFileToWorkspaceNoAccessCheck(
                     inputWorkspace,
                     outputWorkspace,
                     symLinkPath,
@@ -245,6 +245,7 @@ class WorkspaceService<Ctx : FSUserContext>(
                 }
 
                 if (existingMount != null && !existingMount.allowMergeDuringTransfer) return@mapNotNull null
+                if (existingMount != null && existingMount.readOnly) return@mapNotNull null
 
                 val matchesGlob = matchers.any { it.matches(path.fileName) }
 
@@ -370,7 +371,7 @@ class WorkspaceService<Ctx : FSUserContext>(
         return defaultMapper.readValue(file.toFile())
     }
 
-    private fun transferFileNoAccessCheck(
+    private fun transferFileToWorkspaceNoAccessCheck(
         inputWorkspace: Path,
         outputWorkspace: Path,
         symLinkPath: Path,
@@ -400,7 +401,7 @@ class WorkspaceService<Ctx : FSUserContext>(
             Files.createDirectories(outputDestinationPath)
 
             file.listAndClose().forEach {
-                transferFileNoAccessCheck(
+                transferFileToWorkspaceNoAccessCheck(
                     inputWorkspace,
                     outputWorkspace,
                     symLinkPath,

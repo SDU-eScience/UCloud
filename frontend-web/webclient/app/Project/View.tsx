@@ -15,8 +15,7 @@ import {
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router";
-import {Button, Flex, Input, Label} from "ui-components";
-import Box from "ui-components/Box";
+import {Box, Button, Flex, Input, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {defaultAvatar} from "UserSettings/Avataaar";
 
@@ -32,7 +31,7 @@ const View: React.FunctionComponent = () => {
 
     useEffect(() => reload(), [id]);
 
-    const onSubmit = async e => {
+    const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const inputField = newMemberRef.current!;
         const username = inputField.value;

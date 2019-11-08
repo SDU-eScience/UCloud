@@ -1,0 +1,57 @@
+---
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: cow-test
+
+spec:
+  template:
+    metadata:
+      name: app-kubernetes-migration
+
+    spec:
+      containers:
+        - name: overlay-creator
+          image: ubuntu:xenial
+          securityContext:
+            privileged: true
+          args:
+            - tail
+            - -f
+            - /dev/null
+          volumeMounts:
+            - mountPath: /mnt/lower
+              name: lower
+              readOnly: true
+              subPath: lower
+
+            - mountPath: /mnt/overlay-data
+              name: overlay-data
+
+            - mountPath: /mnt/overlay
+              name: overlay
+              mountPropagation: Bidirectional
+        - name: user-container
+          image: ubuntu:xenial
+          args:
+            - tail
+            - -f
+            - /dev/null
+          volumeMounts:
+            - mountPath: /mnt/overlay
+              name: overlay
+
+      volumes:
+        - name: lower
+          persistentVolumeClaim:
+            claimName: cephfs
+        - name: overlay-data
+          persistentVolumeClaim:
+            claimName: rbd
+        - name: overlay
+          emptyDir: {}
+
+      restartPolicy: Never
+
+# mount -t overlay -o lowerdir=/mnt/lower/,upperdir=/mnt/overlay-data/upper/,workdir=/mnt/overlay-data/work/ overlay /mnt/overlay/

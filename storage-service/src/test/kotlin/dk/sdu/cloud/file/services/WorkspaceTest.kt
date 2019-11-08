@@ -120,7 +120,7 @@ class WorkspaceTest : WithBackgroundScope() {
         val creationResponse = workspaceService.create(
             username,
             listOf(
-                WorkspaceMount(path, "foo")
+                WorkspaceMount(path, "foo", readOnly = false)
             ),
             false,
             "/input"
@@ -187,7 +187,7 @@ class WorkspaceTest : WithBackgroundScope() {
         val creationResponse = workspaceService.create(
             username,
             listOf(
-                WorkspaceMount(path, "foo")
+                WorkspaceMount(path, "foo", readOnly = false)
             ),
             false,
             "/input"

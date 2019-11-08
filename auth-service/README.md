@@ -34,8 +34,8 @@ user.
 Currently no password policy is implemented.
 
 Login attempts are logged through normal
-[auditing](../service-common/wiki/auditing.md). We do not currently limit
-number of incorrect login attempts.
+[auditing](../service-common/wiki/auditing.md). We limit
+number of incorrect login attempts according to the following [recommendations](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#account-lockout).
 
 Passwords are stored following recommendations by
 [OWASP](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Password_Storage_Cheat_Sheet.md).

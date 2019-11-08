@@ -65,7 +65,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
     }, []);
 
     function fetchJobs(options?: FetchJobsOptions) {
-        const opts = options || {};
+        const opts = options ?? {};
         const {page, setLoading} = props;
         const itemsPerPage = opts.itemsPerPage != null ? opts.itemsPerPage : page.itemsPerPage;
         const pageNumber = opts.pageNumber != null ? opts.pageNumber : page.pageNumber;
@@ -175,71 +175,73 @@ function JobResults(props: AnalysesProps & {history: History}) {
             filter: value === "Don't filter" ? undefined : value as JobState
         });
     }
-    const sidebar = (<Box pt={48}>
-        <Heading.h3>
-            Quick Filters
+    const sidebar = (
+        <Box pt={48}>
+            <Heading.h3>
+                Quick Filters
         </Heading.h3>
-        <Box cursor="pointer" onClick={fetchJobsInRange(getStartOfDay(new Date()), null)}>
-            <TextSpan>Today</TextSpan>
+            <Box cursor="pointer" onClick={fetchJobsInRange(getStartOfDay(new Date()), null)}>
+                <TextSpan>Today</TextSpan>
+            </Box>
+            <Box
+                cursor="pointer"
+                onClick={fetchJobsInRange(new Date(startOfYesterday), new Date(startOfYesterday.getTime() + dayInMillis))}
+            >
+                <TextSpan>Yesterday</TextSpan>
+            </Box>
+            <Box
+                cursor="pointer"
+                onClick={fetchJobsInRange(new Date(startOfWeek), null)}
+            >
+                <TextSpan>This week</TextSpan>
+            </Box>
+            <Box cursor="pointer" onClick={fetchJobsInRange(null, null)}><TextSpan>No filter</TextSpan></Box>
+            <Heading.h3 mt={16}>Active Filters</Heading.h3>
+            <Label>Filter by app state</Label>
+            <ClickableDropdown
+                chevron
+                trigger={filter.text}
+                onChange={updateFilterAndFetchJobs}
+                options={appStates.filter(it => it.value !== filter.value)}
+            />
+            <Box mb={16} mt={16}>
+                <Label>Job created after</Label>
+                <InputGroup>
+                    <DatePicker
+                        placeholderText="Don't filter"
+                        isClearable
+                        selectsStart
+                        showTimeInput
+                        startDate={firstDate}
+                        endDate={secondDate}
+                        selected={firstDate}
+                        onChange={date => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
+                        timeFormat="HH:mm"
+                        dateFormat="dd/MM/yy HH:mm"
+                    />
+                </InputGroup>
+            </Box>
+            <Box mb={16}>
+                <Label>Job created before</Label>
+                <InputGroup>
+                    <DatePicker
+                        placeholderText="Don't filter"
+                        isClearable
+                        selectsEnd
+                        showTimeInput
+                        startDate={firstDate}
+                        endDate={secondDate}
+                        selected={secondDate}
+                        onChange={date => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
+                        onSelect={d => fetchJobsInRange(firstDate, d)}
+                        timeFormat="HH:mm"
+                        dateFormat="dd/MM/yy HH:mm"
+                    />
+                </InputGroup>
+            </Box>
+            <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()} />
         </Box>
-        <Box
-            cursor="pointer"
-            onClick={fetchJobsInRange(new Date(startOfYesterday), new Date(startOfYesterday.getTime() + dayInMillis))}
-        >
-            <TextSpan>Yesterday</TextSpan>
-        </Box>
-        <Box
-            cursor="pointer"
-            onClick={fetchJobsInRange(new Date(startOfWeek), null)}
-        >
-            <TextSpan>This week</TextSpan>
-        </Box>
-        <Box cursor="pointer" onClick={fetchJobsInRange(null, null)}><TextSpan>No filter</TextSpan></Box>
-        <Heading.h3 mt={16}>Active Filters</Heading.h3>
-        <Label>Filter by app state</Label>
-        <ClickableDropdown
-            chevron
-            trigger={filter.text}
-            onChange={updateFilterAndFetchJobs}
-            options={appStates.filter(it => it.value !== filter.value)}
-        />
-        <Box mb={16} mt={16}>
-            <Label>Job created after</Label>
-            <InputGroup>
-                <DatePicker
-                    placeholderText="Don't filter"
-                    isClearable
-                    selectsStart
-                    showTimeInput
-                    startDate={firstDate}
-                    endDate={secondDate}
-                    selected={firstDate}
-                    onChange={date => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
-                    timeFormat="HH:mm"
-                    dateFormat="dd/MM/yy HH:mm"
-                />
-            </InputGroup>
-        </Box>
-        <Box mb={16}>
-            <Label>Job created before</Label>
-            <InputGroup>
-                <DatePicker
-                    placeholderText="Don't filter"
-                    isClearable
-                    selectsEnd
-                    showTimeInput
-                    startDate={firstDate}
-                    endDate={secondDate}
-                    selected={secondDate}
-                    onChange={date => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
-                    onSelect={d => fetchJobsInRange(firstDate, d)}
-                    timeFormat="HH:mm"
-                    dateFormat="dd/MM/yy HH:mm"
-                />
-            </InputGroup>
-        </Box>
-        <AnalysisOperations cancelableAnalyses={cancelableAnalyses} onFinished={() => fetchJobs()} />
-    </Box>);
+    );
 
     return (
         <MainContainer
