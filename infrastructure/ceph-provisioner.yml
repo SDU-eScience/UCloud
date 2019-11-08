@@ -19,7 +19,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["events"]
-    verbs: ["create", "update", "patch"]
+    verbs: ["get", "create", "list", "update", "patch"]
   - apiGroups: [""]
     resources: ["services"]
     resourceNames: ["kube-dns","coredns"]
@@ -33,6 +33,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: rbd-provisioner
+  namespace: kube-system
 rules:
 - apiGroups: [""]
   resources: ["secrets"]
@@ -60,6 +61,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: rbd-provisioner
+  namespace: kube-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -74,12 +76,14 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rbd-provisioner
+  namespace: kube-system
 
 ---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: rbd-provisioner
+  namespace: kube-system
 spec:
   replicas: 1
   strategy:
@@ -91,7 +95,7 @@ spec:
     spec:
       containers:
       - name: rbd-provisioner
-        image: "quay.io/external_storage/rbd-provisioner:v1.0.0-k8s1.10"
+        image: "quay.io/external_storage/rbd-provisioner:latest" #v1.0.0-k8s1.10"
         #image: "registry.cloud.sdu.dk/sdu-cloud/ceph-rbd-provisioner:ceph14.2"
         env:
         - name: PROVISIONER_NAME

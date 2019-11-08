@@ -29,6 +29,7 @@ export enum JobState {
 export interface AdvancedSearchRequest {
     query?: string;
     tags?: string[];
+    showAllVersions: boolean;
 
     // FIXME: replace with PaginationRequest
     itemsPerPage: number;
@@ -290,6 +291,7 @@ export interface DetailedApplicationSearchReduxState {
     hidden: boolean;
     appQuery: string;
     tags: Set<string>;
+    showAllVersions: boolean;
     error?: string;
     loading: boolean;
 }
@@ -299,6 +301,7 @@ export interface DetailedApplicationOperations {
     addTag: (tag: string) => void;
     removeTag: (tag: string) => void;
     clearTags: () => void;
+    setShowAllVersions: () => void;
     // tslint:disable-next-line:ban-types
     fetchApplications: (b: AdvancedSearchRequest, c?: Function) => void;
 }

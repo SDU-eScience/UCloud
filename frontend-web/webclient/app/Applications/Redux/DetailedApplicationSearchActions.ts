@@ -1,4 +1,3 @@
-
 import {AdvancedSearchRequest} from "Applications";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {Action} from "redux";
@@ -13,9 +12,11 @@ import {
     DETAILED_APPS_CLEAR_TAGS,
     DETAILED_APPS_REMOVE_TAG,
     DETAILED_APPS_SET_NAME,
+    DETAILED_APPS_SHOW_ALL_VERSIONS
 } from "./DetailedApplicationSearchReducer";
+import * as DFSReducer from "Files/Redux/DetailedFileSearchReducer";
 
-export type DetailedAppActions = SetAppQuery | AddTag | RemoveTag | ClearTags |
+export type DetailedAppActions = SetAppQuery | AddTag | RemoveTag | ClearTags | SetShowAllVersions |
     Action<typeof DETAILED_APPLICATION_SET_ERROR>;
 
 
@@ -38,6 +39,11 @@ export const tagAction = (
 type ClearTags = Action<typeof DETAILED_APPS_CLEAR_TAGS>;
 export const clearTags = (): ClearTags => ({
     type: DETAILED_APPS_CLEAR_TAGS
+});
+
+type SetShowAllVersions = Action<typeof DETAILED_APPS_SHOW_ALL_VERSIONS>;
+export const setShowAllVersions = (): SetShowAllVersions => ({
+    type: DETAILED_APPS_SHOW_ALL_VERSIONS,
 });
 
 export async function fetchApplications(body: AdvancedSearchRequest) {

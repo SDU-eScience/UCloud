@@ -287,5 +287,6 @@ export const initApplicationsAdvancedSearch = (): DetailedApplicationSearchRedux
     loading: false,
     hidden: true,
     appQuery: "",
-    tags: new Set()
+    tags: new Set(),
+    showAllVersions: false
 });

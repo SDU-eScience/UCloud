@@ -240,10 +240,11 @@ export function applicationSearchBody(
     itemsPerPage: number,
     page: number
 ): AppSearchRequest {
-    const {appQuery, tags} = body;
+    const {appQuery, tags, showAllVersions} = body;
     return {
         query: !!appQuery ? appQuery : undefined,
         tags: tags.size > 0 ? [...tags] : undefined,
+        showAllVersions: showAllVersions,
         itemsPerPage,
         page
     };
