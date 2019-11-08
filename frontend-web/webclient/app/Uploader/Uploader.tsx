@@ -338,7 +338,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         }
     }
 
-    private startAllUploads(event: {preventDefault: () => void}) {
+    private startAllUploads = (event: {preventDefault: () => void}) => {
         event.preventDefault();
         this.props.uploads.forEach(it => {
             if (!it.uploadXHR) it.isPending = true;
@@ -346,7 +346,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         this.startPending();
     }
 
-    private removeUpload(index: number) {
+    private removeUpload = (index: number) => {
         const files = this.props.uploads.slice();
         if (index < files.length) {
             const remainderFiles = removeEntry(files, index);
@@ -382,7 +382,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         this.props.setUploads(removeEntry(this.props.uploads, index));
     }
 
-    private clearFinishedUploads() {
+    private clearFinishedUploads = () => {
         this.props.setUploads(this.props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)));
     }
 
