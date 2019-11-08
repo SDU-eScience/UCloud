@@ -48,15 +48,17 @@ function Activity(props: ActivityProps) {
 
     function renderMain(): React.ReactNode {
         const {scroll, loading, fetchActivity} = props;
-        return <Scroll.List
-            scroll={scroll}
-            scrollSize={scrollSize}
-            onNextScrollRequested={req => fetchActivity(req, props)}
-            loading={loading}
-            frame={(ref, children) => <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>}
-            renderer={props => <ActivityFeedItem activity={props.item} />}
-            spacer={height => <ActivityFeedSpacer key={`spacer${height}`} height={height} />}
-        />;
+        return (
+            <Scroll.List
+                scroll={scroll}
+                scrollSize={scrollSize}
+                onNextScrollRequested={req => fetchActivity(req, props)}
+                loading={loading}
+                frame={(ref, children) => <ActivityFeedFrame containerRef={ref}>{children}</ActivityFeedFrame>}
+                renderer={props => <ActivityFeedItem activity={props.item} />}
+                spacer={height => <ActivityFeedSpacer key={`spacer${height}`} height={height} />}
+            />
+        );
     }
 
     function renderSidebar(): React.ReactNode {
@@ -79,12 +81,14 @@ function Activity(props: ActivityProps) {
                 <TimeFilter
                     text={"Event created after"}
                     selected={minTimestamp}
-                    onChange={minTimestamp => applyFilter({minTimestamp})} />
+                    onChange={minTimestamp => applyFilter({minTimestamp})}
+                />
 
                 <TimeFilter
                     text={"Event created before"}
                     selected={maxTimestamp}
-                    onChange={maxTimestamp => applyFilter({maxTimestamp})} />
+                    onChange={maxTimestamp => applyFilter({maxTimestamp})}
+                />
             </>
         );
     }
@@ -95,25 +99,32 @@ function Activity(props: ActivityProps) {
         const startOfWeek = getStartOfWeek(now);
         const startOfYesterday = getStartOfDay(new Date(startOfToday.getTime() - 1));
 
-        return <Box mb={16}>
-            <Heading.h3>Quick Filters</Heading.h3>
+        return (
             <Box mb={16}>
-                {filter("Today", {minTimestamp: startOfToday, maxTimestamp: undefined})}
-                {filter("Yesterday", {maxTimestamp: startOfToday, minTimestamp: startOfYesterday})}
-                {filter("This week", {minTimestamp: startOfWeek, maxTimestamp: undefined})}
-                {filter("No filter", {minTimestamp: undefined, maxTimestamp: undefined, type: undefined})}
+                <Heading.h3>Quick Filters</Heading.h3>
+                <Box mb={16}>
+                    {filter("Today", {minTimestamp: startOfToday, maxTimestamp: undefined})}
+                    {filter("Yesterday", {maxTimestamp: startOfToday, minTimestamp: startOfYesterday})}
+                    {filter("This week", {minTimestamp: startOfWeek, maxTimestamp: undefined})}
+                    {filter("No filter", {minTimestamp: undefined, maxTimestamp: undefined, type: undefined})}
+                </Box>
             </Box>
-        </Box>;
+        );
     }
 
     function filter(title: string, filter: Partial<ActivityFilter>) {
-        return <BaseLink
-            style={{display: "block"}}
-            href={"#"}
-            onClick={e => {
-                e.preventDefault();
-                applyFilter(filter);
-            }}>{title}</BaseLink>;
+        return (
+            <BaseLink
+                style={{display: "block"}}
+                href="#"
+                onClick={e => {
+                    e.preventDefault();
+                    applyFilter(filter);
+                }}
+            >
+                {title}
+            </BaseLink>
+        );
     }
 
     function applyFilter(filter: Partial<ActivityFilter>) {
@@ -162,7 +173,7 @@ export const TimeFilter = (props: {text: string, onChange: (ts?: Date) => void, 
                 showTimeInput
                 placeholderText={"Don't filter"}
                 selected={props.selected}
-                onChange={ts => props.onChange(ts || undefined)}
+                onChange={ts => props.onChange(ts ?? undefined)}
                 timeIntervals={15}
                 isClearable
                 selectsStart

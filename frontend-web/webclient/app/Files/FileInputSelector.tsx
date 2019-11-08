@@ -32,8 +32,8 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
     };
     const uploadButton = props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
     const removeButton = props.remove ? (<RemoveButton onClick={() => props.remove!()} />) : null;
-    const inputRefValueOrNull = props.inputRef && props.inputRef.current && props.inputRef.current.value;
-    const inputValue = inputRefValueOrNull || replaceHomeFolder(path, Cloud.homeFolder);
+    const inputRefValueOrNull = props.inputRef?.current?.value;
+    const inputValue = inputRefValueOrNull ?? replaceHomeFolder(path, Cloud.homeFolder);
 
     return (
         <FileSelector

@@ -39,7 +39,7 @@ const size = (p: {size: string, theme: Theme}) => {
 const OutlineButton = styled(Button) <OutlineButtonProps>`
   color: ${props => props.color ? props.theme.colors[props.color] : props.theme.colors.blue};
   border: 2px solid ${props => props.color ? props.theme.colors[props.color] : props.theme.colors.blue};
-  border-radius: ${props => props.theme.radius};
+  border-radius: ${theme.radius};
   background-color: transparent;
 
   &:hover {

@@ -104,7 +104,7 @@ function UserCreation(props: UserCreationOperations) {
                             Username
                             <Input
                                 value={username}
-                                color={usernameError ? "red" : "gray"}
+                                color={usernameError ? "red" : undefined}
                                 onChange={e => updateFields("username", e.target.value)}
                                 placeholder="Username..."
                             />
@@ -114,7 +114,7 @@ function UserCreation(props: UserCreationOperations) {
                             <Input
                                 value={password}
                                 type="password"
-                                color={passwordError ? "red" : "gray"}
+                                color={passwordError ? "red" : undefined}
                                 onChange={e => updateFields("password", e.target.value)}
                                 placeholder="Password..."
                             />
@@ -124,7 +124,7 @@ function UserCreation(props: UserCreationOperations) {
                             <Input
                                 value={repeatedPassword}
                                 type="password"
-                                color={passwordError ? "red" : "gray"}
+                                color={passwordError ? "red" : undefined}
                                 onChange={e => updateFields("repeatedPassword", e.target.value)}
                                 placeholder="Repeat password..."
                             />

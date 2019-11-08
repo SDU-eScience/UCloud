@@ -74,5 +74,7 @@ export default function Colors(props: Props) {
       return <Red maskID={props.maskID} />;
     case HatColor.White:
       return <White maskID={props.maskID} />;
+    default:
+      return <Black maskID={props.maskID} />;
   }
 }

@@ -47,7 +47,7 @@ const Usage: React.FunctionComponent<{
     renderTitle?: boolean
 }> = props => {
     const {usage} = props;
-    const type = (usage.dataType || DataTypes.NUMBER);
+    const type = (usage.dataType ?? DataTypes.NUMBER);
     return (
         <>
             <Heading.h2 title={API.formatDataTypeLong(type, usage.usage)}>
@@ -101,7 +101,7 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type>, ownProps: UsageOwn
 
 const mapStateToProps = (state: ReduxObject, ownProps: UsageOwnProps): UsageStateProps => {
     const name = resourceName(ownProps.resource, ownProps.subResource);
-    const resource = state.accounting.resources[name] || emptyResourceState();
+    const resource = state.accounting.resources[name] ?? emptyResourceState();
     return {usage: resource.usage};
 };
 

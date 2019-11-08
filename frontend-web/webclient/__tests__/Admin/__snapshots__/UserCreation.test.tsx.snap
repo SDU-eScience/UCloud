@@ -121,7 +121,7 @@ exports[`UserCreation Mount 1`] = `
   background-color: transparent;
   margin: 0;
   border-width: 2px;
-  border-color: #8393A7;
+  border-color: #c9d3df;
   border-style: solid;
   padding-top: 7px;
   padding-bottom: 7px;
@@ -154,7 +154,7 @@ exports[`UserCreation Mount 1`] = `
 
 .c12:focus {
   outline: 0;
-  border-color: #8393A7;
+  border-color: #006aff;
 }
 
 .c11 {
@@ -353,7 +353,6 @@ exports[`UserCreation Mount 1`] = `
         Username
         <input
           className="c12"
-          color="gray"
           id="default"
           onChange={[Function]}
           placeholder="Username..."
@@ -371,7 +370,6 @@ exports[`UserCreation Mount 1`] = `
         Password
         <input
           className="c12"
-          color="gray"
           id="default"
           onChange={[Function]}
           placeholder="Password..."
@@ -390,7 +388,6 @@ exports[`UserCreation Mount 1`] = `
         Repeat password
         <input
           className="c12"
-          color="gray"
           id="default"
           onChange={[Function]}
           placeholder="Repeat password..."

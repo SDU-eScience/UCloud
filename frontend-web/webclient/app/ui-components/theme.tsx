@@ -478,7 +478,7 @@ const theme = {
   appColors,
   radii,
   radius,
-  shadows,
+  shadows: shadows as string[] & {sm: string; md: string; lg: string; xl: string; xxl: string;},
   maxContainerWidth,
   duration,
   timingFunctions,

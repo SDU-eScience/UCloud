@@ -60,7 +60,8 @@ export class DataList extends React.PureComponent<DataListProps, {text: string, 
                 ))}
                 {results.length > this.totalShown ? <Box mb="0.5em">...</Box> : null}
                 {results.length === 0 ? <Box mb="0.5em">No Results</Box> : null}
-            </ClickableDropdown>);
+            </ClickableDropdown>
+        );
     }
 
     private onSelect(content: string, value: string) {

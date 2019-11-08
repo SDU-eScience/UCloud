@@ -57,10 +57,10 @@ const sm = "sm";
 
 const TooltipContent = styled(Box) <TooltipContentProps>`
   display: none;
-  box-shadow: ${p => p.theme.shadows[sm]};
-  font-size: ${p => p.theme.fontSizes[0]}px;
+  box-shadow: ${theme.shadows[sm]};
+  font-size: ${theme.fontSizes[0]}px;
   position: absolute;
-  border-radius: ${p => p.theme.radii[1]}px;
+  border-radius: ${theme.radii[1]}px;
   box-sizing: border-box;
   background: ${p => p.theme.colors[p.bg]};
   text-align: center;

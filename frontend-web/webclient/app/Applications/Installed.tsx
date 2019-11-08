@@ -31,7 +31,7 @@ type InstalledStateProps = ReduxType;
 
 type InstalledProps = InstalledOperations & InstalledStateProps;
 
-function Installed(props: InstalledProps & {header: any}) {
+function Installed(props: InstalledProps & {header: React.ReactNode}) {
 
     React.useEffect(() => {
         props.onInit();
@@ -42,8 +42,8 @@ function Installed(props: InstalledProps & {header: any}) {
 
     function refresh() {
         const {content} = props.applications;
-        const pageNumber = !!content ? content.pageNumber : 0;
-        const itemsPerPage = !!content ? content.itemsPerPage : 25;
+        const pageNumber = content?.pageNumber ?? 0;
+        const itemsPerPage = content?.itemsPerPage ?? 25;
         if (props.header !== null) props.setRefresh(() => props.fetchItems(pageNumber, itemsPerPage));
     }
 

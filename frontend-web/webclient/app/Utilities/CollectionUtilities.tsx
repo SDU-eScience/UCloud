@@ -29,7 +29,7 @@ export function groupBy<T>(items: T[], keySelector: (t: T) => string): Dictionar
     const result: Dictionary<T[]> = {};
     items.forEach(item => {
         const key = keySelector(item);
-        const newList = result[key] || [];
+        const newList = result[key] ?? [];
         newList.push(item);
         result[key] = newList;
     });

@@ -13,8 +13,10 @@ export enum Tag {
 }
 
 export type Type = ReceiveChart | ReceiveEvents | ReceiveUsage | ClearResource;
-type ReceiveChart = PayloadAction<typeof Tag.RECEIVE_CHART, {resource: string, event: LoadableEvent<API.ChartResponse>}>;
-type ReceiveEvents = PayloadAction<typeof Tag.RECEIVE_EVENTS, {resource: string, event: LoadableEvent<Page<API.AccountingEvent>>}>;
+type ReceiveChart =
+    PayloadAction<typeof Tag.RECEIVE_CHART, {resource: string, event: LoadableEvent<API.ChartResponse>}>;
+type ReceiveEvents =
+    PayloadAction<typeof Tag.RECEIVE_EVENTS, {resource: string, event: LoadableEvent<Page<API.AccountingEvent>>}>;
 type ReceiveUsage = PayloadAction<typeof Tag.RECEIVE_USAGE, {resource: string, event: LoadableEvent<API.Usage>}>;
 type ClearResource = PayloadAction<typeof Tag.CLEAR_RESOURCE, {resource: string}>;
 

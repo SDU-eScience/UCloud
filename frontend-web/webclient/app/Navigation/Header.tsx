@@ -37,7 +37,8 @@ import {
     SelectableText,
     SelectableTextWrapper,
     Support,
-    Text
+    Text,
+    theme
 } from "ui-components";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -170,7 +171,7 @@ const HeaderContainer = styled(Flex)`
     top: 0;
     width: 100%;
     z-index: 100;
-    box-shadow: ${({theme}) => theme.shadows.sm};
+    box-shadow: ${theme.shadows.sm};
 `;
 
 const Logo = () => (
@@ -323,14 +324,14 @@ const _Search = (props: SearchProps) => {
         props.searchFiles({
             ...fileSearchBody(
                 props.fileSearch,
-                itemsPerPage || props.files.itemsPerPage,
+                itemsPerPage ?? props.files.itemsPerPage,
                 props.files.pageNumber
             ), fileName: search
         });
         props.searchApplications({
             ...applicationSearchBody(
                 props.appSearch,
-                itemsPerPage || props.applications.itemsPerPage,
+                itemsPerPage ?? props.applications.itemsPerPage,
                 props.applications.pageNumber
             ), query: search
         });

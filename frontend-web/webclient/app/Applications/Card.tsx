@@ -40,7 +40,7 @@ const AppCardBase = styled(Link)`
     }
 
     & > ${EllipsedText} {
-        color: ${(props) => props.theme.colors.gray};
+        color: ${p => p.theme.colors.gray};
         flex-grow: 1;
     }
 
@@ -125,18 +125,18 @@ export const AppCard = styled(Link)`
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    border-radius: ${props => props.theme.radius};
+    border-radius: ${theme.radius};
     position: relative;
     overflow: hidden;
-    box-shadow: ${p => p.theme.shadows.sm};
+    box-shadow: ${theme.shadows.sm};
     //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
-    transition: transform ${p => `${p.theme.timingFunctions.easeIn} ${p.theme.duration.fastest} ${p.theme.transitionDelays.xsmall}`};
+    transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
     will-change: transform;
 
     &:hover {
-        transition: transform ${p => `${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall}`};
-        box-shadow: ${p => p.theme.shadowsmd};
+        transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
+        box-shadow: ${theme.shadows.md};
     }
 
     // Background
@@ -163,7 +163,7 @@ export const AppCard = styled(Link)`
         z-index: 1;
         border: 2px solid ${props => props.theme.colors.textHighlight};
         opacity: 0;
-        border-radius: ${props => props.theme.radius};
+        border-radius: ${theme.radius};
         pointer-events: none; //needed for star-badge
         will-change: opacity;
     }
@@ -364,21 +364,21 @@ export const SmallCard = styled(Link) <{color1: string, color2: string, color3: 
     width: 150px;
     height: 50px;
     border-radius: 5px;
-    font-size: ${p => p.theme.fontSizes[1]};
+    font-size: ${theme.fontSizes[1]};
     text-align: center;
     align-items: center;
     justify-content: center;
     background-color: ${p => p.color2};
     border-radius: 5px
 
-    box-shadow: ${p => p.theme.shadows.sm};
+    box-shadow: ${theme.shadows.sm};
 
-    transition: transform ${p => `${p.theme.timingFunctions.easeIn} ${p.theme.duration.fastest} ${p.theme.transitionDelays.xsmall}`};
+    transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
     will-change: transform;
 
     &:hover {
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
-        box-shadow: ${p => p.theme.shadows.md};
+        box-shadow: ${theme.shadows.md};
         color: ${p => p.theme.colors.white};
     }
 `;
