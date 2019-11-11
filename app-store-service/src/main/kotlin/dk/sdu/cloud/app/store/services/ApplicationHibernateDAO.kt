@@ -8,9 +8,7 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
 import io.ktor.http.HttpStatusCode
 import org.hibernate.query.Query
-import java.lang.StringBuilder
 import java.util.*
-import javax.persistence.criteria.Predicate
 
 @Suppress("TooManyFunctions") // Does not make sense to split
 class ApplicationHibernateDAO(
@@ -207,13 +205,21 @@ class ApplicationHibernateDAO(
         return doMultiKeywordSearch(session, user.username, firstTenKeywords, paging)
     }
 
-    override fun doMultiKeywordSearch(
+    override fun multiKeywordsearch(
         session: HibernateSession,
-        user: String,
         keywords: List<String>,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite> {
+    ): List<ApplicationEntity> {
+        val keywordsQuery = createKeywordQuery(keywords)
 
+        return createMultiKeyWordApplicationEntityQuery(
+            session,
+            keywords,
+            keywordsQuery
+        ).resultList
+    }
+
+    private fun createKeywordQuery(keywords: List<String>): String {
         var keywordsQuery = "("
         for (i in keywords.indices) {
             if (i == keywords.lastIndex) {
@@ -223,6 +229,39 @@ class ApplicationHibernateDAO(
             keywordsQuery += "lower(A.title) like '%'|| :query$i ||'%' or "
         }
         keywordsQuery += ")"
+
+        return keywordsQuery
+    }
+
+    private fun createMultiKeyWordApplicationEntityQuery(
+        session: HibernateSession,
+        keywords: List<String>,
+        keywordsQuery: String): Query<ApplicationEntity> {
+        return session.typedQuery<ApplicationEntity>(
+            """
+            from ApplicationEntity as A where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where A.title = B.title
+                group by title
+            ) and $keywordsQuery
+            order by A.title
+        """.trimIndent()
+        ).also {
+            for ((i, item) in keywords.withIndex()) {
+                it.setParameter("query$i", item)
+            }
+        }
+    }
+
+    private fun doMultiKeywordSearch(
+        session: HibernateSession,
+        user: String,
+        keywords: List<String>,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummaryWithFavorite> {
+
+        val keywordsQuery = createKeywordQuery(keywords)
         val count = session.typedQuery<Long>(
             """
             select count (A.title)
@@ -239,21 +278,11 @@ class ApplicationHibernateDAO(
             }
         }.uniqueResult().toInt()
 
-        val items = session.typedQuery<ApplicationEntity>(
-            """
-            from ApplicationEntity as A where (A.createdAt) in (
-                select max(createdAt)
-                from ApplicationEntity as B
-                where A.title = B.title
-                group by title
-            ) and $keywordsQuery
-            order by A.title
-        """.trimIndent()
-        ).also {
-            for ((i, item) in keywords.withIndex()) {
-                it.setParameter("query$i", item)
-            }
-        }.paginatedList(paging)
+        val items = createMultiKeyWordApplicationEntityQuery(
+            session,
+            keywords,
+            keywordsQuery
+        ).paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
 

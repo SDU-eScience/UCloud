@@ -33,12 +33,11 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
-    fun doMultiKeywordSearch(
+    fun multiKeywordsearch(
         session: Session,
-        user: String,
         keywords: List<String>,
         paging: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite>
+    ): List<ApplicationEntity>
 
     fun findAllByName(
         session: Session,

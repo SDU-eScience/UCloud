@@ -21,6 +21,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
+import org.elasticsearch.action.search.SearchResponse
 
 class AppStoreService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -210,45 +211,69 @@ class AppStoreService<DBSession>(
 
         val results = elasticDAO.search(queryTerms, normalizedTags ?: emptyList())
 
+        if (results.hits.hits.isEmpty()) {
+            return Page(
+                0,
+                paging.itemsPerPage,
+                0,
+                emptyList()
+            )
+        }
+
         if (showAllVersions) {
             val embeddedNameAndVersionList = results.hits.map {
                 val result = defaultMapper.readValue<ElasticIndexedApplication>(it.sourceAsString)
                 EmbeddedNameAndVersion(result.name, result.version)
             }
 
-            val dbResultList = db.withTransaction { session ->
+            val applications = db.withTransaction { session ->
                 applicationDAO.findAllByID(session, user, embeddedNameAndVersionList, paging)
             }
 
-            val map = dbResultList.associateBy(
-                { EmbeddedNameAndVersion(it.id.name.toLowerCase(), it.id.version.toLowerCase()) }, { it }
-            )
+            return sortAndCreatePageByScore(applications, results, user, paging)
 
-            val sortedList = mutableListOf<ApplicationEntity>()
-
-            results.hits.hits.forEach {
-                val foundEntity =
-                    map[EmbeddedNameAndVersion(it.sourceAsMap["name"].toString(), it.sourceAsMap["version"].toString())]
-                sortedList.add(foundEntity!!)
-            }
-
-            val sortedResultsPage = sortedList.map { it.toModelWithInvocation() }.paginate(paging)
-
-            return db.withTransaction { session ->
-                applicationDAO.preparePageForUser(session, user.username, sortedResultsPage)
-                    .mapItems { it.withoutInvocation() }
-            }
         } else {
             val titles = results.hits.map {
                 val result = defaultMapper.readValue<ElasticIndexedApplication>(it.sourceAsString)
                 result.title
             }
-            return db.withTransaction { session ->
-                applicationDAO.doMultiKeywordSearch(session, user.username, titles.toList(), paging)
+
+            val applications =  db.withTransaction { session ->
+                applicationDAO.multiKeywordsearch(session, titles.toList(), paging)
             }
+
+            return sortAndCreatePageByScore(applications, results, user, paging)
         }
     }
 
+
+    private fun sortAndCreatePageByScore(
+        applications: List<ApplicationEntity>,
+        results: SearchResponse,
+        user: SecurityPrincipal,
+        paging: NormalizedPaginationRequest
+    ): Page<ApplicationSummaryWithFavorite> {
+        val map = applications.associateBy(
+            { EmbeddedNameAndVersion(it.id.name.toLowerCase(), it.id.version.toLowerCase()) }, { it }
+        )
+
+        val sortedList = mutableListOf<ApplicationEntity>()
+
+        results.hits.hits.forEach {
+            val foundEntity =
+                map[EmbeddedNameAndVersion(it.sourceAsMap["name"].toString(), it.sourceAsMap["version"].toString())]
+            if (foundEntity != null) {
+                sortedList.add(foundEntity)
+            }
+        }
+
+        val sortedResultsPage = sortedList.map { it.toModelWithInvocation() }.paginate(paging)
+
+        return db.withTransaction { session ->
+            applicationDAO.preparePageForUser(session, user.username, sortedResultsPage)
+                .mapItems { it.withoutInvocation() }
+        }
+    }
     companion object : Loggable {
         override val log = logger()
     }
