@@ -216,7 +216,9 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
     return (
         <ToolGroupWrapper>
             <ToolImageWrapper>
-                <ToolImage src={url} />
+                <div>
+                    <ToolImage src={url} />
+                </div>
             </ToolImageWrapper>
             <CardToolContainer>
                 <Spacer
