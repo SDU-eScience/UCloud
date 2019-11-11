@@ -3,7 +3,7 @@ package dk.sdu.cloud.app.license.rpc
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.AppLicenseService
-import dk.sdu.cloud.app.license.services.acl.Entity
+import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.app.license.services.acl.EntityType
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
@@ -16,11 +16,11 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
     private val licenseService = appLicenseService
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppLicenseDescriptions.permission) {
-            val entity = Entity(
+            val entity = UserEntity(
                 ctx.securityPrincipal.username,
                 EntityType.USER
             )
-            val licenseServer = licenseService.getLicenseServer(entity, request.server_id)
+            val licenseServer = licenseService.getLicenseServer(request.licenseId, entity)
 
             if (licenseServer != null) {
                 ok(LicenseServerResponse(licenseServer.address))
@@ -33,8 +33,8 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                 )
             }
         }
-        implement(AppLicenseDescriptions.update)  {
-            UpdatePermissionResponse("Hello")
+        implement(AppLicenseDescriptions.updateAcl) {
+            licenseService.updateAcl(request, ctx.securityPrincipal.username)
         }
 
         return@configure

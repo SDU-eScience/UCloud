@@ -8,9 +8,21 @@ class AclService<Session>(
     private val db: DBSessionFactory<Session>,
     private val dao: AclDao<Session>) {
 
-    fun hasPermission(entity: Entity, serverId: String, permission: AccessRight): Boolean {
+    fun hasPermission(licenseId: String, entity: UserEntity, permission: AccessRight): Boolean {
         return db.withTransaction {
-            dao.hasPermission(it, entity, serverId, permission)
+            dao.hasPermission(it, licenseId, entity, permission)
+        }
+    }
+
+    fun updatePermission(licenseId: String, entity: UserEntity, permissions: Set<AccessRight>) {
+        db.withTransaction {
+            dao.updatePermission(it, licenseId, entity, permissions)
+        }
+    }
+
+    fun revokePermission(licenseId: String, entity: UserEntity) {
+        db.withTransaction {
+            dao.revokePermission(it, licenseId, entity)
         }
     }
 }

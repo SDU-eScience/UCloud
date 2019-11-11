@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.license.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.license.services.acl.EntityType
+import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
@@ -10,10 +11,26 @@ import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
-data class LicenseServerRequest(val server_id: String)
+data class LicenseServerRequest(val licenseId: String)
 data class LicenseServerResponse(val address: String)
-data class UpdatePermissionRequest(val entityId: String, val entityType: EntityType, val permission: AccessRight)
-data class UpdatePermissionResponse(val echo: String)
+data class UpdateAclResponse(val echo: String)
+
+data class UpdateAclRequest(
+    val licenseId: String,
+    val changes: List<ACLEntryRequest>,
+    val automaticRollback: Boolean? = null
+) {
+    init {
+        if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
+        if (changes.size > 1000) throw IllegalArgumentException("Too many new entries")
+    }
+}
+
+data class ACLEntryRequest(
+    val entity: UserEntity,
+    val rights: Set<AccessRight>,
+    val revoke: Boolean = false
+)
 
 object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
     val baseContext = "/api/app/license"
@@ -34,7 +51,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
-    val update = call<UpdatePermissionRequest, UpdatePermissionResponse, CommonErrorMessage>("updatePermission") {
+    val updateAcl = call<UpdateAclRequest, UpdateAclResponse, CommonErrorMessage>("updateAcl") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -44,7 +61,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                + "update"
+                + "update-acl"
             }
 
             body { bindEntireRequestFromBody() }

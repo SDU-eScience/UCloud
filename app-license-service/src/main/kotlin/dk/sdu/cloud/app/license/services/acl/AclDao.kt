@@ -6,7 +6,7 @@ enum class EntityType {
     PROJECTANDGROUP
 }
 
-data class Entity(
+data class UserEntity(
     val id: String,
     val type: EntityType
 )
@@ -14,8 +14,21 @@ data class Entity(
 interface AclDao<Session> {
     fun hasPermission(
         session: Session,
-        entity: Entity,
-        serverId: String,
+        licenseId: String,
+        entity: UserEntity,
         permission: AccessRight
     ): Boolean
+
+    fun updatePermission(
+        session: Session,
+        licenseId: String,
+        entity: UserEntity,
+        permissions: Set<AccessRight>
+    )
+
+    fun revokePermission(
+        session: Session,
+        licenseId: String,
+        entity: UserEntity
+    )
 }
