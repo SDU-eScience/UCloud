@@ -17,7 +17,7 @@ export class WebSocketFactory {
     }
 
     public open(path: string, settings?: WebSocketOpenSettings): WebSocketConnection {
-        const settingsOrDefault = settings || {};
+        const settingsOrDefault = settings ?? {};
         return new WebSocketConnection(this.cloud, async () => {
             await this.cloud.waitForCloudReady();
 
@@ -78,7 +78,7 @@ export class WebSocketConnection {
     public close() {
         this.internalClosed = true;
         this.socket.close();
-        const closeScript = this.settings.onClose || (() => {
+        const closeScript = this.settings.onClose ?? (() => {
             // Empty
         });
         closeScript(this);
@@ -121,7 +121,7 @@ export class WebSocketConnection {
 
     private async resetSocket(socketFactory: () => Promise<WebSocket>) {
         const socket = await socketFactory();
-        const initScript = this.settings.init || (() => {
+        const initScript = this.settings.init ?? (() => {
             // Do nothing
         });
 

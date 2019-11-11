@@ -242,7 +242,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                     iconSize="1em"
                     textSize={1}
                     space=".5em"
-                    title={Cloud.username || ""}
+                    title={Cloud.username ?? ""}
                 >
                     <Tooltip
                         left="-50%"

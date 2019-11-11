@@ -4,7 +4,7 @@ import {File} from "Files";
 import {Action} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {PayloadAction, SetLoadingAction} from "Types";
+import {Page, PayloadAction, SetLoadingAction} from "Types";
 import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
 import {favoritesQuery, recentFilesQuery} from "Utilities/FileUtilities";
 import {
@@ -43,8 +43,8 @@ export const setErrorMessage = (type: DashboardError): Action<typeof type> => ({
  */
 export const fetchFavorites = async (): Promise<ReceiveFavoritesProps | Action<DashboardError>> => {
     try {
-        const {response} = await Cloud.get(favoritesQuery());
-        return receiveFavorites(response.items.slice(0, 10));
+        const {response} = await Cloud.get<Page<File>>(favoritesQuery(0, 10));
+        return receiveFavorites(response.items);
     } catch {
         snackbarStore.addSnack({
             message: "Failed to fetch favorites. Please try again later.",
