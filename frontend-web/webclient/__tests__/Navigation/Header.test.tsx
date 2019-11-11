@@ -9,7 +9,6 @@ import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
 
 describe("Header", () => {
-    // FIXME Will try to contact backend and get wrong result, overwriting the page
     test("Mount header", () => {
         expect(create(
             <Provider store={store}>
