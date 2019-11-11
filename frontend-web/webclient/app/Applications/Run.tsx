@@ -730,6 +730,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     parametersFromUser.forEach(key =>
                         thisApp.invocation.parameters.find(it => it.name === key)!.visible = true
                     );
+                    // Trigger changes in DOM.
+                    this.setState(() => ({application: thisApp}));
                 }
 
                 {
@@ -943,19 +945,19 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                 <Button fullWidth as="label">
                     Upload file
                 <HiddenInputField
-                    type="file"
-                    onChange={e => {
-                        if (e.target.files) {
-                            const file = e.target.files[0];
-                            if (file.size > 10_000_000) {
-                                snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
-                            } else {
-                                importParameters(file);
+                        type="file"
+                        onChange={e => {
+                            if (e.target.files) {
+                                const file = e.target.files[0];
+                                if (file.size > 10_000_000) {
+                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
+                                } else {
+                                    importParameters(file);
+                                }
+                                dialogStore.success();
                             }
-                            dialogStore.success();
-                        }
-                    }}
-                />
+                        }}
+                    />
                 </Button>
                 <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
                     Select file from SDUCloud
