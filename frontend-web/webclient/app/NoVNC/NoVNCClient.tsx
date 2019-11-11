@@ -81,7 +81,6 @@ function NoVNCClient(props: RouterLocationProps) {
         promiseKeeper.makeCancelable(Cloud.get(`/hpc/jobs/query-vnc/${jobId}`)).promise.then(it => {
             setPassword(it.response.password);
             setPath(it.response.path);
-            connect();
         }).catch(() => undefined);
         return () => {
             if (isConnected) rfb!.disconnect();
@@ -89,7 +88,7 @@ function NoVNCClient(props: RouterLocationProps) {
         };
     }, []);
 
-    function connect() {
+    function onConnect() {
         try {
             const protocol = window.location.protocol === "http:" ? "ws:" : "wss:";
             const rfbClient = new RFB(document.getElementsByClassName("noVNC")[0], `${protocol}//${window.location.host}${path}`, {
@@ -110,7 +109,7 @@ function NoVNCClient(props: RouterLocationProps) {
     }
 
     function disconnect() {
-        rfb!.disconnect();
+        rfb?.disconnect();
         setConnected(false);
     }
 
@@ -148,22 +147,22 @@ function NoVNCClient(props: RouterLocationProps) {
         <>
             <Heading mb="5px">
                 {isConnected ? (
-                    <OutlineButton ml="15px" mr="10px" onClick={() => disconnect()}>
+                    <OutlineButton ml="15px" mr="10px" onClick={disconnect}>
                         Disconnect
                     </OutlineButton>
                 ) : (
                         <div>
-                            <Button ml="15px" onClick={() => connect()}>
+                            <Button ml="15px" onClick={onConnect}>
                                 Connect
-                        </Button>
-                            {isCancelled ? null : (
-                                <Button ml="8px" color="red" onClick={() => cancelJob()}>
-                                    Cancel Job
                             </Button>
+                            {isCancelled ? null : (
+                                <Button ml="8px" color="red" onClick={cancelJob}>
+                                    Cancel Job
+                                </Button>
                             )}
                         </div>
                     )}
-                {isConnected ? <OutlineButton onClick={() => toFullScreen()}>Fullscreen</OutlineButton> : null}
+                {isConnected ? <OutlineButton onClick={toFullScreen}>Fullscreen</OutlineButton> : null}
             </Heading>
             {mountNode}
         </>

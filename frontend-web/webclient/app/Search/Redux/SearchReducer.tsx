@@ -27,7 +27,7 @@ const simpleSearch = (
             return {...state, ...action.payload};
         case SET_SIMPLE_SEARCH_ERROR:
             if (!!action.payload.error) {
-                return {...state, ...action.payload, errors: state.errors.concat([action.payload.error])}
+                return {...state, ...action.payload, errors: state.errors.concat([action.payload.error])};
             }
             return {...state, ...action.payload, errors: []};
         default:

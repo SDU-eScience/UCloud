@@ -1,12 +1,12 @@
-import {Action} from "redux";
+import Cloud from "Authentication/lib";
 import {emptyPage} from "DefaultObjects";
-import Cloud from "Authentication/lib"
+import {Action} from "redux";
 
 export interface SidebarOption {
-    name: string
-    icon: string
-    href: string
-    children?: SidebarOption
+    name: string;
+    icon: string;
+    href: string;
+    children?: SidebarOption;
 }
 
 export interface PaginationRequest {

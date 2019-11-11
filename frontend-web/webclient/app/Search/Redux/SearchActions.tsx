@@ -1,31 +1,30 @@
-import {FullAppInfo} from "Applications";
+import {AdvancedSearchRequest as AppSearchRequest, FullAppInfo} from "Applications";
 import {Cloud} from "Authentication/SDUCloudObject";
 import {AdvancedSearchRequest, File} from "Files";
-import {AdvancedSearchRequest as AppSearchRequest} from "Applications";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page, PayloadAction} from "Types";
+import {advancedSearchQuery} from "Utilities/ApplicationUtilities";
 import {advancedFileSearch} from "Utilities/FileUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import * as SSActionTypes from "./SearchReducer";
-import {advancedSearchQuery} from "Utilities/ApplicationUtilities";
 
 export type SimpleSearchActions = SetFilesLoading | SetApplicationsLoading | SetProjectsLoading | ReceiveFiles |
     ReceiveApplications | SetErrorMessage | SetSearchType;
 
-type SetFilesLoading = PayloadAction<typeof SSActionTypes.SET_SIMPLE_FILES_LOADING, {filesLoading: boolean}>
+type SetFilesLoading = PayloadAction<typeof SSActionTypes.SET_SIMPLE_FILES_LOADING, {filesLoading: boolean}>;
 export const setFilesLoading = (loading: boolean): SetFilesLoading => ({
     type: SSActionTypes.SET_SIMPLE_FILES_LOADING,
     payload: {filesLoading: loading}
 });
 
 type SetApplicationsLoading =
-    PayloadAction<typeof SSActionTypes.SET_SIMPLE_APPLICATIONS_LOADING, {applicationsLoading: boolean}>
+    PayloadAction<typeof SSActionTypes.SET_SIMPLE_APPLICATIONS_LOADING, {applicationsLoading: boolean}>;
 export const setApplicationsLoading = (loading: boolean): SetApplicationsLoading => ({
     type: SSActionTypes.SET_SIMPLE_APPLICATIONS_LOADING,
     payload: {applicationsLoading: loading}
 });
 
-type SetProjectsLoading = PayloadAction<typeof SSActionTypes.SET_SIMPLE_PROJECTS_LOADING, {projectsLoading: boolean}>
+type SetProjectsLoading = PayloadAction<typeof SSActionTypes.SET_SIMPLE_PROJECTS_LOADING, {projectsLoading: boolean}>;
 export const setProjectsLoading = (loading: boolean): SetProjectsLoading => ({
     type: SSActionTypes.SET_SIMPLE_PROJECTS_LOADING,
     payload: {projectsLoading: loading}
@@ -53,7 +52,7 @@ export async function searchApplications(body: AppSearchRequest): Promise<any> {
 }
 
 type ReceiveFiles =
-    PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE, {files: Page<File>, filesLoading: false}>
+    PayloadAction<typeof SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE, {files: Page<File>, filesLoading: false}>;
 export const receiveFiles = (files: Page<File>): ReceiveFiles => ({
     type: SSActionTypes.RECEIVE_SIMPLE_FILES_PAGE,
     payload: {files, filesLoading: false}
@@ -61,7 +60,7 @@ export const receiveFiles = (files: Page<File>): ReceiveFiles => ({
 
 export type ReceiveApplications = PayloadAction<
     typeof SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE, {applications: Page<FullAppInfo>, applicationsLoading: false}
->
+>;
 export const receiveApplications = (applications: Page<FullAppInfo>): ReceiveApplications => ({
     type: SSActionTypes.RECEIVE_SIMPLE_APPLICATIONS_PAGE,
     payload: {applications, applicationsLoading: false}

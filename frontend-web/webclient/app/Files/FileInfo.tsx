@@ -175,7 +175,7 @@ const FileView = ({file, onFavorite, onReclassify}: FileViewProps) =>
 const mapStateToProps = ({fileInfo}: ReduxObject): FileInfoReduxObject & {favorite: boolean} => ({
     loading: fileInfo.loading,
     file: fileInfo.file,
-    favorite: !!(fileInfo.file && fileInfo.file.favorited),
+    favorite: !!(fileInfo.file?.favorited),
     activity: fileInfo.activity,
     error: fileInfo.error
 });
