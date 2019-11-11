@@ -143,7 +143,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   margin-top: 2px;
   width: 100%;
   grid-gap: 10px;
-  grid-template-columns: repeat(auto-fill,minmax(290px,1fr) );
+  grid-template-columns: repeat(auto-fill,minmax(315px,1fr) );
 }
 
 .c6 {

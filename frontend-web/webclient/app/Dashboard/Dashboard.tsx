@@ -41,7 +41,7 @@ import {
 } from "./Redux/DashboardActions";
 
 const DashboardCard: React.FunctionComponent<{title: string, isLoading: boolean}> = ({title, isLoading, children}) => (
-    <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
+    <Card overflow="hidden"  height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
         <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center">
             <Heading.h4>{title}</Heading.h4>
         </Flex>
@@ -98,7 +98,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
     } = props;
     const main = (
         <>
-            <GridCardGroup minmax={290}>
+            <GridCardGroup minmax={315}>
                 <DashboardFavoriteFiles
                     files={favoriteFiles}
                     isLoading={favoriteLoading}

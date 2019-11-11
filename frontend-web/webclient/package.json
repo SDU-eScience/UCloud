@@ -22,7 +22,7 @@
     "jsonwebtoken": "8.5.1",
     "rc-slider": "^8.7.1",
     "react": "16.11.0",
-    "react-datepicker": "2.9.6",
+    "react-datepicker": "2.10.0",
     "react-dom": "16.11.0",
     "react-dropzone": "^10.1.10",
     "react-markdown": "^4.2.2",
