@@ -62,8 +62,12 @@ class AclHibernateDao : AclDao<HibernateSession> {
     override fun revokePermission(
         session: HibernateSession,
         licenseId: String,
-        entity: UserEntity
+        userEntity: UserEntity
     ) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        session.deleteCriteria<PermissionEntry> {
+            (entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal licenseId) and
+                    (entity[PermissionEntry::key][PermissionEntry.Key::entity] equal userEntity.id) and
+                    (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal userEntity.type)
+        }.executeUpdate()
     }
 }
