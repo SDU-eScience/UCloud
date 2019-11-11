@@ -205,7 +205,15 @@ class AppStoreService<DBSession>(
 
         val normalizedQuery = query?.toLowerCase() ?: ""
 
-        val normalizedTags = tagFilter?.map { it.toLowerCase() }
+        val normalizedTags = mutableListOf<String>()
+        tagFilter?.forEach { tag ->
+            if (tag.contains(" ")) {
+                val splittedTag = tag.split(" ")
+                normalizedTags.addAll(splittedTag)
+            } else {
+                normalizedTags.add(tag)
+            }
+        }
 
         val queryTerms = normalizedQuery.split(" ").filter { it.isNotBlank() }
 
