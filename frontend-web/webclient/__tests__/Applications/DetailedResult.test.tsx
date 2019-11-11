@@ -14,7 +14,6 @@ configure({adapter: new Adapter()});
 
 
 describe("Detailed Result", () => {
-    // FIXME: contacts backend on creation
     test("Mount DetailedResult", () => {
         expect(create(
             <Provider store={store}>

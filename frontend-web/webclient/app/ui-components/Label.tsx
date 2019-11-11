@@ -4,7 +4,6 @@ import {
   FontStyleProps, fontWeight, FontWeightProps,
   space, SpaceProps, width, WidthProps
 } from "styled-system";
-import theme from "./theme";
 
 const nowrap = (props: {nowrap?: boolean}): {whiteSpace: "nowrap"} | null =>
   props.nowrap ? {
@@ -29,7 +28,7 @@ export type LabelProps =
   SpaceProps & FontSizeProps & FontStyleProps & ColorProps & FontWeightProps & WidthProps
   & {nowrap?: boolean, hidden?: boolean};
 
-const Label = styled("label") <LabelProps>`
+const Label = styled.label <LabelProps>`
   font-size: 10px;
   letter-spacing: 0.2px;
   display: block;

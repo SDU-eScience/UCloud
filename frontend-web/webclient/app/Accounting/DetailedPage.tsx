@@ -84,7 +84,7 @@ class DetailedPage extends React.Component<DetailedPageProps> {
         return (
             <Pagination.List
                 pageRenderer={p => <Breakdown events={p.items} />}
-                page={events.content || emptyPage}
+                page={events.content ?? emptyPage}
                 loading={events.loading}
                 onPageChanged={(newPage, page) => this.props.fetchEvents(page.itemsPerPage, newPage)}
             />
@@ -115,7 +115,7 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | SetRefreshFunction
 const mapStateToProps = (state: ReduxObject, ownProps: OwnProps): StateProps => {
     const {resource, subResource} = ownProps.match.params;
     const name = resourceName(resource, subResource);
-    const resourceState = state.accounting.resources[name] || emptyResourceState();
+    const resourceState = state.accounting.resources[name] ?? emptyResourceState();
     return {
         events: resourceState.events,
         chart: resourceState.chart

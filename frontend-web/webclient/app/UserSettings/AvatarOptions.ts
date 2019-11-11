@@ -141,7 +141,7 @@ export enum ClothesGraphic {
     SkullOutline = "SkullOutline",
     Skull = "Skull",
     Espie = "Espie",
-    EScienceLogo = "eScienceLogo",
+    EScienceLogo = "EScienceLogo",
     Teeth = "Teeth"
 }
 

@@ -519,7 +519,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             }
 
             sidebar={(
-                <Box pl="5px" pr="5px" height={"calc(100% - 20px)"}>
+                <Box pl="5px" pr="5px" height="calc(100% - 20px)">
                     <VerticalButtonGroup>
                         <FileOperations
                             files={checkedFilesWithInfo}
@@ -588,7 +588,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                 <Box cursor="pointer">Filename</Box>
                             </Flex>
                         </FileTableHeaderCell>
-                        <FileTableHeaderCell notSticky={isEmbedded} width={"3em"}>
+                        <FileTableHeaderCell notSticky={isEmbedded} width="3em">
                             <Flex />
                         </FileTableHeaderCell>
 
@@ -662,7 +662,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                 notSticky={isEmbedded}
 
                                 // TODO This is not correct. We had some custom code before. This should be ported.
-                                width={"3em"}
+                                width="3em"
                             >
                                 <Flex />
                             </FileTableHeaderCell>
@@ -673,7 +673,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                             notSticky={isEmbedded}
 
                             // TODO This is not correct. We had some custom code before. This should be ported.
-                            width={"3em"}
+                            width="3em"
                         >
                             <Flex />
                         </FileTableHeaderCell>
@@ -684,7 +684,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                         <TableRow
                             highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined}
                             key={file.fileId!}
-                            data-tag={"fileRow"}
+                            data-tag="fileRow"
                         >
                             <TableCell>
                                 {/* This cell contains: [Checkbox|Icon|Name|Favorite] */}
@@ -875,7 +875,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 />
 
                 <Icon
-                    size={"1em"}
+                    size="1em"
                     color="red"
                     ml="9px"
                     name="close"
@@ -1070,7 +1070,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
                 onClick={() => quickLaunchCallback(quickLaunchApp, getParentPath(file.path), props.history)}
                 {...props}
             >
-                <AppToolLogo name={quickLaunchApp.metadata.name} size={"20px"} type={"APPLICATION"} />
+                <AppToolLogo name={quickLaunchApp.metadata.name} size="20px" type="APPLICATION" />
                 <span>{quickLaunchApp.metadata.title}</span>
             </Flex>
         );

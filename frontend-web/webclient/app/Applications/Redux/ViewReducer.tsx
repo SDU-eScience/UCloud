@@ -1,10 +1,10 @@
+import {LoadableEventTag, loadableEventToContent} from "LoadableContent";
 import {Reducer as ReduxReducer} from "redux";
-import {Type, init} from "./ViewObject";
-import {loadableEventToContent, LoadableEventTag} from "LoadableContent";
 import * as Actions from "./ViewActions";
+import {init, Type} from "./ViewObject";
 
 export interface Reducer {
-    applicationView: ReduxReducer<Type>
+    applicationView: ReduxReducer<Type>;
 }
 
 const reducer: ReduxReducer<Type> = (state: Type = init().applicationView, action: Actions.Type): Type => {

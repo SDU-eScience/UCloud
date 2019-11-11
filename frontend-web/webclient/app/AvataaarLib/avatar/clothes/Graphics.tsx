@@ -935,12 +935,13 @@ export default function Graphics(props: Props & {graphic: ClothesGraphic}) {
           return <SkullOutline maskID={props.maskID} />;
         case ClothesGraphic.Skull:
           return <Skull maskID={props.maskID} />;
-        case "EScienceLogo" as any:
+        case ClothesGraphic.EScienceLogo:
           return <EScienceLogo maskID={props.maskID} />;
         case ClothesGraphic.Teeth:
           return <Teeth maskID={props.maskID} />;
         case ClothesGraphic.Espie:
           return <Espie maskID={props.maskID} />;
+        default:
+            return null;
     }
-    return null;
 }
