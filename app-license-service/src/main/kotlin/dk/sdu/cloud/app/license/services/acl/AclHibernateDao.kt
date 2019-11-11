@@ -40,7 +40,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             .isNotEmpty()
     }
 
-    override fun updatePermission(
+    override fun updatePermissions(
         session: HibernateSession,
         licenseId: String,
         userEntity: UserEntity,
@@ -69,5 +69,19 @@ class AclHibernateDao : AclDao<HibernateSession> {
                     (entity[PermissionEntry::key][PermissionEntry.Key::entity] equal userEntity.id) and
                     (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal userEntity.type)
         }.executeUpdate()
+    }
+
+    override fun listAcl(
+        session: HibernateSession,
+        licenseId: String
+    ): List<EntityWithPermission> {
+        return session
+            .criteria<PermissionEntry> {
+                entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal licenseId
+            }
+            .list()
+            .map {
+                EntityWithPermission(UserEntity(it.key.entity, it.key.entityType), it.key.permission)
+            }
     }
 }

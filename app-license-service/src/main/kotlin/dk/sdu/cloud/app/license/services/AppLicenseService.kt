@@ -26,7 +26,7 @@ class AppLicenseService<Session>(
             if(change.revoke) {
                 aclService.revokePermission(request.licenseId, change.entity)
             } else {
-                aclService.updatePermission(request.licenseId, change.entity, change.rights)
+                aclService.updatePermissions(request.licenseId, change.entity, change.rights)
             }
         }
     }

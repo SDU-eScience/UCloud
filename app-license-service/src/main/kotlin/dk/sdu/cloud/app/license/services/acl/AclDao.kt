@@ -11,6 +11,11 @@ data class UserEntity(
     val type: EntityType
 )
 
+data class EntityWithPermission(
+    val entity: UserEntity,
+    val permission: AccessRight
+)
+
 interface AclDao<Session> {
     fun hasPermission(
         session: Session,
@@ -19,7 +24,7 @@ interface AclDao<Session> {
         permission: AccessRight
     ): Boolean
 
-    fun updatePermission(
+    fun updatePermissions(
         session: Session,
         licenseId: String,
         entity: UserEntity,
@@ -31,4 +36,9 @@ interface AclDao<Session> {
         licenseId: String,
         entity: UserEntity
     )
+
+    fun listAcl(
+        session: Session,
+        licenseId: String
+    ) : List<EntityWithPermission>
 }
