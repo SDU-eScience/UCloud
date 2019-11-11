@@ -574,7 +574,7 @@ export default class SDUCloud {
     }
 
     static get storedAccessToken(): string {
-        return window.localStorage.getItem("accessToken") || "";
+        return window.localStorage.getItem("accessToken") ?? "";
     }
 
     static set storedAccessToken(value: string) {
@@ -582,7 +582,7 @@ export default class SDUCloud {
     }
 
     static get storedCsrfToken(): string {
-        return window.localStorage.getItem("csrfToken") || "";
+        return window.localStorage.getItem("csrfToken") ?? "";
     }
 
     static set storedCsrfToken(value) {

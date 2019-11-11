@@ -67,7 +67,7 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
                     />
                     {
                         !props.unitName ? null : (
-                            <InputLabel width={props.unitWidth || "auto"} backgroundColor="lightBlue" rightLabel>
+                            <InputLabel width={props.unitWidth ?? "auto"} backgroundColor="lightBlue" rightLabel>
                                 {props.unitName}
                             </InputLabel>
                         )}

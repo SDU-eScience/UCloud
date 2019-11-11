@@ -55,10 +55,10 @@ const DetailedTask: React.FunctionComponent<DetailedTaskOwnProps & DetailedTaskS
             <Flex flexDirection={"column"} height={"100%"}>
                 <Heading.h2>{task.newTitle ? task.newTitle : "Task"}</Heading.h2>
 
-                <p><b>Status:</b> {task.newStatus || "No recent status update."}</p>
+                <p><b>Status:</b> {task.newStatus ?? "No recent status update."}</p>
 
                 {!task.progress ?
-                    <IndeterminateProgressBar color={"green"} label={task.newTitle ? task.newTitle : ""}/> : (
+                    <IndeterminateProgressBar color={"green"} label={task.newTitle ? task.newTitle : ""} /> : (
                         <ProgressBar
                             active={true}
                             color={"green"}

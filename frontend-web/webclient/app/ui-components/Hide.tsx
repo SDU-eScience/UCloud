@@ -1,6 +1,6 @@
 import styled from "styled-components";
 import Box, {BoxProps} from "./Box";
-import theme, {Theme} from "./theme";
+import {Theme} from "./theme";
 
 const getMaxWidth = (px: string) => (parseInt(px, 10) - 1) + "px";
 

@@ -61,7 +61,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
     }
 
     async function attemptLogin() {
-        if (!(usernameInput.current!.value) || !(passwordInput.current!.value)) {
+        if (!(usernameInput.current?.value) || !(passwordInput.current?.value)) {
             snackbarStore.addSnack({message: "Invalid username or password", type: SnackType.Failure});
             return;
         }

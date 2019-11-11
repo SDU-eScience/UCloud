@@ -113,7 +113,7 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
                                 key={update.jobId}
                                 jobId={update.jobId}
                                 onClick={setTaskInFocus}
-                                title={update.newTitle || ""}
+                                title={update.newTitle ?? ""}
                                 speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
                                 progress={update.progress ? update.progress : undefined}
                             />
