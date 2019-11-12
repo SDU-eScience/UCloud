@@ -362,9 +362,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                                     mountedFolders[i].readOnly = key === "READ";
                                                                     this.setState(() => ({mountedFolders}));
                                                                 }}
-                                                                trigger={entry.readOnly ?
-                                                                    "Read only" : "Read/Write"
-                                                                }
+                                                                trigger={entry.readOnly ? "Read only" : "Read/Write"}
                                                                 options={[
                                                                     {text: "Read only", value: "READ"},
                                                                     {text: "Read/Write", value: "READ/WRITE"}
@@ -945,19 +943,19 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                 <Button fullWidth as="label">
                     Upload file
                 <HiddenInputField
-                        type="file"
-                        onChange={e => {
-                            if (e.target.files) {
-                                const file = e.target.files[0];
-                                if (file.size > 10_000_000) {
-                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
-                                } else {
-                                    importParameters(file);
-                                }
-                                dialogStore.success();
+                    type="file"
+                    onChange={e => {
+                        if (e.target.files) {
+                            const file = e.target.files[0];
+                            if (file.size > 10_000_000) {
+                                snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
+                            } else {
+                                importParameters(file);
                             }
-                        }}
-                    />
+                            dialogStore.success();
+                        }
+                    }}
+                />
                 </Button>
                 <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
                     Select file from SDUCloud

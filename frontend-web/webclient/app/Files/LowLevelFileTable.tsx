@@ -311,8 +311,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                 filesOnly.forEach(f => {
                     const fileApps: QuickLaunchApp[] = [];
 
-                    const fileName = f.path.split("/").slice(-1)[0];
-                    let fileExtension = fileName.split(".").slice(-1)[0];
+                    const [fileName] = f.path.split("/").slice(-1);
+                    let [fileExtension] = fileName.split(".").slice(-1);
 
                     if (fileName !== fileExtension) {
                         fileExtension = `.${fileExtension}`;
@@ -481,40 +481,36 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         <Shell
             embedded={isEmbedded}
 
-            header={
-                (
-                    <Spacer
-                        left={(
-                            <BreadCrumbs
-                                currentPath={props.path ? props.path : ""}
-                                navigate={onFileNavigation}
-                                homeFolder={Cloud.homeFolder}
-                            />
-                        )}
+            header={(
+                <Spacer
+                    left={(
+                        <BreadCrumbs
+                            currentPath={props.path ? props.path : ""}
+                            navigate={onFileNavigation}
+                            homeFolder={Cloud.homeFolder}
+                        />
+                    )}
 
-                        right={
-                            (
-                                <>
-                                    {!isEmbedded && props.path ? null : (
-                                        <Refresh
-                                            spin={isAnyLoading}
-                                            onClick={callbacks.requestReload}
-                                        />
-                                    )}
+                    right={(
+                        <>
+                            {!isEmbedded && props.path ? null : (
+                                <Refresh
+                                    spin={isAnyLoading}
+                                    onClick={callbacks.requestReload}
+                                />
+                            )}
 
-                                    {isEmbedded ? null : (
-                                        <Pagination.EntriesPerPageSelector
-                                            content="Files per page"
-                                            entriesPerPage={page.itemsPerPage}
-                                            onChange={amount => onPageChanged(0, amount)}
-                                        />
-                                    )}
-                                </>
-                            )
-                        }
-                    />
-                )
-            }
+                            {isEmbedded ? null : (
+                                <Pagination.EntriesPerPageSelector
+                                    content="Files per page"
+                                    entriesPerPage={page.itemsPerPage}
+                                    onChange={amount => onPageChanged(0, amount)}
+                                />
+                            )}
+                        </>
+                    )}
+                />
+            )}
 
             sidebar={(
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
