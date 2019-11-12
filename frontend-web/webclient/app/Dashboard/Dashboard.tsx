@@ -274,7 +274,7 @@ const DashboardNotifications = ({notifications, readAll, onNotificationAction}: 
                 onClick={readAll}
             />
         </Flex>
-        {notifications.length === 0 ? <Heading.h6 pl={"16px"} pt="10px">No notifications</Heading.h6> : null}
+        {notifications.length === 0 ? <Heading.h6 pl="16px" pt="10px">No notifications</Heading.h6> : null}
         <List>
             {notifications.slice(0, 7).map((n, i) => (
                 <Flex key={i}>

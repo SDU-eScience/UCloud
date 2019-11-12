@@ -1,14 +1,14 @@
-import {ReduxObject, ResponsiveReduxObject} from "DefaultObjects"
+import {ReduxObject, ResponsiveReduxObject} from "DefaultObjects";
 import {LoadableContent} from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
 import * as React from "react";
-import {connect} from 'react-redux'
+import {connect} from "react-redux";
 import styled from "styled-components";
 import {Absolute, Box, Hide} from "ui-components";
 import * as Heading from "ui-components/Heading";
 
 export interface MainContainerStateProps {
-    responsiveState?: ResponsiveReduxObject
+    responsiveState?: ResponsiveReduxObject;
 }
 
 export interface MainContainerProps extends MainContainerStateProps {

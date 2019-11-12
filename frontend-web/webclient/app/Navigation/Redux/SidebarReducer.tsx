@@ -1,4 +1,4 @@
-import {SidebarReduxObject, initSidebar} from "DefaultObjects";
+import {initSidebar, SidebarReduxObject} from "DefaultObjects";
 import {SidebarActions} from "./SidebarActions";
 
 export const SET_SIDEBAR_LOADING = "SET_SIDEBAR_LOADING";
@@ -10,7 +10,7 @@ const sidebar = (state: SidebarReduxObject = initSidebar(), action: SidebarActio
     switch (action.type) {
         case KC_SUCCESS:
         case SET_SIDEBAR_STATE: {
-            return {...state, ...action.payload}
+            return {...state, ...action.payload};
         }
         default: {
             return state;

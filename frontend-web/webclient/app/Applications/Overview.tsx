@@ -83,7 +83,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
 
     public render() {
         const {applications} = this.props;
-        const featured = applications.get("Featured") ?? emptyPage;
+        const featured: Page<FullAppInfo> = applications.get("Featured") ?? emptyPage;
         const main = (
             <>
                 <Installed header={null} />

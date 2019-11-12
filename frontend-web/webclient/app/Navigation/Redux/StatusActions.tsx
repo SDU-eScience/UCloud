@@ -4,7 +4,7 @@ import {SET_ACTIVE_PAGE, SET_STATUS_LOADING, UPDATE_PAGE_TITLE} from "./StatusRe
 
 export type StatusActions = UpdatePageTitleAction | SetActivePage | SetLoading;
 
-export type UpdatePageTitleAction = PayloadAction<typeof UPDATE_PAGE_TITLE, {title: string}>
+export type UpdatePageTitleAction = PayloadAction<typeof UPDATE_PAGE_TITLE, {title: string}>;
 /**
  * Sets the title of the window. Stores in the redux store as well
  * @param {string} title the title to be set

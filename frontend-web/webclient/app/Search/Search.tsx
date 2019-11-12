@@ -113,7 +113,7 @@ function Search(props: SearchProps) {
                     loading={applicationsLoading}
                     pageRenderer={({items}) => (
                         <GridCardGroup>
-                            {items.map(app =>
+                            {items.map(app => (
                                 <ApplicationCard
                                     onFavorite={async () => props.setApplicationsPage(await favoriteApplicationFromPage({
                                         name: app.metadata.name,
@@ -125,7 +125,7 @@ function Search(props: SearchProps) {
                                     app={app}
                                     isFavorite={app.favorite}
                                     tags={app.tags}
-                                />)}
+                                />))}
                         </GridCardGroup>
                     )}
                     page={applications}

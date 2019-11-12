@@ -44,12 +44,8 @@ const Snackbars: React.FunctionComponent = () => {
         return null;
     }
 
-    let snackElement: JSX.Element;
-    if (activeSnack.type === SnackType.Custom) {
-        snackElement = <CustomSnack snack={activeSnack} />;
-    } else {
-        snackElement = <DefaultSnack snack={activeSnack} />;
-    }
+    const snackElement = activeSnack.type === SnackType.Custom ?
+        <CustomSnack snack={activeSnack} /> : <DefaultSnack snack={activeSnack} />;
 
     return <Snackbar onClick={onCancellation} visible={true}>{snackElement}</Snackbar>;
 

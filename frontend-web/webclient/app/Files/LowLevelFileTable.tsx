@@ -90,17 +90,15 @@ export interface ListDirectoryRequest {
     type?: FileType;
 }
 
-export const listDirectory = (
-    {
-        path,
-        page,
-        itemsPerPage,
-        order,
-        sortBy,
-        attrs,
-        type
-    }: ListDirectoryRequest
-): APICallParameters<ListDirectoryRequest> => ({
+export const listDirectory = ({
+    path,
+    page,
+    itemsPerPage,
+    order,
+    sortBy,
+    attrs,
+    type
+}: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/files",
@@ -313,8 +311,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                 filesOnly.forEach(f => {
                     const fileApps: QuickLaunchApp[] = [];
 
-                    const fileName = f.path.split("/").slice(-1)[0];
-                    let fileExtension = fileName.split(".").slice(-1)[0];
+                    const [fileName] = f.path.split("/").slice(-1);
+                    let [fileExtension] = fileName.split(".").slice(-1);
 
                     if (fileName !== fileExtension) {
                         fileExtension = `.${fileExtension}`;
@@ -402,7 +400,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         };
     }, [props.refreshHook]);
 
+
     // Aliases
+    const isForbiddenPath = error === "Forbidden";
     const isEmbedded = props.embedded !== false;
     const sortingSupported = props.path !== undefined && props.page === undefined;
     const numberOfColumnsBasedOnSpace =
@@ -483,68 +483,66 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         <Shell
             embedded={isEmbedded}
 
-            header={
-                (
-                    <Spacer
-                        left={(
-                            <BreadCrumbs
-                                currentPath={props.path ? props.path : ""}
-                                navigate={onFileNavigation}
-                                homeFolder={Cloud.homeFolder}
-                            />
-                        )}
+            header={(
+                <Spacer
+                    left={(
+                        <BreadCrumbs
+                            currentPath={props.path ? props.path : ""}
+                            navigate={onFileNavigation}
+                            homeFolder={Cloud.homeFolder}
+                        />
+                    )}
 
-                        right={
-                            (
-                                <>
-                                    {!isEmbedded && props.path ? null : (
-                                        <Refresh
-                                            spin={isAnyLoading}
-                                            onClick={callbacks.requestReload}
-                                        />
-                                    )}
+                    right={(
+                        <>
+                            {!isEmbedded && props.path ? null : (
+                                <Refresh
+                                    spin={isAnyLoading}
+                                    onClick={callbacks.requestReload}
+                                />
+                            )}
 
-                                    {isEmbedded ? null : (
-                                        <Pagination.EntriesPerPageSelector
-                                            content="Files per page"
-                                            entriesPerPage={page.itemsPerPage}
-                                            onChange={amount => onPageChanged(0, amount)}
-                                        />
-                                    )}
-                                </>
-                            )
-                        }
-                    />
-                )
-            }
+                            {isEmbedded ? null : (
+                                <Pagination.EntriesPerPageSelector
+                                    content="Files per page"
+                                    entriesPerPage={page.itemsPerPage}
+                                    onChange={amount => onPageChanged(0, amount)}
+                                />
+                            )}
+                        </>
+                    )}
+                />
+            )}
 
             sidebar={(
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
-                    <VerticalButtonGroup>
-                        <FileOperations
-                            files={checkedFilesWithInfo}
-                            fileOperations={fileOperations}
-                            callback={callbacks}
-                            // Don't pass a directory if the page is set. This should indicate that the path is fake.
-                            directory={props.page !== undefined ? undefined : mockFile({
-                                path: props.path ? props.path : "",
-                                fileId: "currentDir",
-                                tag: MOCK_RELATIVE,
-                                type: "DIRECTORY"
-                            })}
-                        />
+                    {isForbiddenPath ? <></> : (
+                        <VerticalButtonGroup>
+                            <FileOperations
+                                files={checkedFilesWithInfo}
+                                fileOperations={fileOperations}
+                                callback={callbacks}
+                                // Don't pass a directory if the page is set. This should indicate that the path is fake.
+                                directory={props.page !== undefined ? undefined : mockFile({
+                                    path: props.path ? props.path : "",
+                                    fileId: "currentDir",
+                                    tag: MOCK_RELATIVE,
+                                    type: "DIRECTORY"
+                                })}
+                            />
 
-                        <Box flexGrow={1} />
+                            <Box flexGrow={1} />
 
-                        {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
-                        {/*
+                            {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
+                            {/*
                         <a href={"/app/login?dav=true"}>
                             <OutlineButton>
                                 Use your files locally
                             </OutlineButton>
                         </a>
                         */}
-                    </VerticalButtonGroup>
+                        </VerticalButtonGroup>
+                    )}
                 </Box>
             )}
 
