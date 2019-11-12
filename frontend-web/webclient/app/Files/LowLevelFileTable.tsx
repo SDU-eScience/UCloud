@@ -400,7 +400,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         };
     }, [props.refreshHook]);
 
+
     // Aliases
+    const isForbiddenPath = error === "Forbidden";
     const isEmbedded = props.embedded !== false;
     const sortingSupported = props.path !== undefined && props.page === undefined;
     const numberOfColumnsBasedOnSpace =
@@ -514,31 +516,33 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
 
             sidebar={(
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
-                    <VerticalButtonGroup>
-                        <FileOperations
-                            files={checkedFilesWithInfo}
-                            fileOperations={fileOperations}
-                            callback={callbacks}
-                            // Don't pass a directory if the page is set. This should indicate that the path is fake.
-                            directory={props.page !== undefined ? undefined : mockFile({
-                                path: props.path ? props.path : "",
-                                fileId: "currentDir",
-                                tag: MOCK_RELATIVE,
-                                type: "DIRECTORY"
-                            })}
-                        />
+                    {isForbiddenPath ? <></> : (
+                        <VerticalButtonGroup>
+                            <FileOperations
+                                files={checkedFilesWithInfo}
+                                fileOperations={fileOperations}
+                                callback={callbacks}
+                                // Don't pass a directory if the page is set. This should indicate that the path is fake.
+                                directory={props.page !== undefined ? undefined : mockFile({
+                                    path: props.path ? props.path : "",
+                                    fileId: "currentDir",
+                                    tag: MOCK_RELATIVE,
+                                    type: "DIRECTORY"
+                                })}
+                            />
 
-                        <Box flexGrow={1} />
+                            <Box flexGrow={1} />
 
-                        {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
-                        {/*
+                            {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
+                            {/*
                         <a href={"/app/login?dav=true"}>
                             <OutlineButton>
                                 Use your files locally
                             </OutlineButton>
                         </a>
                         */}
-                    </VerticalButtonGroup>
+                        </VerticalButtonGroup>
+                    )}
                 </Box>
             )}
 

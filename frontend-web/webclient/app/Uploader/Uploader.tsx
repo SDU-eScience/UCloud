@@ -208,7 +208,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
                                     <input {...getInputProps()} />
                                     <p>
                                         <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
-                                        <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">{" browse"}</a>
+                                        <TextSpan mr="0.3em">Drop files here or </TextSpan><a href="#">browse</a>
                                     </p>
                                     <p>
                                         <b>Bulk upload</b> supported for file types:
