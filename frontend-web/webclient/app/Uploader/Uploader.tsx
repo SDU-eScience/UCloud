@@ -105,6 +105,9 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         finishedUploadPaths: new Set<string>()
     };
 
+    // Otherwise {this} gets overwritten by the handler and we can't access the props
+    private boundBeforeUnload = this.beforeUnload.bind(this);
+
     private readonly MAX_CONCURRENT_UPLOADS = 5;
 
     private modalStyle = {
@@ -286,7 +289,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
     private onUploadFinished(upload: Upload, xhr: XMLHttpRequest) {
         xhr.onloadend = () => {
             if (uploadsFinished(this.props.uploads))
-                window.removeEventListener("beforeunload", this.beforeUnload);
+                window.removeEventListener("beforeunload", this.boundBeforeUnload);
             this.props.setUploads(this.props.uploads);
             this.startPending();
         };
@@ -305,7 +308,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         upload.isUploading = true;
         this.props.setUploads(this.props.uploads);
 
-        window.addEventListener("beforeunload", this.beforeUnload);
+        window.addEventListener("beforeunload", this.boundBeforeUnload);
 
         const setError = (err?: string) => {
             this.props.uploads[index].error = err;
