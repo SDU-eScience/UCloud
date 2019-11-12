@@ -306,7 +306,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             Cloud.post<QuickLaunchApp[]>(
                 "/hpc/apps/bySupportedFileExtension",
                 {files: filesOnly.map(f => f.path)}
-            ).then(response => {
+            ).then(({response}) => {
                 const newApplications = new Map<string, QuickLaunchApp[]>();
                 filesOnly.forEach(f => {
                     const fileApps: QuickLaunchApp[] = [];
@@ -318,7 +318,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                         fileExtension = `.${fileExtension}`;
                     }
 
-                    response.response.forEach(item => {
+                    response.forEach(item => {
                         item.extensions.forEach(ext => {
                             if (fileExtension === ext) {
                                 fileApps.push(item);
@@ -979,7 +979,7 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
     }
 
     const badge = <SensitivityBadge data-tag="sensitivityBadge" bg={def.color}>{def.shortText}</SensitivityBadge>;
-    return <Tooltip right="0" top="1" mb="50px" trigger={badge}>{def.text}</Tooltip>;
+    return <Tooltip wrapperOffsetLeft="-5px" right="0" top="1" mb="50px" trigger={badge}>{def.text}</Tooltip>;
 };
 
 const SensitivityBadge = styled.div<{bg: string}>`

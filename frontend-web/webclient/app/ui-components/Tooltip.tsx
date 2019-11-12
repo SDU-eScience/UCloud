@@ -89,7 +89,9 @@ interface Tooltip extends SpaceProps {
   center?: string;
   left?: string;
   right?: string;
-  zIndex?: number;
+  zIndex?: number
+  wrapperOffsetLeft?: string;
+  wrapperOffsetTop?: string;
 }
 
 const defaultProps = {
@@ -99,10 +101,10 @@ const defaultProps = {
   zIndex: 9999
 };
 
-const Tooltip = ({children, zIndex, ...props}: Tooltip) => (
+const Tooltip = ({children, zIndex, wrapperOffsetLeft, wrapperOffsetTop, ...props}: Tooltip) => (
   <VisibleOnHover>
     <Flex>{props.trigger}</Flex>
-    <Relative zIndex={zIndex}>
+    <Relative left={wrapperOffsetLeft} top={wrapperOffsetTop} zIndex={zIndex}>
       <TooltipContent p={2} mb={3} mt={2} {...props}>
         {children}
       </TooltipContent>
