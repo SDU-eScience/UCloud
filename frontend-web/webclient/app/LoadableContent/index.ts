@@ -61,6 +61,6 @@ export async function unwrapCall<T>(
         return {
             type: LoadableEventTag.CONTENT,
             content: message as T
-        }
+        };
     }
 }

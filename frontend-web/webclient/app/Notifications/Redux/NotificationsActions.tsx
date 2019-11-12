@@ -4,7 +4,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page, PayloadAction} from "Types";
 import {notificationsQuery, readAllNotificationsQuery, readNotificationQuery} from "Utilities/NotificationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {Notification} from ".."
+import {Notification} from "..";
 import {
     NOTIFICATION_READ,
     NOTIFICATIONS_ERROR,
@@ -21,10 +21,10 @@ export type NotificationActions =
     SetNotificationError |
     ReadAllAction;
 
-type SetNotificationError = Action<typeof NOTIFICATIONS_ERROR>
+type SetNotificationError = Action<typeof NOTIFICATIONS_ERROR>;
 interface ReceiveSingleNotificationAction {
-    type: typeof RECEIVE_SINGLE_NOTIFICATION,
-    payload: {item: Notification}
+    type: typeof RECEIVE_SINGLE_NOTIFICATION;
+    payload: {item: Notification};
 }
 
 export const receiveSingleNotification = (notification: Notification): ReceiveSingleNotificationAction => ({
@@ -58,7 +58,7 @@ export async function fetchNotifications(): Promise<ReceiveNotificationAction | 
     }
 }
 
-type ReadAction = PayloadAction<typeof NOTIFICATION_READ, {id: number | string}>
+type ReadAction = PayloadAction<typeof NOTIFICATION_READ, {id: number | string}>;
 /**
  * Sets a notification as read, based on the id
  * @param id the id of the notification that has been read
@@ -81,7 +81,7 @@ export const notificationError = (): SetNotificationError => ({
 });
 
 
-type ReadAllAction = Action<typeof READ_ALL>
+type ReadAllAction = Action<typeof READ_ALL>;
 /**
  * Sets all notifications as read.
  */
