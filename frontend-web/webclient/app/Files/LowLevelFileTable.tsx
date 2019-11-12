@@ -522,7 +522,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                                 files={checkedFilesWithInfo}
                                 fileOperations={fileOperations}
                                 callback={callbacks}
-                                // Don't pass a directory if the page is set. This should indicate that the path is fake.
+                                // Don't pass a directory if the page is set.
+                                // This should indicate that the path is fake.
                                 directory={props.page !== undefined ? undefined : mockFile({
                                     path: props.path ? props.path : "",
                                     fileId: "currentDir",
@@ -534,13 +535,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                             <Box flexGrow={1} />
 
                             {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
-                            {/*
-                        <a href={"/app/login?dav=true"}>
-                            <OutlineButton>
-                                Use your files locally
-                            </OutlineButton>
-                        </a>
-                        */}
+
+                            {!UF.inDevEnvironment() ? null : (
+                                <a href={"/app/login?dav=true"}>
+                                    <OutlineButton>
+                                        Use your files locally
+                                    </OutlineButton>
+                                </a>
+                            )}
                         </VerticalButtonGroup>
                     )}
                 </Box>
