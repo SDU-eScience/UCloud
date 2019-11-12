@@ -90,17 +90,15 @@ export interface ListDirectoryRequest {
     type?: FileType;
 }
 
-export const listDirectory = (
-    {
-        path,
-        page,
-        itemsPerPage,
-        order,
-        sortBy,
-        attrs,
-        type
-    }: ListDirectoryRequest
-): APICallParameters<ListDirectoryRequest> => ({
+export const listDirectory = ({
+    path,
+    page,
+    itemsPerPage,
+    order,
+    sortBy,
+    attrs,
+    type
+}: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/files",

@@ -11,6 +11,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import {searchPage} from "Utilities/SearchUtilities";
+import {stopPropagation} from "UtilityFunctions";
 import {
     DetailedFileSearchOperations,
     DetailedFileSearchReduxState,
@@ -25,7 +26,6 @@ import {
     DETAILED_FILES_REMOVE_SENSITIVITIES,
     DETAILED_FILES_REMOVE_TAGS
 } from "./Redux/DetailedFileSearchReducer";
-import {stopPropagation} from "UtilityFunctions";
 
 interface DetailedFileSearchGivenProps {
     defaultFilename?: string;

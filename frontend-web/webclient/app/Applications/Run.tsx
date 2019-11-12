@@ -130,10 +130,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const parameters = application.invocation.parameters;
         const mandatory = parameters.filter(parameter => !parameter.optional);
         const visible = parameters.filter(parameter =>
-            parameter.optional && (parameter.visible === true || parameterValues.get(parameter.name)!.current != null)
+            parameter.optional && (parameter.visible === true || parameterValues.get(parameter.name)?.current != null)
         );
         const optional = parameters.filter(parameter =>
-            parameter.optional && parameter.visible !== true && parameterValues.get(parameter.name)!.current == null);
+            parameter.optional && parameter.visible !== true && parameterValues.get(parameter.name)?.current == null);
 
         const onParameterChange = (parameter: ApplicationParameter, isVisible: boolean) => {
             parameter.visible = isVisible;

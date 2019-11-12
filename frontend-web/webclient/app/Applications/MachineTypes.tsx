@@ -15,7 +15,7 @@ export const MachineTypes: React.FunctionComponent<{inputRef: React.RefObject<HT
 
     const selectedMachineFromList = machines.data.find(it => it.name === selected);
     const selectedMachine = selectedMachineFromList ? selectedMachineFromList : {
-        name: "Unspecified",
+        name: "Default",
         memoryInGigs: null,
         cpu: null
     };
@@ -57,7 +57,7 @@ const MachineBox: React.FunctionComponent<{machine: MachineReservation}> = ({mac
         <p style={{cursor: "pointer"}}>
             <b>{machine.name}</b><br />
             {!machine.cpu || !machine.memoryInGigs ?
-                "Uses leftover CPU and memory. Recommended for most applications."
+                "Uses all available CPU and memory. Recommended for most applications."
                 : null
             }
             {machine.cpu && machine.memoryInGigs ? (

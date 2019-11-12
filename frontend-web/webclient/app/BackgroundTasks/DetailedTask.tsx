@@ -1,4 +1,4 @@
-import {Task, TaskUpdate} from "BackgroundTasks/api";
+import {TaskUpdate} from "BackgroundTasks/api";
 import {ReduxObject} from "DefaultObjects";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
@@ -8,7 +8,6 @@ import {
     AreaChart,
     CartesianGrid,
     ResponsiveContainer,
-    Tooltip,
     XAxis,
     YAxis
 } from "recharts";
@@ -91,8 +90,8 @@ const DetailedTask: React.FunctionComponent<DetailedTaskOwnProps & DetailedTaskS
                                         domain={["dataMin", "dataMax"]}
                                         tickFormatter={() => ""}
                                     />
-                                    <YAxis dataKey="speed" type={"number"}/>
-                                    <CartesianGrid strokeDasharray="3 3"/>
+                                    <YAxis dataKey="speed" type={"number"} />
+                                    <CartesianGrid strokeDasharray="3 3" />
                                     <Area
                                         isAnimationActive={false}
                                         type="monotone"
