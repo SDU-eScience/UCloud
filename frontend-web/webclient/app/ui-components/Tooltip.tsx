@@ -89,7 +89,7 @@ interface Tooltip extends SpaceProps {
   center?: string;
   left?: string;
   right?: string;
-  zIndex?: number
+  zIndex?: number;
   wrapperOffsetLeft?: string;
   wrapperOffsetTop?: string;
 }

@@ -39,12 +39,12 @@ export default function Support() {
 
     async function onSubmit(event: React.FormEvent) {
         event.preventDefault();
-        const text = textArea.current;
-        if (!!text) {
+        const text = textArea.current?.value ?? "";
+        if (text.trim()) {
             try {
                 setLoading(true);
-                await Cloud.post("/support/ticket", {message: `${type}: ${text.value}`});
-                text.value = "";
+                await Cloud.post("/support/ticket", {message: `${type}: ${text}`});
+                textArea.current!.value = "";
                 setVisible(false);
                 setLoading(false);
                 snackbarStore.addSnack({message: "Support ticket submitted!", type: SnackType.Success});
@@ -54,6 +54,8 @@ export default function Support() {
                     type: SnackType.Failure
                 });
             }
+        } else {
+            snackbarStore.addFailure("Support message can't be empty.");
         }
     }
 
@@ -104,7 +106,12 @@ export default function Support() {
                     <p>Describe your problem below and we will investigate it.</p>}
                 <form onSubmit={onSubmit}>
                     <TextArea width="100%" ref={textArea} rows={6} />
-                    <Button mt="6px" fullWidth type="submit" disabled={loading}>
+                    <Button
+                        mt="6px"
+                        fullWidth
+                        type="submit"
+                        disabled={loading}
+                    >
                         <Icon name="mail" size="1.5em" mr=".5em" color="white" color2="midGray" />
                         <TextSpan fontSize={2}>Send</TextSpan>
                     </Button>
