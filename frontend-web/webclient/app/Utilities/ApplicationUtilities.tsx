@@ -127,19 +127,21 @@ interface ExtractParameters {
     siteVersion: number;
 }
 
-export const findKnownParameterValues = (
-    {
-        nameToValue,
-        allowedParameterKeys,
-        siteVersion
-    }: ExtractParameters
-): StringMap => {
+export const findKnownParameterValues = ({
+    nameToValue,
+    allowedParameterKeys,
+    siteVersion
+}: ExtractParameters): StringMap => {
     const extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({name, type}) => {
             if (nameToValue[name] !== undefined) {
                 if (typeMatchesValue(type, nameToValue[name])) {
-                    extractedParameters[name] = nameToValue[name];
+                    if (typeof nameToValue[name] === "boolean") {
+                        extractedParameters[name] = nameToValue[name] ? "Yes" : "No";
+                    } else {
+                        extractedParameters[name] = nameToValue[name];
+                    }
                 }
             }
         });
@@ -149,10 +151,10 @@ export const findKnownParameterValues = (
 
 export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
 
-const typeMatchesValue = (type: ParameterTypes, parameter: string | [number, number]): boolean => {
+const typeMatchesValue = (type: ParameterTypes, parameter: string | [number, number] | boolean): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
-            return parameter === "Yes" || parameter === "No" || parameter === "";
+            return parameter === "Yes" || parameter === "No" || parameter === "" || parameter === true || parameter === false;
         case ParameterTypes.Integer:
             return parseInt(parameter as string, 10) % 1 === 0;
         case ParameterTypes.FloatingPoint:
