@@ -23,6 +23,7 @@ import {AccessRight, Page} from "Types";
 import {Box, Button, ContainerForText, Flex, Label, OutlineButton, VerticalButtonGroup} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import Input, {HiddenInputField} from "ui-components/Input";
 import Link from "ui-components/Link";
@@ -94,7 +95,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             fsShown: false,
             previousRuns: emptyPage,
             reservation: React.createRef(),
-
+            unknownParameters: [],
             sharedFileSystems: {mounts: []}
         };
     }
@@ -103,9 +104,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.props.updatePageTitle();
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
-        this.state.promises.makeCancelable(
-            this.retrieveApplication(name, version)
-        );
+        this.state.promises.makeCancelable(this.retrieveApplication(name, version));
     }
 
     public componentWillUnmount = () => this.state.promises.cancelPromises();
@@ -162,6 +161,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const mandatoryParams = mandatory.map(mapParamToComponent);
         const visibleParams = visible.map(mapParamToComponent);
+        const {unknownParameters} = this.state;
 
         return (
             <MainContainer
@@ -217,12 +217,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                 this.state.previousRuns.items.length <= 0 ? null : (
                                     <RunSection>
                                         <Label>Load parameters from a previous run:</Label>
-                                        <Flex flexDirection={"row"} flexWrap={"wrap"}>
+                                        <Flex flexDirection="row" flexWrap="wrap">
                                             {
                                                 this.state.previousRuns.items.slice(0, 5).map((file, idx) => (
-                                                    <Box mr={"0.8em"} key={idx}>
+                                                    <Box mr="0.8em" key={idx}>
                                                         <BaseLink
-                                                            href={"#"}
+                                                            href="#"
                                                             onClick={async e => {
                                                                 e.preventDefault();
 
@@ -249,6 +249,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         </Flex>
                                     </RunSection>
                                 )}
+                            {!unknownParameters.length ? null :
+                                <Error
+                                    error={"Could not add parameters:\n\t" + unknownParameters.join(", \n\t")}
+                                    clearError={() => this.setState(() => ({unknownParameters: []}))}
+                                />
+                            }
                             <RunSection>
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
@@ -275,7 +281,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                             {
                                 !application.invocation.shouldAllowAdditionalMounts ? null : (
                                     <RunSection>
-                                        <Flex alignItems={"center"}>
+                                        <Flex alignItems="center">
                                             <Box flexGrow={1}>
                                                 <Heading.h4>Select additional folders to use</Heading.h4>
                                             </Box>
@@ -283,7 +289,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                             <Button
                                                 type="button"
                                                 ml="5px"
-                                                lineHeight={"16px"}
+                                                lineHeight="16px"
                                                 onClick={() => this.addFolder()}
                                             >
                                                 Add folder
@@ -297,7 +303,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     You can view changes to your {" "}
                                                     <Link
                                                         to={fileTablePage(Cloud.homeFolder)}
-                                                        target={"_blank"}
+                                                        target="_blank"
                                                     >
                                                         files
                                                     </Link> {" "}
@@ -308,14 +314,14 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                         If you need to use your {" "}
                                                         <Link
                                                             to={fileTablePage(Cloud.homeFolder)}
-                                                            target={"_blank"}
+                                                            target="_blank"
                                                         >
                                                             files
                                                         </Link>
                                                         {" "}
                                                         in this job then click {" "}
                                                         <BaseLink
-                                                            href={"#"}
+                                                            href="#"
                                                             onClick={e => {
                                                                 e.preventDefault();
                                                                 this.addFolder();
@@ -339,7 +345,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     defaultValue={entry.defaultValue}
                                                     initialSubmit={false}
                                                     parameterRef={entry.ref}
-                                                    unitWidth={"180px"}
+                                                    unitWidth="180px"
                                                     onRemove={() => {
                                                         this.setState(s => ({
                                                             mountedFolders: removeEntry(s.mountedFolders, i)
@@ -383,8 +389,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                             <Heading.h4>Connect to other jobs</Heading.h4>
                                         </Box>
                                         <Button
-                                            type={"button"}
-                                            lineHeight={"16px"}
+                                            type="button"
+                                            lineHeight="16px"
                                             onClick={() => this.connectToJob()}
                                         >
                                             Connect to job
@@ -400,11 +406,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                 <>
                                                     If you need to use the services of another job click{" "}
                                                     <BaseLink
-                                                        href={"#"}
+                                                        href="#"
                                                         onClick={e => {
                                                             e.preventDefault();
                                                             this.connectToJob();
-                                                        }}>
+                                                        }}
+                                                    >
                                                         "Connect to job".
                                                     </BaseLink>
                                                     {" "}
@@ -682,6 +689,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                 const parametersFromUser = Object.keys(userInputValues);
 
+                const unknownParameters = Object.keys(parameters).filter(it => !parametersFromUser.includes(it));
+                this.setState(() => ({unknownParameters: this.state.unknownParameters.concat(unknownParameters)}));
+
                 {
                     // Remove invalid input files from userInputValues
                     const fileParams = thisApp.invocation.parameters.filter(p => isFileOrDirectoryParam(p));
@@ -692,7 +702,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                             const path = expandHomeFolder(userInputValues[param.name], Cloud.homeFolder);
                             if (!await checkIfFileExists(path, Cloud)) {
                                 invalidFiles.push(userInputValues[param.name]);
-                                delete userInputValues[param.name];
+                                userInputValues[param.name] = "";
                             }
                         }
                     }
@@ -943,19 +953,19 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                 <Button fullWidth as="label">
                     Upload file
                 <HiddenInputField
-                    type="file"
-                    onChange={e => {
-                        if (e.target.files) {
-                            const file = e.target.files[0];
-                            if (file.size > 10_000_000) {
-                                snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
-                            } else {
-                                importParameters(file);
+                        type="file"
+                        onChange={e => {
+                            if (e.target.files) {
+                                const file = e.target.files[0];
+                                if (file.size > 10_000_000) {
+                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
+                                } else {
+                                    importParameters(file);
+                                }
+                                dialogStore.success();
                             }
-                            dialogStore.success();
-                        }
-                    }}
-                />
+                        }}
+                    />
                 </Button>
                 <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
                     Select file from SDUCloud

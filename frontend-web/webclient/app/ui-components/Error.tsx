@@ -25,7 +25,7 @@ function Error(props: ErrorProps) {
             width={props.width}
         >
             <Flex alignItems="center">
-                <div><Text fontSize={1} color="red">{props.error}</Text></div>
+                <div><Text style={{whiteSpace: "pre"}} fontSize={1} color="red">{props.error}</Text></div>
                 {!props.clearError ? null : (
                     <Box ml="auto">
                         <Icon
