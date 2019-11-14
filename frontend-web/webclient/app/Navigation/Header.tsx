@@ -174,20 +174,24 @@ const HeaderContainer = styled(Flex)`
     box-shadow: ${theme.shadows.sm};
 `;
 
+const LogoText = styled(Text)`
+    vertical-align: top;
+    font-weight: 700;
+`;
+
 const Logo = () => (
     <Link to={"/"}>
         <Flex alignItems="center" ml="15px">
             <Icon name="logoEsc" size="38px" />
             <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
-            <Text
+            <LogoText
                 ml="4px"
                 mt={-7}
-                style={{verticalAlign: "top", fontWeight: 700}}
                 color="red"
                 fontSize={17}
             >
                 BETA
-            </Text>
+            </LogoText>
         </Flex>
     </Link>
 );

@@ -16,7 +16,7 @@ import {connect} from "react-redux";
 import {useHistory} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import styled from "styled-components";
+import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
 import {Button, Icon, Input, Label, OutlineButton, Tooltip, Truncate} from "ui-components";
@@ -1012,7 +1012,8 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
         if (fileOp.disabled(filesInCallback)) return null;
-        let As: typeof OutlineButton | typeof Box | typeof Button | typeof Flex;
+        // TODO Fixes complaints about not having a callable signature, but loses some typesafety.
+        let As: StyledComponent<any, any>;
         if (fileOperations.length === 1) {
             As = OutlineButton;
         } else if (props.inDropdown === true) {
@@ -1036,7 +1037,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
                 onClick={() => fileOp.onClick(filesInCallback, props.callback)}
                 {...props}
             >
-                {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName | "bug"} /> : null}
+                {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName} /> : null}
                 <span>{fileOp.text}</span>
             </As>
         );

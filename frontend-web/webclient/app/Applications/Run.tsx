@@ -249,12 +249,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         </Flex>
                                     </RunSection>
                                 )}
-                            {!unknownParameters.length ? null :
+                            {!unknownParameters.length ? null : (
                                 <Error
                                     error={"Could not add parameters:\n\t" + unknownParameters.join(", \n\t")}
                                     clearError={() => this.setState(() => ({unknownParameters: []}))}
                                 />
-                            }
+                            )}
                             <RunSection>
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
@@ -325,7 +325,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                             onClick={e => {
                                                                 e.preventDefault();
                                                                 this.addFolder();
-                                                            }}>
+                                                            }}
+                                                        >
                                                             "Add folder"
                                                         </BaseLink>
                                                         {" "}
@@ -709,7 +710,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
                     if (invalidFiles.length > 0) {
                         snackbarStore.addSnack({
-                            message: `Extracted files don't exists: ${invalidFiles.join(", ")}`,
+                            message: `The following files don't exists: ${invalidFiles.join(", ")}`,
                             type: SnackType.Failure
                         });
                     }
@@ -953,19 +954,19 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                 <Button fullWidth as="label">
                     Upload file
                 <HiddenInputField
-                        type="file"
-                        onChange={e => {
-                            if (e.target.files) {
-                                const file = e.target.files[0];
-                                if (file.size > 10_000_000) {
-                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
-                                } else {
-                                    importParameters(file);
-                                }
-                                dialogStore.success();
+                    type="file"
+                    onChange={e => {
+                        if (e.target.files) {
+                            const file = e.target.files[0];
+                            if (file.size > 10_000_000) {
+                                snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
+                            } else {
+                                importParameters(file);
                             }
-                        }}
-                    />
+                            dialogStore.success();
+                        }
+                    }}
+                />
                 </Button>
                 <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
                     Select file from SDUCloud

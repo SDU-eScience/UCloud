@@ -113,8 +113,6 @@ exports[`Mount Files component 1`] = `
           <button
             className="sc-bZQynM cZIxad"
             color="blue"
-            cursor="pointer"
-            onClick={[Function]}
           >
             <span>
               Upload Files
@@ -123,8 +121,6 @@ exports[`Mount Files component 1`] = `
           <button
             className="sc-bZQynM sc-gzVnrw hHlzxg"
             color="blue"
-            cursor="pointer"
-            onClick={[Function]}
           >
             <span>
               New Folder
@@ -153,8 +149,6 @@ exports[`Mount Files component 1`] = `
           <button
             className="sc-bZQynM cZIxad"
             color="blue"
-            cursor="pointer"
-            onClick={[Function]}
           >
             <span>
               Upload Files
@@ -163,8 +157,6 @@ exports[`Mount Files component 1`] = `
           <button
             className="sc-bZQynM sc-gzVnrw hHlzxg"
             color="blue"
-            cursor="pointer"
-            onClick={[Function]}
           >
             <span>
               New Folder

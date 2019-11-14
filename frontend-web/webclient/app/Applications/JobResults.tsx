@@ -154,8 +154,8 @@ function JobResults(props: AnalysesProps & {history: History}) {
             pageNumber,
             sortOrder,
             sortBy,
-            minTimestamp: minDate == null ? undefined : minDate.getTime(),
-            maxTimestamp: maxDate == null ? undefined : maxDate.getTime(),
+            minTimestamp: minDate?.getTime() ?? undefined,
+            maxTimestamp: maxDate?.getTime() ?? undefined,
             filter: filter.value === "Don't filter" ? undefined : filter.value
         });
     }

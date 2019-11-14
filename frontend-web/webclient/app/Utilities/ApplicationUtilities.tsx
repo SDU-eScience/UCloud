@@ -158,7 +158,11 @@ type ParameterValueTypes = string | [number, number] | boolean | {source: string
 const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
-            return parameter === "Yes" || parameter === "No" || parameter === "" || parameter === true || parameter === false;
+            return parameter === "Yes" ||
+                    parameter === "No" ||
+                      parameter === "" ||
+                    parameter === true ||
+                     parameter === false;
         case ParameterTypes.Integer:
             return parseInt(parameter as string, 10) % 1 === 0;
         case ParameterTypes.FloatingPoint:
@@ -296,10 +300,12 @@ export function checkForMissingParameters(
             !["number", "string", "boolean"].includes(typeof parameterValue)) {
             missingParameters.push(rParam.title);
         } else if (rParam.type === ParameterTypes.InputDirectory || rParam.type === ParameterTypes.InputFile) {
+            // tslint:disable-next-line: no-string-literal
             if (!parameterValue["source"]) {
                 missingParameters.push(rParam.title);
             }
         } else if (rParam.type === ParameterTypes.SharedFileSystem) {
+            // tslint:disable-next-line: no-string-literal
             if (!parameterValue["fileSystemId"]) {
                 missingParameters.push(rParam.title);
             }

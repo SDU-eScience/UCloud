@@ -364,7 +364,6 @@ export const inDevEnvironment = () => process.env.NODE_ENV === "development";
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
     return (target = "default-target") => {
-        /* FIXME: use null coalescing  */
         const idCount = (store.get(target) ?? 0) + 1;
         store.set(target, idCount);
         return `${target}${idCount}`;

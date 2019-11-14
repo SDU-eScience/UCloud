@@ -80,9 +80,16 @@ export function sensitivityDialog(): Promise<{cancelled: true} | {option: Sensit
 }
 
 export function shareDialog(paths: string[], cloud: SDUCloud) {
-    // FIXME: Less than dry, however, this needed to be wrapped in a form. Can be make standard dialog do similar?
+    // FIXME: Less than dry, however, this needed to be wrapped; in a form. Can be make standard dialog do similar?
     dialogStore.addDialog(<SharePrompt cloud={cloud} paths={paths} />, () => undefined);
 }
+
+const SharePromptWrapper = styled(Box)`
+    overflowY: auto;
+    overflowX: hidden;
+    maxHeight: 80vh;
+    width: 620px;
+`;
 
 export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) {
     const readEditOptions = [
@@ -96,7 +103,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
     const [sharableLink, setSharableLink] = React.useState("");
 
     return (
-        <Box style={{overflowY: "auto", overflowX: "hidden"}} maxHeight={"80vh"} width="620px">
+        <SharePromptWrapper>
             <Box alignItems="center" width="605px">
                 <form onSubmit={stopPropagationAndPreventDefault}>
                     <Heading.h3>Share</Heading.h3>
@@ -187,7 +194,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                     <Button type="button" onClick={() => dialogStore.success()}>Close</Button>
                     <Box ml="auto" /></Flex>
             </Box>
-        </Box>
+        </SharePromptWrapper>
     );
 
     function submit() {

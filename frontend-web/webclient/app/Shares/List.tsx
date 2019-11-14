@@ -289,7 +289,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                     <form onSubmit={doCreateShare}>
                         <Flex mb={"16px"} alignItems={"center"}>
                             <Flex flex="1 0 auto">
-                                <Flex flex="1 0 auto" style={{zIndex: 1}}>
+                                <Flex flex="1 0 auto" zIndex={1}>
                                     <Input
                                         disabled={isCreatingShare}
                                         rightLabel
