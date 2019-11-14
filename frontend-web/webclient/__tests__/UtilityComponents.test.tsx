@@ -5,7 +5,7 @@ import * as React from "react";
 import {Provider} from "react-redux";
 import {create} from "react-test-renderer";
 import {ThemeProvider} from "styled-components";
-import {Cloud} from "../app/Authentication/SDUCloudObject";
+import {Client} from "../app/Authentication/HttpClientInstance";
 import dashboard from "../app/Dashboard/Redux/DashboardReducer";
 import {initDashboard} from "../app/DefaultObjects";
 import {dialogStore} from "../app/Dialog/DialogStore";
@@ -117,7 +117,7 @@ describe("Dialogs", () => {
     test("Add share dialog", () => {
         let dialogCount = 0;
         dialogStore.subscribe(dialogs => dialogCount = dialogs.length);
-        shareDialog([], Cloud);
+        shareDialog([], Client);
         expect(dialogCount).toBe(1);
         dialogStore.failure();
         expect(dialogCount).toBe(0);
@@ -165,7 +165,7 @@ test("Share prompt", () => {
     expect(create(
         <Provider store={configureStore({dashboard: initDashboard()}, {dashboard})}>
             <ThemeProvider theme={theme}>
-                <SharePrompt paths={[""]} cloud={Cloud} />
+                <SharePrompt paths={[""]} client={Client} />
             </ThemeProvider>
         </Provider>
     ).toJSON()).toMatchSnapshot();

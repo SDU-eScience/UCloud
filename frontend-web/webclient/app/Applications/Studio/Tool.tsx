@@ -3,7 +3,7 @@ import {clearLogo, listApplicationsByTool, listToolsByName, uploadLogo} from "Ap
 import * as Actions from "Applications/Redux/BrowseActions";
 import {SmallAppToolCard} from "Applications/Studio/SmallAppToolCard";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {loadingAction, LoadingAction} from "Loading";
@@ -34,7 +34,7 @@ interface ToolOperations {
 
 const Tool: React.FunctionComponent<RouteComponentProps<{name: string}> & ToolOperations> = props => {
     const name = props.match.params.name;
-    if (Cloud.userRole !== "ADMIN") return null;
+    if (Client.userRole !== "ADMIN") return null;
 
     const [commandLoading, invokeCommand] = useAsyncCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());

@@ -1,4 +1,4 @@
-import Cloud from "Authentication/lib";
+import HttpClient from "Authentication/lib";
 import {emptyPage} from "DefaultObjects";
 import {Action} from "redux";
 
@@ -80,15 +80,15 @@ export interface Dictionary<V> {
 }
 
 export interface PredicatedOperation<T> {
-    predicate: (listItems: T[], cloud: Cloud) => boolean;
+    predicate: (listItems: T[], client: HttpClient) => boolean;
     onTrue: Operation<T>;
     onFalse: Operation<T>;
 }
 
 export interface Operation<T> {
     text: string;
-    onClick: (listItems: T[], cloud: Cloud) => void;
-    disabled: (listItems: T[], cloud: Cloud) => boolean;
+    onClick: (listItems: T[], client: HttpClient) => void;
+    disabled: (listItems: T[], client: HttpClient) => boolean;
     icon?: string;
     color?: string;
 }

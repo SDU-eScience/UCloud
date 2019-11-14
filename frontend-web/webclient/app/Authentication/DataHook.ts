@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {useEffect, useReducer, useState} from "react";
 import {defaultErrorHandler} from "UtilityFunctions";
 
@@ -62,7 +62,7 @@ export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2
 export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
     const method = parameters.method !== undefined ? parameters.method : "GET";
     if (parameters.path === undefined) throw Error("Missing path");
-    return (await Cloud.call({
+    return (await Client.call({
         method,
         path: parameters.path,
         body: parameters.payload,

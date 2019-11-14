@@ -6,7 +6,7 @@ import {
     useAsyncCommand,
     useCloudAPI
 } from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {emptyPage} from "DefaultObjects";
 import {loadingAction} from "Loading";
@@ -276,7 +276,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                 }}
             >
                 <Box ml="3px" mr="10px">
-                    <FileIcon fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Cloud.homeFolder)} />
+                    <FileIcon fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Client.homeFolder)} />
                 </Box>
                 <Heading.h4> {folderLink} </Heading.h4>
                 <Box ml="auto" />

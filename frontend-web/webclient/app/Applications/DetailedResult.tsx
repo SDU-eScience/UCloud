@@ -1,5 +1,5 @@
 import {useXTerm} from "Applications/xterm";
-import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
+import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {EmbeddedFileTable} from "Files/FileTable";
 import {History} from "history";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
@@ -58,7 +58,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
 
     async function fetchJob() {
         try {
-            const {response} = await promises.makeCancelable(Cloud.get<JobWithStatus>(hpcJobQuery(jobId))).promise;
+            const {response} = await promises.makeCancelable(Client.get<JobWithStatus>(hpcJobQuery(jobId))).promise;
             setJobWithStatus(response);
             setAppState(response.state);
             setStatus(response.status);
@@ -71,7 +71,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
 
     async function fetchWebLink() {
         try {
-            const {response} = await promises.makeCancelable(Cloud.get(`/hpc/jobs/query-web/${jobId}`)).promise;
+            const {response} = await promises.makeCancelable(Client.get(`/hpc/jobs/query-web/${jobId}`)).promise;
             setInteractiveLink(response.path);
         } catch (e) {
             if (e.isCanceled) return;
@@ -82,7 +82,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     async function fetchApplication() {
         if (jobWithStatus === null) return;
         try {
-            const {response} = await promises.makeCancelable(Cloud.get<WithAppInvocation>(
+            const {response} = await promises.makeCancelable(Client.get<WithAppInvocation>(
                 `/hpc/apps/${encodeURI(jobWithStatus.metadata.name)}/${encodeURI(jobWithStatus.metadata.version)}`
             )).promise;
             setApplication(response);
@@ -97,7 +97,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
             jobId,
             onConfirm: async () => {
                 try {
-                    await cancelJob(Cloud, jobId);
+                    await cancelJob(Client, jobId);
                 } catch (e) {
                     snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job"));
                 }

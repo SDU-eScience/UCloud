@@ -1,4 +1,4 @@
-import SDUCloud from "Authentication/lib";
+import HttpClient from "Authentication/lib";
 import {SensitivityLevelMap} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
@@ -79,9 +79,9 @@ export function sensitivityDialog(): Promise<{cancelled: true} | {option: Sensit
     }));
 }
 
-export function shareDialog(paths: string[], cloud: SDUCloud) {
+export function shareDialog(paths: string[], client: HttpClient) {
     // FIXME: Less than dry, however, this needed to be wrapped; in a form. Can be make standard dialog do similar?
-    dialogStore.addDialog(<SharePrompt cloud={cloud} paths={paths} />, () => undefined);
+    dialogStore.addDialog(<SharePrompt client={client} paths={paths} />, () => undefined);
 }
 
 const SharePromptWrapper = styled(Box)`
@@ -91,7 +91,7 @@ const SharePromptWrapper = styled(Box)`
     width: 620px;
 `;
 
-export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) {
+export function SharePrompt({paths, client}: {paths: string[], client: HttpClient}) {
     const readEditOptions = [
         {text: "Can view", value: "read"},
         {text: "Can edit", value: "read_edit"}
@@ -213,7 +213,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
                 path,
                 rights
             };
-            cloud.put(`/shares/`, body)
+            client.put(`/shares/`, body)
                 .then(() => {
                     if (++successes === paths.length) snackbarStore.addSnack({
                         message: "Files shared successfully",

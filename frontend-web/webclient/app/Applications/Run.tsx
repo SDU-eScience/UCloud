@@ -3,7 +3,7 @@ import {OptionalParameters} from "Applications/OptionalParameters";
 import {InputDirectoryParameter} from "Applications/Widgets/FileParameter";
 import {AdditionalPeerParameter} from "Applications/Widgets/PeerParameter";
 import {callAPI} from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {File as CloudFile, FileResource, SortBy, SortOrder} from "Files";
@@ -302,7 +302,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     Your files will be available at <code>/work/</code>.
                                                     You can view changes to your {" "}
                                                     <Link
-                                                        to={fileTablePage(Cloud.homeFolder)}
+                                                        to={fileTablePage(Client.homeFolder)}
                                                         target="_blank"
                                                     >
                                                         files
@@ -313,7 +313,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     <>
                                                         If you need to use your {" "}
                                                         <Link
-                                                            to={fileTablePage(Cloud.homeFolder)}
+                                                            to={fileTablePage(Client.homeFolder)}
                                                             target="_blank"
                                                         >
                                                             files
@@ -456,7 +456,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (this.state.application === undefined) return;
         try {
             const previousRuns = await callAPI<Page<CloudFile>>(listDirectory({
-                path: Cloud.homeFolder + `Jobs/${this.state.application.metadata.title}`,
+                path: Client.homeFolder + `Jobs/${this.state.application.metadata.title}`,
                 page: 0,
                 itemsPerPage: 25,
                 attrs: [FileResource.PATH],
@@ -488,7 +488,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const parameters = extractValuesFromWidgets({
             map: this.state.parameterValues,
             appParameters: this.state.application!.invocation.parameters,
-            cloud: Cloud
+            client: Client
         });
 
         if (!checkForMissingParameters(parameters, invocation)) return;
@@ -502,7 +502,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
 
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
-            const expandedValue = expandHomeFolder(it.ref.current!.value, Cloud.homeFolder);
+            const expandedValue = expandHomeFolder(it.ref.current!.value, Client.homeFolder);
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!,
@@ -587,7 +587,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         try {
             this.setState({jobSubmitted: true});
             this.props.setLoading(true);
-            const req = await Cloud.post(hpcJobQueryPost, job);
+            const req = await Client.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));
@@ -602,7 +602,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const {name, version} = this.state.application.metadata;
         this.setState(() => ({favoriteLoading: true}));
         try {
-            await this.state.promises.makeCancelable(Cloud.post(hpcFavoriteApp(name, version))).promise;
+            await this.state.promises.makeCancelable(Client.post(hpcFavoriteApp(name, version))).promise;
             this.setState(() => ({favorite: !this.state.favorite}));
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"));
@@ -615,7 +615,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         try {
             this.props.setLoading(true);
             const {response} = await this.state.promises.makeCancelable(
-                Cloud.get<FullAppInfo>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
+                Client.get<FullAppInfo>(`/hpc/apps/${encodeURI(name)}/${encodeURI(version)}`)
             ).promise;
             const app = response;
             const toolDescription = app.invocation.tool.tool.description;
@@ -700,8 +700,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     for (const paramKey in fileParams) {
                         const param = fileParams[paramKey];
                         if (!!userInputValues[param.name]) {
-                            const path = expandHomeFolder(userInputValues[param.name], Cloud.homeFolder);
-                            if (!await checkIfFileExists(path, Cloud)) {
+                            const path = expandHomeFolder(userInputValues[param.name], Client.homeFolder);
+                            if (!await checkIfFileExists(path, Client)) {
                                 invalidFiles.push(userInputValues[param.name]);
                                 userInputValues[param.name] = "";
                             }
@@ -721,7 +721,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     const validMountFolders = [] as AdditionalMountedFolder[];
                     // tslint:disable-next-line:prefer-for-of
                     for (let i = 0; i < mountedFolders.length; i++) {
-                        if (await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Cloud.homeFolder), Cloud)) {
+                        if (await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Client.homeFolder), Client)) {
                             const ref = React.createRef<HTMLInputElement>();
                             validMountFolders.push({ref, readOnly: mountedFolders[i].readOnly});
                         }
@@ -787,12 +787,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     }
 
     private fetchAndImportParameters = async (file: {path: string}) => {
-        const fileStat = await Cloud.get<CloudFile>(statFileQuery(file.path));
+        const fileStat = await Client.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed not allowed.");
             return;
         }
-        const response = await fetchFileContent(file.path, Cloud);
+        const response = await fetchFileContent(file.path, Client);
         if (response.ok) this.importParameters(new File([await response.blob()], "params"));
     }
 

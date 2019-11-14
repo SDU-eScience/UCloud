@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {ReduxObject} from "DefaultObjects";
 import {ContextSwitcher} from "Project/ContextSwitcher";
 import * as React from "react";
@@ -6,6 +6,7 @@ import {connect} from "react-redux";
 import styled, {css} from "styled-components";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {copyToClipboard, inDevEnvironment} from "UtilityFunctions";
+import {DATA_PROTECTION_LINK, DATA_PROTECTION_TEXT} from "../../ucloud.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
 import Flex, {FlexCProps} from "./Flex";
@@ -179,18 +180,18 @@ export const sideBarMenuElements: {
             {icon: "files", label: "Files", to: "/login"},
             {icon: "projects", label: "Projects", to: "/login"},
             {icon: "apps", label: "Apps", to: "/login"}
-        ], predicate: () => !Cloud.isLoggedIn
+        ], predicate: () => !Client.isLoggedIn
     },
     general: {
         items: [
-            {icon: "files", label: "Files", to: () => fileTablePage(Cloud.homeFolder)},
+            {icon: "files", label: "Files", to: () => fileTablePage(Client.homeFolder)},
             {icon: "shareMenu", label: "Shares", to: "/shares/"},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
             {icon: "results", label: "Runs", to: "/applications/results/"}
-        ], predicate: () => Cloud.isLoggedIn
+        ], predicate: () => Client.isLoggedIn
     },
-    auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Cloud.isLoggedIn},
-    admin: {items: [{icon: "admin", label: "Admin", to: "/admin/userCreation/"}], predicate: () => Cloud.userIsAdmin}
+    auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Client.isLoggedIn},
+    admin: {items: [{icon: "admin", label: "Admin", to: "/admin/userCreation/"}], predicate: () => Client.userIsAdmin}
 };
 
 interface SidebarStateProps {
@@ -233,8 +234,8 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
-            {Cloud.userRole === "ADMIN" ? <ContextSwitcher maxSize={140} /> : null}
-            {!Cloud.isLoggedIn ? null : (
+            {Client.userRole === "ADMIN" ? <ContextSwitcher maxSize={140} /> : null}
+            {!Client.isLoggedIn ? null : (
                 <SidebarTextLabel
                     height="25px"
                     hover={false}
@@ -242,7 +243,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                     iconSize="1em"
                     textSize={1}
                     space=".5em"
-                    title={Cloud.username ?? ""}
+                    title={Client.username ?? ""}
                 >
                     <Tooltip
                         left="-50%"
@@ -254,19 +255,21 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                                 onClick={copyUserName}
                                 width="140px"
                             >
-                                {Cloud.username}
+                                {Client.username}
                             </EllipsedText>
                         )}
                     >
-                        Click to copy {Cloud.username} to clipboard
+                        Click to copy {Client.username} to clipboard
                     </Tooltip>
                 </SidebarTextLabel>
             )}
-            <ExternalLink href="https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse">
-                <SidebarTextLabel height="25px" icon="verified" iconSize="1em" textSize={1} space=".5em">
-                    SDU Data Protection
-                </SidebarTextLabel>
-            </ExternalLink>
+            {!DATA_PROTECTION_LINK ? null : (
+                <ExternalLink href={DATA_PROTECTION_LINK}>
+                    <SidebarTextLabel height="25px" icon="verified" iconSize="1em" textSize={1} space=".5em">
+                        {DATA_PROTECTION_TEXT}
+                    </SidebarTextLabel>
+                </ExternalLink>
+            )}
             <Box mb="10px" />
         </SidebarContainer>
     );
@@ -274,7 +277,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
 
 function copyUserName() {
     copyToClipboard({
-        value: Cloud.username,
+        value: Client.username,
         message: "Username copied to clipboard"
     });
 }
@@ -283,7 +286,7 @@ const mapStateToProps = ({status, project}: ReduxObject): SidebarStateProps => (
     page: status.page,
 
     /* Used to ensure re-rendering of Sidebar after user logs in. */
-    loggedIn: Cloud.isLoggedIn,
+    loggedIn: Client.isLoggedIn,
 
     /* Used to ensure re-rendering of Sidebar after project change. */
     activeProject: project.project

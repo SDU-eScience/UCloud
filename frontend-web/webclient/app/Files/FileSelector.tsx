@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {defaultVirtualFolders, VirtualFileTable} from "Files/VirtualFileTable";
 import * as React from "react";
 import {useEffect, useState} from "react";
@@ -9,14 +9,14 @@ import {addTrailingSlash} from "UtilityFunctions";
 import {File, FileSelectorProps} from ".";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
-    const [path, setPath] = useState<string>(Cloud.homeFolder);
+    const [path, setPath] = useState<string>(Client.homeFolder);
     useEffect(() => {
         if (props.initialPath !== undefined) setPath(props.initialPath);
     }, [props.initialPath]);
 
     const virtualFolders = defaultVirtualFolders();
     const injectedFiles: File[] = [];
-    if (resolvePath(path) !== resolvePath(Cloud.homeFolder)) {
+    if (resolvePath(path) !== resolvePath(Client.homeFolder)) {
         injectedFiles.push(mockFile({
             path: `${addTrailingSlash(path)}..`,
             fileId: "parent",

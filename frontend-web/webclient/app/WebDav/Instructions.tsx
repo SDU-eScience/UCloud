@@ -23,6 +23,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
 
     return (
         <ContentContainer>
+            {/* FIXME: SDUCloud */}
             <Heading.h2 mt={16}>SDUCloud - Mounting Your Files Locally</Heading.h2>
             <Heading.h3>To continue select your platform below</Heading.h3>
 
@@ -52,7 +53,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                             <p>
                                 And select the option <i>"Connect using different credentials"</i>
                             </p>
-
+                            {/* FIXME SDUCloud */}
                             <Screenshot src={win2} alt={"Screenshot of connecting to SDUCloud"} />
                         </Step>
 
@@ -83,7 +84,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                             <code>
                                 <pre>{server}</pre>
                             </code>
-
+                            
                             <Screenshot src={macos1} alt={"Connecting to SDUCloud via macOS"} />
                         </Step>
 

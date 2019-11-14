@@ -1,5 +1,5 @@
 import {AppState} from "Applications";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {SortOrder} from "Files";
 import {Action} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -34,7 +34,7 @@ export const fetchAnalyses = async (
     filter?: AppState
 ): Promise<ReceiveAnalysesProps | AnalysesError> => {
     try {
-        const {response} = await Cloud.get(
+        const {response} = await Client.get(
             hpcJobsQuery(itemsPerPage, page, sortOrder, sortBy, minTimestamp, maxTimestamp, filter)
         );
         return receiveAnalyses(response, sortBy, sortOrder);

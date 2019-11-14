@@ -7,7 +7,7 @@ import {
     RunsSortBy
 } from "Applications";
 import {RangeRef} from "Applications/Widgets/RangeParameters";
-import Cloud from "Authentication/lib";
+import HttpClient from "Authentication/lib";
 import {SortOrder} from "Files";
 import * as React from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -80,14 +80,14 @@ export const cancelJobDialog = (
         onConfirm
     });
 
-export const cancelJob = (cloud: Cloud, jobId: string): Promise<{request: XMLHttpRequest, response: void}> =>
-    cloud.delete(cancelJobQuery, {jobId});
+export const cancelJob = (client: HttpClient, jobId: string): Promise<{request: XMLHttpRequest, response: void}> =>
+    client.delete(cancelJobQuery, {jobId});
 
 interface FavoriteApplicationFromPage<T> {
     name: string;
     version: string;
     page: Page<{metadata: ApplicationMetadata, favorite: boolean} & T>;
-    cloud: Cloud;
+    client: HttpClient;
 }
 
 /**
@@ -99,11 +99,11 @@ export async function favoriteApplicationFromPage<T>({
     name,
     version,
     page,
-    cloud
+    client
 }: FavoriteApplicationFromPage<T>): Promise<Page<T>> {
     const a = page.items.find(it => it.metadata.name === name && it.metadata.version === version)!;
     try {
-        await cloud.post(hpcFavoriteApp(name, version));
+        await client.post(hpcFavoriteApp(name, version));
         a.favorite = !a.favorite;
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, `An error ocurred favoriting ${name}`));
@@ -193,10 +193,10 @@ export type ParameterValues = Map<string, React.RefObject<HTMLInputElement | HTM
 interface ExtractParametersFromMap {
     map: ParameterValues;
     appParameters: ApplicationParameter[];
-    cloud: Cloud;
+    client: HttpClient;
 }
 
-export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractParametersFromMap): ExtractedParameters {
+export function extractValuesFromWidgets({map, appParameters, client}: ExtractParametersFromMap): ExtractedParameters {
     const extracted: ExtractedParameters = {};
     map.forEach((r, key) => {
         const parameter = appParameters.find(it => it.name === key);
@@ -208,7 +208,7 @@ export function extractValuesFromWidgets({map, appParameters, cloud}: ExtractPar
             switch (parameter.type) {
                 case ParameterTypes.InputDirectory:
                 case ParameterTypes.InputFile:
-                    const expandedValue = expandHomeFolder(r.current.value, cloud.homeFolder);
+                    const expandedValue = expandHomeFolder(r.current.value, client.homeFolder);
                     extracted[key] = {
                         source: expandedValue,
                         destination: removeTrailingSlash(expandedValue).split("/").pop()!

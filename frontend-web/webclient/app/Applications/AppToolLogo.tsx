@@ -1,10 +1,8 @@
 import {AppOrTool} from "Applications/api";
 import {AppLogo, hashF} from "Applications/Card";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import * as React from "react";
 import {useEffect, useState} from "react";
-import styled from "styled-components";
-import Image from "ui-components/Image";
 
 interface AppToolLogoProps {
     name: string;
@@ -20,7 +18,7 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
 
     useEffect(() => setLoadedImage(true), [props.cacheBust]);
 
-    const url = Cloud.computeURL("/api", `/hpc/${context}/logo/${props.name}?cacheBust=${props.cacheBust}`);
+    const url = Client.computeURL("/api", `/hpc/${context}/logo/${props.name}?cacheBust=${props.cacheBust}`);
 
     return (
         <>

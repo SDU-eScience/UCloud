@@ -1,5 +1,5 @@
 import {getStartOfDay, getStartOfWeek} from "Activity/Page";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {formatRelative} from "date-fns/esm";
 import {enGB} from "date-fns/locale";
 import {ReduxObject} from "DefaultObjects";
@@ -280,7 +280,7 @@ const AnalysisOperations = ({cancelableAnalyses, onFinished}: AnalysisOperations
                 jobId: cancelableAnalyses[0].jobId,
                 onConfirm: async () => {
                     try {
-                        await Promise.all(cancelableAnalyses.map(a => cancelJob(Cloud, a.jobId)));
+                        await Promise.all(cancelableAnalyses.map(a => cancelJob(Client, a.jobId)));
                         snackbarStore.addSnack({type: SnackType.Success, message: "Jobs cancelled"});
                     } catch (e) {
                         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"));

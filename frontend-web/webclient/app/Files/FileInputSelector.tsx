@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import FileSelector from "Files/FileSelector";
 import * as React from "react";
 import {useState} from "react";
@@ -33,7 +33,7 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
     const uploadButton = props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
     const removeButton = props.remove ? (<RemoveButton onClick={() => props.remove!()} />) : null;
     const inputRefValueOrNull = props.inputRef?.current?.value;
-    const inputValue = inputRefValueOrNull ?? replaceHomeFolder(path, Cloud.homeFolder);
+    const inputValue = inputRefValueOrNull ?? replaceHomeFolder(path, Client.homeFolder);
 
     return (
         <FileSelector

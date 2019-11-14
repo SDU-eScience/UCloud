@@ -1,6 +1,6 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {ReduxObject, Sensitivity} from "DefaultObjects";
-import {File as SDUCloudFile} from "Files";
+import {File as UCloudFile} from "Files";
 import {Refresh} from "Navigation/Header";
 import * as React from "react";
 import Dropzone from "react-dropzone";
@@ -245,10 +245,10 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         if (filteredFiles.length === 0) return;
 
         this.props.setLoading(true);
-        type PromiseType = ({request: XMLHttpRequest, response: SDUCloudFile} | {status: number, response: string});
+        type PromiseType = ({request: XMLHttpRequest, response: UCloudFile} | {status: number, response: string});
         const promises: PromiseType[] = await Promise.all(filteredFiles.map(file =>
-            Cloud
-                .get<SDUCloudFile>(statFileQuery(`${this.props.path}/${file.file.name}`))
+            Client
+                .get<UCloudFile>(statFileQuery(`${this.props.path}/${file.file.name}`))
                 .then(it => it)
                 .catch(it => it)
         ));
@@ -443,7 +443,7 @@ const UploaderRow = (p: {
             <Icon cursor="pointer" ml="10px" name="info" color="white" color2="black" />
             <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
                 Will be uploaded
-                to: {replaceHomeFolder(p.upload.path, Cloud.homeFolder)}
+                to: {replaceHomeFolder(p.upload.path, Client.homeFolder)}
             </DropdownContent>
         </Dropdown>
     );
@@ -567,7 +567,7 @@ const UploaderRow = (p: {
     return (
         <Flex flexDirection="row" data-tag={"uploadRow"}>
             <Box width={0.04} textAlign="center">
-                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Cloud.homeFolder)} />
+                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Client.homeFolder)} />
             </Box>
             <Flex width={0.96}>{body}</Flex>
         </Flex>
@@ -603,7 +603,7 @@ const PolicySelect = ({setRewritePolicy}: PolicySelect) => (
 );
 
 interface ConflictFile {
-    file?: SDUCloudFile;
+    file?: UCloudFile;
 }
 
 const ConflictFile = ({file}: ConflictFile) => !!file ?
@@ -623,7 +623,7 @@ const mapStateToProps = ({uploader}: ReduxObject): UploaderStateProps => ({
 const mapDispatchToProps = (dispatch: Dispatch): UploadOperations => ({
     setUploads: uploads => dispatch(setUploads(uploads)),
     setUploaderError: err => dispatch(setUploaderError(err)),
-    setUploaderVisible: visible => dispatch(setUploaderVisible(visible, Cloud.homeFolder)),
+    setUploaderVisible: visible => dispatch(setUploaderVisible(visible, Client.homeFolder)),
     setLoading: loading => dispatch(setLoading(loading)),
 });
 

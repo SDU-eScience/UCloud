@@ -2,7 +2,7 @@ import {AdvancedSearchRequest as AppSearchRequest, DetailedApplicationSearchRedu
 import {ApplicationCard} from "Applications/Card";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {setAppQuery} from "Applications/Redux/DetailedApplicationSearchActions";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage, HeaderSearchType, ReduxObject} from "DefaultObjects";
 import {AdvancedSearchRequest, DetailedFileSearchReduxState, FileType} from "Files";
 import DetailedFileSearch from "Files/DetailedFileSearch";
@@ -119,7 +119,7 @@ function Search(props: SearchProps) {
                                         name: app.metadata.name,
                                         version: app.metadata.version,
                                         page: props.applications,
-                                        cloud: Cloud
+                                        client: Client
                                     }))}
                                     key={`${app.metadata.name}${app.metadata.version}`}
                                     app={app}

@@ -5,7 +5,7 @@ import {
 } from "Applications";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {setAppQuery} from "Applications/Redux/DetailedApplicationSearchActions";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
 import {HeaderSearchType, KeyCode, ReduxObject} from "DefaultObjects";
@@ -63,7 +63,7 @@ function Header(props: HeaderProps) {
     // The following is only supposed to work for the initial load.
     if (window.location.pathname === "/app/login" && window.location.search === "?dav=true") return null;
 
-    if (!Cloud.isLoggedIn) return null;
+    if (!Client.isLoggedIn) return null;
     const history = useHistory();
 
     React.useEffect(() => {
@@ -104,8 +104,9 @@ function Header(props: HeaderProps) {
                 colorOnHover={false}
                 width="200px"
                 left="-180%"
-                trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}
+                trigger={<Flex>{Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}
             >
+                {/* FIXME: SDU */}
                 <Box ml="-17px" mr="-17px" pl="15px">
                     <ExternalLink color="black" href="https://status.cloud.sdu.dk">
                         <Flex color="black">
@@ -131,7 +132,7 @@ function Header(props: HeaderProps) {
                         </Flex>
                     </Link>
                 </Flex>
-                <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
+                <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Client.logout()}>
                     <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </Flex>
@@ -183,6 +184,7 @@ const Logo = () => (
     <Link to={"/"}>
         <Flex alignItems="center" ml="15px">
             <Icon name="logoEsc" size="38px" />
+            {/* FIXME: SDUCloud */}
             <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
             <LogoText
                 ml="4px"
@@ -319,7 +321,7 @@ const _Search = (props: SearchProps) => {
                         />
                     ) : null}
                 </ClickableDropdown>
-                {!Cloud.isLoggedIn ? <Login /> : null}
+                {!Client.isLoggedIn ? <Login /> : null}
             </SearchInput>
         </Relative>
     );

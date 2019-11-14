@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setActivePage, setLoading, SetStatusLoading} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
@@ -53,7 +53,7 @@ function UserCreation(props: UserCreationOperations) {
             try {
                 props.setLoading(true);
                 await promiseKeeper.makeCancelable(
-                    Cloud.post("/auth/users/register", {username, password}, "")
+                    Client.post("/auth/users/register", {username, password}, "")
                 ).promise;
                 snackbarStore.addSnack({message: `User '${username}' successfully created`, type: SnackType.Success});
                 setState(() => initialState);
@@ -72,7 +72,7 @@ function UserCreation(props: UserCreationOperations) {
         }
     }
 
-    if (!Cloud.userIsAdmin) return null;
+    if (!Client.userIsAdmin) return null;
 
     const {
         usernameError,

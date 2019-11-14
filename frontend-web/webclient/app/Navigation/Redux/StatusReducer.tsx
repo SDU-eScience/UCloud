@@ -8,7 +8,7 @@ export const SET_STATUS_LOADING = "SET_STATUS_LOADING";
 const status = (state: StatusReduxObject = initStatus(), action: StatusActions): StatusReduxObject => {
     switch (action.type) {
         case UPDATE_PAGE_TITLE:
-            document.title = `SDUCloud | ${action.payload.title}`;
+            document.title = `UCloud | ${action.payload.title}`;
             return {...state, ...action.payload};
         case SET_STATUS_LOADING:
         case SET_ACTIVE_PAGE:

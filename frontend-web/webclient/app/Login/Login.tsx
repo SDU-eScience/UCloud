@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
@@ -51,7 +51,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         return <Instructions token={webDavInstructionToken} />;
     }
 
-    if (Cloud.isLoggedIn && !isWebDav) {
+    if (Client.isLoggedIn && !isWebDav) {
         props.history.push("/");
         return <div />;
     }
@@ -74,7 +74,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
             body.append("username", usernameInput.current!.value);
             body.append("password", passwordInput.current!.value);
             const response = await promises.makeCancelable(
-                fetch(Cloud.computeURL("/auth", `/login?service=${service}`), {
+                fetch(Client.computeURL("/auth", `/login?service=${service}`), {
                     method: "POST",
                     headers: {
                         Accept: "application/json"
@@ -102,7 +102,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         if (isWebDav) {
             setWebDavToken(result.refreshToken);
         } else {
-            Cloud.setTokens(result.accessToken, result.csrfToken);
+            Client.setTokens(result.accessToken, result.csrfToken);
             props.history.push("/loginSuccess");
         }
     }

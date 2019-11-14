@@ -1,5 +1,5 @@
 import {ActivityFilter, ActivityGroup} from "Activity";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {ScrollRequest, ScrollResult} from "Scroll/Types";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -10,7 +10,7 @@ import {errorMessageOrDefault} from "UtilityFunctions";
 // Request builders
 export const fetchActivity = async (scroll: ScrollRequest<number>, filter?: ActivityFilter) => {
     try {
-        const {response} = await Cloud.get(activityQuery(scroll, filter));
+        const {response} = await Client.get(activityQuery(scroll, filter));
         return receiveActivity(response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "Could not fetch activity from server"));

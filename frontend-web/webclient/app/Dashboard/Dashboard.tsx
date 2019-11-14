@@ -1,7 +1,7 @@
 import * as Accounting from "Accounting";
 import {fetchUsage} from "Accounting/Redux/AccountingActions";
 import {JobState, JobWithStatus} from "Applications";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {formatDistanceToNow} from "date-fns/esm";
 import {ReduxObject} from "DefaultObjects";
 import {File} from "Files";
@@ -83,7 +83,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
     };
 
     const favoriteOrUnfavorite = (file: File) => {
-        favoriteFile(file, Cloud);
+        favoriteFile(file, Client);
         props.receiveFavorites(favoriteFiles.filter(f => f.fileId !== file.fileId));
     };
 
@@ -149,7 +149,7 @@ const DashboardFavoriteFiles = ({
             {files.length ? null : (
                 <NoEntries
                     text="Your favorite files will appear here"
-                    to={fileTablePage(Cloud.homeFolder)}
+                    to={fileTablePage(Client.homeFolder)}
                     buttonText="Explore files"
                 />
             )}
@@ -185,13 +185,13 @@ const NoEntries = (props: NoEntriesProps) => (
 );
 
 const ListFileContent = ({file, pixelsWide}: {file: File, pixelsWide: number}) => {
-    const iconType = UF.iconFromFilePath(file.path, file.fileType, Cloud.homeFolder);
+    const iconType = UF.iconFromFilePath(file.path, file.fileType, Client.homeFolder);
     return (
         <Flex alignItems="center">
             <FileIcon fileIcon={iconType} />
             <Link ml="0.5em" to={fileTablePage(isDirectory(file) ? file.path : getParentPath(file.path))}>
                 <EllipsedText fontSize={2} width={pixelsWide}>
-                    {getFilenameFromPath(replaceHomeFolder(file.path, Cloud.homeFolder))}
+                    {getFilenameFromPath(replaceHomeFolder(file.path, Client.homeFolder))}
                 </EllipsedText>
             </Link>
         </Flex>
@@ -203,7 +203,7 @@ const DashboardRecentFiles = ({files, isLoading}: {files: File[], isLoading: boo
         {files.length ? null : (
             <NoEntries
                 text="No recently used files"
-                to={fileTablePage(Cloud.homeFolder)}
+                to={fileTablePage(Client.homeFolder)}
                 buttonText="Explore files"
             />
         )}
