@@ -39,6 +39,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
   cursor: inherit;
   font-size: 14px;
   color: #c00;
+  white-space: pre;
 }
 
 <div
@@ -55,11 +56,6 @@ exports[`Error component Error with error and dismiss button 1`] = `
         color="red"
         cursor="inherit"
         fontSize={1}
-        style={
-          Object {
-            "whiteSpace": "pre",
-          }
-        }
       >
         This is an error
       </div>
@@ -115,6 +111,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   cursor: inherit;
   font-size: 14px;
   color: #c00;
+  white-space: pre;
 }
 
 <div
@@ -131,11 +128,6 @@ exports[`Error component Error with error and no dismiss button 1`] = `
         color="red"
         cursor="inherit"
         fontSize={1}
-        style={
-          Object {
-            "whiteSpace": "pre",
-          }
-        }
       >
         This is an error
       </div>

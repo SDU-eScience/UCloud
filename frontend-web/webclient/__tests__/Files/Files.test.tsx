@@ -1,4 +1,5 @@
 import {createBrowserHistory} from "history";
+import "jest-styled-components";
 import * as React from "react";
 import {Provider} from "react-redux";
 import {Router} from "react-router";

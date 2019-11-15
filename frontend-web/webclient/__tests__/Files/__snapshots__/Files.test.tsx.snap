@@ -1,22 +1,340 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Mount Files component 1`] = `
+.c2 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c0 {
+  margin-left: 190px;
+  padding-top: 48px;
+  padding-bottom: 14px;
+  padding-left: 14px;
+  padding-right: 0;
+  background-color: #fff;
+}
+
+.c3 {
+  margin-left: 15px;
+}
+
+.c8 {
+  margin-left: auto;
+}
+
+.c15 {
+  padding-left: 5px;
+  padding-right: 5px;
+  height: calc(100% - 20px);
+}
+
+.c21 {
+  -webkit-box-flex: 1;
+  -webkit-flex-grow: 1;
+  -ms-flex-positive: 1;
+  flex-grow: 1;
+}
+
+.c22 {
+  padding-top: 96px;
+  padding-right: 240px;
+}
+
+.c18 {
+  font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #006aff;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c18:disabled {
+  opacity: 0.25;
+}
+
+.c18:focus {
+  outline: none;
+}
+
+.c18:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c20 {
+  font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: #006aff;
+  color: #fff;
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+  color: #006aff;
+  border: 2px solid #006aff;
+  border-radius: 5px;
+  background-color: transparent;
+  font-size: 14px;
+  padding: 7.5px 18px;
+}
+
+.c20:disabled {
+  opacity: 0.25;
+}
+
+.c20:focus {
+  outline: none;
+}
+
+.c20:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c20:hover {
+  border: 2px solid;
+  background-color: transparent;
+  -webkit-transition: ease 0.1s;
+  transition: ease 0.1s;
+}
+
+.c4 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.c12 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
+.c5 {
+  cursor: pointer;
+  font-size: 11px;
+  margin-left: -15px;
+}
+
+.c6 {
+  cursor: inherit;
+  font-size: 25px;
+  margin-left: 8px;
+  margin-right: 8px;
+}
+
+.c10 {
+  cursor: pointer;
+}
+
+.c11 {
+  cursor: inherit;
+}
+
+.c24 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+  font-weight: 400;
+}
+
+.c16 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  height: 100%;
+  -webkit-flex-direction: column;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.c16 .c17,
+.c16 .c19 {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.c9 {
+  position: relative;
+  display: inline-block;
+}
+
+.c9:hover > div {
+  display: block;
+}
+
+.c1 {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  padding-left: 204px;
+  padding-right: 14px;
+  width: 100%;
+  height: 96px;
+  background-color: #fff;
+  position: absolute;
+  top: 48px;
+  left: 0;
+  position: fixed;
+  z-index: 50;
+}
+
+.c14 {
+  padding-top: 144px;
+  padding-left: 14px;
+  padding-right: 14px;
+  width: 240px;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+  overflow-y: auto;
+  position: fixed;
+  z-index: 45;
+}
+
+.c7 {
+  padding: 0;
+  padding-right: 10px;
+  margin: 0;
+  list-style: none;
+  max-width: 85%;
+  height: 85px;
+  overflow-y: auto;
+}
+
+.c7 li {
+  display: inline;
+  font-size: 25px;
+}
+
+.c7 li + li:before {
+  padding: 8px;
+  color: #1e252e;
+  content: "/";
+}
+
+.c7 li span {
+  color: #1e252e;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+}
+
+.c7 li span:hover {
+  cursor: pointer;
+  color: #006aff;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+}
+
+@media screen and (max-width:511px) {
+  .c13 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:512px) and (max-width:639px) {
+  .c13 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:640px) and (max-width:767px) {
+  .c13 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c23 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c23 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c23 {
+    display: none;
+  }
+}
+
 <div
-  className="sc-htpNat gDfBLd"
+  className="c0"
 >
   <div
-    className="sc-htpNat sc-bxivhb sc-kjoXOD cQydld"
+    className="c1"
     height={96}
     width={1}
   >
     <div
-      className="sc-bdVaJa fuBZyM"
+      className="c2"
     >
       <div
-        className="sc-htpNat exYHbV"
+        className="c3"
       >
         <svg
-          className="sc-htoDjs fTQtPU"
+          className="c4"
           cursor="pointer"
           fill="currentcolor"
           height="30px"
@@ -32,7 +350,7 @@ exports[`Mount Files component 1`] = `
           />
         </svg>
         <div
-          className="sc-jTzLTM ivwLgz"
+          className="c5"
           cursor="pointer"
           fontSize="11px"
           onClick={[Function]}
@@ -41,14 +359,14 @@ exports[`Mount Files component 1`] = `
         </div>
       </div>
       <div
-        className="sc-jTzLTM jFNMAO"
+        className="c6"
         cursor="inherit"
         fontSize="25px"
       >
         |
       </div>
       <ul
-        className="sc-cIShpX dtxAhc"
+        className="c7"
       >
         <li
           title="Home of jonas@hinchely.dk"
@@ -58,26 +376,26 @@ exports[`Mount Files component 1`] = `
         </li>
       </ul>
       <div
-        className="sc-htpNat btiFIV"
+        className="c8"
       />
       <div
-        className="sc-hzDkRC isPhWx"
+        className="c9"
         data-tag="dropdown"
       >
         <span
-          className="sc-jTzLTM bjceot"
+          className="c10"
           cursor="pointer"
           onClick={[Function]}
         >
           <span
-            className="sc-jTzLTM bnnwzT"
+            className="c11"
             cursor="inherit"
           >
              
             Files per page 25
           </span>
           <svg
-            className="sc-htoDjs krWwdJ"
+            className="c12"
             clipRule="evenodd"
             cursor="inherit"
             fill="currentcolor"
@@ -96,80 +414,88 @@ exports[`Mount Files component 1`] = `
     </div>
   </div>
   <div
-    className="sc-htpNat sc-jKJlTe lopkwb"
+    className="c13"
   >
     <div
-      className="sc-htpNat sc-bxivhb sc-cHGsZl iIOJRB"
+      className="c14"
       height="100%"
       width={240}
     >
       <div
-        className="sc-htpNat eRCWhu"
+        className="c15"
         height="calc(100% - 20px)"
       >
         <div
-          className="sc-bdVaJa sc-bRBYWo gaZbtS"
+          className="c16"
         >
           <button
-            className="sc-bZQynM cZIxad"
+            className="c17 c18"
             color="blue"
+            cursor="pointer"
+            onClick={[Function]}
           >
             <span>
               Upload Files
             </span>
           </button>
           <button
-            className="sc-bZQynM sc-gzVnrw hHlzxg"
+            className="c17 c19 c20"
             color="blue"
+            cursor="pointer"
+            onClick={[Function]}
           >
             <span>
               New Folder
             </span>
           </button>
           <div
-            className="sc-htpNat gsvqod"
+            className="c21"
           />
         </div>
       </div>
     </div>
   </div>
   <div
-    className="sc-htpNat gfqUsZ"
+    className="c22"
   >
     <div
-      className="sc-htpNat sc-jKJlTe fyzMpK"
+      className="c23"
     >
       <div
-        className="sc-htpNat eRCWhu"
+        className="c15"
         height="calc(100% - 20px)"
       >
         <div
-          className="sc-bdVaJa sc-bRBYWo gaZbtS"
+          className="c16"
         >
           <button
-            className="sc-bZQynM cZIxad"
+            className="c17 c18"
             color="blue"
+            cursor="pointer"
+            onClick={[Function]}
           >
             <span>
               Upload Files
             </span>
           </button>
           <button
-            className="sc-bZQynM sc-gzVnrw hHlzxg"
+            className="c17 c19 c20"
             color="blue"
+            cursor="pointer"
+            onClick={[Function]}
           >
             <span>
               New Folder
             </span>
           </button>
           <div
-            className="sc-htpNat gsvqod"
+            className="c21"
           />
         </div>
       </div>
     </div>
     <h3
-      className="sc-jTzLTM iUcSta"
+      className="c24"
       cursor="inherit"
       fontSize={4}
     >

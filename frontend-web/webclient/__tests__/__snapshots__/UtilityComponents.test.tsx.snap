@@ -391,11 +391,6 @@ exports[`Share prompt 1`] = `
   margin-top: 15px;
 }
 
-.c0 {
-  width: 620px;
-  max-height: 80vh;
-}
-
 .c1 {
   width: 605px;
 }
@@ -612,15 +607,15 @@ exports[`Share prompt 1`] = `
   display: block;
 }
 
+.c0 {
+  overflowY: auto;
+  overflowX: hidden;
+  maxHeight: 80vh;
+  width: 620px;
+}
+
 <div
   className="c0"
-  style={
-    Object {
-      "overflowX": "hidden",
-      "overflowY": "auto",
-    }
-  }
-  width="620px"
 >
   <div
     className="c1"

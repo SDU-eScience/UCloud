@@ -18,7 +18,7 @@ interface JWT {
     publicSessionReference: string;
 }
 
-class MockCloud {
+class MockHttpClient {
 
     get username(): string | undefined {
         const info = this.userInfo;
@@ -284,7 +284,7 @@ class MockCloud {
     }
 }
 
-export const Cloud = new MockCloud();
+export const Client = new MockHttpClient();
 
 /* Why is this necessary? */
 test("Silencer", () => {/*  */});

@@ -16,7 +16,7 @@ test("All lower case", () => {
 });
 
 test("Mixed case and special characters", () => {
-    expect(UF.capitalized("aBaCuS 2.0 !@#$%^&*()")).toBe("Abacus 2.0 !@#$%^&*()")
+    expect(UF.capitalized("aBaCuS 2.0 !@#$%^&*()")).toBe("Abacus 2.0 !@#$%^&*()");
 });
 
 test("Empty string", () => {
