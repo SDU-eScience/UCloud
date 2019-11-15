@@ -6,7 +6,7 @@ import {connect} from "react-redux";
 import styled, {css} from "styled-components";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {copyToClipboard, inDevEnvironment} from "UtilityFunctions";
-import {DATA_PROTECTION_LINK, DATA_PROTECTION_TEXT} from "../../ucloud.config.json";
+import {DATA_PROTECTION_LINK, DATA_PROTECTION_TEXT} from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
 import Flex, {FlexCProps} from "./Flex";

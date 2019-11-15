@@ -1,7 +1,7 @@
 import Uploader from "./Uploader";
 export {Uploader};
 import {Sensitivity} from "DefaultObjects";
-import {File as UCloudFile} from "Files";
+import {File as CloudFile} from "Files";
 import {UploadPolicy} from "./api";
 
 export interface Upload {
@@ -12,7 +12,7 @@ export interface Upload {
     extractArchive: boolean;
     sensitivity: Sensitivity;
     uploadXHR?: XMLHttpRequest;
-    conflictFile?: UCloudFile;
+    conflictFile?: CloudFile;
     resolution: UploadPolicy;
     uploadEvents: Array<{progressInBytes: number, timestamp: number}>;
     isPending: boolean;

@@ -14,6 +14,7 @@ import * as Heading from "ui-components/Heading";
 import {invalidateAllSessions, listUserSessions, UserSession} from "UserSettings/api";
 import {dateToString} from "Utilities/DateUtilities";
 import {addStandardDialog} from "UtilityComponents";
+import {PRODUCT_NAME} from "../../site.config.json";
 
 export interface SessionsProps {
     setLoading: (loading: boolean) => void;
@@ -84,8 +85,7 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
     const onInvalidateSessions = useCallback(() => {
         addStandardDialog({
             title: "Invalidate all sessions",
-            /* FIXME SDU Cloud */
-            message: "This will log you out of SDUCloud on ALL devices. Are you sure you wish to do this?",
+            message: `This will log you out of ${PRODUCT_NAME} on ALL devices. Are you sure you wish to do this?`,
             onConfirm: async () => {
                 await invokeCommand(invalidateAllSessions());
                 HttpClient.clearTokens();

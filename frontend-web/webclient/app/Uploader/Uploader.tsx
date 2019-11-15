@@ -1,6 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {ReduxObject, Sensitivity} from "DefaultObjects";
-import {File as UCloudFile} from "Files";
+import {File as CloudFile} from "Files";
 import {Refresh} from "Navigation/Header";
 import * as React from "react";
 import Dropzone from "react-dropzone";
@@ -245,10 +245,10 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         if (filteredFiles.length === 0) return;
 
         this.props.setLoading(true);
-        type PromiseType = ({request: XMLHttpRequest, response: UCloudFile} | {status: number, response: string});
+        type PromiseType = ({request: XMLHttpRequest, response: CloudFile} | {status: number, response: string});
         const promises: PromiseType[] = await Promise.all(filteredFiles.map(file =>
             Client
-                .get<UCloudFile>(statFileQuery(`${this.props.path}/${file.file.name}`))
+                .get<CloudFile>(statFileQuery(`${this.props.path}/${file.file.name}`))
                 .then(it => it)
                 .catch(it => it)
         ));
@@ -603,7 +603,7 @@ const PolicySelect = ({setRewritePolicy}: PolicySelect) => (
 );
 
 interface ConflictFile {
-    file?: UCloudFile;
+    file?: CloudFile;
 }
 
 const ConflictFile = ({file}: ConflictFile) => !!file ?

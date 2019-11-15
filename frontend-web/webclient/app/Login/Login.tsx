@@ -13,6 +13,7 @@ import {TextSpan} from "ui-components/Text";
 import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
+import {PRODUCT_NAME} from "../../site.config.json";
 
 const bg1 = require("Assets/Images/bg1.svg");
 const bg2 = require("Assets/Images/bg2.svg");
@@ -162,8 +163,8 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                         <Box width="315px">
                             {!isWebDav ? null : (
                                 <Box color="white" mb={32}>
-                                    You must re-authenticate with SDUCloud to use your files locally.
-                            </Box>
+                                    You must re-authenticate with {PRODUCT_NAME} to use your files locally.
+                                </Box>
                             )}
                             {enabledWayf && !challengeId ? (
                                 <a href={`/auth/saml/login?service=${service}`}>

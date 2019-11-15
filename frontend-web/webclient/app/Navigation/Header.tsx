@@ -50,6 +50,7 @@ import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {inDevEnvironment, isLightThemeStored, prettierString, stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {PRODUCT_NAME, STATUS_PAGE} from "../../site.config.json";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -106,16 +107,19 @@ function Header(props: HeaderProps) {
                 left="-180%"
                 trigger={<Flex>{Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}
             >
-                {/* FIXME: SDU */}
-                <Box ml="-17px" mr="-17px" pl="15px">
-                    <ExternalLink color="black" href="https://status.cloud.sdu.dk">
-                        <Flex color="black">
-                            <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
-                            <TextSpan>Site status</TextSpan>
-                        </Flex>
-                    </ExternalLink>
-                </Box>
-                <Divider />
+                {!STATUS_PAGE ? null : (
+                    <>
+                        <Box ml="-17px" mr="-17px" pl="15px">
+                            <ExternalLink color="black" href={STATUS_PAGE}>
+                                <Flex color="black">
+                                    <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
+                                    <TextSpan>Site status</TextSpan>
+                                </Flex>
+                            </ExternalLink>
+                        </Box>
+                        <Divider />
+                    </>
+                )}
                 <Box ml="-17px" mr="-17px" pl="15px">
                     <Link color="black" to="/users/settings">
                         <Flex color="black">
@@ -184,8 +188,7 @@ const Logo = () => (
     <Link to={"/"}>
         <Flex alignItems="center" ml="15px">
             <Icon name="logoEsc" size="38px" />
-            {/* FIXME: SDUCloud */}
-            <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
+            <Text color="headerText" fontSize={4} ml={"8px"}>{PRODUCT_NAME}</Text>
             <LogoText
                 ml="4px"
                 mt={-7}

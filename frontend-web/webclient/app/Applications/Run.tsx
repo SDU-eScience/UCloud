@@ -60,6 +60,7 @@ import {
     WithAppInvocation,
     WithAppMetadata,
 } from ".";
+import {PRODUCT_NAME} from "../../site.config.json";
 import {AppHeader} from "./View";
 import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
@@ -969,8 +970,8 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                 />
                 </Button>
                 <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
-                    Select file from SDUCloud
-            </Button>
+                    Select file from {PRODUCT_NAME}
+                </Button>
             </div>
             <Flex mt="20px">
                 <Button onClick={() => dialogStore.success()} color="red" mr="5px">Cancel</Button>

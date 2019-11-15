@@ -693,7 +693,7 @@ exports[`Header Mount header 1`] = `
         cursor="inherit"
         fontSize={4}
       >
-        SDUCloud
+        UCloud
       </div>
       <div
         className="c4 c6"
