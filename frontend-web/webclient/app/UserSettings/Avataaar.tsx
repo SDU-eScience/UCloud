@@ -79,14 +79,14 @@ function Modification(props: AvataaarModificationOperations) {
                     <>
                         <AvatarSelect
                             defaultValue={avatar.top}
-                            update={value => setAvatar({...avatar, top: value})}
+                            update={top => setAvatar({...avatar, top})}
                             options={Options.Top}
                             title="Top"
                             disabled={false}
                         />
                         <AvatarSelect
                             defaultValue={avatar.hatColor}
-                            update={value => setAvatar({...avatar, hatColor: value})}
+                            update={hatColor => setAvatar({...avatar, hatColor})}
                             options={Options.HatColor}
                             title="Hat color"
                             disabled={!["Turban", "Hijab", "WinterHat1", "WinterHat2", "WinterHat3", "WinterHat4"]
@@ -94,35 +94,35 @@ function Modification(props: AvataaarModificationOperations) {
                         />
                         <AvatarSelect
                             defaultValue={avatar.topAccessory}
-                            update={value => setAvatar({...avatar, topAccessory: value})}
+                            update={topAccessory => setAvatar({...avatar, topAccessory})}
                             options={Options.TopAccessory}
                             title="Accessories"
                             disabled={avatar.top === "Eyepatch"}
                         />
                         <AvatarSelect
                             defaultValue={avatar.hairColor}
-                            update={value => setAvatar({...avatar, hairColor: value})}
+                            update={hairColor => setAvatar({...avatar, hairColor})}
                             options={Options.HairColor}
                             title="Hair color"
                             disabled={!avatar.top.includes("Hair") || avatar.top === "LongHairFrida"}
                         />
                         <AvatarSelect
                             defaultValue={avatar.facialHair}
-                            update={value => setAvatar({...avatar, facialHair: value})}
+                            update={facialHair => setAvatar({...avatar, facialHair})}
                             options={Options.FacialHair}
                             title="Facial Hair"
                             disabled={avatar.top === "Hijab"}
                         />
                         <AvatarSelect
                             defaultValue={avatar.facialHairColor}
-                            update={value => setAvatar({...avatar, facialHairColor: value})}
+                            update={facialHairColor => setAvatar({...avatar, facialHairColor})}
                             options={Options.FacialHairColor}
                             title="Facial Hair Color"
                             disabled={avatar.facialHair === "Blank"}
                         />
                         <AvatarSelect
                             defaultValue={avatar.clothes}
-                            update={value => setAvatar({...avatar, clothes: value})}
+                            update={clothes => setAvatar({...avatar, clothes})}
                             options={Options.Clothes}
                             title="Clothes"
                             disabled={false}
@@ -131,13 +131,13 @@ function Modification(props: AvataaarModificationOperations) {
                             defaultValue={avatar.colorFabric}
                             title="Clothes Fabric"
                             options={Options.ColorFabric}
-                            update={value => setAvatar({...avatar, colorFabric: value})}
+                            update={colorFabric => setAvatar({...avatar, colorFabric})}
                             disabled={avatar.clothes === "BlazerShirt" || avatar.clothes === "BlazerSweater"}
                         />
                         <AvatarSelect
                             defaultValue={avatar.clothesGraphic}
                             title="Graphic"
-                            update={value => setAvatar({...avatar, clothesGraphic: value})}
+                            update={clothesGraphic => setAvatar({...avatar, clothesGraphic})}
                             options={Options.ClothesGraphic}
                             disabled={avatar.clothes !== "GraphicShirt"}
                         />
@@ -145,28 +145,28 @@ function Modification(props: AvataaarModificationOperations) {
                             defaultValue={avatar.eyes}
                             title="Eyes"
                             options={Options.Eyes}
-                            update={value => setAvatar({...avatar, eyes: value})}
+                            update={eyes => setAvatar({...avatar, eyes})}
                             disabled={false}
                         />
                         <AvatarSelect
                             defaultValue={avatar.eyebrows}
                             title="Eyebrow"
                             options={Options.Eyebrows}
-                            update={value => setAvatar({...avatar, eyebrows: value})}
+                            update={eyebrows => setAvatar({...avatar, eyebrows})}
                             disabled={false}
                         />
                         <AvatarSelect
                             defaultValue={avatar.mouthTypes}
                             title="Mouth type"
                             options={Options.MouthTypes}
-                            update={value => setAvatar({...avatar, mouthTypes: value})}
+                            update={mouthTypes => setAvatar({...avatar, mouthTypes})}
                             disabled={false}
                         />
                         <AvatarSelect
                             defaultValue={avatar.skinColors}
                             title={"Skin color"}
                             options={Options.SkinColors}
-                            update={value => setAvatar({...avatar, skinColors: value})}
+                            update={skinColors => setAvatar({...avatar, skinColors})}
                             disabled={false}
                         />
                     </>

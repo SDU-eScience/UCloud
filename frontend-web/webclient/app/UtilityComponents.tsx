@@ -13,7 +13,7 @@ import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
-import {copyToClipboard, FtIconProps, inDevEnvironment} from "UtilityFunctions";
+import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreventDefault} from "UtilityFunctions";
 
 interface StandardDialog {
     title?: string;
@@ -98,7 +98,7 @@ export function SharePrompt({paths, cloud}: {paths: string[], cloud: SDUCloud}) 
     return (
         <Box style={{overflowY: "auto", overflowX: "hidden"}} maxHeight={"80vh"} width="620px">
             <Box alignItems="center" width="605px">
-                <form onSubmit={e => (e.preventDefault(), e.stopPropagation())}>
+                <form onSubmit={stopPropagationAndPreventDefault}>
                     <Heading.h3>Share</Heading.h3>
                     <Divider />
                     Collaborators

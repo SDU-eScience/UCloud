@@ -90,17 +90,15 @@ export interface ListDirectoryRequest {
     type?: FileType;
 }
 
-export const listDirectory = (
-    {
-        path,
-        page,
-        itemsPerPage,
-        order,
-        sortBy,
-        attrs,
-        type
-    }: ListDirectoryRequest
-): APICallParameters<ListDirectoryRequest> => ({
+export const listDirectory = ({
+    path,
+    page,
+    itemsPerPage,
+    order,
+    sortBy,
+    attrs,
+    type
+}: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/files",
@@ -308,19 +306,19 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             Cloud.post<QuickLaunchApp[]>(
                 "/hpc/apps/bySupportedFileExtension",
                 {files: filesOnly.map(f => f.path)}
-            ).then(response => {
+            ).then(({response}) => {
                 const newApplications = new Map<string, QuickLaunchApp[]>();
                 filesOnly.forEach(f => {
                     const fileApps: QuickLaunchApp[] = [];
 
-                    const fileName = f.path.split("/").slice(-1)[0];
-                    let fileExtension = fileName.split(".").slice(-1)[0];
+                    const [fileName] = f.path.split("/").slice(-1);
+                    let [fileExtension] = fileName.split(".").slice(-1);
 
                     if (fileName !== fileExtension) {
                         fileExtension = `.${fileExtension}`;
                     }
 
-                    response.response.forEach(item => {
+                    response.forEach(item => {
                         item.extensions.forEach(ext => {
                             if (fileExtension === ext) {
                                 fileApps.push(item);
@@ -402,7 +400,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         };
     }, [props.refreshHook]);
 
+
     // Aliases
+    const isForbiddenPath = error === "Forbidden";
     const isEmbedded = props.embedded !== false;
     const sortingSupported = props.path !== undefined && props.page === undefined;
     const numberOfColumnsBasedOnSpace =
@@ -483,68 +483,68 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         <Shell
             embedded={isEmbedded}
 
-            header={
-                (
-                    <Spacer
-                        left={(
-                            <BreadCrumbs
-                                currentPath={props.path ? props.path : ""}
-                                navigate={onFileNavigation}
-                                homeFolder={Cloud.homeFolder}
-                            />
-                        )}
+            header={(
+                <Spacer
+                    left={(
+                        <BreadCrumbs
+                            currentPath={props.path ? props.path : ""}
+                            navigate={onFileNavigation}
+                            homeFolder={Cloud.homeFolder}
+                        />
+                    )}
 
-                        right={
-                            (
-                                <>
-                                    {!isEmbedded && props.path ? null : (
-                                        <Refresh
-                                            spin={isAnyLoading}
-                                            onClick={callbacks.requestReload}
-                                        />
-                                    )}
+                    right={(
+                        <>
+                            {!isEmbedded && props.path ? null : (
+                                <Refresh
+                                    spin={isAnyLoading}
+                                    onClick={callbacks.requestReload}
+                                />
+                            )}
 
-                                    {isEmbedded ? null : (
-                                        <Pagination.EntriesPerPageSelector
-                                            content="Files per page"
-                                            entriesPerPage={page.itemsPerPage}
-                                            onChange={amount => onPageChanged(0, amount)}
-                                        />
-                                    )}
-                                </>
-                            )
-                        }
-                    />
-                )
-            }
+                            {isEmbedded ? null : (
+                                <Pagination.EntriesPerPageSelector
+                                    content="Files per page"
+                                    entriesPerPage={page.itemsPerPage}
+                                    onChange={amount => onPageChanged(0, amount)}
+                                />
+                            )}
+                        </>
+                    )}
+                />
+            )}
 
             sidebar={(
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
-                    <VerticalButtonGroup>
-                        <FileOperations
-                            files={checkedFilesWithInfo}
-                            fileOperations={fileOperations}
-                            callback={callbacks}
-                            // Don't pass a directory if the page is set. This should indicate that the path is fake.
-                            directory={props.page !== undefined ? undefined : mockFile({
-                                path: props.path ? props.path : "",
-                                fileId: "currentDir",
-                                tag: MOCK_RELATIVE,
-                                type: "DIRECTORY"
-                            })}
-                        />
+                    {isForbiddenPath ? <></> : (
+                        <VerticalButtonGroup>
+                            <FileOperations
+                                files={checkedFilesWithInfo}
+                                fileOperations={fileOperations}
+                                callback={callbacks}
+                                // Don't pass a directory if the page is set.
+                                // This should indicate that the path is fake.
+                                directory={props.page !== undefined ? undefined : mockFile({
+                                    path: props.path ? props.path : "",
+                                    fileId: "currentDir",
+                                    tag: MOCK_RELATIVE,
+                                    type: "DIRECTORY"
+                                })}
+                            />
 
-                        <Box flexGrow={1} />
+                            <Box flexGrow={1} />
 
-                        {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
-                        {/*
-                        <a href={"/app/login?dav=true"}>
-                            <OutlineButton>
-                                Use your files locally
-                            </OutlineButton>
-                        </a>
-                        */}
-                    </VerticalButtonGroup>
+                            {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
+
+                            {!UF.inDevEnvironment() ? null : (
+                                <a href={"/app/login?dav=true"}>
+                                    <OutlineButton>
+                                        Use your files locally
+                                    </OutlineButton>
+                                </a>
+                            )}
+                        </VerticalButtonGroup>
+                    )}
                 </Box>
             )}
 
@@ -979,7 +979,7 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
     }
 
     const badge = <SensitivityBadge data-tag="sensitivityBadge" bg={def.color}>{def.shortText}</SensitivityBadge>;
-    return <Tooltip right="0" top="1" mb="50px" trigger={badge}>{def.text}</Tooltip>;
+    return <Tooltip wrapperOffsetLeft="-5px" right="0" top="1" mb="50px" trigger={badge}>{def.text}</Tooltip>;
 };
 
 const SensitivityBadge = styled.div<{bg: string}>`

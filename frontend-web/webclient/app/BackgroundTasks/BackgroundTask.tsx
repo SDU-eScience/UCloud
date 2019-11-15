@@ -100,9 +100,9 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
     return (
         <>
             <ClickableDropdown
-                width={"600px"}
-                left={"-400px"}
-                top={"37px"}
+                width="600px"
+                left="-400px"
+                top="37px"
                 trigger={<TasksIcon />}
             >
                 {props.activeUploads <= 0 ? null : <TaskComponent {...uploadTask} />}
@@ -143,7 +143,7 @@ interface TaskComponentProps {
 }
 
 const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
-    const label = !props.speed ? "" : props.speed.asText;
+    const label = props.speed?.asText ?? "";
     const onClickHandler = useCallback(
         () => {
             if (props.onClick && props.jobId) {
@@ -161,12 +161,12 @@ const TaskComponent: React.FunctionComponent<TaskComponentProps> = props => {
 
             <Box flexGrow={1}>
                 {!props.progress ?
-                    <IndeterminateProgressBar color={"green"} label={label} /> :
+                    <IndeterminateProgressBar color="green" label={label} /> :
 
                     (
                         <ProgressBar
                             active={true}
-                            color={"green"}
+                            color="green"
                             label={label}
                             percent={(props.progress.current / props.progress.maximum) * 100}
                         />

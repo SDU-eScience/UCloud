@@ -127,19 +127,23 @@ interface ExtractParameters {
     siteVersion: number;
 }
 
-export const findKnownParameterValues = (
-    {
-        nameToValue,
-        allowedParameterKeys,
-        siteVersion
-    }: ExtractParameters
-): StringMap => {
+export const findKnownParameterValues = ({
+    nameToValue,
+    allowedParameterKeys,
+    siteVersion
+}: ExtractParameters): StringMap => {
     const extractedParameters = {};
     if (siteVersion === 1) {
         allowedParameterKeys.forEach(({name, type}) => {
             if (nameToValue[name] !== undefined) {
                 if (typeMatchesValue(type, nameToValue[name])) {
-                    extractedParameters[name] = nameToValue[name];
+                    if (typeof nameToValue[name] === "boolean") {
+                        extractedParameters[name] = nameToValue[name] ? "Yes" : "No";
+                    } else if (typeof nameToValue[name] === "object") {
+                        extractedParameters[name] = (nameToValue[name] as any).source;
+                    } else {
+                        extractedParameters[name] = nameToValue[name];
+                    }
                 }
             }
         });
@@ -149,19 +153,22 @@ export const findKnownParameterValues = (
 
 export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
 
-const typeMatchesValue = (type: ParameterTypes, parameter: string | [number, number]): boolean => {
+
+type ParameterValueTypes = string | [number, number] | boolean | {source: string};
+const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes): boolean => {
     switch (type) {
         case ParameterTypes.Boolean:
-            return parameter === "Yes" || parameter === "No" || parameter === "";
+            return parameter === "Yes" || parameter === "No" || parameter === "" || parameter === true || parameter === false;
         case ParameterTypes.Integer:
             return parseInt(parameter as string, 10) % 1 === 0;
         case ParameterTypes.FloatingPoint:
             return typeof parseFloat(parameter as string) === "number";
         case ParameterTypes.Range:
             return typeof parameter === "object" && "size" in parameter;
-        case ParameterTypes.Text:
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
+            return typeof parameter === "string" || "source" in (parameter as any);
+        case ParameterTypes.Text:
         case ParameterTypes.SharedFileSystem:
         case ParameterTypes.Peer:
             return typeof parameter === "string";

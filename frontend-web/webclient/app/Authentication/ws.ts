@@ -159,5 +159,4 @@ export class WebSocketConnection {
     private sendMessage(message: WebsocketRequest) {
         this.socket.send(JSON.stringify(message));
     }
-
 }

@@ -69,7 +69,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                         }]}
                         foldersOnly={props.onlyAllowFolders}
                         fileFilter={file => !props.onlyAllowFolders || file.fileType === "DIRECTORY"}
-                        onFileNavigation={p => setPath(p)}
+                        onFileNavigation={setPath}
                         injectedFiles={injectedFiles}
                         path={path}
                     />

@@ -176,6 +176,7 @@ export interface RunAppState {
     fsShown: boolean;
     sharedFileSystems: {mounts: SharedFileSystemMount[]};
     previousRuns: Page<File>;
+    unknownParameters: string[];
     reservation: React.RefObject<HTMLInputElement>;
 }
 

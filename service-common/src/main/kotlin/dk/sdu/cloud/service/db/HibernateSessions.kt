@@ -67,10 +67,7 @@ class HibernateSessionFactory(
                     if (jdbcUrl != null) applySetting("hibernate.connection.url", jdbcUrl)
                     if (username != null) applySetting("hibernate.connection.username", username)
                     applySetting("hibernate.connection.password", password ?: "")
-                    if (poolSize != null) {
-                        applySetting("hibernate.connection.pool_size", poolSize.toString())
-                        applySetting("hibernate.hikari.maximumPoolSize", poolSize.toString())
-                    }
+
                     if (dialect != null) applySetting("hibernate.dialect", dialect)
                     if (showSQLInStdout) applySetting("hibernate.show_sql", true.toString())
                     if (recreateSchemaOnStartup) {
@@ -90,6 +87,15 @@ class HibernateSessionFactory(
                         "hibernate.physical_naming_strategy",
                         SnakeCasePhysicalNamingStrategy::class.qualifiedName
                     )
+
+                    if (poolSize != null) {
+                        applySetting("hibernate.hikari.minimumIdle", "1")
+                        applySetting("hibernate.hikari.maximumPoolSize", poolSize.toString())
+                    }
+
+                    applySetting("hibernate.hikari.connectionTimeout", "20000")
+                    applySetting("hibernate.hikari.idleTimeout", "300000")
+                    applySetting("hibernate.hikari.maxLifetime", "600000")
 
                     if (skipXml && !autoDetectEntities) {
                         log.warn("Skipping XML configuration but also not auto detecting entities")

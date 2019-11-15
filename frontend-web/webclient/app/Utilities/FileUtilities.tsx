@@ -103,8 +103,8 @@ export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<
         await cloud.get(statFileQuery(path));
         return true;
     } catch (e) {
-        // FIXME: in the event of other than 404
-        return !(e.request.status === 404);
+        // FIXME: in the event of other than 404 or 403
+        return !(e.request.status === 404 || e.request.status === 403);
     }
 };
 

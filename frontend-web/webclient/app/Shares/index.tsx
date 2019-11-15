@@ -81,7 +81,7 @@ export const updateShare = (id: ShareId, rights: AccessRight[]): APICallParamete
 });
 
 export interface LoadAvatarsParams {
-    usernames: Set<string>
+    usernames: Set<string>;
 }
 
 export const loadAvatars = ({usernames}: LoadAvatarsParams): APICallParameters<LoadAvatarsParams> => ({

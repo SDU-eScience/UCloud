@@ -33,7 +33,7 @@ const dashboard = (state: DashboardStateProps = initDashboard(), action: Dashboa
                 favoriteLoading: action.type === DASHBOARD_FAVORITE_ERROR ? false : state.favoriteLoading,
                 analysesLoading: action.type === DASHBOARD_RECENT_JOBS_ERROR ? false : state.analysesLoading,
                 recentLoading: action.type === DASHBOARD_RECENT_FILES_ERROR ? false : state.recentLoading
-            }
+            };
         }
         default: {
             return state;
