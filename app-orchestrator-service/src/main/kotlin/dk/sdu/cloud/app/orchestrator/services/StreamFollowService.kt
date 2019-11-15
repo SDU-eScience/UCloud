@@ -42,7 +42,8 @@ class StreamFollowService<DBSession>(
         request: FollowStdStreamsRequest,
         requestedBy: String
     ): FollowStdStreamsResponse {
-        val (job) = db.withTransaction { jobDao.find(it, request.jobId) }
+        val jobWithToken = db.withTransaction { jobDao.find(it, request.jobId) }
+        val (job) = jobWithToken
         if (job.owner != requestedBy) throw RPCException("Not found", HttpStatusCode.NotFound)
 
         val backend = computationBackendService.getAndVerifyByName(job.backend, null)
@@ -70,7 +71,7 @@ class StreamFollowService<DBSession>(
             job.timeLeft,
             job.id,
             job.name,
-            jobFileService.jobFolder(job),
+            jobFileService.jobFolder(jobWithToken),
             job.application.metadata
         )
     }

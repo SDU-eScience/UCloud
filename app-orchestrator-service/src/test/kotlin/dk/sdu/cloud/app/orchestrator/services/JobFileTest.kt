@@ -121,7 +121,7 @@ class JobFileTest{
         )
 
         runBlocking {
-            val result = service.jobFolder(verifiedJob)
+            val result = service.jobFolder(verifiedJobWithAccessToken)
             assertTrue(result.startsWith("/home/Jobs/title"))
         }
     }
@@ -162,19 +162,24 @@ class JobFileTest{
             ReverseLookupResponse(listOf("/home/Jobs/title/testfolder"))
         )
 
+        val myJob = verifiedJobWithAccessToken2.copy(
+            job = verifiedJobWithAccessToken2.job.copy(id = "myJobId")
+        )
+
         runBlocking {
             assertNull(verifiedJobWithAccessToken2.job.folderId)
-            assertEquals("/home/Jobs/title/01-01-1970 04:25:45.678", service.jobFolder(verifiedJobWithAccessToken2.job))
-            assertEquals("/home/Jobs/title/verifiedId", service.jobFolder(verifiedJobWithAccessToken2.job, true))
+            assertEquals("/home/Jobs/title/01-01-1970 04.25.45.678", service.jobFolder(verifiedJobWithAccessToken2))
+            assertEquals(
+                "/home/Jobs/title/myJobId",
+                service.jobFolder(
+                    myJob,
+                    true
+                )
+            )
         }
 
         runBlocking {
             service.initializeResultFolder(verifiedJobWithAccessToken2)
-        }
-
-        runBlocking {
-            assertEquals("1234", verifiedJobWithAccessToken2.job.folderId)
-            assertEquals("/home/Jobs/title/testfolder", service.jobFolder(verifiedJobWithAccessToken2.job))
         }
     }
 }

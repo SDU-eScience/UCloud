@@ -145,9 +145,15 @@ class JobOrchestrator<DBSession>(
         backend.jobVerified.call(jobWithToken.job, serviceClient).orThrow()
 
         log.debug("Switching state and preparing job...")
-        jobFileService.exportParameterFile(jobWithToken, req.parameters)
+        val (jobFolderPath, folderId) = jobFileService.initializeResultFolder(jobWithToken)
+        jobFileService.exportParameterFile(jobFolderPath, jobWithToken, req.parameters)
 
-        db.withTransaction { session -> jobDao.create(session, jobWithToken) }
+        db.withTransaction { session ->
+            jobDao.create(
+                session,
+                jobWithToken.copy(job = jobWithToken.job.copy(folderId = folderId))
+            )
+        }
         handleStateChange(jobWithToken, initialState)
 
         return initialState.systemId
