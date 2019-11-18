@@ -49,6 +49,17 @@ class AclTest {
     }
 
     @Test
+    fun `revoke permission`() = runBlocking {
+        val user = UserEntity("user", EntityType.USER)
+        val licenseId = "1234"
+
+        aclService.updatePermissions(licenseId, user, AccessRight.READ)
+        assertTrue(aclService.hasPermission(licenseId, user, AccessRight.READ))
+        aclService.revokePermission(licenseId, user)
+        assertFalse(aclService.hasPermission(licenseId, user, AccessRight.READ))
+    }
+
+    @Test
     fun `add user to acl`() = runBlocking {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
@@ -58,7 +69,7 @@ class AclTest {
 
         assertFalse(aclService.hasPermission(licenseId, userEntity, AccessRight.READ_WRITE))
 
-        aclService.updatePermissions(licenseId, userEntity, setOf(AccessRight.READ_WRITE))
+        aclService.updatePermissions(licenseId, userEntity, AccessRight.READ_WRITE)
 
         assertTrue(aclService.hasPermission(licenseId, userEntity, AccessRight.READ_WRITE))
     }
@@ -84,7 +95,7 @@ class AclTest {
         val licenseId = "1234"
 
         repeat(10) {
-            aclService.updatePermissions(licenseId, user, setOf(AccessRight.READ_WRITE))
+            aclService.updatePermissions(licenseId, user, AccessRight.READ_WRITE)
         }
 
         val list = aclService.listAcl(licenseId)
