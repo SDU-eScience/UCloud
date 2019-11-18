@@ -6,7 +6,7 @@ create table application_license_servers
     name           varchar(255),
     version        varchar(255),
     address        varchar(255),
-    owner          varchar(255),
+    license        varchar(255),
     primary key (id)
 );
 
