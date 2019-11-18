@@ -1,5 +1,5 @@
 import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {FileInputSelector} from "Files/FileInputSelector";
 import * as React from "react";
 import {replaceHomeFolder, resolvePath} from "Utilities/FileUtilities";
@@ -19,7 +19,7 @@ export const InputFileParameter = (props: InputFileParameterProps) => (
             key={props.parameter.name}
             path={props.parameterRef.current?.value ?? ""}
             onFileSelect={file => {
-                props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder))
+                props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Client.homeFolder))
             }}
             inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
             isRequired={!props.parameter.optional}
@@ -36,7 +36,7 @@ export const InputDirectoryParameter = (props: InputFileParameterProps) => (
             key={props.parameter.name}
             path={props.parameterRef.current?.value ?? ""}
             onFileSelect={file => {
-                props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Cloud.homeFolder)))
+                props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Client.homeFolder)))
             }}
             inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
             canSelectFolders

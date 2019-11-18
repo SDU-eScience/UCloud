@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -16,7 +16,7 @@ export class ErrorBoundary extends React.Component<{}, ErrorBoundaryState> {
     }
 
     private static redirectToDashboard() {
-        Cloud.openLandingPage();
+        Client.openLandingPage();
     }
 
     private ref = React.createRef<HTMLTextAreaElement>();
@@ -68,7 +68,7 @@ export class ErrorBoundary extends React.Component<{}, ErrorBoundaryState> {
         const {error, errorInfo} = this.state;
         const textAreaContent = this.ref.current ? this.ref.current.value : "None";
         try {
-            await Cloud.post("/support/ticket", {
+            await Client.post("/support/ticket", {
                 message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nPathname: ${window.location.pathname},\nAdditional info: ${textAreaContent}`
             });
         } catch (e) {

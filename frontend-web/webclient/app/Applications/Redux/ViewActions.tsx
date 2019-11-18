@@ -1,8 +1,8 @@
-import { Cloud } from "Authentication/SDUCloudObject";
-import { PayloadAction, Page } from "Types";
+import {Client} from "Authentication/HttpClientInstance";
+import {PayloadAction, Page} from "Types";
 import {WithAppMetadata, WithAppFavorite, WithAppInvocation, WithAllAppTags, FullAppInfo} from "Applications";
-import { LoadableEvent, unwrapCall } from "LoadableContent";
-import { hpcFavoriteApp } from "Utilities/ApplicationUtilities";
+import {LoadableEvent, unwrapCall} from "LoadableContent";
+import {hpcFavoriteApp} from "Utilities/ApplicationUtilities";
 
 export enum Tag {
     RECEIVE_APP = "VIEW_APP_RECEIVE_APP",
@@ -19,14 +19,14 @@ type ReceiveFavorite = PayloadAction<typeof Tag.RECEIVE_FAVORITE, LoadableEvent<
 export const fetchApplication = async (name: string, version: string): Promise<ReceiveApp> => ({
     type: Tag.RECEIVE_APP,
     payload: await unwrapCall(
-        Cloud.get<WithAppMetadata & WithAppFavorite & WithAppInvocation & WithAllAppTags>(`/hpc/apps/${encodeURIComponent(name)}/${encodeURIComponent(version)}`)
+        Client.get<WithAppMetadata & WithAppFavorite & WithAppInvocation & WithAllAppTags>(`/hpc/apps/${encodeURIComponent(name)}/${encodeURIComponent(version)}`)
     )
 });
 
 export const fetchPreviousVersions = async (name: string): Promise<ReceivePrevious> => ({
     type: Tag.RECEIVE_PREVIOUS,
     payload: await unwrapCall(
-        Cloud.get<Page<FullAppInfo>>(`/hpc/apps/${encodeURIComponent(name)}`)
+        Client.get<Page<FullAppInfo>>(`/hpc/apps/${encodeURIComponent(name)}`)
     )
 });
 
@@ -34,6 +34,6 @@ export const fetchPreviousVersions = async (name: string): Promise<ReceivePrevio
 export const favoriteApplication = async (name: string, version: string): Promise<ReceiveFavorite> => ({
     type: Tag.RECEIVE_FAVORITE,
     payload: await unwrapCall(
-        Cloud.post(hpcFavoriteApp(name, version))
+        Client.post(hpcFavoriteApp(name, version))
     )
 });

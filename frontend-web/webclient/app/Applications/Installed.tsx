@@ -1,5 +1,5 @@
 import {FullAppInfo, WithAppFavorite, WithAppMetadata} from "Applications";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {ReduxObject} from "DefaultObjects";
 import {loadingEvent} from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
@@ -50,7 +50,7 @@ function Installed(props: InstalledProps & {header: React.ReactNode}) {
 
     async function onFavorite(name: string, version: string): Promise<void> {
         try {
-            await Cloud.post(hpcFavoriteApp(name, version));
+            await Client.post(hpcFavoriteApp(name, version));
             const page = props.applications.content as Page<WithAppMetadata & WithAppFavorite>;
             const pageNumber = page.pageNumber < (page.itemsInTotal - 1) / page.itemsPerPage ?
                 page.pageNumber : Math.max(page.pageNumber - 1, 0);

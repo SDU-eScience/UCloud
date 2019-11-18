@@ -1,5 +1,5 @@
 import {ActivityFeed} from "Activity/Feed";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {FileInfoReduxObject} from "DefaultObjects";
 import {ReduxObject, SensitivityLevel, SensitivityLevelMap} from "DefaultObjects";
 import {File} from "Files";
@@ -61,7 +61,7 @@ function FileInfo(props: Readonly<FileInfo>) {
     React.useEffect(() => {
         const fileType = props.file && props.file.fileType;
         if (fileType === "DIRECTORY") {
-            Cloud.post<{size: number}>(directorySizeQuery, {paths: [file!.path]})
+            Client.post<{size: number}>(directorySizeQuery, {paths: [file!.path]})
                 .then(it => setSize(it.response.size));
         }
     }, [props.file && props.file.size]);
@@ -75,8 +75,8 @@ function FileInfo(props: Readonly<FileInfo>) {
                 <>
                     <Heading.h2><BreadCrumbs
                         currentPath={file.path}
-                        navigate={p => props.history.push(fileTablePage(expandHomeFolder(p, Cloud.homeFolder)))}
-                        homeFolder={Cloud.homeFolder}
+                        navigate={p => props.history.push(fileTablePage(expandHomeFolder(p, Client.homeFolder)))}
+                        homeFolder={Client.homeFolder}
                     /></Heading.h2>
                     <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
                 </>
@@ -85,9 +85,9 @@ function FileInfo(props: Readonly<FileInfo>) {
                 <>
                     <FileView
                         file={{...file, size}}
-                        onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Cloud))}
+                        onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Client))}
                         onReclassify={async sensitivity => {
-                            props.receiveFileStat(await reclassifyFile({file, sensitivity, cloud: Cloud}));
+                            props.receiveFileStat(await reclassifyFile({file, sensitivity, client: Client}));
                             props.fetchFileStat(path());
                         }}
                     />

@@ -1,5 +1,5 @@
 import {useAsyncCommand} from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {useCallback, useRef, useState} from "react";
 import * as React from "react";
 import {Box, Button, Icon, Input, Label} from "ui-components";
@@ -58,7 +58,7 @@ export const ChangePassword: React.FunctionComponent<{ setLoading: (loading: boo
         repeated.value = "";
     }, [commandLoading, currentPassword.current, newPassword.current, repeatedPassword.current]);
 
-    if (Cloud.principalType !== "password") return null;
+    if (Client.principalType !== "password") return null;
 
     return (
         <Box mb={16}>

@@ -3,7 +3,7 @@ import {listTools, uploadDocument} from "Applications/api";
 import * as Actions from "Applications/Redux/BrowseActions";
 import {SmallAppToolCard} from "Applications/Studio/SmallAppToolCard";
 import {useCloudAPI} from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {loadingAction, LoadingAction} from "Loading";
@@ -34,7 +34,7 @@ interface StudioOperations {
 }
 
 const Studio: React.FunctionComponent<StudioOperations> = props => {
-    if (Cloud.userRole !== "ADMIN") return null;
+    if (Client.userRole !== "ADMIN") return null;
 
     const [tools, setToolParameters, toolParameters] =
         useCloudAPI<Page<ToolReference>>(listTools({page: 0, itemsPerPage: 50}), emptyPage);
@@ -95,7 +95,8 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
                                     }
                                     dialogStore.success();
                                 }
-                            }} />
+                            }}
+                    />
                     </Button>
                 </VerticalButtonGroup>
             )}

@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {KeyCode} from "DefaultObjects";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
@@ -43,7 +43,7 @@ export default function Support() {
         if (text.trim()) {
             try {
                 setLoading(true);
-                await Cloud.post("/support/ticket", {message: `${type}: ${text}`});
+                await Client.post("/support/ticket", {message: `${type}: ${text}`});
                 textArea.current!.value = "";
                 setVisible(false);
                 setLoading(false);

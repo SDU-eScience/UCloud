@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page, PayloadAction} from "Types";
@@ -50,7 +50,7 @@ export const receiveNotifications = (page: Page<Notification>): ReceiveNotificat
  */
 export async function fetchNotifications(): Promise<ReceiveNotificationAction | SetNotificationError> {
     try {
-        const res = await Cloud.get<Page<Notification>>(notificationsQuery, undefined, true);
+        const res = await Client.get<Page<Notification>>(notificationsQuery, undefined, true);
         return receiveNotifications(res.response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to retrieve notifications, please try again later"));
@@ -65,7 +65,7 @@ type ReadAction = PayloadAction<typeof NOTIFICATION_READ, {id: number | string}>
  */
 export const notificationRead = async (id: number): Promise<ReadAction | SetNotificationError> => {
     try {
-        if (id >= 0) await Cloud.post(readNotificationQuery(id));
+        if (id >= 0) await Client.post(readNotificationQuery(id));
         return {
             type: NOTIFICATION_READ,
             payload: {id}
@@ -87,7 +87,7 @@ type ReadAllAction = Action<typeof READ_ALL>;
  */
 export const readAllNotifications = async (): Promise<ReadAllAction | SetNotificationError> => {
     try {
-        await Cloud.post(readAllNotificationsQuery);
+        await Client.post(readAllNotificationsQuery);
         return {type: READ_ALL};
     } catch (e) {
         snackbarStore.addFailure(

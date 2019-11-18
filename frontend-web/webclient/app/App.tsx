@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import Core from "Core";
 import Header from "Navigation/Header";
 import {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "Navigation/Redux/HeaderReducer";
@@ -26,7 +26,7 @@ const GlobalStyle = createGlobalStyle`
   ${() => UIGlobalStyle}
 `;
 
-Cloud.initializeStore(store);
+Client.initializeStore(store);
 
 function App({children}) {
     const [isLightTheme, setTheme] = React.useState(isLightThemeStored());

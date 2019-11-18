@@ -5,7 +5,7 @@ import {
 } from "Applications";
 import DetailedApplicationSearch from "Applications/DetailedApplicationSearch";
 import {setAppQuery} from "Applications/Redux/DetailedApplicationSearchActions";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import BackgroundTask from "BackgroundTasks/BackgroundTask";
 import {HeaderSearchType, KeyCode, ReduxObject} from "DefaultObjects";
@@ -50,6 +50,7 @@ import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {inDevEnvironment, isLightThemeStored, prettierString, stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -63,7 +64,7 @@ function Header(props: HeaderProps) {
     // The following is only supposed to work for the initial load.
     if (window.location.pathname === "/app/login" && window.location.search === "?dav=true") return null;
 
-    if (!Cloud.isLoggedIn) return null;
+    if (!Client.isLoggedIn) return null;
     const history = useHistory();
 
     React.useEffect(() => {
@@ -104,17 +105,21 @@ function Header(props: HeaderProps) {
                 colorOnHover={false}
                 width="200px"
                 left="-180%"
-                trigger={<Flex>{Cloud.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}
+                trigger={<Flex>{Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</Flex>}
             >
-                <Box ml="-17px" mr="-17px" pl="15px">
-                    <ExternalLink color="black" href="https://status.cloud.sdu.dk">
-                        <Flex color="black">
-                            <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
-                            <TextSpan>Site status</TextSpan>
-                        </Flex>
-                    </ExternalLink>
-                </Box>
-                <Divider />
+                {!STATUS_PAGE ? null : (
+                    <>
+                        <Box ml="-17px" mr="-17px" pl="15px">
+                            <ExternalLink color="black" href={STATUS_PAGE}>
+                                <Flex color="black">
+                                    <Icon name="favIcon" mr="0.5em" my="0.2em" size="1.3em" />
+                                    <TextSpan>Site status</TextSpan>
+                                </Flex>
+                            </ExternalLink>
+                        </Box>
+                        <Divider />
+                    </>
+                )}
                 <Box ml="-17px" mr="-17px" pl="15px">
                     <Link color="black" to="/users/settings">
                         <Flex color="black">
@@ -131,7 +136,7 @@ function Header(props: HeaderProps) {
                         </Flex>
                     </Link>
                 </Flex>
-                <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Cloud.logout()}>
+                <Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Client.logout()}>
                     <Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </Flex>
@@ -174,20 +179,26 @@ const HeaderContainer = styled(Flex)`
     box-shadow: ${theme.shadows.sm};
 `;
 
+const LogoText = styled(Text)`
+    vertical-align: top;
+    font-weight: 700;
+`;
+
 const Logo = () => (
     <Link to={"/"}>
         <Flex alignItems="center" ml="15px">
             <Icon name="logoEsc" size="38px" />
-            <Text color="headerText" fontSize={4} ml={"8px"}>SDUCloud</Text>
-            <Text
-                ml="4px"
-                mt={-7}
-                style={{verticalAlign: "top", fontWeight: 700}}
-                color="red"
-                fontSize={17}
-            >
-                BETA
-            </Text>
+            <Text color="headerText" fontSize={4} ml={"8px"}>{PRODUCT_NAME}</Text>
+            {!VERSION_TEXT ? null : (
+                <LogoText
+                    ml="4px"
+                    mt={-7}
+                    color="red"
+                    fontSize={17}
+                >
+                    BETA
+                </LogoText>
+            )}
         </Flex>
     </Link>
 );
@@ -315,7 +326,7 @@ const _Search = (props: SearchProps) => {
                         />
                     ) : null}
                 </ClickableDropdown>
-                {!Cloud.isLoggedIn ? <Login /> : null}
+                {!Client.isLoggedIn ? <Login /> : null}
             </SearchInput>
         </Relative>
     );

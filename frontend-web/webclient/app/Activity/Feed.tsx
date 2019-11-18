@@ -1,5 +1,5 @@
 import * as Module from "Activity";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {format, formatDistanceToNow} from "date-fns/esm";
 import * as React from "react";
 import {Link as ReactRouterLink} from "react-router-dom";
@@ -60,7 +60,7 @@ const OperationText: React.FunctionComponent<{event: Module.Activity}> = props =
                         <ReactRouterLink to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
                             <div className="ellipsis">
                                 <Text color="black">
-                                    {replaceHomeFolder((props.event as Module.MovedActivity).newName, Cloud.homeFolder)}
+                                    {replaceHomeFolder((props.event as Module.MovedActivity).newName, Client.homeFolder)}
                                 </Text>
                             </div>
                         </ReactRouterLink>

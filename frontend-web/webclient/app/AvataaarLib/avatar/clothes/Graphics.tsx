@@ -376,15 +376,16 @@ export class Bear extends React.Component<Props> {
 }
 
 export class EScienceLogo extends React.Component<Props> {
-  static optionValue = "EScienceLogo";
+  public static optionValue = "EScienceLogo";
 
   public render() {
     return (
       <g
-      id="Clothing/Graphic/EScienceLogo"
-      mask={`url(#${this.props.maskID})`}
-      fillRule="evenodd"
-      fill="#FFFFFF">
+        id="Clothing/Graphic/EScienceLogo"
+        mask={`url(#${this.props.maskID})`}
+        fillRule="evenodd"
+        fill="#FFFFFF"
+      >
       <g transform="translate(106.000000, 58.000000), scale(0.8)" id="EScienceLogo!">
         <path
             id="Selection"
@@ -459,8 +460,8 @@ export class EScienceLogo extends React.Component<Props> {
 }
 
 export class Teeth extends React.Component<Props> {
-  static optionValue = "Teeth";
-  public render () {
+  public static optionValue = "Teeth";
+  public render() {
     return (
     <g
       id="Clothing/Graphic/Teeth"

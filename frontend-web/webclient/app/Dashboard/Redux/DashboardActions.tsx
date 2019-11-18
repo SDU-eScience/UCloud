@@ -1,5 +1,5 @@
 import {Analysis} from "Applications";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {File} from "Files";
 import {Action} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
@@ -43,7 +43,7 @@ export const setErrorMessage = (type: DashboardError): Action<typeof type> => ({
  */
 export const fetchFavorites = async (): Promise<ReceiveFavoritesProps | Action<DashboardError>> => {
     try {
-        const {response} = await Cloud.get<Page<File>>(favoritesQuery(0, 10));
+        const {response} = await Client.get<Page<File>>(favoritesQuery(0, 10));
         return receiveFavorites(response.items);
     } catch {
         snackbarStore.addSnack({
@@ -71,7 +71,7 @@ type ReceiveRecentFilesProps = PayloadAction<typeof RECEIVE_RECENT_FILES, {conte
  */
 export const fetchRecentFiles = async (): Promise<ReceiveRecentFilesProps | Action<DashboardError>> => {
     try {
-        const {response} = await Cloud.get(recentFilesQuery);
+        const {response} = await Client.get(recentFilesQuery);
         return receiveRecentFiles(response.recentFiles);
     } catch {
         snackbarStore.addSnack({
@@ -96,7 +96,7 @@ export const receiveRecentFiles = (content: File[]): ReceiveRecentFilesProps => 
  */
 export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Action<DashboardError>> => {
     try {
-        const {response} = await Cloud.get(hpcJobsQuery(10, 0));
+        const {response} = await Client.get(hpcJobsQuery(10, 0));
         return receiveRecentAnalyses(response.items);
     } catch {
         snackbarStore.addSnack({

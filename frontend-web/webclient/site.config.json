@@ -1,0 +1,8 @@
+{
+    "DATA_PROTECTION_TEXT": "SDU Data Protection",
+    "DATA_PROTECTION_LINK": "https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse",
+    "PRODUCT_NAME": "UCloud",
+    "STATUS_PAGE": "https://status.cloud.sdu.dk",
+    "VERSION_TEXT": "BETA",
+    "@COMMENT": "PRODUCT_NAME (default 'UCloud') and VERSION_TEXT (default 'BETA') must be manually changed in 'app/Assets/Images/bg1.svg'"
+}

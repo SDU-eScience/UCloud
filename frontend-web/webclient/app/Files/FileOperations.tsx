@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {File} from "Files/index";
 import * as H from "history";
 import {SnackType} from "Snackbar/Snackbars";
@@ -57,22 +57,22 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Upload Files",
         onClick: (_, cb) => cb.requestFileUpload(),
-        disabled: dir => resolvePath(dir[0].path) === resolvePath(Cloud.trashFolder),
+        disabled: dir => resolvePath(dir[0].path) === resolvePath(Client.trashFolder),
         color: "blue",
         currentDirectoryMode: true
     },
     {
         text: "New Folder",
         onClick: (_, cb) => cb.requestFolderCreation(),
-        disabled: dir => resolvePath(dir[0].path) === resolvePath(Cloud.trashFolder),
+        disabled: dir => resolvePath(dir[0].path) === resolvePath(Client.trashFolder),
         color: "blue",
         outline: true,
         currentDirectoryMode: true
     },
     {
         text: "Empty Trash",
-        onClick: (_, cb) => clearTrash({cloud: Cloud, callback: () => cb.requestReload()}),
-        disabled: dir => resolvePath(dir[0].path) !== resolvePath(Cloud.trashFolder),
+        onClick: (_, cb) => clearTrash({client: Client, callback: () => cb.requestReload()}),
+        disabled: dir => resolvePath(dir[0].path) !== resolvePath(Client.trashFolder),
         color: "red",
         currentDirectoryMode: true
     },
@@ -80,7 +80,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Copy Path",
         onClick: files => UF.copyToClipboard({
             value: files[0].path,
-            message: `${replaceHomeFolder(files[0].path, Cloud.homeFolder)} copied to clipboard`
+            message: `${replaceHomeFolder(files[0].path, Client.homeFolder)} copied to clipboard`
         }),
         disabled: files => !UF.inDevEnvironment() || files.length !== 1 || isAnyMockFile(files) || isAnySharedFs(files),
         icon: "chat"
@@ -118,14 +118,14 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "Download",
-        onClick: files => downloadFiles(files, () => 42, Cloud),
+        onClick: files => downloadFiles(files, () => 42, Client),
         disabled: files => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files) ||
             isAnyMockFile(files) || isAnySharedFs(files),
         icon: "download"
     },
     {
         text: "Share",
-        onClick: (files) => shareFiles({files, cloud: Cloud}),
+        onClick: (files) => shareFiles({files, client: Client}),
         disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
             isAnyMockFile(files) || isAnySharedFs(files),
         icon: "share"
@@ -133,7 +133,7 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Sensitivity",
         onClick: (files, cb) =>
-            updateSensitivity({files, cloud: Cloud, onSensitivityChange: () => cb.requestReload()}),
+            updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
         disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) || isAnySharedFs(files),
         icon: "verified"
     },
@@ -174,7 +174,7 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Extract archive",
         onClick: (files, cb) => cb.invokeAsyncWork(() =>
-            extractArchive({files, cloud: Cloud, onFinished: () => cb.requestReload()})
+            extractArchive({files, client: Client, onFinished: () => cb.requestReload()})
         ),
         disabled: (files) => !files.every(it => isArchiveExtension(it.path)) || isAnyMockFile(files) ||
             isAnySharedFs(files),
@@ -183,7 +183,7 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "View Parent",
         onClick: (files, cb) => {
-            cb.history.push(fileTablePage(getParentPath(files[0].path)))
+            cb.history.push(fileTablePage(getParentPath(files[0].path)));
         },
         disabled: files => files.length !== 1,
         icon: "open"
@@ -197,10 +197,10 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Move to Trash",
         onClick: (files, cb) =>
-            moveToTrash({files, cloud: Cloud, setLoading: () => 42, callback: () => cb.requestReload()}),
+            moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload()}),
         disabled: (files) => (!allFilesHasAccessRight("WRITE", files) ||
-            files.some(f => isFixedFolder(f.path, Cloud.homeFolder)) ||
-            files.every(({path}) => inTrashDir(path, Cloud))) || isAnyMockFile(files) || isAnySharedFs(files),
+            files.some(f => isFixedFolder(f.path, Client.homeFolder)) ||
+            files.every(({path}) => inTrashDir(path, Client))) || isAnyMockFile(files) || isAnySharedFs(files),
         icon: "trash",
         color: "red"
     },
@@ -218,7 +218,7 @@ export const defaultFileOperations: FileOperation[] = [
                 onConfirm: () => {
                     cb.invokeAsyncWork(async () => {
                         const promises: Array<{status?: number, response?: string}> =
-                            await Promise.all(paths.map(path => Cloud.delete("/files", {path})))
+                            await Promise.all(paths.map(path => Client.delete("/files", {path})))
                                 .then(it => it).catch(it => it);
                         const failures = promises.filter(it => it.status).length;
                         if (failures > 0) {
@@ -233,7 +233,7 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !files.every(f => getParentPath(f.path) === Cloud.trashFolder) || isAnyMockFile(files) ||
+        disabled: (files) => !files.every(f => getParentPath(f.path) === Client.trashFolder) || isAnyMockFile(files) ||
             isAnySharedFs(files),
         icon: "trash",
         color: "red"
@@ -252,7 +252,7 @@ export const defaultFileOperations: FileOperation[] = [
                     cb.invokeAsyncWork(async () => {
                         const promises: Array<{status?: number, response?: string}> =
                             await Promise
-                                .all(files.map(it => Cloud.delete(`/app/fs/${it.fileId}`, {})))
+                                .all(files.map(it => Client.delete(`/app/fs/${it.fileId}`, {})))
                                 .then(it => it)
                                 .catch(it => it);
 

@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage, ReduxObject} from "DefaultObjects";
 import {loadingEvent} from "LoadableContent";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -116,7 +116,9 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                             onFavorite={async () =>
                                                 this.props.receiveApplications(await favoriteApplicationFromPage({
                                                     name: app.metadata.name,
-                                                    version: app.metadata.version, page, cloud: Cloud,
+                                                    version: app.metadata.version,
+                                                    client: Client,
+                                                    page
                                                 }))
                                             }
                                             app={app}
@@ -210,7 +212,7 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
     const allTags = props.page.items.map(it => it.tags);
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));
-    const url = Cloud.computeURL("/api", toolImageQuery(props.tag.toLowerCase().replace(/\s+/g, ""), props.cacheBust));
+    const url = Client.computeURL("/api", toolImageQuery(props.tag.toLowerCase().replace(/\s+/g, ""), props.cacheBust));
     const [, setLoadedImage] = useState(true);
     useEffect(() => setLoadedImage(true));
     return (

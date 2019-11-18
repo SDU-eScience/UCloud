@@ -1,5 +1,5 @@
 import {ApplicationMetadata} from "Applications";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {History} from "history";
 import {setLoading} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -38,7 +38,7 @@ export async function quickLaunchCallback(
 
     try {
         setLoading(true);
-        const req = await Cloud.post(hpcJobQueryPost, job);
+        const req = await Client.post(hpcJobQueryPost, job);
         history.push(`/applications/results/${req.response.jobId}`);
     } catch (err) {
         snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));

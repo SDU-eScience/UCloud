@@ -1,5 +1,5 @@
 import {APICallParameters} from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 export interface ProjectMember {
@@ -95,7 +95,7 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
 
 export const roleInProject = (project: Project): ProjectRole | undefined => {
     const member = project.members.find(m => {
-        return m.username === Cloud.username;
+        return m.username === Client.username;
     });
 
     if (member === undefined) return undefined;

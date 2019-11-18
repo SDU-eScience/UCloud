@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {LoadableEvent, unwrapCall} from "LoadableContent";
 import {Page, PayloadAction} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
@@ -25,7 +25,7 @@ export const fetchChart = async (resource: string, subResource: string): Promise
     payload: {
         resource: resourceName(resource, subResource),
         event: await unwrapCall(
-            Cloud.get(`/accounting/${resource}/${subResource}/chart`)
+            Client.get(`/accounting/${resource}/${subResource}/chart`)
         )
     }
 });
@@ -40,7 +40,7 @@ export const fetchEvents = async (
     payload: {
         resource: resourceName(resource, subResource),
         event: await unwrapCall(
-            Cloud.get(
+            Client.get(
                 buildQueryString(
                     `/accounting/${resource}/${subResource}/events`,
                     {
@@ -58,7 +58,7 @@ export const fetchUsage = async (resource: string, subResource: string): Promise
     payload: {
         resource: resourceName(resource, subResource),
         event: await unwrapCall(
-            Cloud.get(`/accounting/${resource}/${subResource}/usage`)
+            Client.get(`/accounting/${resource}/${subResource}/usage`)
         )
     }
 });

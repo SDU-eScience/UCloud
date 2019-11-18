@@ -5,7 +5,7 @@ import {
     sizeToString,
     toFileText,
 } from "../../app/Utilities/FileUtilities";
-import { mockFilesSensitivityConfidential } from "../mock/Files";
+import {mockFilesSensitivityConfidential} from "../mock/Files";
 
 describe("To file text", () => {
     test("Single file", () => {
@@ -73,7 +73,7 @@ describe("Replace homefolder", () => {
 
     test("Replace homefolder subfolder", () =>
         expect(replaceHomeFolder("/home/user@mail.co.uk/subFolder/withSomething", mockHomeFolder))
-         .toBe("Home/subFolder/withSomething")
+            .toBe("Home/subFolder/withSomething")
     );
 
     const noHomeFolder = "NotHomeFolder/subfolder/";

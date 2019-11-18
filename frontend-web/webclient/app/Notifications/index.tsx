@@ -1,4 +1,4 @@
-import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
+import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns/esm";
 import {NotificationsReduxObject, ReduxObject} from "DefaultObjects";
 import * as React from "react";
@@ -179,7 +179,7 @@ export function NotificationEntry(props: NotificationEntryProps) {
                 <TextSpan color="grey" fontSize={1}>
                     {formatDistance(notification.ts, new Date(), {addSuffix: true})}
                 </TextSpan>
-                <TextSpan fontSize={1}>{replaceHomeFolder(notification.message, Cloud.homeFolder)}</TextSpan>
+                <TextSpan fontSize={1}>{replaceHomeFolder(notification.message, Client.homeFolder)}</TextSpan>
             </Flex>
         </NotificationWrapper>
     );
@@ -232,7 +232,7 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
     receiveNotification: notification => dispatch(receiveSingleNotification(notification)),
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
-    showUploader: () => dispatch(setUploaderVisible(true, Cloud.homeFolder)),
+    showUploader: () => dispatch(setUploaderVisible(true, Client.homeFolder)),
     readAll: async () => dispatch(await readAllNotifications())
 });
 const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;

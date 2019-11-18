@@ -1,4 +1,5 @@
 import * as React from "react";
+import styled from "styled-components";
 import Box from "ui-components/Box";
 import Card from "ui-components/Card";
 import Flex from "ui-components/Flex";
@@ -25,7 +26,7 @@ function Error(props: ErrorProps) {
             width={props.width}
         >
             <Flex alignItems="center">
-                <div><Text style={{whiteSpace: "pre"}} fontSize={1} color="red">{props.error}</Text></div>
+                <div><WhiteSpacedText fontSize={1} color="red">{props.error}</WhiteSpacedText></div>
                 {!props.clearError ? null : (
                     <Box ml="auto">
                         <Icon
@@ -40,5 +41,9 @@ function Error(props: ErrorProps) {
         </Card>
     );
 }
+
+const WhiteSpacedText = styled(Text)`
+    white-space: pre;
+`;
 
 export default Error;

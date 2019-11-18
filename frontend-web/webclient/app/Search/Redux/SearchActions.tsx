@@ -1,5 +1,5 @@
 import {AdvancedSearchRequest as AppSearchRequest, FullAppInfo} from "Applications";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {AdvancedSearchRequest, File} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page, PayloadAction} from "Types";
@@ -33,7 +33,7 @@ export const setProjectsLoading = (loading: boolean): SetProjectsLoading => ({
 
 export async function searchFiles(request: AdvancedSearchRequest): Promise<any> {
     try {
-        const {response} = await Cloud.post(advancedFileSearch, request);
+        const {response} = await Client.post(advancedFileSearch, request);
         return receiveFiles(response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred searching for files\n"));
@@ -43,7 +43,7 @@ export async function searchFiles(request: AdvancedSearchRequest): Promise<any> 
 
 export async function searchApplications(body: AppSearchRequest): Promise<any> {
     try {
-        const {response} = await Cloud.post(advancedSearchQuery(), body);
+        const {response} = await Client.post(advancedSearchQuery(), body);
         return receiveApplications(response);
     } catch (e) {
         snackbarStore.addFailure("An error occurred searching for applications");

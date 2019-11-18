@@ -1,5 +1,5 @@
 import {useAsyncCommand} from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {MainContainer} from "MainContainer/MainContainer";
 import {createProject} from "Project/index";
 import {useRef} from "react";
@@ -21,7 +21,7 @@ const Create: React.FunctionComponent = () => {
         // TODO FIXME This will only work for admin accounts!!!
         await invokeCommand(createProject({
             title: title.current!.value,
-            principalInvestigator: Cloud.username!
+            principalInvestigator: Client.username!
         }));
 
         // TODO Do something when command returns correctly

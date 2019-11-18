@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import * as React from "react";
 import {SnackType} from "Snackbar/Snackbars";
@@ -32,7 +32,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
     private async loadStatus() {
         this.props.setLoading(true);
         try {
-            const res = await Cloud.get("2fa/status", "/auth", true);
+            const res = await Client.get("2fa/status", "/auth", true);
             this.setState(() => ({isConnectedToAccount: res.response.connected}));
         } catch (res) {
             const why = res.response.why ? res.response.why as string : "";
@@ -161,7 +161,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
 
     private onSetupStart() {
         this.props.setLoading(true);
-        Cloud.post("2fa", undefined, "/auth", true).then(res => {
+        Client.post("2fa", undefined, "/auth", true).then(res => {
             this.setState(() => ({
                 challengeId: res.response.challengeId,
                 qrCode: res.response.qrCodeB64Data
@@ -175,7 +175,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
     private async onVerificationSubmit(): Promise<void> {
         this.props.setLoading(true);
         try {
-            await Cloud.post("2fa/challenge", {
+            await Client.post("2fa/challenge", {
                 challengeId: this.state.challengeId,
                 verificationCode: this.state.verificationCode
             }, "/auth", true);
