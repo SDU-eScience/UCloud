@@ -1,5 +1,5 @@
-import {FullAppInfo, WithAppMetadata} from "Applications";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {FullAppInfo} from "Applications";
+import {Client} from "Authentication/HttpClientInstance";
 import {LoadableEvent, LoadableEventTag, unwrapCall} from "LoadableContent";
 import {Page, PayloadAction} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
@@ -25,7 +25,7 @@ export const receivePage = (page: Page<FullAppInfo>): ReceiveApp => ({
 export const fetchByTag = async (tag: string, itemsPerPage: number, page: number): Promise<ReceiveApp> => ({
     type: Tag.RECEIVE_APP,
     payload: await unwrapCall(
-        Cloud.get<Page<FullAppInfo>>(buildQueryString(
+        Client.get<Page<FullAppInfo>>(buildQueryString(
             "/hpc/apps/searchTags",
             {
                 query: tag,
@@ -39,7 +39,7 @@ export const fetchByTag = async (tag: string, itemsPerPage: number, page: number
 export const fetch = async (itemsPerPage: number, page: number): Promise<ReceiveApp> => ({
     type: Tag.RECEIVE_APP,
     payload: await unwrapCall(
-        Cloud.get<Page<FullAppInfo>>(buildQueryString(
+        Client.get<Page<FullAppInfo>>(buildQueryString(
             "/hpc/apps",
             {
                 itemsPerPage,
@@ -53,7 +53,7 @@ export async function receiveAppsByKey(itemsPerPage: number, page: number, tag: 
     return ({
         type: Tag.RECEIVE_APPS_BY_KEY,
         payload: {
-            page: (await Cloud.get<Page<FullAppInfo>>(buildQueryString(
+            page: (await Client.get<Page<FullAppInfo>>(buildQueryString(
                 "/hpc/apps/searchTags",
                 {
                     query: tag,
@@ -62,5 +62,5 @@ export async function receiveAppsByKey(itemsPerPage: number, page: number, tag: 
                 }
             ))).response,
             key: tag
-    }})
-}
+    }});
+};

@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -18,7 +18,7 @@ const saveAvataaar = (avatar: AvatarType): SaveAvataaar => ({
 
 export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | SetAvatarError> {
     try {
-        await Cloud.post(saveAvatarQuery, avatar, undefined, true);
+        await Client.post(saveAvatarQuery, avatar, undefined, true);
         return saveAvataaar(avatar);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred saving the avatar"));
@@ -35,7 +35,7 @@ export const setAvatarError = (): SetAvatarError => ({
 
 export const findAvatar = async (): Promise<SaveAvataaar | null> => {
     try {
-        const res = await Cloud.get<AvatarType>(findAvatarQuery, undefined, true);
+        const res = await Client.get<AvatarType>(findAvatarQuery, undefined, true);
         return saveAvataaar(res.response);
     } catch (e) {
         snackbarStore.addSnack({

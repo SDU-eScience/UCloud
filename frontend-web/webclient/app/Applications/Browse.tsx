@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {ReduxObject} from "DefaultObjects";
 import {loadingEvent} from "LoadableContent";
 import {LoadableMainContainer} from "MainContainer/MainContainer";
@@ -97,7 +97,7 @@ class Applications extends React.Component<ApplicationsProps> {
     private onFavorite = async (name: string, version: string) => {
         const page = this.props.applicationsPage.content as Page<FullAppInfo>;
         this.props.receiveApplications(await favoriteApplicationFromPage({
-            cloud: Cloud,
+            client: Client,
             name,
             version,
             page

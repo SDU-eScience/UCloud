@@ -2,7 +2,7 @@ import * as Types from "Applications";
 import {createFileSystem, listFileSystems, SharedFileSystem, SharedFileSystemMount} from "Applications/FileSystems";
 import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
 import {APICallParameters, APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import * as Pagination from "Pagination";
@@ -129,7 +129,7 @@ function fakeMount(id: string, name: string, mountedAt: string): SharedFileSyste
             backend: "",
             createdAt: new Date().getTime(),
             title: name,
-            owner: Cloud.username ? Cloud.username : "nobody"
+            owner: Client.username ?? "nobody"
         }
     };
 }

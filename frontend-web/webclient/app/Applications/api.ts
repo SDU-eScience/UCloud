@@ -1,6 +1,6 @@
 import {JobState, RunsSortBy} from "Applications/index";
 import {APICallParameters} from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {SortOrder} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -122,12 +122,12 @@ export interface UploadLogoProps {
 }
 
 export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
-    const token = await Cloud.receiveAccessTokenOrRefreshIt();
+    const token = await Client.receiveAccessTokenOrRefreshIt();
 
     return new Promise((resolve) => {
         const request = new XMLHttpRequest();
         const context = props.type === "APPLICATION" ? "apps" : "tools";
-        request.open("POST", Cloud.computeURL("/api", `/hpc/${context}/uploadLogo`));
+        request.open("POST", Client.computeURL("/api", `/hpc/${context}/uploadLogo`));
         request.setRequestHeader("Authorization", `Bearer ${token}`);
         request.responseType = "text";
         request.setRequestHeader("Upload-Name", b64EncodeUnicode(props.name));
@@ -176,12 +176,12 @@ export interface UploadDocumentProps {
 }
 
 export async function uploadDocument(props: UploadDocumentProps): Promise<boolean> {
-    const token = await Cloud.receiveAccessTokenOrRefreshIt();
+    const token = await Client.receiveAccessTokenOrRefreshIt();
 
     return new Promise((resolve, reject) => {
         const request = new XMLHttpRequest();
         const context = props.type === "APPLICATION" ? "apps" : "tools";
-        request.open("PUT", Cloud.computeURL("/api", `/hpc/${context}`));
+        request.open("PUT", Client.computeURL("/api", `/hpc/${context}`));
         request.setRequestHeader("Authorization", `Bearer ${token}`);
         request.responseType = "text";
         request.onreadystatechange = () => {

@@ -15,7 +15,7 @@ module.exports = {
     "^.+\\.css$": "css-loader",
     "date-fns/esm": "date-fns",
     "date-fns/esm/locale": "date-fns/locale",
-    "Authentication/SDUCloudObject": "<rootDir>/__tests__/mock/Cloud.ts"
+    "Authentication/HttpClientInstance": "<rootDir>/__tests__/mock/Cloud.ts"
   },
   modulePaths: [
     "<rootDir>/app/"

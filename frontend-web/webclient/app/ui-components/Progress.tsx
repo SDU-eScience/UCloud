@@ -12,7 +12,7 @@ interface ProgressBaseProps {
     label?: string;
 }
 
-const ProgressBase = styled(Box)<ProgressBaseProps>`
+const ProgressBase = styled(Box) <ProgressBaseProps>`
     border-radius: 5px;
     background-color: ${props => props.theme.colors[props.color!]};
     height: ${props => props.height};
@@ -47,9 +47,9 @@ interface Progress {
 
 const Progress = ({color, percent, active, label}: Progress) => (
     <>
-        <ProgressBase height="30px" style={{width: "100%"}} color="lightGray">
-            <ProgressBase height="30px" color={color} style={{width: `${percent}%`}}>
-                {active ? <ProgressBase height="30px" active style={{width: "100%"}} color="black"/> : null}
+        <ProgressBase height="30px" width="100%" color="lightGray">
+            <ProgressBase height="30px" color={color} width={`${percent}%`}>
+                {active ? <ProgressBase height="30px" active width="100%" color="black" /> : null}
             </ProgressBase>
         </ProgressBase>
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}

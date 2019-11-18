@@ -1,6 +1,6 @@
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
 import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
@@ -16,7 +16,7 @@ import {connect} from "react-redux";
 import {useHistory} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import styled from "styled-components";
+import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
 import {Button, Icon, Input, Label, OutlineButton, Tooltip, Truncate} from "ui-components";
@@ -185,7 +185,7 @@ function apiForComponent(
     const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>({
         ...initialPageParameters,
         type: props.foldersOnly ? "DIRECTORY" : undefined,
-        path: Cloud.homeFolder
+        path: Client.homeFolder
     });
 
     React.useEffect(() => () => promises.cancelPromises(), []);
@@ -303,7 +303,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     useEffect(() => {
         const filesOnly = page.items.filter(f => f.fileType === "FILE");
         if (filesOnly.length > 0) {
-            Cloud.post<QuickLaunchApp[]>(
+            Client.post<QuickLaunchApp[]>(
                 "/hpc/apps/bySupportedFileExtension",
                 {files: filesOnly.map(f => f.path)}
             ).then(({response}) => {
@@ -356,7 +356,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             reload();
         },
         requestFileUpload: () => {
-            const path = props.path ? props.path : Cloud.homeFolder;
+            const path = props.path ? props.path : Client.homeFolder;
             props.showUploader(path);
         },
         requestFolderCreation: () => {
@@ -383,7 +383,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
         createNewUpload: upload => {
             props.appendUpload(upload);
 
-            const path = props.path ? props.path : Cloud.homeFolder;
+            const path = props.path ? props.path : Client.homeFolder;
             props.showUploader(path);
         },
         history
@@ -464,14 +464,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
             if (file.mockTag === MOCK_RENAME_TAG) {
                 createFolder({
                     path: fullPath,
-                    cloud: Cloud,
+                    client: Client,
                     onSuccess: () => callbacks.requestReload()
                 });
             } else {
                 moveFile({
                     oldPath: file.path,
                     newPath: fullPath,
-                    cloud: Cloud,
+                    client: Client,
                     setLoading: () => 42, // TODO
                     onSuccess: () => callbacks.requestReload()
                 });
@@ -489,7 +489,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                         <BreadCrumbs
                             currentPath={props.path ? props.path : ""}
                             navigate={onFileNavigation}
-                            homeFolder={Cloud.homeFolder}
+                            homeFolder={Client.homeFolder}
                         />
                     )}
 
@@ -846,7 +846,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const icon = (
         <Box mr="10px" cursor="inherit">
             <FileIcon
-                fileIcon={UF.iconFromFilePath(props.file.path, props.file.fileType, Cloud.homeFolder)}
+                fileIcon={UF.iconFromFilePath(props.file.path, props.file.fileType, Client.homeFolder)}
                 size={38}
                 shared={(props.file.acl != null ? props.file.acl.length : 0) > 0}
             />
@@ -902,7 +902,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         return (
             <>
                 <Flex data-tag="fileName" flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
-                    <Box title={replaceHomeFolder(props.file.path, Cloud.homeFolder)} width="100%">
+                    <Box title={replaceHomeFolder(props.file.path, Client.homeFolder)} width="100%">
                         {props.file.fileType !== "DIRECTORY" ? nameComponent : (
                             <BaseLink
                                 href="#"
@@ -930,7 +930,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                                 const initialValue = favorite;
                                 setFavorite(!initialValue);
                                 try {
-                                    await favoriteFile(props.file, Cloud);
+                                    await favoriteFile(props.file, Client);
                                 } catch (e) {
                                     setFavorite(initialValue);
                                 }
@@ -1012,7 +1012,8 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
         if (fileOp.disabled(filesInCallback)) return null;
-        let As: typeof OutlineButton | typeof Box | typeof Button | typeof Flex;
+        // TODO Fixes complaints about not having a callable signature, but loses some typesafety.
+        let As: StyledComponent<any, any>;
         if (fileOperations.length === 1) {
             As = OutlineButton;
         } else if (props.inDropdown === true) {
@@ -1036,7 +1037,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
                 onClick={() => fileOp.onClick(filesInCallback, props.callback)}
                 {...props}
             >
-                {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName | "bug"} /> : null}
+                {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName} /> : null}
                 <span>{fileOp.text}</span>
             </As>
         );

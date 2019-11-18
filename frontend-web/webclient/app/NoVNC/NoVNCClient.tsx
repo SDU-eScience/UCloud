@@ -1,5 +1,5 @@
 import RFB from "@novnc/novnc/core/rfb";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {MainContainer} from "MainContainer/MainContainer";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
@@ -78,7 +78,7 @@ function NoVNCClient(props: RouterLocationProps) {
     const [promiseKeeper] = React.useState(new PromiseKeeper());
 
     React.useEffect(() => {
-        promiseKeeper.makeCancelable(Cloud.get(`/hpc/jobs/query-vnc/${jobId}`)).promise.then(it => {
+        promiseKeeper.makeCancelable(Client.get(`/hpc/jobs/query-vnc/${jobId}`)).promise.then(it => {
             setPassword(it.response.password);
             setPath(it.response.path);
         }).catch(() => undefined);
@@ -126,7 +126,7 @@ function NoVNCClient(props: RouterLocationProps) {
             jobId,
             onConfirm: async () => {
                 try {
-                    await Cloud.delete(cancelJobQuery, {jobId});
+                    await Client.delete(cancelJobQuery, {jobId});
                     snackbarStore.addSnack({
                         type: SnackType.Success,
                         message: "Job has been terminated"

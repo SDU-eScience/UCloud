@@ -30,9 +30,9 @@ interface CallParameters {
 }
 
 /**
- * Represents an instance of the SDUCloud object used for contacting the backend, implicitly using JWTs.
+ * Represents an instance of the HTTPClient object used for contacting the backend, implicitly using JWTs.
  */
-export default class SDUCloud {
+export default class HttpClient {
     private readonly context: string;
     private readonly serviceName: string;
     private readonly authContext: string;
@@ -76,8 +76,8 @@ export default class SDUCloud {
         this.decodedToken = null;
         this.redirectOnInvalidTokens = false;
 
-        const accessToken = SDUCloud.storedAccessToken;
-        const csrfToken = SDUCloud.storedCsrfToken;
+        const accessToken = HttpClient.storedAccessToken;
+        const csrfToken = HttpClient.storedCsrfToken;
         if (accessToken && csrfToken) {
             this.setTokens(accessToken, csrfToken);
         }
@@ -377,7 +377,7 @@ export default class SDUCloud {
         if (this.useProjectToken(disallowProjects)) {
             return this.projectAccessToken!;
         } else {
-            return SDUCloud.storedAccessToken;
+            return HttpClient.storedAccessToken;
         }
     }
 
@@ -439,14 +439,14 @@ export default class SDUCloud {
                 return accessToken;
             } else {
                 if (result.request.status === 401 || result.request.status === 400) {
-                    SDUCloud.clearTokens();
+                    HttpClient.clearTokens();
                     this.openBrowserLoginPage();
                 }
 
                 throw Error("Unable to refresh token");
             }
         } else {
-            const csrfToken = SDUCloud.storedCsrfToken;
+            const csrfToken = HttpClient.storedCsrfToken;
             if (!csrfToken) {
                 return new Promise((resolve, reject) => {
                     reject(this.missingAuth());
@@ -468,7 +468,7 @@ export default class SDUCloud {
                             resolve(JSON.parse(req.response));
                         } else {
                             if (req.status === 401 || req.status === 400) {
-                                SDUCloud.clearTokens();
+                                HttpClient.clearTokens();
                                 this.openBrowserLoginPage();
                             }
                             reject({status: req.status, response: req.response});
@@ -497,17 +497,17 @@ export default class SDUCloud {
         if (!accessToken) throw this.missingAuth();
 
         this.accessToken = accessToken;
-        SDUCloud.storedAccessToken = accessToken;
+        HttpClient.storedAccessToken = accessToken;
 
         this.csrfToken = csrfToken;
-        SDUCloud.storedCsrfToken = csrfToken;
+        HttpClient.storedCsrfToken = csrfToken;
 
         this.decodedToken = this.decodeToken(accessToken);
     }
 
     private decodeToken(accessToken: string): any {
         const bail = (): never => {
-            SDUCloud.clearTokens();
+            HttpClient.clearTokens();
             this.openBrowserLoginPage();
             return void (0) as never;
         };
@@ -550,7 +550,7 @@ export default class SDUCloud {
         try {
             const res = await fetch(`${this.context}${this.authContext}/logout/web`, {
                 headers: {
-                    "X-CSRFToken": SDUCloud.storedCsrfToken,
+                    "X-CSRFToken": HttpClient.storedCsrfToken,
                     "Content-Type": "application/json",
                 },
                 method: "POST",
@@ -569,8 +569,8 @@ export default class SDUCloud {
     }
 
     static clearTokens() {
-        SDUCloud.storedAccessToken = "";
-        SDUCloud.storedCsrfToken = "";
+        HttpClient.storedAccessToken = "";
+        HttpClient.storedCsrfToken = "";
     }
 
     static get storedAccessToken(): string {

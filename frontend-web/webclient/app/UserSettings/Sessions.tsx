@@ -1,6 +1,6 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import SDUCloud from "Authentication/lib";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
+import HttpClient from "Authentication/lib";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
 import * as React from "react";
@@ -14,6 +14,7 @@ import * as Heading from "ui-components/Heading";
 import {invalidateAllSessions, listUserSessions, UserSession} from "UserSettings/api";
 import {dateToString} from "Utilities/DateUtilities";
 import {addStandardDialog} from "UtilityComponents";
+import {PRODUCT_NAME} from "../../site.config.json";
 
 export interface SessionsProps {
     setLoading: (loading: boolean) => void;
@@ -84,11 +85,11 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
     const onInvalidateSessions = useCallback(() => {
         addStandardDialog({
             title: "Invalidate all sessions",
-            message: "This will log you out of SDUCloud on ALL devices. Are you sure you wish to do this?",
+            message: `This will log you out of ${PRODUCT_NAME} on ALL devices. Are you sure you wish to do this?`,
             onConfirm: async () => {
                 await invokeCommand(invalidateAllSessions());
-                SDUCloud.clearTokens();
-                Cloud.openBrowserLoginPage();
+                HttpClient.clearTokens();
+                Client.openBrowserLoginPage();
             },
             onCancel: () => {
                 // Empty

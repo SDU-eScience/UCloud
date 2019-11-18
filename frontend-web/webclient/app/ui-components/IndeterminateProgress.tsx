@@ -57,7 +57,7 @@ interface Progress {
 
 const Progress = ({color, label}: Progress) => (
     <>
-        <ProgressBase height={"30px"} style={{width: "100%"}} color={color} />
+        <ProgressBase height={"30px"} width={"100%"} color={color} />
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
     </>
 );

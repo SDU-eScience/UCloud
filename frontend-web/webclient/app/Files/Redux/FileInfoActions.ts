@@ -1,5 +1,5 @@
 import {Activity} from "Activity";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {File} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page, PayloadAction, SetLoadingAction} from "Types";
@@ -12,7 +12,7 @@ export type FileInfoActions = ReceiveFileStat | FileInfoError | SetFileInfoLoadi
 
 export async function fetchFileActivity(path: string): Promise<ReceiveFileActivity | FileInfoError> {
     try {
-        const {response} = await Cloud.get(activityStreamByPath(path));
+        const {response} = await Client.get(activityStreamByPath(path));
         return receiveFileActivity(response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching activity."));
@@ -28,7 +28,7 @@ const receiveFileActivity = (activity: Page<Activity>): ReceiveFileActivity => (
 
 export async function fetchFileStat(path: string): Promise<ReceiveFileStat | FileInfoError> {
     try {
-        const {response} = await Cloud.get<File>(statFileQuery(path));
+        const {response} = await Client.get<File>(statFileQuery(path));
         return receiveFileStat(response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching file"));

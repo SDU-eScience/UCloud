@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {default as Avataaar} from "AvataaarLib";
 import {ReduxObject} from "DefaultObjects";
 import Spinner from "LoadingIcon/LoadingIcon";
@@ -176,7 +176,7 @@ function Modification(props: AvataaarModificationOperations) {
 
     async function fetchAvatar(promises: PromiseKeeper) {
         try {
-            const r = await promises.makeCancelable(Cloud.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
+            const r = await promises.makeCancelable(Client.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
             setAvatar(r.response);
         } catch (e) {
             if (!e.isCanceled)

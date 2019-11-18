@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {Sensitivity} from "DefaultObjects";
 import {STATUS_CODES} from "http";
 import {SnackType} from "Snackbar/Snackbars";
@@ -25,10 +25,10 @@ export const multipartUpload = async ({
     onProgress,
     onError
 }: UploadArgs): Promise<XMLHttpRequest> => {
-    const token = await Cloud.receiveAccessTokenOrRefreshIt();
+    const token = await Client.receiveAccessTokenOrRefreshIt();
 
     const request = new XMLHttpRequest();
-    request.open("POST", Cloud.computeURL("/api", "/files/upload/file"));
+    request.open("POST", Client.computeURL("/api", "/files/upload/file"));
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
@@ -65,11 +65,11 @@ export const bulkUpload = async (
         onError
     }: UploadArgs
 ): Promise<XMLHttpRequest> => {
-    const token = await Cloud.receiveAccessTokenOrRefreshIt();
+    const token = await Client.receiveAccessTokenOrRefreshIt();
     const format = formatFromFileName(file.name);
 
     const request = new XMLHttpRequest();
-    request.open("POST", Cloud.computeURL("/api", "/files/upload/archive"));
+    request.open("POST", Client.computeURL("/api", "/files/upload/archive"));
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :

@@ -1,4 +1,4 @@
-import Cloud from "./lib";
+import HttpClient from "./lib";
 
 export interface WebSocketOpenSettings {
     /**
@@ -10,18 +10,18 @@ export interface WebSocketOpenSettings {
 }
 
 export class WebSocketFactory {
-    private readonly cloud: Cloud;
+    private readonly client: HttpClient;
 
-    constructor(cloud: Cloud) {
-        this.cloud = cloud;
+    constructor(client: HttpClient) {
+        this.client = client;
     }
 
     public open(path: string, settings?: WebSocketOpenSettings): WebSocketConnection {
         const settingsOrDefault = settings ?? {};
-        return new WebSocketConnection(this.cloud, async () => {
-            await this.cloud.waitForCloudReady();
+        return new WebSocketConnection(this.client, async () => {
+            await this.client.waitForCloudReady();
 
-            const url = this.cloud.computeURL("/api", path)
+            const url = this.client.computeURL("/api", path)
                 .replace("http://", "ws://")
                 .replace("https://", "wss://");
 
@@ -58,15 +58,15 @@ interface CallParameters<T = any> {
 }
 
 export class WebSocketConnection {
-    private cloud: Cloud;
+    private client: HttpClient;
     private socket: WebSocket;
     private nextStreamId: number = 0;
     private handlers: Map<string, (message: WebsocketResponse) => void> = new Map();
     private internalClosed: boolean = false;
     private settings: WebSocketOpenSettings;
 
-    constructor(cloud: Cloud, socketFactory: () => Promise<WebSocket>, settings: WebSocketOpenSettings) {
-        this.cloud = cloud;
+    constructor(client: HttpClient, socketFactory: () => Promise<WebSocket>, settings: WebSocketOpenSettings) {
+        this.client = client;
         this.settings = settings;
         this.resetSocket(socketFactory);
     }
@@ -97,7 +97,7 @@ export class WebSocketConnection {
             call,
             streamId,
             payload,
-            bearer: await this.cloud.receiveAccessTokenOrRefreshIt(disallowProjects)
+            bearer: await this.client.receiveAccessTokenOrRefreshIt(disallowProjects)
         });
     }
 

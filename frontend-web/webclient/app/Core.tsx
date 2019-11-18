@@ -12,7 +12,7 @@ import AppStudioApps from "Applications/Studio/App";
 import AppStudioPage from "Applications/Studio/Page";
 import AppStudioTools from "Applications/Studio/Tool";
 import ApplicationView from "Applications/View";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import Dashboard from "Dashboard/Dashboard";
 import Dialog from "Dialog/Dialog";
 import {ErrorBoundary} from "ErrorBoundary/ErrorBoundary";
@@ -114,7 +114,7 @@ const Core = () => {
 
 function requireAuth<T>(Delegate: React.FunctionComponent<T>) {
     return (props: T & RouteComponentProps) => {
-        if (!Cloud.isLoggedIn) {
+        if (!Client.isLoggedIn) {
             props.history.push("/login");
             return null;
         }

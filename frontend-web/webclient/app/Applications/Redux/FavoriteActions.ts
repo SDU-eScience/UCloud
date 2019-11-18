@@ -1,7 +1,7 @@
-import {Cloud} from "Authentication/SDUCloudObject";
-import {PayloadAction, Page} from "Types";
-import {WithAppMetadata, WithAppFavorite} from "Applications";
+import {WithAppFavorite, WithAppMetadata} from "Applications";
+import {Client} from "Authentication/HttpClientInstance";
 import {LoadableEvent, unwrapCall} from "LoadableContent";
+import {Page, PayloadAction} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 export enum Tag {
@@ -15,7 +15,7 @@ type ReceiveApp = PayloadAction<typeof Tag.RECEIVE_APP, LoadableEvent<Page<WithA
 export const fetch = async (itemsPerPage: number, page: number): Promise<ReceiveApp> => ({
     type: Tag.RECEIVE_APP,
     payload: await unwrapCall(
-        Cloud.get<Page<WithAppMetadata & WithAppFavorite>>(buildQueryString(
+        Client.get<Page<WithAppMetadata & WithAppFavorite>>(buildQueryString(
             "/hpc/apps/favorites",
             {
                 itemsPerPage,

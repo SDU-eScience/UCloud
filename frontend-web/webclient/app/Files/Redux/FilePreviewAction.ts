@@ -1,9 +1,9 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {statFileQuery} from "Utilities/FileUtilities";
 import {FILE_PREVIEW_RECEIVE_FILE, FILE_PREVIEW_SET_ERROR} from "./FilePreviewReducer";
 
 export const fetchPreviewFile = (path: string) =>
-    Cloud.get<File>(statFileQuery(path))
+    Client.get<File>(statFileQuery(path))
         .then(({response}) => receiveFile(response))
         .catch(({request}: {request: XMLHttpRequest}) => setFilePreviewError(request.statusText));
 

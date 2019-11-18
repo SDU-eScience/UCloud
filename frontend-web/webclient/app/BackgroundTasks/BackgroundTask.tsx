@@ -1,4 +1,4 @@
-import {Cloud, WSFactory} from "Authentication/SDUCloudObject";
+import {Client, WSFactory} from "Authentication/HttpClientInstance";
 import {Progress, Speed, Task, TaskUpdate} from "BackgroundTasks/api";
 import DetailedTask from "BackgroundTasks/DetailedTask";
 import {taskLoadAction, taskUpdateAction} from "BackgroundTasks/redux";
@@ -204,10 +204,10 @@ const mapStateToProps = (state: ReduxObject) => ({
 });
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
-    showUploader: () => dispatch(setUploaderVisible(true, Cloud.homeFolder)),
+    showUploader: () => dispatch(setUploaderVisible(true, Client.homeFolder)),
     onTaskUpdate: (update: TaskUpdate) => dispatch(taskUpdateAction(update)),
     loadInitialTasks: async () => {
-        const result: Page<Task> = (await Cloud.get(buildQueryString("/tasks", {itemsPerPage: 100, page: 0}))).response;
+        const result: Page<Task> = (await Client.get(buildQueryString("/tasks", {itemsPerPage: 100, page: 0}))).response;
         dispatch(taskLoadAction(result));
     }
 });

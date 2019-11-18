@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {defaultFileOperations} from "Files/FileOperations";
 import {FileTable} from "Files/FileTable";
 import {defaultVirtualFolders} from "Files/VirtualFileTable";
@@ -22,7 +22,7 @@ interface FilesOperations {
 const Files: React.FunctionComponent<FilesOperations> = props => {
     const history = useHistory();
     const location = useLocation();
-    const urlPath = getQueryParamOrElse({history, location}, "path", Cloud.homeFolder);
+    const urlPath = getQueryParamOrElse({history, location}, "path", Client.homeFolder);
     useEffect(() => props.onInit(), []);
     return (
         <FileTable

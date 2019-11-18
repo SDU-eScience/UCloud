@@ -1,4 +1,4 @@
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
@@ -11,8 +11,9 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent} from "ui-components/Dropdown";
 import {TextSpan} from "ui-components/Text";
 import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
+import {PRODUCT_NAME} from "../../site.config.json";
 
 const bg1 = require("Assets/Images/bg1.svg");
 const bg2 = require("Assets/Images/bg2.svg");
@@ -51,7 +52,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         return <Instructions token={webDavInstructionToken} />;
     }
 
-    if (Cloud.isLoggedIn && !isWebDav) {
+    if (Client.isLoggedIn && !isWebDav) {
         props.history.push("/");
         return <div />;
     }
@@ -74,7 +75,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
             body.append("username", usernameInput.current!.value);
             body.append("password", passwordInput.current!.value);
             const response = await promises.makeCancelable(
-                fetch(Cloud.computeURL("/auth", `/login?service=${service}`), {
+                fetch(Client.computeURL("/auth", `/login?service=${service}`), {
                     method: "POST",
                     headers: {
                         Accept: "application/json"
@@ -102,7 +103,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         if (isWebDav) {
             setWebDavToken(result.refreshToken);
         } else {
-            Cloud.setTokens(result.accessToken, result.csrfToken);
+            Client.setTokens(result.accessToken, result.csrfToken);
             props.history.push("/loginSuccess");
         }
     }
@@ -162,8 +163,8 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                         <Box width="315px">
                             {!isWebDav ? null : (
                                 <Box color="white" mb={32}>
-                                    You must re-authenticate with SDUCloud to use your files locally.
-                            </Box>
+                                    You must re-authenticate with {PRODUCT_NAME} to use your files locally.
+                                </Box>
                             )}
                             {enabledWayf && !challengeId ? (
                                 <a href={`/auth/saml/login?service=${service}`}>
@@ -191,7 +192,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                                     )}
                                 >
                                     <Box width="100%">
-                                        <form onSubmit={e => e.preventDefault()}>
+                                        <form onSubmit={preventDefault}>
                                             <Login
                                                 enabled2fa={!!challengeId}
                                                 usernameRef={usernameInput}
@@ -223,7 +224,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                                             visible={true}
                                         >
                                             <Box width="100%">
-                                                <form onSubmit={e => e.preventDefault()}>
+                                                <form onSubmit={preventDefault}>
                                                     <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
                                                     <Button
                                                         fullWidth

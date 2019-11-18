@@ -1,6 +1,6 @@
 import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
-import SDUCloud, {MissingAuthError, Override} from "../../app/Authentication/lib";
+import HttpClient, {MissingAuthError, Override} from "../../app/Authentication/lib";
 import {emptyPage, ReduxObject} from "../../app/DefaultObjects";
 
 interface JWT {
@@ -18,7 +18,7 @@ interface JWT {
     publicSessionReference: string;
 }
 
-class MockCloud {
+class MockHttpClient {
 
     get username(): string | undefined {
         const info = this.userInfo;
@@ -234,7 +234,7 @@ class MockCloud {
         if (this.useProjectToken(disallowProjects)) {
             return this.projectAccessToken!;
         } else {
-            return SDUCloud.storedAccessToken;
+            return HttpClient.storedAccessToken;
         }
     }
 
@@ -244,7 +244,7 @@ class MockCloud {
 
     private decodeToken(accessToken: string): any {
         const bail = (): never => {
-            SDUCloud.clearTokens();
+            HttpClient.clearTokens();
             this.openBrowserLoginPage();
             return void (0) as never;
         };
@@ -284,7 +284,7 @@ class MockCloud {
     }
 }
 
-export const Cloud = new MockCloud();
+export const Client = new MockHttpClient();
 
 /* Why is this necessary? */
 test("Silencer", () => {/*  */});

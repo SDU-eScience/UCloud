@@ -10,7 +10,7 @@ import {AppToolLogo} from "Applications/AppToolLogo";
 import * as Actions from "Applications/Redux/BrowseActions";
 import {TagStyle} from "Applications/View";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {loadingAction, LoadingAction} from "Loading";
@@ -39,7 +39,7 @@ interface AppOperations {
 
 const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOperations> = props => {
     const name = props.match.params.name;
-    if (Cloud.userRole !== "ADMIN") return null;
+    if (Client.userRole !== "ADMIN") return null;
 
     const [commandLoading, invokeCommand] = useAsyncCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());

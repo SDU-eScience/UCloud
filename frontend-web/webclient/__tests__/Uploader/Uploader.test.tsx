@@ -1,15 +1,15 @@
+import "jest-styled-components";
 import * as React from "react";
-import {create} from "react-test-renderer";
-import {Uploader} from "../../app/Uploader";
-import {configureStore} from "../../app/Utilities/ReduxUtilities";
-import {initUploads, SensitivityLevelMap} from "../../app/DefaultObjects";
-import uploader from "../../app/Uploader/Redux/UploaderReducer";
 import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";
-import * as UploaderActions from "../../app/Uploader/Redux/UploaderActions";
-import "jest-styled-components";
-import {UploadPolicy} from "../../app/Uploader/api";
+import {create} from "react-test-renderer";
 import {AnyAction} from "redux";
+import {initUploads, SensitivityLevelMap} from "../../app/DefaultObjects";
+import {Uploader} from "../../app/Uploader";
+import {UploadPolicy} from "../../app/Uploader/api";
+import * as UploaderActions from "../../app/Uploader/Redux/UploaderActions";
+import uploader from "../../app/Uploader/Redux/UploaderReducer";
+import {configureStore} from "../../app/Utilities/ReduxUtilities";
 
 
 // configure({ adapter: new Adapter() });

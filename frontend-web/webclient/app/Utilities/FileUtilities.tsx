@@ -1,5 +1,5 @@
-import SDUCloud from "Authentication/lib";
-import {Cloud} from "Authentication/SDUCloudObject";
+import HttpClient from "Authentication/lib";
+import {Client} from "Authentication/HttpClientInstance";
 import {SensitivityLevelMap} from "DefaultObjects";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
@@ -34,12 +34,12 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
         const {exists, newPathForFile, allowOverwrite} = await moveCopySetup({
             targetPath: targetPathFolder,
             path: f.path,
-            cloud: Cloud
+            client: Client
         });
         if (exists && !applyToAll) {
             const result = await rewritePolicyDialog({
                 path: newPathForFile,
-                homeFolder: Cloud.homeFolder,
+                homeFolder: Client.homeFolder,
                 filesRemaining: files.length - i,
                 allowOverwrite
             });
@@ -52,7 +52,7 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
         if (applyToAll) allowRewrite = true;
         if ((exists && allowRewrite) || !exists) {
             try {
-                const {request} = await Cloud.post(copyOrMoveQuery(f.path, newPathForFile, policy));
+                const {request} = await Client.post(copyOrMoveQuery(f.path, newPathForFile, policy));
                 successes++;
                 if (request.status === 202) snackbarStore.addSnack({
                     message: `Operation for ${f.path} is in progress.`,
@@ -77,7 +77,7 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
 interface MoveCopySetup {
     targetPath: string;
     path: string;
-    cloud: SDUCloud;
+    client: HttpClient;
 }
 
 async function moveCopySetup({targetPath, path}: MoveCopySetup) {
@@ -92,15 +92,15 @@ function onOnlySuccess({operation, fileCount}: {operation: string, fileCount: nu
 
 export const statFileOrNull = async (path: string): Promise<File | null> => {
     try {
-        return (await Cloud.get<File>(statFileQuery(path))).response;
+        return (await Client.get<File>(statFileQuery(path))).response;
     } catch (e) {
         return null;
     }
 };
 
-export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<boolean> => {
+export const checkIfFileExists = async (path: string, client: HttpClient): Promise<boolean> => {
     try {
-        await cloud.get(statFileQuery(path));
+        await client.get(statFileQuery(path));
         return true;
     } catch (e) {
         // FIXME: in the event of other than 404 or 403
@@ -111,7 +111,7 @@ export const checkIfFileExists = async (path: string, cloud: SDUCloud): Promise<
 export type AccessRight = "READ" | "WRITE";
 
 function hasAccess(accessRight: AccessRight, file: File) {
-    const username = Cloud.activeUsername;
+    const username = Client.activeUsername;
     if (file.ownerName === username) return true;
     if (file.acl === null) return true; // If ACL is null, we are still fetching the ACL
 
@@ -248,7 +248,7 @@ export const MOCK_VIRTUAL = "virtual";
 export const MOCK_RELATIVE = "relative";
 
 export function mockFile(props: {path: string, type: FileType, fileId?: string, tag?: string}): File {
-    const username = Cloud.activeUsername ? Cloud.activeUsername : "";
+    const username = Client.activeUsername ? Client.activeUsername : "";
     return {
         fileType: props.type,
         path: props.path,
@@ -313,9 +313,9 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
  * @param {File} file The single file to be favorited
  * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
  */
-export const favoriteFile = async (file: File, cloud: SDUCloud): Promise<File> => {
+export const favoriteFile = async (file: File, client: HttpClient): Promise<File> => {
     try {
-        await cloud.post(favoriteFileQuery(file.path), {});
+        await client.post(favoriteFileQuery(file.path), {});
     } catch (e) {
         UF.errorMessageOrDefault(e, "An error occurred favoriting file.");
         throw e;
@@ -329,12 +329,12 @@ const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURICom
 interface ReclassifyFile {
     file: File;
     sensitivity: SensitivityLevelMap;
-    cloud: SDUCloud;
+    client: HttpClient;
 }
 
-export const reclassifyFile = async ({file, sensitivity, cloud}: ReclassifyFile): Promise<File> => {
+export const reclassifyFile = async ({file, sensitivity, client}: ReclassifyFile): Promise<File> => {
     const serializedSensitivity = sensitivity === SensitivityLevelMap.INHERIT ? null : sensitivity;
-    const callResult = await unwrap(cloud.post<void>("/files/reclassify", {
+    const callResult = await unwrap(client.post<void>("/files/reclassify", {
         path: file.path,
         sensitivity: serializedSensitivity
     }));
@@ -360,14 +360,14 @@ const extractFilesQuery = "/files/extract";
 
 interface ExtractArchive {
     files: File[];
-    cloud: SDUCloud;
+    client: HttpClient;
     onFinished: () => void;
 }
 
-export const extractArchive = async ({files, cloud, onFinished}: ExtractArchive) => {
+export const extractArchive = async ({files, client, onFinished}: ExtractArchive) => {
     for (const f of files) {
         try {
-            await cloud.post(extractFilesQuery, {path: f.path});
+            await client.post(extractFilesQuery, {path: f.path});
             snackbarStore.addSnack({message: "File extracted", type: SnackType.Success});
         } catch (e) {
             snackbarStore.addSnack({
@@ -379,10 +379,10 @@ export const extractArchive = async ({files, cloud, onFinished}: ExtractArchive)
     onFinished();
 };
 
-export const clearTrash = ({cloud, callback}: {cloud: SDUCloud, callback: () => void}) =>
+export const clearTrash = ({client, callback}: {client: HttpClient, callback: () => void}) =>
     clearTrashDialog({
         onConfirm: async () => {
-            await cloud.post("/files/trash/clear", {});
+            await client.post("/files/trash/clear", {});
             callback();
             snackbarStore.addSnack({message: "Emptying trash", type: SnackType.Information});
         }
@@ -414,20 +414,20 @@ const toFileName = (path: string): string => {
 };
 
 export function getFilenameFromPath(path: string): string {
-    const replacedHome = replaceHomeFolder(path, Cloud.homeFolder);
+    const replacedHome = replaceHomeFolder(path, Client.homeFolder);
     const fileName = toFileName(replacedHome);
     if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`;
     if (fileName === ".") return `. (Current folder)`;
     return fileName;
 }
 
-export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUCloud) {
+export function downloadFiles(files: File[], setLoading: () => void, client: HttpClient) {
     files.map(f => f.path).forEach(p =>
-        cloud.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
+        client.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
             const element = document.createElement("a");
             element.setAttribute(
                 "href",
-                Cloud.computeURL(
+                client.computeURL(
                     "/api",
                     `/files/download?path=${encodeURIComponent(p)}&token=${encodeURIComponent(token)}`
                 )
@@ -441,15 +441,15 @@ export function downloadFiles(files: File[], setLoading: () => void, cloud: SDUC
 
 interface UpdateSensitivity {
     files: File[];
-    cloud: SDUCloud;
+    client: HttpClient;
     onSensitivityChange?: () => void;
 }
 
-export async function updateSensitivity({files, cloud, onSensitivityChange}: UpdateSensitivity) {
+export async function updateSensitivity({files, client, onSensitivityChange}: UpdateSensitivity) {
     const input = await sensitivityDialog();
     if ("cancelled" in input) return;
     try {
-        await Promise.all(files.map(file => reclassifyFile({file, sensitivity: input.option, cloud})));
+        await Promise.all(files.map(file => reclassifyFile({file, sensitivity: input.option, client})));
     } catch (e) {
         snackbarStore.addSnack({
             message: UF.errorMessageOrDefault(e, "Could not reclassify file"),
@@ -460,9 +460,9 @@ export async function updateSensitivity({files, cloud, onSensitivityChange}: Upd
     }
 }
 
-export const fetchFileContent = async (path: string, cloud: SDUCloud): Promise<Response> => {
-    const token = await cloud.createOneTimeTokenWithPermission("files.download:read");
-    return fetch(Cloud.computeURL(
+export const fetchFileContent = async (path: string, client: HttpClient): Promise<Response> => {
+    const token = await client.createOneTimeTokenWithPermission("files.download:read");
+    return fetch(client.computeURL(
         "/api",
         `/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`)
     );
@@ -510,11 +510,11 @@ export const directorySizeQuery = "/files/stats/directory-sizes";
 
 interface ShareFiles {
     files: File[];
-    cloud: SDUCloud;
+    client: HttpClient;
 }
 
-export const shareFiles = async ({files, cloud}: ShareFiles) => {
-    shareDialog(files.map(it => it.path), cloud);
+export const shareFiles = async ({files, client}: ShareFiles) => {
+    shareDialog(files.map(it => it.path), client);
 };
 
 const moveToTrashDialog = ({filePaths, onConfirm}: {onConfirm: () => void, filePaths: string[]}): void => {
@@ -573,18 +573,18 @@ interface Failures {
 
 interface MoveToTrash {
     files: File[];
-    cloud: SDUCloud;
+    client: HttpClient;
     setLoading: () => void;
     callback: () => void;
 }
 
-export const moveToTrash = ({files, cloud, setLoading, callback}: MoveToTrash) => {
+export const moveToTrash = ({files, client, setLoading, callback}: MoveToTrash) => {
     const paths = files.map(f => f.path);
     moveToTrashDialog({
         filePaths: paths, onConfirm: async () => {
             try {
                 setLoading();
-                await cloud.post("/files/trash/", {files: paths});
+                await client.post("/files/trash/", {files: paths});
                 snackbarStore.addSnack({message: "Moving files to trash", type: SnackType.Information});
                 callback();
             } catch (e) {
@@ -598,15 +598,15 @@ export const moveToTrash = ({files, cloud, setLoading, callback}: MoveToTrash) =
 interface MoveFile {
     oldPath: string;
     newPath: string;
-    cloud: SDUCloud;
+    client: HttpClient;
     setLoading: () => void;
     onSuccess: () => void;
 }
 
-export async function moveFile({oldPath, newPath, cloud, setLoading, onSuccess}: MoveFile): Promise<void> {
+export async function moveFile({oldPath, newPath, client, setLoading, onSuccess}: MoveFile): Promise<void> {
     setLoading();
     try {
-        await cloud.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`);
+        await client.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`);
         onSuccess();
     } catch (e) {
         defaultErrorHandler(e);
@@ -615,13 +615,13 @@ export async function moveFile({oldPath, newPath, cloud, setLoading, onSuccess}:
 
 interface CreateFolder {
     path: string;
-    cloud: SDUCloud;
+    client: HttpClient;
     onSuccess: () => void;
 }
 
-export async function createFolder({path, cloud, onSuccess}: CreateFolder): Promise<void> {
+export async function createFolder({path, client, onSuccess}: CreateFolder): Promise<void> {
     try {
-        await cloud.post("/files/directory", {path});
+        await client.post("/files/directory", {path});
         onSuccess();
         snackbarStore.addSnack({message: "Folder created", type: SnackType.Success});
     } catch (e) {
@@ -632,7 +632,7 @@ export async function createFolder({path, cloud, onSuccess}: CreateFolder): Prom
     }
 }
 
-export const inTrashDir = (path: string, cloud: SDUCloud): boolean => getParentPath(path) === cloud.trashFolder;
+export const inTrashDir = (path: string, client: HttpClient): boolean => getParentPath(path) === client.trashFolder;
 
 export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);

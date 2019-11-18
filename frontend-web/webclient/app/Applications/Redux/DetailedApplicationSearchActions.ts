@@ -1,5 +1,5 @@
 import {AdvancedSearchRequest} from "Applications";
-import {Cloud} from "Authentication/SDUCloudObject";
+import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {receiveApplications, setErrorMessage} from "Search/Redux/SearchActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -14,7 +14,6 @@ import {
     DETAILED_APPS_SET_NAME,
     DETAILED_APPS_SHOW_ALL_VERSIONS
 } from "./DetailedApplicationSearchReducer";
-import * as DFSReducer from "Files/Redux/DetailedFileSearchReducer";
 
 export type DetailedAppActions = SetAppQuery | AddTag | RemoveTag | ClearTags | SetShowAllVersions |
     Action<typeof DETAILED_APPLICATION_SET_ERROR>;
@@ -48,7 +47,7 @@ export const setShowAllVersions = (): SetShowAllVersions => ({
 
 export async function fetchApplications(body: AdvancedSearchRequest) {
     try {
-        const {response} = await Cloud.post(advancedSearchQuery(), body);
+        const {response} = await Client.post(advancedSearchQuery(), body);
         return receiveApplications(response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred searching for applications"));

@@ -1,4 +1,4 @@
-import {Cloud as currentCloud} from "Authentication/SDUCloudObject";
+import {Client as currentClient} from "Authentication/HttpClientInstance";
 import {SensitivityLevel} from "DefaultObjects";
 import {Acl, File, FileType, SortBy} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
@@ -40,7 +40,7 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
  * @return {string}
  */
 export const getMembersString = (acls: Acl[]): string => {
-    const filteredAcl = acls.filter(it => it.entity !== currentCloud.activeUsername);
+    const filteredAcl = acls.filter(it => it.entity !== currentClient.activeUsername);
     if (filteredAcl.length > 0) {
         return `${acls.length + 1} members`;
     } else {
@@ -364,7 +364,6 @@ export const inDevEnvironment = () => process.env.NODE_ENV === "development";
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
     return (target = "default-target") => {
-        /* FIXME: use null coalescing  */
         const idCount = (store.get(target) ?? 0) + 1;
         store.set(target, idCount);
         return `${target}${idCount}`;
