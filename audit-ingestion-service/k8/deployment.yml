@@ -58,7 +58,7 @@ spec:
       - name: elasticsearch-credentials
         secret:
           optional: false
-          secretName: elasticsearch-credentials
+          secretName: elasticsearch-logging-cluster-credentials
 
       imagePullSecrets:
         - name: esci-docker
