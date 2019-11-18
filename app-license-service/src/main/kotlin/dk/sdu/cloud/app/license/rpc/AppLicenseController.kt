@@ -23,7 +23,14 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             val licenseServer = licenseService.getLicenseServer(request.licenseId, entity)
 
             if (licenseServer != null) {
-                ok(LicenseServerResponse(licenseServer.address))
+                ok(
+                    ApplicationLicenseServer(
+                        licenseServer.name,
+                        licenseServer.version,
+                        licenseServer.address,
+                        licenseServer.license
+                    )
+                )
             } else {
                 // Could be because no license server was found, or because the user does not have the correct
                 // authorization
@@ -33,8 +40,23 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                 )
             }
         }
+
         implement(AppLicenseDescriptions.updateAcl) {
-            licenseService.updateAcl(request, ctx.securityPrincipal.username)
+            val entity = UserEntity(
+                ctx.securityPrincipal.username,
+                EntityType.USER
+            )
+
+            licenseService.updateAcl(request, entity)
+        }
+
+        implement(AppLicenseDescriptions.save) {
+            val entity = UserEntity(
+                ctx.securityPrincipal.username,
+                EntityType.USER
+            )
+
+            licenseService.saveLicenseServer(request, entity)
         }
 
         return@configure

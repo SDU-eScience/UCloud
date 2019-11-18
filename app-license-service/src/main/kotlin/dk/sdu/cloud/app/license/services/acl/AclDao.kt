@@ -28,7 +28,7 @@ interface AclDao<Session> {
         session: Session,
         licenseId: String,
         entity: UserEntity,
-        permissions: Set<AccessRight>
+        permissions: AccessRight
     )
 
     fun revokePermission(

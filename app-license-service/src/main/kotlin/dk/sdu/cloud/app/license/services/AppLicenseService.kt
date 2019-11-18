@@ -1,6 +1,8 @@
 package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.AccessRight
+import dk.sdu.cloud.app.license.api.ApplicationLicenseServer
+import dk.sdu.cloud.app.license.api.NewLicenseRequest
 import dk.sdu.cloud.app.license.api.UpdateAclRequest
 import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.app.license.services.acl.UserEntity
@@ -21,13 +23,31 @@ class AppLicenseService<Session>(
         return null
     }
 
-    fun updateAcl(request: UpdateAclRequest, entity: String) {
+    fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
         request.changes.forEach { change ->
             if(change.revoke) {
                 aclService.revokePermission(request.licenseId, change.entity)
             } else {
                 aclService.updatePermissions(request.licenseId, change.entity, change.rights)
             }
+        }
+    }
+
+    fun saveLicenseServer(request: NewLicenseRequest, entity: UserEntity): String {
+        db.withTransaction {
+            val licenseId = appLicenseDao.create(
+                it,
+                ApplicationLicenseServer(
+                    request.name,
+                    request.version,
+                    request.address,
+                    request.license
+                )
+            )
+
+            aclService.updatePermissions(licenseId, entity, AccessRight.READ_WRITE)
+
+            return licenseId
         }
     }
 }

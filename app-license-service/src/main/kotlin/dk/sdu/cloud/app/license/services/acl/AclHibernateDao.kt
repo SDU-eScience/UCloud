@@ -44,11 +44,10 @@ class AclHibernateDao : AclDao<HibernateSession> {
         session: HibernateSession,
         licenseId: String,
         userEntity: UserEntity,
-        permissions: Set<AccessRight>
+        permissions: AccessRight
     ) {
-        val entries =
-            permissions.map { PermissionEntry(PermissionEntry.Key(userEntity.id, userEntity.type, licenseId, it)) }
-        entries.forEach { session.saveOrUpdate(it) }
+        val permissionEntry = PermissionEntry(PermissionEntry.Key(userEntity.id, userEntity.type, licenseId, permissions))
+        session.saveOrUpdate(permissionEntry)
 
         /*session.deleteCriteria<PermissionEntry> {
             val key = entity[PermissionEntry::key]

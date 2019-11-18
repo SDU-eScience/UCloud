@@ -8,4 +8,9 @@ interface AppLicenseDao<Session> {
         session: Session,
         id: String
     ): ApplicationLicenseServerEntity?
+
+    fun create(
+        session: Session,
+        appLicenseServer: ApplicationLicenseServer
+    ) : String
 }

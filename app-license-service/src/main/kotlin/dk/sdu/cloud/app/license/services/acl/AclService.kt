@@ -14,7 +14,7 @@ class AclService<Session>(
         }
     }
 
-    fun updatePermissions(licenseId: String, entity: UserEntity, permissions: Set<AccessRight>) {
+    fun updatePermissions(licenseId: String, entity: UserEntity, permissions: AccessRight) {
         db.withTransaction {
             dao.updatePermissions(it, licenseId, entity, permissions)
         }

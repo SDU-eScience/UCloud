@@ -12,9 +12,17 @@ import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
 data class LicenseServerRequest(val licenseId: String)
-data class LicenseServerResponse(val address: String)
-data class UpdateAclResponse(val echo: String)
 
+data class NewLicenseRequest(
+    val name: String?,
+    val version: String?,
+    val address: String?,
+    val license: String?
+)
+
+data class NewLicenseResponse(val licenseId: String)
+
+data class UpdateAclResponse(val echo: String)
 data class UpdateAclRequest(
     val licenseId: String,
     val changes: List<ACLEntryRequest>,
@@ -28,14 +36,14 @@ data class UpdateAclRequest(
 
 data class ACLEntryRequest(
     val entity: UserEntity,
-    val rights: Set<AccessRight>,
+    val rights: AccessRight,
     val revoke: Boolean = false
 )
 
 object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
     val baseContext = "/api/app/license"
 
-    val permission = call<LicenseServerRequest, LicenseServerResponse, CommonErrorMessage>("get") {
+    val permission = call<LicenseServerRequest, ApplicationLicenseServer, CommonErrorMessage>("get") {
         auth {
             access = AccessRight.READ
         }
@@ -61,7 +69,31 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                + "update-acl"
+                +"update-acl"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val save = call<NewLicenseRequest, NewLicenseResponse, CommonErrorMessage>("save") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"save"
+            }
+
+            params {
+                +boundTo(NewLicenseRequest::name)
+                +boundTo(NewLicenseRequest::version)
+                +boundTo(NewLicenseRequest::address)
+                +boundTo(NewLicenseRequest::license)
             }
 
             body { bindEntireRequestFromBody() }
