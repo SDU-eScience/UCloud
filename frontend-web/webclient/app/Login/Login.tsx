@@ -13,7 +13,7 @@ import {TextSpan} from "ui-components/Text";
 import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
-import {PRODUCT_NAME, VERSION_TEXT} from "../../site.config.json";
+import {PRODUCT_NAME} from "../../site.config.json";
 
 const bg1 = require("Assets/Images/bg1.svg");
 const bg2 = require("Assets/Images/bg2.svg");
@@ -224,7 +224,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                                             visible={true}
                                         >
                                             <Box width="100%">
-                                                <form onSubmit={e => e.preventDefault()}>
+                                                <form onSubmit={preventDefault}>
                                                     <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
                                                     <Button
                                                         fullWidth

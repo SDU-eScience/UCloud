@@ -50,7 +50,7 @@ import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {inDevEnvironment, isLightThemeStored, prettierString, stopPropagationAndPreventDefault} from "UtilityFunctions";
-import {PRODUCT_NAME, STATUS_PAGE} from "../../site.config.json";
+import {PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -189,14 +189,16 @@ const Logo = () => (
         <Flex alignItems="center" ml="15px">
             <Icon name="logoEsc" size="38px" />
             <Text color="headerText" fontSize={4} ml={"8px"}>{PRODUCT_NAME}</Text>
-            <LogoText
-                ml="4px"
-                mt={-7}
-                color="red"
-                fontSize={17}
-            >
-                BETA
-            </LogoText>
+            {!VERSION_TEXT ? null : (
+                <LogoText
+                    ml="4px"
+                    mt={-7}
+                    color="red"
+                    fontSize={17}
+                >
+                    BETA
+                </LogoText>
+            )}
         </Flex>
     </Link>
 );
