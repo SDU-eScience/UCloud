@@ -20,6 +20,12 @@ class AclService<Session>(
         }
     }
 
+    fun listAcl(licenseId: String): List<EntityWithPermission> {
+        return db.withTransaction {
+            dao.listAcl(it, licenseId)
+        }
+    }
+
     fun revokePermission(licenseId: String, entity: UserEntity) {
         db.withTransaction {
             dao.revokePermission(it, licenseId, entity)

@@ -3,7 +3,7 @@ import dk.sdu.cloud.AccessRight
 
 enum class EntityType {
     USER,
-    PROJECTANDGROUP
+    PROJECT_AND_GROUP
 }
 
 data class UserEntity(

@@ -50,13 +50,13 @@ class AclHibernateDao : AclDao<HibernateSession> {
             permissions.map { PermissionEntry(PermissionEntry.Key(userEntity.id, userEntity.type, licenseId, it)) }
         entries.forEach { session.saveOrUpdate(it) }
 
-        session.deleteCriteria<PermissionEntry> {
+        /*session.deleteCriteria<PermissionEntry> {
             val key = entity[PermissionEntry::key]
 
             (key[PermissionEntry.Key::entity] equal userEntity.id) and
                     (key[PermissionEntry.Key::serverId] equal licenseId) and
                     (not(key[PermissionEntry.Key::permission] isInCollection permissions))
-        }.executeUpdate()
+        }.executeUpdate()*/
     }
 
     override fun revokePermission(
