@@ -319,12 +319,12 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                     favorite={isFavorite}
                     onClick={onFavoriteClick}
                 >
-                    <Icon name={"starRibbon"} color="red" size={48} />
+                    <Icon name="starRibbon" color="red" size={48} />
                 </AppRibbonContainer>
             )}
-            <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
-                <AppToolLogo name={app.metadata.name} type={"APPLICATION"} size={"48px"} />
-                <Flex flexDirection={"column"} ml="10px">
+            <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
+                <AppToolLogo name={app.metadata.name} type="APPLICATION" size="48px" />
+                <Flex flexDirection="column" ml="10px">
                     <Flex>
                         <EllipsedText fontSize="20px" maxWidth="220px">{metadata.title}</EllipsedText>
                         <Text ml="0.4em" mt="3px" color="gray">v{metadata.version}</Text>
@@ -335,7 +335,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
                 </Flex>
             </Flex>
             <Box mt="auto" />
-            <Flex flexDirection={"row"} alignItems={"flex-start"} zIndex={1}>
+            <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
                 {buildTags(app.tags).map((tag, idx) => <Tag label={tag} key={idx} />)}
             </Flex>
         </AppCard>
