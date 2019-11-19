@@ -57,9 +57,11 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         return <div />;
     }
 
-    if (props.initialState !== undefined) {
-        handleAuthState(props.initialState);
-    }
+    useEffect(() => {
+        if (props.initialState !== undefined) {
+            handleAuthState(props.initialState);
+        }
+    }, []);
 
     async function attemptLogin() {
         if (!(usernameInput.current?.value) || !(passwordInput.current?.value)) {
@@ -90,10 +92,9 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
 
             handleAuthState(await response.json());
         } catch (e) {
-            snackbarStore.addSnack({
-                type: SnackType.Failure,
-                message: errorMessageOrDefault({request: e, response: await e.json()}, "An error occurred")
-            });
+            snackbarStore.addFailure(
+                errorMessageOrDefault({request: e, response: await e.json()}, "An error occurred")
+            );
         } finally {
             setLoading(false);
         }
