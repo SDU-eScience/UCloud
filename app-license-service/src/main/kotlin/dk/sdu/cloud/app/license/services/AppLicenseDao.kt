@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.license.services
 
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.ApplicationLicenseServer
 
 interface AppLicenseDao<Session> {
@@ -13,4 +12,10 @@ interface AppLicenseDao<Session> {
         session: Session,
         appLicenseServer: ApplicationLicenseServer
     ) : String
+
+    fun save(
+        session: Session,
+        appLicenseServer: ApplicationLicenseServer,
+        withId: String
+    )
 }

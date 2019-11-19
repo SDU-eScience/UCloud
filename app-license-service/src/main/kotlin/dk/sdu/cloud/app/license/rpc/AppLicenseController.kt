@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.AppLicenseService
 import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.app.license.services.acl.EntityType
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
@@ -15,14 +16,14 @@ import org.hibernate.Session
 class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Controller {
     private val licenseService = appLicenseService
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        implement(AppLicenseDescriptions.permission) {
+        implement(AppLicenseDescriptions.get) {
             val entity = UserEntity(
                 ctx.securityPrincipal.username,
                 EntityType.USER
             )
-            val licenseServer = licenseService.getLicenseServer(request.licenseId, entity)
 
-            if (licenseServer != null) {
+            try {
+                val licenseServer = licenseService.getLicenseServer(request.licenseId, entity)
                 ok(
                     ApplicationLicenseServer(
                         licenseServer.name,
@@ -31,13 +32,17 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                         licenseServer.license
                     )
                 )
-            } else {
-                // Could be because no license server was found, or because the user does not have the correct
-                // authorization
-                error(
-                    CommonErrorMessage("No license found"),
-                    HttpStatusCode.NotFound
-                )
+            } catch (e: RPCException) {
+                when (e.httpStatusCode) {
+                    HttpStatusCode.NotFound -> error(
+                        CommonErrorMessage("Problems fetching the application license server"),
+                        HttpStatusCode.NotFound
+                    )
+                    HttpStatusCode.Unauthorized -> error(
+                        CommonErrorMessage("Problems fetching the application license server"),
+                        HttpStatusCode.Unauthorized
+                    )
+                }
             }
         }
 
@@ -56,7 +61,18 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                 EntityType.USER
             )
 
-            licenseService.saveLicenseServer(request, entity)
+            try {
+                licenseService.saveLicenseServer(request, entity)
+            } catch (e: RPCException) {
+                when (e.httpStatusCode) {
+                    HttpStatusCode.Unauthorized ->
+                        error(
+                            CommonErrorMessage("Unauthorized to save application license server"),
+                            HttpStatusCode.Unauthorized
+                        )
+                }
+            }
+
         }
 
         return@configure

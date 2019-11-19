@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.license.services
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.ApplicationLicenseServer
 import dk.sdu.cloud.service.db.*
+import io.ktor.http.ContentType
 import java.util.*
 import javax.persistence.Column
 import javax.persistence.Entity
@@ -26,7 +27,7 @@ class ApplicationLicenseServerEntity(
     var address: String?,
 
     @Column(name = "license", unique = false, nullable = true)
-    val license: String?
+    var license: String?
 ) {
     companion object : HibernateEntity<ApplicationLicenseServerEntity>, WithId<String>
 }
@@ -58,5 +59,18 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
                 entity[ApplicationLicenseServerEntity::id] equal id
             )
         }.uniqueResult()
+    }
+
+    override fun save(session: HibernateSession, appLicenseServer: ApplicationLicenseServer, withId: String) {
+        val existing = session.criteria<ApplicationLicenseServerEntity> {
+            (entity[ApplicationLicenseServerEntity::id] equal withId)
+        }.uniqueResult()
+
+        existing.address = appLicenseServer.address
+        existing.license = appLicenseServer.license
+        existing.name = appLicenseServer.name
+        existing.version = appLicenseServer.version
+
+        session.update(existing)
     }
 }

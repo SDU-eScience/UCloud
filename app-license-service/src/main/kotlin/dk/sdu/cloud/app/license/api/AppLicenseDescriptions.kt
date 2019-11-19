@@ -13,14 +13,15 @@ import io.ktor.http.HttpMethod
 
 data class LicenseServerRequest(val licenseId: String)
 
-data class NewLicenseRequest(
+data class SaveLicenseRequest(
     val name: String?,
     val version: String?,
     val address: String?,
-    val license: String?
+    val license: String?,
+    val withId: String?
 )
 
-data class NewLicenseResponse(val licenseId: String)
+data class SaveLicenseResponse(val licenseId: String)
 
 data class UpdateAclResponse(val echo: String)
 data class UpdateAclRequest(
@@ -43,7 +44,7 @@ data class ACLEntryRequest(
 object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
     val baseContext = "/api/app/license"
 
-    val permission = call<LicenseServerRequest, ApplicationLicenseServer, CommonErrorMessage>("get") {
+    val get = call<LicenseServerRequest, ApplicationLicenseServer, CommonErrorMessage>("get") {
         auth {
             access = AccessRight.READ
         }
@@ -76,7 +77,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
-    val save = call<NewLicenseRequest, NewLicenseResponse, CommonErrorMessage>("save") {
+    val save = call<SaveLicenseRequest, SaveLicenseResponse, CommonErrorMessage>("save") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -90,10 +91,11 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
             }
 
             params {
-                +boundTo(NewLicenseRequest::name)
-                +boundTo(NewLicenseRequest::version)
-                +boundTo(NewLicenseRequest::address)
-                +boundTo(NewLicenseRequest::license)
+                +boundTo(SaveLicenseRequest::name)
+                +boundTo(SaveLicenseRequest::version)
+                +boundTo(SaveLicenseRequest::address)
+                +boundTo(SaveLicenseRequest::license)
+                +boundTo(SaveLicenseRequest::withId)
             }
 
             body { bindEntireRequestFromBody() }
