@@ -30,14 +30,23 @@ class AclHibernateDao : AclDao<HibernateSession> {
         accessEntity: UserEntity,
         permission: AccessRight
     ): Boolean {
-        return session
-            .criteria<PermissionEntry> {
-                (entity[PermissionEntry::key][PermissionEntry.Key::entity] equal accessEntity.id) and
-                        (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
-                        (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal permission)
+        return when (permission) {
+            AccessRight.READ -> {
+                session.criteria<PermissionEntry>{
+                    (entity[PermissionEntry::key][PermissionEntry.Key::entity] equal accessEntity.id) and
+                            (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
+                            ((entity[PermissionEntry::key][PermissionEntry.Key::permission] equal AccessRight.READ) or
+                                    (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal AccessRight.READ_WRITE))
+                }.list().isNotEmpty()
             }
-            .list()
-            .isNotEmpty()
+            AccessRight.READ_WRITE -> {
+                session.criteria<PermissionEntry> {
+                    (entity[PermissionEntry::key][PermissionEntry.Key::entity] equal accessEntity.id) and
+                            (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
+                            (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal AccessRight.READ_WRITE)
+                }.list().isNotEmpty()
+            }
+        }
     }
 
     override fun updatePermissions(

@@ -35,6 +35,7 @@ class AppLicenseService<Session>(
 
     fun saveLicenseServer(request: NewLicenseRequest, entity: UserEntity): String {
         db.withTransaction {
+            println("Creating license")
             val licenseId = appLicenseDao.create(
                 it,
                 ApplicationLicenseServer(
@@ -45,6 +46,7 @@ class AppLicenseService<Session>(
                 )
             )
 
+            println("Adding permission")
             aclService.updatePermissions(licenseId, entity, AccessRight.READ_WRITE)
 
             return licenseId
