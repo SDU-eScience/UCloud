@@ -34,12 +34,16 @@ class AppLicenseService<Session>(
     }
 
     fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
-        request.changes.forEach { change ->
-            if(change.revoke) {
-                aclService.revokePermission(request.licenseId, change.entity)
-            } else {
-                aclService.updatePermissions(request.licenseId, change.entity, change.rights)
+        if (aclService.hasPermission(request.licenseId, entity, AccessRight.READ_WRITE)) {
+            request.changes.forEach { change ->
+                if (change.revoke) {
+                    aclService.revokePermission(request.licenseId, change.entity)
+                } else {
+                    aclService.updatePermissions(request.licenseId, change.entity, change.rights)
+                }
             }
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
         }
     }
 

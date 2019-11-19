@@ -52,7 +52,16 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                 EntityType.USER
             )
 
-            licenseService.updateAcl(request, entity)
+            try {
+                licenseService.updateAcl(request, entity)
+            } catch (e: RPCException) {
+                when (e.httpStatusCode) {
+                    HttpStatusCode.Unauthorized -> error(
+                        CommonErrorMessage("Not authorized to update ACL"),
+                        HttpStatusCode.Unauthorized
+                    )
+                }
+            }
         }
 
         implement(AppLicenseDescriptions.save) {

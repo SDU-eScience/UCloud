@@ -26,8 +26,7 @@ data class SaveLicenseResponse(val licenseId: String)
 data class UpdateAclResponse(val echo: String)
 data class UpdateAclRequest(
     val licenseId: String,
-    val changes: List<ACLEntryRequest>,
-    val automaticRollback: Boolean? = null
+    val changes: List<ACLEntryRequest>
 ) {
     init {
         if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
