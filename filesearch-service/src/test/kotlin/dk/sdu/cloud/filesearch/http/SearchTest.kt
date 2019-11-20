@@ -31,6 +31,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import org.junit.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class SearchTest {
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
@@ -169,6 +170,65 @@ class SearchTest {
         10,
         0
     )
+
+    @Test
+    fun `advanced test - empty query`() {
+        withKtorTest(
+            setup
+            ,
+            test = {
+                val request = sendJson(
+                    method = HttpMethod.Post,
+                    path = "/api/file-search/advanced",
+                    user = TestUsers.user,
+                    request = req.copy(fileName = null, modifiedAt = null)
+                )
+                request.assertSuccess()
+                val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
+
+                assertEquals(0, response.itemsInTotal)
+                assertEquals(0, response.pagesInTotal)
+                assertEquals(0, response.pageNumber)
+                assertTrue(response.items.isEmpty())
+            }
+        )
+    }
+
+    @Test
+    fun `advanced test - only file name`() {
+        withKtorTest(
+            setup
+            ,
+            test = {
+                ClientMock.mockCallSuccess(
+                    QueryDescriptions.query,
+                    queryResponse
+                )
+
+                ClientMock.mockCallSuccess(
+                    FileDescriptions.verifyFileKnowledge,
+                    VerifyFileKnowledgeResponse(
+                        listOf(true, true)
+                    )
+                )
+
+                val request = sendJson(
+                    method = HttpMethod.Post,
+                    path = "/api/file-search/advanced",
+                    user = TestUsers.user,
+                    request = req.copy(modifiedAt = null)
+                )
+                request.assertSuccess()
+                val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
+
+                assertEquals(2, response.itemsInTotal)
+                assertEquals(1, response.pagesInTotal)
+                assertEquals(0, response.pageNumber)
+                assertEquals("1", response.items.first().fileId)
+                assertEquals("2", response.items.last().fileId)
+            }
+        )
+    }
 
     @Test
     fun `advanced test`() {

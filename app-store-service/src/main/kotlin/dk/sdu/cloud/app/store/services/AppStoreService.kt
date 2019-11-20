@@ -200,7 +200,12 @@ class AppStoreService<DBSession>(
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
         if (query.isNullOrBlank() && tagFilter == null) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            return Page(
+                0,
+                paging.itemsPerPage,
+                0,
+                emptyList()
+            )
         }
 
         val normalizedQuery = query?.toLowerCase() ?: ""
