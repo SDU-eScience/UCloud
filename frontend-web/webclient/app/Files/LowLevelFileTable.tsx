@@ -19,7 +19,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
-import {Button, Icon, Input, Label, OutlineButton, Tooltip, Truncate} from "ui-components";
+import {Button, Icon, Input, Label, OutlineButton, Text, Tooltip, Truncate} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
@@ -51,7 +51,7 @@ import {
     resolvePath
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Arrow, FileIcon} from "UtilityComponents";
+import {Arrow, FileIcon, addStandardDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 
 export interface LowLevelFileTableProps {
@@ -271,12 +271,12 @@ function apiForComponent(
 }
 
 // tslint:disable-next-line: variable-name
-const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
-{
-    responsive: ResponsiveReduxObject,
-    showUploader: (path: string) => void,
-    setUploaderCallback: (cb?: () => void) => void,
-    appendUpload: (uploads: Upload) => void
+const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
+    responsive: ResponsiveReduxObject;
+    showUploader: (path: string) => void;
+    setUploaderCallback: (cb?: () => void) => void;
+    appendUpload: (uploads: Upload) => void;
+    activeUploadCount: number;
 }> = props => {
     // Validation
     if (props.page === undefined && props.path === undefined) {
@@ -537,11 +537,26 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
                             {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
 
                             {!UF.inDevEnvironment() ? null : (
-                                <a href={"/app/login?dav=true"}>
-                                    <OutlineButton>
-                                        Use your files locally
-                                    </OutlineButton>
-                                </a>
+                                <OutlineButton
+                                    onClick={() => props.activeUploadCount ? addStandardDialog({
+                                        title: "Continue",
+                                        message: (
+                                            <Box>
+                                                <Text>You have tasks that will be cancelled if you continue.</Text>
+                                                {props.activeUploadCount ? (
+                                                    <Text>
+                                                        {props.activeUploadCount} uploads in progress.
+                                                    </Text>
+                                                ) : ""}
+                                                {/* TODO: TASKS */}
+                                            </Box>
+                                        ),
+                                        onConfirm: () => toWebDav(),
+                                        confirmText: "OK"
+                                    }) : toWebDav()}
+                                >
+                                    Use your files locally
+                                </OutlineButton>
                             )}
                         </VerticalButtonGroup>
                     )}
@@ -790,8 +805,19 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps &
     }
 };
 
-const mapStateToProps = ({responsive}: ReduxObject) => {
-    return {responsive};
+function toWebDav() {
+    const a = document.createElement("a");
+    a.href = "/app/login?dav=true";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+
+const mapStateToProps = ({responsive, uploader}: ReduxObject) => {
+    const activeUploadCount = uploader.uploads.filter(it =>
+        (it.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
+        (it.uploadXHR?.readyState ?? -1 < XMLHttpRequest.DONE)).length;
+    return {responsive, activeUploadCount};
 };
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({

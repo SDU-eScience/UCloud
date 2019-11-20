@@ -1,12 +1,10 @@
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
-import Tooltip from "ui-components/Tooltip";
+import {EveryIcon} from "ui-components/Icon";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
-        <Tooltip trigger="Hello">
-            I'm being shown
-        </Tooltip>
+        <EveryIcon />
     );
     return <MainContainer main={main} />;
 };

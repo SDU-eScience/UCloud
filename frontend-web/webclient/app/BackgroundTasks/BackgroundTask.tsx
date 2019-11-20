@@ -207,7 +207,7 @@ const mapDispatchToProps = (dispatch: Dispatch) => ({
     showUploader: () => dispatch(setUploaderVisible(true, Client.homeFolder)),
     onTaskUpdate: (update: TaskUpdate) => dispatch(taskUpdateAction(update)),
     loadInitialTasks: async () => {
-        const result: Page<Task> = (await Client.get(buildQueryString("/tasks", {itemsPerPage: 100, page: 0}))).response;
+        const result = (await Client.get<Page<Task>>(buildQueryString("/tasks", {itemsPerPage: 100, page: 0}))).response;
         dispatch(taskLoadAction(result));
     }
 });
