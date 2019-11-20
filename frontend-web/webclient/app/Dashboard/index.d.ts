@@ -13,6 +13,9 @@ export interface DashboardStateProps {
     analysesLoading: boolean
     recentLoading: boolean
     favoriteFilesLength?: number
+    favoritesError?: string;
+    recentFilesError?: string;
+    recentJobsError?: string;
 }
 
 export interface DashboardOperations {

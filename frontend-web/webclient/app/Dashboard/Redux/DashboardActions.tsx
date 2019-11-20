@@ -2,11 +2,11 @@ import {Analysis} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {File} from "Files";
 import {Action} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page, PayloadAction, SetLoadingAction} from "Types";
 import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
 import {favoritesQuery, recentFilesQuery} from "Utilities/FileUtilities";
+import {errorMessageOrDefault} from "UtilityFunctions";
 import {
     DASHBOARD_FAVORITE_ERROR,
     DASHBOARD_RECENT_FILES_ERROR,
@@ -17,13 +17,15 @@ import {
     SET_ALL_LOADING,
 } from "./DashboardReducer";
 
-export type DashboardActions = Action<DashboardError> | ReceiveFavoritesProps | ReceiveRecentFilesProps |
+export type DashboardActions = DashboardErrorAction | ReceiveFavoritesProps | ReceiveRecentFilesProps |
     SetLoadingAction<typeof SET_ALL_LOADING> | ReceiveRecentAnalyses;
 
 type DashboardError =
     typeof DASHBOARD_FAVORITE_ERROR |
     typeof DASHBOARD_RECENT_JOBS_ERROR |
     typeof DASHBOARD_RECENT_FILES_ERROR;
+
+type DashboardErrorAction = PayloadAction<DashboardError, {error?: string}>;
 
 /**
  * Sets all dashboard lists as either loading or not loading
@@ -34,8 +36,11 @@ export const setAllLoading = (loading: boolean): SetLoadingAction<typeof SET_ALL
     payload: {loading}
 });
 
-export const setErrorMessage = (type: DashboardError): Action<typeof type> => ({
-    type
+export const setErrorMessage = (type: DashboardError, error?: string): DashboardErrorAction => ({
+    type,
+    payload: {
+        error
+    }
 });
 
 /**
@@ -45,9 +50,9 @@ export const fetchFavorites = async (): Promise<ReceiveFavoritesProps | Action<D
     try {
         const {response} = await Client.get<Page<File>>(favoritesQuery(0, 10));
         return receiveFavorites(response.items);
-    } catch {
+    } catch (err) {
         snackbarStore.addFailure("Failed to fetch favorites. Please try again later.");
-        return setErrorMessage(DASHBOARD_FAVORITE_ERROR);
+        return setErrorMessage(DASHBOARD_FAVORITE_ERROR, errorMessageOrDefault(err, "An error occurred fetching favorites"));
     }
 };
 
@@ -70,9 +75,9 @@ export const fetchRecentFiles = async (): Promise<ReceiveRecentFilesProps | Acti
     try {
         const {response} = await Client.get(recentFilesQuery);
         return receiveRecentFiles(response.recentFiles);
-    } catch {
+    } catch (err) {
         snackbarStore.addFailure("Failed to fetch recent files. Please try again later.");
-        return setErrorMessage(DASHBOARD_RECENT_FILES_ERROR);
+        return setErrorMessage(DASHBOARD_RECENT_FILES_ERROR, errorMessageOrDefault(err, "An error ocurred fetching recent files."));
     }
 };
 
@@ -92,9 +97,9 @@ export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Act
     try {
         const {response} = await Client.get(hpcJobsQuery(10, 0));
         return receiveRecentAnalyses(response.items);
-    } catch {
+    } catch (err) {
         snackbarStore.addFailure("Could not retrieve recent jobs.");
-        return setErrorMessage(DASHBOARD_RECENT_JOBS_ERROR);
+        return setErrorMessage(DASHBOARD_RECENT_JOBS_ERROR, errorMessageOrDefault(err, "An error occurred fetching recent analyses."));
     }
 };
 type ReceiveRecentAnalyses = PayloadAction<typeof RECEIVE_RECENT_JOBS, {content: Analysis[]}>;
