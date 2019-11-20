@@ -148,6 +148,8 @@ const darkOrange = "#a50";
 //// Purple
 const lightPurple = "#ecf";
 const purple = "#70b"; // secondary
+//// Yellow
+const yellow = "#ffed33";
 
 // Colors in the array come in 3 shades: light, medium , dark
 // last color is for logo centers only
@@ -236,7 +238,8 @@ const colors = {
   spinnerColor,
   tableRowHighlight,
   wayfGreen: "#66b340",
-  appCard
+  appCard,
+  yellow
 };
 
 export const invertedColors = {
