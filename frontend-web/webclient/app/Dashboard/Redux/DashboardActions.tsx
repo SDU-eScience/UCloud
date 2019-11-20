@@ -46,10 +46,7 @@ export const fetchFavorites = async (): Promise<ReceiveFavoritesProps | Action<D
         const {response} = await Client.get<Page<File>>(favoritesQuery(0, 10));
         return receiveFavorites(response.items);
     } catch {
-        snackbarStore.addSnack({
-            message: "Failed to fetch favorites. Please try again later.",
-            type: SnackType.Failure
-        });
+        snackbarStore.addFailure("Failed to fetch favorites. Please try again later.");
         return setErrorMessage(DASHBOARD_FAVORITE_ERROR);
     }
 };
@@ -74,10 +71,7 @@ export const fetchRecentFiles = async (): Promise<ReceiveRecentFilesProps | Acti
         const {response} = await Client.get(recentFilesQuery);
         return receiveRecentFiles(response.recentFiles);
     } catch {
-        snackbarStore.addSnack({
-            message: "Failed to fetch recent files. Please try again later.",
-            type: SnackType.Failure
-        });
+        snackbarStore.addFailure("Failed to fetch recent files. Please try again later.");
         return setErrorMessage(DASHBOARD_RECENT_FILES_ERROR);
     }
 };
@@ -99,10 +93,7 @@ export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Act
         const {response} = await Client.get(hpcJobsQuery(10, 0));
         return receiveRecentAnalyses(response.items);
     } catch {
-        snackbarStore.addSnack({
-            message: "Could not retrieve recent jobs.",
-            type: SnackType.Failure
-        });
+        snackbarStore.addFailure("Could not retrieve recent jobs.");
         return setErrorMessage(DASHBOARD_RECENT_JOBS_ERROR);
     }
 };

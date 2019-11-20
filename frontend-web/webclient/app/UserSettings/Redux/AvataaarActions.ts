@@ -38,10 +38,9 @@ export const findAvatar = async (): Promise<SaveAvataaar | null> => {
         const res = await Client.get<AvatarType>(findAvatarQuery, undefined, true);
         return saveAvataaar(res.response);
     } catch (e) {
-        snackbarStore.addSnack({
-            message: `Fetching avatar: ${errorMessageOrDefault(e, "An error occurred fetching your avatar.")}`,
-            type: SnackType.Failure
-        });
+        snackbarStore.addFailure(
+            `Fetching avatar: ${errorMessageOrDefault(e, "An error occurred fetching your avatar.")}`,
+        );
         return null;
     }
 };

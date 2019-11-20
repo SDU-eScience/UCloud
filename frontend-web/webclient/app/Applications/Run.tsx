@@ -668,10 +668,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 } = JSON.parse(rawInputFile);
                 // Verify metadata
                 if (application.name !== thisApp.metadata.name) {
-                    snackbarStore.addSnack({
-                        message: "Application name does not match",
-                        type: SnackType.Failure
-                    });
+                    snackbarStore.addFailure("Application name does not match");
                     return;
                 } else if (application.version !== thisApp.metadata.version) {
                     snackbarStore.addSnack({
@@ -710,10 +707,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     }
 
                     if (invalidFiles.length > 0) {
-                        snackbarStore.addSnack({
-                            message: `The following files don't exists: ${invalidFiles.join(", ")}`,
-                            type: SnackType.Failure
-                        });
+                        snackbarStore.addFailure(`The following files don't exists: ${invalidFiles.join(", ")}`);
                     }
                 }
 

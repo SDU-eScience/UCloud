@@ -104,10 +104,7 @@ function NoVNCClient(props: RouterLocationProps) {
             setRFB(rfbClient);
             setConnected(true);
         } catch (e) {
-            snackbarStore.addSnack({
-                message: errorMessageOrDefault(e, "And error ocurred connecting"),
-                type: SnackType.Failure
-            });
+            snackbarStore.addFailure(errorMessageOrDefault(e, "And error ocurred connecting"));
         }
     }
 
@@ -135,12 +132,9 @@ function NoVNCClient(props: RouterLocationProps) {
                         message: "Job has been terminated"
                     });
                     setCancelled(true);
-                    history.push(`/applications/results/${jobId}`)
+                    history.push(`/applications/results/${jobId}`);
                 } catch (e) {
-                    snackbarStore.addSnack({
-                        type: SnackType.Failure,
-                        message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
-                    });
+                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job."));
                 }
             }
         });

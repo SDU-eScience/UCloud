@@ -60,7 +60,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
 
     async function attemptLogin() {
         if (!(usernameInput.current?.value) || !(passwordInput.current?.value)) {
-            snackbarStore.addSnack({message: "Invalid username or password", type: SnackType.Failure});
+            snackbarStore.addFailure("Invalid username or password");
             return;
         }
 
@@ -133,13 +133,12 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
             handleCompleteLogin(result);
         } catch (e) {
             setLoading(false);
-            snackbarStore.addSnack({
-                message: errorMessageOrDefault({
+            snackbarStore.addFailure(
+                errorMessageOrDefault({
                     request: e,
                     response: await e.json()
                 }, "Could not submit verification code. Try again later"),
-                type: SnackType.Failure
-            });
+            );
         }
     }
 
