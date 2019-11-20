@@ -5,7 +5,7 @@ import {useEffect, useRef, useState} from "react";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Box, Button, Flex, Icon, Image, Input, Text, theme} from "ui-components";
+import {Box, Button, Flex, Icon, Image, Input, Text, theme, Relative} from "ui-components";
 import Absolute from "ui-components/Absolute";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent} from "ui-components/Dropdown";
@@ -14,8 +14,8 @@ import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
 import {PRODUCT_NAME} from "../../site.config.json";
+import {BG1} from "./BG1";
 
-const bg1 = require("Assets/Images/bg1.svg");
 const bg2 = require("Assets/Images/bg2.svg");
 const wayfLogo = require("Assets/Images/WAYFLogo.svg");
 
@@ -23,11 +23,6 @@ const BackgroundImage = styled.div<{image: string}>`
     background: url(${({image}) => image}) no-repeat 40% 0%;
     background-size: cover;
     overflow: hidden;
-`;
-
-const BGLogo = styled(Absolute) <{image: string}>`
-    background: url(${({image}) => image}) no-repeat 40% 0%;
-    background-size: cover;
 `;
 
 const inDevEnvironment = process.env.NODE_ENV === "development";
@@ -157,7 +152,10 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                     </Box>
                 </Absolute>
 
-                <BGLogo image={bg1} bottom="0px" height="50%" width="100%" />
+
+                <Absolute overflowY="hidden" bottom="0" height="50%" width="100%">
+                    <BG1 />
+                </Absolute>
 
                 <BackgroundImage image={bg2}>
                     <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
