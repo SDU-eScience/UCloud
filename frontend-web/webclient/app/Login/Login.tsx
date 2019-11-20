@@ -153,7 +153,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                 </Absolute>
 
 
-                <Absolute overflowY="hidden" bottom="0" height="50%" width="100%">
+                <Absolute style={{overflowY: "hidden"}} bottom="0" height="50%" width="100%">
                     <BG1 />
                 </Absolute>
 
