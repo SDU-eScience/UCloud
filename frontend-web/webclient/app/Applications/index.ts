@@ -6,7 +6,7 @@ import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {match} from "react-router";
-import {Page} from "Types";
+import {Page, PaginationRequest} from "Types";
 import {ParameterValues} from "Utilities/ApplicationUtilities";
 
 /** @deprecated */
@@ -26,14 +26,10 @@ export enum JobState {
     CANCELLING = "CANCELLING"
 }
 
-export interface AdvancedSearchRequest {
+export interface AdvancedSearchRequest extends PaginationRequest {
     query?: string;
     tags?: string[];
     showAllVersions: boolean;
-
-    // FIXME: replace with PaginationRequest
-    itemsPerPage: number;
-    page: number;
 }
 
 export function isJobStateFinal(state: JobState): boolean {

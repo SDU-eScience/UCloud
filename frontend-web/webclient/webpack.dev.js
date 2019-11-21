@@ -4,6 +4,7 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const MiniCSSExtractPlugin = require("mini-css-extract-plugin");
 var commonConfig = require("./webpack.config.js");
 var path = require("path");
+var {DEV_SITE} = require("./site.config.json")
 
 module.exports = webpackMerge(commonConfig, {
     devtool: "eval-source-map",
@@ -52,7 +53,7 @@ module.exports = webpackMerge(commonConfig, {
         inline: true,
         proxy: [{
             context: ["/auth", "/api"],
-            target: "https://dev.cloud.sdu.dk",
+            target: `https://${DEV_SITE}`,
             secure: false,
             changeOrigin: true,
             ws: true,

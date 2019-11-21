@@ -7,7 +7,7 @@ import * as Heading from "ui-components/Heading";
 import Icon from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
 import {inDevEnvironment} from "UtilityFunctions";
-import {PRODUCT_NAME} from "../../site.config.json";
+import {DEV_SITE, DEV_WEBDAV_URL, PRODUCT_NAME, PRODUCTION_WEBDAV_URL} from "../../site.config.json";
 
 const win1 = require("Assets/Images/webdav/win_dav_1.png");
 const win2 = require("Assets/Images/webdav/win_dav_2.png");
@@ -19,8 +19,8 @@ const macos2 = require("Assets/Images/webdav/macos_dav_2.png");
 const nautilus1 = require("Assets/Images/webdav/nautilus_dav_1.png");
 
 export const Instructions: React.FunctionComponent<{token: string}> = props => {
-    const server = inDevEnvironment() || window.location.host === "dev.cloud.sdu.dk" ?
-        "https://webdav.dev.cloud.sdu.dk/" : "https://dav.cloud.sdu.dk/";
+    const server = inDevEnvironment() || window.location.host === DEV_SITE ?
+        DEV_WEBDAV_URL : PRODUCTION_WEBDAV_URL;
 
     return (
         <ContentContainer>
@@ -83,7 +83,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                             <code>
                                 <pre>{server}</pre>
                             </code>
-                            
+
                             <Screenshot src={macos1} alt={`Connecting to ${PRODUCT_NAME} via macOS`} />
                         </Step>
 

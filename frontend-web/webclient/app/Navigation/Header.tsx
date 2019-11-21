@@ -50,13 +50,13 @@ import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {inDevEnvironment, isLightThemeStored, prettierString, stopPropagationAndPreventDefault} from "UtilityFunctions";
-import {PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
+import {DEV_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
 }
 
-const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
+const DevelopmentBadge = () => window.location.host === DEV_SITE || inDevEnvironment() ?
     <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
 
 function Header(props: HeaderProps) {
@@ -94,6 +94,20 @@ function Header(props: HeaderProps) {
                 />
             </Hide>
             <Box mr="auto" />
+            {upcomingDowntime ? (
+                <ExternalLink href={STATUS_PAGE}>
+                    <Tooltip
+                        right="0"
+                        bottom="1"
+                        tooltipContentWidth="115px"
+                        wrapperOffsetLeft="10px"
+                        trigger={<Icon color="yellow" name="warning" />}
+                    >
+                        Upcoming downtime.<br />
+                        Click to view
+                    </Tooltip>
+                </ExternalLink>
+            ) : null}
             <DevelopmentBadge />
             <BackgroundTask />
             <Flex width="48px" justifyContent="center">
