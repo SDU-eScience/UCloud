@@ -4,6 +4,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
+import {useHistory} from "react-router";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, Heading, OutlineButton} from "ui-components";
@@ -25,6 +26,7 @@ interface RFB {
     showDotCursor: boolean;
     background: string;
     readonly capabilities: {};
+
     // Methods
     /**
      * Disconnect from the server.
@@ -76,6 +78,7 @@ function NoVNCClient(props: RouterLocationProps) {
     const [path, setPath] = React.useState("");
     const jobId = getQueryParam(props, "jobId");
     const [promiseKeeper] = React.useState(new PromiseKeeper());
+    const history = useHistory();
 
     React.useEffect(() => {
         promiseKeeper.makeCancelable(Client.get(`/hpc/jobs/query-vnc/${jobId}`)).promise.then(it => {
@@ -101,10 +104,7 @@ function NoVNCClient(props: RouterLocationProps) {
             setRFB(rfbClient);
             setConnected(true);
         } catch (e) {
-            snackbarStore.addSnack({
-                message: errorMessageOrDefault(e, "And error ocurred connecting"),
-                type: SnackType.Failure
-            });
+            snackbarStore.addFailure(errorMessageOrDefault(e, "And error ocurred connecting"));
         }
     }
 
@@ -114,10 +114,10 @@ function NoVNCClient(props: RouterLocationProps) {
     }
 
     function toFullScreen() {
-        requestFullScreen(document.getElementsByClassName("noVNC")[0]!, () => snackbarStore.addSnack({
-            type: SnackType.Failure,
-            message: `Fullscreen is not supported for this browser.`
-        }));
+        requestFullScreen(
+            document.getElementsByClassName("noVNC")[0]!,
+            () => snackbarStore.addFailure("Fullscreen is not supported for this browser.")
+        );
     }
 
     function cancelJob() {
@@ -132,11 +132,9 @@ function NoVNCClient(props: RouterLocationProps) {
                         message: "Job has been terminated"
                     });
                     setCancelled(true);
+                    history.push(`/applications/results/${jobId}`);
                 } catch (e) {
-                    snackbarStore.addSnack({
-                        type: SnackType.Failure,
-                        message: errorMessageOrDefault(e, "An error occurred cancelling the job.")
-                    });
+                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job."));
                 }
             }
         });
@@ -152,7 +150,7 @@ function NoVNCClient(props: RouterLocationProps) {
                     </OutlineButton>
                 ) : (
                         <div>
-                            <Button ml="15px" onClick={onConnect}>
+                            <Button disabled={isCancelled} ml="15px" onClick={onConnect}>
                                 Connect
                             </Button>
                             {isCancelled ? null : (

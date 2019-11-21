@@ -38,7 +38,8 @@ import {
     SelectableTextWrapper,
     Support,
     Text,
-    theme
+    theme,
+    Tooltip
 } from "ui-components";
 import {DevelopmentBadgeBase} from "ui-components/Badge";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -60,12 +61,17 @@ const DevelopmentBadge = () => window.location.host === DEV_SITE || inDevEnviron
     <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
 
 function Header(props: HeaderProps) {
+    const [upcomingDowntime, setUpcomingDowntime] = React.useState(false);
+    const history = useHistory();
+    React.useEffect(() => {
+        // Fetch upcoming downtime status
+    }, []);
+
     // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
     // The following is only supposed to work for the initial load.
     if (window.location.pathname === "/app/login" && window.location.search === "?dav=true") return null;
 
     if (!Client.isLoggedIn) return null;
-    const history = useHistory();
 
     React.useEffect(() => {
         props.fetchAvatar();

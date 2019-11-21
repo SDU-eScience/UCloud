@@ -26,6 +26,7 @@ import Installed from "./Installed";
 import * as Pages from "./Pages";
 import * as Actions from "./Redux/BrowseActions";
 import {Type as ReduxType} from "./Redux/BrowseObject";
+import * as Favorites from "./Redux/FavoriteActions";
 
 
 export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
@@ -37,11 +38,14 @@ export interface ApplicationsOperations {
     fetchDefault: (itemsPerPage: number, page: number) => void;
     fetchByTag: (tag: string, itemsPerPage: number, page: number) => void;
     receiveApplications: (page: Page<FullAppInfo>) => void;
+    fetchFavorites: (itemsPerPage: number, page: number) => void;
     setRefresh: (refresh?: () => void) => void;
     receiveAppsByKey: (itemsPerPage: number, page: number, tag: string) => void;
 }
 
-export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocationProps;
+export interface ApplicationsProps extends ReduxType, ApplicationsOperations, RouterLocationProps {
+    favorites: Page<FullAppInfo>;
+}
 
 
 interface ApplicationState {
@@ -81,9 +85,25 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         this.props.setRefresh();
     }
 
+    private get featured(): Page<FullAppInfo> {
+        const {favorites} = this.props;
+        if (this.props.favorites.items.length > 0) {
+            const favPairs = favorites.items.map(it => ({name: it.metadata.name, version: it.metadata.version}));
+            const featuredPage: Page<FullAppInfo> = this.props.applications.get("Featured") ?? emptyPage;
+            const featured = {...emptyPage};
+            featured.items = featuredPage.items.filter(featApp =>
+                !favPairs.some(it => it.name === featApp.metadata.name && it.version === featApp.metadata.version)
+            );
+            featured.itemsInTotal = featured.items.length;
+            return featured;
+        } else {
+            return this.props.applications.get("Featured") ?? emptyPage;
+        }
+    }
+
     public render() {
-        const {applications} = this.props;
-        const featured: Page<FullAppInfo> = applications.get("Featured") ?? emptyPage;
+        const featured = this.featured;
+        const {favorites} = this.props;
         const main = (
             <>
                 <Installed header={null} />
@@ -110,19 +130,20 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                     gridGap="15px"
                                     style={{gridAutoFlow: "column"}}
                                 >
-                                    {page.items.map((app, index) => (
+                                    {page.items.map(app => (
                                         <ApplicationCard
-                                            key={index}
-                                            onFavorite={async () =>
+                                            key={`${app.metadata.name}-${app.metadata.version}`}
+                                            onFavorite={async () => {
                                                 this.props.receiveApplications(await favoriteApplicationFromPage({
                                                     name: app.metadata.name,
                                                     version: app.metadata.version,
                                                     client: Client,
                                                     page
-                                                }))
-                                            }
+                                                }));
+                                                this.props.fetchFavorites(favorites.itemsPerPage, favorites.pageNumber);
+                                            }}
                                             app={app}
-                                            isFavorite={app.favorite}
+                                            isFavorite={false}
                                             tags={app.tags}
                                         />
                                     ))}
@@ -143,11 +164,15 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         );
     }
 
-    private fetch() {
-        const featured = this.props.applications.has("Featured") ? this.props.applications.get("Featured")! : emptyPage;
+    private fetchFeatured() {
+        const featured = this.props.applications.get("Featured") ?? emptyPage;
         this.props.receiveAppsByKey(featured.itemsPerPage, featured.pageNumber, "Featured");
+    }
+
+    private fetch() {
+        this.fetchFeatured();
         this.state.defaultTags.forEach(tag => {
-            const page = this.props.applications.has(tag) ? this.props.applications.get(tag)! : emptyPage;
+            const page = this.props.applications.get(tag) ?? emptyPage;
             this.props.receiveAppsByKey(page.itemsPerPage, page.pageNumber, tag);
         });
     }
@@ -298,7 +323,7 @@ const mapToolGroupStateToProps = (
 const ToolGroup = connect(mapToolGroupStateToProps)(ToolGroup_);
 
 const mapDispatchToProps = (
-    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions>
+    dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions | Favorites.Type>
 ): ApplicationsOperations => ({
     onInit: () => {
         dispatch(updatePageTitle("Applications"));
@@ -306,14 +331,18 @@ const mapDispatchToProps = (
         dispatch(setActivePage(SidebarPages.AppStore));
     },
 
-    fetchByTag: async (tag: string, itemsPerPage: number, page: number) => {
+    fetchByTag: async (tag, itemsPerPage, page) => {
         dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
         dispatch(await Actions.fetchByTag(tag, itemsPerPage, page));
     },
 
-    fetchDefault: async (itemsPerPage: number, page: number) => {
+    fetchDefault: async (itemsPerPage, page) => {
         dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
         dispatch(await Actions.fetch(itemsPerPage, page));
+    },
+
+    fetchFavorites: async (itemsPerPage, page) => {
+        dispatch(await Favorites.fetch(itemsPerPage, page));
     },
 
     receiveApplications: page => dispatch(Actions.receivePage(page)),
@@ -329,7 +358,15 @@ function getColorFromName(name: string): [string, string, string] {
     return theme.appColors[num] as [string, string, string];
 }
 
-const mapStateToProps = ({applicationsBrowse}: ReduxObject): ReduxType & {mapSize: number} =>
-    ({...applicationsBrowse, mapSize: applicationsBrowse.applications.size});
+const mapStateToProps = ({applicationsBrowse, applicationsFavorite}: ReduxObject): ReduxType & {
+    mapSize: number,
+    favorites: Page<FullAppInfo>
+} => {
+    return {
+        ...applicationsBrowse,
+        mapSize: applicationsBrowse.applications.size,
+        favorites: applicationsFavorite.applications.content ?? emptyPage
+    };
+};
 
 export default connect(mapStateToProps, mapDispatchToProps)(Applications);

@@ -222,10 +222,7 @@ export const defaultFileOperations: FileOperation[] = [
                                 .then(it => it).catch(it => it);
                         const failures = promises.filter(it => it.status).length;
                         if (failures > 0) {
-                            snackbarStore.addSnack({
-                                message: promises.filter(it => it.response).map(it => it).join(", "),
-                                type: SnackType.Failure
-                            });
+                            snackbarStore.addFailure(promises.filter(it => it.response).map(it => it).join(", "));
                         } else {
                             snackbarStore.addSnack({message: "Files deleted", type: SnackType.Success});
                         }
@@ -258,10 +255,7 @@ export const defaultFileOperations: FileOperation[] = [
 
                         const failures = promises.filter(it => it.status).length;
                         if (failures > 0) {
-                            snackbarStore.addSnack({
-                                message: promises.filter(it => it.response).map(it => it).join(", "),
-                                type: SnackType.Failure
-                            });
+                            snackbarStore.addFailure(promises.filter(it => it.response).map(it => it).join(", "));
                         } else {
                             snackbarStore.addSnack({message: "File systems deleted", type: SnackType.Success});
                         }

@@ -116,7 +116,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                         })}
                     />
                     <tbody>
-                        {page.items.map((a, i) =>
+                        {page.items.map((a, i) => (
                             <Row
                                 hide={hide}
                                 to={() => history.push(`/applications/results/${a.jobId}`)}
@@ -131,7 +131,8 @@ function JobResults(props: AnalysesProps & {history: History}) {
                                         />
                                     </Label>
                                 </div>
-                            </Row>)}
+                            </Row>
+                        ))}
                     </tbody>
                 </Table>
             )}

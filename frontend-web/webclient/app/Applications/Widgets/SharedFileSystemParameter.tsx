@@ -144,10 +144,7 @@ async function createNewDialog(): Promise<{command?: APICallParameters}> {
         const validator = () => {
             const value = ref.current!.value;
             if (value.length === 0) {
-                snackbarStore.addSnack({
-                    type: SnackType.Failure,
-                    message: "Title cannot be empty"
-                });
+                snackbarStore.addFailure("Title cannot be empty");
                 return false;
             }
             return true;
@@ -235,10 +232,7 @@ async function mountDialog(
 ): Promise<SharedFileSystem | null> {
     if (sharedFileSystem === undefined) return null;
     if (selectedMount !== null && selectedMount.sharedFileSystem.id === sharedFileSystem.id) {
-        snackbarStore.addSnack({
-            type: SnackType.Failure,
-            message: "File system has already been mounted"
-        });
+        snackbarStore.addFailure("File system has already been mounted");
         return null;
     }
 

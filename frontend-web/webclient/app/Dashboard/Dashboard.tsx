@@ -16,6 +16,7 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Box, Button, Card, Flex, Icon, Link, Text} from "ui-components";
+import Error from "ui-components/Error";
 import {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
@@ -41,7 +42,7 @@ import {
 } from "./Redux/DashboardActions";
 
 const DashboardCard: React.FunctionComponent<{title: string, isLoading: boolean}> = ({title, isLoading, children}) => (
-    <Card overflow="hidden"  height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
+    <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
         <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center">
             <Heading.h4>{title}</Heading.h4>
         </Flex>
@@ -94,23 +95,29 @@ function Dashboard(props: DashboardProps & {history: History}) {
         notifications,
         favoriteLoading,
         recentLoading,
-        analysesLoading
+        analysesLoading,
+        favoritesError,
+        recentFilesError,
+        recentJobsError
     } = props;
     const main = (
         <>
             <GridCardGroup minmax={315}>
                 <DashboardFavoriteFiles
+                    error={favoritesError}
                     files={favoriteFiles}
                     isLoading={favoriteLoading}
                     favorite={favoriteOrUnfavorite}
                 />
 
                 <DashboardRecentFiles
+                    error={recentFilesError}
                     files={recentFiles}
                     isLoading={recentLoading}
                 />
 
                 <DashboardAnalyses
+                    error={recentJobsError}
                     analyses={recentAnalyses}
                     isLoading={analysesLoading}
                 />
@@ -143,16 +150,18 @@ function Dashboard(props: DashboardProps & {history: History}) {
 const DashboardFavoriteFiles = ({
     files,
     isLoading,
-    favorite
-}: {files: File[], isLoading: boolean, favorite: (file: File) => void}) => (
+    favorite,
+    error
+}: {files: File[], isLoading: boolean, favorite: (file: File) => void, error?: string}) => (
         <DashboardCard title="Favorite Files" isLoading={isLoading}>
-            {files.length ? null : (
+            {files.length || error ? null : (
                 <NoEntries
                     text="Your favorite files will appear here"
                     to={fileTablePage(Client.homeFolder)}
                     buttonText="Explore files"
                 />
             )}
+            <Error error={error} />
             <List>
                 {files.map(file => (
                     <Flex alignItems="center" key={file.fileId!} pt="0.5em" pb="6.4px">
@@ -198,61 +207,71 @@ const ListFileContent = ({file, pixelsWide}: {file: File, pixelsWide: number}) =
     );
 };
 
-const DashboardRecentFiles = ({files, isLoading}: {files: File[], isLoading: boolean}) => (
-    <DashboardCard title="Recently Used Files" isLoading={isLoading}>
-        {files.length ? null : (
-            <NoEntries
-                text="No recently used files"
-                to={fileTablePage(Client.homeFolder)}
-                buttonText="Explore files"
-            />
-        )}
-        <List>
-            {files.map((file, i) => (
-                <Flex key={i} alignItems="center" pt="0.5em" pb="0.3em">
-                    <ListFileContent file={file} pixelsWide={130} />
-                    <Box ml="auto" />
-                    <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(file.modifiedAt!), {
-                        addSuffix: true
-                    })}</Text>
-                </Flex>
-            ))}
-        </List>
-    </DashboardCard>
-);
+const DashboardRecentFiles = ({
+    files,
+    isLoading,
+    error,
+}: {files: File[], isLoading: boolean, error?: string}) => (
+        <DashboardCard title="Recently Used Files" isLoading={isLoading}>
+            {files.length || error ? null : (
+                <NoEntries
+                    text="No recently used files"
+                    to={fileTablePage(Client.homeFolder)}
+                    buttonText="Explore files"
+                />
+            )}
+            <Error error={error} />
+            <List>
+                {files.map((file, i) => (
+                    <Flex key={i} alignItems="center" pt="0.5em" pb="0.3em">
+                        <ListFileContent file={file} pixelsWide={130} />
+                        <Box ml="auto" />
+                        <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(file.modifiedAt!), {
+                            addSuffix: true
+                        })}</Text>
+                    </Flex>
+                ))}
+            </List>
+        </DashboardCard>
+    );
 
-const DashboardAnalyses = ({analyses, isLoading}: {analyses: JobWithStatus[], isLoading: boolean}) => (
-    <DashboardCard title="Recent Jobs" isLoading={isLoading}>
-        {analyses.length ? null : (
-            <NoEntries
-                text="No recent jobs"
-                buttonText="Explore apps"
-                to="/applications/overview"
-            />
-        )}
-        <List>
-            {analyses.map((analysis: JobWithStatus, index: number) => (
-                <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
-                    <Icon
-                        name={statusToIconName(analysis.state)}
-                        color={statusToColor(analysis.state)}
-                        size="1.2em"
-                        pr="0.3em"
-                    />
-                    <Link to={`/applications/results/${analysis.jobId}`}>
-                        <EllipsedText width={130} fontSize={2}>
-                            {analysis.metadata.title}
-                        </EllipsedText>
-                    </Link>
-                    <Box ml="auto" />
-                    <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(analysis.modifiedAt!), {
-                        addSuffix: true
-                    })}</Text>
-                </Flex>
-            ))}
-        </List>
-    </DashboardCard>
-);
+const DashboardAnalyses = ({
+    analyses,
+    isLoading,
+    error,
+}: {analyses: JobWithStatus[], isLoading: boolean, error?: string}) => (
+        <DashboardCard title="Recent Jobs" isLoading={isLoading}>
+            {analyses.length || error ? null : (
+                <NoEntries
+                    text="No recent jobs"
+                    buttonText="Explore apps"
+                    to="/applications/overview"
+                />
+            )}
+            <Error error={error} />
+            <List>
+                {analyses.map((analysis: JobWithStatus, index: number) => (
+                    <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
+                        <Icon
+                            name={statusToIconName(analysis.state)}
+                            color={statusToColor(analysis.state)}
+                            size="1.2em"
+                            pr="0.3em"
+                        />
+                        <Link to={`/applications/results/${analysis.jobId}`}>
+                            <EllipsedText width={130} fontSize={2}>
+                                {analysis.metadata.title}
+                            </EllipsedText>
+                        </Link>
+                        <Box ml="auto" />
+                        <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(analysis.modifiedAt!), {
+                            addSuffix: true
+                        })}</Text>
+                    </Flex>
+                ))}
+            </List>
+        </DashboardCard>
+    );
 
 interface DashboardNotificationProps {
     onNotificationAction: (notification: Notification) => void;

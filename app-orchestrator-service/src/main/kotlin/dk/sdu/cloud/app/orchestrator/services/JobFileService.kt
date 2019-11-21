@@ -2,7 +2,6 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
 import dk.sdu.cloud.app.orchestrator.api.SubmitFileToComputation
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -28,22 +27,20 @@ import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.io.core.ExperimentalIoApi
-import org.apache.http.HttpStatus
 import java.io.File
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
 
+data class JobDirectory(val path: String, val id: String)
+
 class JobFileService(
     private val serviceClient: AuthenticatedClient,
     private val userClientFactory: (accessToken: String?, refreshToken: String?) -> AuthenticatedClient,
     private val parameterExportService: ParameterExportService
 ) {
-    suspend fun initializeResultFolder(
-        jobWithToken: VerifiedJobWithAccessToken,
-        isReplay: Boolean = false
-    ) {
+    suspend fun initializeResultFolder(jobWithToken: VerifiedJobWithAccessToken): JobDirectory {
         val (job, accessToken, refreshToken) = jobWithToken
 
         val userCloud = userClientFactory(accessToken, refreshToken)
@@ -58,40 +55,43 @@ class JobFileService(
             userCloud
         )
 
-        val path = jobFolder(job, true)
+        val path = jobFolder(jobWithToken, true)
         FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(path.parent(), null, sensitivity = sensitivityLevel),
             userCloud
         )
-
-        job.folderId = FileDescriptions.stat.call(
-            StatRequest(path, StorageFileAttribute.fileId.name),
-            serviceClient
-        ).orThrow().fileId
 
         val dirResp = FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(path, null),
             userCloud
         ).throwIfInternal()
 
-        if (!dirResp.statusCode.isSuccess()) {
-            // We always allow conflicts
-            if (isReplay || dirResp.statusCode == HttpStatusCode.Conflict) return
+        val folderId = FileDescriptions.stat.call(
+            StatRequest(path, StorageFileAttribute.fileId.name),
+            userCloud
+        ).orThrow().fileId
 
+        if (!dirResp.statusCode.isSuccess()) {
             // Throw if we didn't allow this case
             throw RPCException.fromStatusCode(dirResp.statusCode)
         }
+
+        return JobDirectory(path, folderId)
     }
 
     /**
      * Export the parameter file to the job directory at the beginning of the job.
      *
-     * @param jobWithToken The job, including the token
+     * @param jobFolder The folder to put the parameters file in
+     * @param jobWithToken The job with access token
      * @param rawParameters The raw input parameters before parsing
      */
     @UseExperimental(ExperimentalIoApi::class)
-    suspend fun exportParameterFile(jobWithToken: VerifiedJobWithAccessToken, rawParameters: Map<String, Any?>) {
-        initializeResultFolder(jobWithToken)
+    suspend fun exportParameterFile(
+        jobFolder: String,
+        jobWithToken: VerifiedJobWithAccessToken,
+        rawParameters: Map<String, Any?>
+    ) {
         val userClient = userClientFactory(jobWithToken.accessToken, jobWithToken.refreshToken)
 
         val fileData =
@@ -99,7 +99,7 @@ class JobFileService(
 
         MultiPartUploadDescriptions.simpleUpload.call(
             SimpleUploadRequest(
-                File(jobFolder(jobWithToken.job), "JobParameters.json").path,
+                joinPath(jobFolder, "JobParameters.json"),
                 sensitivity = null,
                 file = BinaryStream.outgoingFromChannel(
                     fileData.inputStream().toByteReadChannel(),
@@ -136,7 +136,7 @@ class JobFileService(
 
         log.debug("The relative path is $relativePath")
 
-        val rootDestination = File(jobFolder(jobWithToken.job))
+        val rootDestination = File(jobFolder(jobWithToken))
         val destPath = File(rootDestination, relativePath)
 
         log.debug("The destination path is ${destPath.path}")
@@ -188,7 +188,24 @@ class JobFileService(
         }
     }
 
-    suspend fun jobFolder(job: VerifiedJob, new: Boolean = false): String {
+    private val resultFolderCacheIdToFolder = HashMap<String, String>()
+    private val resultFolderMutex = Mutex()
+
+    private suspend fun cacheJobFolder(id: String, path: String) {
+        resultFolderMutex.withLock {
+            resultFolderCacheIdToFolder[id] = path
+        }
+    }
+
+    suspend fun jobFolder(jobWithToken: VerifiedJobWithAccessToken, new: Boolean = false): String {
+        val cachedPath = resultFolderMutex.withLock {
+            resultFolderCacheIdToFolder[jobWithToken.job.id]
+        }
+
+        if (cachedPath != null) return cachedPath
+
+        val (job, accessToken, refreshToken) = jobWithToken
+        val userClient = userClientFactory(accessToken, refreshToken)
         val jobsFolder = jobsFolder(job.owner)
         var folderName = job.id
 
@@ -198,7 +215,7 @@ class JobFileService(
                 var shortJobId: String
                 var folderNameLength = 8
 
-                while(folderNameLength < job.id.length) {
+                while (folderNameLength < job.id.length) {
                     shortJobId = job.id.take(folderNameLength)
 
                     folderName = if (job.name == null) {
@@ -208,21 +225,25 @@ class JobFileService(
                     }
 
                     if (FileDescriptions.stat.call(
-                        StatRequest(joinPath(
-                            jobsFolder,
-                            job.archiveInCollection,
-                            folderName
-                        ), StorageFileAttribute.fileId.name),
-                        serviceClient
-                    ).statusCode == HttpStatusCode.NotFound) {
-                       break
+                            StatRequest(
+                                joinPath(
+                                    jobsFolder,
+                                    job.archiveInCollection,
+                                    folderName
+                                ), StorageFileAttribute.fileId.name
+                            ),
+                            userClient
+                        ).statusCode == HttpStatusCode.NotFound
+                    ) {
+                        break
                     }
 
                     folderNameLength++
                 }
             } else {
                 // No file id was found, nor is this `new`. Assume old format (timestamp)
-                val timestamp = timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
+                val timestamp =
+                    timestampFormatter.format(LocalDateTime.ofInstant(Date(job.createdAt).toInstant(), zoneId))
 
                 folderName = if (job.name == null) {
                     timestamp
@@ -232,17 +253,20 @@ class JobFileService(
             }
         } else {
             // Reverse lookup of path from file id
-            return LookupDescriptions.reverseLookup.call(
+            val lookupResult = LookupDescriptions.reverseLookup.call(
                 ReverseLookupRequest(job.folderId.toString()),
                 serviceClient
             ).orThrow().canonicalPath.first() ?: ""
+
+            cacheJobFolder(job.id, lookupResult)
+            return lookupResult
         }
 
         return joinPath(
             jobsFolder,
             job.archiveInCollection,
             folderName
-        )
+        ).also { cacheJobFolder(job.id, it) }
     }
 
     suspend fun transferFilesToBackend(jobWithToken: VerifiedJobWithAccessToken, backend: ComputationDescriptions) {
@@ -311,7 +335,7 @@ class JobFileService(
                         HttpStatusCode.InternalServerError
                     ),
                     transferGlobs = job.application.invocation.outputFileGlobs,
-                    destination = jobFolder(job),
+                    destination = jobFolder(jobWithToken),
                     deleteWorkspace = true
                 ),
                 serviceClient
@@ -330,7 +354,7 @@ class JobFileService(
         override val log = logger()
 
         private val zoneId = ZoneId.of("Europe/Copenhagen")
-        private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss.SSS")
+        private val timestampFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH.mm.ss.SSS")
         private const val WORKSPACE_PATH = "/workspace/"
     }
 }

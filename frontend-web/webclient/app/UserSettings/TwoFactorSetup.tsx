@@ -36,7 +36,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
             this.setState(() => ({isConnectedToAccount: res.response.connected}));
         } catch (res) {
             const why = res.response.why ? res.response.why as string : "";
-            snackbarStore.addSnack({message: `Could not fetch 2FA status. ${why}`, type: SnackType.Failure});
+            snackbarStore.addFailure(`Could not fetch 2FA status. ${why}`);
         } finally {
             this.props.setLoading(false);
         }
@@ -184,7 +184,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
         } catch (res) {
             const response = res.response;
             const why: string = response?.why ?? "Could not submit verification code. Try again later";
-            snackbarStore.addSnack({message: why, type: SnackType.Failure});
+            snackbarStore.addFailure(why);
         } finally {
             this.props.setLoading(false);
         }

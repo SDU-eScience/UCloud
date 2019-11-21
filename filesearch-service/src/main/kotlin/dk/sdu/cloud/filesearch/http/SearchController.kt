@@ -72,6 +72,19 @@ class SearchController(
         }
 
         implement(FileSearchDescriptions.advancedSearch) {
+            log.info("QUERY: $request")
+            if (request.createdAt == null && request.extensions.isNullOrEmpty() && request.fileName.isNullOrBlank() ) {
+                log.info("Empty search return empty page")
+                ok(
+                    Page(
+                        0,
+                        request.itemsPerPage ?: 25,
+                        0,
+                        emptyList()
+                    )
+                )
+                return@implement
+            }
             val includeShares = request.includeShares ?: false
             val roots = if (includeShares) {
                 val userCloud = createUserCloud(client, ctx as HttpCall)

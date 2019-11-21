@@ -134,7 +134,7 @@ data class VerifiedJob(
     /**
      * The file id of the job folder
      */
-    var folderId: String? = null,
+    val folderId: String? = null,
 
         /**
          * A list of shared file systems to be mounted inside of the container.

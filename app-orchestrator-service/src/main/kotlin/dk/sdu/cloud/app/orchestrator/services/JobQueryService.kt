@@ -23,7 +23,7 @@ class JobQueryService<Session>(
         user: SecurityPrincipalToken,
         jobId: String
     ): JobWithStatus {
-        val (job) = db.withTransaction { session ->
+        val job = db.withTransaction { session ->
             dao.findOrNull(session, jobId, user)
         } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
@@ -54,11 +54,11 @@ class JobQueryService<Session>(
                 application,
                 version
             )
-        }.mapItems { it.job.toJobWithStatus() }
+        }.mapItems { it.toJobWithStatus() }
     }
 
-    private suspend fun VerifiedJob.toJobWithStatus(): JobWithStatus {
-        val job = this
+    private suspend fun VerifiedJobWithAccessToken.toJobWithStatus(): JobWithStatus {
+        val (job) = this
         val expiresAt = job.startedAt?.let {
             job.startedAt + job.maxTime.toMillis()
         }
@@ -74,7 +74,7 @@ class JobQueryService<Session>(
             job.modifiedAt,
             expiresAt,
             job.maxTime.toMillis(),
-            jobFileService.jobFolder(job),
+            jobFileService.jobFolder(this),
             job.application.metadata
         )
     }
