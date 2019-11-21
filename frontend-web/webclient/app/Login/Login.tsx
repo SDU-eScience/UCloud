@@ -38,7 +38,12 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
     const [promises] = useState(new PromiseKeeper());
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => () => promises.cancelPromises(), []);
+    useEffect(() => {
+        if (props.initialState !== undefined) {
+            handleAuthState(props.initialState);
+        }
+        return () => promises.cancelPromises();
+    }, []);
 
     const isWebDav = getQueryParamOrElse(props, "dav", "false") === "true";
     const service = isWebDav ? "dav" : (inDevEnvironment ? "dev-web" : "web");
@@ -51,12 +56,6 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         props.history.push("/");
         return <div />;
     }
-
-    useEffect(() => {
-        if (props.initialState !== undefined) {
-            handleAuthState(props.initialState);
-        }
-    }, []);
 
     async function attemptLogin() {
         if (!(usernameInput.current?.value) || !(passwordInput.current?.value)) {

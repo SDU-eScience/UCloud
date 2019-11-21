@@ -67,15 +67,15 @@ function Header(props: HeaderProps) {
         // Fetch upcoming downtime status
     }, []);
 
+    React.useEffect(() => {
+        if (Client.isLoggedIn) props.fetchAvatar();
+    }, []);
+
     // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
     // The following is only supposed to work for the initial load.
     if (window.location.pathname === "/app/login" && window.location.search === "?dav=true") return null;
 
     if (!Client.isLoggedIn) return null;
-
-    React.useEffect(() => {
-        props.fetchAvatar();
-    }, []);
 
     function toSearch() {
         history.push("/search/files");
