@@ -64,14 +64,50 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             }
         }
 
-        implement(AppLicenseDescriptions.save) {
+        implement(AppLicenseDescriptions.listByApp)  {
             val entity = UserEntity(
                 ctx.securityPrincipal.username,
                 EntityType.USER
             )
 
             try {
-                licenseService.saveLicenseServer(request, entity)
+                licenseService.listServers(request, entity)
+            } catch (e: RPCException) {
+                error(
+                    CommonErrorMessage("Error occured"),
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+
+        implement(AppLicenseDescriptions.update) {
+            val entity = UserEntity(
+                ctx.securityPrincipal.username,
+                EntityType.USER
+            )
+
+            try {
+                licenseService.updateLicenseServer(request, entity)
+            } catch (e: RPCException) {
+                when (e.httpStatusCode) {
+                    HttpStatusCode.Unauthorized ->
+                        error(
+                            CommonErrorMessage("Unauthorized to save application license server"),
+                            HttpStatusCode.Unauthorized
+                        )
+                }
+            }
+
+        }
+
+        implement(AppLicenseDescriptions.new) {
+            val entity = UserEntity(
+                ctx.securityPrincipal.username,
+                EntityType.USER
+            )
+
+            try {
+                licenseService.createLicenseServer(request, entity)
             } catch (e: RPCException) {
                 when (e.httpStatusCode) {
                     HttpStatusCode.Unauthorized ->

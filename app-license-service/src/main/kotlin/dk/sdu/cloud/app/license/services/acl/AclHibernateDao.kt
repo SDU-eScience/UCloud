@@ -15,11 +15,11 @@ data class PermissionEntry(
 
     @Embeddable
     data class Key(
-        @get:Column(length = 2048) var entity: String,
-        @get:Column(name = "entity_type", length = 2048) var entityType: EntityType,
-        @get:Column(name = "server_id", length = 2048) var serverId: String,
+        @get:Column(name = "entity") var userEntity: String,
+        @get:Column(name = "entity_type") var entityType: EntityType,
+        @get:Column(name = "server_id") var serverId: String,
         @get:Enumerated(EnumType.STRING) var permission: AccessRight
-    ) : Serializable
+    ): Serializable
 }
 
 
@@ -32,18 +32,23 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ): Boolean {
         return when (permission) {
             AccessRight.READ -> {
+                println("Hallo")
                 session.criteria<PermissionEntry>{
-                    (entity[PermissionEntry::key][PermissionEntry.Key::entity] equal accessEntity.id) and
+                    allOf(
+                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id) and
                             (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
                             ((entity[PermissionEntry::key][PermissionEntry.Key::permission] equal AccessRight.READ) or
                                     (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal AccessRight.READ_WRITE))
+                    )
                 }.list().isNotEmpty()
             }
             AccessRight.READ_WRITE -> {
                 session.criteria<PermissionEntry> {
-                    (entity[PermissionEntry::key][PermissionEntry.Key::entity] equal accessEntity.id) and
-                            (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
-                            (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal AccessRight.READ_WRITE)
+                    allOf(
+                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id) and
+                                (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
+                                (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal AccessRight.READ_WRITE)
+                    )
                 }.list().isNotEmpty()
             }
         }
@@ -55,7 +60,15 @@ class AclHibernateDao : AclDao<HibernateSession> {
         userEntity: UserEntity,
         permissions: AccessRight
     ) {
-        val permissionEntry = PermissionEntry(PermissionEntry.Key(userEntity.id, userEntity.type, licenseId, permissions))
+        val permissionEntry = PermissionEntry(
+            PermissionEntry.Key(
+                userEntity.id,
+                userEntity.type,
+                licenseId,
+                permissions
+            )
+        )
+
         session.saveOrUpdate(permissionEntry)
 
         /*session.deleteCriteria<PermissionEntry> {
@@ -74,7 +87,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ) {
         session.deleteCriteria<PermissionEntry> {
             (entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal licenseId) and
-                    (entity[PermissionEntry::key][PermissionEntry.Key::entity] equal userEntity.id) and
+                    (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal userEntity.id) and
                     (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal userEntity.type)
         }.executeUpdate()
     }
@@ -89,7 +102,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             }
             .list()
             .map {
-                EntityWithPermission(UserEntity(it.key.entity, it.key.entityType), it.key.permission)
+                EntityWithPermission(UserEntity(it.key.userEntity, it.key.entityType), it.key.permission)
             }
     }
 }

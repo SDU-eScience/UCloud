@@ -2,9 +2,7 @@ package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.app.license.api.ApplicationLicenseServer
-import dk.sdu.cloud.app.license.api.SaveLicenseRequest
-import dk.sdu.cloud.app.license.api.UpdateAclRequest
+import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.calls.RPCException
@@ -18,7 +16,7 @@ class AppLicenseService<Session>(
     private val aclService: AclService<*>,
     private val appLicenseDao: AppLicenseDao<Session>
 ) {
-    fun getLicenseServer(licenseId: String, entity: UserEntity) : ApplicationLicenseServerEntity {
+    fun getLicenseServer(licenseId: String, entity: UserEntity) : LicenseServerEntity {
         if (aclService.hasPermission(licenseId, entity, AccessRight.READ)) {
             val licenseServer = db.withTransaction {
                 appLicenseDao.getById(it, licenseId)
@@ -47,45 +45,74 @@ class AppLicenseService<Session>(
         }
     }
 
-    fun saveLicenseServer(request: SaveLicenseRequest, entity: UserEntity): String {
-        if (request.withId == null) {
-            // Save new license server
+    fun listServers(application: Application, entity: UserEntity) : List<LicenseServerEntity>? {
+        return db.withTransaction {
+            appLicenseDao.list(
+                it,
+                application,
+                entity
+            )
+        }
+    }
+
+    fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
+        var licenseId = ""
+
+        // Add rw permissions for the creator
+        aclService.updatePermissions(licenseId, entity, AccessRight.READ_WRITE)
+
+        db.withTransaction {
+            licenseId = appLicenseDao.create(
+                it,
+                ApplicationLicenseServer(
+                    request.name,
+                    request.version,
+                    request.address,
+                    request.license
+                )
+            )
+        }
+
+        db.withTransaction {
+            request.applications?.forEach {app ->
+            // Add applications to the license server
+                appLicenseDao.addApplicationToServer(it, app, licenseId)
+            }
+        }
+        return licenseId
+    }
+
+    fun updateLicenseServer(request: UpdateServerRequest, entity: UserEntity): String {
+        if (aclService.hasPermission(request.withId, entity, AccessRight.READ_WRITE)) {
+            // Save information for existing license server
             db.withTransaction {
-                val licenseId = appLicenseDao.create(
+                appLicenseDao.save(
                     it,
                     ApplicationLicenseServer(
                         request.name,
                         request.version,
                         request.address,
                         request.license
-                    )
+                    ),
+                    request.withId
                 )
+            }
 
-                // Add rw permissions for the creator
-                aclService.updatePermissions(licenseId, entity, AccessRight.READ_WRITE)
+            return request.withId
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        }
+    }
 
-                return licenseId
+    fun addApplicationsToServer(request: AddApplicationsToServerRequest, entity: UserEntity) {
+        if (aclService.hasPermission(request.serverId, entity, AccessRight.READ_WRITE)) {
+            db.withTransaction {
+                request.applications.forEach { app ->
+                    appLicenseDao.addApplicationToServer(it, app, request.serverId)
+                }
             }
         } else {
-            if (aclService.hasPermission(request.withId, entity, AccessRight.READ_WRITE)) {
-                // Save information for existing license server
-                db.withTransaction {
-                    appLicenseDao.save(
-                        it,
-                        ApplicationLicenseServer(
-                            request.name,
-                            request.version,
-                            request.address,
-                            request.license
-                        ),
-                        request.withId
-                    )
-                }
-
-                return request.withId
-            } else {
-                throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-            }
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
         }
     }
 }
