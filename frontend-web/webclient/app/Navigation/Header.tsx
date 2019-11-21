@@ -216,7 +216,7 @@ const Logo = () => (
                     color="red"
                     fontSize={17}
                 >
-                    BETA
+                    {VERSION_TEXT}
                 </LogoText>
             )}
         </Flex>
