@@ -1,6 +1,9 @@
 package dk.sdu.cloud.app.license.services
 
-import dk.sdu.cloud.app.license.api.SaveLicenseRequest
+import dk.sdu.cloud.app.license.api.AddApplicationsToServerRequest
+import dk.sdu.cloud.app.license.api.Application
+import dk.sdu.cloud.app.license.api.NewServerRequest
+import dk.sdu.cloud.app.license.api.UpdateServerRequest
 import dk.sdu.cloud.app.license.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.app.license.services.acl.EntityType
@@ -11,13 +14,12 @@ import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.initializeMicro
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
-import kotlin.test.assertFailsWith
+import kotlin.test.assertTrue
 
 class AppLicenseTest {
     private lateinit var micro: Micro
@@ -37,8 +39,8 @@ class AppLicenseTest {
     fun `save new license and fetch`() = runBlocking {
         val user = UserEntity("user", EntityType.USER)
 
-        val licenseId = appLicenseService.saveLicenseServer(
-            SaveLicenseRequest(
+        val licenseId = appLicenseService.createLicenseServer(
+            NewServerRequest(
                 "testName",
                 "version",
                 "example.com",
@@ -55,8 +57,8 @@ class AppLicenseTest {
     fun `save new license and update`() = runBlocking {
         val user = UserEntity("user", EntityType.USER)
 
-        val licenseId = appLicenseService.saveLicenseServer(
-            SaveLicenseRequest(
+        val licenseId = appLicenseService.createLicenseServer(
+            NewServerRequest(
                 "testName",
                 "version",
                 "example.com",
@@ -69,8 +71,8 @@ class AppLicenseTest {
         assertEquals("testName", appLicenseService.getLicenseServer(licenseId, user)?.name)
         val newAddress = "new-address.com"
 
-        appLicenseService.saveLicenseServer(
-            SaveLicenseRequest(
+        appLicenseService.updateLicenseServer(
+            UpdateServerRequest(
                 "testName",
                 "version",
                 newAddress,
@@ -89,8 +91,8 @@ class AppLicenseTest {
         val user = UserEntity("user", EntityType.USER)
         val user2 = UserEntity("user2", EntityType.USER)
 
-        val licenseId = appLicenseService.saveLicenseServer(
-            SaveLicenseRequest(
+        val licenseId = appLicenseService.createLicenseServer(
+            NewServerRequest(
                 "testName",
                 "version",
                 "example.com",
@@ -104,8 +106,8 @@ class AppLicenseTest {
         val newAddress = "new-address.com"
 
         assertFails {
-            appLicenseService.saveLicenseServer(
-                SaveLicenseRequest(
+            appLicenseService.updateLicenseServer(
+                UpdateServerRequest(
                     "testName",
                     "version",
                     newAddress,
@@ -118,6 +120,65 @@ class AppLicenseTest {
 
         assertFails { appLicenseService.getLicenseServer(licenseId, user2) }
         assertEquals("example.com", appLicenseService.getLicenseServer(licenseId, user)?.address)
+    }
+
+    @Test
+    fun `save multiple and list`() = runBlocking {
+        val user = UserEntity("user", EntityType.USER)
+        val user2 = UserEntity("user2", EntityType.USER)
+
+        val appList1 = listOf(
+            Application("app1", "1.0.0"),
+            Application("app2", "1.0.1"),
+            Application("app3", "1.0.1")
+        )
+
+        val appList2 = listOf(
+            Application("app2", "1.0.1")
+        )
+
+        val licenseId = appLicenseService.createLicenseServer(
+            NewServerRequest(
+                "testName",
+                "version",
+                "example.com",
+                null,
+                null
+            ),
+            user
+        )
+
+        val license2Id = appLicenseService.createLicenseServer(
+            NewServerRequest(
+                "testName2",
+                "version2",
+                "example2.com",
+                null,
+                appList2
+            ),
+            user
+        )
+
+        appLicenseService.addApplicationsToServer(
+            AddApplicationsToServerRequest(
+                appList1,
+                licenseId
+            ),
+            user
+        )
+
+        val serverListApp1 = appLicenseService.listServers(Application("app1", "1.0.0"), user)
+        assertEquals(1, serverListApp1?.size)
+        assertTrue(serverListApp1?.map { it.name }!!.contains("testName"))
+
+        val serverListApp2 = appLicenseService.listServers(Application("app2", "1.0.1"), user)
+        assertEquals(2, serverListApp2?.size)
+        assertTrue(serverListApp2?.map { it.name }!!.contains("testName"))
+        assertTrue(serverListApp2?.map { it.name }!!.contains("testName2"))
+
+        val serverListApp3 = appLicenseService.listServers(Application("app3", "1.0.1"), user)
+        assertEquals(1, serverListApp3?.size)
+        assertTrue(serverListApp3?.map { it.name }!!.contains("testName"))
 
     }
 }
