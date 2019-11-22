@@ -12,7 +12,10 @@ interface DataListProps {
     width?: number | string;
     clearOnSelect?: boolean;
 }
-export class DataList extends React.PureComponent<DataListProps, {text: string, fuse: Fuse<ContentValuePair>}> {
+export class DataList extends React.PureComponent<DataListProps, {
+    text: string,
+    fuse: Fuse<ContentValuePair, Fuse.FuseOptions<ContentValuePair>>
+}> {
     private readonly totalShown = 8;
 
     constructor(props: DataListProps) {
@@ -41,19 +44,24 @@ export class DataList extends React.PureComponent<DataListProps, {text: string, 
         const results = this.state.text ?
             this.state.fuse.search(this.state.text) : this.props.options.slice(0, this.totalShown);
         return (
-            <ClickableDropdown colorOnHover={results.length !== 0} fullWidth trigger={
-                <FormField>
-                    <Input
-                        placeholder={this.props.placeholder}
-                        autoComplete="off"
-                        type="text"
-                        value={this.state.text}
-                        onChange={({target}) => this.setState(() => ({text: target.value}))}
-                    />
-                    <Icon name="chevronDown" mb="9px" size={14} />
-                </FormField>
-            }>
-                {results.map(({content, value}) => (
+            <ClickableDropdown
+                colorOnHover={results.length !== 0}
+                fullWidth
+                trigger={(
+                    <FormField>
+                        <Input
+                            placeholder={this.props.placeholder}
+                            autoComplete="off"
+                            type="text"
+                            value={this.state.text}
+                            onChange={({target}) => this.setState(() => ({text: target.value}))}
+                        />
+                        <Icon name="chevronDown" mb="9px" size={14} />
+                    </FormField>
+                )}
+            >
+                {/* FIXME: Map is not allowed due to union types */}
+                {(results as any).map(({content, value}) => (
                     <Box key={content} onClick={() => this.onSelect(content, value)} mb="0.5em">
                         {content}
                     </Box>

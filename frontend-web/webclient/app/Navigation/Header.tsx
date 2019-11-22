@@ -51,13 +51,13 @@ import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {inDevEnvironment, isLightThemeStored, prettierString, stopPropagationAndPreventDefault} from "UtilityFunctions";
-import {PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
+import {DEV_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
 }
 
-const DevelopmentBadge = () => window.location.host === "dev.cloud.sdu.dk" || inDevEnvironment() ?
+const DevelopmentBadge = () => window.location.host === DEV_SITE || inDevEnvironment() ?
     <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
 
 function Header(props: HeaderProps) {
@@ -67,15 +67,15 @@ function Header(props: HeaderProps) {
         // Fetch upcoming downtime status
     }, []);
 
+    React.useEffect(() => {
+        if (Client.isLoggedIn) props.fetchAvatar();
+    }, []);
+
     // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
     // The following is only supposed to work for the initial load.
     if (window.location.pathname === "/app/login" && window.location.search === "?dav=true") return null;
 
     if (!Client.isLoggedIn) return null;
-
-    React.useEffect(() => {
-        props.fetchAvatar();
-    }, []);
 
     function toSearch() {
         history.push("/search/files");
@@ -101,7 +101,7 @@ function Header(props: HeaderProps) {
             </Hide>
             <Box mr="auto" />
             {upcomingDowntime ? (
-                <ExternalLink href="https://status.cloud.sdu.dk">
+                <ExternalLink href={STATUS_PAGE}>
                     <Tooltip
                         right="0"
                         bottom="1"
@@ -216,7 +216,7 @@ const Logo = () => (
                     color="red"
                     fontSize={17}
                 >
-                    BETA
+                    {VERSION_TEXT}
                 </LogoText>
             )}
         </Flex>

@@ -17,22 +17,31 @@ const dashboard = (state: DashboardStateProps = initDashboard(), action: Dashboa
             return {...state, favoriteLoading: loading, recentLoading: loading, analysesLoading: loading};
         }
         case RECEIVE_DASHBOARD_FAVORITES: {
-            return {...state, favoriteFiles: action.payload.content, favoriteLoading: false};
+            return {...state, favoriteFiles: action.payload.content, favoriteLoading: false, favoritesError: undefined};
         }
         case RECEIVE_RECENT_JOBS: {
-            return {...state, recentAnalyses: action.payload.content, analysesLoading: false};
+            return {...state, recentAnalyses: action.payload.content, analysesLoading: false, recentJobsError: undefined};
         }
         case RECEIVE_RECENT_FILES: {
-            return {...state, recentFiles: action.payload.content, recentLoading: false};
+            return {...state, recentFiles: action.payload.content, recentLoading: false, recentFilesError: undefined};
         }
         case DASHBOARD_FAVORITE_ERROR:
+            return {
+                ...state,
+                favoriteLoading: false,
+                favoritesError: action.payload.error
+            };
         case DASHBOARD_RECENT_JOBS_ERROR:
+            return {
+                ...state,
+                analysesLoading: false,
+                recentJobsError: action.payload.error
+            };
         case DASHBOARD_RECENT_FILES_ERROR: {
             return {
                 ...state,
-                favoriteLoading: action.type === DASHBOARD_FAVORITE_ERROR ? false : state.favoriteLoading,
-                analysesLoading: action.type === DASHBOARD_RECENT_JOBS_ERROR ? false : state.analysesLoading,
-                recentLoading: action.type === DASHBOARD_RECENT_FILES_ERROR ? false : state.recentLoading
+                recentLoading: false,
+                recentFilesError: action.payload.error
             };
         }
         default: {

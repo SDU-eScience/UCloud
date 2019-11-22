@@ -564,7 +564,7 @@ export default class HttpClient {
             }
             throw Error("The server was unreachable, please try again later.");
         } catch (err) {
-            snackbarStore.addSnack({message: err.message, type: SnackType.Failure});
+            snackbarStore.addFailure(err.message);
         }
     }
 

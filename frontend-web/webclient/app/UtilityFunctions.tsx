@@ -264,7 +264,7 @@ export function defaultErrorHandler(
             }
         }
 
-        snackbarStore.addSnack({message: why, type: SnackType.Failure});
+        snackbarStore.addFailure(why);
         return request.status;
     }
     return 500;

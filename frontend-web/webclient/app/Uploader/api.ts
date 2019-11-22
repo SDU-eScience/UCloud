@@ -1,7 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {Sensitivity} from "DefaultObjects";
 import {STATUS_CODES} from "http";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
 import {inSuccessRange} from "UtilityFunctions";
@@ -32,7 +31,7 @@ export const multipartUpload = async ({
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                snackbarStore.addSnack({message: statusToError(request.status), type: SnackType.Failure});
+                snackbarStore.addFailure(statusToError(request.status));
         }
     };
     request.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -55,16 +54,14 @@ export const multipartUpload = async ({
     return request;
 };
 
-export const bulkUpload = async (
-    {
-        location,
-        file,
-        sensitivity,
-        policy,
-        onProgress,
-        onError
-    }: UploadArgs
-): Promise<XMLHttpRequest> => {
+export const bulkUpload = async ({
+    location,
+    file,
+    sensitivity,
+    policy,
+    onProgress,
+    onError
+}: UploadArgs): Promise<XMLHttpRequest> => {
     const token = await Client.receiveAccessTokenOrRefreshIt();
     const format = formatFromFileName(file.name);
 
@@ -73,7 +70,7 @@ export const bulkUpload = async (
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                snackbarStore.addSnack({message: statusToError(request.status), type: SnackType.Failure});
+                snackbarStore.addFailure(statusToError(request.status));
     };
     request.setRequestHeader("Authorization", `Bearer ${token}`);
     let nextProgressUpdate = new Date().getTime();

@@ -1,5 +1,5 @@
-import HttpClient from "Authentication/lib";
 import {Client} from "Authentication/HttpClientInstance";
+import HttpClient from "Authentication/lib";
 import {SensitivityLevelMap} from "DefaultObjects";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
@@ -275,21 +275,20 @@ interface IsInvalidPathname {
  * Checks if a pathname is legal/already in use
  * @param {string} path The path being tested
  * @param {string[]} filePaths the other file paths path is being compared against
- * @param {() => void} addSnack used to add a message to SnackBar
  * @returns whether or not the path is invalid
  */
 export const isInvalidPathName = ({path, filePaths}: IsInvalidPathname): boolean => {
     if (["..", "/"].some((it) => path.includes(it))) {
-        snackbarStore.addSnack({message: "Folder name cannot contain '..' or '/'", type: SnackType.Failure});
+        snackbarStore.addFailure("Folder name cannot contain '..' or '/'");
         return true;
     }
     if (path === "" || path === ".") {
-        snackbarStore.addSnack({message: "Folder name cannot be empty or be \".\"", type: SnackType.Failure});
+        snackbarStore.addFailure("Folder name cannot be empty or be \".\"");
         return true;
     }
     const existingName = filePaths.some(it => it === path);
     if (existingName) {
-        snackbarStore.addSnack({message: "File with that name already exists", type: SnackType.Failure});
+        snackbarStore.addFailure("File with that name already exists");
         return true;
     }
     return false;
@@ -339,7 +338,7 @@ export const reclassifyFile = async ({file, sensitivity, client}: ReclassifyFile
         sensitivity: serializedSensitivity
     }));
     if (isError(callResult)) {
-        snackbarStore.addSnack({message: (callResult as ErrorMessage).errorMessage, type: SnackType.Failure});
+        snackbarStore.addFailure((callResult as ErrorMessage).errorMessage);
         return file;
     }
     return {...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity};
@@ -370,10 +369,7 @@ export const extractArchive = async ({files, client, onFinished}: ExtractArchive
             await client.post(extractFilesQuery, {path: f.path});
             snackbarStore.addSnack({message: "File extracted", type: SnackType.Success});
         } catch (e) {
-            snackbarStore.addSnack({
-                message: UF.errorMessageOrDefault(e, "An error occurred extracting the file."),
-                type: SnackType.Failure
-            });
+            snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred extracting the file."));
         }
     }
     onFinished();
@@ -451,10 +447,7 @@ export async function updateSensitivity({files, client, onSensitivityChange}: Up
     try {
         await Promise.all(files.map(file => reclassifyFile({file, sensitivity: input.option, client})));
     } catch (e) {
-        snackbarStore.addSnack({
-            message: UF.errorMessageOrDefault(e, "Could not reclassify file"),
-            type: SnackType.Failure
-        });
+        snackbarStore.addFailure(UF.errorMessageOrDefault(e, "Could not reclassify file"));
     } finally {
         if (!!onSensitivityChange) onSensitivityChange();
     }
@@ -550,10 +543,7 @@ function resultToNotification({failures, paths, homeFolder}: ResultToNotificatio
     if (failures.length === 0) {
         snackbarStore.addSnack({message: successMessage, type: SnackType.Success});
     } else if (failures.length === paths.length) {
-        snackbarStore.addSnack({
-            message: "Failed moving all files, please try again later",
-            type: SnackType.Failure
-        });
+        snackbarStore.addFailure("Failed moving all files, please try again later");
     } else {
         snackbarStore.addSnack({
             message: `${successMessage}\n Failed to move files: ${failures.join(", ")}`,
@@ -588,7 +578,7 @@ export const moveToTrash = ({files, client, setLoading, callback}: MoveToTrash) 
                 snackbarStore.addSnack({message: "Moving files to trash", type: SnackType.Information});
                 callback();
             } catch (e) {
-                snackbarStore.addSnack({message: e.why, type: SnackType.Failure});
+                snackbarStore.addFailure(e.why);
                 callback();
             }
         }
@@ -625,10 +615,7 @@ export async function createFolder({path, client, onSuccess}: CreateFolder): Pro
         onSuccess();
         snackbarStore.addSnack({message: "Folder created", type: SnackType.Success});
     } catch (e) {
-        snackbarStore.addSnack({
-            message: UF.errorMessageOrDefault(e, "An error occurred trying to creating the file."),
-            type: SnackType.Failure
-        });
+        snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred trying to creating the file."));
     }
 }
 

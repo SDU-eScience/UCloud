@@ -49,10 +49,7 @@ export default function Support() {
                 setLoading(false);
                 snackbarStore.addSnack({message: "Support ticket submitted!", type: SnackType.Success});
             } catch (e) {
-                snackbarStore.addSnack({
-                    message: errorMessageOrDefault(e, "An error occured"),
-                    type: SnackType.Failure
-                });
+                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"));
             }
         } else {
             snackbarStore.addFailure("Support message can't be empty.");
