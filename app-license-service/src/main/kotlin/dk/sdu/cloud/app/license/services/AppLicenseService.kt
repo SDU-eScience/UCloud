@@ -68,6 +68,7 @@ class AppLicenseService<Session>(
                     request.name,
                     request.version,
                     request.address,
+                    request.port,
                     request.license
                 )
             )
@@ -92,6 +93,7 @@ class AppLicenseService<Session>(
                         request.name,
                         request.version,
                         request.address,
+                        request.port,
                         request.license
                     ),
                     request.withId

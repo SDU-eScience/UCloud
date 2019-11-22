@@ -13,9 +13,10 @@ import io.ktor.http.HttpMethod
 data class LicenseServerRequest(val licenseId: String)
 
 data class UpdateServerRequest(
-    val name: String?,
-    val version: String?,
-    val address: String?,
+    val name: String,
+    val version: String,
+    val address: String,
+    val port: String,
     val license: String?,
     val withId: String
 )
@@ -29,9 +30,10 @@ data class AddApplicationsToServerResponse(val serverId: String)
 
 
 data class NewServerRequest(
-    val name: String?,
-    val version: String?,
-    val address: String?,
+    val name: String,
+    val version: String,
+    val address: String,
+    val port: String,
     val license: String?,
     val applications: List<Application>?
 )

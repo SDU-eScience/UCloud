@@ -17,13 +17,16 @@ class LicenseServerEntity(
     var id: String,
 
     @get:Column(name = "name", unique = false, nullable = true)
-    var name: String?,
+    var name: String,
 
     @Column(name = "version", unique = false, nullable = true)
-    var version: String?,
+    var version: String,
 
     @Column(name = "address", unique = false, nullable = true)
-    var address: String?,
+    var address: String,
+
+    @Column(name = "port", unique = false, nullable = true)
+    var port: String,
 
     @Column(name = "license", unique = false, nullable = true)
     var license: String?
@@ -56,6 +59,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
             appLicenseServer.name,
             appLicenseServer.version,
             appLicenseServer.address,
+            appLicenseServer.port,
             appLicenseServer.license
         )
 
@@ -141,6 +145,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         }.uniqueResult()
 
         existing.address = appLicenseServer.address
+        existing.port = appLicenseServer.port
         existing.license = appLicenseServer.license
         existing.name = appLicenseServer.name
         existing.version = appLicenseServer.version

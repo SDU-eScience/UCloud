@@ -6,6 +6,7 @@ create table license_servers
     name           varchar(255),
     version        varchar(255),
     address        varchar(255),
+    port           varchar(5),
     license        varchar(255),
     primary key (id)
 );

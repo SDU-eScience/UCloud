@@ -44,7 +44,8 @@ class AppLicenseTest {
                 "testName",
                 "version",
                 "example.com",
-                null,
+                "1234",
+                 null,
                 null
             ),
             user
@@ -62,6 +63,7 @@ class AppLicenseTest {
                 "testName",
                 "version",
                 "example.com",
+                "1234",
                 null,
                 null
             ),
@@ -76,6 +78,7 @@ class AppLicenseTest {
                 "testName",
                 "version",
                 newAddress,
+                "1234",
                 null,
                 licenseId
             ),
@@ -96,6 +99,7 @@ class AppLicenseTest {
                 "testName",
                 "version",
                 "example.com",
+                "1234",
                 null,
                 null
             ),
@@ -111,6 +115,7 @@ class AppLicenseTest {
                     "testName",
                     "version",
                     newAddress,
+                    "1234",
                     null,
                     licenseId
                 ),
@@ -142,6 +147,7 @@ class AppLicenseTest {
                 "testName",
                 "version",
                 "example.com",
+                "1234",
                 null,
                 null
             ),
@@ -153,6 +159,7 @@ class AppLicenseTest {
                 "testName2",
                 "version2",
                 "example2.com",
+                "1234",
                 null,
                 appList2
             ),

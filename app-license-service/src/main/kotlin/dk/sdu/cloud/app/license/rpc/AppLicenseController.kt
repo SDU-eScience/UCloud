@@ -29,6 +29,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                         licenseServer.name,
                         licenseServer.version,
                         licenseServer.address,
+                        licenseServer.port,
                         licenseServer.license
                     )
                 )
