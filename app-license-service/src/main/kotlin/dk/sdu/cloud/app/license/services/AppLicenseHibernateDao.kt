@@ -66,8 +66,6 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
 
         session.save(licenseServer)
 
-        println("Saving license server: $newId, ${appLicenseServer.name}, ${appLicenseServer.version}")
-
         return newId
     }
 
@@ -80,11 +78,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
             ApplicationLicenseServerEntity.Key(application.name, application.version, serverId)
         )
 
-        println("Adding relationship ${application.name}, ${application.version}, $serverId")
-
         session.save(applicationLicenseServer)
-
-        println(session.createNativeQuery("""SELECT * FROM application_license_servers""").list().size)
     }
 
     override fun removeApplicationFromServer(
@@ -117,9 +111,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
     ): List<LicenseServerEntity>? {
 
         val serverSize = session.createNativeQuery("SELECT * FROM license_servers").list().size
-        println("Found ${serverSize} servers")
         val relSize = session.createNativeQuery("SELECT * FROM application_license_servers").list().size
-        println("Found ${relSize} relationships")
 
         val query = session.createNativeQuery<LicenseServerEntity>(
             """
@@ -133,8 +125,6 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
             it.setParameter("appName", application.name)
             it.setParameter("appVersion", application.version)
         }
-
-        println("Found ${query.list().size} license servers")
 
         return query.list()
     }

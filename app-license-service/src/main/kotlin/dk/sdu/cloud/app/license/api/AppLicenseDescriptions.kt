@@ -92,6 +92,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
+                "list-by-app"
             }
 
             body { bindEntireRequestFromBody() }
@@ -115,7 +116,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
-    val update = call<UpdateServerRequest, UpdateServerResponse, CommonErrorMessage>("save") {
+    val update = call<UpdateServerRequest, UpdateServerResponse, CommonErrorMessage>("update") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -125,7 +126,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                +"save"
+                +"update"
             }
 
             params {

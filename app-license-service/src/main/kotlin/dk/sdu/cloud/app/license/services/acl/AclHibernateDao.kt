@@ -16,7 +16,7 @@ data class PermissionEntry(
     @Embeddable
     data class Key(
         @get:Column(name = "entity") var userEntity: String,
-        @get:Column(name = "entity_type") var entityType: EntityType,
+        @get:Enumerated(EnumType.STRING) @Column(name = "entity_type") var entityType: EntityType,
         @get:Column(name = "server_id") var serverId: String,
         @get:Enumerated(EnumType.STRING) var permission: AccessRight
     ): Serializable
@@ -32,7 +32,6 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ): Boolean {
         return when (permission) {
             AccessRight.READ -> {
-                println("Hallo")
                 session.criteria<PermissionEntry>{
                     allOf(
                         (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id) and
@@ -70,14 +69,6 @@ class AclHibernateDao : AclDao<HibernateSession> {
         )
 
         session.saveOrUpdate(permissionEntry)
-
-        /*session.deleteCriteria<PermissionEntry> {
-            val key = entity[PermissionEntry::key]
-
-            (key[PermissionEntry.Key::entity] equal userEntity.id) and
-                    (key[PermissionEntry.Key::serverId] equal licenseId) and
-                    (not(key[PermissionEntry.Key::permission] isInCollection permissions))
-        }.executeUpdate()*/
     }
 
     override fun revokePermission(
