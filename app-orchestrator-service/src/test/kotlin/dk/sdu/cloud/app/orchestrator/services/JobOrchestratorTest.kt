@@ -1,18 +1,24 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
 import dk.sdu.cloud.app.orchestrator.api.ApplicationBackend
+import dk.sdu.cloud.app.orchestrator.api.CancelInternalResponse
+import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsRequest
 import dk.sdu.cloud.app.orchestrator.api.InternalStdStreamsResponse
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobStateChange
+import dk.sdu.cloud.app.orchestrator.utils.jobStateChangeCancelling
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.normTool
 import dk.sdu.cloud.app.orchestrator.utils.normToolDesc
 import dk.sdu.cloud.app.orchestrator.utils.startJobRequest
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupResponse
@@ -37,6 +43,9 @@ import io.mockk.mockk
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
@@ -124,6 +133,11 @@ class JobOrchestratorTest {
         ClientMock.mockCallSuccess(
             backend.jobVerified,
             Unit
+        )
+
+        ClientMock.mockCallSuccess(
+            backend.cancel,
+            CancelInternalResponse
         )
 
         ClientMock.mockCallSuccess(
@@ -412,6 +426,74 @@ class JobOrchestratorTest {
         runBlocking {
             assertEquals(JobState.FAILURE, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
             assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).failedState)
+        }
+    }
+
+    @Test (expected = RPCException::class)
+    fun `handle proposed state change -  null backend and jobowner`() {
+        runBlocking {
+            orchestrator.handleProposedStateChange(
+                jobStateChangeCancelling, "newstatus", null, null
+            )
+        }
+    }
+
+    @Test
+    fun `handle proposed state change - cancel to Failure`() {
+        var systemID = ""
+        runBlocking {
+            systemID = orchestrator.startJob(startJobRequest.copy(backend = "backend"), TestUsers.user.createToken(), "refresh", client)
+
+            orchestrator.handleProposedStateChange(
+                JobStateChange(systemID, JobState.CANCELING), null, TestUsers.user
+            )
+        }
+
+        runBlocking {
+            orchestrator.handleProposedStateChange(
+                JobStateChange(systemID, JobState.FAILURE), null, TestUsers.user
+            )
+        }
+    }
+
+    @Test
+    fun `handle job complete - null wallduration - startedAt null`() {
+        runBlocking {
+            val systemID = orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "refresh", client)
+
+            orchestrator.handleJobComplete(
+                systemID, null, true, TestUsers.user
+            )
+        }
+    }
+
+    @Test
+    fun `replay lost jobs test`() {
+        runBlocking {
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+        }
+
+        orchestrator.replayLostJobs()
+    }
+
+    @Test
+    fun `Lookup own job`() {
+        val jobID = runBlocking {
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+        }
+        runBlocking {
+            orchestrator.lookupOwnJob(jobID, TestUsers.user)
+        }
+    }
+
+    @Test
+    fun `remove Expired Jobs test`() {
+        runBlocking {
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+        }
+
+        runBlocking {
+            orchestrator.removeExpiredJobs()
         }
     }
 }

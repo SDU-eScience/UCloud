@@ -1,16 +1,27 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
+import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
+import dk.sdu.cloud.app.orchestrator.api.FileForUploadArchiveType
+import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJob
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken2
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupResponse
 import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.TestUsers
+import io.mockk.mockk
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
+import java.nio.ByteBuffer
+import kotlin.math.exp
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -182,4 +193,118 @@ class JobFileTest{
             service.initializeResultFolder(verifiedJobWithAccessToken2)
         }
     }
+
+    @Test
+    fun `jobFolder test - folder not null`() {
+        val authClient = ClientMock.authenticatedClient
+        val service = JobFileService(authClient, { _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+
+        ClientMock.mockCallSuccess(
+            FileDescriptions.findHomeFolder,
+            FindHomeFolderResponse("home")
+        )
+
+
+        ClientMock.mockCallSuccess(
+            LookupDescriptions.reverseLookup,
+            ReverseLookupResponse(listOf("/home/Jobs/title/testfolder"))
+        )
+
+        val myJob = verifiedJobWithAccessToken2.copy(
+            job = verifiedJobWithAccessToken2.job.copy(id = "myJobId", folderId = "/path/to/folder")
+        )
+
+        runBlocking {
+            val result = service.jobFolder(myJob)
+            assertEquals("/home/Jobs/title/testfolder", result)
+        }
+    }
+
+    @Test
+    fun `create workspace test`() {
+        val authClient = ClientMock.authenticatedClient
+        val service = JobFileService(authClient, { _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+
+        ClientMock.mockCallSuccess(
+            WorkspaceDescriptions.create,
+            Workspaces.Create.Response("ID", emptyList())
+        )
+        runBlocking {
+            service.createWorkspace(verifiedJobWithAccessToken)
+        }
+    }
+
+    @Test (expected = RPCException::class)
+    fun `transfer workspace test - no workspace found`() {
+        val authClient = ClientMock.authenticatedClient
+        val service = JobFileService(authClient, { _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+
+        runBlocking {
+            service.transferWorkspace(verifiedJobWithAccessToken, false)
+        }
+    }
+
+    @Test
+    fun `transfer workspace test - no workspace found - try replay`() {
+        val authClient = ClientMock.authenticatedClient
+        val service = JobFileService(authClient, { _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+
+        runBlocking {
+            service.transferWorkspace(verifiedJobWithAccessToken, true)
+        }
+    }
+
+    @Test
+    fun `transfer workspace test`() {
+        val authClient = ClientMock.authenticatedClient
+        val service = JobFileService(authClient, { _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+
+        ClientMock.mockCallSuccess(
+            WorkspaceDescriptions.transfer,
+            Workspaces.Transfer.Response(emptyList())
+        )
+
+        runBlocking {
+            service.transferWorkspace(verifiedJobWithAccessToken.copy(verifiedJob.copy(workspace = "path/To/workspace")), false)
+        }
+    }
+
+    //PROBLEMS WITH MOCKCALL TO SUBMITFILE
+    /*object TestBackend: ComputationDescriptions("backend")
+
+    @Test
+    fun `Transfer files to backend test`() {
+        val authClient = ClientMock.authenticatedClient
+        val service = JobFileService(authClient, { _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+
+        ClientMock.mockCallSuccess(
+            FileDescriptions.download,
+            mockk<BinaryStream>(relaxed = true)
+        )
+
+        ClientMock.mockCallSuccess(
+            ComputationCallbackDescriptions.submitFile,
+            Unit
+        )
+
+        runBlocking {
+            service.transferFilesToBackend(
+                verifiedJobWithAccessToken.copy(
+                    verifiedJob.copy(
+                        files = listOf(
+                            ValidatedFileForUpload(
+                                "id",
+                                StorageFile(FileType.FILE, "path", ownerName = TestUsers.user.username),
+                                "dest",
+                                "destPath",
+                                "srcPath",
+                                FileForUploadArchiveType.ZIP
+                            )
+                        )
+                    )
+                ),
+                TestBackend
+            )
+        }
+    }*/
 }

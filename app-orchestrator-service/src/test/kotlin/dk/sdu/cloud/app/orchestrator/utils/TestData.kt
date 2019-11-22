@@ -146,3 +146,8 @@ val startJobRequest = StartJobRequest(
     1,
     SimpleDuration(1, 0, 0)
 )
+
+val jobStateChangeCancelling = JobStateChange(
+    "systemID",
+    JobState.CANCELING
+)
