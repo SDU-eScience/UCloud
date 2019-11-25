@@ -417,7 +417,7 @@ export function getFilenameFromPath(path: string): string {
     return fileName;
 }
 
-export function downloadFiles(files: File[], setLoading: () => void, client: HttpClient) {
+export function downloadFiles(files: Array<{path: string}>, setLoading: () => void, client: HttpClient) {
     files.map(f => f.path).forEach(p =>
         client.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
             const element = document.createElement("a");
@@ -557,10 +557,6 @@ const successResponse = (paths: string[], homeFolder: string) =>
         `${paths.length} files moved to trash.` :
         `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
 
-interface Failures {
-    failures: string[];
-}
-
 interface MoveToTrash {
     files: File[];
     client: HttpClient;
@@ -630,6 +626,7 @@ export function isAnySharedFs(files: File[]): boolean {
 }
 
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
+export const filePreviewPage = (path: string): string => `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
 export const archiveExtensions: string[] = [".tar.gz", ".zip"];

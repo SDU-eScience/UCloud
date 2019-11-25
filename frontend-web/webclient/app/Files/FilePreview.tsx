@@ -9,10 +9,11 @@ import {match} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Icon} from "ui-components";
+import {Button, Icon} from "ui-components";
+import Error from "ui-components/Error";
 import {Spacer} from "ui-components/Spacer";
-import {statFileOrNull} from "Utilities/FileUtilities";
-import {extensionTypeFromPath, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
+import {downloadFiles, statFileOrNull} from "Utilities/FileUtilities";
+import {extensionFromPath, extensionTypeFromPath, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
 import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
 interface FilePreviewStateProps {
@@ -34,8 +35,9 @@ interface FilePreviewProps extends FilePreviewOperations, FilePreviewStateProps 
 }
 
 const FilePreview = (props: FilePreviewProps) => {
-    const [fileContent, setFileContent] = React.useState<string>("");
+    const [fileContent, setFileContent] = React.useState("");
     const [error, setError] = React.useState("");
+    const [showDownloadButton, setDownloadButton] = React.useState(false);
     const fileType = extensionTypeFromPath(filepath());
 
     React.useEffect(() => {
@@ -43,8 +45,11 @@ const FilePreview = (props: FilePreviewProps) => {
         statFileOrNull(path).then(stat => {
             if (stat === null) {
                 snackbarStore.addFailure("File not found");
+                setError("File not found");
             } else if (stat.size! > 30_000_000) {
                 snackbarStore.addFailure("File size too large. Download instead.");
+                setError("File size too large to preview.");
+                setDownloadButton(true);
             } else {
                 Client.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
                     fetch(Client.computeURL(
@@ -53,6 +58,7 @@ const FilePreview = (props: FilePreviewProps) => {
                     )).then(async content => {
                         switch (fileType) {
                             case "image":
+                            case "audio":
                             case "video":
                             case "pdf":
                                 setFileContent(URL.createObjectURL(await content.blob()));
@@ -60,6 +66,10 @@ const FilePreview = (props: FilePreviewProps) => {
                             case "code":
                             case "text":
                                 setFileContent(await content.text());
+                                break;
+                            default:
+                                setError(`Preview not support for '${extensionFromPath(path)}'.`);
+                                setDownloadButton(true);
                                 break;
                         }
                     }).catch(it => typeof it === "string" ? setError(it) : setError("An error occurred fetching file content"));
@@ -73,7 +83,13 @@ const FilePreview = (props: FilePreviewProps) => {
     }
 
     function showContent() {
-        if (!fileContent) return (<LoadingIcon size={36} />);
+        if (showDownloadButton) {
+            return (
+                <Button mt="10px" onClick={() => downloadFiles([{path: filepath()}], () => undefined, Client)}>
+                    Download file
+                </Button>
+            );
+        } else if (!fileContent) return (<LoadingIcon size={36} />);
         switch (fileType) {
             case "text":
             case "code":
@@ -85,15 +101,36 @@ const FilePreview = (props: FilePreviewProps) => {
                     </>
                 );
             case "image":
-                return <img src={fileContent} />;
+                return (
+                    <>
+                        <Spacer left={<div />} right={<ExpandingIcon name="fullscreen" onClick={onTryFullScreen} />} />
+                        <img src={fileContent} className="fullscreen" />
+                    </>
+                );
             case "audio":
+                return <audio controls src={fileContent} />;
             case "video":
-                return <video style={{maxWidth: "100%", maxHeight: "100%", verticalAlign: "middle"}} src={fileContent} controls />;
+                return (
+                    <video
+                        style={{maxWidth: "100%", maxHeight: "100%", verticalAlign: "middle"}}
+                        src={fileContent}
+                        controls
+                    />
+                );
             case "pdf":
                 return (
                     <>
-                        <Spacer left={<div />} right={<ExpandingIcon name="fullscreen" mb="5px" onClick={onTryFullScreen} />} />
-                        <embed className="fullscreen" width="999999" height="1080" style={{maxWidth: "100%", maxHeight: "100%"}} src={fileContent} />
+                        <Spacer
+                            left={<div />}
+                            right={<ExpandingIcon name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
+                        />
+                        <embed
+                            className="fullscreen"
+                            width="999999"
+                            height="1080"
+                            style={{maxWidth: "100%", maxHeight: "100%"}}
+                            src={fileContent}
+                        />
                     </>
                 );
             default:
@@ -116,7 +153,12 @@ const FilePreview = (props: FilePreviewProps) => {
 
     return (
         <MainContainer
-            main={showContent()}
+            main={(
+                <>
+                    <Error error={error} />
+                    {showContent()}
+                </>
+            )}
         />
     );
 };
