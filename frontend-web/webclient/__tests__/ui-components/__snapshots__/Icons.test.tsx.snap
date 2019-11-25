@@ -1133,6 +1133,43 @@ Array [
 
 <span>
     <span>
+      eye
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 60 20"
+      width={24}
+    >
+      <path
+        d="M2 10c8 10 38 10 48 0M2 10c8-10 38-10 48 0"
+        fill="transparent"
+        stroke="currentcolor"
+        strokeWidth={0.5}
+      />
+      <circle
+        cx={26}
+        cy={10}
+        fill="currentcolor"
+        r={4}
+        stroke="currentcolor"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
       favIcon
     </span>
     : 
@@ -1283,7 +1320,7 @@ Array [
     >
       <path
         d="M0 1.5A1.5 1.5 0 011.5 0h15A1.5 1.5 0 0118 1.5V23a.997.997 0 01-1 1H1a.997.997 0 01-1-1V1.5zM14.251 24v-2.049a1.248 1.248 0 00-1.144-1.2 164.95 164.95 0 00-8.203 0 1.258 1.258 0 00-1.153 1.209V24h.68v-1.799c.009-.374.127-.688.498-.715.24-.006.481-.012.722-.016V24h.7v-2.543c.433-.007.867-.013 1.3-.016V24h.7v-2.563c.433-.002.867-.002 1.3-.001V24h.7v-2.559c.433.003.867.008 1.3.015V24h.7v-2.531l.731.017c.312.004.505.316.505.742 0 .5-.021 1.09-.021 1.772h.685zm1.751-2.75a.75.75 0 110 1.5.75.75 0 010-1.5zm-14 0a.75.75 0 110 1.5.75.75 0 010-1.5zm0-9.25a.75.75 0 110 1.5.75.75 0 010-1.5zm14 0a.75.75 0 110 1.5.75.75 0 010-1.5zm0-10.75a.75.75 0 110 1.5.75.75 0 010-1.5zm-14 0a.75.75 0 110 1.5.75.75 0 010-1.5z"
-        fill="url(#FtFileSystem_svg___Linear1)"
+        fill="url(#ftFileSystem_svg___Linear1)"
       />
       <text
         fill={null}
@@ -1299,7 +1336,7 @@ Array [
         <linearGradient
           gradientTransform="matrix(14 -18 18 14 2.001 21)"
           gradientUnits="userSpaceOnUse"
-          id="FtFileSystem_svg___Linear1"
+          id="ftFileSystem_svg___Linear1"
           x1={0}
           x2={1}
           y1={0}
@@ -1513,6 +1550,41 @@ Array [
       <path
         d="M19.059 14l-5.813 5v-3.333h-.83c-2.641 0-5.852 1.609-7.474 3.333.171-3.307 3.915-6.667 7.474-6.667h.83V9l5.813 5z"
         fill={null}
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      fullscreen
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 500 500"
+      width={24}
+    >
+      <path
+        d="M10 10h190L10 200zM300 10l190 190V10zM200 490H10V300zM300 490l190-190v190z"
+        fill="currentcolor"
+        stroke="currentcolor"
+        strokeWidth={20}
+      />
+      <path
+        d="M200 160l-40 40-80-80 40-40M300 160l40 40 80-80-40-40M160 300l40 40-80 80-40-40M340 300l-40 40 80 80 40-40"
+        fill="currentcolor"
+        stroke="currentcolor"
       />
     </svg>
     , 

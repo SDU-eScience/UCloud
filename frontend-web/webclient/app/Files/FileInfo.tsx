@@ -11,7 +11,7 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import ShareList from "Shares/List";
-import {Box, Card, Flex, Icon} from "ui-components";
+import {Box, Button, Card, Flex, Icon} from "ui-components";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import * as Heading from "ui-components/Heading";
@@ -28,6 +28,7 @@ import {
     sizeToString
 } from "Utilities/FileUtilities";
 import {capitalized, removeTrailingSlash} from "UtilityFunctions";
+import FilePreview from "./FilePreview";
 import {fetchFileActivity, fetchFileStat, receiveFileStat, setLoading} from "./Redux/FileInfoActions";
 
 interface FileInfoOperations {
@@ -46,6 +47,7 @@ interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
 
 function FileInfo(props: Readonly<FileInfo>) {
     const [size, setSize] = React.useState(0);
+    const [previewShown, setPreviewShown] = React.useState(false);
 
     React.useEffect(() => {
         props.setActivePage();
@@ -91,6 +93,13 @@ function FileInfo(props: Readonly<FileInfo>) {
                             props.fetchFileStat(path());
                         }}
                     />
+
+                    {previewShown ? <FilePreview isEmbedded /> : (
+                        <Flex justifyContent="center">
+                            <Button my="10px" onClick={() => setPreviewShown(true)}>Show preview</Button>
+                        </Flex>
+                    )}
+
                     {activity.items.length ? (
                         <Flex flexDirection="row" justifyContent="center">
                             <Card mt="1em" maxWidth={"75%"} mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
