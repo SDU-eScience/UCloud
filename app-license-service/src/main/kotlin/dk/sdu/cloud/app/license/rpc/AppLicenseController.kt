@@ -54,7 +54,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             )
 
             try {
-                licenseService.updateAcl(request, entity)
+                ok(licenseService.updateAcl(request, entity))
             } catch (e: RPCException) {
                 when (e.httpStatusCode) {
                     HttpStatusCode.Unauthorized -> error(
@@ -72,7 +72,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             )
 
             try {
-                licenseService.listServers(request, entity)
+                ok(licenseService.listServers(request, entity))
             } catch (e: RPCException) {
                 error(
                     CommonErrorMessage("Error occured"),
@@ -88,7 +88,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             )
 
             try {
-                licenseService.updateLicenseServer(request, entity)
+                ok(UpdateServerResponse(licenseService.updateLicenseServer(request, entity)))
             } catch (e: RPCException) {
                 when (e.httpStatusCode) {
                     HttpStatusCode.Unauthorized ->
@@ -108,7 +108,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             )
 
             try {
-                licenseService.createLicenseServer(request, entity)
+                ok(NewServerResponse(licenseService.createLicenseServer(request, entity)))
             } catch (e: RPCException) {
                 when (e.httpStatusCode) {
                     HttpStatusCode.Unauthorized ->
@@ -120,8 +120,6 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             }
 
         }
-
-        return@configure
     }
 
     companion object : Loggable {

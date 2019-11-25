@@ -31,6 +31,16 @@ class LicenseServerEntity(
     @Column(name = "license", unique = false, nullable = true)
     var license: String?
 ) {
+    fun toModel(): ApplicationLicenseServer {
+        return ApplicationLicenseServer(
+            name = name,
+            version = version,
+            address = address,
+            port = port,
+            license = license
+        )
+    }
+
     companion object : HibernateEntity<LicenseServerEntity>, WithId<String>
 }
 

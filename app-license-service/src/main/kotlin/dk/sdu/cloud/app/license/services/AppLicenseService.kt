@@ -45,13 +45,13 @@ class AppLicenseService<Session>(
         }
     }
 
-    fun listServers(application: Application, entity: UserEntity) : List<LicenseServerEntity>? {
+    fun listServers(application: Application, entity: UserEntity) : List<ApplicationLicenseServer> {
         return db.withTransaction {
             appLicenseDao.list(
                 it,
                 application,
                 entity
-            )
+            )?.map { it.toModel() }.orEmpty()
         }
     }
 

@@ -26,9 +26,6 @@ data class AddApplicationsToServerRequest(
     val serverId: String
 )
 
-data class AddApplicationsToServerResponse(val serverId: String)
-
-
 data class NewServerRequest(
     val name: String,
     val version: String,
@@ -46,7 +43,6 @@ data class Application(
 data class UpdateServerResponse(val licenseId: String)
 data class NewServerResponse(val licenseId: String)
 
-data class UpdateAclResponse(val echo: String)
 data class UpdateAclRequest(
     val licenseId: String,
     val changes: List<ACLEntryRequest>
@@ -78,7 +74,9 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
                 using(baseContext)
             }
 
-            body { bindEntireRequestFromBody() }
+            params {
+                +boundTo(LicenseServerRequest::licenseId)
+            }
         }
     }
 
@@ -92,14 +90,17 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                "list-by-app"
+                +"list-by-app"
             }
 
-            body { bindEntireRequestFromBody() }
+            params {
+                +boundTo(Application::name)
+                +boundTo(Application::version)
+            }
         }
     }
 
-    val updateAcl = call<UpdateAclRequest, UpdateAclResponse, CommonErrorMessage>("updateAcl") {
+    val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -152,14 +153,6 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
             path {
                 using(baseContext)
                 +"new"
-            }
-
-            params {
-                +boundTo(NewServerRequest::name)
-                +boundTo(NewServerRequest::version)
-                +boundTo(NewServerRequest::address)
-                +boundTo(NewServerRequest::license)
-                +boundTo(NewServerRequest::applications)
             }
 
             body { bindEntireRequestFromBody() }
