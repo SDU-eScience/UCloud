@@ -3,6 +3,9 @@ package dk.sdu.cloud.app.orchestrator.utils
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.VerifiedJobWithAccessToken
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageFile
 import io.mockk.mockk
 
 val normAppDesc = Application(
@@ -150,4 +153,36 @@ val startJobRequest = StartJobRequest(
 val jobStateChangeCancelling = JobStateChange(
     "systemID",
     JobState.CANCELING
+)
+
+val sharedFileSystemMountDescription = SharedFileSystemMountDescription("systemID", "path/to/mnt")
+
+val jobWithStatus = JobWithStatus(
+    "jobId",
+    "nameOfJob",
+    "owner",
+    JobState.RUNNING,
+    "status",
+    null,
+    1234,
+    1234,
+    12345,
+    20000,
+    null,
+    normAppDesc.metadata
+)
+
+val storageFile = StorageFile(
+    FileType.DIRECTORY,
+    "path/to",
+    1234,
+    1234,
+    "owner",
+    12,
+    emptyList(),
+    SensitivityLevel.PRIVATE,
+    emptySet(),
+    "fileID",
+    "creator",
+    SensitivityLevel.PRIVATE
 )
