@@ -96,7 +96,7 @@ function FileInfo(props: Readonly<FileInfo>) {
 
                     {previewShown ? <FilePreview isEmbedded /> : (
                         <Flex justifyContent="center">
-                            <Button onClick={() => setPreviewShown(true)}>Show preview</Button>
+                            <Button my="10px" onClick={() => setPreviewShown(true)}>Show preview</Button>
                         </Flex>
                     )}
 
