@@ -108,7 +108,7 @@ export const defaultFileOperations: FileOperation[] = [
 
                 const upload = newUpload(file, files[0].path);
                 upload.resolution = UploadPolicy.OVERWRITE;
-                upload.sensitivity = files[0].ownSensitivityLevel || "INHERIT";
+                upload.sensitivity = files[0].ownSensitivityLevel ?? "INHERIT";
                 cb.createNewUpload(upload);
             };
 
