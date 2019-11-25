@@ -159,6 +159,72 @@ export const extensionType = (ext: string): ExtensionType => {
     }
 };
 
+export const isPreviewSupported = (ext: string): boolean => {
+    switch (ext) {
+        case "md":
+        case "swift":
+        case "kt":
+        case "kts":
+        case "js":
+        case "jsx":
+        case "ts":
+        case "tsx":
+        case "java":
+        case "py":
+        case "python":
+        case "tex":
+        case "r":
+        case "c":
+        case "h":
+        case "cc":
+        case "hh":
+        case "c++":
+        case "h++":
+        case "hpp":
+        case "cpp":
+        case "cxx":
+        case "hxx":
+        case "html":
+        case "lhs":
+        case "hs":
+        case "sql":
+        case "sh":
+        case "iol":
+        case "ol":
+        case "col":
+        case "bib":
+        case "toc":
+        case "png":
+        case "gif":
+        case "tiff":
+        case "eps":
+        case "ppm":
+        case "svg":
+        case "jpg":
+        case "txt":
+        case "xml":
+        case "json":
+        case "csv":
+        case "yml":
+        case "plist":
+        case "pdf":
+        case "wav":
+        case "mp3":
+        case "ogg":
+        case "aac":
+        case "pcm":
+        case "aac":
+        case "mpg":
+        case "mp4":
+        case "avi":
+        case "mov":
+        case "wmv":
+            return true;
+        default:
+            return false;
+    }
+};
+
 export interface FtIconProps {
     type: FileType;
     ext?: string;

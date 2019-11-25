@@ -4,6 +4,7 @@ import * as H from "history";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {AccessRight} from "Types";
+import {IconName} from "ui-components/Icon";
 import {Upload} from "Uploader";
 import {UploadPolicy} from "Uploader/api";
 import {newUpload} from "Uploader/Uploader";
@@ -15,6 +16,7 @@ import {
     downloadFiles,
     extractArchive,
     fileInfoPage,
+    filePreviewPage,
     fileTablePage,
     getFilenameFromPath,
     getParentPath,
@@ -47,7 +49,7 @@ export interface FileOperation {
     text: string;
     onClick: (selectedFiles: File[], cb: FileOperationCallback) => void;
     disabled: (selectedFiles: File[]) => boolean;
-    icon?: string;
+    icon?: IconName;
     color?: string;
     outline?: boolean;
     currentDirectoryMode?: boolean;
@@ -106,7 +108,7 @@ export const defaultFileOperations: FileOperation[] = [
 
                 const upload = newUpload(file, files[0].path);
                 upload.resolution = UploadPolicy.OVERWRITE;
-                upload.sensitivity = files[0].ownSensitivityLevel || "INHERIT";
+                upload.sensitivity = files[0].ownSensitivityLevel ?? "INHERIT";
                 cb.createNewUpload(upload);
             };
 
@@ -187,6 +189,12 @@ export const defaultFileOperations: FileOperation[] = [
         },
         disabled: files => files.length !== 1,
         icon: "open"
+    },
+    {
+        text: "Preview",
+        onClick: (files, cb) => cb.history.push(filePreviewPage(files[0].path)),
+        disabled: (files) => UF.isPreviewSupported(files[0].path),
+        icon: "search"
     },
     {
         text: "Properties",

@@ -3,11 +3,11 @@ import {Client} from "Authentication/HttpClientInstance";
 import {MainContainer} from "MainContainer/MainContainer";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
-import {connect} from "react-redux";
 import {useHistory} from "react-router";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Heading, OutlineButton} from "ui-components";
+import styled from "styled-components";
+import {Button, Heading, Icon, OutlineButton} from "ui-components";
 import {cancelJobDialog, cancelJobQuery} from "Utilities/ApplicationUtilities";
 import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, requestFullScreen} from "UtilityFunctions";
@@ -160,7 +160,7 @@ function NoVNCClient(props: RouterLocationProps) {
                             )}
                         </div>
                     )}
-                {isConnected ? <OutlineButton onClick={toFullScreen}>Fullscreen</OutlineButton> : null}
+                {isConnected ? <ExpandingIcon name="fullscreen" onClick={toFullScreen} /> : null}
             </Heading>
             {mountNode}
         </>
@@ -169,4 +169,10 @@ function NoVNCClient(props: RouterLocationProps) {
     return <MainContainer main={main} />;
 }
 
-export default connect(null, null)(NoVNCClient);
+const ExpandingIcon = styled(Icon)`
+    &:hover {
+        transform: scale(1.02);
+    }
+`;
+
+export default NoVNCClient;
