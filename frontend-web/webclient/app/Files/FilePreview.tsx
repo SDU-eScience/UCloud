@@ -5,7 +5,7 @@ import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
 import {connect} from "react-redux";
-import {match} from "react-router";
+import {useLocation} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
@@ -18,7 +18,6 @@ import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
 interface FilePreviewStateProps {
     file: File;
-    match: match;
     isEmbedded?: boolean;
 }
 
@@ -27,14 +26,10 @@ interface FilePreviewOperations {
     setError: (error?: string) => void;
 }
 
-interface FilePreviewProps extends FilePreviewOperations, FilePreviewStateProps {
-    location: {
-        pathname: string;
-        search: string;
-    };
-}
+type FilePreviewProps = FilePreviewOperations & FilePreviewStateProps;
 
 const FilePreview = (props: FilePreviewProps) => {
+    const location = useLocation();
     const [fileContent, setFileContent] = React.useState("");
     const [error, setError] = React.useState("");
     const [showDownloadButton, setDownloadButton] = React.useState(false);
@@ -79,7 +74,7 @@ const FilePreview = (props: FilePreviewProps) => {
     }, []);
 
     function queryParams(): URLSearchParams {
-        return new URLSearchParams(props.location.search);
+        return new URLSearchParams(location.search);
     }
 
     function showContent() {
