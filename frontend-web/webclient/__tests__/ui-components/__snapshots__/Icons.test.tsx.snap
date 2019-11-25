@@ -1527,6 +1527,39 @@ Array [
 
 <span>
     <span>
+      fullscreen
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 500 500"
+      width={24}
+    >
+      <path
+        d="M10 10h190L10 200zM300 10l190 190V10zM200 490H10V300zM300 490l190-190v190z"
+        stroke="#000"
+        strokeWidth={20}
+      />
+      <path
+        d="M200 160l-40 40-80-80 40-40M300 160l40 40 80-80-40-40M160 300l40 40-80 80-40-40M340 300l-40 40 80 80 40-40"
+        stroke="#000"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
       grant
     </span>
     : 
