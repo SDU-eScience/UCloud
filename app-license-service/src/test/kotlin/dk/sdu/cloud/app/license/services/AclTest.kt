@@ -1,10 +1,6 @@
 package dk.sdu.cloud.app.license.services
 
-import dk.sdu.cloud.AccessRight
-import dk.sdu.cloud.app.license.services.acl.AclHibernateDao
-import dk.sdu.cloud.app.license.services.acl.AclService
-import dk.sdu.cloud.app.license.services.acl.EntityType
-import dk.sdu.cloud.app.license.services.acl.UserEntity
+import dk.sdu.cloud.app.license.services.acl.*
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -32,7 +28,8 @@ class AclTest {
         aclService = AclService(micro.hibernateDatabase, AclHibernateDao())
 
         micro.hibernateDatabase.withTransaction {
-            it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;").executeUpdate()
+            it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;")
+                .executeUpdate()
         }
     }
 
@@ -44,8 +41,8 @@ class AclTest {
         val instance = aclService.listAcl(serverId)
         assertEquals(0, instance.size)
 
-        assertFalse(aclService.hasPermission(serverId, user, AccessRight.READ_WRITE))
-        assertFalse(aclService.hasPermission(serverId, user, AccessRight.READ))
+        assertFalse(aclService.hasPermission(serverId, user, ServerAccessRight.READ_WRITE))
+        assertFalse(aclService.hasPermission(serverId, user, ServerAccessRight.READ))
     }
 
     @Test
@@ -53,10 +50,10 @@ class AclTest {
         val user = UserEntity("user", EntityType.USER)
         val serverId = "1234"
 
-        aclService.updatePermissions(serverId, user, AccessRight.READ)
-        assertTrue(aclService.hasPermission(serverId, user, AccessRight.READ))
+        aclService.updatePermissions(serverId, user, ServerAccessRight.READ)
+        assertTrue(aclService.hasPermission(serverId, user, ServerAccessRight.READ))
         aclService.revokePermission(serverId, user)
-        assertFalse(aclService.hasPermission(serverId, user, AccessRight.READ))
+        assertFalse(aclService.hasPermission(serverId, user, ServerAccessRight.READ))
     }
 
     @Test
@@ -67,25 +64,25 @@ class AclTest {
         val userEntity = UserEntity("user", EntityType.USER)
         val serverId = "1234"
 
-        assertFalse(aclService.hasPermission(serverId, userEntity, AccessRight.READ_WRITE))
+        assertFalse(aclService.hasPermission(serverId, userEntity, ServerAccessRight.READ_WRITE))
 
-        aclService.updatePermissions(serverId, userEntity, AccessRight.READ_WRITE)
+        aclService.updatePermissions(serverId, userEntity, ServerAccessRight.READ_WRITE)
 
-        assertTrue(aclService.hasPermission(serverId, userEntity, AccessRight.READ_WRITE))
+        assertTrue(aclService.hasPermission(serverId, userEntity, ServerAccessRight.READ_WRITE))
     }
 
     @Test
     fun `test root permissions`() = runBlocking {
         val entity = UserEntity("user", EntityType.USER)
 
-        assertFalse(aclService.hasPermission("/", entity, AccessRight.READ))
-        assertFalse(aclService.hasPermission("/", entity, AccessRight.READ_WRITE))
+        assertFalse(aclService.hasPermission("/", entity, ServerAccessRight.READ))
+        assertFalse(aclService.hasPermission("/", entity, ServerAccessRight.READ_WRITE))
 
-        assertFalse(aclService.hasPermission("/home", entity, AccessRight.READ))
-        assertFalse(aclService.hasPermission("/home", entity, AccessRight.READ_WRITE))
+        assertFalse(aclService.hasPermission("/home", entity, ServerAccessRight.READ))
+        assertFalse(aclService.hasPermission("/home", entity, ServerAccessRight.READ_WRITE))
 
-        assertFalse(aclService.hasPermission("/workspaces", entity, AccessRight.READ))
-        assertFalse(aclService.hasPermission("/workspaces", entity, AccessRight.READ_WRITE))
+        assertFalse(aclService.hasPermission("/workspaces", entity, ServerAccessRight.READ))
+        assertFalse(aclService.hasPermission("/workspaces", entity, ServerAccessRight.READ_WRITE))
     }
 
     @Test
@@ -95,14 +92,14 @@ class AclTest {
         val serverId = "1234"
 
         repeat(10) {
-            aclService.updatePermissions(serverId, user, AccessRight.READ_WRITE)
+            aclService.updatePermissions(serverId, user, ServerAccessRight.READ_WRITE)
         }
 
         val list = aclService.listAcl(serverId)
         assertThatPropertyEquals(list, { it.size }, 1)
         assertThatInstance(list) {
             val user = it.single()
-            user.permission == AccessRight.READ_WRITE && user.entity.id == "user"
+            user.permission == ServerAccessRight.READ_WRITE && user.entity.id == "user"
         }
     }
 }

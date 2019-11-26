@@ -1,9 +1,13 @@
 package dk.sdu.cloud.app.license.services.acl
-import dk.sdu.cloud.AccessRight
 
 enum class EntityType {
     USER,
     PROJECT_AND_GROUP
+}
+
+enum class ServerAccessRight {
+    READ,
+    READ_WRITE
 }
 
 data class UserEntity(
@@ -13,7 +17,7 @@ data class UserEntity(
 
 data class EntityWithPermission(
     val entity: UserEntity,
-    val permission: AccessRight
+    val permission: ServerAccessRight
 )
 
 interface AclDao<Session> {
@@ -21,14 +25,14 @@ interface AclDao<Session> {
         session: Session,
         serverId: String,
         entity: UserEntity,
-        permission: AccessRight
+        permission: ServerAccessRight
     ): Boolean
 
     fun updatePermissions(
         session: Session,
         serverId: String,
         entity: UserEntity,
-        permissions: AccessRight
+        permissions: ServerAccessRight
     )
 
     fun revokePermission(

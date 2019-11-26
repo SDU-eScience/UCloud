@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.license.services
 
-import dk.sdu.cloud.AccessRight
-import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.app.license.services.acl.ServerAccessRight
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.app.license.services.acl.UserEntity
@@ -9,7 +8,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
-import dk.sdu.cloud.calls.server.CallHandler
 import java.util.*
 
 class AppLicenseService<Session>(
@@ -18,7 +16,7 @@ class AppLicenseService<Session>(
     private val appLicenseDao: AppLicenseDao<Session>
 ) {
     fun getLicenseServer(serverId: String, entity: UserEntity) : LicenseServerEntity {
-        if (aclService.hasPermission(serverId, entity, AccessRight.READ)) {
+        if (aclService.hasPermission(serverId, entity, ServerAccessRight.READ)) {
             val licenseServer = db.withTransaction {
                 appLicenseDao.getById(it, serverId)
             }
@@ -33,7 +31,7 @@ class AppLicenseService<Session>(
     }
 
     fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
-        if (aclService.hasPermission(request.serverId, entity, AccessRight.READ_WRITE)) {
+        if (aclService.hasPermission(request.serverId, entity, ServerAccessRight.READ_WRITE)) {
             request.changes.forEach { change ->
                 if (change.revoke) {
                     aclService.revokePermission(request.serverId, change.entity)
@@ -60,7 +58,7 @@ class AppLicenseService<Session>(
         val serverId = UUID.randomUUID().toString()
 
         // Add rw permissions for the creator
-        aclService.updatePermissions(serverId, entity, AccessRight.READ_WRITE)
+        aclService.updatePermissions(serverId, entity, ServerAccessRight.READ_WRITE)
 
         db.withTransaction { session ->
             appLicenseDao.create(
@@ -84,7 +82,7 @@ class AppLicenseService<Session>(
     }
 
     fun updateLicenseServer(request: UpdateServerRequest, entity: UserEntity): String {
-        if (aclService.hasPermission(request.withId, entity, AccessRight.READ_WRITE)) {
+        if (aclService.hasPermission(request.withId, entity, ServerAccessRight.READ_WRITE)) {
             // Save information for existing license server
             db.withTransaction {
                 appLicenseDao.save(
@@ -107,7 +105,7 @@ class AppLicenseService<Session>(
     }
 
     fun addApplicationsToServer(request: AddApplicationsToServerRequest, entity: UserEntity) {
-        if (aclService.hasPermission(request.serverId, entity, AccessRight.READ_WRITE)) {
+        if (aclService.hasPermission(request.serverId, entity, ServerAccessRight.READ_WRITE)) {
             db.withTransaction {
                 request.applications.forEach { app ->
                     appLicenseDao.addApplicationToServer(it, app, request.serverId)

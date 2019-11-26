@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.license.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.app.license.services.acl.ServerAccessRight
 import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
@@ -55,7 +56,7 @@ data class UpdateAclRequest(
 
 data class ACLEntryRequest(
     val entity: UserEntity,
-    val rights: AccessRight,
+    val rights: ServerAccessRight,
     val revoke: Boolean = false
 )
 

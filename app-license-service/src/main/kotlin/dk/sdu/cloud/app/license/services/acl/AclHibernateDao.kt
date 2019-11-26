@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.license.services.acl
 
-import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.service.db.*
 import java.io.Serializable
 import javax.persistence.*
@@ -18,7 +17,7 @@ data class PermissionEntry(
         @get:Column(name = "entity") var userEntity: String,
         @get:Enumerated(EnumType.STRING) @Column(name = "entity_type") var entityType: EntityType,
         @get:Column(name = "server_id") var serverId: String,
-        @get:Enumerated(EnumType.STRING) var permission: AccessRight
+        @get:Enumerated(EnumType.STRING) var permission: ServerAccessRight
     ): Serializable
 }
 
@@ -28,25 +27,25 @@ class AclHibernateDao : AclDao<HibernateSession> {
         session: HibernateSession,
         serverId: String,
         accessEntity: UserEntity,
-        permission: AccessRight
+        permission: ServerAccessRight
     ): Boolean {
         return when (permission) {
-            AccessRight.READ -> {
+            ServerAccessRight.READ -> {
                 session.criteria<PermissionEntry>{
                     allOf(
                         (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id) and
                             (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
-                            ((entity[PermissionEntry::key][PermissionEntry.Key::permission] equal AccessRight.READ) or
-                                    (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal AccessRight.READ_WRITE))
+                            ((entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ) or
+                                    (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE))
                     )
                 }.list().isNotEmpty()
             }
-            AccessRight.READ_WRITE -> {
+            ServerAccessRight.READ_WRITE -> {
                 session.criteria<PermissionEntry> {
                     allOf(
                         (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id) and
                                 (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
-                                (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal AccessRight.READ_WRITE)
+                                (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
                     )
                 }.list().isNotEmpty()
             }
@@ -57,7 +56,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
         session: HibernateSession,
         serverId: String,
         userEntity: UserEntity,
-        permissions: AccessRight
+        permissions: ServerAccessRight
     ) {
         val permissionEntry = PermissionEntry(
             PermissionEntry.Key(
