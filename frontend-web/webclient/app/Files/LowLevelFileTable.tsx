@@ -1,6 +1,7 @@
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
+import {format} from "date-fns/esm";
 import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
 import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
@@ -19,40 +20,35 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
-import {Button, Icon, Input, Label, OutlineButton, Text, Tooltip, Truncate, List} from "ui-components";
+import {Button, Icon, List, OutlineButton, Text, Tooltip, Input} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
-import Checkbox from "ui-components/Checkbox";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import Divider from "ui-components/Divider";
 import Flex from "ui-components/Flex";
 import * as Heading from "ui-components/Heading";
 import {IconName} from "ui-components/Icon";
 import {Spacer} from "ui-components/Spacer";
-import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
 import Theme from "ui-components/theme";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {Upload} from "Uploader";
 import {appendUpload, setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {
-    createFolder, favoriteFile,
+    createFolder,
     getFilenameFromPath,
     getParentPath,
-    isAnyMockFile, isAnySharedFs,
     isDirectory,
     isInvalidPathName,
     mergeFilePages, MOCK_RELATIVE,
     MOCK_RENAME_TAG,
     mockFile,
     moveFile,
-    replaceHomeFolder,
     resolvePath,
     sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {Arrow, FileIcon, addStandardDialog} from "UtilityComponents";
+import {addStandardDialog, Arrow, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 
 export interface LowLevelFileTableProps {
@@ -596,21 +592,25 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                             right={(
                                 <Flex mt="5px">
                                     <SensitivityIcon sensitivity={f.sensitivityLevel} />
-                                    <ClickableDropdown
-                                        width="175px"
-                                        left="-160px"
-                                        trigger={<Icon name="ellipsis" size="1em" rotation={90} />}
-                                    >
-                                        <FileOperations
-                                            files={[f]}
-                                            fileOperations={fileOperations}
-                                            inDropdown
-                                            ml="-17px"
-                                            mr="-17px"
-                                            pl="15px"
-                                            callback={callbacks}
-                                        />
-                                    </ClickableDropdown>
+                                    <Box mt="4px">
+                                        <ClickableDropdown
+                                            width="175px"
+                                            left="-160px"
+                                            trigger={
+                                                <Icon ml="10px" mr="10px" name="ellipsis" size="1em" rotation={90} />
+                                            }
+                                        >
+                                            <FileOperations
+                                                files={[f]}
+                                                fileOperations={fileOperations}
+                                                inDropdown
+                                                ml="-17px"
+                                                mr="-17px"
+                                                pl="15px"
+                                                callback={callbacks}
+                                            />
+                                        </ClickableDropdown>
+                                    </Box>
                                 </Flex>
                             )}
                         />
@@ -687,7 +687,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const canNavigate = isDirectory({fileType: props.file.fileType});
 
     const icon = (
-        <Box mr="10px" cursor="inherit">
+        <Box mr="10px" mt="4px" mb="4px" cursor="inherit">
             <FileIcon
                 fileIcon={UF.iconFromFilePath(props.file.path, props.file.fileType, Client.homeFolder)}
                 size={38}
@@ -696,32 +696,63 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         </Box>
     );
 
+    const beingRenamed = props.file.fileId !== null && props.file.fileId === props.fileBeingRenamed;
+    const fileName = beingRenamed ? (
+        <Input
+            placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+            defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+            pt="0px"
+            pb="0px"
+            pr="0px"
+            pl="0px"
+            noBorder
+            maxLength={1024}
+            borderRadius="0px"
+            type="text"
+            width="100%"
+            autoFocus
+            data-tag="renameField"
+            onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
+        />
+    ) : <Text mb="-4px" fontSize={20}>{getFilenameFromPath(props.file.path)}</Text>;
+
     return (
         <Flex>
             <Box mx="10px" mt="9px">
                 <Icon
+                    size="18"
                     name={favorite ? "starFilled" : "starEmpty"}
                     color={favorite ? "blue" : "gray"}
                     hoverColor="blue"
                 />
             </Box>
             {icon}
-            <Box>
-                {canNavigate ? (
+            <Box mt="2px">
+                {canNavigate && !beingRenamed ? (
                     <BaseLink
                         onClick={e => {
                             e.preventDefault();
                             props.onNavigate(resolvePath(props.file.path));
                         }}
                     >
-                        {getFilenameFromPath(props.file.path)}
+                        {fileName}
                     </BaseLink>
-                ) : getFilenameFromPath(props.file.path)}
+                ) : fileName}
                 <Flex>
-                    {props.file.size ? <Text fontSize={1} mr="12px" color="gray">{sizeToString(props.file.size!)}</Text> : null}
-                    {props.file.acl?.length ? <Text fontSize={1} mr="12px" color="gray">{props.file.acl}</Text> : null}
-                    {props.file.modifiedAt ? <Text fontSize={1} mr="12px" color="gray">{new Date(props.file.modifiedAt).toLocaleTimeString()}</Text> : null}
-                    {props.file.createdAt ? <Text fontSize={1} mr="12px" color="gray">{new Date(props.file.createdAt).toLocaleTimeString()}</Text> : null}
+                    {!props.file.size ? null : (
+                        <Text fontSize={0} title="Size" mr="12px" color="gray">{sizeToString(props.file.size)}</Text>
+                    )}
+                    {!props.file.modifiedAt ? null : (
+                        <Text title="Modified at" fontSize={0} mr="12px" color="gray">
+                            <Icon size="10" mr="3px" name="edit" />
+                            {format(props.file.modifiedAt, "HH:mm:SS dd/MM/yyyy")}
+                        </Text>
+                    )}
+                    {!props.file.createdAt ? null : (
+                        <Text title="Created at" fontSize={0} mr="12px" color="gray">
+                            <Icon size="10" mr="3px" name="copy" />{format(props.file.createdAt, "HH:mm:SS dd/MM/yyyy")}
+                        </Text>
+                    )}
                 </Flex>
             </Box>
         </Flex>
@@ -757,15 +788,15 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
 };
 
 const SensitivityBadge = styled.div<{bg: string}>`
-                                content: '';
-                                height: 2em;
-                                width: 2em;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
+    content: '';
+    height: 2em;
+    width: 2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: 0.2em solid ${props => props.bg};
-                            border-radius: 100%;
-                        `;
+    border-radius: 100%;
+`;
 
 interface FileOperations extends SpaceProps {
     files: File[];
