@@ -115,9 +115,9 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         session: HibernateSession,
         application: Application,
         userEntity: UserEntity
-    ): List<LicenseServerEntity>? {
+    ): List<ApplicationLicenseServer>? {
 
-        val query = session.createNativeQuery<LicenseServerEntity>(
+        return session.createNativeQuery<LicenseServerEntity>(
             """
             SELECT LS.id, LS.name, LS.version, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
             INNER JOIN application_license_servers
@@ -137,9 +137,9 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
             it.setParameter("appVersion", application.version)
             it.setParameter("entityId", userEntity.id)
             it.setParameter("entityType", userEntity.type.toString())
+        }.list().map { entity ->
+            entity.toModel()
         }
-
-        return query.list()
     }
 
     override fun save(session: HibernateSession, appLicenseServer: ApplicationLicenseServer, withId: String) {

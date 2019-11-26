@@ -18,7 +18,7 @@ data class PermissionEntry(
         @get:Enumerated(EnumType.STRING) @Column(name = "entity_type") var entityType: EntityType,
         @get:Column(name = "server_id") var serverId: String,
         @get:Enumerated(EnumType.STRING) var permission: ServerAccessRight
-    ): Serializable
+    ) : Serializable
 }
 
 
@@ -31,21 +31,21 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ): Boolean {
         return when (permission) {
             ServerAccessRight.READ -> {
-                session.criteria<PermissionEntry>{
+                session.criteria<PermissionEntry> {
                     allOf(
                         (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id) and
-                            (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
-                            ((entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ) or
-                                    (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE))
+                                (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
+                                ((entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ) or
+                                        (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE))
                     )
                 }.list().isNotEmpty()
             }
             ServerAccessRight.READ_WRITE -> {
                 session.criteria<PermissionEntry> {
                     allOf(
-                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id) and
-                                (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
-                                (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
+                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id),
+                        (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type),
+                        (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
                     )
                 }.list().isNotEmpty()
             }

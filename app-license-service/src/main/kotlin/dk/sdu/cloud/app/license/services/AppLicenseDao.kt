@@ -33,7 +33,7 @@ interface AppLicenseDao<Session> {
         session: Session,
         application: Application,
         entity: UserEntity
-    ) : List<LicenseServerEntity>?
+    ) : List<ApplicationLicenseServer>?
 
     fun save(
         session: Session,

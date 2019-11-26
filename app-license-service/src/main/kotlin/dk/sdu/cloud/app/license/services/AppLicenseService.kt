@@ -1,9 +1,7 @@
 package dk.sdu.cloud.app.license.services
 
-import dk.sdu.cloud.app.license.services.acl.ServerAccessRight
 import dk.sdu.cloud.app.license.api.*
-import dk.sdu.cloud.app.license.services.acl.AclService
-import dk.sdu.cloud.app.license.services.acl.UserEntity
+import dk.sdu.cloud.app.license.services.acl.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -12,20 +10,16 @@ import java.util.*
 
 class AppLicenseService<Session>(
     private val db: DBSessionFactory<Session>,
-    private val aclService: AclService<*>,
+    private val aclService: AclService<Session>,
     private val appLicenseDao: AppLicenseDao<Session>
 ) {
     fun getLicenseServer(serverId: String, entity: UserEntity): LicenseServerEntity {
         if (aclService.hasPermission(serverId, entity, ServerAccessRight.READ)) {
             val licenseServer = db.withTransaction { session ->
                 appLicenseDao.getById(session, serverId)
-            }
+            }?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            if (licenseServer == null) {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            } else {
-                return licenseServer
-            }
+            return licenseServer
         }
         throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
     }
@@ -50,17 +44,18 @@ class AppLicenseService<Session>(
                 session,
                 application,
                 entity
-            )?.map { it.toModel() }.orEmpty()
-        }
+            )
+        }?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
     fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
         val serverId = UUID.randomUUID().toString()
 
         // Add rw permissions for the creator
-        aclService.updatePermissions(serverId, entity, ServerAccessRight.READ_WRITE)
 
         db.withTransaction { session ->
+            aclService.updatePermissionsWithSession(session, serverId, entity, ServerAccessRight.READ_WRITE)
+            
             appLicenseDao.create(
                 session,
                 serverId,

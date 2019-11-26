@@ -14,9 +14,13 @@ class AclService<Session>(
     }
 
     fun updatePermissions(serverId: String, entity: UserEntity, permissions: ServerAccessRight) {
-        db.withTransaction {
-            dao.updatePermissions(it, serverId, entity, permissions)
+        db.withTransaction { session ->
+            updatePermissionsWithSession(session, serverId, entity, permissions)
         }
+    }
+
+    fun updatePermissionsWithSession(session: Session, serverId: String, entity: UserEntity, permissions: ServerAccessRight) {
+        dao.updatePermissions(session, serverId, entity, permissions)
     }
 
     fun listAcl(serverId: String): List<EntityWithPermission> {
