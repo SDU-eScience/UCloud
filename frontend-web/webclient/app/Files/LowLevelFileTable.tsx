@@ -45,7 +45,10 @@ import {
     mockFile,
     moveFile,
     resolvePath,
-    sizeToString
+    sizeToString,
+    isAnyMockFile,
+    isAnySharedFs,
+    favoriteFile
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, Arrow, FileIcon} from "UtilityComponents";
@@ -732,12 +735,25 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     return (
         <Flex>
             <Box mx="10px" mt="9px">
-                <Icon
-                    size="24"
-                    name={favorite ? "starFilled" : "starEmpty"}
-                    color={favorite ? "blue" : "gray"}
-                    hoverColor="blue"
-                />
+                {isAnyMockFile([props.file]) || isAnySharedFs([props.file]) ? <Box width="24px" /> : (
+                    <Icon
+                        size="24"
+                        name={favorite ? "starFilled" : "starEmpty"}
+                        color={favorite ? "blue" : "gray"}
+                        onClick={() => {
+                            props.callbacks.invokeAsyncWork(async () => {
+                                const initialValue = favorite;
+                                setFavorite(!initialValue);
+                                try {
+                                    await favoriteFile(props.file, Client);
+                                } catch (e) {
+                                    setFavorite(initialValue);
+                                }
+                            });
+                        }}
+                        hoverColor="blue"
+                    />
+                )}
             </Box>
             {icon}
             <Box width="100%" mt="2px">
