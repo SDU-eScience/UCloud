@@ -15,10 +15,10 @@ class AppLicenseService<Session>(
     private val aclService: AclService<*>,
     private val appLicenseDao: AppLicenseDao<Session>
 ) {
-    fun getLicenseServer(serverId: String, entity: UserEntity) : LicenseServerEntity {
+    fun getLicenseServer(serverId: String, entity: UserEntity): LicenseServerEntity {
         if (aclService.hasPermission(serverId, entity, ServerAccessRight.READ)) {
-            val licenseServer = db.withTransaction {
-                appLicenseDao.getById(it, serverId)
+            val licenseServer = db.withTransaction { session ->
+                appLicenseDao.getById(session, serverId)
             }
 
             if (licenseServer == null) {
@@ -44,8 +44,8 @@ class AppLicenseService<Session>(
         }
     }
 
-    fun listServers(application: Application, entity: UserEntity) : List<ApplicationLicenseServer> {
-        return db.withTransaction {session ->
+    fun listServers(application: Application, entity: UserEntity): List<ApplicationLicenseServer> {
+        return db.withTransaction { session ->
             appLicenseDao.list(
                 session,
                 application,
@@ -73,7 +73,7 @@ class AppLicenseService<Session>(
                 )
             )
 
-            request.applications?.forEach {app ->
+            request.applications?.forEach { app ->
                 // Add applications to the license server
                 appLicenseDao.addApplicationToServer(session, app, serverId)
             }
@@ -84,9 +84,9 @@ class AppLicenseService<Session>(
     fun updateLicenseServer(request: UpdateServerRequest, entity: UserEntity): String {
         if (aclService.hasPermission(request.withId, entity, ServerAccessRight.READ_WRITE)) {
             // Save information for existing license server
-            db.withTransaction {
+            db.withTransaction { session ->
                 appLicenseDao.save(
-                    it,
+                    session,
                     ApplicationLicenseServer(
                         request.name,
                         request.version,
@@ -106,9 +106,9 @@ class AppLicenseService<Session>(
 
     fun addApplicationsToServer(request: AddApplicationsToServerRequest, entity: UserEntity) {
         if (aclService.hasPermission(request.serverId, entity, ServerAccessRight.READ_WRITE)) {
-            db.withTransaction {
+            db.withTransaction { session ->
                 request.applications.forEach { app ->
-                    appLicenseDao.addApplicationToServer(it, app, request.serverId)
+                    appLicenseDao.addApplicationToServer(session, app, request.serverId)
                 }
             }
         } else {
