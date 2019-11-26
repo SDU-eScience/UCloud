@@ -19,7 +19,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
-import {Button, Icon, Input, Label, OutlineButton, Text, Tooltip, Truncate} from "ui-components";
+import {Button, Icon, Input, Label, OutlineButton, Text, Tooltip, Truncate, List} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
@@ -48,7 +48,8 @@ import {
     mockFile,
     moveFile,
     replaceHomeFolder,
-    resolvePath
+    resolvePath,
+    sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Arrow, FileIcon, addStandardDialog} from "UtilityComponents";
@@ -576,231 +577,47 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
         />
     );
 
-    function pageRenderer() {
+    function pageRenderer(page: Page<File>) {
         return (
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <FileTableHeaderCell notSticky={isEmbedded} textAlign="left" width="99%">
-                            <Flex
-                                alignItems="center"
-                                onClick={() => setSorting(SortBy.PATH, invertSortOrder(order))}
-                            >
-                                <Box mx="9px" onClick={UF.stopPropagation}>
-                                    {isEmbedded ? null : (
-                                        <Label>
-                                            <Checkbox
-                                                data-tag="masterCheckbox"
-                                                onClick={() => setChecked(allFiles, !isMasterChecked)}
-                                                checked={isMasterChecked}
-                                                disabled={isMasterDisabled}
-                                                onChange={UF.stopPropagation}
-                                            />
-                                        </Label>
-                                    )}
-                                </Box>
-                                {sortingIcon(SortBy.PATH)}
-                                <Box cursor="pointer">Filename</Box>
-                            </Flex>
-                        </FileTableHeaderCell>
-                        <FileTableHeaderCell notSticky={isEmbedded} width="3em">
-                            <Flex />
-                        </FileTableHeaderCell>
-
-                        {/* Sorting columns (in header) */}
-                        {sortByColumns.filter(it => it != null).map((column, i) => {
-                            if (i >= numberOfColumns) return null;
-
-                            const isSortedBy = sortBy === column;
-
-                            return (
-                                <FileTableHeaderCell key={i} notSticky={isEmbedded} width="10rem">
-                                    <Flex
-                                        alignItems="center"
-                                        cursor="pointer"
-                                        justifyContent="left"
-                                    >
-                                        <Box onClick={() => setSorting(column, invertSortOrder(order), i)}>
-                                            {sortingIcon(column)}
-                                        </Box>
-                                        {!sortingSupported ?
-                                            <>{UF.sortByToPrettierString(column)}</>
-                                            : (
-                                                <ClickableDropdown
-                                                    trigger={<TextSpan>{UF.sortByToPrettierString(column)}</TextSpan>}
-                                                    chevron
-                                                >
-                                                    <Box
-                                                        ml="-16px"
-                                                        mr="-16px"
-                                                        pl="15px"
-                                                        hidden={(order === SortOrder.ASCENDING && isSortedBy) ||
-                                                            column === SortBy.ACL}
-                                                        onClick={() => setSorting(column, SortOrder.ASCENDING, i)}
-                                                    >
-                                                        {UF.prettierString(SortOrder.ASCENDING)}
-                                                    </Box>
-                                                    <Box
-                                                        ml="-16px"
-                                                        mr="-16px"
-                                                        pl="15px"
-                                                        onClick={() => setSorting(column, SortOrder.DESCENDING, i)}
-                                                        hidden={(order === SortOrder.DESCENDING && isSortedBy) ||
-                                                            column === SortBy.ACL}
-                                                    >
-                                                        {UF.prettierString(SortOrder.DESCENDING)}
-                                                    </Box>
-                                                    <Divider ml="-16px" mr="-16px" />
-                                                    {Object.values(SortBy).map((sortByKey: SortBy, j) => (
-                                                        <Box
-                                                            ml="-16px"
-                                                            mr="-16px"
-                                                            pl="15px"
-                                                            key={j}
-                                                            onClick={() => setSorting(sortByKey, order, i)}
-                                                            hidden={sortByKey === sortBy || sortByKey === SortBy.PATH}
-                                                        >
-                                                            {UF.sortByToPrettierString(sortByKey)}
-                                                        </Box>
-                                                    ))}
-                                                </ClickableDropdown>
-                                            )
-                                        }
-                                    </Flex>
-                                </FileTableHeaderCell>
-                            );
-                        })}
-
-                        {/* Launch cell (adds a bit of spacing and hosts options in rows) */}
-                        {props.omitQuickLaunch ? null : (
-                            <FileTableHeaderCell
-                                notSticky={isEmbedded}
-
-                                // TODO This is not correct. We had some custom code before. This should be ported.
-                                width="3em"
-                            >
-                                <Flex />
-                            </FileTableHeaderCell>
-                        )}
-
-                        {/* Options cell (adds a bit of spacing and hosts options in rows) */}
-                        <FileTableHeaderCell
-                            notSticky={isEmbedded}
-
-                            // TODO This is not correct. We had some custom code before. This should be ported.
-                            width="3em"
-                        >
-                            <Flex />
-                        </FileTableHeaderCell>
-                    </TableRow>
-                </TableHeader>
-                <tbody>
-                    {allFiles.map(file => (
-                        <TableRow
-                            highlighted={checkedFiles.has(file.fileId!) && file.mockTag === undefined}
-                            key={file.fileId!}
-                            data-tag="fileRow"
-                        >
-                            <TableCell>
-                                {/* This cell contains: [Checkbox|Icon|Name|Favorite] */}
-                                <Flex flexDirection="row" alignItems="center" mx="9px">
-                                    {isEmbedded ? null : (
-                                        <div>
-                                            <Label>
-                                                <Checkbox
-                                                    disabled={file.mockTag !== undefined}
-                                                    checked={checkedFiles.has(file.fileId!) &&
-                                                        file.mockTag === undefined}
-                                                    onChange={UF.stopPropagation}
-                                                    onClick={() => setChecked([file])}
-                                                />
-                                            </Label>
-                                        </div>
-                                    )}
-                                    <Box ml="5px" pr="5px" />
-                                    <NameBox
-                                        file={file}
-                                        onRenameFile={onRenameFile}
-                                        onNavigate={onFileNavigation}
-                                        callbacks={callbacks}
-                                        fileBeingRenamed={fileBeingRenamed}
-                                    />
-                                </Flex>
-                            </TableCell>
-
-                            <TableCell>
-                                {/* Sensitivity icon */}
-                                <SensitivityIcon sensitivity={file.sensitivityLevel} />
-                            </TableCell>
-
-                            {sortByColumns.filter(it => it != null).map((sC, i) => {
-                                if (i >= numberOfColumns) return null;
-                                // Sorting columns
-                                return (
-                                    <TableCell key={i}>
-                                        {sC ? UF.sortingColumnToValue(sC, file) : null}
-                                    </TableCell>
-                                );
-                            })}
-
-                            {props.omitQuickLaunch ? null : (
-                                <TableCell textAlign="center">
-                                    {/* Launch cell */}
-                                    {checkedFiles.size > 0 || file.fileType !== "FILE" ||
-                                        (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
-                                        (!applications.has(file.path) || applications.get(file.path)!.length < 1) ?
-                                            null : (
-                                                <ClickableDropdown
-                                                    width="175px"
-                                                    left="-160px"
-                                                    trigger={<Icon name="play" size="1em" />}
-                                                >
-                                                    <QuickLaunchApps
-                                                        file={file}
-                                                        applications={applications.get(file.path)}
-                                                        history={history}
-                                                        ml="-17px"
-                                                        mr="-17px"
-                                                        pl="15px"
-                                                    />
-                                                </ClickableDropdown>
-                                            )}
-                                </TableCell>
+            <List>
+                {page.items.map(f => (
+                    <Flex width="100%" key={f.path}>
+                        <Spacer
+                            width="100%"
+                            left={(
+                                <NameBox
+                                    file={f}
+                                    onRenameFile={onRenameFile}
+                                    onNavigate={onFileNavigation}
+                                    callbacks={callbacks}
+                                    fileBeingRenamed={fileBeingRenamed}
+                                />
                             )}
+                            right={(
+                                <Flex mt="5px">
+                                    <SensitivityIcon sensitivity={f.sensitivityLevel} />
+                                    <ClickableDropdown
+                                        width="175px"
+                                        left="-160px"
+                                        trigger={<Icon name="ellipsis" size="1em" rotation={90} />}
+                                    >
+                                        <FileOperations
+                                            files={[f]}
+                                            fileOperations={fileOperations}
+                                            inDropdown
+                                            ml="-17px"
+                                            mr="-17px"
+                                            pl="15px"
+                                            callback={callbacks}
+                                        />
+                                    </ClickableDropdown>
+                                </Flex>
+                            )}
+                        />
+                    </Flex>
+                ))}
+            </List>
 
-                            <TableCell textAlign="center">
-                                {/* Options cell */}
-                                {
-                                    checkedFiles.size > 0 ||
-                                        (file.mockTag !== undefined && file.mockTag !== MOCK_RELATIVE) ? null :
-                                        fileOperations.length > 1 ? (
-                                            <ClickableDropdown
-                                                width="175px"
-                                                left="-160px"
-                                                trigger={<Icon name="ellipsis" size="1em" rotation={90} />}
-                                            >
-                                                <FileOperations
-                                                    files={[file]}
-                                                    fileOperations={fileOperations}
-                                                    inDropdown
-                                                    ml="-17px"
-                                                    mr="-17px"
-                                                    pl="15px"
-                                                    callback={callbacks}
-                                                />
-                                            </ClickableDropdown>
-                                        ) : (
-                                                <FileOperations
-                                                    files={[file]}
-                                                    fileOperations={fileOperations}
-                                                    callback={callbacks}
-                                                />
-                                            )}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </tbody>
-            </Table>
         );
     }
 };
@@ -879,106 +696,37 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         </Box>
     );
 
-    if (props.file.fileId !== null && props.file.fileId === props.fileBeingRenamed) {
-        return (
-            <>
-                {icon}
-
-                <Input
-                    placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
-                    defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
-                    p="0"
-                    noBorder
-                    maxLength={1024}
-                    borderRadius="0px"
-                    type="text"
-                    width="100%"
-                    autoFocus
-                    data-tag="renameField"
-                    onKeyDown={e => {
-                        if (!!props.onRenameFile) props.onRenameFile(e.keyCode, (e.target as HTMLInputElement).value);
-                    }}
-                />
-
+    return (
+        <Flex>
+            <Box mx="10px" mt="9px">
                 <Icon
-                    size="1em"
-                    color="red"
-                    ml="9px"
-                    name="close"
-                    onClick={() => {
-                        if (!!props.onRenameFile) props.onRenameFile(KeyCode.ESC, "");
-                    }}
+                    name={favorite ? "starFilled" : "starEmpty"}
+                    color={favorite ? "blue" : "gray"}
+                    hoverColor="blue"
                 />
-            </>
-        );
-    } else {
-        const nameComponent = (
-            <Flex alignItems="center">
-                {icon}
-
-                <Truncate
-                    cursor={canNavigate ? "pointer" : undefined}
-                    mr="5px"
-                >
-                    {getFilenameFromPath(props.file.path)}
-                </Truncate>
-            </Flex>
-        );
-
-        return (
-            <>
-                <Flex data-tag="fileName" flex="0 1 auto" minWidth="0"> {/* Prevent name overflow */}
-                    <Box title={replaceHomeFolder(props.file.path, Client.homeFolder)} width="100%">
-                        {props.file.fileType !== "DIRECTORY" ? nameComponent : (
-                            <BaseLink
-                                href="#"
-                                onClick={e => {
-                                    e.preventDefault();
-                                    props.onNavigate(resolvePath(props.file.path));
-                                }}
-                            >
-                                {nameComponent}
-                            </BaseLink>
-                        )
-                        }
-                    </Box>
-                </Flex>
-
-                {isAnyMockFile([props.file]) || isAnySharedFs([props.file]) ? null : (
-                    <Icon
-                        data-tag="fileFavorite"
-                        size="1em"
-                        ml=".7em"
-                        color={favorite ? "blue" : "gray"}
-                        name={favorite ? "starFilled" : "starEmpty"}
-                        onClick={() => {
-                            props.callbacks.invokeAsyncWork(async () => {
-                                const initialValue = favorite;
-                                setFavorite(!initialValue);
-                                try {
-                                    await favoriteFile(props.file, Client);
-                                } catch (e) {
-                                    setFavorite(initialValue);
-                                }
-                            });
+            </Box>
+            {icon}
+            <Box>
+                {canNavigate ? (
+                    <BaseLink
+                        onClick={e => {
+                            e.preventDefault();
+                            props.onNavigate(resolvePath(props.file.path));
                         }}
-                        hoverColor="blue"
-                    />
-                )}
-            </>
-        );
-    }
+                    >
+                        {getFilenameFromPath(props.file.path)}
+                    </BaseLink>
+                ) : getFilenameFromPath(props.file.path)}
+                <Flex>
+                    {props.file.size ? <Text fontSize={1} mr="12px" color="gray">{sizeToString(props.file.size!)}</Text> : null}
+                    {props.file.acl?.length ? <Text fontSize={1} mr="12px" color="gray">{props.file.acl}</Text> : null}
+                    {props.file.modifiedAt ? <Text fontSize={1} mr="12px" color="gray">{new Date(props.file.modifiedAt).toLocaleTimeString()}</Text> : null}
+                    {props.file.createdAt ? <Text fontSize={1} mr="12px" color="gray">{new Date(props.file.createdAt).toLocaleTimeString()}</Text> : null}
+                </Flex>
+            </Box>
+        </Flex>
+    );
 };
-
-const setNotSticky = ({notSticky}: {notSticky?: boolean}): {position: "sticky"} | null =>
-    notSticky ? null : {position: "sticky"};
-
-const FileTableHeaderCell = styled(TableHeaderCell) <{notSticky?: boolean}>`
-    background-color: ${p => p.theme.colors.white};
-    top: 144px; //topmenu + header size
-    z-index: 10;
-    ${setNotSticky}
-`;
 
 const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
     interface IconDef {
@@ -1009,15 +757,15 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
 };
 
 const SensitivityBadge = styled.div<{bg: string}>`
-    content: '';
-    height: 2em;
-    width: 2em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+                                content: '';
+                                height: 2em;
+                                width: 2em;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
     border: 0.2em solid ${props => props.bg};
-    border-radius: 100%;
-`;
+                            border-radius: 100%;
+                        `;
 
 interface FileOperations extends SpaceProps {
     files: File[];

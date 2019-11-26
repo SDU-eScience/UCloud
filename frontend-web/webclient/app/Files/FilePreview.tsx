@@ -78,7 +78,8 @@ const FilePreview = (props: FilePreviewProps) => {
     }
 
     function showContent() {
-        if (showDownloadButton) {
+        if (error) return null;
+        else if (showDownloadButton) {
             return (
                 <Button mt="10px" onClick={() => downloadFiles([{path: filepath()}], () => undefined, Client)}>
                     Download file
