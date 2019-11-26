@@ -10,6 +10,7 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.calls.server.CallHandler
+import java.util.*
 
 class AppLicenseService<Session>(
     private val db: DBSessionFactory<Session>,
@@ -46,9 +47,9 @@ class AppLicenseService<Session>(
     }
 
     fun listServers(application: Application, entity: UserEntity) : List<ApplicationLicenseServer> {
-        return db.withTransaction {
+        return db.withTransaction {session ->
             appLicenseDao.list(
-                it,
+                session,
                 application,
                 entity
             )?.map { it.toModel() }.orEmpty()
@@ -56,14 +57,15 @@ class AppLicenseService<Session>(
     }
 
     fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
-        var licenseId = ""
+        val serverId = UUID.randomUUID().toString()
 
         // Add rw permissions for the creator
-        aclService.updatePermissions(licenseId, entity, AccessRight.READ_WRITE)
+        aclService.updatePermissions(serverId, entity, AccessRight.READ_WRITE)
 
-        db.withTransaction {
-            licenseId = appLicenseDao.create(
-                it,
+        db.withTransaction { session ->
+            appLicenseDao.create(
+                session,
+                serverId,
                 ApplicationLicenseServer(
                     request.name,
                     request.version,
@@ -72,15 +74,13 @@ class AppLicenseService<Session>(
                     request.license
                 )
             )
-        }
 
-        db.withTransaction {
             request.applications?.forEach {app ->
-            // Add applications to the license server
-                appLicenseDao.addApplicationToServer(it, app, licenseId)
+                // Add applications to the license server
+                appLicenseDao.addApplicationToServer(session, app, serverId)
             }
         }
-        return licenseId
+        return serverId
     }
 
     fun updateLicenseServer(request: UpdateServerRequest, entity: UserEntity): String {

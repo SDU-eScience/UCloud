@@ -13,8 +13,9 @@ interface AppLicenseDao<Session> {
 
     fun create(
         session: Session,
+        serverId: String,
         appLicenseServer: ApplicationLicenseServer
-    ) : String
+    )
 
     fun addApplicationToServer(
         session: Session,

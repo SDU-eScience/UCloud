@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.app.license.api.Application
 import dk.sdu.cloud.app.license.api.ApplicationLicenseServer
+import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.app.license.services.acl.PermissionEntry
 import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.service.db.*
@@ -62,10 +63,9 @@ class ApplicationLicenseServerEntity(
 
 class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
 
-    override fun create(session: HibernateSession, appLicenseServer: ApplicationLicenseServer): String {
-        val newId = UUID.randomUUID().toString()
+    override fun create(session: HibernateSession, serverId: String, appLicenseServer: ApplicationLicenseServer) {
         val licenseServer = LicenseServerEntity(
-            newId,
+            serverId,
             appLicenseServer.name,
             appLicenseServer.version,
             appLicenseServer.address,
@@ -73,10 +73,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
             appLicenseServer.license
         )
 
-
         session.save(licenseServer)
-
-        return newId
     }
 
     override fun addApplicationToServer(
@@ -120,20 +117,26 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         userEntity: UserEntity
     ): List<LicenseServerEntity>? {
 
-        val serverSize = session.createNativeQuery("SELECT * FROM license_servers").list().size
-        val relSize = session.createNativeQuery("SELECT * FROM application_license_servers").list().size
-
         val query = session.createNativeQuery<LicenseServerEntity>(
             """
-            SELECT * FROM license_servers
+            SELECT LS.id, LS.name, LS.version, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
             INNER JOIN application_license_servers
-            ON license_servers.id = application_license_servers.license_server
+              ON LS.id = application_license_servers.license_server       
+            INNER JOIN permissions
+              ON LS.id = permissions.server_id
             WHERE
-              app_name = :appName AND app_version = :appVersion 
+              application_license_servers.app_name = :appName
+    	      AND application_license_servers.app_version = :appVersion
+              AND permissions.entity = :entityId
+              AND permissions.entity_type = :entityType
+              AND (permissions.permission = 'READ_WRITE'
+    		    OR permissions.permission = 'READ')
         """.trimIndent(), LicenseServerEntity::class.java
         ).also {
             it.setParameter("appName", application.name)
             it.setParameter("appVersion", application.version)
+            it.setParameter("entityId", userEntity.id)
+            it.setParameter("entityType", userEntity.type.toString())
         }
 
         return query.list()

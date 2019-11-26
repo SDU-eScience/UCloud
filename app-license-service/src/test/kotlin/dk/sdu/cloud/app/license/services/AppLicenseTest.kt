@@ -130,7 +130,6 @@ class AppLicenseTest {
     @Test
     fun `save multiple and list`() = runBlocking {
         val user = UserEntity("user", EntityType.USER)
-        val user2 = UserEntity("user2", EntityType.USER)
 
         val appList1 = listOf(
             Application("app1", "1.0.0"),
@@ -175,17 +174,17 @@ class AppLicenseTest {
         )
 
         val serverListApp1 = appLicenseService.listServers(Application("app1", "1.0.0"), user)
-        assertEquals(1, serverListApp1?.size)
-        assertTrue(serverListApp1?.map { it.name }!!.contains("testName"))
+        assertEquals(1, serverListApp1.size)
+        assertTrue(serverListApp1.map { it.name }.contains("testName"))
 
         val serverListApp2 = appLicenseService.listServers(Application("app2", "1.0.1"), user)
         assertEquals(2, serverListApp2?.size)
-        assertTrue(serverListApp2?.map { it.name }!!.contains("testName"))
-        assertTrue(serverListApp2?.map { it.name }!!.contains("testName2"))
+        assertTrue(serverListApp2.map { it.name }.contains("testName"))
+        assertTrue(serverListApp2.map { it.name }.contains("testName2"))
 
         val serverListApp3 = appLicenseService.listServers(Application("app3", "1.0.1"), user)
-        assertEquals(1, serverListApp3?.size)
-        assertTrue(serverListApp3?.map { it.name }!!.contains("testName"))
+        assertEquals(1, serverListApp3.size)
+        assertTrue(serverListApp3.map { it.name }.contains("testName"))
 
     }
 }
