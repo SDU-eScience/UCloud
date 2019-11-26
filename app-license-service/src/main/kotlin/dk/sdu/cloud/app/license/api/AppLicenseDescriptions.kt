@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.license.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.license.services.acl.ServerAccessRight
 import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.calls.CallDescriptionContainer
@@ -65,6 +66,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val get = call<LicenseServerRequest, ApplicationLicenseServer, CommonErrorMessage>("get") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
@@ -83,6 +85,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val listByApp = call<Application, List<ApplicationLicenseServer>, CommonErrorMessage>("listByApp") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
@@ -103,6 +106,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         auth {
+            roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
@@ -120,6 +124,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val update = call<UpdateServerRequest, UpdateServerResponse, CommonErrorMessage>("update") {
         auth {
+            roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
@@ -145,6 +150,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val new = call<NewServerRequest, NewServerResponse, CommonErrorMessage>("new") {
         auth {
+            roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
