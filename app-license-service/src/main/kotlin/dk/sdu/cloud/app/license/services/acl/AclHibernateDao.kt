@@ -26,7 +26,7 @@ data class PermissionEntry(
 class AclHibernateDao : AclDao<HibernateSession> {
     override fun hasPermission(
         session: HibernateSession,
-        licenseId: String,
+        serverId: String,
         accessEntity: UserEntity,
         permission: AccessRight
     ): Boolean {
@@ -55,7 +55,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
 
     override fun updatePermissions(
         session: HibernateSession,
-        licenseId: String,
+        serverId: String,
         userEntity: UserEntity,
         permissions: AccessRight
     ) {
@@ -63,7 +63,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             PermissionEntry.Key(
                 userEntity.id,
                 userEntity.type,
-                licenseId,
+                serverId,
                 permissions
             )
         )
@@ -73,11 +73,11 @@ class AclHibernateDao : AclDao<HibernateSession> {
 
     override fun revokePermission(
         session: HibernateSession,
-        licenseId: String,
+        serverId: String,
         userEntity: UserEntity
     ) {
         session.deleteCriteria<PermissionEntry> {
-            (entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal licenseId) and
+            (entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal serverId) and
                     (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal userEntity.id) and
                     (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal userEntity.type)
         }.executeUpdate()
@@ -85,11 +85,11 @@ class AclHibernateDao : AclDao<HibernateSession> {
 
     override fun listAcl(
         session: HibernateSession,
-        licenseId: String
+        serverId: String
     ): List<EntityWithPermission> {
         return session
             .criteria<PermissionEntry> {
-                entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal licenseId
+                entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal serverId
             }
             .list()
             .map {

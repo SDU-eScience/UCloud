@@ -23,7 +23,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             )
 
             try {
-                val licenseServer = licenseService.getLicenseServer(request.licenseId, entity)
+                val licenseServer = licenseService.getLicenseServer(request.serverId, entity)
                 ok(
                     ApplicationLicenseServer(
                         licenseServer.name,

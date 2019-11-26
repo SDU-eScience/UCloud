@@ -10,7 +10,7 @@ import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
-data class LicenseServerRequest(val licenseId: String)
+data class LicenseServerRequest(val serverId: String)
 
 data class UpdateServerRequest(
     val name: String,
@@ -40,11 +40,11 @@ data class Application(
     val version: String
 )
 
-data class UpdateServerResponse(val licenseId: String)
-data class NewServerResponse(val licenseId: String)
+data class UpdateServerResponse(val serverId: String)
+data class NewServerResponse(val serverId: String)
 
 data class UpdateAclRequest(
-    val licenseId: String,
+    val serverId: String,
     val changes: List<ACLEntryRequest>
 ) {
     init {
@@ -75,7 +75,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
             }
 
             params {
-                +boundTo(LicenseServerRequest::licenseId)
+                +boundTo(LicenseServerRequest::serverId)
             }
         }
     }

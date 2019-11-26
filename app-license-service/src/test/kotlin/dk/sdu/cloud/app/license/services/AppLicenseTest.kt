@@ -36,10 +36,10 @@ class AppLicenseTest {
     }
 
     @Test
-    fun `save new license and fetch`() = runBlocking {
+    fun `save new license server and fetch`() = runBlocking {
         val user = UserEntity("user", EntityType.USER)
 
-        val licenseId = appLicenseService.createLicenseServer(
+        val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
                 "version",
@@ -51,14 +51,14 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(licenseId, user)?.name)
+        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
     }
 
     @Test
     fun `save new license and update`() = runBlocking {
         val user = UserEntity("user", EntityType.USER)
 
-        val licenseId = appLicenseService.createLicenseServer(
+        val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
                 "version",
@@ -70,7 +70,7 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(licenseId, user)?.name)
+        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
         val newAddress = "new-address.com"
 
         appLicenseService.updateLicenseServer(
@@ -80,13 +80,13 @@ class AppLicenseTest {
                 newAddress,
                 "1234",
                 null,
-                licenseId
+                serverId
             ),
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(licenseId, user)?.name)
-        assertEquals(newAddress, appLicenseService.getLicenseServer(licenseId, user)?.address)
+        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
+        assertEquals(newAddress, appLicenseService.getLicenseServer(serverId, user)?.address)
     }
 
     @Test
@@ -94,7 +94,7 @@ class AppLicenseTest {
         val user = UserEntity("user", EntityType.USER)
         val user2 = UserEntity("user2", EntityType.USER)
 
-        val licenseId = appLicenseService.createLicenseServer(
+        val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
                 "version",
@@ -106,7 +106,7 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(licenseId, user)?.name)
+        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
         val newAddress = "new-address.com"
 
         assertFails {
@@ -117,14 +117,14 @@ class AppLicenseTest {
                     newAddress,
                     "1234",
                     null,
-                    licenseId
+                    serverId
                 ),
                 user2
             )
         }
 
-        assertFails { appLicenseService.getLicenseServer(licenseId, user2) }
-        assertEquals("example.com", appLicenseService.getLicenseServer(licenseId, user)?.address)
+        assertFails { appLicenseService.getLicenseServer(serverId, user2) }
+        assertEquals("example.com", appLicenseService.getLicenseServer(serverId, user)?.address)
     }
 
     @Test
@@ -141,7 +141,7 @@ class AppLicenseTest {
             Application("app2", "1.0.1")
         )
 
-        val licenseId = appLicenseService.createLicenseServer(
+        val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
                 "version",
@@ -153,7 +153,7 @@ class AppLicenseTest {
             user
         )
 
-        val license2Id = appLicenseService.createLicenseServer(
+        appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName2",
                 "version2",
@@ -168,7 +168,7 @@ class AppLicenseTest {
         appLicenseService.addApplicationsToServer(
             AddApplicationsToServerRequest(
                 appList1,
-                licenseId
+                serverId
             ),
             user
         )

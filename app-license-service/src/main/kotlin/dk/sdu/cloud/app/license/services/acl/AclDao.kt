@@ -19,26 +19,26 @@ data class EntityWithPermission(
 interface AclDao<Session> {
     fun hasPermission(
         session: Session,
-        licenseId: String,
+        serverId: String,
         entity: UserEntity,
         permission: AccessRight
     ): Boolean
 
     fun updatePermissions(
         session: Session,
-        licenseId: String,
+        serverId: String,
         entity: UserEntity,
         permissions: AccessRight
     )
 
     fun revokePermission(
         session: Session,
-        licenseId: String,
+        serverId: String,
         entity: UserEntity
     )
 
     fun listAcl(
         session: Session,
-        licenseId: String
+        serverId: String
     ) : List<EntityWithPermission>
 }

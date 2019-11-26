@@ -17,10 +17,10 @@ class AppLicenseService<Session>(
     private val aclService: AclService<*>,
     private val appLicenseDao: AppLicenseDao<Session>
 ) {
-    fun getLicenseServer(licenseId: String, entity: UserEntity) : LicenseServerEntity {
-        if (aclService.hasPermission(licenseId, entity, AccessRight.READ)) {
+    fun getLicenseServer(serverId: String, entity: UserEntity) : LicenseServerEntity {
+        if (aclService.hasPermission(serverId, entity, AccessRight.READ)) {
             val licenseServer = db.withTransaction {
-                appLicenseDao.getById(it, licenseId)
+                appLicenseDao.getById(it, serverId)
             }
 
             if (licenseServer == null) {
@@ -33,12 +33,12 @@ class AppLicenseService<Session>(
     }
 
     fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
-        if (aclService.hasPermission(request.licenseId, entity, AccessRight.READ_WRITE)) {
+        if (aclService.hasPermission(request.serverId, entity, AccessRight.READ_WRITE)) {
             request.changes.forEach { change ->
                 if (change.revoke) {
-                    aclService.revokePermission(request.licenseId, change.entity)
+                    aclService.revokePermission(request.serverId, change.entity)
                 } else {
-                    aclService.updatePermissions(request.licenseId, change.entity, change.rights)
+                    aclService.updatePermissions(request.serverId, change.entity, change.rights)
                 }
             }
         } else {

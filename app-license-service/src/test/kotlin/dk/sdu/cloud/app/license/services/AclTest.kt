@@ -39,24 +39,24 @@ class AclTest {
     @Test
     fun `empty acls`() = runBlocking {
         val user = UserEntity("user", EntityType.USER)
-        val licenseId = "1234"
+        val serverId = "1234"
 
-        val instance = aclService.listAcl(licenseId)
+        val instance = aclService.listAcl(serverId)
         assertEquals(0, instance.size)
 
-        assertFalse(aclService.hasPermission(licenseId, user, AccessRight.READ_WRITE))
-        assertFalse(aclService.hasPermission(licenseId, user, AccessRight.READ))
+        assertFalse(aclService.hasPermission(serverId, user, AccessRight.READ_WRITE))
+        assertFalse(aclService.hasPermission(serverId, user, AccessRight.READ))
     }
 
     @Test
     fun `revoke permission`() = runBlocking {
         val user = UserEntity("user", EntityType.USER)
-        val licenseId = "1234"
+        val serverId = "1234"
 
-        aclService.updatePermissions(licenseId, user, AccessRight.READ)
-        assertTrue(aclService.hasPermission(licenseId, user, AccessRight.READ))
-        aclService.revokePermission(licenseId, user)
-        assertFalse(aclService.hasPermission(licenseId, user, AccessRight.READ))
+        aclService.updatePermissions(serverId, user, AccessRight.READ)
+        assertTrue(aclService.hasPermission(serverId, user, AccessRight.READ))
+        aclService.revokePermission(serverId, user)
+        assertFalse(aclService.hasPermission(serverId, user, AccessRight.READ))
     }
 
     @Test
@@ -65,13 +65,13 @@ class AclTest {
         micro.install(HibernateFeature)
 
         val userEntity = UserEntity("user", EntityType.USER)
-        val licenseId = "1234"
+        val serverId = "1234"
 
-        assertFalse(aclService.hasPermission(licenseId, userEntity, AccessRight.READ_WRITE))
+        assertFalse(aclService.hasPermission(serverId, userEntity, AccessRight.READ_WRITE))
 
-        aclService.updatePermissions(licenseId, userEntity, AccessRight.READ_WRITE)
+        aclService.updatePermissions(serverId, userEntity, AccessRight.READ_WRITE)
 
-        assertTrue(aclService.hasPermission(licenseId, userEntity, AccessRight.READ_WRITE))
+        assertTrue(aclService.hasPermission(serverId, userEntity, AccessRight.READ_WRITE))
     }
 
     @Test
@@ -92,13 +92,13 @@ class AclTest {
     fun `add user to acl several times`() = runBlocking {
         val user = UserEntity("user", EntityType.USER)
         val notUser = UserEntity("notUser", EntityType.USER)
-        val licenseId = "1234"
+        val serverId = "1234"
 
         repeat(10) {
-            aclService.updatePermissions(licenseId, user, AccessRight.READ_WRITE)
+            aclService.updatePermissions(serverId, user, AccessRight.READ_WRITE)
         }
 
-        val list = aclService.listAcl(licenseId)
+        val list = aclService.listAcl(serverId)
         assertThatPropertyEquals(list, { it.size }, 1)
         assertThatInstance(list) {
             val user = it.single()
