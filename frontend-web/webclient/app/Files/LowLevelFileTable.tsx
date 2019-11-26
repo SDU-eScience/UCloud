@@ -593,11 +593,29 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                 />
                             )}
                             right={checkedFiles.size > 0 || (f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
-
                                 <Flex mt="5px">
+                                    {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
+                                        (!applications.has(f.path) || applications.get(f.path)!.length < 1) ?
+                                            null : (
+                                                <ClickableDropdown
+                                                    width="175px"
+                                                    left="-160px"
+                                                    trigger={<Icon mr="8px" mt="2px" name="play" size="1em" />}
+                                                >
+                                                    <QuickLaunchApps
+                                                        file={f}
+                                                        applications={applications.get(f.path)}
+                                                        history={history}
+                                                        ml="-17px"
+                                                        mr="-17px"
+                                                        pl="15px"
+                                                    />
+                                                </ClickableDropdown>
+                                            )
+                                    }
                                     <SensitivityIcon sensitivity={f.sensitivityLevel} />
                                     {fileOperations.length > 1 ? (
-                                        <Box mt="4px">
+                                        <Box mt="2px">
                                             <ClickableDropdown
                                                 width="175px"
                                                 left="-160px"
