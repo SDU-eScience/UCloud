@@ -589,28 +589,39 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                     fileBeingRenamed={fileBeingRenamed}
                                 />
                             )}
-                            right={(
+                            right={checkedFiles.size > 0 || (f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
+
                                 <Flex mt="5px">
                                     <SensitivityIcon sensitivity={f.sensitivityLevel} />
-                                    <Box mt="4px">
-                                        <ClickableDropdown
-                                            width="175px"
-                                            left="-160px"
-                                            trigger={
-                                                <Icon ml="10px" mr="10px" name="ellipsis" size="1em" rotation={90} />
-                                            }
-                                        >
-                                            <FileOperations
-                                                files={[f]}
-                                                fileOperations={fileOperations}
-                                                inDropdown
-                                                ml="-17px"
-                                                mr="-17px"
-                                                pl="15px"
-                                                callback={callbacks}
-                                            />
-                                        </ClickableDropdown>
-                                    </Box>
+                                    {fileOperations.length > 1 ? (
+                                        <Box mt="4px">
+                                            <ClickableDropdown
+                                                width="175px"
+                                                left="-160px"
+                                                trigger={
+                                                    <Icon ml="10px" mr="10px" name="ellipsis" size="1em" rotation={90} />
+                                                }
+                                            >
+                                                <FileOperations
+                                                    files={[f]}
+                                                    fileOperations={fileOperations}
+                                                    inDropdown
+                                                    ml="-17px"
+                                                    mr="-17px"
+                                                    pl="15px"
+                                                    callback={callbacks}
+                                                />
+                                            </ClickableDropdown>
+                                        </Box>
+                                    ) : (
+                                            <Box mt="-2px" ml="5px">
+                                                <FileOperations
+                                                    files={[f]}
+                                                    fileOperations={fileOperations}
+                                                    callback={callbacks}
+                                                />
+                                            </Box>
+                                        )}
                                 </Flex>
                             )}
                         />
@@ -705,7 +716,9 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             pb="0px"
             pr="0px"
             pl="0px"
+            mb="-4px"
             noBorder
+            fontSize={20}
             maxLength={1024}
             borderRadius="0px"
             type="text"
@@ -720,14 +733,14 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         <Flex>
             <Box mx="10px" mt="9px">
                 <Icon
-                    size="18"
+                    size="24"
                     name={favorite ? "starFilled" : "starEmpty"}
                     color={favorite ? "blue" : "gray"}
                     hoverColor="blue"
                 />
             </Box>
             {icon}
-            <Box mt="2px">
+            <Box width="100%" mt="2px">
                 {canNavigate && !beingRenamed ? (
                     <BaseLink
                         onClick={e => {
@@ -745,12 +758,12 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                     {!props.file.modifiedAt ? null : (
                         <Text title="Modified at" fontSize={0} mr="12px" color="gray">
                             <Icon size="10" mr="3px" name="edit" />
-                            {format(props.file.modifiedAt, "HH:mm:SS dd/MM/yyyy")}
+                            {format(props.file.modifiedAt, "HH:mm:ss dd/MM/yyyy")}
                         </Text>
                     )}
                     {!props.file.createdAt ? null : (
                         <Text title="Created at" fontSize={0} mr="12px" color="gray">
-                            <Icon size="10" mr="3px" name="copy" />{format(props.file.createdAt, "HH:mm:SS dd/MM/yyyy")}
+                            <Icon size="10" mr="3px" name="copy" />{format(props.file.createdAt, "HH:mm:ss dd/MM/yyyy")}
                         </Text>
                     )}
                 </Flex>
@@ -784,7 +797,7 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
     }
 
     const badge = <SensitivityBadge data-tag="sensitivityBadge" bg={def.color}>{def.shortText}</SensitivityBadge>;
-    return <Tooltip wrapperOffsetLeft="-5px" right="0" top="1" mb="50px" trigger={badge}>{def.text}</Tooltip>;
+    return <Tooltip wrapperOffsetLeft="6px" wrapperOffsetTop="-5px" right="0" top="1" mb="50px" trigger={badge}>{def.text}</Tooltip>;
 };
 
 const SensitivityBadge = styled.div<{bg: string}>`

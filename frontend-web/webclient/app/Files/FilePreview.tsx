@@ -108,7 +108,7 @@ const FilePreview = (props: FilePreviewProps) => {
             case "video":
                 return (
                     <video
-                        style={{maxWidth: "100%", maxHeight: "100%", verticalAlign: "middle"}}
+                        style={{maxWidth: "100%", maxHeight: "100%", height: "calc(100vh - 48px)"}}
                         src={fileContent}
                         controls
                     />
