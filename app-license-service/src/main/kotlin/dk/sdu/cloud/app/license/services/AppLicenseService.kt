@@ -50,7 +50,6 @@ class AppLicenseService<Session>(
                 serverId,
                 ApplicationLicenseServer(
                     request.name,
-                    request.version,
                     request.address,
                     request.port,
                     request.license
@@ -73,7 +72,6 @@ class AppLicenseService<Session>(
                     session,
                     ApplicationLicenseServer(
                         request.name,
-                        request.version,
                         request.address,
                         request.port,
                         request.license

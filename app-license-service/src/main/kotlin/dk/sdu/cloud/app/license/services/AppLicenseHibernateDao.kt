@@ -20,9 +20,6 @@ class LicenseServerEntity(
     @get:Column(name = "name", unique = false, nullable = true)
     var name: String,
 
-    @Column(name = "version", unique = false, nullable = true)
-    var version: String,
-
     @Column(name = "address", unique = false, nullable = true)
     var address: String,
 
@@ -35,7 +32,6 @@ class LicenseServerEntity(
     fun toModel(): ApplicationLicenseServer {
         return ApplicationLicenseServer(
             name = name,
-            version = version,
             address = address,
             port = port,
             license = license
@@ -56,7 +52,6 @@ class ApplicationLicenseServerEntity(
     @Embeddable
     data class Key(
         @get:Column(name = "app_name", length = 255) var appName: String,
-        @get:Column(name = "app_version", length = 255) var appVersion: String,
         @get:Column(name = "license_server", length = 255) var licenseServer: String
     ) : Serializable
 }
@@ -67,7 +62,6 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         val licenseServer = LicenseServerEntity(
             serverId,
             appLicenseServer.name,
-            appLicenseServer.version,
             appLicenseServer.address,
             appLicenseServer.port,
             appLicenseServer.license
@@ -82,7 +76,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         serverId: String
     ) {
         val applicationLicenseServer = ApplicationLicenseServerEntity(
-            ApplicationLicenseServerEntity.Key(application.name, application.version, serverId)
+            ApplicationLicenseServerEntity.Key(application.name, serverId)
         )
 
         session.save(applicationLicenseServer)
@@ -95,8 +89,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
     ) {
         session.deleteCriteria<ApplicationLicenseServerEntity> {
             (entity[ApplicationLicenseServerEntity::key][ApplicationLicenseServerEntity.Key::licenseServer] equal serverId) and
-                    (entity[ApplicationLicenseServerEntity::key][ApplicationLicenseServerEntity.Key::appName] equal application.name) and
-                    (entity[ApplicationLicenseServerEntity::key][ApplicationLicenseServerEntity.Key::appVersion] equal application.version)
+                    (entity[ApplicationLicenseServerEntity::key][ApplicationLicenseServerEntity.Key::appName] equal application.name)
         }.executeUpdate()
     }
 
@@ -119,14 +112,13 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
 
         return session.createNativeQuery<LicenseServerEntity>(
             """
-            SELECT LS.id, LS.name, LS.version, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
+            SELECT LS.id, LS.name, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
             INNER JOIN application_license_servers
               ON LS.id = application_license_servers.license_server       
             INNER JOIN permissions
               ON LS.id = permissions.server_id
             WHERE
               application_license_servers.app_name = :appName
-    	      AND application_license_servers.app_version = :appVersion
               AND permissions.entity = :entityId
               AND permissions.entity_type = :entityType
               AND (permissions.permission = 'READ_WRITE'
@@ -134,7 +126,6 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         """.trimIndent(), LicenseServerEntity::class.java
         ).also {
             it.setParameter("appName", application.name)
-            it.setParameter("appVersion", application.version)
             it.setParameter("entityId", userEntity.id)
             it.setParameter("entityType", userEntity.type.toString())
         }.list().map { entity ->
@@ -151,7 +142,6 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         existing.port = appLicenseServer.port
         existing.license = appLicenseServer.license
         existing.name = appLicenseServer.name
-        existing.version = appLicenseServer.version
 
         session.update(existing)
     }

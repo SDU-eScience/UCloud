@@ -42,7 +42,6 @@ class AppLicenseTest {
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
-                "version",
                 "example.com",
                 "1234",
                  null,
@@ -61,7 +60,6 @@ class AppLicenseTest {
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
-                "version",
                 "example.com",
                 "1234",
                 null,
@@ -76,7 +74,6 @@ class AppLicenseTest {
         appLicenseService.updateLicenseServer(
             UpdateServerRequest(
                 "testName",
-                "version",
                 newAddress,
                 "1234",
                 null,
@@ -97,7 +94,6 @@ class AppLicenseTest {
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
-                "version",
                 "example.com",
                 "1234",
                 null,
@@ -113,7 +109,6 @@ class AppLicenseTest {
             appLicenseService.updateLicenseServer(
                 UpdateServerRequest(
                     "testName",
-                    "version",
                     newAddress,
                     "1234",
                     null,
@@ -132,19 +127,18 @@ class AppLicenseTest {
         val user = UserEntity("user", EntityType.USER)
 
         val appList1 = listOf(
-            Application("app1", "1.0.0"),
-            Application("app2", "1.0.1"),
-            Application("app3", "1.0.1")
+            Application("app1"),
+            Application("app2"),
+            Application("app3")
         )
 
         val appList2 = listOf(
-            Application("app2", "1.0.1")
+            Application("app2")
         )
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
-                "version",
                 "example.com",
                 "1234",
                 null,
@@ -156,7 +150,6 @@ class AppLicenseTest {
         appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName2",
-                "version2",
                 "example2.com",
                 "1234",
                 null,
@@ -173,16 +166,16 @@ class AppLicenseTest {
             user
         )
 
-        val serverListApp1 = appLicenseService.listServers(Application("app1", "1.0.0"), user)
+        val serverListApp1 = appLicenseService.listServers(Application("app1"), user)
         assertEquals(1, serverListApp1.size)
         assertTrue(serverListApp1.map { it.name }.contains("testName"))
 
-        val serverListApp2 = appLicenseService.listServers(Application("app2", "1.0.1"), user)
+        val serverListApp2 = appLicenseService.listServers(Application("app2"), user)
         assertEquals(2, serverListApp2?.size)
         assertTrue(serverListApp2.map { it.name }.contains("testName"))
         assertTrue(serverListApp2.map { it.name }.contains("testName2"))
 
-        val serverListApp3 = appLicenseService.listServers(Application("app3", "1.0.1"), user)
+        val serverListApp3 = appLicenseService.listServers(Application("app3"), user)
         assertEquals(1, serverListApp3.size)
         assertTrue(serverListApp3.map { it.name }.contains("testName"))
 

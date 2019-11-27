@@ -16,7 +16,6 @@ data class LicenseServerRequest(val serverId: String)
 
 data class UpdateServerRequest(
     val name: String,
-    val version: String,
     val address: String,
     val port: String,
     val license: String?,
@@ -30,7 +29,6 @@ data class AddApplicationsToServerRequest(
 
 data class NewServerRequest(
     val name: String,
-    val version: String,
     val address: String,
     val port: String,
     val license: String?,
@@ -38,8 +36,7 @@ data class NewServerRequest(
 )
 
 data class Application(
-    val name: String,
-    val version: String
+    val name: String
 )
 
 data class UpdateServerResponse(val serverId: String)
@@ -99,7 +96,6 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             params {
                 +boundTo(Application::name)
-                +boundTo(Application::version)
             }
         }
     }
@@ -138,7 +134,6 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             params {
                 +boundTo(UpdateServerRequest::name)
-                +boundTo(UpdateServerRequest::version)
                 +boundTo(UpdateServerRequest::address)
                 +boundTo(UpdateServerRequest::license)
                 +boundTo(UpdateServerRequest::withId)

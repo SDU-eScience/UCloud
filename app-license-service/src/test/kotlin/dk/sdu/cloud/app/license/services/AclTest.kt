@@ -57,7 +57,6 @@ class AclTest {
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
                 "test",
-                "0.0.1",
                 "example.com",
                 "1234",
                 null,
@@ -86,7 +85,6 @@ class AclTest {
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
                 "test",
-                "0.0.1",
                 "example.com",
                 "1234",
                 null,
@@ -127,7 +125,6 @@ class AclTest {
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
                 "test",
-                "0.0.1",
                 "example.com",
                 "1234",
                 null,
