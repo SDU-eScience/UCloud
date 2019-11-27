@@ -95,10 +95,10 @@ const FilePreview = (props: FilePreviewProps) => {
             case "code":
                 /* TODO: Syntax highlighting (Google Prettify?) */
                 return (
-                    <>
+                    <div>
                         <Spacer left={<div />} right={<ExpandingIcon name="fullscreen" onClick={onTryFullScreen} />} />
                         <code className="fullscreen" style={{whiteSpace: "pre-wrap"}}>{fileContent}</code>
-                    </>
+                    </div>
                 );
             case "image":
                 return (
@@ -112,26 +112,26 @@ const FilePreview = (props: FilePreviewProps) => {
             case "video":
                 return (
                     <video
-                        style={{maxWidth: "100%", maxHeight: "100%", height: "calc(100vh - 48px)"}}
                         src={fileContent}
                         controls
                     />
                 );
             case "pdf":
                 return (
-                    <>
+                    <div>
                         <Spacer
                             left={<div />}
                             right={<ExpandingIcon name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
                         />
                         <embed
+                            style={{
+                                width: "85vw",
+                                height: "89vh"
+                            }}
                             className="fullscreen"
-                            width="999999"
-                            height="1080"
-                            style={{maxWidth: "100%", maxHeight: "100%"}}
                             src={fileContent}
                         />
-                    </>
+                    </div>
                 );
             default:
                 return (<div>Can't render content</div>);
@@ -156,12 +156,23 @@ const FilePreview = (props: FilePreviewProps) => {
             main={(
                 <>
                     <Error error={error} />
-                    {showContent()}
+                    <ContentWrapper>
+                        {showContent()}
+                    </ContentWrapper>
                 </>
             )}
         />
     );
 };
+
+const ContentWrapper = styled.div`
+    display: flex;
+    width: 100%;
+    height: 85vh;
+    justify-items: center;
+    justify-content: center;
+    align-items: center;
+`;
 
 const ExpandingIcon = styled(Icon)`
     &:hover {
