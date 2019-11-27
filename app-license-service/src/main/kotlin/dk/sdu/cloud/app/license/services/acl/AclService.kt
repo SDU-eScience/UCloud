@@ -8,7 +8,8 @@ import io.ktor.http.HttpStatusCode
 
 class AclService<Session>(
     private val db: DBSessionFactory<Session>,
-    private val dao: AclDao<Session>) {
+    private val dao: AclDao<Session>
+) {
 
     fun hasPermission(serverId: String, entity: UserEntity, permission: ServerAccessRight): Boolean {
         return db.withTransaction { session ->
@@ -18,9 +19,9 @@ class AclService<Session>(
 
     fun updatePermissions(serverId: String, changes: List<ACLEntryRequest>, entity: UserEntity) {
         db.withTransaction { session ->
-            if(dao.hasPermission(session, serverId, entity, ServerAccessRight.READ_WRITE)) {
+            if (dao.hasPermission(session, serverId, entity, ServerAccessRight.READ_WRITE)) {
                 changes.forEach { change ->
-                    if(!change.revoke) {
+                    if (!change.revoke) {
                         updatePermissionsWithSession(session, serverId, change.entity, change.rights)
                     } else {
                         revokePermissionWithSession(session, serverId, change.entity)
@@ -32,7 +33,12 @@ class AclService<Session>(
         }
     }
 
-    fun updatePermissionsWithSession(session: Session, serverId: String, entity: UserEntity, permissions: ServerAccessRight) {
+    fun updatePermissionsWithSession(
+        session: Session,
+        serverId: String,
+        entity: UserEntity,
+        permissions: ServerAccessRight
+    ) {
         dao.updatePermissions(session, serverId, entity, permissions)
     }
 

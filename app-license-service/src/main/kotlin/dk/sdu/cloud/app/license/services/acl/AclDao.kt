@@ -44,5 +44,5 @@ interface AclDao<Session> {
     fun listAcl(
         session: Session,
         serverId: String
-    ) : List<EntityWithPermission>
+    ): List<EntityWithPermission>
 }

@@ -4,5 +4,5 @@ data class ApplicationLicenseServer(
     val name: String,
     val address: String,
     val port: String,
-    val license: String?) {
-}
+    val license: String?
+)

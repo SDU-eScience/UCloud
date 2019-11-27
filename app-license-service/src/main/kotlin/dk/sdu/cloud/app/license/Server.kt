@@ -26,7 +26,4 @@ class Server(override val micro: Micro) : CommonServer {
         startServices()
     }
 
-    override fun stop() {
-        super.stop()
-    }
 }

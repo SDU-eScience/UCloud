@@ -17,7 +17,7 @@ class AppLicenseService<Session>(
         if (aclService.hasPermission(serverId, entity, ServerAccessRight.READ)) {
             val licenseServer = db.withTransaction { session ->
                 appLicenseDao.getById(session, serverId)
-            }?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             return licenseServer
         }
@@ -35,7 +35,7 @@ class AppLicenseService<Session>(
                 application,
                 entity
             )
-        }?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
     fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
