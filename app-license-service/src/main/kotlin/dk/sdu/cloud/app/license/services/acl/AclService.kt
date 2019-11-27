@@ -1,21 +1,34 @@
 package dk.sdu.cloud.app.license.services.acl
 
+import dk.sdu.cloud.app.license.api.ACLEntryRequest
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import io.ktor.http.HttpStatusCode
 
 class AclService<Session>(
     private val db: DBSessionFactory<Session>,
     private val dao: AclDao<Session>) {
 
     fun hasPermission(serverId: String, entity: UserEntity, permission: ServerAccessRight): Boolean {
-        return db.withTransaction {
-            dao.hasPermission(it, serverId, entity, permission)
+        return db.withTransaction { session ->
+            dao.hasPermission(session, serverId, entity, permission)
         }
     }
 
-    fun updatePermissions(serverId: String, entity: UserEntity, permissions: ServerAccessRight) {
+    fun updatePermissions(serverId: String, changes: List<ACLEntryRequest>, entity: UserEntity) {
         db.withTransaction { session ->
-            updatePermissionsWithSession(session, serverId, entity, permissions)
+            if(dao.hasPermission(session, serverId, entity, ServerAccessRight.READ_WRITE)) {
+                changes.forEach { change ->
+                    if(!change.revoke) {
+                        updatePermissionsWithSession(session, serverId, change.entity, change.rights)
+                    } else {
+                        revokePermissionWithSession(session, serverId, change.entity)
+                    }
+                }
+            } else {
+                RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+            }
         }
     }
 
@@ -31,7 +44,11 @@ class AclService<Session>(
 
     fun revokePermission(serverId: String, entity: UserEntity) {
         db.withTransaction {
-            dao.revokePermission(it, serverId, entity)
+            revokePermissionWithSession(it, serverId, entity)
         }
+    }
+
+    private fun revokePermissionWithSession(session: Session, serverId: String, entity: UserEntity) {
+        dao.revokePermission(session, serverId, entity)
     }
 }

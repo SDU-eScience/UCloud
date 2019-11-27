@@ -25,17 +25,7 @@ class AppLicenseService<Session>(
     }
 
     fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
-        if (aclService.hasPermission(request.serverId, entity, ServerAccessRight.READ_WRITE)) {
-            request.changes.forEach { change ->
-                if (change.revoke) {
-                    aclService.revokePermission(request.serverId, change.entity)
-                } else {
-                    aclService.updatePermissions(request.serverId, change.entity, change.rights)
-                }
-            }
-        } else {
-            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-        }
+        aclService.updatePermissions(request.serverId, request.changes, entity)
     }
 
     fun listServers(application: Application, entity: UserEntity): List<ApplicationLicenseServer> {
@@ -51,9 +41,8 @@ class AppLicenseService<Session>(
     fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
         val serverId = UUID.randomUUID().toString()
 
-        // Add rw permissions for the creator
-
         db.withTransaction { session ->
+            // Add rw permissions for the creator
             aclService.updatePermissionsWithSession(session, serverId, entity, ServerAccessRight.READ_WRITE)
             
             appLicenseDao.create(
