@@ -395,11 +395,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
     // Aliases
     const isForbiddenPath = error === "Forbidden";
     const isEmbedded = props.embedded !== false;
-    const sortingSupported = props.path !== undefined && props.page === undefined;
-    const numberOfColumnsBasedOnSpace =
-        (props.responsive.greaterThan.lg ? 2 :
-            (props.responsive.greaterThan.md ? 1 : 0));
-    const numberOfColumns = props.numberOfColumns !== undefined ? props.numberOfColumns : numberOfColumnsBasedOnSpace;
+    const sortingSupported = !props.embedded;
     const fileOperations = props.fileOperations !== undefined ? props.fileOperations : defaultFileOperations;
     const fileFilter = props.fileFilter ? props.fileFilter : () => true;
     const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
@@ -556,51 +552,56 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
 
             main={(
                 <>
-                    <Spacer
-                        left={<div />}
-                        right={!sortingSupported ? <div /> : (
-                            <ClickableDropdown
-                                trigger={(
-                                    <>
-                                        <Icon
-                                            cursor="pointer"
-                                            name="arrowDown"
-                                            rotation={order === SortOrder.ASCENDING ? 180 : 0}
-                                            size=".7em"
-                                            mr=".4em"
-                                        />
-                                        {UF.sortByToPrettierString(sortBy)}
-                                    </>
-                                )}
-                                chevron
-                            >
-                                <Box
-                                    ml="-16px"
-                                    mr="-16px"
-                                    pl="15px"
-                                    onClick={() => setSorting(sortByColumns[0], order === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, 0)}
-                                >
-                                    <>
-                                        {UF.prettierString(order === SortOrder.ASCENDING ?
-                                            SortOrder.DESCENDING : SortOrder.ASCENDING)
-                                        }
-                                    </>
-                                </Box>
-                                <Divider />
-                                {Object.values(SortBy).filter(it => it !== sortByColumns[0]).map((sortByValue: SortBy, j) => (
-                                    <Box
-                                        ml="-16px"
-                                        mr="-16px"
-                                        pl="15px"
-                                        key={j}
-                                        onClick={() => setSorting(sortByValue, SortOrder.ASCENDING, 0)}
+                    {!sortingSupported ? <div /> : (
+                        <StickyBox>
+                            <Spacer
+                                left={<div />}
+                                right={(
+
+                                    <ClickableDropdown
+                                        trigger={(
+                                            <>
+                                                <Icon
+                                                    cursor="pointer"
+                                                    name="arrowDown"
+                                                    rotation={order === SortOrder.ASCENDING ? 180 : 0}
+                                                    size=".7em"
+                                                    mr=".4em"
+                                                />
+                                                Sort by: {UF.sortByToPrettierString(sortBy)}
+                                            </>
+                                        )}
+                                        chevron
                                     >
-                                        {UF.sortByToPrettierString(sortByValue)}
-                                    </Box>
-                                ))}
-                            </ClickableDropdown>
-                        )}
-                    />
+                                        <Box
+                                            ml="-16px"
+                                            mr="-16px"
+                                            pl="15px"
+                                            onClick={() => setSorting(sortByColumns[0], order === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, 0)}
+                                        >
+                                            <>
+                                                {UF.prettierString(order === SortOrder.ASCENDING ?
+                                                    SortOrder.DESCENDING : SortOrder.ASCENDING)
+                                                }
+                                            </>
+                                        </Box>
+                                        <Divider />
+                                        {Object.values(SortBy).filter(it => it !== sortByColumns[0]).map((sortByValue: SortBy, j) => (
+                                            <Box
+                                                ml="-16px"
+                                                mr="-16px"
+                                                pl="15px"
+                                                key={j}
+                                                onClick={() => setSorting(sortByValue, SortOrder.ASCENDING, 0)}
+                                            >
+                                                {UF.sortByToPrettierString(sortByValue)}
+                                            </Box>
+                                        ))}
+                                    </ClickableDropdown>
+                                )}
+                            />
+                        </StickyBox>
+                    )}
                     <Pagination.List
                         loading={pageLoading}
                         customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : pageLoading ?
@@ -703,6 +704,12 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
         );
     }
 };
+
+const StickyBox = styled(Box)`
+    position: sticky;
+    top: 120px;
+    zIndex: 50;
+`;
 
 function toWebDav() {
     const a = document.createElement("a");
