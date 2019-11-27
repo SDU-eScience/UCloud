@@ -165,6 +165,18 @@ exports[`Mount Files component 1`] = `
   margin-left: .7em;
 }
 
+.c25 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: pointer;
+  -webkit-transform: rotate(180deg);
+  -ms-transform: rotate(180deg);
+  transform: rotate(180deg);
+  margin-right: .4em;
+}
+
 .c5 {
   cursor: pointer;
   font-size: 11px;
@@ -186,7 +198,7 @@ exports[`Mount Files component 1`] = `
   cursor: inherit;
 }
 
-.c24 {
+.c26 {
   cursor: inherit;
   font-size: 24px;
   margin: 0;
@@ -281,6 +293,13 @@ exports[`Mount Files component 1`] = `
   color: #006aff;
   -webkit-text-decoration: none;
   text-decoration: none;
+}
+
+.c24 {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 120px;
+  zIndex: 50;
 }
 
 @media screen and (max-width:511px) {
@@ -494,8 +513,64 @@ exports[`Mount Files component 1`] = `
         </div>
       </div>
     </div>
-    <h3
+    <div
       className="c24"
+    >
+      <div
+        className="c2"
+      >
+        <div />
+        <div
+          className="c8"
+        />
+        <div
+          className="c9"
+          data-tag="dropdown"
+        >
+          <span
+            className="c10"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            <svg
+              className="c25"
+              clipRule="evenodd"
+              cursor="pointer"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height=".7em"
+              mr=".4em"
+              rotation={180}
+              viewBox="0 0 18 24"
+              width=".7em"
+            >
+              <path
+                d="M9 24l9-10h-6V0H6v14h-6l9 10z"
+              />
+            </svg>
+            Sort by: 
+            Filename
+            <svg
+              className="c12"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height=".7em"
+              ml=".7em"
+              viewBox="0 0 24 12"
+              width=".7em"
+            >
+              <path
+                d="M0 0l11.959 12 12-12H0z"
+              />
+            </svg>
+          </span>
+        </div>
+      </div>
+    </div>
+    <h3
+      className="c26"
       cursor="inherit"
       fontSize={4}
     >
