@@ -20,7 +20,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
-import {Button, Icon, Input, List, OutlineButton, Text, Tooltip} from "ui-components";
+import {Button, Divider, Icon, Input, List, OutlineButton, Text, Tooltip} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
@@ -115,15 +115,6 @@ export const listDirectory = ({
     parameters: {path, page, itemsPerPage, order, sortBy, attrs},
     reloadId: Math.random()
 });
-
-const invertSortOrder = (order: SortOrder): SortOrder => {
-    switch (order) {
-        case SortOrder.ASCENDING:
-            return SortOrder.DESCENDING;
-        case SortOrder.DESCENDING:
-            return SortOrder.ASCENDING;
-    }
-};
 
 const twoPhaseLoadFiles = async (
     attributes: FileResource[],
@@ -487,7 +478,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                 <Spacer
                     left={(
                         <BreadCrumbs
-                            currentPath={props.path ? props.path : ""}
+                            currentPath={props.path ?? ""}
                             navigate={onFileNavigation}
                             homeFolder={Client.homeFolder}
                         />
@@ -564,22 +555,69 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
             )}
 
             main={(
-                <Pagination.List
-                    loading={pageLoading}
-                    customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : pageLoading ? null :
-                        <div>{error}</div>}
-                    page={{...page, items: allFiles}}
-                    onPageChanged={(newPage, currentPage) => onPageChanged(newPage, currentPage.itemsPerPage)}
-                    pageRenderer={pageRenderer}
-                />
+                <>
+                    <Spacer
+                        left={<div />}
+                        right={!sortingSupported ? <div /> : (
+                            <ClickableDropdown
+                                trigger={(
+                                    <>
+                                        <Icon
+                                            cursor="pointer"
+                                            name="arrowDown"
+                                            rotation={order === SortOrder.ASCENDING ? 180 : 0}
+                                            size=".7em"
+                                            mr=".4em"
+                                        />
+                                        {UF.sortByToPrettierString(sortBy)}
+                                    </>
+                                )}
+                                chevron
+                            >
+                                <Box
+                                    ml="-16px"
+                                    mr="-16px"
+                                    pl="15px"
+                                    onClick={() => setSorting(sortByColumns[0], order === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, 0)}
+                                >
+                                    <>
+                                        {UF.prettierString(order === SortOrder.ASCENDING ?
+                                            SortOrder.DESCENDING : SortOrder.ASCENDING)
+                                        }
+                                    </>
+                                </Box>
+                                <Divider />
+                                {Object.values(SortBy).filter(it => it !== sortByColumns[0]).map((sortByValue: SortBy, j) => (
+                                    <Box
+                                        ml="-16px"
+                                        mr="-16px"
+                                        pl="15px"
+                                        key={j}
+                                        onClick={() => setSorting(sortByValue, SortOrder.ASCENDING, 0)}
+                                    >
+                                        {UF.sortByToPrettierString(sortByValue)}
+                                    </Box>
+                                ))}
+                            </ClickableDropdown>
+                        )}
+                    />
+                    <Pagination.List
+                        loading={pageLoading}
+                        customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : pageLoading ?
+                            null : <div>{error}</div>}
+                        page={{...page, items: allFiles}}
+                        onPageChanged={(newPage, currentPage) => onPageChanged(newPage, currentPage.itemsPerPage)}
+                        pageRenderer={pageRenderer}
+                    />
+                </>
             )}
         />
     );
 
-    function pageRenderer(page: Page<File>) {
+    function pageRenderer({items}: Page<File>) {
         return (
             <List>
-                {page.items.map(f => (
+                {items.map(f => (
                     <Flex
                         backgroundColor={checkedFiles.has(f.fileId!) ? "lightBlue" : "white"}
                         onClick={() => {
@@ -662,7 +700,6 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                     </Flex>
                 ))}
             </List>
-
         );
     }
 };
@@ -761,13 +798,14 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             data-tag="renameField"
             onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
         />
-    ) : <Text mb="-4px" fontSize={20}>{getFilenameFromPath(props.file.path)}</Text>;
+    ) : <Text mb="-4px" width="auto" fontSize={20}>{getFilenameFromPath(props.file.path)}</Text>;
 
     return (
         <Flex>
             <Box mx="10px" mt="9px">
                 {isAnyMockFile([props.file]) || isAnySharedFs([props.file]) ? <Box width="24px" /> : (
                     <Icon
+                        cursor="pointer"
                         size="24"
                         name={favorite ? "starFilled" : "starEmpty"}
                         color={favorite ? "blue" : "gray"}
@@ -793,6 +831,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                     <BaseLink
                         onClick={e => {
                             e.preventDefault();
+                            e.stopPropagation();
                             props.onNavigate(resolvePath(props.file.path));
                         }}
                     >
