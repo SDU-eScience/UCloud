@@ -24,8 +24,8 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class JobVerification {
-    val unverifiedJob = UnverifiedJob(
+class JobVerificationTest {
+    private val unverifiedJob = UnverifiedJob(
         StartJobRequest(
             NameAndVersion("name", "2.2"),
             "Test job",
@@ -39,7 +39,7 @@ class JobVerification {
         "token"
     )
 
-    lateinit var service: JobVerificationService<*>
+    private lateinit var service: JobVerificationService<*>
     val cloud = ClientMock.authenticatedClient
 
 
@@ -50,7 +50,7 @@ class JobVerification {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
-        val tokenValidation = micro.tokenValidation as TokenValidationJWT
+       // val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
         val toolDao = mockk<ToolStoreService>()
         val appDao = mockk<AppStoreService>()
@@ -86,17 +86,26 @@ class JobVerification {
             service.verifyOrThrow(unverifiedJob, cloud)
         }
 
-        val VJob = verified.job
-        assertTrue(VJob.jobInput.backingData.keys.contains("missing"))
-        assertTrue(VJob.jobInput.backingData.keys.contains("great"))
-        assertTrue(VJob.jobInput.backingData.keys.contains("int"))
-        assertTrue(VJob.jobInput.backingData.values.toString().contains("23"))
-        assertTrue(VJob.jobInput.backingData.values.toString().contains("mojn"))
-        assertTrue(VJob.jobInput.backingData.values.toString().contains("5"))
-        assertEquals(JobState.VALIDATED, VJob.currentState)
+        val vJob = verified.job
+        assertTrue(vJob.jobInput.backingData.keys.contains("missing"))
+        assertTrue(vJob.jobInput.backingData.keys.contains("great"))
+        assertTrue(vJob.jobInput.backingData.keys.contains("int"))
+        assertTrue(vJob.jobInput.backingData.values.toString().contains("23"))
+        assertTrue(vJob.jobInput.backingData.values.toString().contains("mojn"))
+        assertTrue(vJob.jobInput.backingData.values.toString().contains("5"))
+        assertEquals(JobState.VALIDATED, vJob.currentState)
     }
 
-    val unverifiedJobWithWrongParamType = UnverifiedJob(
+    @Test (expected = JobException::class)
+    fun `test verification - bad machine reservation`() {
+        beforeTest(app = normAppDesc3)
+
+        runBlocking {
+            service.verifyOrThrow(unverifiedJob.copy(request = unverifiedJob.request.copy(reservation = "Unknown")), cloud)
+        }
+    }
+
+    private val unverifiedJobWithWrongParamType = UnverifiedJob(
         StartJobRequest(
             NameAndVersion("name", "2.2"),
             "Test job",
@@ -118,7 +127,7 @@ class JobVerification {
         }
     }
 
-    val unverifiedJobWithMissingNonOptional = UnverifiedJob(
+    private val unverifiedJobWithMissingNonOptional = UnverifiedJob(
         StartJobRequest(
             NameAndVersion("name", "2.2"),
             "Test job",
