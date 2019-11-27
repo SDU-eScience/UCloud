@@ -20,7 +20,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
-import {Button, Icon, List, OutlineButton, Text, Tooltip, Input} from "ui-components";
+import {Button, Icon, Input, List, OutlineButton, Text, Tooltip} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
@@ -36,19 +36,19 @@ import {Upload} from "Uploader";
 import {appendUpload, setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {
     createFolder,
+    favoriteFile,
     getFilenameFromPath,
     getParentPath,
-    isDirectory,
+    isAnyMockFile,
+    isAnySharedFs, isDirectory,
     isInvalidPathName,
-    mergeFilePages, MOCK_RELATIVE,
+    mergeFilePages,
+    MOCK_RELATIVE,
     MOCK_RENAME_TAG,
     mockFile,
     moveFile,
     resolvePath,
-    sizeToString,
-    isAnyMockFile,
-    isAnySharedFs,
-    favoriteFile
+    sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, Arrow, FileIcon} from "UtilityComponents";
@@ -580,7 +580,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
         return (
             <List>
                 {page.items.map(f => (
-                    <Flex width="100%" key={f.path}>
+                    <Flex
+                        backgroundColor={checkedFiles.has(f.fileId!) ? "lightBlue" : "white"}
+                        onClick={() => {
+                            if (!isAnyMockFile([f])) setChecked([f]);
+                        }}
+                        width="100%"
+                        key={f.path}
+                    >
                         <Spacer
                             width="100%"
                             left={(
@@ -592,36 +599,42 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                     fileBeingRenamed={fileBeingRenamed}
                                 />
                             )}
-                            right={checkedFiles.size > 0 || (f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
-                                <Flex mt="5px">
+                            right={(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
+                                <Flex mt="5px" onClick={UF.stopPropagation}>
                                     {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
-                                        (!applications.has(f.path) || applications.get(f.path)!.length < 1) ?
-                                            null : (
-                                                <ClickableDropdown
-                                                    width="175px"
-                                                    left="-160px"
-                                                    trigger={<Icon mr="8px" mt="2px" name="play" size="1em" />}
-                                                >
-                                                    <QuickLaunchApps
-                                                        file={f}
-                                                        applications={applications.get(f.path)}
-                                                        history={history}
-                                                        ml="-17px"
-                                                        mr="-17px"
-                                                        pl="15px"
-                                                    />
-                                                </ClickableDropdown>
-                                            )
+                                        (!applications.has(f.path) || applications.get(f.path)!.length < 1) ? null : (
+                                            <ClickableDropdown
+                                                width="175px"
+                                                left="-160px"
+                                                trigger={<Icon mr="8px" mt="2px" name="play" size="1em" />}
+                                            >
+                                                <QuickLaunchApps
+                                                    file={f}
+                                                    applications={applications.get(f.path)}
+                                                    history={history}
+                                                    ml="-17px"
+                                                    mr="-17px"
+                                                    pl="15px"
+                                                />
+                                            </ClickableDropdown>
+                                        )
                                     }
                                     <SensitivityIcon sensitivity={f.sensitivityLevel} />
-                                    {fileOperations.length > 1 ? (
+                                    {checkedFiles.size !== 0 ? <Box width="38px" /> : fileOperations.length > 1 ? (
                                         <Box mt="2px">
                                             <ClickableDropdown
                                                 width="175px"
                                                 left="-160px"
-                                                trigger={
-                                                    <Icon ml="10px" mr="10px" name="ellipsis" size="1em" rotation={90} />
-                                                }
+                                                trigger={(
+                                                    <Icon
+                                                        onClick={UF.preventDefault}
+                                                        ml="10px"
+                                                        mr="10px"
+                                                        name="ellipsis"
+                                                        size="1em"
+                                                        rotation={90}
+                                                    />
+                                                )}
                                             >
                                                 <FileOperations
                                                     files={[f]}
@@ -758,7 +771,8 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         size="24"
                         name={favorite ? "starFilled" : "starEmpty"}
                         color={favorite ? "blue" : "gray"}
-                        onClick={() => {
+                        onClick={e => {
+                            e.stopPropagation();
                             props.callbacks.invokeAsyncWork(async () => {
                                 const initialValue = favorite;
                                 setFavorite(!initialValue);
@@ -835,15 +849,15 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
 };
 
 const SensitivityBadge = styled.div<{bg: string}>`
-    content: '';
-    height: 2em;
-    width: 2em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+                                content: '';
+                                height: 2em;
+                                width: 2em;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
     border: 0.2em solid ${props => props.bg};
-    border-radius: 100%;
-`;
+                            border-radius: 100%;
+                        `;
 
 interface FileOperations extends SpaceProps {
     files: File[];
