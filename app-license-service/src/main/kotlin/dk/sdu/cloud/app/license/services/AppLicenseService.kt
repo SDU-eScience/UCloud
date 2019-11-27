@@ -42,9 +42,6 @@ class AppLicenseService<Session>(
         val serverId = UUID.randomUUID().toString()
 
         db.withTransaction { session ->
-            // Add rw permissions for the creator
-            aclService.updatePermissionsWithSession(session, serverId, entity, ServerAccessRight.READ_WRITE)
-            
             appLicenseDao.create(
                 session,
                 serverId,
@@ -55,6 +52,9 @@ class AppLicenseService<Session>(
                     request.license
                 )
             )
+
+            // Add rw permissions for the creator
+            aclService.updatePermissionsWithSession(session, serverId, entity, ServerAccessRight.READ_WRITE)
 
             request.applications?.forEach { app ->
                 // Add applications to the license server

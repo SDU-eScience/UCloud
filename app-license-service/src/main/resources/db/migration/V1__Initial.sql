@@ -4,6 +4,7 @@ create table license_servers
 (
     id             varchar(255) not null,
     name           varchar(255) not null,
+    version        varchar(255) not null,
     address        varchar(255) not null,
     port           varchar(5) not null,
     license        varchar(255),
@@ -13,8 +14,9 @@ create table license_servers
 create table application_license_servers
 (
     app_name           varchar(255) not null,
+    app_version        varchar(255) not null,
     license_server     varchar(255) not null,
-    primary key (app_name, license_server)
+    primary key (app_name, app_version, license_server)
 );
 
 create table permissions (
