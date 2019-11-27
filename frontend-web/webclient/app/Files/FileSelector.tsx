@@ -52,6 +52,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                     <VirtualFileTable
                         {...virtualFolders}
                         omitQuickLaunch
+                        embedded
                         numberOfColumns={0}
                         fileOperations={[{
                             text: "Select",
