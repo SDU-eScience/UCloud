@@ -12,7 +12,7 @@ import styled from "styled-components";
 import {Button, Icon} from "ui-components";
 import Error from "ui-components/Error";
 import {Spacer} from "ui-components/Spacer";
-import {downloadFiles, statFileOrNull} from "Utilities/FileUtilities";
+import {downloadFiles, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
 import {extensionFromPath, extensionTypeFromPath, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
 import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
@@ -41,6 +41,10 @@ const FilePreview = (props: FilePreviewProps) => {
             if (stat === null) {
                 snackbarStore.addFailure("File not found");
                 setError("File not found");
+            } else if (isDirectory({fileType: stat.fileType})) {
+                snackbarStore.addFailure("Directories cannot be previewed.");
+                setError("Preview for folders not supported");
+                setDownloadButton(true);
             } else if (stat.size! > 30_000_000) {
                 snackbarStore.addFailure("File size too large. Download instead.");
                 setError("File size too large to preview.");
