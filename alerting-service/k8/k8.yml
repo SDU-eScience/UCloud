@@ -18,7 +18,7 @@ spec:
       serviceAccountName: alerting
       containers:
       - name: alerting
-        image: registry.cloud.sdu.dk/sdu-cloud/alerting-service:1.1.10
+        image: registry.cloud.sdu.dk/sdu-cloud/alerting-service:1.1.13
         command:
         - /opt/service/bin/service
         - --config-dir
@@ -59,7 +59,7 @@ spec:
       - name: elasticsearch-credentials
         secret:
           optional: false
-          secretName: elasticsearch-credentials
+          secretName: elasticsearch-logging-cluster-credentials
 
       imagePullSecrets:
         - name: esci-docker

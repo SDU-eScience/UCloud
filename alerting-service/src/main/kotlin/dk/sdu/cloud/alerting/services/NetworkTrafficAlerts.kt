@@ -115,13 +115,14 @@ class NetworkTrafficAlerts(
     ) {
         val whitelistedIPs = configuration.omissions?.whiteListedIPs ?: emptyList()
         val limitFor4xx = configuration.limits?.limitFor4xx ?: 500
+        val index = configuration.limits?.indexFor4xx ?: "development_default"
         while (true) {
             val today = LocalDate.now()
             val yesterday = LocalDate.now().minusDays(1)
 
             val searchRequest = SearchRequest()
 
-            searchRequest.indices("development_default-$today*", "development_default-$yesterday*")
+            searchRequest.indices("$index-$today*", "$index-$yesterday*")
             searchRequest.source(
                 SearchSourceBuilder().query(
                     QueryBuilders.boolQuery()
@@ -140,7 +141,7 @@ class NetworkTrafficAlerts(
                             QueryBuilders.matchPhraseQuery("kubernetes.container_name", "ambassador")
                         )
                 )
-                    .size(2500)
+                    .size(5000)
                     .fetchSource("log", null)
             )
 

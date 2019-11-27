@@ -22,7 +22,8 @@ data class Limits(
     val storageWarnLimit: Double,
     val storageCriticalLimit: Double,
     val alertWhenNumberOfShardsAvailableIsLessThan: Int?,
-    val limitFor4xx: Int?
+    val limitFor4xx: Int?,
+    val indexFor4xx: String?
 )
 
 data class Omission(
