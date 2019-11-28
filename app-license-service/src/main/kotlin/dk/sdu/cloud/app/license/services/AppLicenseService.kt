@@ -17,11 +17,11 @@ class AppLicenseService<Session>(
         if (aclService.hasPermission(serverId, entity, ServerAccessRight.READ)) {
             val licenseServer = db.withTransaction { session ->
                 appLicenseDao.getById(session, serverId)
-            } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            } ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
 
             return licenseServer
         }
-        throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        throw RPCException("Unauthorized request to license server", HttpStatusCode.Unauthorized)
     }
 
     fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
@@ -35,7 +35,7 @@ class AppLicenseService<Session>(
                 application,
                 entity
             )
-        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
     }
 
     fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
@@ -82,7 +82,7 @@ class AppLicenseService<Session>(
 
             return request.withId
         } else {
-            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+            throw RPCException("Not authorized to change license server details", HttpStatusCode.Unauthorized)
         }
     }
 
@@ -94,7 +94,7 @@ class AppLicenseService<Session>(
                 }
             }
         } else {
-            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+            throw RPCException("Not authorized to change license server details", HttpStatusCode.Unauthorized)
         }
     }
 }

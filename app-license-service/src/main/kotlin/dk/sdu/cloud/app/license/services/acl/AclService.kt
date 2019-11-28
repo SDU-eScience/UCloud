@@ -28,7 +28,7 @@ class AclService<Session>(
                     }
                 }
             } else {
-                RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                RPCException("Request to update permissions unauthorized", HttpStatusCode.Unauthorized)
             }
         }
     }

@@ -1,9 +1,6 @@
 package dk.sdu.cloud.app.license.services.acl
 
-import dk.sdu.cloud.app.license.api.UpdateAclRequest
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.*
-import io.ktor.http.HttpStatusCode
 import java.io.Serializable
 import javax.persistence.*
 

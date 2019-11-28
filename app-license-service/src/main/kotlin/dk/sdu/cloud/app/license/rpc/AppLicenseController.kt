@@ -22,28 +22,15 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                 EntityType.USER
             )
 
-            try {
-                val licenseServer = licenseService.getLicenseServer(request.serverId, entity)
-                ok(
-                    ApplicationLicenseServer(
-                        licenseServer.name,
-                        licenseServer.address,
-                        licenseServer.port,
-                        licenseServer.license
-                    )
+            val licenseServer = licenseService.getLicenseServer(request.serverId, entity)
+            ok(
+                ApplicationLicenseServer(
+                    licenseServer.name,
+                    licenseServer.address,
+                    licenseServer.port,
+                    licenseServer.license
                 )
-            } catch (e: RPCException) {
-                when (e.httpStatusCode) {
-                    HttpStatusCode.NotFound -> error(
-                        CommonErrorMessage("Problems fetching the application license server"),
-                        HttpStatusCode.NotFound
-                    )
-                    HttpStatusCode.Unauthorized -> error(
-                        CommonErrorMessage("Problems fetching the application license server"),
-                        HttpStatusCode.Unauthorized
-                    )
-                }
-            }
+            )
         }
 
         implement(AppLicenseDescriptions.updateAcl) {
@@ -52,16 +39,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                 EntityType.USER
             )
 
-            try {
-                ok(licenseService.updateAcl(request, entity))
-            } catch (e: RPCException) {
-                when (e.httpStatusCode) {
-                    HttpStatusCode.Unauthorized -> error(
-                        CommonErrorMessage("Not authorized to update ACL"),
-                        HttpStatusCode.Unauthorized
-                    )
-                }
-            }
+            ok(licenseService.updateAcl(request, entity))
         }
 
         implement(AppLicenseDescriptions.listByApp)  {
@@ -70,14 +48,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                 EntityType.USER
             )
 
-            try {
-                ok(licenseService.listServers(request, entity))
-            } catch (e: RPCException) {
-                error(
-                    CommonErrorMessage("Error occured"),
-                    HttpStatusCode.BadRequest
-                )
-            }
+            ok(licenseService.listServers(request, entity))
         }
 
         implement(AppLicenseDescriptions.update) {
@@ -86,18 +57,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                 EntityType.USER
             )
 
-            try {
-                ok(UpdateServerResponse(licenseService.updateLicenseServer(request, entity)))
-            } catch (e: RPCException) {
-                when (e.httpStatusCode) {
-                    HttpStatusCode.Unauthorized ->
-                        error(
-                            CommonErrorMessage("Unauthorized to save application license server"),
-                            HttpStatusCode.Unauthorized
-                        )
-                }
-            }
-
+            ok(UpdateServerResponse(licenseService.updateLicenseServer(request, entity)))
         }
 
         implement(AppLicenseDescriptions.new) {
@@ -106,18 +66,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                 EntityType.USER
             )
 
-            try {
-                ok(NewServerResponse(licenseService.createLicenseServer(request, entity)))
-            } catch (e: RPCException) {
-                when (e.httpStatusCode) {
-                    HttpStatusCode.Unauthorized ->
-                        error(
-                            CommonErrorMessage("Unauthorized to save application license server"),
-                            HttpStatusCode.Unauthorized
-                        )
-                }
-            }
-
+            ok(NewServerResponse(licenseService.createLicenseServer(request, entity)))
         }
     }
 
