@@ -20,7 +20,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
-import {Button, Divider, Icon, Input, List, OutlineButton, Text, Tooltip, Truncate, Hide} from "ui-components";
+import {Button, Divider, Hide, Icon, Input, Link, List, OutlineButton, Text, Tooltip, Truncate} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
@@ -37,10 +37,11 @@ import {appendUpload, setUploaderCallback, setUploaderVisible} from "Uploader/Re
 import {
     createFolder,
     favoriteFile,
+    filePreviewQuery,
     getFilenameFromPath,
     getParentPath,
-    isAnyMockFile,
-    isAnySharedFs, isDirectory,
+    isAnyMockFile, isAnySharedFs,
+    isDirectory,
     isInvalidPathName,
     mergeFilePages,
     MOCK_RELATIVE,
@@ -74,8 +75,8 @@ export interface LowLevelFileTableProps {
 
     foldersOnly?: boolean;
 
-    numberOfColumns?: number;
     omitQuickLaunch?: boolean;
+    previewEnabled?: boolean;
 
     asyncWorker?: AsyncWorker;
 }
@@ -636,6 +637,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                     onNavigate={onFileNavigation}
                                     callbacks={callbacks}
                                     fileBeingRenamed={fileBeingRenamed}
+                                    previewEnabled={props.previewEnabled}
                                 />
                             )}
                             right={(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
@@ -766,6 +768,7 @@ interface NameBoxProps {
     onNavigate: (path: string) => void;
     fileBeingRenamed: string | null;
     callbacks: FileOperationCallback;
+    previewEnabled?: boolean;
 }
 
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
@@ -805,7 +808,15 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             data-tag="renameField"
             onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
         />
-    ) : <Truncate width={[170, 250, 300, 250, 500, "100%"]} mb="-4px" fontSize={20}>{getFilenameFromPath(props.file.path)}</Truncate>;
+    ) : (
+            <Truncate
+                width={[170, 250, 300, 250, 500, "100%"]}
+                mb="-4px"
+                fontSize={20}
+            >
+                {getFilenameFromPath(props.file.path)}
+            </Truncate>
+        );
 
     return (
         <Flex>
@@ -844,7 +855,10 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                     >
                         {fileName}
                     </BaseLink>
-                ) : fileName}
+                ) : props.previewEnabled && UF.isPreviewSupported(UF.extensionFromPath(props.file.path)) ?
+                        <Link to={filePreviewQuery(props.file.path)}>{fileName}</Link> :
+                        fileName
+                }
 
                 <Hide sm xs>
                     <Flex>
