@@ -114,6 +114,9 @@ export const extensionType = (ext: string): ExtensionType => {
         case "toc":
         case "jar":
         case "exe":
+        case "xml":
+        case "json":
+        case "yml":
             return "code";
         case "png":
         case "gif":
@@ -124,10 +127,9 @@ export const extensionType = (ext: string): ExtensionType => {
         case "jpg":
             return "image";
         case "txt":
-        case "xml":
-        case "json":
+        case "doc":
+        case "docx":
         case "csv":
-        case "yml":
         case "plist":
             return "text";
         case "pdf":

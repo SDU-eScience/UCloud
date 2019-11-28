@@ -25,11 +25,43 @@ enum class Status(val isError: Boolean, val failuresForATrigger: Int) {
 
 class ElasticAlerting(
     private val elastic: RestHighLevelClient,
-    private val alertService: AlertingService
+    private val alertService: AlertingService,
+    private val testMode: Boolean = false
 ) {
     private var status: Status = Status.GREEN
     private var errorCount: Int = 0
     private var alertSent = false
+
+
+    fun getStatus(): Status? {
+        if (testMode)
+            return status
+        return null
+    }
+
+    fun getErrorCount():Int? {
+        if (testMode)
+            return errorCount
+        return null
+    }
+
+    fun setAlertSent(value: Boolean) {
+        if (testMode) {
+            alertSent = value
+        }
+    }
+
+    fun setStatus(value: Status) {
+        if (testMode) {
+            status = value
+        }
+    }
+
+    fun setErrorCount(value: Int) {
+        if (testMode) {
+            errorCount = value
+        }
+    }
 
     private suspend fun checkClusterStatus() {
         for (i in 1..3) {
@@ -54,7 +86,7 @@ class ElasticAlerting(
                     return
                 }
             } catch (ex: ConnectException) {
-                delay(FIFTEEN_SEC)
+                delay(if (testMode) 1000 else FIFTEEN_SEC)
             }
         }
         throw ConnectException("Lost connection to Elasticsearch")
@@ -64,20 +96,23 @@ class ElasticAlerting(
         while (true) {
             if (!status.isError) {
                 checkClusterStatus()
-                delay(THIRTY_SEC)
+                delay(if (testMode) 1000 else THIRTY_SEC)
             } else {
                 if (errorCount < status.failuresForATrigger) {
                     errorCount++
                     checkClusterStatus()
-                    delay(THIRTY_SEC)
+                    delay(if (testMode) 1000 else THIRTY_SEC)
                 } else {
                     if (!alertSent) {
                         alertService.createAlert(Alert("ALERT: Elastic has status: $status"))
                         alertSent = true
                     }
-                    delay(THIRTY_SEC)
+                    delay(if (testMode) 1000 else THIRTY_SEC)
                     checkClusterStatus()
                 }
+            }
+            if (testMode) {
+                return
             }
         }
     }
@@ -142,8 +177,9 @@ class ElasticAlerting(
             val healthResponse = lowLevelClient.performRequest(Request("GET", "/_cluster/health"))
             if (healthResponse.statusLine.statusCode != 200) {
                 log.warn("Statuscode for health response was not 200")
-                delay(ONE_HOUR)
-                continue
+                delay( if(testMode) 1000 else ONE_HOUR)
+                if (!testMode) continue
+                else return
             }
             val responseForActiveShards = EntityUtils.toString(healthResponse.entity)
             val numberOfActiveShards = defaultMapper.readTree(responseForActiveShards).findValue("active_shards").asInt()

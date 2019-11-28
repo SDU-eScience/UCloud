@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
@@ -8,6 +9,9 @@ import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc2
 import dk.sdu.cloud.app.orchestrator.utils.normTool
 import dk.sdu.cloud.app.orchestrator.utils.normToolDesc
+import dk.sdu.cloud.app.orchestrator.utils.verifiedJob
+import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
+import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken2
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -26,8 +30,10 @@ import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.util.*
+import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.random.Random
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 
@@ -36,6 +42,8 @@ class JobHibernateDaoTest {
     private val systemId = UUID.randomUUID().toString()
     private val appName = normAppDesc.metadata.name
     private val version = normAppDesc.metadata.version
+    private val appName2 = normAppDesc2.metadata.name
+    private val version2 = normAppDesc2.metadata.version
 
     private val toolDao: ToolStoreService = mockk()
     private val appDao: AppStoreService = mockk()
@@ -58,13 +66,13 @@ class JobHibernateDaoTest {
                 normAppDesc.metadata.version
             )
         } returns normAppDesc
-        coEvery { toolDao.findByNameAndVersion("app", "1.2") } returns normTool
+        coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
         coEvery {
             appDao.findByNameAndVersion(
-                "app",
-                "1.2"
+                appName2,
+                version2
             )
-        } returns normAppDesc
+        } returns normAppDesc2
     }
 
     @Test(expected = JobException.NotFound::class)
@@ -124,6 +132,10 @@ class JobHibernateDaoTest {
                 val result = jobHibDao.findJobsCreatedBefore(it, System.currentTimeMillis() + 5000).toList()
                 assertEquals(1, result.size)
             }
+        }
+
+        db.withTransaction(autoFlush = true) {
+            jobHibDao.updateStateAndStatus(it, systemId, JobState.RUNNING, "better")
         }
 
         db.withTransaction(autoFlush = true) {
@@ -371,7 +383,7 @@ class JobHibernateDaoTest {
     fun `Add and retrieve apps based on state`() {
 
         db.withTransaction {
-            addJob1(it)
+            addJob(it)
         }
 
         db.withTransaction {
@@ -413,8 +425,131 @@ class JobHibernateDaoTest {
         }
     }
 
-    private fun addJob1(session: HibernateSession) {
-        val firstJob = VerifiedJobWithAccessToken(
+    @Test (expected = JobException::class)
+    fun `Update Workspace - not found test`() {
+        db.withTransaction {
+            jobHibDao.updateWorkspace(it, "systemId", "workspace")
+        }
+    }
+
+    @Test
+    fun `Update Workspace`() {
+        db.withTransaction {
+            addJob(it)
+            jobHibDao.updateWorkspace(it, systemId, "workspace")
+        }
+    }
+
+    @Test
+    fun `test different sort by and order`() {
+        val extraID = UUID.randomUUID().toString()
+        val userToken = user.createToken()
+        db.withTransaction { session ->
+            addJob(session)
+            Thread.sleep(1000)
+            addJob(
+                session,
+                VerifiedJobWithAccessToken(
+                    VerifiedJob(
+                        normAppDesc2,
+                        "NewName",
+                        emptyList(),
+                        extraID,
+                        user.username,
+                        1,
+                        1,
+                        SimpleDuration(0, 1, 0),
+                        VerifiedJobInput(emptyMap()),
+                        "abacus",
+                        JobState.RUNNING,
+                        "Unknown",
+                        null,
+                        project = "project1",
+                        archiveInCollection = normAppDesc.metadata.title
+                    ),
+                    "token1",
+                    "token1"
+                )
+            )
+        }
+
+        db.withTransaction {
+            runBlocking {
+                val page = jobHibDao.list(
+                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.NAME
+                )
+
+                assertEquals(2, page.itemsInTotal)
+                assertEquals(page.items.first().job.application.metadata.name, appName2)
+                assertEquals(page.items.last().job.application.metadata.name, appName)
+            }
+
+            runBlocking {
+                val page = jobHibDao.list(
+                    it, userToken, NormalizedPaginationRequest(10, 0), SortOrder.ASCENDING, JobSortBy.NAME
+                )
+                assertEquals(page.items.first().job.application.metadata.name, appName)
+                assertEquals(page.items.last().job.application.metadata.name, appName2)
+            }
+
+            runBlocking {
+                val page = jobHibDao.list(
+                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy =  JobSortBy.STATE
+                )
+                assertEquals(page.items.first().job.application.metadata.name, appName)
+                assertEquals(page.items.last().job.application.metadata.name, appName2)
+            }
+
+            runBlocking {
+                val page = jobHibDao.list(
+                    it, userToken, NormalizedPaginationRequest(10, 0),sortBy = JobSortBy.LAST_UPDATE
+                )
+                assertEquals(page.items.first().job.application.metadata.name, appName2)
+                assertEquals(page.items.last().job.application.metadata.name, appName)
+            }
+
+            runBlocking {
+                val page = jobHibDao.list(
+                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.APPLICATION
+                )
+                assertEquals(page.items.first().job.application.metadata.name, appName2)
+                assertEquals(page.items.last().job.application.metadata.name, appName)
+            }
+
+            runBlocking {
+                val page = jobHibDao.list(
+                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.STARTED_AT
+                )
+                assertEquals(page.items.first().job.application.metadata.name, appName2)
+                assertEquals(page.items.last().job.application.metadata.name, appName)
+            }
+
+            runBlocking {
+                val page = jobHibDao.list(
+                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.CREATED_AT
+                )
+                assertEquals(page.items.first().job.application.metadata.name, appName2)
+                assertEquals(page.items.last().job.application.metadata.name, appName)
+            }
+
+            runBlocking {
+                val page = jobHibDao.list(
+                    it,
+                    userToken,
+                    NormalizedPaginationRequest(10, 0),
+                    sortBy = JobSortBy.NAME,
+                    application = appName2,
+                    version = version2
+                )
+                assertEquals(1, page.itemsInTotal)
+                assertEquals(page.items.first().job.application.metadata.name, appName2)
+            }
+        }
+
+    }
+
+    private fun addJob(session: HibernateSession, verifiedJobWithAccessToken: VerifiedJobWithAccessToken? = null) {
+        val firstJob = verifiedJobWithAccessToken ?: VerifiedJobWithAccessToken(
             VerifiedJob(
                 normAppDesc,
                 null,
