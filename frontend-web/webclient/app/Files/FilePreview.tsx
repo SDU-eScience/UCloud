@@ -45,7 +45,7 @@ const FilePreview = (props: FilePreviewProps) => {
                 snackbarStore.addFailure("Directories cannot be previewed.");
                 setError("Preview for folders not supported");
                 setDownloadButton(true);
-            } else if (stat.size! > 30_000_000) {
+            } else if (stat.size! > 5_000_000) {
                 snackbarStore.addFailure("File size too large. Download instead.");
                 setError("File size too large to preview.");
                 setDownloadButton(true);
@@ -111,10 +111,7 @@ const FilePreview = (props: FilePreviewProps) => {
                 return <audio controls src={fileContent} />;
             case "video":
                 return (
-                    <video
-                        src={fileContent}
-                        controls
-                    />
+                    <video src={fileContent} controls />
                 );
             case "pdf":
                 return (

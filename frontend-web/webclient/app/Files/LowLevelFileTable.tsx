@@ -911,15 +911,15 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
 };
 
 const SensitivityBadge = styled.div<{bg: string}>`
-                                content: '';
-                                height: 2em;
-                                width: 2em;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
+    content: '';
+    height: 2em;
+    width: 2em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: 0.2em solid ${props => props.bg};
-                            border-radius: 100%;
-                        `;
+    border-radius: 100%;
+`;
 
 interface FileOperations extends SpaceProps {
     files: File[];
