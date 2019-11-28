@@ -48,7 +48,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                 onRequestClose={() => props.onFileSelect(null)}
                 style={FileSelectorModalStyle}
             >
-                <Box width="95%">
+                <Box>
                     <VirtualFileTable
                         {...virtualFolders}
                         omitQuickLaunch
