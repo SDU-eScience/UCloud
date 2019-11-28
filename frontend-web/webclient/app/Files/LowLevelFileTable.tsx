@@ -623,7 +623,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                     <Flex
                         backgroundColor={checkedFiles.has(f.fileId!) ? "lightBlue" : "white"}
                         onClick={() => {
-                            if (!isAnyMockFile([f])) setChecked([f]);
+                            if (!isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
                         }}
                         width="100%"
                         key={f.path}
