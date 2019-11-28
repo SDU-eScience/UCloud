@@ -20,7 +20,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
-import {Button, Divider, Hide, Icon, Input, Link, List, OutlineButton, Text, Tooltip, Truncate} from "ui-components";
+import {Button, Checkbox, Divider, Hide, Icon, Input, Label, Link, List, OutlineButton, Text, Tooltip, Truncate} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
@@ -52,7 +52,7 @@ import {
     sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {addStandardDialog, Arrow, FileIcon} from "UtilityComponents";
+import {addStandardDialog, Arrow, FileIcon, MasterCheckbox} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 
 export interface LowLevelFileTableProps {
@@ -558,47 +558,60 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                             <Spacer
                                 left={<div />}
                                 right={(
-
-                                    <ClickableDropdown
-                                        trigger={(
-                                            <>
-                                                <Icon
-                                                    cursor="pointer"
-                                                    name="arrowDown"
-                                                    rotation={order === SortOrder.ASCENDING ? 180 : 0}
-                                                    size=".7em"
-                                                    mr=".4em"
+                                    <>
+                                        <Box mr="18px">
+                                            <Label>
+                                                All files selected:
+                                                <Checkbox
+                                                    data-tag="masterCheckbox"
+                                                    onClick={() => setChecked(allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked)}
+                                                    checked={isMasterChecked}
+                                                    disabled={isMasterDisabled}
+                                                    onChange={UF.stopPropagation}
                                                 />
-                                                Sort by: {UF.sortByToPrettierString(sortBy)}
-                                            </>
-                                        )}
-                                        chevron
-                                    >
-                                        <Box
-                                            ml="-16px"
-                                            mr="-16px"
-                                            pl="15px"
-                                            onClick={() => setSorting(sortByColumns[0], order === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, 0)}
-                                        >
-                                            <>
-                                                {UF.prettierString(order === SortOrder.ASCENDING ?
-                                                    SortOrder.DESCENDING : SortOrder.ASCENDING)
-                                                }
-                                            </>
+                                            </Label>
                                         </Box>
-                                        <Divider />
-                                        {Object.values(SortBy).filter(it => it !== sortByColumns[0]).map((sortByValue: SortBy, j) => (
+                                        <ClickableDropdown
+                                            trigger={(
+                                                <>
+                                                    <Icon
+                                                        cursor="pointer"
+                                                        name="arrowDown"
+                                                        rotation={order === SortOrder.ASCENDING ? 180 : 0}
+                                                        size=".7em"
+                                                        mr=".4em"
+                                                    />
+                                                    Sort by: {UF.sortByToPrettierString(sortBy)}
+                                                </>
+                                            )}
+                                            chevron
+                                        >
                                             <Box
                                                 ml="-16px"
                                                 mr="-16px"
                                                 pl="15px"
-                                                key={j}
-                                                onClick={() => setSorting(sortByValue, SortOrder.ASCENDING, 0)}
+                                                onClick={() => setSorting(sortByColumns[0], order === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, 0)}
                                             >
-                                                {UF.sortByToPrettierString(sortByValue)}
+                                                <>
+                                                    {UF.prettierString(order === SortOrder.ASCENDING ?
+                                                        SortOrder.DESCENDING : SortOrder.ASCENDING)
+                                                    }
+                                                </>
                                             </Box>
-                                        ))}
-                                    </ClickableDropdown>
+                                            <Divider />
+                                            {Object.values(SortBy).filter(it => it !== sortByColumns[0]).map((sortByValue: SortBy, j) => (
+                                                <Box
+                                                    ml="-16px"
+                                                    mr="-16px"
+                                                    pl="15px"
+                                                    key={j}
+                                                    onClick={() => setSorting(sortByValue, SortOrder.ASCENDING, 0)}
+                                                >
+                                                    {UF.sortByToPrettierString(sortByValue)}
+                                                </Box>
+                                            ))}
+                                        </ClickableDropdown>
+                                    </>
                                 )}
                             />
                         </StickyBox>
