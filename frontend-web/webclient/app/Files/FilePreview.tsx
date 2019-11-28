@@ -9,7 +9,7 @@ import {useLocation} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Button, Icon} from "ui-components";
+import {Button, Icon, Box} from "ui-components";
 import Error from "ui-components/Error";
 import {Spacer} from "ui-components/Spacer";
 import {downloadFiles, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
@@ -153,6 +153,7 @@ const FilePreview = (props: FilePreviewProps) => {
             main={(
                 <>
                     <Error error={error} />
+                    <Box height="50px" />
                     <ContentWrapper>
                         {showContent()}
                     </ContentWrapper>
@@ -165,7 +166,7 @@ const FilePreview = (props: FilePreviewProps) => {
 const ContentWrapper = styled.div`
     display: flex;
     width: 100%;
-    height: 85vh;
+    height: 80vh;
     justify-items: center;
     justify-content: center;
     align-items: center;

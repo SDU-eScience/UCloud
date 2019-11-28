@@ -642,6 +642,22 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                             )}
                             right={(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
                                 <Flex mt="5px" onClick={UF.stopPropagation}>
+                                    {!(props.previewEnabled && UF.isPreviewSupported(UF.extensionFromPath(f.path))) ? null : (
+                                        <Tooltip
+                                            wrapperOffsetLeft="0"
+                                            wrapperOffsetTop="4px"
+                                            right="0"
+                                            top="1"
+                                            mb="50px"
+                                            trigger={(
+                                                <Link to={filePreviewQuery(f.path)}>
+                                                    <Icon cursor="pointer" size="2em" mr="4px" name="eye" />
+                                                </Link>
+                                            )}
+                                        >
+                                            Preview available
+                                        </Tooltip>
+                                    )}
                                     {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
                                         (!applications.has(f.path) || applications.get(f.path)!.length < 1) ? null : (
                                             <ClickableDropdown
