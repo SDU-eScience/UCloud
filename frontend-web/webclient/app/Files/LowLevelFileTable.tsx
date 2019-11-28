@@ -20,7 +20,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
-import {Button, Divider, Icon, Input, List, OutlineButton, Text, Tooltip} from "ui-components";
+import {Button, Divider, Icon, Input, List, OutlineButton, Text, Tooltip, Truncate, Hide} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
@@ -805,7 +805,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             data-tag="renameField"
             onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
         />
-    ) : <Text mb="-4px" width="auto" fontSize={20}>{getFilenameFromPath(props.file.path)}</Text>;
+    ) : <Truncate width={[170, 250, 300, 250, 500, "100%"]} mb="-4px" fontSize={20}>{getFilenameFromPath(props.file.path)}</Truncate>;
 
     return (
         <Flex>
@@ -845,22 +845,24 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         {fileName}
                     </BaseLink>
                 ) : fileName}
-                <Flex>
-                    {!props.file.size ? null : (
-                        <Text fontSize={0} title="Size" mr="12px" color="gray">{sizeToString(props.file.size)}</Text>
-                    )}
-                    {!props.file.modifiedAt ? null : (
-                        <Text title="Modified at" fontSize={0} mr="12px" color="gray">
-                            <Icon size="10" mr="3px" name="edit" />
-                            {format(props.file.modifiedAt, "HH:mm:ss dd/MM/yyyy")}
-                        </Text>
-                    )}
-                    {!props.file.createdAt ? null : (
-                        <Text title="Created at" fontSize={0} mr="12px" color="gray">
-                            <Icon size="10" mr="3px" name="copy" />{format(props.file.createdAt, "HH:mm:ss dd/MM/yyyy")}
-                        </Text>
-                    )}
-                </Flex>
+
+                <Hide sm xs>
+                    <Flex>
+                        {!props.file.size ? null : (
+                            <Text fontSize={0} title="Size" mr="12px" color="gray">{sizeToString(props.file.size)}</Text>
+                        )}
+                        {!props.file.modifiedAt ? null : (
+                            <Text title="Modified at" fontSize={0} mr="12px" color="gray">
+                                <Icon size="10" mr="3px" name="edit" />
+                                {format(props.file.modifiedAt, "HH:mm:ss dd/MM/yyyy")}
+                            </Text>
+                        )}{!props.file.createdAt ? null : (
+                            <Text title="Created at" fontSize={0} mr="12px" color="gray">
+                                <Icon size="10" mr="3px" name="copy" />{format(props.file.createdAt, "HH:mm:ss dd/MM/yyyy")}
+                            </Text>
+                        )}
+                    </Flex>
+                </Hide>
             </Box>
         </Flex>
     );
