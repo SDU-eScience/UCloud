@@ -726,7 +726,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
 const StickyBox = styled(Box)`
     position: sticky;
     top: 120px;
-    zIndex: 50;
+    z-index: 50;
 `;
 
 function toWebDav() {
