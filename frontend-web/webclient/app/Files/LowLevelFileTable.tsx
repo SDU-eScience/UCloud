@@ -166,7 +166,7 @@ const initialPageParameters: ListDirectoryRequest = {
 };
 
 function apiForComponent(
-    props,
+    props, /* FIXME: ADD TYPESAFETY */
     sortByColumns: [SortBy, SortBy],
     setSortByColumns: (s: [SortBy, SortBy]) => void
 ): InternalFileTableAPI {
@@ -556,21 +556,22 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                     {!sortingSupported ? <div /> : (
                         <StickyBox>
                             <Spacer
-                                left={<div />}
+                                left={isMasterDisabled ? null : (
+                                    <Box mr="18px">
+                                        <Label>
+                                            All files selected:
+                                            <Checkbox
+                                                data-tag="masterCheckbox"
+                                                onClick={() => setChecked(allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked)}
+                                                checked={isMasterChecked}
+                                                disabled={isMasterDisabled}
+                                                onChange={UF.stopPropagation}
+                                            />
+                                        </Label>
+                                    </Box>
+                                )}
                                 right={(
                                     <>
-                                        <Box mr="18px">
-                                            <Label>
-                                                All files selected:
-                                                <Checkbox
-                                                    data-tag="masterCheckbox"
-                                                    onClick={() => setChecked(allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked)}
-                                                    checked={isMasterChecked}
-                                                    disabled={isMasterDisabled}
-                                                    onChange={UF.stopPropagation}
-                                                />
-                                            </Label>
-                                        </Box>
                                         <ClickableDropdown
                                             trigger={(
                                                 <>
@@ -892,16 +893,25 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 <Hide sm xs>
                     <Flex>
                         {!props.file.size ? null : (
-                            <Text fontSize={0} title="Size" mr="12px" color="gray">{sizeToString(props.file.size)}</Text>
+                            <Text fontSize={0} title="Size" mr="12px" color="gray">
+                                {sizeToString(props.file.size)}
+                            </Text>
                         )}
                         {!props.file.modifiedAt ? null : (
                             <Text title="Modified at" fontSize={0} mr="12px" color="gray">
                                 <Icon size="10" mr="3px" name="edit" />
                                 {format(props.file.modifiedAt, "HH:mm:ss dd/MM/yyyy")}
                             </Text>
-                        )}{!props.file.createdAt ? null : (
+                        )}
+                        {!props.file.createdAt ? null : (
                             <Text title="Created at" fontSize={0} mr="12px" color="gray">
-                                <Icon size="10" mr="3px" name="copy" />{format(props.file.createdAt, "HH:mm:ss dd/MM/yyyy")}
+                                <Icon size="10" mr="3px" name="copy" />
+                                {format(props.file.createdAt, "HH:mm:ss dd/MM/yyyy")}
+                            </Text>
+                        )}
+                        {!((props.file.acl?.length ?? 0) > 1) ? null : (
+                            <Text title="Members" fontSize={0} mr="12px" color="gray">
+                                {props.file.acl?.length} members
                             </Text>
                         )}
                     </Flex>
