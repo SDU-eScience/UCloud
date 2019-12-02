@@ -9,11 +9,11 @@ import {useLocation} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Button, Icon, Box} from "ui-components";
+import {Box, Button, Icon} from "ui-components";
 import Error from "ui-components/Error";
 import {Spacer} from "ui-components/Spacer";
 import {downloadFiles, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
-import {extensionFromPath, extensionTypeFromPath, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
+import {extensionFromPath, extensionTypeFromPath, isPreviewSupported, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
 import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
 interface FilePreviewStateProps {
@@ -37,6 +37,11 @@ const FilePreview = (props: FilePreviewProps) => {
 
     React.useEffect(() => {
         const path = filepath();
+        if (!isPreviewSupported(extensionFromPath(path))) {
+            setError("Preview is not supported for file type.");
+            setDownloadButton(true);
+            return;
+        }
         statFileOrNull(path).then(stat => {
             if (stat === null) {
                 snackbarStore.addFailure("File not found");
@@ -82,14 +87,14 @@ const FilePreview = (props: FilePreviewProps) => {
     }
 
     function showContent() {
-        if (error) return null;
-        else if (showDownloadButton) {
+        if (showDownloadButton) {
             return (
                 <Button mt="10px" onClick={() => downloadFiles([{path: filepath()}], () => undefined, Client)}>
                     Download file
                 </Button>
             );
-        } else if (!fileContent) return (<LoadingIcon size={36} />);
+        } else if (error) return null;
+        else if (!fileContent) return (<LoadingIcon size={36} />);
         switch (fileType) {
             case "text":
             case "code":
@@ -145,7 +150,12 @@ const FilePreview = (props: FilePreviewProps) => {
     }
 
     if (props.isEmbedded) {
-        return showContent();
+        return (
+            <>
+                <Error error={error} />
+                {showContent()}
+            </>
+        );
     }
 
     return (
