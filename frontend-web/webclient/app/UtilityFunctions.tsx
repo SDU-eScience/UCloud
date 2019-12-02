@@ -349,7 +349,7 @@ export function sortByToPrettierString(sortBy: SortBy): string {
         case SortBy.MODIFIED_AT:
             return "Modified at";
         case SortBy.PATH:
-            return "Path";
+            return "Filename";
         case SortBy.SIZE:
             return "Size";
         case SortBy.SENSITIVITY_LEVEL:
