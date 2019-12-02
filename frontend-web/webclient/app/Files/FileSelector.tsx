@@ -48,11 +48,11 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                 onRequestClose={() => props.onFileSelect(null)}
                 style={FileSelectorModalStyle}
             >
-                <Box width="95%">
+                <Box>
                     <VirtualFileTable
                         {...virtualFolders}
                         omitQuickLaunch
-                        numberOfColumns={0}
+                        embedded
                         fileOperations={[{
                             text: "Select",
                             onClick: files => props.onFileSelect(files[0]),

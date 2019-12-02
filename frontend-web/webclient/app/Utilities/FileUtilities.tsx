@@ -223,6 +223,9 @@ export const fileLookupQuery = (
 ): string =>
     `files/lookup?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${toAttributesString(attrs)}`;
 
+export const filePreviewQuery = (path: string) =>
+    `files/preview?path=${encodeURIComponent(resolvePath(path))}`;
+
 export const advancedFileSearch = "/file-search/advanced";
 
 export const recentFilesQuery = "/files/stats/recent";

@@ -9,10 +9,10 @@ import {useLocation} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Button, Icon} from "ui-components";
+import {Button, Icon, Box} from "ui-components";
 import Error from "ui-components/Error";
 import {Spacer} from "ui-components/Spacer";
-import {downloadFiles, statFileOrNull} from "Utilities/FileUtilities";
+import {downloadFiles, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
 import {extensionFromPath, extensionTypeFromPath, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
 import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
@@ -41,7 +41,11 @@ const FilePreview = (props: FilePreviewProps) => {
             if (stat === null) {
                 snackbarStore.addFailure("File not found");
                 setError("File not found");
-            } else if (stat.size! > 30_000_000) {
+            } else if (isDirectory({fileType: stat.fileType})) {
+                snackbarStore.addFailure("Directories cannot be previewed.");
+                setError("Preview for folders not supported");
+                setDownloadButton(true);
+            } else if (stat.size! > 5_000_000) {
                 snackbarStore.addFailure("File size too large. Download instead.");
                 setError("File size too large to preview.");
                 setDownloadButton(true);
@@ -78,7 +82,8 @@ const FilePreview = (props: FilePreviewProps) => {
     }
 
     function showContent() {
-        if (showDownloadButton) {
+        if (error) return null;
+        else if (showDownloadButton) {
             return (
                 <Button mt="10px" onClick={() => downloadFiles([{path: filepath()}], () => undefined, Client)}>
                     Download file
@@ -90,10 +95,10 @@ const FilePreview = (props: FilePreviewProps) => {
             case "code":
                 /* TODO: Syntax highlighting (Google Prettify?) */
                 return (
-                    <>
+                    <div>
                         <Spacer left={<div />} right={<ExpandingIcon name="fullscreen" onClick={onTryFullScreen} />} />
                         <code className="fullscreen" style={{whiteSpace: "pre-wrap"}}>{fileContent}</code>
-                    </>
+                    </div>
                 );
             case "image":
                 return (
@@ -106,27 +111,24 @@ const FilePreview = (props: FilePreviewProps) => {
                 return <audio controls src={fileContent} />;
             case "video":
                 return (
-                    <video
-                        style={{maxWidth: "100%", maxHeight: "100%", verticalAlign: "middle"}}
-                        src={fileContent}
-                        controls
-                    />
+                    <video src={fileContent} controls />
                 );
             case "pdf":
                 return (
-                    <>
+                    <div>
                         <Spacer
                             left={<div />}
                             right={<ExpandingIcon name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
                         />
                         <embed
+                            style={{
+                                width: "85vw",
+                                height: "89vh"
+                            }}
                             className="fullscreen"
-                            width="999999"
-                            height="1080"
-                            style={{maxWidth: "100%", maxHeight: "100%"}}
                             src={fileContent}
                         />
-                    </>
+                    </div>
                 );
             default:
                 return (<div>Can't render content</div>);
@@ -151,12 +153,24 @@ const FilePreview = (props: FilePreviewProps) => {
             main={(
                 <>
                     <Error error={error} />
-                    {showContent()}
+                    <Box height="50px" />
+                    <ContentWrapper>
+                        {showContent()}
+                    </ContentWrapper>
                 </>
             )}
         />
     );
 };
+
+const ContentWrapper = styled.div`
+    display: flex;
+    width: 100%;
+    height: 80vh;
+    justify-items: center;
+    justify-content: center;
+    align-items: center;
+`;
 
 const ExpandingIcon = styled(Icon)`
     &:hover {

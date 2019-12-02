@@ -193,7 +193,9 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Preview",
         onClick: (files, cb) => cb.history.push(filePreviewPage(files[0].path)),
-        disabled: (files) => UF.isPreviewSupported(files[0].path),
+        disabled: (files) => !UF.isPreviewSupported(UF.extensionFromPath(files[0].path)) ||
+            (!UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files) || isAnyMockFile(files) ||
+                isAnySharedFs(files)),
         icon: "search"
     },
     {

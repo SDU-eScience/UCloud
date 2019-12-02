@@ -342,10 +342,8 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     );
 
     function onFavoriteClick(e: React.MouseEvent<HTMLDivElement, MouseEvent>): void {
-        if (!!onFavorite) {
-            e.preventDefault();
-            onFavorite(metadata.name, metadata.version);
-        }
+        e.preventDefault();
+        onFavorite?.(metadata.name, metadata.version);
     }
 };
 
@@ -383,6 +381,7 @@ export const SmallCard = styled(Link) <{color1: string, color2: string, color3: 
     }
 `;
 
+/* TODO: Limit is too arbitrary currently. Find better solution. */
 function buildTags(tags: string[]): string[] {
     let limit = 40;
     if (tags.join().length < limit && tags.length < 4) return tags;
