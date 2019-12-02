@@ -1,6 +1,7 @@
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
+import {ACLAvatars} from "AvataaarLib/UserAvatar";
 import {format} from "date-fns/esm";
 import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
@@ -562,7 +563,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                             All files selected:
                                             <Checkbox
                                                 data-tag="masterCheckbox"
-                                                onClick={() => setChecked(allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked)}
+                                                onClick={() => setChecked(
+                                                    allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked
+                                                )}
                                                 checked={isMasterChecked}
                                                 disabled={isMasterDisabled}
                                                 onChange={UF.stopPropagation}
@@ -591,12 +594,15 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                                 ml="-16px"
                                                 mr="-16px"
                                                 pl="15px"
-                                                onClick={() => setSorting(sortByColumns[0], order === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING, 0)}
+                                                onClick={() => setSorting(
+                                                    sortByColumns[0], order === SortOrder.ASCENDING ?
+                                                    SortOrder.DESCENDING : SortOrder.ASCENDING, 0
+                                                )}
                                             >
                                                 <>
                                                     {UF.prettierString(order === SortOrder.ASCENDING ?
-                                                        SortOrder.DESCENDING : SortOrder.ASCENDING)
-                                                    }
+                                                        SortOrder.DESCENDING : SortOrder.ASCENDING
+                                                    )}
                                                 </>
                                             </Box>
                                             <Divider />
@@ -656,6 +662,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                             )}
                             right={(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
                                 <Flex mt="5px" onClick={UF.stopPropagation}>
+                                    {/* Show members as icons */}
+                                    {/* {!f.acl ? null : <ACLAvatars members={f.acl.map(it => it.entity)} />} */}
                                     {!(props.previewEnabled && UF.isPreviewSupported(UF.extensionFromPath(f.path))) ? null : (
                                         <Tooltip
                                             wrapperOffsetLeft="0"
@@ -673,7 +681,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                         </Tooltip>
                                     )}
                                     {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
-                                        (!applications.has(f.path) || applications.get(f.path)!.length < 1) ? null : (
+                                        ((applications.get(f.path) ?? []).length < 1) ? null : (
                                             <ClickableDropdown
                                                 width="175px"
                                                 left="-160px"
@@ -946,7 +954,18 @@ const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
     }
 
     const badge = <SensitivityBadge data-tag="sensitivityBadge" bg={def.color}>{def.shortText}</SensitivityBadge>;
-    return <Tooltip wrapperOffsetLeft="6px" wrapperOffsetTop="-5px" right="0" top="1" mb="50px" trigger={badge}>{def.text}</Tooltip>;
+    return (
+        <Tooltip
+            wrapperOffsetLeft="6px"
+            wrapperOffsetTop="-5px"
+            right="0"
+            top="1"
+            mb="50px"
+            trigger={badge}
+        >
+            {def.text}
+        </Tooltip>
+    );
 };
 
 const SensitivityBadge = styled.div<{bg: string}>`
