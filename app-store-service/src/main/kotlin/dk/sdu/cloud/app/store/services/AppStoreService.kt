@@ -2,11 +2,7 @@ package dk.sdu.cloud.app.store.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
-import dk.sdu.cloud.app.store.api.ApplicationWithExtension
-import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
-import dk.sdu.cloud.app.store.api.ToolReference
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -103,6 +99,24 @@ class AppStoreService<DBSession>(
                         tool
                     )
                 )
+            )
+        }
+    }
+
+    fun hasPermission(
+        securityPrincipal: SecurityPrincipal,
+        name: String,
+        version: String,
+        permission: ApplicationAccessRight
+    ): Boolean {
+
+        return db.withTransaction { session ->
+            applicationDAO.hasPermission(
+                session,
+                UserEntity(securityPrincipal.username, EntityType.USER),
+                name,
+                version,
+                permission
             )
         }
     }
@@ -222,7 +236,7 @@ class AppStoreService<DBSession>(
 
         val queryTerms = normalizedQuery.split(" ").filter { it.isNotBlank() }
 
-        val results = elasticDAO.search(queryTerms, normalizedTags ?: emptyList())
+        val results = elasticDAO.search(queryTerms, normalizedTags)
 
         if (results.hits.hits.isEmpty()) {
             return Page(
@@ -251,7 +265,7 @@ class AppStoreService<DBSession>(
                 result.title
             }
 
-            val applications =  db.withTransaction { session ->
+            val applications = db.withTransaction { session ->
                 applicationDAO.multiKeywordsearch(session, titles.toList(), paging)
             }
 
@@ -287,6 +301,7 @@ class AppStoreService<DBSession>(
                 .mapItems { it.withoutInvocation() }
         }
     }
+
     companion object : Loggable {
         override val log = logger()
     }

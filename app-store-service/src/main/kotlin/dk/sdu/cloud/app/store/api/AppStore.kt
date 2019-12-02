@@ -20,6 +20,22 @@ data class FindApplicationAndOptionalDependencies(
     val version: String
 )
 
+enum class EntityType {
+    USER,
+    PROJECT_AND_GROUP
+}
+
+data class UserEntity(
+    val id: String,
+    val type: EntityType
+)
+
+data class HasPermissionRequest(
+    val name: String,
+    val version: String,
+    val permission: ApplicationAccessRight
+)
+
 data class FavoriteRequest(
     val name: String,
     val version: String
@@ -214,6 +230,24 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
                 using(baseContext)
                 +boundTo(FindApplicationAndOptionalDependencies::name)
                 +boundTo(FindApplicationAndOptionalDependencies::version)
+            }
+        }
+    }
+
+    val hasPermission = call<
+            HasPermissionRequest,
+            Boolean,
+            CommonErrorMessage>("hasPermission") {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ
+        }
+
+        http {
+            path {
+                using(baseContext)
+                +boundTo(HasPermissionRequest::name)
+                +boundTo(HasPermissionRequest::version)
             }
         }
     }

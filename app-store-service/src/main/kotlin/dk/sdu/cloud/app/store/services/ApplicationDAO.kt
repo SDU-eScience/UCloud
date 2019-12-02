@@ -75,6 +75,14 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
+    fun hasPermission(
+        session: Session,
+        accessEntity: UserEntity,
+        name: String,
+        version: String,
+        permission: ApplicationAccessRight
+    ): Boolean
+
     fun create(
         session: Session,
         user: SecurityPrincipal,
