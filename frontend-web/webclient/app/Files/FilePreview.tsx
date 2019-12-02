@@ -3,6 +3,7 @@ import {FilePreviewReduxState, ReduxObject} from "DefaultObjects";
 import {File} from "Files";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
+import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {useLocation} from "react-router";
@@ -34,6 +35,7 @@ const FilePreview = (props: FilePreviewProps) => {
     const [error, setError] = React.useState("");
     const [showDownloadButton, setDownloadButton] = React.useState(false);
     const fileType = extensionTypeFromPath(filepath());
+    const promises = usePromiseKeeper();
 
     React.useEffect(() => {
         const path = filepath();
@@ -42,7 +44,7 @@ const FilePreview = (props: FilePreviewProps) => {
             setDownloadButton(true);
             return;
         }
-        statFileOrNull(path).then(stat => {
+        promises.makeCancelable(statFileOrNull(path)).promise.then(stat => {
             if (stat === null) {
                 snackbarStore.addFailure("File not found");
                 setError("File not found");
@@ -55,11 +57,13 @@ const FilePreview = (props: FilePreviewProps) => {
                 setError("File size too large to preview.");
                 setDownloadButton(true);
             } else {
-                Client.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
+                promises.makeCancelable(
+                    Client.createOneTimeTokenWithPermission("files.download:read")
+                ).promise.then((token: string) => {
                     fetch(Client.computeURL(
-                        "/api",
-                        `/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`
+                        "/api", `/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`
                     )).then(async content => {
+                        if (promises.canceledKeeper) return;
                         switch (fileType) {
                             case "image":
                             case "audio":
@@ -76,9 +80,19 @@ const FilePreview = (props: FilePreviewProps) => {
                                 setDownloadButton(true);
                                 break;
                         }
-                    }).catch(it => typeof it === "string" ? setError(it) : setError("An error occurred fetching file content"));
+                    }).catch(it => {
+                        /* Must be solveable more elegantly */
+                        if (!it.isCanceled)
+                            typeof it === "string" ? setError(it) : setError("An error occurred fetching file content");
+                    });
+                }).catch(it => {
+                    if (!it.isCanceled)
+                        typeof it === "string" ? setError(it) : setError("An error occurred fetching permission");
                 });
             }
+        }).catch(it => {
+            if (!it.isCanceled)
+                typeof it === "string" ? setError(it) : setError("An error occurred fetching info");
         });
     }, []);
 

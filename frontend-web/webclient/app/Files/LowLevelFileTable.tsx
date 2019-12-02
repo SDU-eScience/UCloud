@@ -11,7 +11,7 @@ import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
-import PromiseKeeper from "PromiseKeeper";
+import PromiseKeeper, {usePromiseKeeper} from "PromiseKeeper";
 import {useEffect, useState} from "react";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -172,7 +172,7 @@ function apiForComponent(
     setSortByColumns: (s: [SortBy, SortBy]) => void
 ): InternalFileTableAPI {
     let api: InternalFileTableAPI;
-    const [promises] = useState(new PromiseKeeper());
+    const promises = usePromiseKeeper();
     const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
     const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork();
     const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>({
@@ -180,8 +180,6 @@ function apiForComponent(
         type: props.foldersOnly ? "DIRECTORY" : undefined,
         path: Client.homeFolder
     });
-
-    React.useEffect(() => () => promises.cancelPromises(), []);
 
     const loadManaged = (request: ListDirectoryRequest) => {
         setPageParameters(request);

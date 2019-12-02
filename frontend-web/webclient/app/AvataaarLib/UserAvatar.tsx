@@ -1,12 +1,11 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {Avatar} from "AvataaarLib";
-import PromiseKeeper from "PromiseKeeper";
+import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
 import Flex from "ui-components/Flex";
 import {AvatarType} from "UserSettings/Avataaar";
-import {Box} from "ui-components";
 
 const ClippedBox = styled(Flex)`
     overflow: hidden;
@@ -25,7 +24,7 @@ export const UserAvatar = ({avatar, width = "60px"}: UserAvatar) => (
 
 export function ACLAvatars(props: {members: string[]}): JSX.Element | null {
     const [avatars, setAvatars] = React.useState<AvatarType[]>([]);
-    const [promises] = React.useState(new PromiseKeeper());
+    const promises = usePromiseKeeper();
     React.useEffect(() => {
         if (props.members.length === 0) return;
         promises.makeCancelable(
@@ -33,7 +32,6 @@ export function ACLAvatars(props: {members: string[]}): JSX.Element | null {
         ).promise.then(it =>
             setAvatars(Object.values(it.response.avatars))
         ).catch(it => console.warn(it));
-        return () => promises.cancelPromises();
     }, [props.members]);
     if (props.members.length === 0) return null;
     return (<Flex><AvatarList avatars={avatars} /></Flex>);
