@@ -18,6 +18,7 @@ fun main(args: Array<String>) {
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
         install(BackgroundScopeFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

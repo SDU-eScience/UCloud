@@ -13,6 +13,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(FileTrashServiceDescription, args)
         install(RefreshingJWTCloudFeature)
         install(BackgroundScopeFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

@@ -10,6 +10,7 @@ fun main(args: Array<String>) {
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
         install(ElasticFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

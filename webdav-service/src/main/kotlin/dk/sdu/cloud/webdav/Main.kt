@@ -9,6 +9,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(WebdavServiceDescription, args)
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

@@ -9,8 +9,10 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(AppDummyServiceDescription, args)
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
+        install(ElasticFeature)
     }
 
+    micro.install(HealthCheckFeature)
     if (micro.runScriptHandler()) return
 
     Server(micro).start()

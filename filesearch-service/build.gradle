@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.1.6'
+version '1.1.8'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.filesearch.MainKt"
@@ -10,7 +10,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.10.2"
+    ext.serviceCommonVersion = "1.10.4"
     ext.fileApiVersion = "2.1.2"
 }
 

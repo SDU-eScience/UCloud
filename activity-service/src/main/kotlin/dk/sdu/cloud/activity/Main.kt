@@ -2,6 +2,7 @@ package dk.sdu.cloud.activity
 
 import dk.sdu.cloud.activity.api.ActivityServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.micro.HealthCheckFeature
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.initWithDefaultFeatures
@@ -13,6 +14,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(ActivityServiceDescription, args)
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

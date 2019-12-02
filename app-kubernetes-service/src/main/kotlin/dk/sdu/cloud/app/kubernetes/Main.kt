@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.kubernetes
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.micro.BackgroundScopeFeature
+import dk.sdu.cloud.micro.HealthCheckFeature
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
@@ -26,6 +27,7 @@ fun main(args: Array<String>) {
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
         install(BackgroundScopeFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

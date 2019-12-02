@@ -9,6 +9,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(AuditIngestionServiceDescription, args)
         install(RefreshingJWTCloudFeature)
         install(ElasticFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return
