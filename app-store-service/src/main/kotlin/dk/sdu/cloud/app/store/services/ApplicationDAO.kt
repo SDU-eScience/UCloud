@@ -82,6 +82,13 @@ interface ApplicationDAO<Session> {
         originalDocument: String = ""
     )
 
+    fun delete(
+        session: Session,
+        user: SecurityPrincipal,
+        name: String,
+        version: String
+    )
+
     fun createTags(
         session: Session,
         user: SecurityPrincipal,
