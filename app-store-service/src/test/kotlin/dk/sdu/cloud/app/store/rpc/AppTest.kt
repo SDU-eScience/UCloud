@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.store.rpc
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.app.store.api.AdvancedSearchRequest
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
 import dk.sdu.cloud.app.store.api.CreateTagsRequest
@@ -13,6 +12,7 @@ import dk.sdu.cloud.app.store.services.ElasticDAO
 import dk.sdu.cloud.app.store.services.LogoService
 import dk.sdu.cloud.app.store.services.ToolDAO
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
+import dk.sdu.cloud.app.store.services.acl.AclDao
 import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.app.store.util.normAppDesc2
 import dk.sdu.cloud.app.store.util.normToolDesc
@@ -51,7 +51,8 @@ private fun KtorApplicationTestSetupContext.configureAppServer(
     elasticDAO: ElasticDAO
 ): List<Controller> {
     val toolDao = mockk<ToolDAO<HibernateSession>>(relaxed = true)
-    val appStore = AppStoreService(micro.hibernateDatabase, appDao, toolDao, elasticDAO)
+    val aclDao = mockk<AclDao<HibernateSession>>(relaxed = true)
+    val appStore = AppStoreService(micro.hibernateDatabase, appDao, toolDao, aclDao, elasticDAO)
     val logoService = LogoService(micro.hibernateDatabase, appDao, toolDao)
     return listOf(AppStoreController(appStore, logoService))
 }

@@ -3,6 +3,8 @@ package dk.sdu.cloud.app.store.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.app.store.services.acl.UserEntity
+import dk.sdu.cloud.app.store.services.acl.ApplicationAccessRight
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
@@ -20,21 +22,20 @@ data class FindApplicationAndOptionalDependencies(
     val version: String
 )
 
-enum class EntityType {
-    USER,
-    PROJECT_AND_GROUP
-}
-
-data class UserEntity(
-    val id: String,
-    val type: EntityType
-)
-
 data class HasPermissionRequest(
-    val name: String,
-    val version: String,
+    val applicationName: String,
     val permission: ApplicationAccessRight
 )
+
+data class ListAclRequest(
+    val name: String
+)
+
+data class AclEntry(
+    val entity: UserEntity,
+    val permission: ApplicationAccessRight
+)
+
 
 data class FavoriteRequest(
     val name: String,
@@ -246,8 +247,25 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         http {
             path {
                 using(baseContext)
-                +boundTo(HasPermissionRequest::name)
-                +boundTo(HasPermissionRequest::version)
+                +boundTo(HasPermissionRequest::applicationName)
+                +boundTo(HasPermissionRequest::permission)
+            }
+        }
+    }
+
+    val listAcl = call<
+            ListAclRequest,
+            List<AclEntry>,
+            CommonErrorMessage>("list-acl") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        http {
+            path {
+                using(baseContext)
+                +boundTo(ListAclRequest::name)
             }
         }
     }

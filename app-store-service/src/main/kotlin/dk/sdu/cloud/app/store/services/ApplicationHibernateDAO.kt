@@ -505,24 +505,6 @@ class ApplicationHibernateDAO(
         ).mapItems { it.withoutInvocation() }
     }
 
-    override fun hasPermission(
-        session: HibernateSession,
-        accessEntity: UserEntity,
-        name: String,
-        version: String,
-        permission: ApplicationAccessRight
-    ) : Boolean {
-        return session.criteria<PermissionEntity> {
-            allOf(
-                (entity[PermissionEntity::key][PermissionEntity.Key::userEntity] equal accessEntity.id),
-                (entity[PermissionEntity::key][PermissionEntity.Key::entityType] equal accessEntity.type),
-                (entity[PermissionEntity::key][PermissionEntity.Key::applicationName] equal name),
-                (entity[PermissionEntity::key][PermissionEntity.Key::applicationVersion] equal version),
-                (entity[PermissionEntity::key][PermissionEntity.Key::permission] equal permission)
-            )
-        }.resultList.size > 0
-    }
-
     override fun create(
         session: HibernateSession,
         user: SecurityPrincipal,

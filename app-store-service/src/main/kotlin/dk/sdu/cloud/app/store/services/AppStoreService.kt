@@ -3,6 +3,10 @@ package dk.sdu.cloud.app.store.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.services.acl.AclDao
+import dk.sdu.cloud.app.store.services.acl.EntityType
+import dk.sdu.cloud.app.store.services.acl.UserEntity
+import dk.sdu.cloud.app.store.services.acl.ApplicationAccessRight
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -23,6 +27,7 @@ class AppStoreService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val applicationDAO: ApplicationDAO<DBSession>,
     private val toolDao: ToolDAO<DBSession>,
+    private val aclDao: AclDao<DBSession>,
     private val elasticDAO: ElasticDAO
 ) {
     fun toggleFavorite(securityPrincipal: SecurityPrincipal, name: String, version: String) {
@@ -106,16 +111,14 @@ class AppStoreService<DBSession>(
     fun hasPermission(
         securityPrincipal: SecurityPrincipal,
         name: String,
-        version: String,
         permission: ApplicationAccessRight
     ): Boolean {
 
         return db.withTransaction { session ->
-            applicationDAO.hasPermission(
+            aclDao.hasPermission(
                 session,
                 UserEntity(securityPrincipal.username, EntityType.USER),
                 name,
-                version,
                 permission
             )
         }

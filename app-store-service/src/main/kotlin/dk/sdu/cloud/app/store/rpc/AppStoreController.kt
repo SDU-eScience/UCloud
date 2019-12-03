@@ -54,7 +54,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.hasPermission) {
-            ok(appStore.hasPermission(ctx.securityPrincipal, request.name, request.version, request.permission))
+            ok(appStore.hasPermission(ctx.securityPrincipal, request.applicationName, request.permission))
         }
 
         implement(AppStore.findBySupportedFileExtension) {

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.app.store.util.normAppDesc2
 import dk.sdu.cloud.app.store.util.withNameAndVersion
@@ -36,7 +37,8 @@ class AppStoreTest{
         val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
         val appDao = ApplicationHibernateDAO(toolHibernateDAO)
         val elasticDAO = ElasticDAO(micro.elasticHighLevelClient)
-        val applicationService = AppStoreService(micro.hibernateDatabase, appDao, toolHibernateDAO, elasticDAO)
+        val aclDao = AclHibernateDao()
+        val applicationService = AppStoreService(micro.hibernateDatabase, appDao, toolHibernateDAO, aclDao, elasticDAO)
 
         applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.1"), "content")
         applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.2"), "content")
@@ -149,9 +151,10 @@ class AppStoreTest{
         micro.install(HibernateFeature)
         val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
         val appDAO = ApplicationHibernateDAO(toolHibernateDAO)
+        val aclDao = AclHibernateDao()
         val elasticDAO = mockk<ElasticDAO>(relaxed = true)
 
-        return AppStoreService(micro.hibernateDatabase, appDAO, toolHibernateDAO, elasticDAO)
+        return AppStoreService(micro.hibernateDatabase, appDAO, toolHibernateDAO, aclDao, elasticDAO)
     }
 
     @Test

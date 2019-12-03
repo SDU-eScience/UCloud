@@ -12,6 +12,7 @@ import dk.sdu.cloud.app.store.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.store.services.ElasticDAO
 import dk.sdu.cloud.app.store.services.LogoService
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
+import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
@@ -33,11 +34,12 @@ class Server(override val micro: Micro) : CommonServer {
     override fun start() {
         val elasticDAO = ElasticDAO(micro.elasticHighLevelClient)
         val toolDAO = ToolHibernateDAO()
+        val aclDao = AclHibernateDao()
         val applicationDAO = ApplicationHibernateDAO(toolDAO)
 
 
         val db = micro.hibernateDatabase
-        val appStoreService = AppStoreService(db, applicationDAO, toolDAO, elasticDAO)
+        val appStoreService = AppStoreService(db, applicationDAO, toolDAO, aclDao, elasticDAO)
         val logoService = LogoService(db, applicationDAO, toolDAO)
 
         with(micro.server) {
