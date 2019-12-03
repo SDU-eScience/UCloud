@@ -13,6 +13,7 @@ import dk.sdu.cloud.app.store.services.LogoService
 import dk.sdu.cloud.app.store.services.ToolDAO
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
 import dk.sdu.cloud.app.store.services.acl.AclDao
+import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.app.store.util.normAppDesc2
 import dk.sdu.cloud.app.store.util.normToolDesc

@@ -57,6 +57,14 @@ class AppStoreController<DBSession>(
             ok(appStore.hasPermission(ctx.securityPrincipal, request.applicationName, request.permission))
         }
 
+        implement(AppStore.listAcl) {
+            ok(appStore.listAcl(ctx.securityPrincipal, request.name))
+        }
+
+        implement(AppStore.updateAcl) {
+            ok(appStore.updatePermissions(ctx.securityPrincipal, request.applicationName, request.changes))
+        }
+
         implement(AppStore.findBySupportedFileExtension) {
             ok(
                 appStore.findBySupportedFileExtension(

@@ -3,10 +3,7 @@ package dk.sdu.cloud.app.store.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
-import dk.sdu.cloud.app.store.services.acl.AclDao
-import dk.sdu.cloud.app.store.services.acl.EntityType
-import dk.sdu.cloud.app.store.services.acl.UserEntity
-import dk.sdu.cloud.app.store.services.acl.ApplicationAccessRight
+import dk.sdu.cloud.app.store.services.acl.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -22,6 +19,7 @@ import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
 import org.elasticsearch.action.search.SearchResponse
+import org.hibernate.Session
 
 class AppStoreService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
@@ -122,6 +120,74 @@ class AppStoreService<DBSession>(
                 permission
             )
         }
+    }
+
+    fun listAcl(
+        securityPrincipal: SecurityPrincipal,
+        applicationName: String
+    ): List<EntityWithPermission> {
+
+        return db.withTransaction { session ->
+            return if (aclDao.hasPermission(
+                    session,
+                    UserEntity(securityPrincipal.username, EntityType.USER),
+                    applicationName,
+                    ApplicationAccessRight.READ_WRITE
+                )
+            ) {
+                aclDao.listAcl(
+                    session,
+                    applicationName
+                )
+            } else {
+                throw RPCException("Unable to access application permissions", HttpStatusCode.Unauthorized)
+            }
+        }
+    }
+
+    fun updatePermissions(
+        securityPrincipal: SecurityPrincipal,
+        applicationName: String,
+        changes: List<ACLEntryRequest>
+    ) {
+        val userEntity = UserEntity(securityPrincipal.username, EntityType.USER)
+
+        return db.withTransaction { session ->
+            if (aclDao.hasPermission(
+                    session,
+                    userEntity,
+                    applicationName,
+                    ApplicationAccessRight.READ_WRITE
+                )
+            ) {
+                changes.forEach { change ->
+                    if (!change.revoke) {
+                        updatePermissionsWithSession(session, applicationName, change.entity, change.rights)
+                    } else {
+                        revokePermissionWithSession(session, applicationName, change.entity)
+                    }
+                }
+            } else {
+                RPCException("Request to update permissions unauthorized", HttpStatusCode.Unauthorized)
+            }
+        }
+    }
+
+    fun updatePermissionsWithSession(
+        session: DBSession,
+        applicationName: String,
+        entity: UserEntity,
+        permissions: ApplicationAccessRight
+    ) {
+        aclDao.updatePermissions(session, entity, applicationName, permissions)
+    }
+
+    fun revokePermissionWithSession(
+        session: DBSession,
+        applicationName: String,
+        entity: UserEntity
+    ) {
+        aclDao.revokePermission(session, entity, applicationName)
     }
 
     fun findBySupportedFileExtension(

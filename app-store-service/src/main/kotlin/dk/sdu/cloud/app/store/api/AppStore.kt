@@ -5,6 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.store.services.acl.UserEntity
 import dk.sdu.cloud.app.store.services.acl.ApplicationAccessRight
+import dk.sdu.cloud.app.store.services.acl.EntityWithPermission
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
@@ -27,19 +28,30 @@ data class HasPermissionRequest(
     val permission: ApplicationAccessRight
 )
 
+data class UpdateAclRequest(
+    val applicationName: String,
+    val changes: List<ACLEntryRequest>
+) {
+    init {
+        if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
+        if (changes.size > 1000) throw IllegalArgumentException("Too many new entries")
+    }
+}
+
+
 data class ListAclRequest(
     val name: String
 )
 
-data class AclEntry(
-    val entity: UserEntity,
-    val permission: ApplicationAccessRight
-)
-
-
 data class FavoriteRequest(
     val name: String,
     val version: String
+)
+
+data class ACLEntryRequest(
+    val entity: UserEntity,
+    val rights: ApplicationAccessRight,
+    val revoke: Boolean = false
 )
 
 data class TagSearchRequest(
@@ -245,8 +257,11 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
 
         http {
+            method = HttpMethod.Get
+
             path {
                 using(baseContext)
+                +"permission"
                 +boundTo(HasPermissionRequest::applicationName)
                 +boundTo(HasPermissionRequest::permission)
             }
@@ -255,8 +270,8 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val listAcl = call<
             ListAclRequest,
-            List<AclEntry>,
-            CommonErrorMessage>("list-acl") {
+            List<EntityWithPermission>,
+            CommonErrorMessage>("listAcl") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ
@@ -265,10 +280,31 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         http {
             path {
                 using(baseContext)
+                +"list-acl"
                 +boundTo(ListAclRequest::name)
             }
         }
     }
+
+    val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"update-acl"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+
 
     val findBySupportedFileExtension =
         call<FindBySupportedFileExtension, List<ApplicationWithExtension>, CommonErrorMessage>("findBySupportedFileExtension") {
