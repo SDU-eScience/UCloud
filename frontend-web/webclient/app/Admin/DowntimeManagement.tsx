@@ -20,7 +20,9 @@ interface Downtime {
     to: number;
 }
 
-export function DowntimeManagement(props: {setActivePage: () => void}) {
+const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
+
+function DowntimeManagement(props: {setActivePage: () => void}) {
     const [start, setStart] = React.useState<Date | null>(null);
     const [end, setEnd] = React.useState<Date | null>(null);
     const [downtimes, setDowntimes] = React.useState<Downtime[]>([]);
@@ -107,8 +109,6 @@ export function DowntimeManagement(props: {setActivePage: () => void}) {
         });
     }
 }
-
-const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
 function DowntimeList(props: {downtimes: Downtime[], name: string, remove: (id: number) => void}) {
     return (

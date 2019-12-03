@@ -1,6 +1,6 @@
 import * as Accounting from "Accounting";
 import Activity from "Activity/Page";
-import {DowntimeManagement} from "Admin/DowntimeManagement";
+import DowntimeManagement from "Admin/DowntimeManagement";
 import AdminOverview from "Admin/Overview";
 import UserCreation from "Admin/UserCreation";
 import {dispatchUserAction, onLogin} from "App";
