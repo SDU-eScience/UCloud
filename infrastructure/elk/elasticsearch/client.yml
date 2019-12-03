@@ -6,22 +6,22 @@ masterService: "elasticsearch-newmaster"
 
 #esMajorVersion: 6
 #imageTag: "6.8.1"
-imageTag: "7.4.0"
+#imageTag: "7.4.0"
 
 roles:
   master: "false"
   ingest: "false"
   data: "false"
 
-esJavaOpts: "-Xmx6g -Xms6g"
+esJavaOpts: "-Xmx8g -Xms8g"
 
 resources:
   limits: 
     cpu: "2000m"
-    memory: "8Gi"
+    memory: "14Gi"
   requests:
     cpu: "2000m"
-    memory: "8Gi"
+    memory: "14Gi"
 
 volumeClaimTemplate:
   accessModes: [ "ReadWriteOnce" ]

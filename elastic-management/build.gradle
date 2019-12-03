@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.0.18'
+version '1.0.19'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.elastic.management.MainKt"
@@ -12,8 +12,7 @@ repositories {
 
 dependencies {
     // Internal services
-
     compile 'mbuhot:eskotlin:0.4.0'
-    compile 'dk.sdu.cloud:service-common:1.5.13'
-    testCompile 'dk.sdu.cloud:service-common-test:1.5.13'
+    compile 'dk.sdu.cloud:service-common:1.10.5'
+    testCompile 'dk.sdu.cloud:service-common-test:1.10.4'
 }

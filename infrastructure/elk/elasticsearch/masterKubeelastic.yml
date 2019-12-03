@@ -12,15 +12,15 @@ replicas: 3
 #  - name: discovery.zen.ping.unicast.hosts
 #    value: "elasticsearch-discovery"
 
-esJavaOpts: "-Xmx4g -Xms4g"
+esJavaOpts: "-Xmx8g -Xms8g"
 
 resources:
   limits:
     cpu: "2000m"
-    memory: "6Gi"
+    memory: "12Gi"
   requests:
     cpu: "2000m"
-    memory: "6Gi"
+    memory: "12Gi"
 
 clusterName: "elasticsearch"
 nodeGroup: "master"
