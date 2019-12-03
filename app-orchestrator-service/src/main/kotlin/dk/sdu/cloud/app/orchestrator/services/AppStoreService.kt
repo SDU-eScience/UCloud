@@ -25,4 +25,15 @@ class AppStoreService(
         appMap[nameAndVersion] = app
         return app
     }
+
+    suspend fun hasPermission(
+        name: String,
+        version: String,
+        permission: ApplicationAccessRight
+    ): Boolean {
+        return AppStore.hasPermission.call(
+            HasPermissionRequest(name, version, permission),
+            serviceClient
+        ).throwIfInternal().orNull() ?: return false
+    }
 }
