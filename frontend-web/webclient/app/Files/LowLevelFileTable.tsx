@@ -53,7 +53,7 @@ import {
     sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {addStandardDialog, Arrow, FileIcon, MasterCheckbox} from "UtilityComponents";
+import {addStandardDialog, Arrow, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 
 export interface LowLevelFileTableProps {

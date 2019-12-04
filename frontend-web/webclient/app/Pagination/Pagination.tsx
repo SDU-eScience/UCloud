@@ -11,8 +11,8 @@ const EntriesPerPageSelectorOptions = [
     {key: 4, text: "100", value: 100}
 ];
 
-const handleBoundaries = (page: string, maxPage: number) =>
-    Math.max(Math.min(parseInt(page, 10), maxPage - 1), 0);
+const handleBoundaries = (page: number, maxPage: number) =>
+    Math.max(Math.min(page, maxPage - 1), 0);
 
 interface PaginationButtons {totalPages: number; currentPage: number; toPage: (p: number) => void;}
 export function PaginationButtons({totalPages, currentPage, toPage}: PaginationButtons) {
@@ -22,11 +22,15 @@ export function PaginationButtons({totalPages, currentPage, toPage}: PaginationB
         <Flex ml="15px" width="75px">
             {totalPages > 20 ? (
                 <>
-                    <Input defaultValue="1" autoComplete="off" type="number" min={1} max={totalPages} ref={ref} />
+                    <Input defaultValue="1" autoComplete="off" type="number" min={"1"} max={totalPages} ref={ref} />
                     <OutlineButton
                         ml="2px"
                         fullWidth
-                        onClick={() => toPage(ref.current && handleBoundaries(ref.current.value, totalPages) || 0)}
+                        onClick={() => {
+                            const value = parseInt(ref.current?.value ?? "1", 10) - 1;
+                            if (value < 0 || value > totalPages - 1) return;
+                            toPage(handleBoundaries(value, totalPages));
+                        }}
                     >
                         →
                     </OutlineButton>
