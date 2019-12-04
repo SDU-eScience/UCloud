@@ -72,25 +72,6 @@ class TagEntity(
     companion object : HibernateEntity<TagEntity>, WithId<Long>
 }
 
-@Entity
-@Table(name = "permissions")
-data class PermissionEntity(
-    @get:EmbeddedId
-    var key: Key
-) {
-    companion object : HibernateEntity<PermissionEntity>, WithId<Key>
-
-    @Embeddable
-    data class Key(
-        @get:Column(name = "entity") var userEntity: String,
-        @get:Enumerated(EnumType.STRING) @Column(name = "entity_type") var entityType: EntityType,
-        @get:Column(name = "application_name") var applicationName: String,
-        @get:Column(name = "application_version") var applicationVersion: String,
-        @get:Enumerated(EnumType.STRING) var permission: ApplicationAccessRight
-    ) : Serializable
-}
-
-
 /**
  * Updated in:
  *

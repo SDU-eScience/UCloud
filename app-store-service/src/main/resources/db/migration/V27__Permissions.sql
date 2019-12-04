@@ -3,8 +3,7 @@ create table permissions (
      entity varchar(255) not null,
      entity_type varchar(255) not null,
      permission varchar(255) not null,
-     primary key (application_name, entity, entity_type),
-     constraint permissions_application_fkey foreign key (application_name) references applications (name)
+     primary key (application_name, entity, entity_type)
 );
 
 create index permissions_lookup_index on permissions (application_name, entity, entity_type);

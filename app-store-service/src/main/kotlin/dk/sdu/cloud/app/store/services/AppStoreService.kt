@@ -11,15 +11,11 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
 import org.elasticsearch.action.search.SearchResponse
-import org.hibernate.Session
 
 class AppStoreService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
