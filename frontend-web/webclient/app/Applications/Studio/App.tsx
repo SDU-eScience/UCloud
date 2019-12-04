@@ -25,11 +25,14 @@ import {RouteComponentProps} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
-import {Button, Flex, VerticalButtonGroup} from "ui-components";
+import {Button, Flex, VerticalButtonGroup, Checkbox, Label} from "ui-components";
 import Box from "ui-components/Box";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 import * as Heading from "ui-components/Heading";
-import Input, {HiddenInputField} from "ui-components/Input";
+import Input, {HiddenInputField, InputLabel} from "ui-components/Input";
 import {SidebarPages} from "ui-components/Sidebar";
+import Table, {TableRow, TableHeaderCell, TableCell, TableHeader} from "ui-components/Table";
+import styled from "styled-components";
 
 interface AppOperations {
     onInit: () => void;
@@ -43,8 +46,20 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
 
     const [commandLoading, invokeCommand] = useAsyncCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
+    const [access, setAccess] = React.useState<"read" | "read_edit">("read");
     const [apps, setAppParameters, appParameters] =
         useCloudAPI<Page<WithAppMetadata & WithAllAppTags>>({noop: true}, emptyPage);
+
+    const readEditOptions = [
+        {text: "Can launch", value: "read"},
+        {text: "Can cancel", value: "read_edit"}
+    ];
+
+    const LeftAlignedTableHeader = styled(TableHeader)`
+        text-align: left;
+    `;
+
+
 
     useEffect(() => props.onInit(), []);
 
@@ -62,6 +77,21 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
     const tags = apps.data.items.length > 0 ? apps.data.items[0].tags : [];
+    const permissionEntries = [
+        {
+            "entity": "John",
+            "permission": "Can launch"
+        },
+        {
+            "entity": "Alice",
+            "permission": "Can launch"
+        },
+        {
+            "entity": "Bob",
+            "permission": "Can launch"
+        }
+
+    ];
 
     const newTagField = useRef<HTMLInputElement>(null);
 
@@ -115,31 +145,70 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
 
             main={(
                 <div>
-                    <Heading.h2>Tags</Heading.h2>
-                    <Box width={500}>
-                        {tags.map(tag => (
-                            <Flex key={tag} mb={16}>
-                                <Box width={400}>
-                                    <TagStyle to="#" key={tag}>{tag}</TagStyle>
-                                </Box>
-                                <Box width={100}>
-                                    <Button
-                                        fullWidth
-                                        color={"red"}
-                                        type={"button"}
+                    <div>
+                        <Heading.h2>Tags</Heading.h2>
+                        <Box width={500} mb={46}>
+                            {tags.map(tag => (
+                                <Flex key={tag} mb={16}>
+                                    <Box width={400}>
+                                        <TagStyle to="#" key={tag}>{tag}</TagStyle>
+                                    </Box>
+                                    <Box width={100}>
+                                        <Button
+                                            fullWidth
+                                            color={"red"}
+                                            type={"button"}
 
-                                        disabled={commandLoading}
-                                        onClick={async () => {
-                                            await invokeCommand(deleteApplicationTag({applicationName: name, tags: [tag]}));
-                                            setAppParameters(listByName({...appParameters.parameters}));
-                                        }}
-                                    >
-                                        Delete
-                                    </Button>
-                                </Box>
-                            </Flex>
-                        ))}
+                                            disabled={commandLoading}
+                                            onClick={async () => {
+                                                await invokeCommand(deleteApplicationTag({applicationName: name, tags: [tag]}));
+                                                setAppParameters(listByName({...appParameters.parameters}));
+                                            }}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </Box>
+                                </Flex>
+                            ))}
 
+                            <form
+                                onSubmit={async e => {
+                                    e.preventDefault();
+                                    if (commandLoading) return;
+
+                                    const tagField = newTagField.current;
+                                    if (tagField === null) return;
+
+                                    const tagValue = tagField.value;
+                                    if (tagValue === "") return;
+
+                                    await invokeCommand(createApplicationTag({applicationName: name, tags: [tagValue]}));
+                                    setAppParameters(listByName({...appParameters.parameters}));
+
+                                    tagField.value = "";
+                                }}
+                            >
+                                <Flex>
+                                    <Box flexGrow={1}>
+                                        <Input ref={newTagField} />
+                                    </Box>
+                                    <Box ml={8} width={100}>
+                                        <Button disabled={commandLoading} type={"submit"} fullWidth>Add tag</Button>
+                                    </Box>
+                                </Flex>
+                            </form>
+                        </Box>
+                    </div>
+                <div>
+                    <Heading.h2>Permissions</Heading.h2>
+                    <Label fontSize={2} mb="26px" mt="16px">
+                        <Checkbox
+                            checked={true}
+                            onChange={e => e.stopPropagation()}
+                        />
+                        Public access to application
+                    </Label>
+                    <Box width={600}>
                         <form
                             onSubmit={async e => {
                                 e.preventDefault();
@@ -157,16 +226,60 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                 tagField.value = "";
                             }}
                         >
-                            <Flex>
-                                <Box flexGrow={1}>
-                                    <Input ref={newTagField} />
-                                </Box>
-                                <Box ml={8} width={100}>
-                                    <Button disabled={commandLoading} type={"submit"} fullWidth>Add tag</Button>
-                                </Box>
+                            <Flex height={45}>
+                                <Input
+                                    rightLabel
+                                    required
+                                    type="text"
+                                    ref={newTagField}
+                                    placeholder="Username or project group"
+                                />
+                                <InputLabel width="220px" rightLabel>
+                                    <ClickableDropdown
+                                        chevron
+                                        width="220px"
+                                        onChange={(val: "read" | "read_edit") => setAccess(val)}
+                                        trigger={access === "read" ? "Can launch" : "Can cancel"}
+                                        options={readEditOptions}
+                                    />
+                                </InputLabel>
+                                <Button width="150px" disabled={commandLoading} type={"submit"} ml="5px">Add rule</Button>
                             </Flex>
                         </form>
+                        <Flex key={5} mb={16} mt={26}>
+                            <Box width={600}>
+                                <Table>
+                                    <LeftAlignedTableHeader>
+                                        <TableRow>
+                                            <TableHeaderCell>Name</TableHeaderCell>
+                                            <TableHeaderCell>Permission</TableHeaderCell>
+                                            <TableHeaderCell></TableHeaderCell>
+                                        </TableRow>
+                                    </LeftAlignedTableHeader>
+                                    <tbody>
+                                        {permissionEntries.map(permissionEntry => (
+                                            <TableRow>
+                                                <TableCell>{permissionEntry.entity}</TableCell>
+                                                <TableCell>{permissionEntry.permission}</TableCell>
+                                                <TableCell>
+                                                    <Button
+                                                        fullWidth
+                                                        color={"red"}
+                                                        type={"button"}
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </tbody>
+                                </Table>
+                            </Box>
+                            <Box width={100}>
+                            </Box>
+                        </Flex>
                     </Box>
+                </div>
                 </div>
             )}
         />
