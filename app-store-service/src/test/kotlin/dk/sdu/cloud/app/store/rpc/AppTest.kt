@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.store.api.AdvancedSearchRequest
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
 import dk.sdu.cloud.app.store.api.CreateTagsRequest
+import dk.sdu.cloud.app.store.api.DeleteAppRequest
 import dk.sdu.cloud.app.store.api.DeleteTagsRequest
 import dk.sdu.cloud.app.store.api.UploadApplicationLogoRequest
 import dk.sdu.cloud.app.store.services.AppStoreService
@@ -587,7 +588,6 @@ class AppTest {
     }
 
     @Test
-
     fun `find latest by tool test`() {
         withKtorTest(
             setup = {
@@ -604,6 +604,34 @@ class AppTest {
                 )
 
                 findLatestByToolRequest.assertSuccess()
+            }
+        )
+    }
+
+    @Test
+    fun `delete app test`() {
+        withKtorTest(
+            setup = {
+                micro.install(HibernateFeature)
+                val appDao = mockk<ApplicationHibernateDAO>()
+                val elasticDAO = mockk<ElasticDAO>()
+
+                every { appDao.delete(any(), any(), any(), any()) } just runs
+                every { elasticDAO.deleteApplicationInElastic(any(), any()) } just runs
+                configureAppServer(appDao, elasticDAO)
+            },
+            test = {
+                val deleteRequest = sendJson(
+                    method = HttpMethod.Delete,
+                    path = "api/hpc/apps/",
+                    user = TestUsers.admin,
+                    request = DeleteAppRequest(
+                        "name",
+                        "2.2"
+                    )
+                )
+
+                deleteRequest.assertSuccess()
             }
         )
     }

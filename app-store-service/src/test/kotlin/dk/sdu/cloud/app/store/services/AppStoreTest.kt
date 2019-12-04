@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.app.store.util.normAppDesc2
 import dk.sdu.cloud.app.store.util.withNameAndVersion
@@ -236,6 +237,26 @@ class AppStoreTest{
             appStoreService.listAll(TestUsers.admin, NormalizedPaginationRequest(10,0))
 
         assertEquals(2, allApps.itemsInTotal)
+    }
+
+    @Test (expected = ApplicationException.NotFound::class)
+    fun `test delete - not found`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        appStoreService.delete(TestUsers.admin, "name", "2.2")
+    }
+
+    @Test
+    fun `test delete`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        appStoreService.create(TestUsers.admin, normAppDesc, "content")
+        appStoreService.delete(TestUsers.admin, "name", "2.2")
+    }
+
+    @Test (expected = ApplicationException.NotAllowed::class)
+    fun `test delete - not same user`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        appStoreService.create(TestUsers.user, normAppDesc, "content")
+        appStoreService.delete(TestUsers.user2, "name", "2.2")
     }
 /*
     @Test

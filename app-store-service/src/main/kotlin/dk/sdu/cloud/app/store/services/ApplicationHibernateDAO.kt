@@ -548,7 +548,7 @@ class ApplicationHibernateDAO(
             throw ApplicationException.NotAllowed()
         }
 
-        val existingApp = internalByNameAndVersion(session, name, version) ?: ApplicationException.NotFound()
+        val existingApp = internalByNameAndVersion(session, name, version) ?: throw ApplicationException.NotFound()
 
         session.delete(existingApp)
     }

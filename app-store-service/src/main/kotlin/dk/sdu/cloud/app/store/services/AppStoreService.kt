@@ -172,7 +172,7 @@ class AppStoreService<DBSession>(
             applicationDAO.delete(session, securityPrincipal, name, version)
         }
 
-        elasticDAO
+        elasticDAO.deleteApplicationInElastic(name, version)
     }
 
     fun createTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
