@@ -49,6 +49,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     const [access, setAccess] = React.useState<"read" | "read_edit">("read");
     const [apps, setAppParameters, appParameters] =
         useCloudAPI<Page<WithAppMetadata & WithAllAppTags>>({noop: true}, emptyPage);
+    const [appIsPublic, setAppIsPublic] = useState(false)
 
     const readEditOptions = [
         {text: "Can launch", value: "read"},
@@ -58,7 +59,6 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     const LeftAlignedTableHeader = styled(TableHeader)`
         text-align: left;
     `;
-
 
 
     useEffect(() => props.onInit(), []);
@@ -144,8 +144,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
             )}
 
             main={(
-                <div>
-                    <div>
+                <Flex flexDirection="row" flexWrap="wrap">
+                    <Box width={550}>
                         <Heading.h2>Tags</Heading.h2>
                         <Box width={500} mb={46}>
                             {tags.map(tag => (
@@ -170,7 +170,6 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     </Box>
                                 </Flex>
                             ))}
-
                             <form
                                 onSubmit={async e => {
                                     e.preventDefault();
@@ -198,89 +197,97 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                 </Flex>
                             </form>
                         </Box>
-                    </div>
-                <div>
-                    <Heading.h2>Permissions</Heading.h2>
-                    <Label fontSize={2} mb="26px" mt="16px">
-                        <Checkbox
-                            checked={true}
-                            onChange={e => e.stopPropagation()}
-                        />
-                        Public access to application
-                    </Label>
-                    <Box width={600}>
-                        <form
-                            onSubmit={async e => {
-                                e.preventDefault();
-                                if (commandLoading) return;
-
-                                const tagField = newTagField.current;
-                                if (tagField === null) return;
-
-                                const tagValue = tagField.value;
-                                if (tagValue === "") return;
-
-                                await invokeCommand(createApplicationTag({applicationName: name, tags: [tagValue]}));
-                                setAppParameters(listByName({...appParameters.parameters}));
-
-                                tagField.value = "";
-                            }}
-                        >
-                            <Flex height={45}>
-                                <Input
-                                    rightLabel
-                                    required
-                                    type="text"
-                                    ref={newTagField}
-                                    placeholder="Username or project group"
-                                />
-                                <InputLabel width="220px" rightLabel>
-                                    <ClickableDropdown
-                                        chevron
-                                        width="220px"
-                                        onChange={(val: "read" | "read_edit") => setAccess(val)}
-                                        trigger={access === "read" ? "Can launch" : "Can cancel"}
-                                        options={readEditOptions}
-                                    />
-                                </InputLabel>
-                                <Button width="150px" disabled={commandLoading} type={"submit"} ml="5px">Add rule</Button>
-                            </Flex>
-                        </form>
-                        <Flex key={5} mb={16} mt={26}>
-                            <Box width={600}>
-                                <Table>
-                                    <LeftAlignedTableHeader>
-                                        <TableRow>
-                                            <TableHeaderCell>Name</TableHeaderCell>
-                                            <TableHeaderCell>Permission</TableHeaderCell>
-                                            <TableHeaderCell></TableHeaderCell>
-                                        </TableRow>
-                                    </LeftAlignedTableHeader>
-                                    <tbody>
-                                        {permissionEntries.map(permissionEntry => (
-                                            <TableRow>
-                                                <TableCell>{permissionEntry.entity}</TableCell>
-                                                <TableCell>{permissionEntry.permission}</TableCell>
-                                                <TableCell>
-                                                    <Button
-                                                        fullWidth
-                                                        color={"red"}
-                                                        type={"button"}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </tbody>
-                                </Table>
-                            </Box>
-                            <Box width={100}>
-                            </Box>
-                        </Flex>
                     </Box>
-                </div>
-                </div>
+                    <Box width={620}>
+                        <Heading.h2>Permissions</Heading.h2>
+                        <Box mb={26} mt={16}>
+                            <Label fontSize={2}>
+                                <Checkbox
+                                    checked={appIsPublic}
+                                    onChange={e => e.stopPropagation()}
+                                    onClick={() => setAppIsPublic(!appIsPublic)}
+                                />
+                                Public access to application
+                            </Label>
+
+                            {appIsPublic ? (
+                                <Box ml={20}>Everyone can see and launch this application.</Box>
+                            ) : (
+                                <Box ml={20}>Access and permissions to the application is defined below.</Box>
+                            )}
+                        </Box>
+                        {appIsPublic ? null : (
+                            <Box width={600} ml={20}>
+                                <form
+                                    onSubmit={async e => {
+                                        e.preventDefault();
+                                        if (commandLoading) return;
+
+                                        const tagField = newTagField.current;
+                                        if (tagField === null) return;
+
+                                        const tagValue = tagField.value;
+                                        if (tagValue === "") return;
+
+                                        await invokeCommand(createApplicationTag({applicationName: name, tags: [tagValue]}));
+                                        setAppParameters(listByName({...appParameters.parameters}));
+
+                                        tagField.value = "";
+                                    }}
+                                >
+                                    <Flex height={45}>
+                                        <Input
+                                            rightLabel
+                                            required
+                                            type="text"
+                                            ref={newTagField}
+                                            placeholder="Username or project group"
+                                        />
+                                        <InputLabel width="250px" rightLabel>
+                                            <ClickableDropdown
+                                                chevron
+                                                width="150px"
+                                                onChange={(val: "read" | "read_edit") => setAccess(val)}
+                                                trigger={access === "read" ? "Can launch" : "Can cancel"}
+                                                options={readEditOptions}
+                                            />
+                                        </InputLabel>
+                                        <Button width="300px" disabled={commandLoading} type={"submit"} ml="5px">Add permission</Button>
+                                    </Flex>
+                                </form>
+                                <Flex key={5} mb={16} mt={26}>
+                                    <Box width={800}>
+                                        <Table>
+                                            <LeftAlignedTableHeader>
+                                                <TableRow>
+                                                    <TableHeaderCell width="300px">Name</TableHeaderCell>
+                                                    <TableHeaderCell>Permission</TableHeaderCell>
+                                                    <TableHeaderCell></TableHeaderCell>
+                                                </TableRow>
+                                            </LeftAlignedTableHeader>
+                                            <tbody>
+                                                {permissionEntries.map(permissionEntry => (
+                                                    <TableRow>
+                                                        <TableCell>{permissionEntry.entity}</TableCell>
+                                                        <TableCell>{permissionEntry.permission}</TableCell>
+                                                        <TableCell textAlign="right">
+                                                            <Button
+                                                                color={"red"}
+                                                                type={"button"}
+                                                            >
+                                                                Delete
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </tbody>
+                                        </Table>
+                                    </Box>
+                                </Flex>
+                            </Box>
+                        )}
+                    </Box>
+                </Flex>
             )}
         />
     );
