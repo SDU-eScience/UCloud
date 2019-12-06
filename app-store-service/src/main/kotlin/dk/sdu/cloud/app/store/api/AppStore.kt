@@ -38,6 +38,10 @@ data class UpdateAclRequest(
     }
 }
 
+data class IsPublicRequest(
+    val applicationName: String
+)
+
 
 data class ListAclRequest(
     val name: String
@@ -209,6 +213,21 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             }
         }
 
+    val isPublic =
+        call<IsPublicRequest, Boolean, CommonErrorMessage>("isPublic") {
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ
+            }
+
+            http {
+                path {
+                    using(baseContext)
+                    +boundTo(IsPublicRequest::applicationName)
+                }
+            }
+        }
+
     val advancedSearch = call<AdvancedSearchRequest, Page<ApplicationSummaryWithFavorite>,CommonErrorMessage>("advancedSearch") {
         auth {
             roles = Roles.AUTHENTICATED
@@ -297,7 +316,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
             path {
                 using(baseContext)
-                +"update-acl"
+                +"updateAcl"
             }
 
             body { bindEntireRequestFromBody() }

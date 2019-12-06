@@ -7,3 +7,6 @@ create table permissions (
 );
 
 create index permissions_lookup_index on permissions (application_name, entity, entity_type);
+
+alter table applications
+    add column is_public boolean default true;

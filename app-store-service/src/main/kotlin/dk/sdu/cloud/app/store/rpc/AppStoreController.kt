@@ -78,6 +78,10 @@ class AppStoreController<DBSession>(
             ok(appStore.findByName(ctx.securityPrincipal, request.name, request.normalize()))
         }
 
+        implement(AppStore.isPublic) {
+            ok(appStore.isPublic(ctx.securityPrincipal, request.applicationName))
+        }
+
         implement(AppStore.listAll) {
             ok(appStore.listAll(ctx.securityPrincipal, request.normalize()))
         }

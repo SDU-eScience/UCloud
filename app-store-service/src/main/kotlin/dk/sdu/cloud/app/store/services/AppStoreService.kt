@@ -107,8 +107,8 @@ class AppStoreService<DBSession>(
         name: String,
         permission: ApplicationAccessRight
     ): Boolean {
-
         return db.withTransaction { session ->
+            applicationDAO.isPublic(session, securityPrincipal, name) ||
             aclDao.hasPermission(
                 session,
                 UserEntity(securityPrincipal.username, EntityType.USER),
@@ -218,6 +218,18 @@ class AppStoreService<DBSession>(
                 securityPrincipal,
                 name,
                 normalizedPaginationRequest
+            )
+        }
+
+    fun isPublic(
+        securityPrincipal: SecurityPrincipal,
+        name: String
+    ): Boolean =
+        db.withTransaction {
+            applicationDAO.isPublic(
+                it,
+                securityPrincipal,
+                name
             )
         }
 

@@ -65,6 +65,7 @@ class HibernateModelTest{
             ),
             "name",
             "2.2",
+            true,
             EmbeddedNameAndVersion("name", "2.2")
         )
 

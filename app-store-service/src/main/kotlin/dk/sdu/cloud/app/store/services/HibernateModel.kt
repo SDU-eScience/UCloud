@@ -113,6 +113,9 @@ class ApplicationEntity(
     @Column(name = "tool_version")
     var toolVersion: String,
 
+    @Column(name = "is_public")
+    var isPublic: Boolean,
+
     @EmbeddedId
     var id: EmbeddedNameAndVersion
 ) {

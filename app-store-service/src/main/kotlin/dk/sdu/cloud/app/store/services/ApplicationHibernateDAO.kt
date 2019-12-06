@@ -536,6 +536,7 @@ class ApplicationHibernateDAO(
             description.invocation,
             existingTool.tool.info.name,
             existingTool.tool.info.version,
+            true,
             EmbeddedNameAndVersion(description.metadata.name, description.metadata.version)
         )
 
@@ -736,6 +737,15 @@ class ApplicationHibernateDAO(
             ?: return null
         val toolName = app.invocation.tool.name
         return ToolLogoEntity[session, toolName]?.data
+    }
+
+    override fun isPublic(session: HibernateSession, user: SecurityPrincipal, name: String): Boolean {
+        return session.criteria<ApplicationEntity>(
+            orderBy = { listOf(descending(entity[ApplicationEntity::createdAt])) },
+            predicate = {
+                entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
+            }
+        ).uniqueResult().isPublic
     }
 
     override fun findLatestByTool(
