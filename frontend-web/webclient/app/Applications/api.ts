@@ -7,6 +7,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
 import {inSuccessRange} from "UtilityFunctions";
+import {List} from "Pagination";
 
 export interface ListByNameProps {
     itemsPerPage: number;
@@ -82,6 +83,26 @@ export function createApplicationTag(props: CreateApplicationTagProps): APICallP
         reloadId: Math.random(),
         method: "POST",
         path: "/hpc/apps/createTag",
+        payload: props,
+        parameters: props
+    };
+}
+
+export interface UpdateApplicationPermissionEntry {
+    entityName: string;
+    permission: string;
+}
+
+export interface UpdateApplicationPermissionProps {
+    applicationName: string;
+    changes: List<UpdateApplicationPermissionEntry>;
+}
+
+export function updateApplicationPermission(props: UpdateApplicationPermissionProps): APICallParameters<UpdateApplicationPermissionProps> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/hpc/apps/updateAcl",
         payload: props,
         parameters: props
     };

@@ -4,7 +4,8 @@ import {
     createApplicationTag,
     deleteApplicationTag,
     listByName,
-    uploadLogo
+    uploadLogo,
+    updateApplicationPermission
 } from "Applications/api";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import * as Actions from "Applications/Redux/BrowseActions";
@@ -94,6 +95,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     ];
 
     const newTagField = useRef<HTMLInputElement>(null);
+    const newPermissionField = useRef<HTMLInputElement>(null);
 
     return (
         <MainContainer
@@ -126,7 +128,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     dialogStore.success();
                                 }
                             }}
-                    />
+                        />
                     </Button>
 
                     <Button
@@ -213,8 +215,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                             {appIsPublic ? (
                                 <Box ml={20}>Everyone can see and launch this application.</Box>
                             ) : (
-                                <Box ml={20}>Access and permissions to the application is defined below.</Box>
-                            )}
+                                    <Box ml={20}>Access and permissions to the application is defined below.</Box>
+                                )}
                         </Box>
                         {appIsPublic ? null : (
                             <Box width={600} ml={20}>
@@ -223,16 +225,21 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                         e.preventDefault();
                                         if (commandLoading) return;
 
-                                        const tagField = newTagField.current;
-                                        if (tagField === null) return;
+                                        const permissionField = newPermissionField.current;
+                                        if (permissionField === null) return;
 
-                                        const tagValue = tagField.value;
-                                        if (tagValue === "") return;
+                                        const permissionValue = permissionField.value;
+                                        if (permissionValue === "") return;
 
-                                        await invokeCommand(createApplicationTag({applicationName: name, tags: [tagValue]}));
+                                        await invokeCommand(updateApplicationPermission(
+                                            {
+                                                applicationName: name,
+                                                changes: [{entityName: permissionValue, permission:access}]
+                                            }
+                                        ));
                                         setAppParameters(listByName({...appParameters.parameters}));
 
-                                        tagField.value = "";
+                                        permissionField.value = "";
                                     }}
                                 >
                                     <Flex height={45}>
@@ -240,7 +247,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                             rightLabel
                                             required
                                             type="text"
-                                            ref={newTagField}
+                                            ref={newPermissionField}
                                             placeholder="Username or project group"
                                         />
                                         <InputLabel width="250px" rightLabel>
