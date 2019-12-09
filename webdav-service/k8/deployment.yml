@@ -18,6 +18,13 @@ spec:
       containers:
       - name: webdav
         image: registry.cloud.sdu.dk/sdu-cloud/webdav-service:0.1.8
+        livenessProbe:
+          httpGet:
+            port: 8080
+            path: /status
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          failureThreshold: 5
         command:
         - /opt/service/bin/service
         - --config-dir

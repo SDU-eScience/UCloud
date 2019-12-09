@@ -29,7 +29,7 @@ fun printHelp(): Nothing {
              
              Args:
              
-               --include <serviceName>: Optiona. A service to include.
+               --include <serviceName>: Optional. A service to include.
                --exclude <serviceName>: Optional. A service to exclude.
                --target <serviceName>: Required. Sets the target of this program. 
                --help: This message.

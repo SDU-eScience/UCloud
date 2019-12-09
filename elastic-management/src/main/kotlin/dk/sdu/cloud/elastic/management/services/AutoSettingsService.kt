@@ -55,6 +55,7 @@ class AutoSettingsService(
         productionTemplateRequest.settings(Settings.builder()
             .put("index.number_of_shards", 1)
             .put("index.number_of_replicas", 2)
+            .put("index.refresh_interval", "30s")
         )
 
         elastic.indices().putTemplate(productionTemplateRequest, RequestOptions.DEFAULT)

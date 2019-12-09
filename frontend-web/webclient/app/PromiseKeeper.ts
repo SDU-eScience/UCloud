@@ -57,6 +57,6 @@ export function usePromiseKeeper() {
     const [promises] = useState(new PromiseKeeper());
     useEffect(() => {
         return () => promises.cancelPromises();
-    });
+    }, []);
     return promises;
 }

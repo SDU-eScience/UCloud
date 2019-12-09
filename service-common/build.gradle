@@ -38,7 +38,7 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version '1.10.4'
+version '1.10.5'
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"
@@ -130,7 +130,7 @@ dependencies {
     compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.12.0'
 
     // Elastic
-    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:7.3.0'
+    compile 'org.elasticsearch.client:elasticsearch-rest-high-level-client:7.5.0'
 
     // Testing
     testCompile group: 'com.h2database', name: 'h2', version: '1.4.197'
