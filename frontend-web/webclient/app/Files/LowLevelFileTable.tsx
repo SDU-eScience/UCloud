@@ -1,7 +1,6 @@
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
-import {ACLAvatars} from "AvataaarLib/UserAvatar";
 import {format} from "date-fns/esm";
 import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
@@ -287,7 +286,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
     const [applications, setApplications] = useState(new Map<string, QuickLaunchApp[]>());
     const history = useHistory();
 
-    const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
+    const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);
 
     // Fetch quick launch applications upon page refresh
