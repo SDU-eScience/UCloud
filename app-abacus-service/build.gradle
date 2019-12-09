@@ -8,7 +8,7 @@ buildscript {
     ext.serviceCommonVersion = "1.5.1"
 }
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.11/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.23/sdu-cloud.gradle"
 
 
 dependencies {

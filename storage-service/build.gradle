@@ -8,7 +8,7 @@ buildscript {
     ext.serviceCommonVersion = "1.10.4"
 }
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.22/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.23/sdu-cloud.gradle"
 
 dependencies {
     implementation group: 'org.kamranzafar', name: 'jtar', version: '2.3'
