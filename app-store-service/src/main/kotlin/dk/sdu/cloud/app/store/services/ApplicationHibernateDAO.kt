@@ -659,6 +659,10 @@ class ApplicationHibernateDAO(
         }.uniqueResult()?.owner
     }
 
+    override fun isOwnerOfApplication(session: HibernateSession, user: SecurityPrincipal, name: String): Boolean =
+        findOwnerOfApplication(session, name)!! == user.username
+
+
     override fun preparePageForUser(
         session: HibernateSession,
         user: String?,

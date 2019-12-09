@@ -128,7 +128,7 @@ class AppStoreService<DBSession>(
                     session,
                     UserEntity(securityPrincipal.username, EntityType.USER),
                     applicationName,
-                    ApplicationAccessRight.READ_WRITE
+                    ApplicationAccessRight.LAUNCH
                 )
             ) {
                 aclDao.listAcl(
@@ -148,23 +148,29 @@ class AppStoreService<DBSession>(
     ) {
         val userEntity = UserEntity(securityPrincipal.username, EntityType.USER)
 
+        println("Reached updatePermissions")
+
         return db.withTransaction { session ->
             if (aclDao.hasPermission(
                     session,
                     userEntity,
                     applicationName,
-                    ApplicationAccessRight.READ_WRITE
-                )
+                    ApplicationAccessRight.LAUNCH
+                ) || applicationDAO.isOwnerOfApplication(session, securityPrincipal, applicationName)
             ) {
+                println("permission granted")
+
                 changes.forEach { change ->
                     if (!change.revoke) {
+                        println("Calling updatePermissionsWithSession")
                         updatePermissionsWithSession(session, applicationName, change.entity, change.rights)
                     } else {
+                        println("Calling revokePermissionsWithSession")
                         revokePermissionWithSession(session, applicationName, change.entity)
                     }
                 }
             } else {
-                RPCException("Request to update permissions unauthorized", HttpStatusCode.Unauthorized)
+                throw RPCException("Request to update permissions unauthorized", HttpStatusCode.Unauthorized)
             }
         }
     }
@@ -175,6 +181,7 @@ class AppStoreService<DBSession>(
         entity: UserEntity,
         permissions: ApplicationAccessRight
     ) {
+        println("Updating permission")
         aclDao.updatePermissions(session, entity, applicationName, permissions)
     }
 

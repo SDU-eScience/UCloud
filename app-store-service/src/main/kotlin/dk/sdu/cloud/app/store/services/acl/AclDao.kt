@@ -6,8 +6,9 @@ enum class EntityType {
 }
 
 enum class ApplicationAccessRight {
-    READ,
-    READ_WRITE
+    CHANGE,
+    LAUNCH,
+    CANCEL
 }
 
 data class UserEntity(

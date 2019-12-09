@@ -88,14 +88,31 @@ export function createApplicationTag(props: CreateApplicationTagProps): APICallP
     };
 }
 
+export enum ApplicationAccessRight {
+    CHANGE = "CHANGE",
+    LAUNCH = "LAUNCH",
+    CANCEL = "CANCEL"
+}
+
+export enum UserEntityType {
+    USER = "USER",
+    PROJECT_AND_GROUP = "PROJECT_AND_GROUP"
+}
+
+export interface UserEntity {
+    id: string;
+    type: UserEntityType;
+}
+
 export interface UpdateApplicationPermissionEntry {
-    entityName: string;
-    permission: string;
+    entity: UserEntity;
+    rights: ApplicationAccessRight;
+    revoke: boolean;
 }
 
 export interface UpdateApplicationPermissionProps {
     applicationName: string;
-    changes: List<UpdateApplicationPermissionEntry>;
+    changes: UpdateApplicationPermissionEntry[];
 }
 
 export function updateApplicationPermission(props: UpdateApplicationPermissionProps): APICallParameters<UpdateApplicationPermissionProps> {

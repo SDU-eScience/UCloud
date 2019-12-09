@@ -5,7 +5,9 @@ import {
     deleteApplicationTag,
     listByName,
     uploadLogo,
-    updateApplicationPermission
+    updateApplicationPermission,
+    ApplicationAccessRight,
+    UserEntityType
 } from "Applications/api";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import * as Actions from "Applications/Redux/BrowseActions";
@@ -47,14 +49,14 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
 
     const [commandLoading, invokeCommand] = useAsyncCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
-    const [access, setAccess] = React.useState<"read" | "read_edit">("read");
+    const [access, setAccess] = React.useState<ApplicationAccessRight>(ApplicationAccessRight.LAUNCH);
     const [apps, setAppParameters, appParameters] =
         useCloudAPI<Page<WithAppMetadata & WithAllAppTags>>({noop: true}, emptyPage);
     const [appIsPublic, setAppIsPublic] = useState(false)
 
     const readEditOptions = [
-        {text: "Can launch", value: "read"},
-        {text: "Can cancel", value: "read_edit"}
+        {text: "Can launch", value: ApplicationAccessRight.LAUNCH},
+        {text: "Can only cancel", value: ApplicationAccessRight.CANCEL}
     ];
 
     const LeftAlignedTableHeader = styled(TableHeader)`
@@ -91,7 +93,6 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
             "entity": "Bob",
             "permission": "Can launch"
         }
-
     ];
 
     const newTagField = useRef<HTMLInputElement>(null);
@@ -234,7 +235,13 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                         await invokeCommand(updateApplicationPermission(
                                             {
                                                 applicationName: name,
-                                                changes: [{entityName: permissionValue, permission:access}]
+                                                changes: [
+                                                    {
+                                                        entity: { id: permissionValue, type: UserEntityType.USER },
+                                                        rights: access,
+                                                        revoke: false
+                                                    }
+                                                ]
                                             }
                                         ));
                                         setAppParameters(listByName({...appParameters.parameters}));
@@ -248,14 +255,14 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                             required
                                             type="text"
                                             ref={newPermissionField}
-                                            placeholder="Username or project group"
+                                            placeholder="Username"
                                         />
-                                        <InputLabel width="250px" rightLabel>
+                                        <InputLabel width={access === ApplicationAccessRight.LAUNCH ? "250px" : "350px"} rightLabel>
                                             <ClickableDropdown
                                                 chevron
-                                                width="150px"
-                                                onChange={(val: "read" | "read_edit") => setAccess(val)}
-                                                trigger={access === "read" ? "Can launch" : "Can cancel"}
+                                                width="180px"
+                                                onChange={(val: ApplicationAccessRight.LAUNCH | ApplicationAccessRight.CANCEL) => setAccess(val)}
+                                                trigger={access === ApplicationAccessRight.LAUNCH ? "Can launch" : "Can only cancel"}
                                                 options={readEditOptions}
                                             />
                                         </InputLabel>

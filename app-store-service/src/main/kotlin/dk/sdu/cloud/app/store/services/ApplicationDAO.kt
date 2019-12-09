@@ -75,6 +75,12 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
+    fun isOwnerOfApplication(
+        session: Session,
+        user: SecurityPrincipal,
+        name: String
+    ): Boolean
+
     fun create(
         session: Session,
         user: SecurityPrincipal,
