@@ -88,16 +88,17 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
     function submit(e: React.FormEvent<HTMLFormElement>) {
         stopPropagationAndPreventDefault(e);
         if (start == null) {
-            snackbarStore.addFailure("Please add a starting date and time.");
+            snackbarStore.addFailure("Please add a starting time and date.");
             return;
         } else if (end == null) {
-            snackbarStore.addFailure("Please add an end date and time.");
+            snackbarStore.addFailure("Please add an end time and date.");
             return;
         }
 
         snackbarStore.addSnack({
             type: SnackType.Success,
-            message: "\"submitted\""
+            message: "\"submitted\"",
+            lifetime: 2_000
         });
     }
 
@@ -105,7 +106,9 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
         addStandardDialog({
             title: "Remove planned downtime?",
             message: "",
-            onConfirm: () => setDowntimes(downtimes.filter(it => it.id !== id))
+            onConfirm: () => {
+                setDowntimes(downtimes.filter(it => it.id !== id));
+            }
         });
     }
 }
@@ -114,24 +117,32 @@ function DowntimeList(props: {downtimes: Downtime[], name: string, remove: (id: 
     return (
         <>
             {props.name}
-            <List>
-                {props.downtimes.map(it => (
-                    <Flex key={it.id}>
-                        <Input my="6px" mx="6px" readOnly width="50%" value={format(it.from, DATE_FORMAT)} />
-                        <Input my="6px" mx="6px" readOnly width="50%" value={format(it.to, DATE_FORMAT)} />
-                        <Icon
-                            mt="16px"
-                            ml="5px"
-                            cursor="pointer"
-                            name="close"
-                            color="red"
-                            onClick={() => props.remove(it.id)}
-                        />
-                    </Flex>
-                ))}
+            <List bordered={false}>
+                {props.downtimes.map(it => (<Downtime key={it.id} downtime={it} remove={props.remove} />))}
             </List>
         </>
     );
+}
+
+function Downtime(props: {downtime: Downtime, remove: (id: number) => void}) {
+    return (
+        <Flex key={props.downtime.id}>
+            <Input my="6px" mx="6px" readOnly width="50%" value={format(props.downtime.from, DATE_FORMAT)} />
+            <Input my="6px" mx="6px" readOnly width="50%" value={format(props.downtime.to, DATE_FORMAT)} />
+            <Icon
+                mt="16px"
+                ml="5px"
+                cursor="pointer"
+                name="close"
+                color="red"
+                onClick={onRemove}
+            />
+        </Flex>
+    );
+
+    function onRemove() {
+        props.remove(props.downtime.id);
+    }
 }
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({

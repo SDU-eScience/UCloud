@@ -35,7 +35,7 @@ function AdminOverview(props: {setActivePage: () => void}) {
                     <Box mt="30px">
                         {linkInfo.map(it => (
                             <Link key={it.to} to={it.to}>
-                                <Button mx="10px" width="200px">
+                                <Button mb="10px" mx="10px" width="200px">
                                     {it.icon ? <Icon mr="3px" name={it.icon} /> : null}{it.text}
                                 </Button>
                             </Link>
