@@ -1,17 +1,17 @@
 group 'dk.sdu.cloud'
-version '0.8.17'
+version '0.8.18'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.23/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.10.4"
-    ext.authApiVersion = "1.21.0"
-    ext.appStoreApiVersion = "0.5.0"
-    ext.fileApiVersion = "3.0.6"
-    ext.appFsVersion = "0.1.0"
+    ext.serviceCommonVersion = "1.10.5"
+    ext.authApiVersion = "1.26.4"
+    ext.appStoreApiVersion = "0.10.4"
+    ext.fileApiVersion = "3.0.7"
+    ext.appFsVersion = "0.2.5"
 }
 
 repositories {
@@ -24,7 +24,7 @@ dependencies {
     compile "dk.sdu.cloud:app-store-api:$appStoreApiVersion"
     compile "dk.sdu.cloud:file-api:${fileApiVersion}"
     compile "dk.sdu.cloud:app-fs-api:$appFsVersion"
-    compile "dk.sdu.cloud:indexing-api:1.15.1"
+    compile "dk.sdu.cloud:indexing-api:1.15.4"
     compile 'com.vladmihalcea:hibernate-types-52:2.4.1'
     compile 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4'
 
