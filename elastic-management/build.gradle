@@ -6,6 +6,7 @@ mainClassName = "dk.sdu.cloud.elastic.management.MainKt"
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"
 
+
 repositories {
     jcenter()
 }

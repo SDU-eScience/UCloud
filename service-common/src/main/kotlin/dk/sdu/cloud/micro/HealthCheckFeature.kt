@@ -52,24 +52,24 @@ class HealthCheckFeature : MicroFeature {
                 val elasticFeature = ctx.featureOrNull(ElasticFeature)
 
                 if (redisFeature != null) {
-                    log.info("Testing Redis")
+                    log.debug("Testing Redis")
                     var response = ""
                     try {
                         val conn = ctx.redisConnectionManager.getConnection()
                         response = conn.ping().get()
                     } catch (ex: Exception) {
+                        log.error("Redis is not working: EX: ${ex.stackTraceToString()}")
                         throw RPCException("Redis is not working: EX: ${ex.stackTraceToString()}",
                             HttpStatusCode.InternalServerError
                         )
                     }
-                    log.info(response)
                     if ( response != "PONG" ) {
                         throw RPCException("Redis is not working", HttpStatusCode.InternalServerError)
                     }
                 }
 
                 if (hibernateFeature != null) {
-                    log.info("Testing Hibernate")
+                    log.debug("Testing Hibernate")
                     val result = try {
                         ctx.hibernateDatabase.withTransaction { session ->
                             session.createNativeQuery(
@@ -77,24 +77,23 @@ class HealthCheckFeature : MicroFeature {
                             ).resultList
                         }
                     } catch (ex: Exception) {
+                        log.error("Hibernate is not working: EX: ${ex.stackTraceToString()}")
                         throw RPCException("Hibernate is not working, EX: ${ex.stackTraceToString()}",
                             HttpStatusCode.InternalServerError
                         )
                     }
-                    log.info(result.first().toString())
                     if (result.isEmpty()) {
                         throw RPCException("Hibernate is not working", HttpStatusCode.InternalServerError)                    }
                 }
 
                 if (elasticFeature != null) {
-                    log.info("Testing Elastic")
+                    log.debug("Testing Elastic")
                     val client = ctx.elasticHighLevelClient
                     val request = ClusterHealthRequest()
                     try {
                         val response = client.cluster().health(request, RequestOptions.DEFAULT)
-                        log.info(response.status.name)
                     } catch (ex: Exception) {
-                        log.error(ex.stackTraceToString())
+                        log.error("Elastic is not working ${ex.stackTraceToString()}")
                         throw RPCException("Elastic is not working", HttpStatusCode.InternalServerError)                    }
                 }
                 ok(Unit)
