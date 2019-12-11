@@ -130,10 +130,19 @@ interface ApplicationDAO<Session> {
 
     fun fetchLogo(session: Session, name: String): ByteArray?
 
-    fun isPublic(session: Session,
+    fun isPublic(
+        session: Session,
         user: SecurityPrincipal,
         name: String
     ): Boolean
+
+    fun setPublic(
+        session: Session,
+        user: SecurityPrincipal,
+        name: String,
+        version: String,
+        public: Boolean
+    )
 
     fun findAllByID(
         session: Session,

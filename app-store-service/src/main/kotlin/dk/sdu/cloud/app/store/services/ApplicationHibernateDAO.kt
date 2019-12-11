@@ -236,7 +236,8 @@ class ApplicationHibernateDAO(
     private fun createMultiKeyWordApplicationEntityQuery(
         session: HibernateSession,
         keywords: List<String>,
-        keywordsQuery: String): Query<ApplicationEntity> {
+        keywordsQuery: String
+    ): Query<ApplicationEntity> {
         return session.typedQuery<ApplicationEntity>(
             """
             from ApplicationEntity as A where (A.createdAt) in (
@@ -344,7 +345,7 @@ class ApplicationHibernateDAO(
         ).mapItems { it.withoutInvocation() }
     }
 
-    fun getAllApps(session: HibernateSession): List<ApplicationEntity>{
+    fun getAllApps(session: HibernateSession): List<ApplicationEntity> {
         return session.typedQuery<ApplicationEntity>(
             """
             from ApplicationEntity as A
@@ -611,7 +612,7 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         applicationName: String
     ): List<TagEntity> {
-        return session.criteria<TagEntity>{
+        return session.criteria<TagEntity> {
             allOf(
                 entity[TagEntity::applicationName] equal applicationName
             )
@@ -752,6 +753,21 @@ class ApplicationHibernateDAO(
         ).uniqueResult().isPublic
     }
 
+    override fun setPublic(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        name: String,
+        version: String,
+        public: Boolean
+    ) {
+        val existing = internalByNameAndVersion(session, name, version) ?: throw ApplicationException.NotFound()
+        if (!canUserPerformWriteOperation(existing.owner, user)) throw ApplicationException.NotAllowed()
+
+        if (public != null) existing.isPublic = public
+
+        session.update(existing)
+    }
+
     override fun findLatestByTool(
         session: HibernateSession,
         user: SecurityPrincipal,
@@ -840,7 +856,8 @@ internal fun ApplicationEntity.toMetadata(): ApplicationMetadata = ApplicationMe
     authors,
     title,
     description,
-    website
+    website,
+    isPublic
 )
 
 internal fun ApplicationEntity.toModel(): ApplicationSummary {

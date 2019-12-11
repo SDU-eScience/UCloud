@@ -82,6 +82,10 @@ class AppStoreController<DBSession>(
             ok(appStore.isPublic(ctx.securityPrincipal, request.applicationName))
         }
 
+        implement(AppStore.setPublic) {
+            ok(appStore.setPublic(ctx.securityPrincipal, request.name, request.version, request.public))
+        }
+
         implement(AppStore.listAll) {
             ok(appStore.listAll(ctx.securityPrincipal, request.normalize()))
         }

@@ -6,16 +6,14 @@ enum class EntityType {
 }
 
 enum class ApplicationAccessRight {
-    CHANGE,
     LAUNCH,
     CANCEL
 }
 
 object ApplicationPermission {
-    val VIEW = setOf(ApplicationAccessRight.CHANGE, ApplicationAccessRight.LAUNCH, ApplicationAccessRight.CANCEL)
-    val CANCEL = setOf(ApplicationAccessRight.CHANGE, ApplicationAccessRight.LAUNCH, ApplicationAccessRight.CANCEL)
-    val LAUNCH = setOf(ApplicationAccessRight.CHANGE, ApplicationAccessRight.LAUNCH)
-    val CHANGE = setOf(ApplicationAccessRight.CHANGE)
+    val CANCEL = setOf(ApplicationAccessRight.LAUNCH, ApplicationAccessRight.CANCEL)
+    val LAUNCH = setOf(ApplicationAccessRight.LAUNCH)
+    val CHANGE = emptySet<ApplicationAccessRight>()
 }
 
 data class UserEntity(

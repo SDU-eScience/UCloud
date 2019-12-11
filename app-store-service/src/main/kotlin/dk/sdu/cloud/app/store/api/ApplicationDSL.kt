@@ -39,7 +39,8 @@ sealed class ApplicationDescription(val application: String) {
         val allowAdditionalMounts: Boolean? = null,
         val allowAdditionalPeers: Boolean? = null,
         val allowMultiNode: Boolean? = false,
-        var fileExtensions: List<String> = emptyList()
+        var fileExtensions: List<String> = emptyList(),
+        var isPublic: Boolean
     ) : ApplicationDescription("v1") {
         val invocation: List<InvocationParameter>
         val environment: Map<String, InvocationParameter>?
@@ -115,6 +116,7 @@ sealed class ApplicationDescription(val application: String) {
             }?.toMap()
 
             this.fileExtensions = fileExtensions
+            this.isPublic = isPublic
         }
 
         private fun parseInvocationParameter(
@@ -229,7 +231,8 @@ sealed class ApplicationDescription(val application: String) {
                 authors,
                 title,
                 description,
-                null
+                null,
+                isPublic
             )
 
             val invocation = ApplicationInvocationDescription(

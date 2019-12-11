@@ -8,7 +8,8 @@ data class ApplicationMetadata(
 
     val title: String,
     val description: String,
-    val website: String?
+    val website: String?,
+    val isPublic: Boolean
 ) : NameAndVersion
 
 data class VncDescription(

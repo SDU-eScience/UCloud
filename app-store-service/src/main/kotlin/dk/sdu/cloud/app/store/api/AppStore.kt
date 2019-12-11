@@ -58,6 +58,12 @@ data class ACLEntryRequest(
     val revoke: Boolean = false
 )
 
+data class SetPublicRequest(
+    val name: String,
+    val version: String,
+    val public: Boolean
+)
+
 data class TagSearchRequest(
     val query: String,
     override val itemsPerPage: Int?,
@@ -227,6 +233,26 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
                 }
             }
         }
+
+    val setPublic = call<SetPublicRequest, Unit, CommonErrorMessage>("setPublic")  {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"setPublic"
+            }
+
+            body {
+                bindEntireRequestFromBody()
+            }
+        }
+    }
 
     val advancedSearch = call<AdvancedSearchRequest, Page<ApplicationSummaryWithFavorite>,CommonErrorMessage>("advancedSearch") {
         auth {

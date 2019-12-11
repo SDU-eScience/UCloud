@@ -240,6 +240,23 @@ class AppStoreService<DBSession>(
             )
         }
 
+    fun setPublic(
+        securityPrincipal: SecurityPrincipal,
+        name: String,
+        version: String,
+        public: Boolean
+    ) {
+        db.withTransaction {
+            applicationDAO.setPublic(
+                it,
+                securityPrincipal,
+                name,
+                version,
+                public
+            )
+        }
+    }
+
     fun listAll(
         securityPrincipal: SecurityPrincipal,
         normalizedPaginationRequest: NormalizedPaginationRequest
