@@ -40,6 +40,8 @@ import Table, {TableRow, TableHeaderCell, TableCell, TableHeader} from "ui-compo
 import styled from "styled-components";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {stopPropagation} from "UtilityFunctions";
+import {cloudTryingItsBest} from "ui-components/icons";
+import {addStandardDialog} from "UtilityComponents";
 
 interface AppOperations {
     onInit: () => void;
@@ -56,8 +58,6 @@ function prettifyAccessRight(accessRight: ApplicationAccessRight) {
     switch (accessRight) {
         case ApplicationAccessRight.CANCEL:
             return "Can only cancel";
-        case ApplicationAccessRight.CHANGE:
-            return "Can change";
         case ApplicationAccessRight.LAUNCH:
             return "Can launch";
     }
@@ -77,7 +77,6 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
 
     const readEditOptions = [
         {text: prettifyAccessRight(ApplicationAccessRight.LAUNCH), value: ApplicationAccessRight.LAUNCH},
-        {text: prettifyAccessRight(ApplicationAccessRight.CHANGE), value: ApplicationAccessRight.CHANGE},
         {text: prettifyAccessRight(ApplicationAccessRight.CANCEL), value: ApplicationAccessRight.CANCEL}
     ];
 
@@ -104,21 +103,12 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
 
     // Loading of application versions
     useEffect(() =>  {
-        setVersions([
-            {
-                version: "0.0.3",
-                isPublic: false
-            },
-            {
-                version: "0.0.2",
-                isPublic: false
-            },
-            {
-                version: "0.0.1",
-                isPublic: false
-            }
-        ]);
-    }, []);
+        let appVersions: AppVersion[] = [];
+        apps.data.items.map(item => {
+            appVersions.push({ version: item.metadata.version, isPublic: item.metadata.public });
+        });
+        setVersions(appVersions);
+    }, [apps.data.items]);
 
 
     useEffect(() => props.onInit(), []);
@@ -286,7 +276,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                         <ClickableDropdown
                                             chevron
                                             width="180px"
-                                            onChange={(val: ApplicationAccessRight.LAUNCH | ApplicationAccessRight.CANCEL | ApplicationAccessRight.CHANGE) => setAccess(val)}
+                                            onChange={(val: ApplicationAccessRight.LAUNCH | ApplicationAccessRight.CANCEL) => setAccess(val)}
                                             trigger={<Box as="span" minWidth="250px">{prettifyAccessRight(access)}</Box>}
                                             options={readEditOptions}
                                         />
@@ -350,6 +340,12 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                 checked={version.isPublic}
                                                                 onChange={stopPropagation}
                                                                 onClick={() => {
+                                                                    Client.post(`/hpc/apps/setPublic`, {
+                                                                        name: name,
+                                                                        version: version.version,
+                                                                        public: !version.isPublic
+                                                                    });
+                                                            
                                                                     setVersions(versions.map( v =>
                                                                         (v.version === version.version) ?
                                                                         {
@@ -362,7 +358,6 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                             <Box ml={8} mt="2px">Public</Box>
                                                         </Flex>
                                                     </Label>
-
                                                     {version.isPublic ? (
                                                         <Box ml={28}>Everyone can see and launch this version of {appTitle}.</Box>
                                                     ) : (
@@ -374,6 +369,18 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                 <Button
                                                     color={"red"}
                                                     type={"button"}
+                                                    onClick={() => addStandardDialog({
+                                                        title: `Delete ${name} version ${version.version}`,
+                                                        message: (
+                                                            <Box>
+                                                                <Text>
+                                                                    Are you sure?
+                                                                </Text>
+                                                            </Box>
+                                                        ),
+                                                        onConfirm: () => Client.delete("/hpc/apps", { name: name, version: version.version }),
+                                                        confirmText: "Delete"
+                                                    })}
                                                 >
                                                     Delete Version
                                                 </Button>
