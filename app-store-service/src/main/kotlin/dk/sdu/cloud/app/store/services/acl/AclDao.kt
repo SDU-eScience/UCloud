@@ -11,6 +11,13 @@ enum class ApplicationAccessRight {
     CANCEL
 }
 
+object ApplicationPermission {
+    val VIEW = setOf(ApplicationAccessRight.CHANGE, ApplicationAccessRight.LAUNCH, ApplicationAccessRight.CANCEL)
+    val CANCEL = setOf(ApplicationAccessRight.CHANGE, ApplicationAccessRight.LAUNCH, ApplicationAccessRight.CANCEL)
+    val LAUNCH = setOf(ApplicationAccessRight.CHANGE, ApplicationAccessRight.LAUNCH)
+    val CHANGE = setOf(ApplicationAccessRight.CHANGE)
+}
+
 data class UserEntity(
     val id: String,
     val type: EntityType
@@ -26,7 +33,7 @@ interface AclDao<Session> {
         session: Session,
         entity: UserEntity,
         applicationName: String,
-        permission: ApplicationAccessRight
+        permission: Set<ApplicationAccessRight>
     ): Boolean
 
     fun updatePermissions(

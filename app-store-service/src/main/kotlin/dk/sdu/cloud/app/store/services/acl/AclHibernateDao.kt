@@ -29,39 +29,21 @@ class AclHibernateDao : AclDao<HibernateSession> {
         session: HibernateSession,
         accessEntity: UserEntity,
         applicationName: String,
-        permission: ApplicationAccessRight
+        permissionSet: Set<ApplicationAccessRight>
     ): Boolean {
-        return when (permission) {
-            ApplicationAccessRight.CHANGE -> {
-                session.criteria<PermissionEntry> {
-                    allOf(
-                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id),
-                        (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type),
-                        ((entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ApplicationAccessRight.CHANGE) or
-                                (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ApplicationAccessRight.CHANGE))
-                    )
-                }.list().isNotEmpty()
-            }
-            ApplicationAccessRight.LAUNCH -> {
-                session.criteria<PermissionEntry> {
-                    allOf(
-                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id),
-                        (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type),
-                        ((entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ApplicationAccessRight.LAUNCH) or
-                                (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ApplicationAccessRight.LAUNCH))
-                    )
-                }.list().isNotEmpty()
-            }
-            ApplicationAccessRight.CANCEL -> {
-                session.criteria<PermissionEntry> {
-                    allOf(
-                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id),
-                        (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type),
-                        (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ApplicationAccessRight.CANCEL)
-                    )
-                }.list().isNotEmpty()
-            }
+        println("Checking permission")
+        val result = session.criteria<PermissionEntry> {
+            allOf(
+                (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id),
+                (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type),
+                (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName)
+            )
+        }.uniqueResultOptional()
+
+        if (result.isPresent) {
+            return permissionSet.contains(result.get().key.permission)
         }
+        return false
     }
 
 

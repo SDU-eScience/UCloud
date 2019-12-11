@@ -105,7 +105,7 @@ class AppStoreService<DBSession>(
     fun hasPermission(
         securityPrincipal: SecurityPrincipal,
         name: String,
-        permission: ApplicationAccessRight
+        permissionSet: Set<ApplicationAccessRight>
     ): Boolean {
         return db.withTransaction { session ->
             applicationDAO.isPublic(session, securityPrincipal, name) ||
@@ -113,7 +113,7 @@ class AppStoreService<DBSession>(
                 session,
                 UserEntity(securityPrincipal.username, EntityType.USER),
                 name,
-                permission
+                permissionSet
             )
         }
     }
@@ -128,8 +128,8 @@ class AppStoreService<DBSession>(
                     session,
                     UserEntity(securityPrincipal.username, EntityType.USER),
                     applicationName,
-                    ApplicationAccessRight.LAUNCH
-                )
+                    ApplicationPermission.CHANGE
+                ) || applicationDAO.isOwnerOfApplication(session, securityPrincipal, applicationName)
             ) {
                 aclDao.listAcl(
                     session,
@@ -155,7 +155,7 @@ class AppStoreService<DBSession>(
                     session,
                     userEntity,
                     applicationName,
-                    ApplicationAccessRight.LAUNCH
+                    ApplicationPermission.CHANGE
                 ) || applicationDAO.isOwnerOfApplication(session, securityPrincipal, applicationName)
             ) {
                 println("permission granted")

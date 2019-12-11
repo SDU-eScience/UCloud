@@ -25,7 +25,7 @@ data class FindApplicationAndOptionalDependencies(
 
 data class HasPermissionRequest(
     val applicationName: String,
-    val permission: ApplicationAccessRight
+    val permission: Set<ApplicationAccessRight>
 )
 
 data class UpdateAclRequest(
