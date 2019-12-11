@@ -8,7 +8,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 
 buildscript {
     ext.serviceCommonVersion = "1.10.5"
-    ext.authApiVersion = "1.21.0"
+    ext.authApiVersion = "1.26.4"
 }
 
 repositories {

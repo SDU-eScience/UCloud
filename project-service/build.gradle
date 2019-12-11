@@ -17,7 +17,7 @@ buildscript {
 dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
-    compile "dk.sdu.cloud:auth-api:1.21.0"
+    compile "dk.sdu.cloud:auth-api:1.26.4"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 

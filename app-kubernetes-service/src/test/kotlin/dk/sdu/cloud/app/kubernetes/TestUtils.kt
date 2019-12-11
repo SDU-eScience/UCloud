@@ -89,10 +89,12 @@ val verifiedJob = VerifiedJob(
 )
 
 val jobVerifiedRequest = verifiedJob.copy(
-    _sharedFileSystemMounts = listOf(SharedFileSystemMount(SharedFileSystem("1", "owner", "kubernetes"), "mountedAt"))
+    _sharedFileSystemMounts = listOf(SharedFileSystemMount(
+        SharedFileSystem("1", "owner", "kubernetes", "title", 123456), "mountedAt")
+    )
 )
 
-val wrongSharedFileSystem = SharedFileSystem("1", "owner", "blabla")
+val wrongSharedFileSystem = SharedFileSystem("1", "owner", "blabla", "title", 12345)
 
 val internalFollowStdStreamsRequest = InternalFollowStdStreamsRequest(
     verifiedJob,
