@@ -29,7 +29,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
         session: HibernateSession,
         accessEntity: UserEntity,
         applicationName: String,
-        permissionSet: Set<ApplicationAccessRight>
+        permissions: Set<ApplicationAccessRight>
     ): Boolean {
         println("Checking permission")
         val result = session.criteria<PermissionEntry> {
@@ -41,7 +41,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
         }.uniqueResultOptional()
 
         if (result.isPresent) {
-            return permissionSet.contains(result.get().key.permission)
+            return permissions.contains(result.get().key.permission)
         }
         return false
     }

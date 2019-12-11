@@ -105,7 +105,7 @@ class AppStoreService<DBSession>(
     fun hasPermission(
         securityPrincipal: SecurityPrincipal,
         name: String,
-        permissionSet: Set<ApplicationAccessRight>
+        permissions: Set<ApplicationAccessRight>
     ): Boolean {
         return db.withTransaction { session ->
             applicationDAO.isPublic(session, securityPrincipal, name) ||
@@ -113,7 +113,7 @@ class AppStoreService<DBSession>(
                 session,
                 UserEntity(securityPrincipal.username, EntityType.USER),
                 name,
-                permissionSet
+                permissions
             )
         }
     }
