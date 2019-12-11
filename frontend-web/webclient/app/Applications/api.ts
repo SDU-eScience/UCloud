@@ -104,6 +104,11 @@ export interface UserEntity {
     type: UserEntityType;
 }
 
+export interface ApplicationPermissionEntry {
+    entity: UserEntity;
+    permission: ApplicationAccessRight;
+}
+
 export interface UpdateApplicationPermissionEntry {
     entity: UserEntity;
     rights: ApplicationAccessRight;

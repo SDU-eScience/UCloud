@@ -7,7 +7,9 @@ import {
     uploadLogo,
     updateApplicationPermission,
     ApplicationAccessRight,
-    UserEntityType
+    UserEntityType,
+    ApplicationPermissionEntry,
+    UserEntity
 } from "Applications/api";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import * as Actions from "Applications/Redux/BrowseActions";
@@ -28,7 +30,7 @@ import {RouteComponentProps} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
-import {Button, Flex, VerticalButtonGroup, Checkbox, Label} from "ui-components";
+import {Button, Flex, VerticalButtonGroup, Checkbox, Label, Text} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import * as Heading from "ui-components/Heading";
@@ -36,11 +38,29 @@ import Input, {HiddenInputField, InputLabel} from "ui-components/Input";
 import {SidebarPages} from "ui-components/Sidebar";
 import Table, {TableRow, TableHeaderCell, TableCell, TableHeader} from "ui-components/Table";
 import styled from "styled-components";
+import {buildQueryString} from "Utilities/URIUtilities";
+import {stopPropagation} from "UtilityFunctions";
 
 interface AppOperations {
     onInit: () => void;
     setRefresh: (refresh?: () => void) => void;
     setLoading: (loading: boolean) => void;
+}
+
+interface AppVersion {
+    version: string;
+    isPublic: boolean;
+}
+
+function prettifyAccessRight(accessRight: ApplicationAccessRight) {
+    switch (accessRight) {
+        case ApplicationAccessRight.CANCEL:
+            return "Can only cancel";
+        case ApplicationAccessRight.CHANGE:
+            return "Can change";
+        case ApplicationAccessRight.LAUNCH:
+            return "Can launch";
+    }
 }
 
 const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOperations> = props => {
@@ -50,18 +70,55 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     const [commandLoading, invokeCommand] = useAsyncCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
     const [access, setAccess] = React.useState<ApplicationAccessRight>(ApplicationAccessRight.LAUNCH);
+    const [permissionEntries, setPermissionEntries] = React.useState<ApplicationPermissionEntry[]>([]);
     const [apps, setAppParameters, appParameters] =
         useCloudAPI<Page<WithAppMetadata & WithAllAppTags>>({noop: true}, emptyPage);
-    const [appIsPublic, setAppIsPublic] = useState(false)
+    const [versions, setVersions] = useState<AppVersion[]>([]);
 
     const readEditOptions = [
-        {text: "Can launch", value: ApplicationAccessRight.LAUNCH},
-        {text: "Can only cancel", value: ApplicationAccessRight.CANCEL}
+        {text: prettifyAccessRight(ApplicationAccessRight.LAUNCH), value: ApplicationAccessRight.LAUNCH},
+        {text: prettifyAccessRight(ApplicationAccessRight.CHANGE), value: ApplicationAccessRight.CHANGE},
+        {text: prettifyAccessRight(ApplicationAccessRight.CANCEL), value: ApplicationAccessRight.CANCEL}
     ];
 
     const LeftAlignedTableHeader = styled(TableHeader)`
         text-align: left;
     `;
+
+    // Loading of permission entries
+    useEffect(() =>  {
+        Client.get(`/hpc/apps/list-acl/${name}`).then(({response}) => {
+            const entries: ApplicationPermissionEntry[] = [];
+            response.forEach(item => {
+                let entityObj: UserEntity = { id: item.entity.id, type: item.entity.type };
+                let entry: ApplicationPermissionEntry = {
+                    entity: entityObj,
+                    permission: item.permission,
+                };
+                entries.push(entry);
+            });
+
+            setPermissionEntries(entries)
+        });
+    }, []);
+
+    // Loading of application versions
+    useEffect(() =>  {
+        setVersions([
+            {
+                version: "0.0.3",
+                isPublic: false
+            },
+            {
+                version: "0.0.2",
+                isPublic: false
+            },
+            {
+                version: "0.0.1",
+                isPublic: false
+            }
+        ]);
+    }, []);
 
 
     useEffect(() => props.onInit(), []);
@@ -80,21 +137,6 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
 
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
     const tags = apps.data.items.length > 0 ? apps.data.items[0].tags : [];
-    const permissionEntries = [
-        {
-            "entity": "John",
-            "permission": "Can launch"
-        },
-        {
-            "entity": "Alice",
-            "permission": "Can launch"
-        },
-        {
-            "entity": "Bob",
-            "permission": "Can launch"
-        }
-    ];
-
     const newTagField = useRef<HTMLInputElement>(null);
     const newPermissionField = useRef<HTMLInputElement>(null);
 
@@ -147,13 +189,13 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
             )}
 
             main={(
-                <Flex flexDirection="row" flexWrap="wrap">
-                    <Box width={550}>
+                <Flex flexDirection="column">
+                    <Box maxWidth="650px" width="100%" ml="auto" mr="auto">
                         <Heading.h2>Tags</Heading.h2>
-                        <Box width={500} mb={46}>
+                        <Box mb={46} mt={26}>
                             {tags.map(tag => (
                                 <Flex key={tag} mb={16}>
-                                    <Box width={400}>
+                                    <Box width={550}>
                                         <TagStyle to="#" key={tag}>{tag}</TagStyle>
                                     </Box>
                                     <Box width={100}>
@@ -201,105 +243,148 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                             </form>
                         </Box>
                     </Box>
-                    <Box width={620}>
+                    <Box maxWidth="650px" width="100%" ml="auto" mr="auto" mt="25px">
                         <Heading.h2>Permissions</Heading.h2>
-                        <Box mb={26} mt={16}>
-                            <Label fontSize={2}>
-                                <Checkbox
-                                    checked={appIsPublic}
-                                    onChange={e => e.stopPropagation()}
-                                    onClick={() => setAppIsPublic(!appIsPublic)}
-                                />
-                                Public access to application
-                            </Label>
+                        <Box mt={16}>
+                            <form
+                                onSubmit={async e => {
+                                    e.preventDefault();
+                                    if (commandLoading) return;
 
-                            {appIsPublic ? (
-                                <Box ml={20}>Everyone can see and launch this application.</Box>
-                            ) : (
-                                    <Box ml={20}>Access and permissions to the application is defined below.</Box>
-                                )}
-                        </Box>
-                        {appIsPublic ? null : (
-                            <Box width={600} ml={20}>
-                                <form
-                                    onSubmit={async e => {
-                                        e.preventDefault();
-                                        if (commandLoading) return;
+                                    const permissionField = newPermissionField.current;
+                                    if (permissionField === null) return;
 
-                                        const permissionField = newPermissionField.current;
-                                        if (permissionField === null) return;
+                                    const permissionValue = permissionField.value;
+                                    if (permissionValue === "") return;
 
-                                        const permissionValue = permissionField.value;
-                                        if (permissionValue === "") return;
+                                    await invokeCommand(updateApplicationPermission(
+                                        {
+                                            applicationName: name,
+                                            changes: [
+                                                {
+                                                    entity: { id: permissionValue, type: UserEntityType.USER },
+                                                    rights: access,
+                                                    revoke: false
+                                                }
+                                            ]
+                                        }
+                                    ));
+                                    setAppParameters(listByName({...appParameters.parameters}));
 
-                                        await invokeCommand(updateApplicationPermission(
-                                            {
-                                                applicationName: name,
-                                                changes: [
-                                                    {
-                                                        entity: { id: permissionValue, type: UserEntityType.USER },
-                                                        rights: access,
-                                                        revoke: false
-                                                    }
-                                                ]
-                                            }
-                                        ));
-                                        setAppParameters(listByName({...appParameters.parameters}));
-
-                                        permissionField.value = "";
-                                    }}
-                                >
-                                    <Flex height={45}>
-                                        <Input
-                                            rightLabel
-                                            required
-                                            type="text"
-                                            ref={newPermissionField}
-                                            placeholder="Username"
+                                    permissionField.value = "";
+                                }}
+                            >
+                                <Flex height={45}>
+                                    <Input
+                                        rightLabel
+                                        required
+                                        type="text"
+                                        ref={newPermissionField}
+                                        placeholder="Username"
+                                    />
+                                    <InputLabel width="350px" rightLabel>
+                                        <ClickableDropdown
+                                            chevron
+                                            width="180px"
+                                            onChange={(val: ApplicationAccessRight.LAUNCH | ApplicationAccessRight.CANCEL | ApplicationAccessRight.CHANGE) => setAccess(val)}
+                                            trigger={<Box as="span" minWidth="250px">{prettifyAccessRight(access)}</Box>}
+                                            options={readEditOptions}
                                         />
-                                        <InputLabel width={access === ApplicationAccessRight.LAUNCH ? "250px" : "350px"} rightLabel>
-                                            <ClickableDropdown
-                                                chevron
-                                                width="180px"
-                                                onChange={(val: ApplicationAccessRight.LAUNCH | ApplicationAccessRight.CANCEL) => setAccess(val)}
-                                                trigger={access === ApplicationAccessRight.LAUNCH ? "Can launch" : "Can only cancel"}
-                                                options={readEditOptions}
-                                            />
-                                        </InputLabel>
-                                        <Button width="300px" disabled={commandLoading} type={"submit"} ml="5px">Add permission</Button>
-                                    </Flex>
-                                </form>
-                                <Flex key={5} mb={16} mt={26}>
-                                    <Box width={800}>
-                                        <Table>
-                                            <LeftAlignedTableHeader>
-                                                <TableRow>
-                                                    <TableHeaderCell width="300px">Name</TableHeaderCell>
-                                                    <TableHeaderCell>Permission</TableHeaderCell>
-                                                    <TableHeaderCell></TableHeaderCell>
-                                                </TableRow>
-                                            </LeftAlignedTableHeader>
-                                            <tbody>
-                                                {permissionEntries.map(permissionEntry => (
-                                                    <TableRow>
-                                                        <TableCell>{permissionEntry.entity}</TableCell>
-                                                        <TableCell>{permissionEntry.permission}</TableCell>
-                                                        <TableCell textAlign="right">
-                                                            <Button
-                                                                color={"red"}
-                                                                type={"button"}
-                                                            >
-                                                                Delete
-                                                            </Button>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </tbody>
-                                        </Table>
-                                    </Box>
+                                    </InputLabel>
+                                    <Button width="300px" disabled={commandLoading} type={"submit"} ml="5px">Add permission</Button>
                                 </Flex>
+                            </form>
+                        </Box>
+                        <Flex key={5} mb={16} mt={26}>
+                            <Box width={800}>
+                                <Table>
+                                    <LeftAlignedTableHeader>
+                                        <TableRow>
+                                            <TableHeaderCell width="300px">Name</TableHeaderCell>
+                                            <TableHeaderCell>Permission</TableHeaderCell>
+                                            <TableHeaderCell></TableHeaderCell>
+                                        </TableRow>
+                                    </LeftAlignedTableHeader>
+                                    <tbody>
+                                        {permissionEntries.map(permissionEntry => (
+                                            <TableRow key={permissionEntry.entity.id}>
+                                                <TableCell>{permissionEntry.entity.id}</TableCell>
+                                                <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
+                                                <TableCell textAlign="right">
+                                                    <Button
+                                                        color={"red"}
+                                                        type={"button"}
+                                                    >
+                                                        Delete
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </tbody>
+                                </Table>
                             </Box>
-                        )}
+                        </Flex>
+                    </Box>
+                    <Box maxWidth="650px" width="100%" ml="auto" mr="auto" mt="25px">
+                        <Heading.h2>Versions</Heading.h2>
+                        <Box mb={26} mt={26}>
+                            <Table>
+                                <LeftAlignedTableHeader>
+                                    <TableRow>
+                                        <TableHeaderCell width={100}>Version</TableHeaderCell>
+                                        <TableHeaderCell>Settings</TableHeaderCell>
+                                        <TableHeaderCell width={200}></TableHeaderCell>
+                                    </TableRow>
+                                </LeftAlignedTableHeader>
+                                <tbody>
+                                    {versions.map( version => 
+                                        <TableRow key={version.version}>
+                                            <TableCell>
+                                                <Heading.h3>{version.version}</Heading.h3>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Box mb={26} mt={16}>
+                                                    <Label fontSize={2}>
+                                                        <Flex>
+                                                            <Checkbox
+                                                                checked={version.isPublic}
+                                                                onChange={stopPropagation}
+                                                                onClick={() => {
+                                                                    setVersions(versions.map( v =>
+                                                                        (v.version === version.version) ?
+                                                                        {
+                                                                            version: v.version,
+                                                                            isPublic: !v.isPublic
+                                                                        } : v
+                                                                    ));
+                                                                }}
+                                                            />
+                                                            <Box ml={8} mt="2px">Public</Box>
+                                                        </Flex>
+                                                    </Label>
+
+                                                    {version.isPublic ? (
+                                                        <Box ml={28}>Everyone can see and launch this version of {appTitle}.</Box>
+                                                    ) : (
+                                                        <Box ml={28}>Access to this version is restricted as defined in Permissions.</Box>
+                                                    )}
+                                                </Box>
+                                            </TableCell>
+                                            <TableCell textAlign="right">
+                                                <Button
+                                                    color={"red"}
+                                                    type={"button"}
+                                                >
+                                                    Delete Version
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </tbody>
+                            </Table>
+
+                        </Box>
+
                     </Box>
                 </Flex>
             )}
