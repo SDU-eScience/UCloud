@@ -1,12 +1,47 @@
 package dk.sdu.cloud.share.services
 
-import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.StorageEvent
+import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.asEnumSet
+import dk.sdu.cloud.service.asInt
+import dk.sdu.cloud.service.db.CriteriaBuilderContext
+import dk.sdu.cloud.service.db.HibernateEntity
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.WithTimestamps
+import dk.sdu.cloud.service.db.countWithPredicate
+import dk.sdu.cloud.service.db.createCriteriaBuilder
+import dk.sdu.cloud.service.db.createQuery
+import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.deleteCriteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.paginatedList
+import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.share.api.ShareState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.produce
 import org.hibernate.ScrollMode
 import java.util.*
-import javax.persistence.*
+import javax.persistence.Column
+import javax.persistence.Entity
+import javax.persistence.EnumType
+import javax.persistence.Enumerated
+import javax.persistence.GeneratedValue
+import javax.persistence.Id
+import javax.persistence.Index
+import javax.persistence.Table
+import javax.persistence.Temporal
+import javax.persistence.TemporalType
+import javax.persistence.UniqueConstraint
 import javax.persistence.criteria.Predicate
 
 private const val COL_FILE_ID = "file_id"
@@ -17,7 +52,7 @@ private const val COL_PATH = "path"
 @Table(
     name = "shares",
     uniqueConstraints = [
-        UniqueConstraint(columnNames = [COL_SHARED_WITH, COL_PATH])
+        UniqueConstraint(columnNames = [COL_SHARED_WITH, COL_FILE_ID])
     ],
     indexes = [
         Index(columnList = COL_FILE_ID)
@@ -61,7 +96,7 @@ data class ShareEntity(
 }
 
 class ShareHibernateDAO : ShareDAO<HibernateSession> {
-    override fun create(
+    override suspend fun create(
         session: HibernateSession,
         owner: String,
         sharedWith: String,
@@ -72,12 +107,16 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
     ): Long {
         if (owner == sharedWith) throw ShareException.BadRequest("Cannot share file with yourself")
 
+        log.warn("create($owner, $sharedWith, $path, $initialRights, $fileId, $ownerToken)")
+
         val exists = session.criteria<ShareEntity> {
             allOf(
-                entity[ShareEntity::path] equal literal(path),
+                entity[ShareEntity::fileId] equal literal(fileId),
                 entity[ShareEntity::sharedWith] equal literal(sharedWith)
             )
         }.uniqueResult() != null
+
+        log.warn("exists? $exists")
 
         if (exists) {
             throw ShareException.DuplicateException()
@@ -97,7 +136,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         ) as Long
     }
 
-    override fun findAllByFileId(
+    override suspend fun findAllByFileId(
         session: HibernateSession,
         auth: AuthRequirements,
         fileId: String
@@ -110,7 +149,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         }.list().map { it.toModel() }
     }
 
-    override fun findById(
+    override suspend fun findById(
         session: HibernateSession,
         auth: AuthRequirements,
         shareId: Long
@@ -118,7 +157,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         return shareById(session, auth, shareId).toModel()
     }
 
-    override fun findAllByPath(
+    override suspend fun findAllByPath(
         session: HibernateSession,
         auth: AuthRequirements,
         path: String
@@ -134,7 +173,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             ?: throw ShareException.NotFound()
     }
 
-    override fun list(
+    override suspend fun list(
         session: HibernateSession,
         auth: AuthRequirements,
         shareRelation: ShareRelationQuery,
@@ -149,7 +188,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         )
     }
 
-    override fun listSharedToMe(
+    override suspend fun listSharedToMe(
         session: HibernateSession,
         user: String,
         paging: NormalizedPaginationRequest
@@ -207,7 +246,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             .map { it.toModel() }
     }
 
-    override fun updateShare(
+    override suspend fun updateShare(
         session: HibernateSession,
         auth: AuthRequirements,
         shareId: Long,
@@ -216,7 +255,7 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         rights: Set<AccessRight>?,
         path: String?,
         ownerToken: String?
-    ): InternalShare {
+    ) {
         if (path == null && recipientToken == null && state == null && rights == null) {
             throw ShareException.InternalError("Nothing to update")
         }
@@ -232,20 +271,21 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
         if (rights != null) share.rights = rights.asInt()
 
         session.save(share)
-        return share.toModel()
     }
 
-    override fun deleteShare(
+    override suspend fun deleteShare(
         session: HibernateSession,
         auth: AuthRequirements,
         shareId: Long
-    ): InternalShare {
+    ) {
         val entity = shareById(session, auth, shareId)
         session.delete(entity)
-        return entity.toModel()
     }
 
-    override fun onFilesMoved(session: HibernateSession, events: List<StorageEvent.Moved>): List<InternalShare> {
+    override suspend fun onFilesMoved(
+        session: HibernateSession,
+        events: List<StorageEvent.Moved>
+    ) {
         val shares = internalFindAllByFileId(session, events.map { it.file.fileId })
         if (shares.isNotEmpty()) {
             val eventsByFileId = events.associateBy { it.file.fileId }
@@ -257,39 +297,38 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             }
         }
         session.flush()
-        return shares.map { it.toModel() }
     }
 
-    override fun findAllByFileIds(
+    override suspend fun findAllByFileIds(
         session: HibernateSession,
-        fileIds: List<String>,
-        includeShares: Boolean
+        fileIds: List<String>
     ): List<InternalShare> {
-        return internalFindAllByFileId(session, fileIds, includeShares).map { it.toModel() }
+        return internalFindAllByFileId(session, fileIds).map { it.toModel() }
     }
 
-    override fun deleteAllByShareId(session: HibernateSession, shareIds: List<Long>) {
+    override suspend fun deleteAllByShareId(session: HibernateSession, shareIds: List<Long>) {
         session.deleteCriteria<ShareEntity> { entity[ShareEntity::id] isInCollection shareIds }.executeUpdate()
     }
 
-    override fun listAll(session: HibernateSession): Sequence<InternalShare> = sequence {
-        session.createQuery("from ShareEntity").scroll(ScrollMode.FORWARD_ONLY).use { iterator ->
-            while (iterator.next()) {
-                val entity = iterator.get(0) as? ShareEntity ?: break
-                yield(entity.toModel())
+    @UseExperimental(ExperimentalCoroutinesApi::class)
+    override suspend fun listAll(scope: CoroutineScope, session: HibernateSession): ReceiveChannel<InternalShare> =
+        scope.produce {
+            session.createQuery("from ShareEntity").scroll(ScrollMode.FORWARD_ONLY).use { iterator ->
+                while (iterator.next()) {
+                    val entity = iterator.get(0) as? ShareEntity ?: break
+                    send(entity.toModel())
+                }
             }
         }
-    }
 
     private fun internalFindAllByFileId(
         session: HibernateSession,
-        fileIds: List<String>,
-        includeShares: Boolean = true
+        fileIds: List<String>
     ): List<ShareEntity> {
         if (fileIds.size > 250) throw IllegalArgumentException("fileIds.size > 250")
         return session.criteria<ShareEntity> {
             allOf(*ArrayList<Predicate>().apply {
-                if (includeShares) add(entity[ShareEntity::fileId] isInCollection fileIds)
+                add(entity[ShareEntity::fileId] isInCollection fileIds)
             }.toTypedArray())
         }.list()
     }
@@ -346,5 +385,9 @@ class ShareHibernateDAO : ShareDAO<HibernateSession> {
             createdAt = createdAt.time,
             modifiedAt = modifiedAt.time
         )
+
+    companion object : Loggable {
+        override val log = logger()
+    }
 }
 

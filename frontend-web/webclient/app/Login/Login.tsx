@@ -5,7 +5,7 @@ import {useEffect, useRef, useState} from "react";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Box, Button, Flex, Icon, Image, Input, Text, theme, Relative} from "ui-components";
+import {Box, Button, Flex, Icon, Image, Input, Relative, Text, theme} from "ui-components";
 import Absolute from "ui-components/Absolute";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent} from "ui-components/Dropdown";

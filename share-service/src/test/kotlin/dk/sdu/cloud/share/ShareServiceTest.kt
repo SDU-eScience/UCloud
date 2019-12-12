@@ -82,7 +82,7 @@ class ShareServiceTest {
         shareService.initializeJobQueue()
     }
 
-    fun initializeMocks(config: MockConfiguration) {
+    private fun initializeMocks(config: MockConfiguration = MockConfiguration()) {
         with(config) {
             initializeLinkLookupMocks()
             initializeNotificationMock()
@@ -93,7 +93,7 @@ class ShareServiceTest {
         }
     }
 
-    fun MockConfiguration.initializeLinkLookupMocks() {
+    private fun MockConfiguration.initializeLinkLookupMocks() {
         ClientMock.mockCall(LookupDescriptions.reverseLookup) {
             if (reverseLookupPath == null) {
                 TestCallResult.Error(null, HttpStatusCode.InternalServerError)
@@ -108,11 +108,11 @@ class ShareServiceTest {
         }
     }
 
-    fun MockConfiguration.initializeNotificationMock() {
+    private fun MockConfiguration.initializeNotificationMock() {
         ClientMock.mockCallSuccess(NotificationDescriptions.create, FindByNotificationId(1))
     }
 
-    fun MockConfiguration.initializeTokenMocks() {
+    private fun MockConfiguration.initializeTokenMocks() {
         ClientMock.mockCall(AuthDescriptions.tokenExtension) {
             if (allowTokenExtension) {
                 TestCallResult.Ok(TokenExtensionResponse("accessToken", "csrfToken", "refreshToken"))
@@ -130,13 +130,14 @@ class ShareServiceTest {
         }
     }
 
-    fun MockConfiguration.initializeVerificationMocks() {
+    private fun MockConfiguration.initializeVerificationMocks() {
         ClientMock.mockCall(FileDescriptions.stat) {
             if (statOwner == null) {
                 TestCallResult.Error(null, HttpStatusCode.NotFound)
             } else {
                 TestCallResult.Ok(
                     StorageFile(
+                        fileId = sharedFile,
                         fileType = FileType.DIRECTORY,
                         path = "/home/$owner/$sharedFile",
                         ownerName = statOwner
@@ -168,7 +169,7 @@ class ShareServiceTest {
         }
     }
 
-    fun MockConfiguration.initializeACLMock() {
+    private fun MockConfiguration.initializeACLMock() {
         ClientMock.mockCall(FileDescriptions.updateAcl) {
             if (allowAclUpdate) {
                 TestCallResult.Ok(Unit)
@@ -178,7 +179,7 @@ class ShareServiceTest {
         }
     }
 
-    fun MockConfiguration.initializeIndexingSubscription() {
+    private fun MockConfiguration.initializeIndexingSubscription() {
         ClientMock.mockCallSuccess(Subscriptions.addSubscription, AddSubscriptionResponse)
         ClientMock.mockCallSuccess(Subscriptions.removeSubscription, RemoveSubscriptionResponse)
     }
@@ -301,6 +302,15 @@ class ShareServiceTest {
         acceptShare()
         assertException<RPCException> { acceptShare() }
         return@runBlocking
+    }
+
+    @Test
+    fun `test creating twice`() = runBlocking {
+        initializeMocks(MockConfiguration())
+        createShare()
+            createShare()
+        assertTrue(false)
+        Unit
     }
 
     @Test

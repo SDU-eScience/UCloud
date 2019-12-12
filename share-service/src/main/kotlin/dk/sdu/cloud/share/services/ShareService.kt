@@ -29,6 +29,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.share.api.ShareId
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.Shares
@@ -133,12 +134,17 @@ class ShareService<DBSession>(
                         ownerToken = ownerToken
                     )
 
+                log.warn("Created new share with id: $result")
+
                 Subscriptions.addSubscription.call(AddSubscriptionRequest(setOf(fileId)), serviceClient).orThrow()
                 aSendCreatedNotification(serviceClient, result, user, share)
+
+                log.warn("No failure!")
 
                 result
             } catch (ex: Throwable) {
                 revokeToken(serviceClient, ownerToken)
+                log.warn(ex.stackTraceToString())
                 throw ex
             }
         }

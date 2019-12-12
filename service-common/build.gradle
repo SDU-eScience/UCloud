@@ -38,7 +38,11 @@ detekt {
 }
 
 group "dk.sdu.cloud"
+<<<<<<< Updated upstream
 version '1.10.6'
+=======
+version '1.11.0-ASYNCDB.2'
+>>>>>>> Stashed changes
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"

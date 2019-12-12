@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.10.5"
+    ext.serviceCommonVersion = "1.11.0-ASYNCDB.2"
     ext.authApiVersion = "1.26.4"
 }
 
@@ -22,6 +22,8 @@ dependencies {
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
     compile 'dk.sdu.cloud:notification-api:1.2.6'
     compile 'dk.sdu.cloud:indexing-api:1.15.4'
+    implementation 'com.github.jasync-sql:jasync-common:1.0.12'
+    implementation 'com.github.jasync-sql:jasync-postgresql:1.0.12'
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 

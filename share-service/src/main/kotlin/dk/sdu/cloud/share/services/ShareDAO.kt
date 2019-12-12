@@ -6,6 +6,9 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.share.api.Share
 import dk.sdu.cloud.share.api.ShareState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
 
 data class ShareRelationQuery(val username: String, val sharedByMe: Boolean)
 
@@ -19,7 +22,7 @@ data class ShareRelationQuery(val username: String, val sharedByMe: Boolean)
  * for a given file.
  */
 interface ShareDAO<Session> {
-    fun create(
+    suspend fun create(
         session: Session,
         owner: String,
         sharedWith: String,
@@ -29,38 +32,38 @@ interface ShareDAO<Session> {
         ownerToken: String
     ): Long
 
-    fun findById(
+    suspend fun findById(
         session: Session,
         auth: AuthRequirements,
         shareId: Long
     ): InternalShare
 
-    fun findAllByPath(
+    suspend fun findAllByPath(
         session: Session,
         auth: AuthRequirements,
         path: String
     ): List<InternalShare>
 
-    fun findAllByFileId(
+    suspend fun findAllByFileId(
         session: Session,
         auth: AuthRequirements,
         fileId: String
     ): List<InternalShare>
 
-    fun list(
+    suspend fun list(
         session: Session,
         auth: AuthRequirements,
         shareRelation: ShareRelationQuery,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
     ): ListSharesResponse
 
-    fun listSharedToMe(
+    suspend fun listSharedToMe(
         session: Session,
         user: String,
         paging: NormalizedPaginationRequest
     ): Page<InternalShare>
 
-    fun updateShare(
+    suspend fun updateShare(
         session: Session,
         auth: AuthRequirements,
         shareId: Long,
@@ -69,31 +72,30 @@ interface ShareDAO<Session> {
         rights: Set<AccessRight>? = null,
         path: String? = null,
         ownerToken: String? = null
-    ): InternalShare
+    )
 
-    fun deleteShare(
+    suspend fun deleteShare(
         session: Session,
         auth: AuthRequirements,
         shareId: Long
-    ): InternalShare
+    )
 
-    fun onFilesMoved(
+    suspend fun onFilesMoved(
         session: Session,
         events: List<StorageEvent.Moved>
-    ): List<InternalShare>
+    )
 
-    fun findAllByFileIds(
+    suspend fun findAllByFileIds(
         session: Session,
-        fileIds: List<String>,
-        includeShares: Boolean = true
+        fileIds: List<String>
     ): List<InternalShare>
 
-    fun deleteAllByShareId(
+    suspend fun deleteAllByShareId(
         session: Session,
         shareIds: List<Long>
     )
 
-    fun listAll(session: Session): Sequence<InternalShare>
+    suspend fun listAll(scope: CoroutineScope, session: Session): ReceiveChannel<InternalShare>
 }
 
 data class ListSharesResponse(

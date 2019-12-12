@@ -18,7 +18,7 @@ class ProcessingService<Session>(
     private val serviceClient: AuthenticatedClient,
     private val shareService: ShareService<*>
 ) {
-    fun handleFilesMoved(events: List<StorageEvent.Moved>) {
+    suspend fun handleFilesMoved(events: List<StorageEvent.Moved>) {
         if (events.isEmpty()) return
 
         db.withTransaction { session ->
@@ -35,8 +35,7 @@ class ProcessingService<Session>(
             deletedShares =
                 shareDao.findAllByFileIds(
                     session,
-                    events.map { it.file.fileId },
-                    includeShares = true
+                    events.map { it.file.fileId }
                 )
         }
 

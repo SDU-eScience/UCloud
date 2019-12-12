@@ -12,7 +12,6 @@ import dk.sdu.cloud.share.api.ShareServiceDescription
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(ShareServiceDescription, args)
-        install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
         install(HealthCheckFeature)
     }

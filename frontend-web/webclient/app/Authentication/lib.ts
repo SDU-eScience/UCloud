@@ -143,72 +143,75 @@ export default class HttpClient {
         await this.waitForCloudReady();
 
         if (path.indexOf("/") !== 0) path = "/" + path;
-        return this.receiveAccessTokenOrRefreshIt(disallowProjects).then(token => {
-            return new Promise((resolve, reject) => {
-                const req = new XMLHttpRequest();
-                req.open(method, this.computeURL(context, path));
-                req.setRequestHeader("Authorization", `Bearer ${token}`);
-                req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-                req.responseType = "text"; // Explicitly set, otherwise issues with empty response
-                if (withCredentials) {
-                    req.withCredentials = true;
-                }
-
-                const rejectOrRetry = (parsedResponse?) => {
-                    if (req.status === 401) {
-                        this.forceRefresh = true;
+        return this.receiveAccessTokenOrRefreshIt(disallowProjects)
+            .catch(it => {
+                console.warn(it);
+                snackbarStore.addFailure("Could not refresh login token.");
+                if ([401, 403].includes(it.status)) HttpClient.clearTokens();
+            })
+            .then(token => {
+                return new Promise((resolve, reject) => {
+                    const req = new XMLHttpRequest();
+                    req.open(method, this.computeURL(context, path));
+                    req.setRequestHeader("Authorization", `Bearer ${token}`);
+                    req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+                    req.responseType = "text"; // Explicitly set, otherwise issues with empty response
+                    if (withCredentials) {
+                        req.withCredentials = true;
                     }
 
-                    if (maxRetries >= 1 && is5xxStatusCode(req.status)) {
-                        this.call({
-                            maxRetries: maxRetries - 1,
-                            method,
-                            path,
-                            body,
-                            context
-                        })
-                            .catch(e => reject(e)).then(e => resolve(e));
-                    } else {
-                        reject({request: req, response: parsedResponse});
-                    }
-                };
-
-                req.onload = async () => {
-                    try {
-                        const responseContentType = req.getResponseHeader("content-type");
-                        let parsedResponse = req.response.length === 0 ? "{}" : req.response;
-
-                        // JSON Parsing
-                        if (responseContentType !== null) {
-                            if (responseContentType.indexOf("application/json") !== -1 ||
-                                responseContentType.indexOf("application/javascript") !== -1) {
-                                parsedResponse = JSON.parse(parsedResponse);
-                            }
+                    const rejectOrRetry = (parsedResponse?) => {
+                        if (req.status === 401) {
+                            this.forceRefresh = true;
                         }
 
-                        if (inSuccessRange(req.status)) {
-                            resolve({
-                                response: parsedResponse,
-                                request: req,
-                            });
+                        if (maxRetries >= 1 && is5xxStatusCode(req.status)) {
+                            this.call({
+                                maxRetries: maxRetries - 1,
+                                method,
+                                path,
+                                body,
+                                context
+                            })
+                                .catch(e => reject(e)).then(e => resolve(e));
                         } else {
-                            rejectOrRetry(parsedResponse);
+                            reject({request: req, response: parsedResponse});
                         }
-                    } catch (e) {
-                        rejectOrRetry();
-                    }
-                };
+                    };
 
-                if (body) {
-                    req.send(JSON.stringify(body));
-                } else {
-                    req.send();
-                }
+                    req.onload = async () => {
+                        try {
+                            const responseContentType = req.getResponseHeader("content-type");
+                            let parsedResponse = req.response.length === 0 ? "{}" : req.response;
+
+                            // JSON Parsing
+                            if (responseContentType !== null) {
+                                if (responseContentType.indexOf("application/json") !== -1 ||
+                                    responseContentType.indexOf("application/javascript") !== -1) {
+                                    parsedResponse = JSON.parse(parsedResponse);
+                                }
+                            }
+
+                            if (inSuccessRange(req.status)) {
+                                resolve({
+                                    response: parsedResponse,
+                                    request: req,
+                                });
+                            } else {
+                                rejectOrRetry(parsedResponse);
+                            }
+                        } catch (e) {
+                            rejectOrRetry();
+                        }
+                    };
+
+                    if (body) {
+                        req.send(JSON.stringify(body));
+                    } else {
+                        req.send();
+                    }
+                });
             });
-        }).catch(it => {
-            snackbarStore.addFailure("Could not refresh login token.");
-            if ([401, 403].includes(it.status)) HttpClient.clearTokens();
-        });
     }
 
     public computeURL(context: string, path: string): string {

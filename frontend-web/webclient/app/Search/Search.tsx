@@ -244,7 +244,7 @@ export function applicationSearchBody(
     return {
         query: !!appQuery ? appQuery : undefined,
         tags: tags.size > 0 ? [...tags] : undefined,
-        showAllVersions: showAllVersions,
+        showAllVersions,
         itemsPerPage,
         page
     };

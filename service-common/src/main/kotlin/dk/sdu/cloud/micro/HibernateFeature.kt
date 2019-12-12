@@ -1,6 +1,8 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.micro.FlywayFeature.Feature.SCRIPT_GENERATE_DDL
+import dk.sdu.cloud.micro.FlywayFeature.Feature.SCRIPT_MIGRATE
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
 import dk.sdu.cloud.service.db.H2_TEST_JDBC_URL
@@ -92,36 +94,13 @@ class HibernateFeature : MicroFeature {
                 ctx.hibernateDatabase = db
             }
         }
-
-        if (ctx.featureOrNull(ScriptFeature) == null) {
-            log.info("ScriptFeature is not installed. Cannot add database script handlers")
-        } else {
-            ctx.optionallyAddScriptHandler(SCRIPT_GENERATE_DDL) {
-                println(ctx.hibernateDatabase.generateDDL())
-
-                ScriptHandlerResult.STOP
-            }
-
-            ctx.optionallyAddScriptHandler(SCRIPT_MIGRATE) {
-                val username = configuration.credentials?.username ?: ""
-                val password = configuration.credentials?.password ?: ""
-                val jdbcUrl = ctx.jdbcUrl
-
-                val flyway = Flyway.configure().apply {
-                    dataSource(jdbcUrl, username, password)
-                    schemas(safeSchemaName(serviceDescription))
-                }.load()
-
-                flyway.migrate()
-                ScriptHandlerResult.STOP
-            }
-        }
     }
 
-    private fun safeSchemaName(service: ServiceDescription): String = service.name.replace('-', '_')
 
     companion object Feature : MicroFeatureFactory<HibernateFeature, Unit>,
         Loggable {
+        fun safeSchemaName(service: ServiceDescription): String = service.name.replace('-', '_')
+
         override val key = MicroAttributeKey<HibernateFeature>("hibernate-feature")
         override fun create(config: Unit): HibernateFeature = HibernateFeature()
 
@@ -130,10 +109,6 @@ class HibernateFeature : MicroFeature {
         internal val SERVICE_KEY =
             MicroAttributeKey<HibernateSessionFactory>("hibernate-session-factory")
         internal val JDBC_KEY = MicroAttributeKey<String>("hibernate-jdbc-url")
-
-        // Script args
-        const val SCRIPT_GENERATE_DDL = "generate-ddl"
-        const val SCRIPT_MIGRATE = "migrate-db"
 
         // Config chunks
         val CONFIG_PATH = arrayOf("hibernate", "database")

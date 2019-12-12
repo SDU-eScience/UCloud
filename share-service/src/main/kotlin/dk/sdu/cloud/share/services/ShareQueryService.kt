@@ -38,7 +38,7 @@ class ShareQueryService<Session>(
     private val dao: ShareDAO<Session>,
     private val client: AuthenticatedClient
 ) {
-    fun list(
+    suspend fun list(
         user: String,
         sharedByMe: Boolean,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
@@ -60,7 +60,7 @@ class ShareQueryService<Session>(
         )
     }
 
-    fun findSharesForPath(
+    suspend fun findSharesForPath(
         user: String,
         path: String,
         userAccessToken: String
