@@ -30,7 +30,7 @@ import {RouteComponentProps} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
-import {Button, Flex, VerticalButtonGroup, Checkbox, Label, Text} from "ui-components";
+import {Button, Flex, VerticalButtonGroup, Checkbox, Label, Text, Icon} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import * as Heading from "ui-components/Heading";
@@ -63,6 +63,20 @@ function prettifyAccessRight(accessRight: ApplicationAccessRight) {
     }
 }
 
+async function loadApplicationPermissionEntries(appName: string): Promise<ApplicationPermissionEntry[]> {
+    const entries: ApplicationPermissionEntry[] = [];
+    const {response} = await Client.get(`/hpc/apps/list-acl/${appName}`)
+    response.forEach(item => {
+        let entityObj: UserEntity = { id: item.entity.id, type: item.entity.type };
+        let entry: ApplicationPermissionEntry = {
+            entity: entityObj,
+            permission: item.permission,
+        };
+        entries.push(entry);
+    });
+    return entries;
+}
+
 const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOperations> = props => {
     const name = props.match.params.name;
     if (Client.userRole !== "ADMIN") return null;
@@ -84,21 +98,13 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
         text-align: left;
     `;
 
+    async function setPermissionsOnInit() {
+        setPermissionEntries(await loadApplicationPermissionEntries(name));
+    }
+
     // Loading of permission entries
     useEffect(() =>  {
-        Client.get(`/hpc/apps/list-acl/${name}`).then(({response}) => {
-            const entries: ApplicationPermissionEntry[] = [];
-            response.forEach(item => {
-                let entityObj: UserEntity = { id: item.entity.id, type: item.entity.type };
-                let entry: ApplicationPermissionEntry = {
-                    entity: entityObj,
-                    permission: item.permission,
-                };
-                entries.push(entry);
-            });
-
-            setPermissionEntries(entries)
-        });
+        setPermissionsOnInit();
     }, []);
 
     // Loading of application versions
@@ -185,12 +191,11 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                         <Box mb={46} mt={26}>
                             {tags.map(tag => (
                                 <Flex key={tag} mb={16}>
-                                    <Box width={550}>
+                                    <Box flexGrow={1}>
                                         <TagStyle to="#" key={tag}>{tag}</TagStyle>
                                     </Box>
-                                    <Box width={100}>
+                                    <Box>
                                         <Button
-                                            fullWidth
                                             color={"red"}
                                             type={"button"}
 
@@ -200,7 +205,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                 setAppParameters(listByName({...appParameters.parameters}));
                                             }}
                                         >
-                                            Delete
+
+                                            <Icon size={16} name="trash" />
                                         </Button>
                                     </Box>
                                 </Flex>
@@ -224,11 +230,12 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                             >
                                 <Flex>
                                     <Box flexGrow={1}>
-                                        <Input ref={newTagField} />
+                                        <Input type="text"
+                                            ref={newTagField}
+                                            rightLabel
+                                            height={35} />
                                     </Box>
-                                    <Box ml={8} width={100}>
-                                        <Button disabled={commandLoading} type={"submit"} fullWidth>Add tag</Button>
-                                    </Box>
+                                    <Button disabled={commandLoading} type={"submit"} width={100} attached>Add tag</Button>
                                 </Flex>
                             </form>
                         </Box>
@@ -259,7 +266,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                             ]
                                         }
                                     ));
-                                    setAppParameters(listByName({...appParameters.parameters}));
+                                    setPermissionEntries(await loadApplicationPermissionEntries(name));
 
                                     permissionField.value = "";
                                 }}
@@ -281,37 +288,66 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                             options={readEditOptions}
                                         />
                                     </InputLabel>
-                                    <Button width="300px" disabled={commandLoading} type={"submit"} ml="5px">Add permission</Button>
+                                    <Button attached width="300px" disabled={commandLoading} type={"submit"}>Add permission</Button>
                                 </Flex>
                             </form>
                         </Box>
                         <Flex key={5} mb={16} mt={26}>
                             <Box width={800}>
-                                <Table>
-                                    <LeftAlignedTableHeader>
-                                        <TableRow>
-                                            <TableHeaderCell width="300px">Name</TableHeaderCell>
-                                            <TableHeaderCell>Permission</TableHeaderCell>
-                                            <TableHeaderCell></TableHeaderCell>
-                                        </TableRow>
-                                    </LeftAlignedTableHeader>
-                                    <tbody>
-                                        {permissionEntries.map(permissionEntry => (
-                                            <TableRow key={permissionEntry.entity.id}>
-                                                <TableCell>{permissionEntry.entity.id}</TableCell>
-                                                <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
-                                                <TableCell textAlign="right">
-                                                    <Button
-                                                        color={"red"}
-                                                        type={"button"}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </TableCell>
+                                { (permissionEntries.length > 0) ? (
+                                    <Table>
+                                        <LeftAlignedTableHeader>
+                                            <TableRow>
+                                                <TableHeaderCell width="300px">Name</TableHeaderCell>
+                                                <TableHeaderCell>Permission</TableHeaderCell>
+                                                <TableHeaderCell width={50}>Delete</TableHeaderCell>
                                             </TableRow>
-                                        ))}
-                                    </tbody>
-                                </Table>
+                                        </LeftAlignedTableHeader>
+                                        <tbody>
+                                            {permissionEntries.map(permissionEntry => (
+                                                <TableRow key={permissionEntry.entity.id}>
+                                                    <TableCell>{permissionEntry.entity.id}</TableCell>
+                                                    <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
+                                                    <TableCell textAlign="right">
+                                                        <Button
+                                                            color={"red"}
+                                                            type={"button"}
+                                                            onClick={() => addStandardDialog({
+                                                                title: `Are you sure?`,
+                                                                message: (
+                                                                    <Box>
+                                                                        <Text>
+                                                                            Remove permission for {permissionEntry.entity.id}
+                                                                        </Text>
+                                                                    </Box>
+                                                                ),
+                                                                onConfirm: async () => {
+                                                                    await invokeCommand(updateApplicationPermission(
+                                                                        {
+                                                                            applicationName: name,
+                                                                            changes: [
+                                                                                {
+                                                                                    entity: { id: permissionEntry.entity.id, type: UserEntityType.USER },
+                                                                                    rights: permissionEntry.permission,
+                                                                                    revoke: true
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ));
+                                                                    await setPermissionEntries(await loadApplicationPermissionEntries(name));
+                                                                }
+                                                            })}
+                                                        >
+                                                            <Icon size={16} name="trash" />
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                ) : (
+                                    <Text textAlign="center">No explicit permissions set for this application</Text>
+                                )}
                             </Box>
                         </Flex>
                     </Box>
@@ -323,7 +359,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     <TableRow>
                                         <TableHeaderCell width={100}>Version</TableHeaderCell>
                                         <TableHeaderCell>Settings</TableHeaderCell>
-                                        <TableHeaderCell width={200}></TableHeaderCell>
+                                        <TableHeaderCell width={50}>Delete</TableHeaderCell>
                                     </TableRow>
                                 </LeftAlignedTableHeader>
                                 <tbody>
@@ -382,16 +418,14 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                         confirmText: "Delete"
                                                     })}
                                                 >
-                                                    Delete Version
+                                                    <Icon size={16} name="trash" />
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
                                     )}
                                 </tbody>
                             </Table>
-
                         </Box>
-
                     </Box>
                 </Flex>
             )}
