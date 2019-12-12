@@ -1,14 +1,11 @@
 package dk.sdu.cloud.share
 
-import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
-import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
@@ -17,6 +14,7 @@ import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.share.http.ShareController
 import dk.sdu.cloud.share.processors.StorageEventProcessor
@@ -25,7 +23,6 @@ import dk.sdu.cloud.share.services.ShareAsyncDao
 import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
 import dk.sdu.cloud.share.services.ShareSynchronization
-import dk.sdu.cloud.share.services.db.AsyncDBSessionFactory
 import kotlinx.coroutines.runBlocking
 import kotlin.system.exitProcess
 

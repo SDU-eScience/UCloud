@@ -1,4 +1,4 @@
-package dk.sdu.cloud.share.services.db
+package dk.sdu.cloud.service.db.async
 
 val columnRegex = Regex("[a-zA-Z0-9_]+")
 

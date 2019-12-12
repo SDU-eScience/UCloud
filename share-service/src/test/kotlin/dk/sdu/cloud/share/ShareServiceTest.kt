@@ -39,8 +39,7 @@ import dk.sdu.cloud.share.api.Shares
 import dk.sdu.cloud.share.services.ShareAsyncDao
 import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
-import dk.sdu.cloud.share.services.db.AsyncDBConnection
-import dk.sdu.cloud.share.services.db.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
 import kotlin.test.BeforeTest

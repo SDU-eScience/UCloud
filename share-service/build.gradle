@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.6.3-DB.9'
+version '1.6.3-DB.11'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.share.MainKt"
@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.11.0-ASYNCDB.4"
+    ext.serviceCommonVersion = "1.11.0-ASYNCDB.6"
     ext.authApiVersion = "1.26.4"
 }
 
@@ -22,8 +22,6 @@ dependencies {
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
     compile 'dk.sdu.cloud:notification-api:1.2.6'
     compile 'dk.sdu.cloud:indexing-api:1.15.4'
-    implementation 'com.github.jasync-sql:jasync-common:1.0.12'
-    implementation 'com.github.jasync-sql:jasync-postgresql:1.0.12'
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 

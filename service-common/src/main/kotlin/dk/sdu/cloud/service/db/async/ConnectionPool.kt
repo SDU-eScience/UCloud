@@ -1,4 +1,4 @@
-package dk.sdu.cloud.share.services.db
+package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.SuspendingConnection
 import com.github.jasync.sql.db.SuspendingConnectionImpl

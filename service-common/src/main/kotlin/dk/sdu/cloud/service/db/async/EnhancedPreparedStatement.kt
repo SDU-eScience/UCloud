@@ -1,6 +1,7 @@
-package dk.sdu.cloud.share.services.db
+package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.QueryResult
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import java.time.LocalDateTime
 
 /**

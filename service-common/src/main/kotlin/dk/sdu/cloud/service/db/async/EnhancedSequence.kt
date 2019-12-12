@@ -1,4 +1,4 @@
-package dk.sdu.cloud.share.services.db
+package dk.sdu.cloud.service.db.async
 
 /**
  * Utility function for returning the next value of a sequence

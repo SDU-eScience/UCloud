@@ -38,7 +38,7 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version '1.11.0-ASYNCDB.4'
+version '1.11.0-ASYNCDB.6'
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"
@@ -104,6 +104,9 @@ dependencies {
     compile group: 'org.hibernate', name: 'hibernate-core', version: '5.4.1.Final'
     compile group: 'org.hibernate', name: 'hibernate-hikaricp', version: '5.4.1.Final'
     compile 'org.flywaydb:flyway-core:5.2.4'
+
+    compile 'com.github.jasync-sql:jasync-common:1.0.12'
+    compile 'com.github.jasync-sql:jasync-postgresql:1.0.12'
 
     compile 'eu.infomas:annotation-detector:3.0.5'
 
