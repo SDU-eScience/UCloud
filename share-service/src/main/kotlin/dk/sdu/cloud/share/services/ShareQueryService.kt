@@ -75,7 +75,10 @@ class ShareQueryService<Session>(
                 ).orThrow()
             }
 
-        return db.withTransaction { dao.findAllByPath(it, AuthRequirements(user, ShareRole.PARTICIPANT), stat.canonicalPath) }
+        return db
+            .withTransaction {
+                dao.findAllByPath(it, AuthRequirements(user, ShareRole.PARTICIPANT), stat.path)
+            }
             .groupByPath(user)
             .single()
     }

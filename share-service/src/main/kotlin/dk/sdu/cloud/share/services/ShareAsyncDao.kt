@@ -84,12 +84,13 @@ class ShareAsyncDao : ShareDAO<AsyncDBConnection> {
                 {
                     setParameter("authUser", auth.user)
                     setParameter("authRole", auth.requireRole?.name)
+                    setParameter("id", shareId)
                 },
 
                 """
                     select *
                     from shares s
-                    where s.id = ? and is_share_authorized(s, ?authUser, ?authRole)
+                    where s.id = ?id and is_share_authorized(s, ?authUser, ?authRole)
                 """
             )
             .rows
@@ -107,6 +108,7 @@ class ShareAsyncDao : ShareDAO<AsyncDBConnection> {
                 {
                     setParameter("authUser", auth.user)
                     setParameter("authRole", auth.requireRole?.name)
+                    setParameter("path", path)
                 },
 
                 """
@@ -119,6 +121,8 @@ class ShareAsyncDao : ShareDAO<AsyncDBConnection> {
             )
             .rows
             .map { it.toInternalShare() }
+            .takeIf { it.isNotEmpty() }
+            ?: throw ShareException.NotFound()
     }
 
     override suspend fun findAllByFileId(

@@ -148,8 +148,14 @@ class EnhancedPreparedStatement(statement: String) {
         boundValues.add(name)
     }
 
-    suspend fun sendPreparedStatement(session: AsyncDBConnection, release: Boolean = false): QueryResult =
-        session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
+    suspend fun sendPreparedStatement(session: AsyncDBConnection, release: Boolean = false): QueryResult {
+        check(boundValues.size == parameters.size) {
+            "boundValues.size != parameters.size. " +
+                    "boundValues: ${boundValues}, " +
+                    "parameters: ${parameterNamesToIndex.keys}"
+        }
+        return session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
+    }
 }
 
 suspend inline fun AsyncDBConnection.sendPreparedStatement(

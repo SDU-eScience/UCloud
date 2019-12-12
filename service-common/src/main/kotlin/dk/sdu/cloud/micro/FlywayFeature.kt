@@ -8,14 +8,8 @@ import org.flywaydb.core.Flyway
 
 class FlywayFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
-        val configuration = ctx.configuration.requestChunkAtOrNull(*HibernateFeature.CONFIG_PATH) ?: run {
-            log.warn(
-                "No database configuration provided at ${HibernateFeature.CONFIG_PATH.toList()}. " +
-                        "Using default test (non-persistent) database."
-            )
-
-            HibernateFeature.Feature.Config()
-        }
+        ctx.requireFeature(DatabaseConfigurationFeature)
+        val configuration = ctx.databaseConfig
 
         if (ctx.featureOrNull(ScriptFeature) == null) {
             log.info("ScriptFeature is not installed. Cannot add database script handlers")
@@ -27,8 +21,8 @@ class FlywayFeature : MicroFeature {
             }
 
             ctx.optionallyAddScriptHandler(SCRIPT_MIGRATE) {
-                val username = configuration.credentials?.username ?: ""
-                val password = configuration.credentials?.password ?: ""
+                val username = configuration.username ?: ""
+                val password = configuration.password ?: ""
                 val jdbcUrl = ctx.jdbcUrl
 
                 val flyway = Flyway.configure().apply {

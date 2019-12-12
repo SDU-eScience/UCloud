@@ -9,6 +9,7 @@ import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.server
@@ -46,12 +47,7 @@ class Server(
             ).authenticateClient(OutgoingHttpCall)
         }
 
-        fun safeSchemaName(service: ServiceDescription): String = service.name.replace('-', '_')
-
-        val hibernateConfig =
-            micro.configuration.requestChunkAt<HibernateFeature.Feature.Config>(*HibernateFeature.CONFIG_PATH)
-
-        val db = AsyncDBSessionFactory(hibernateConfig, safeSchemaName(micro.serviceDescription))
+        val db = AsyncDBSessionFactory(micro.databaseConfig)
         val shareService = ShareService(
             serviceClient = client,
             db = db,
