@@ -3,7 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.store.api.AppStore
-import dk.sdu.cloud.app.store.api.ApplicationWithFavorite
+import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
 import dk.sdu.cloud.service.test.ClientMock
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
@@ -35,7 +35,7 @@ class AppStoreTest {
 
         ClientMock.mockCallSuccess(
             AppStore.findByNameAndVersion,
-            ApplicationWithFavorite(normAppDesc.metadata, normAppDesc.invocation, true, emptyList())
+            ApplicationWithFavoriteAndTags(normAppDesc.metadata, normAppDesc.invocation, true, emptyList())
         )
         runBlocking {
             val firstRunResult = service.findByNameAndVersion("name", "2.2")

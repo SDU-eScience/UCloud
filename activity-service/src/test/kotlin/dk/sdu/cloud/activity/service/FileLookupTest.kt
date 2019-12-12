@@ -40,11 +40,9 @@ class FileLookupTest {
                 12345678,
                 "user",
                 1234,
-                listOf(AccessEntry("entity", true, setOf(AccessRight.EXECUTE))),
+                listOf(AccessEntry("entity", setOf(AccessRight.EXECUTE))),
                 SensitivityLevel.PRIVATE,
-                false,
-                emptySet(),
-                "1"
+                fileId = "1"
             )
         )
 

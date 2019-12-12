@@ -85,7 +85,9 @@ class ElasticQueryService(
                     terms { ElasticIndexedFile.ID_FIELD to fileIds }
                 }
             }
-        }.items.associateBy { it.id }
+        }.items.associateBy<ElasticIndexedFile, String> { file: ElasticIndexedFile ->
+            file.id
+        }
         return fileIds.map { files[it]?.toMaterializedFile() }
     }
 

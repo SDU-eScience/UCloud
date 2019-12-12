@@ -1,7 +1,6 @@
 package dk.sdu.cloud.share
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LookupUsersResponse
@@ -13,7 +12,6 @@ import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.BackgroundJobs
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindHomeFolderResponse

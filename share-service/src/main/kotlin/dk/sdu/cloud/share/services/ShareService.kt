@@ -17,7 +17,6 @@ import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.ACLEntryRequest
 import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.BackgroundJobs
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.UpdateAclRequest
@@ -117,8 +116,7 @@ class ShareService<DBSession>(
 
         val ownerToken = createToken(
             serviceClient, userToken, listOf(
-                FileDescriptions.updateAcl.requiredAuthScope,
-                BackgroundJobs.query.requiredAuthScope
+                FileDescriptions.updateAcl.requiredAuthScope
             )
         )
 

@@ -44,7 +44,9 @@ volumes: [
             def list = sh(script: 'ls', returnStdout: true).split("\n")
             for (String item : list) {
                 if (item.endsWith("-service")) {
-                    serviceList.add(item)
+                    if (!item.endsWith("app-abacus-service")) {
+                        serviceList.add(item)
+                    }
                 }
             }
             for (String item : serviceList) {

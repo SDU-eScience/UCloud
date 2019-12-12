@@ -108,7 +108,6 @@ class SearchController(
                             AnyOf.with(*exts.map { it.removePrefix(".") }.toTypedArray())
                         },
                         fileTypes = request.fileTypes?.takeIf { it.isNotEmpty() }?.let { AnyOf.with(*it.toTypedArray()) },
-                        annotations = request.annotations?.takeIf { it.isNotEmpty() }?.let { AnyOf.with(*it.toTypedArray()) },
                         sensitivity = request.sensitivity?.takeIf { it.isNotEmpty() }?.let { AnyOf.with(*it.toTypedArray()) },
 
                         createdAt = request.createdAt?.toPredicateCollection(),
