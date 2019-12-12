@@ -14,6 +14,9 @@ import kotlinx.coroutines.future.await
 
 typealias AsyncDBConnection = SuspendingConnection
 
+/**
+ * A [DBSessionFactory] for the jasync library.
+ */
 class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBConnection> {
     private val schema = config.defaultSchema
     init {
@@ -26,9 +29,9 @@ class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBCo
             throw IllegalArgumentException("Cannot create an AsyncDBSessionFactory for non postgres databases!")
         }
 
-        val username = config.username ?: throw IllegalArgumentException("No credentials")
-        val password = config.password ?: throw IllegalArgumentException("No credentials")
-        val jdbcUrl = config.jdbcUrl ?: throw IllegalArgumentException("No connection string")
+        val username = config.username ?: throw IllegalArgumentException("Missing credentials")
+        val password = config.password ?: throw IllegalArgumentException("Missing credentials")
+        val jdbcUrl = config.jdbcUrl ?: throw IllegalArgumentException("Missing connection string")
 
         PostgreSQLConnectionBuilder.createConnectionPool(jdbcUrl) {
             this.maxActiveConnections = 50
@@ -47,7 +50,7 @@ class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBCo
     }
 
     override suspend fun commit(session: AsyncDBConnection) {
-        session.sendQuery("COMMIT")
+        session.sendQuery("commit")
     }
 
     override suspend fun flush(session: AsyncDBConnection) {
@@ -59,12 +62,14 @@ class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBCo
     }
 
     override suspend fun rollback(session: AsyncDBConnection) {
-        session.sendQuery("ROLLBACK")
+        session.sendQuery("rollback")
     }
 
     override suspend fun openTransaction(session: AsyncDBConnection) {
-        session.sendPreparedStatement("set search_path to $schema")
-        session.sendQuery("BEGIN")
+        // We always begin by setting the search_path to our schema. The schema is checked in the init block to make
+        // this safe.
+        session.sendQuery("set search_path to $schema")
+        session.sendQuery("begin")
     }
 
     companion object : Loggable {

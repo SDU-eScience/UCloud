@@ -1,21 +1,27 @@
 package dk.sdu.cloud.share.services
 
 import com.github.jasync.sql.db.RowData
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.asEnumSet
 import dk.sdu.cloud.service.asInt
 import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.services.db.AsyncDBConnection
 import dk.sdu.cloud.share.services.db.EnhancedPreparedStatement
+import dk.sdu.cloud.share.services.db.PostgresErrorCodes
 import dk.sdu.cloud.share.services.db.SQLTable
 import dk.sdu.cloud.share.services.db.allocateId
+import dk.sdu.cloud.share.services.db.errorCode
 import dk.sdu.cloud.share.services.db.getField
 import dk.sdu.cloud.share.services.db.getFieldNullable
 import dk.sdu.cloud.share.services.db.insert
@@ -25,6 +31,7 @@ import dk.sdu.cloud.share.services.db.paginatedQuery
 import dk.sdu.cloud.share.services.db.sendPreparedStatement
 import dk.sdu.cloud.share.services.db.timestamp
 import dk.sdu.cloud.share.services.db.varchar
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.ReceiveChannel
@@ -58,21 +65,30 @@ class ShareAsyncDao : ShareDAO<AsyncDBConnection> {
     ): Long {
         val allocatedId = session.allocateId()
 
-        session.insert(Shares) {
-            set(Shares.owner, owner)
-            set(Shares.sharedWith, sharedWith)
-            set(Shares.path, path)
-            set(Shares.filename, path.fileName())
-            set(Shares.rights, initialRights.asInt())
-            set(Shares.state, ShareState.REQUEST_SENT.ordinal)
-            set(Shares.fileId, fileId)
-            set(Shares.id, allocatedId)
-            set(Shares.ownerToken, ownerToken)
-            set(Shares.recipientToken, null)
+        try {
+            session.insert(Shares) {
+                set(Shares.owner, owner)
+                set(Shares.sharedWith, sharedWith)
+                set(Shares.path, path)
+                set(Shares.filename, path.fileName())
+                set(Shares.rights, initialRights.asInt())
+                set(Shares.state, ShareState.REQUEST_SENT.ordinal)
+                set(Shares.fileId, fileId)
+                set(Shares.id, allocatedId)
+                set(Shares.ownerToken, ownerToken)
+                set(Shares.recipientToken, null)
 
-            val now = LocalDateTime.now()
-            set(Shares.createdAt, now)
-            set(Shares.modifiedAt, now)
+                val now = LocalDateTime.now()
+                set(Shares.createdAt, now)
+                set(Shares.modifiedAt, now)
+            }
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+                throw ShareException.DuplicateException()
+            } else {
+                log.warn(ex.stackTraceToString())
+                throw RPCException("Internal error", HttpStatusCode.InternalServerError)
+            }
         }
 
         return allocatedId
@@ -216,14 +232,13 @@ class ShareAsyncDao : ShareDAO<AsyncDBConnection> {
         paging: NormalizedPaginationRequest
     ): Page<InternalShare> {
         return session.paginatedQuery(
-            "shares",
             paging,
             {
                 setParameter("user", user)
                 setParameter("acceptedState", ShareState.ACCEPTED.ordinal)
             },
 
-            "shared_with = ?user and state = ?acceptedState"
+            "from shares where shared_with = ?user and state = ?acceptedState"
         ).mapItems { it.toInternalShare() }
     }
 
@@ -241,6 +256,8 @@ class ShareAsyncDao : ShareDAO<AsyncDBConnection> {
             throw ShareException.InternalError("Nothing to update")
         }
 
+        // coalesce will select first non-null parameter. This allows us to change the parameter only if a parameter
+        // was changed.
         session
             .sendPreparedStatement(
                 {
@@ -306,10 +323,10 @@ class ShareAsyncDao : ShareDAO<AsyncDBConnection> {
             },
 
             """
-                update shares s  
+                update shares
                 set
-                    s.path = data.path,
-                    s.filename = data.filename
+                    path = data.path,
+                    filename = data.filename
                 from
                     (
                         select 
@@ -318,7 +335,7 @@ class ShareAsyncDao : ShareDAO<AsyncDBConnection> {
                             unnest(?fileIds::text[]) as file_id
                     ) as data
                 where
-                    s.file_id = data.file_id
+                    shares.file_id = data.file_id
             """
         )
     }
@@ -396,5 +413,9 @@ class ShareAsyncDao : ShareDAO<AsyncDBConnection> {
             getField(Shares.createdAt).toDate().time,
             getField(Shares.modifiedAt).toDate().time
         )
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

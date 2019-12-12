@@ -3,6 +3,43 @@ package dk.sdu.cloud.share.services.db
 import com.github.jasync.sql.db.QueryResult
 import java.time.LocalDateTime
 
+/**
+ * Provides an enhanced prepared statement adding support for named parameters.
+ *
+ * Named parameters use the following syntax: "?PARAMNAME".
+ *
+ * Examples:
+ *
+ * ```kotlin
+ * lateinit var connection: AsyncDBConnection
+ *
+ * connection.sendPreparedStatement(
+ *     {
+ *         setParameter("example", "Hello, World")
+ *     },
+ *
+ *     """
+ *         select ?example
+ *     """
+ * )
+ * ```
+ *
+ * ```kotlin
+ * lateinit var connection: AsyncDBConnection
+ *
+ * connection.sendPreparedStatement(
+ *     {
+ *         setParameter("id", idParameter)
+ *     },
+ *
+ *     """
+ *         select *
+ *         from my_table
+ *         where id = ?id
+ *     """
+ * )
+ * ```
+ */
 class EnhancedPreparedStatement(statement: String) {
     private val parameterNamesToIndex: Map<String, List<Int>>
     private val boundValues = HashSet<String>()

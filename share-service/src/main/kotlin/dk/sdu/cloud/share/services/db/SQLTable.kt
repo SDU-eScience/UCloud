@@ -2,6 +2,18 @@ package dk.sdu.cloud.share.services.db
 
 import org.joda.time.LocalDateTime
 
+/**
+ * A type safe definition of a SQL table.
+ *
+ * Example:
+ *
+ * ```kotlin
+ * object Dog : SQLTable("dogs") {
+ *     val name = text("name")
+ *     val gender = text("gender")
+ * }
+ * ```
+ */
 abstract class SQLTable(val tableName: String) {
     private val backingFields = ArrayList<SQLField<*>>()
     val fields get() = backingFields.toList()

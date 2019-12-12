@@ -4,17 +4,38 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 
+/**
+ * Utility function for pagination queries.
+ *
+ * Under the hood this will count the number of records in the following manner: "select count(*) $query".
+ * Similarly, we will select the appropriate records using: "select * $query limit ?limit offset ?offset".
+ *
+ * A prepared statement is used and additional parameters can be passed in [block]. The parameters ?limit and ?offset
+ * are will be overwritten by this function if already defined.
+ *
+ * Example:
+ *
+ * ```kotlin
+ * lateinit var connection: AsyncDBConnection
+ *
+ * // Find all dogs named "Fie"
+ * connection.paginatedQuery(
+ *     pagination,
+ *     {
+ *         setParameter("name", "Fie")
+ *     },
+ *     "from dogs where name = ?name"
+ * )
+ * ```
+ */
 suspend fun AsyncDBConnection.paginatedQuery(
-    table: String,
     pagination: NormalizedPaginationRequest,
     block: EnhancedPreparedStatement.() -> Unit,
-    where: String
+    query: String
 ): Page<RowData> {
-    require(table.matches(columnRegex))
-
     val itemsInTotal = sendPreparedStatement(
         block,
-        "select count(*) from $table where $where"
+        "select count(*) $query"
     ).rows.singleOrNull()?.getLong(0) ?: 0
 
     val items = sendPreparedStatement(
@@ -24,7 +45,7 @@ suspend fun AsyncDBConnection.paginatedQuery(
             setParameter("offset", pagination.itemsPerPage * pagination.page)
         },
 
-        "select * from $table where $where limit ?limit offset ?offset"
+        "select * $query limit ?limit offset ?offset"
     ).rows
 
     return Page(itemsInTotal.toInt(), pagination.itemsPerPage, pagination.page, items)

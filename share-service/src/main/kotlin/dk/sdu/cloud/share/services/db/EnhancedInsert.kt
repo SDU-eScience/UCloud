@@ -2,6 +2,23 @@ package dk.sdu.cloud.share.services.db
 
 val columnRegex = Regex("[a-zA-Z0-9_]+")
 
+/**
+ * Provides a short hand for inserting a complete row in a table.
+ *
+ * Example:
+ *
+ * ```kotlin
+ *  lateinit var connection: AsyncDBConnection
+ *
+ *  connection.insert(
+ *      "dogs",
+ *      mapOf(
+ *          "name" to "Fie",
+ *          "gender" to "female"
+ *      )
+ *  )
+ * ```
+ */
 suspend fun AsyncDBConnection.insert(table: String, columnToValue: Map<String, Any?>) {
     if (table.matches(columnRegex)) throw IllegalArgumentException("Insecure table name: $table")
 
@@ -17,6 +34,25 @@ suspend fun AsyncDBConnection.insert(table: String, columnToValue: Map<String, A
     )
 }
 
+/**
+ * Provides a short hand for inserting a complete row in a table.
+ *
+ * Example:
+ *
+ * ```kotlin
+ * lateinit var connection: AsyncDBConnection
+ *
+ * object Dog : SQLTable("dogs") {
+ *     val name = text("name")
+ *     val gender = text("gender")
+ * }
+ *
+ * connection.insert(Dog) {
+ *     set(Dog.name, "Fie")
+ *     set(Dog.gender, "female")
+ * }
+ * ```
+ */
 suspend fun AsyncDBConnection.insert(table: SQLTable, block: SQLRow.() -> Unit) {
     val row = SQLRow().also(block)
     val keys = row.keys().toList()
