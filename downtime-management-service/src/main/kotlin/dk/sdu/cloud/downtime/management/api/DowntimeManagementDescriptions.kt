@@ -1,0 +1,147 @@
+package dk.sdu.cloud.downtime.management.api
+
+import dk.sdu.cloud.AccessRight
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
+import io.ktor.http.HttpMethod
+
+data class DowntimeWithoutId(val start: Long, val end: Long, val text: String)
+data class Downtime(val id: Long, val start: Long, val end: Long, val text: String)
+typealias DowntimePageResponse = Page<Downtime>
+
+data class RemoveDowntimeRequest(val id: Long)
+typealias RemoveDowntimeResponse = Unit
+
+typealias FetchAllRequest = PaginationRequest
+typealias FetchAllResponse = DowntimePageResponse
+
+typealias FetchUpcomingRequest = PaginationRequest
+typealias FetchUpcomingResponse = DowntimePageResponse
+
+typealias AddDowntimeRequest = DowntimeWithoutId
+typealias AddDowntimeResponse = Unit
+
+typealias RemoveExpiredRequest = Unit
+typealias RemoveExpiredResponse = Unit
+
+data class GetByIdRequest(val id: Long)
+typealias GetByIdResponse = Downtime
+
+object DowntimeManagementDescriptions : CallDescriptionContainer("downtime.management") {
+    val baseContext = "/api/downtime/"
+
+    val listAll = call<FetchAllRequest, FetchAllResponse, CommonErrorMessage>("fetchAll") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.ADMIN
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listAll"
+            }
+
+            params {
+                +boundTo(FetchAllRequest::page)
+                +boundTo(FetchAllRequest::itemsPerPage)
+            }
+        }
+    }
+
+    val listUpcoming = call<FetchUpcomingRequest, FetchUpcomingResponse, CommonErrorMessage>("fetchUpcoming") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listUpcoming"
+            }
+
+            params {
+                +boundTo(FetchUpcomingRequest::page)
+                +boundTo(FetchUpcomingRequest::itemsPerPage)
+            }
+        }
+    }
+
+    val add = call<AddDowntimeRequest, AddDowntimeResponse, CommonErrorMessage>("add") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.ADMIN
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"add"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val remove = call<RemoveDowntimeRequest, RemoveDowntimeResponse, CommonErrorMessage>("remove") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.ADMIN
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"remove"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val removeExpired = call<RemoveExpiredRequest, RemoveExpiredResponse, CommonErrorMessage>("removeAll") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.ADMIN
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"removeExpired"
+            }
+        }
+    }
+
+    val getById = call<GetByIdRequest, GetByIdResponse,CommonErrorMessage>("getById") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"getById"
+            }
+
+            params {
+                +boundTo(GetByIdRequest::id)
+            }
+        }
+    }
+}
