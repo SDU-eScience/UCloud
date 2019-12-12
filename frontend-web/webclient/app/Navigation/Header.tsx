@@ -15,6 +15,7 @@ import {setFilename} from "Files/Redux/DetailedFileSearchActions";
 import {HeaderStateToProps} from "Navigation";
 import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
 import Notification from "Notifications";
+import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory, useLocation} from "react-router";
@@ -50,7 +51,13 @@ import {ThemeToggler} from "ui-components/ThemeToggle";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {searchPage} from "Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
-import {inDevEnvironment, isLightThemeStored, prettierString, stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {
+    displayErrorMessageOrDefault,
+    inDevEnvironment,
+    isLightThemeStored,
+    prettierString,
+    stopPropagationAndPreventDefault
+} from "UtilityFunctions";
 import {DEV_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
@@ -62,13 +69,15 @@ const DevelopmentBadge = () => window.location.host === DEV_SITE || inDevEnviron
 
 function Header(props: HeaderProps) {
     const [upcomingDowntime, setUpcomingDowntime] = React.useState(false);
+    const [intervalId, setIntervalId] = React.useState(-1);
     const history = useHistory();
-    React.useEffect(() => {
-        // Fetch upcoming downtime status
-    }, []);
+    const promises = usePromiseKeeper();
 
     React.useEffect(() => {
         if (Client.isLoggedIn) props.fetchAvatar();
+        setIntervalId(setInterval(fetchDowntimes, 600_000));
+        fetchDowntimes();
+        return () => clearInterval(intervalId);
     }, []);
 
     // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
@@ -164,12 +173,26 @@ function Header(props: HeaderProps) {
                 <Flex cursor="auto">
                     <ThemeToggler
                         isLightTheme={isLightThemeStored()}
-                        onClick={e => (stopPropagationAndPreventDefault(e), props.toggleTheme())}
+                        onClick={onToggleTheme}
                     />
                 </Flex>
             </ClickableDropdown>
         </HeaderContainer>
     );
+
+    function onToggleTheme(e: React.SyntheticEvent<HTMLDivElement, Event>) {
+        stopPropagationAndPreventDefault(e);
+        props.toggleTheme();
+    }
+
+    async function fetchDowntimes() {
+        try {
+            const result = await promises.makeCancelable(Client.get("/downtime/listUpcoming")).promise;
+            setUpcomingDowntime(result.response.items.length > 0);
+        } catch (err) {
+            displayErrorMessageOrDefault(err, "Could not fetch upcoming downtimes.");
+        }
+    }
 }
 
 export const Refresh = ({
@@ -205,10 +228,10 @@ const LogoText = styled(Text)`
 `;
 
 const Logo = () => (
-    <Link to={"/"}>
+    <Link to="/">
         <Flex alignItems="center" ml="15px">
             <Icon name="logoEsc" size="38px" />
-            <Text color="headerText" fontSize={4} ml={"8px"}>{PRODUCT_NAME}</Text>
+            <Text color="headerText" fontSize={4} ml="8px">{PRODUCT_NAME}</Text>
             {!VERSION_TEXT ? null : (
                 <LogoText
                     ml="4px"
@@ -298,7 +321,7 @@ const _Search = (props: SearchProps) => {
                     onKeyDown={e => {
                         if (e.keyCode === KeyCode.ENTER && search) fetchAll();
                     }}
-                    onChange={({target}) => setSearch(target.value)}
+                    onChange={e => setSearch(e.target.value)}
                 />
                 <Absolute left="6px" top="7px">
                     <Label htmlFor="search_input">
@@ -307,7 +330,7 @@ const _Search = (props: SearchProps) => {
                 </Absolute>
                 <ClickableDropdown
                     keepOpenOnOutsideClick
-                    overflow={"visible"}
+                    overflow="visible"
                     left={-425}
                     top={15}
                     width="425px"
@@ -383,7 +406,7 @@ const mapSearchStateToProps = ({
     applications: simpleSearch.applications
 });
 
-const mapSearchDispatchToProps = (dispatch: Dispatch) => ({
+const mapSearchDispatchToProps = (dispatch: Dispatch): SearchOperations => ({
     setSearchType: (st: HeaderSearchType) => dispatch(setPrioritizedSearch(st)),
     searchFiles: async (body: AdvancedSearchRequest) => {
         dispatch(setFilesLoading(true));
@@ -397,7 +420,7 @@ const mapSearchDispatchToProps = (dispatch: Dispatch) => ({
     },
 });
 
-const Search = connect<SearchStateProps, SearchOperations>(mapSearchStateToProps, mapSearchDispatchToProps)(_Search);
+const Search = connect(mapSearchStateToProps, mapSearchDispatchToProps)(_Search);
 
 interface HeaderOperations {
     fetchAvatar: () => void;

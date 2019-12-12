@@ -21,10 +21,6 @@ interface ListProps<T> {
 }
 
 export class List<T> extends React.PureComponent<ListProps<T>> {
-    constructor(props: ListProps<T>) {
-        super(props);
-    }
-
     public render() {
         const {props} = this;
         const body = this.renderBody();

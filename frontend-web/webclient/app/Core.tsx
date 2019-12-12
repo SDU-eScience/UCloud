@@ -1,5 +1,6 @@
 import * as Accounting from "Accounting";
 import Activity from "Activity/Page";
+import {DetailedDowntime} from "Admin/Downtime/DetailedDowntime";
 import DowntimeManagement from "Admin/DowntimeManagement";
 import AdminOverview from "Admin/Overview";
 import UserCreation from "Admin/UserCreation";
@@ -99,6 +100,8 @@ const Core = () => {
                     <Route exact path="/admin" component={requireAuth(AdminOverview)} />
                     <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)} />
                     <Route exact path="/admin/downtime" component={requireAuth(DowntimeManagement)} />
+
+                    <Route exact path="/downtime/detailed/:id" component={requireAuth(DetailedDowntime)} />
 
                     <Route exact path="/users/settings" component={requireAuth(UserSettings)} />
                     <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)} />
