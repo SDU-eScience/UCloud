@@ -39,7 +39,7 @@ data class PermissionEntry(
 }
 
 class AclHibernateDao : AclDao<HibernateSession> {
-    override fun updatePermissions(
+    override suspend fun updatePermissions(
         session: HibernateSession,
         path: String,
         username: String,
@@ -58,7 +58,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
         }.executeUpdate()
     }
 
-    override fun hasPermission(
+    override suspend fun hasPermission(
         session: HibernateSession,
         path: String,
         username: String,
@@ -81,7 +81,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             .isNotEmpty()
     }
 
-    override fun listAcl(session: HibernateSession, paths: List<String>): Map<String, List<UserWithPermissions>> {
+    override suspend fun listAcl(session: HibernateSession, paths: List<String>): Map<String, List<UserWithPermissions>> {
         return session
             .criteria<PermissionEntry> {
                 anyOf(
@@ -102,7 +102,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             .toMap()
     }
 
-    override fun revokePermission(session: HibernateSession, path: String, username: String) {
+    override suspend fun revokePermission(session: HibernateSession, path: String, username: String) {
         val normalizedPath = path.normalize()
         session.deleteCriteria<PermissionEntry> {
             (entity[PermissionEntry::key][PermissionEntry.Key::path] equal normalizedPath) and
@@ -110,7 +110,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
         }.executeUpdate()
     }
 
-    override fun handleFilesMoved(session: HibernateSession, oldPath: String, newPath: String) {
+    override suspend fun handleFilesMoved(session: HibernateSession, oldPath: String, newPath: String) {
         // The first query will update all children
         // I am not good with sql queries, but this will correctly update the parent property
         session.createNativeQuery(
@@ -147,7 +147,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
         ).executeUpdate()
     }
 
-    override fun handleFilesDeleted(session: HibernateSession, paths: List<String>) {
+    override suspend fun handleFilesDeleted(session: HibernateSession, paths: List<String>) {
         session.deleteCriteria<PermissionEntry> {
             anyOf(
                 *paths.map { normalizedPath ->
@@ -158,7 +158,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
         }.executeUpdate()
     }
 
-    override fun dumpAllForDebugging(session: HibernateSession): Map<String, List<UserWithPermissions>> {
+    override suspend fun dumpAllForDebugging(session: HibernateSession): Map<String, List<UserWithPermissions>> {
         return session
             .criteria<PermissionEntry> { literal(true).toPredicate() }
             .list()

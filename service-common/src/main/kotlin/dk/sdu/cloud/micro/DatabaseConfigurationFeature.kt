@@ -54,7 +54,7 @@ class DatabaseConfigurationFeature : MicroFeature {
                     username = null,
                     password = null,
                     recreateSchema = true,
-                    defaultSchema = safeSchemaName(ctx.serviceDescription)
+                    defaultSchema = "public"
                 )
             }
 
