@@ -14,12 +14,6 @@ class FlywayFeature : MicroFeature {
         if (ctx.featureOrNull(ScriptFeature) == null) {
             log.info("ScriptFeature is not installed. Cannot add database script handlers")
         } else {
-            ctx.optionallyAddScriptHandler(SCRIPT_GENERATE_DDL) {
-                println(ctx.hibernateDatabase.generateDDL())
-
-                ScriptHandlerResult.STOP
-            }
-
             ctx.optionallyAddScriptHandler(SCRIPT_MIGRATE) {
                 val username = configuration.username ?: ""
                 val password = configuration.password ?: ""
@@ -42,7 +36,6 @@ class FlywayFeature : MicroFeature {
         override fun create(config: Unit): FlywayFeature = FlywayFeature()
 
         // Script args
-        const val SCRIPT_GENERATE_DDL = "generate-ddl"
         const val SCRIPT_MIGRATE = "migrate-db"
     }
 }

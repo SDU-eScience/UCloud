@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.11.0-ASYNCDB.6"
+    ext.serviceCommonVersion = "1.11.0-ASYNCDB.9"
     ext.authApiVersion = "1.26.4"
 }
 

@@ -134,17 +134,12 @@ class ShareService<DBSession>(
                         ownerToken = ownerToken
                     )
 
-                log.warn("Created new share with id: $result")
-
                 Subscriptions.addSubscription.call(AddSubscriptionRequest(setOf(fileId)), serviceClient).orThrow()
                 aSendCreatedNotification(serviceClient, result, user, share)
-
-                log.warn("No failure!")
 
                 result
             } catch (ex: Throwable) {
                 revokeToken(serviceClient, ownerToken)
-                log.warn(ex.stackTraceToString())
                 throw ex
             }
         }

@@ -1,7 +1,6 @@
 package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.QueryResult
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import java.time.LocalDateTime
 
 /**
@@ -54,20 +53,25 @@ class EnhancedPreparedStatement(statement: String) {
         var parameterIndex = 0
         var stringIndex = 0
         while (stringIndex < statement.length) {
+            // Find the next parameter by looking for a '?'
             val nextParameter = statement.indexOf('?', stringIndex)
             if (nextParameter == -1) {
+                // We're at the end of the string. We just append the remainder to the query.
                 queryBuilder.append(statement.substring(stringIndex))
                 break
             }
 
+            // Add everything up to and including the '?'. We use this for the prepared statement.
             queryBuilder.append(statement.substring(stringIndex, nextParameter + 1)) // include '?'
 
+            // Parse the parameter name. We only allow alphanumeric and underscores.
             val endOfParameterName = statement.substring(nextParameter + 1)
                 .indexOfFirst { it !in 'a'..'z' && it !in 'A'..'Z' && it !in '0'..'9' && it != '_' }
                 .takeIf { it != -1 }
                 ?.let { it + nextParameter + 1 }
                 ?: statement.length
 
+            // Write down the parameter name and move past it
             val parameterName = statement.substring(nextParameter + 1, endOfParameterName)
             stringIndex = endOfParameterName
 
@@ -83,99 +87,51 @@ class EnhancedPreparedStatement(statement: String) {
     }
 
     fun setParameterAsNull(name: String) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = null
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, null)
     }
 
     fun setParameter(name: String, value: String?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameter(name: String, value: Boolean?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameter(name: String, value: Byte?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameter(name: String, value: Short?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameter(name: String, value: Int?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameter(name: String, value: Long?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameter(name: String, value: Float?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameter(name: String, value: List<Any?>?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameter(name: String, value: Double?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameter(name: String, value: ByteArray?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameter(name: String, value: LocalDateTime?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
-        for (index in indices) {
-            parameters[index] = value
-        }
-        boundValues.add(name)
+        setParameterUntyped(name, value)
     }
 
     fun setParameterUntyped(name: String, value: Any?) {

@@ -1,19 +1,11 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.micro.FlywayFeature.Feature.SCRIPT_GENERATE_DDL
 import dk.sdu.cloud.micro.FlywayFeature.Feature.SCRIPT_MIGRATE
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
-import dk.sdu.cloud.service.db.H2_TEST_JDBC_URL
 import dk.sdu.cloud.service.db.HibernateDatabaseConfig
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.db.POSTGRES_9_5_DIALECT
-import dk.sdu.cloud.service.db.POSTGRES_DRIVER
 import dk.sdu.cloud.service.db.generateDDL
-import dk.sdu.cloud.service.db.postgresJdbcUrl
-import dk.sdu.cloud.service.findValidHostname
-import org.flywaydb.core.Flyway
 
 class HibernateFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
@@ -39,6 +31,16 @@ class HibernateFeature : MicroFeature {
                 recreateSchemaOnStartup = configuration.recreateSchema
             )
         )
+
+        if (ctx.featureOrNull(ScriptFeature) == null) {
+            log.info("ScriptFeature is not installed. Cannot add database script handlers")
+        } else {
+            ctx.optionallyAddScriptHandler(SCRIPT_GENERATE_DDL) {
+                println(ctx.hibernateDatabase.generateDDL())
+
+                ScriptHandlerResult.STOP
+            }
+        }
     }
 
     companion object Feature : MicroFeatureFactory<HibernateFeature, Unit>,
@@ -50,6 +52,7 @@ class HibernateFeature : MicroFeature {
 
         override val log = logger()
 
+        const val SCRIPT_GENERATE_DDL = "generate-ddl"
         internal val SERVICE_KEY =
             MicroAttributeKey<HibernateSessionFactory>("hibernate-session-factory")
     }

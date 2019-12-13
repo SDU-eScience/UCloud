@@ -1,7 +1,5 @@
 package dk.sdu.cloud.service.db.async
 
-val columnRegex = Regex("[a-zA-Z0-9_]+")
-
 /**
  * Provides a short hand for inserting a complete row in a table.
  *
@@ -20,12 +18,12 @@ val columnRegex = Regex("[a-zA-Z0-9_]+")
  * ```
  */
 suspend fun AsyncDBConnection.insert(table: String, columnToValue: Map<String, Any?>) {
-    if (table.matches(columnRegex)) throw IllegalArgumentException("Insecure table name: $table")
+    if (table.matches(safeSqlNameRegex)) throw IllegalArgumentException("Insecure table name: $table")
 
     // Quick sanity check (columns should not come from user data)
     val keys = columnToValue.keys.toList()
     keys.forEach {
-        if (!it.matches(columnRegex)) throw IllegalArgumentException("Insecure column name $it")
+        if (!it.matches(safeSqlNameRegex)) throw IllegalArgumentException("Insecure column name $it")
     }
 
     sendPreparedStatement(

@@ -19,8 +19,9 @@ typealias AsyncDBConnection = SuspendingConnection
  */
 class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBConnection> {
     private val schema = config.defaultSchema
+
     init {
-        require(schema.matches(columnRegex)) { "Potentially bad schema passed: $schema" }
+        require(schema.matches(safeSqlNameRegex)) { "Potentially bad schema passed: $schema" }
     }
 
     private val pool = run {
@@ -34,7 +35,7 @@ class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBCo
         val jdbcUrl = config.jdbcUrl ?: throw IllegalArgumentException("Missing connection string")
 
         PostgreSQLConnectionBuilder.createConnectionPool(jdbcUrl) {
-            this.maxActiveConnections = 50
+            this.maxActiveConnections = config.poolSize ?: 50
             this.maxIdleTime = 30_000
             this.username = username
             this.password = password

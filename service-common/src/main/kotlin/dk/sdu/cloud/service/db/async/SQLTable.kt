@@ -1,6 +1,5 @@
 package dk.sdu.cloud.service.db.async
 
-import dk.sdu.cloud.service.db.async.columnRegex
 import org.joda.time.LocalDateTime
 
 /**
@@ -76,7 +75,7 @@ class SQLField<Type : SqlType<*>>(
     val notNull: Boolean = false
 ) {
     init {
-        require(name.matches(columnRegex)) { "Column contains potentially insecure characters: '$name'" }
+        require(name.matches(safeSqlNameRegex)) { "Column contains potentially insecure characters: '$name'" }
     }
 
     override fun toString(): String = name
