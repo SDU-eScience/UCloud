@@ -54,7 +54,7 @@
 * [Acceptable usage](acceptableusage.md)
 * [Monitoring](monitoring.md)
 * [Procedures and rules](infrastructure/wiki/escience_procedures.md)
-    * [Continous integration/Delivery](infrastructure/wiki/JenkinsDoc.md)
+    * [Continuous integration/Delivery](infrastructure/wiki/JenkinsDoc.md)
 
 
     
