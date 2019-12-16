@@ -7,8 +7,8 @@
 * encryption
 * multiple storage backends / virtual fs
 * support for running (batch) applications on other queue systems
-- slurm
-- nomad
+  - slurm
+  - nomad
 
 * Message system / Redis
 
