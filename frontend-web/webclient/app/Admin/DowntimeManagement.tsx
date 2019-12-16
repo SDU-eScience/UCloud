@@ -11,7 +11,7 @@ import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
-import {Box, Button, Flex, Icon, Input, InputGroup, List, TextArea} from "ui-components";
+import {Box, Button, Flex, Icon, Input, InputGroup, List, TextArea, Link} from "ui-components";
 import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
@@ -19,7 +19,7 @@ import {Spacer} from "ui-components/Spacer";
 import {addStandardDialog} from "UtilityComponents";
 import {displayErrorMessageOrDefault, stopPropagationAndPreventDefault} from "UtilityFunctions";
 
-interface Downtime {
+export interface Downtime {
     id: number;
     start: number;
     end: number;
@@ -214,13 +214,13 @@ export function DowntimeList(props: {downtimes: Downtime[], name: string, remove
         <>
             {props.name}
             <List bordered={false}>
-                {props.downtimes.map(it => (<Downtime key={it.id} downtime={it} remove={props.remove} />))}
+                {props.downtimes.map(it => (<SingleDowntime key={it.id} downtime={it} remove={props.remove} />))}
             </List>
         </>
     );
 }
 
-function Downtime(props: {downtime: Downtime, remove?: (id: number) => void}) {
+function SingleDowntime(props: {downtime: Downtime, remove?: (id: number) => void}) {
     return (
         <Flex key={props.downtime.id}>
             <Input my="6px" mx="6px" readOnly width="50%" value={format(props.downtime.start, DATE_FORMAT)} />

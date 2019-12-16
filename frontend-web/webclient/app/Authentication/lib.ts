@@ -143,7 +143,10 @@ export default class HttpClient {
         await this.waitForCloudReady();
 
         if (path.indexOf("/") !== 0) path = "/" + path;
-        return this.receiveAccessTokenOrRefreshIt(disallowProjects).then(token => {
+        return this.receiveAccessTokenOrRefreshIt(disallowProjects).catch(it => {
+            snackbarStore.addFailure("Could not refresh login token.");
+            if ([401, 403].includes(it.status)) HttpClient.clearTokens();
+        }).then(token => {
             return new Promise((resolve, reject) => {
                 const req = new XMLHttpRequest();
                 req.open(method, this.computeURL(context, path));
@@ -205,9 +208,6 @@ export default class HttpClient {
                     req.send();
                 }
             });
-        }).catch(it => {
-            snackbarStore.addFailure("Could not refresh login token.");
-            if ([401, 403].includes(it.status)) HttpClient.clearTokens();
         });
     }
 

@@ -1,3 +1,4 @@
+import {Downtime} from "Admin/DowntimeManagement";
 import {
     AdvancedSearchRequest as AppSearchRequest,
     DetailedApplicationSearchReduxState,
@@ -68,7 +69,7 @@ const DevelopmentBadge = () => window.location.host === DEV_SITE || inDevEnviron
     <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
 
 function Header(props: HeaderProps) {
-    const [upcomingDowntime, setUpcomingDowntime] = React.useState(false);
+    const [upcomingDowntime, setUpcomingDowntime] = React.useState(-1);
     const [intervalId, setIntervalId] = React.useState(-1);
     const history = useHistory();
     const promises = usePromiseKeeper();
@@ -109,8 +110,8 @@ function Header(props: HeaderProps) {
                 />
             </Hide>
             <Box mr="auto" />
-            {upcomingDowntime ? (
-                <ExternalLink href={STATUS_PAGE}>
+            {upcomingDowntime !== -1 ? (
+                <Link to={`/downtime/detailed/${upcomingDowntime}`}>
                     <Tooltip
                         right="0"
                         bottom="1"
@@ -121,7 +122,7 @@ function Header(props: HeaderProps) {
                         Upcoming downtime.<br />
                         Click to view
                     </Tooltip>
-                </ExternalLink>
+                </Link>
             ) : null}
             <DevelopmentBadge />
             <BackgroundTask />
@@ -187,12 +188,24 @@ function Header(props: HeaderProps) {
 
     async function fetchDowntimes() {
         try {
-            const result = await promises.makeCancelable(Client.get("/downtime/listUpcoming")).promise;
-            setUpcomingDowntime(result.response.items.length > 0);
+            const result = await promises.makeCancelable(Client.get<Downtime[]>("/downtime/listUpcoming")).promise;
+            setUpcomingDowntime(findEarliestDowntime(result.response).id);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Could not fetch upcoming downtimes.");
         }
     }
+}
+
+function findEarliestDowntime(downtimes: Downtime[]): Exclude<Downtime, "end" | "text"> {
+    if (downtimes.length === 0) return {start: 0, end: 0, id: -1, text: ""};
+    const [downtime] = downtimes;
+    downtimes.forEach(d => {
+        if (d.start < downtime.start) {
+            downtime.id = d.id;
+            downtime.start = d.start;
+        }
+    });
+    return downtime;
 }
 
 export const Refresh = ({
