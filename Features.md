@@ -1,5 +1,6 @@
 * ACLs for applications
 * public urls for applications
+* accounting / quotas
 * Projects
 * version control / snapshots
 * workflows
@@ -9,6 +10,7 @@
 * support for running (batch) applications on other queue systems
   - slurm
   - nomad
+
 
 * Message system / Redis
 
