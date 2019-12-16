@@ -89,6 +89,9 @@ class EnvoyRouteConfiguration(routes: List<EnvoyRoute>) {
                     ),
                     "route" to mapOf(
                         "cluster" to cluster,
+                        "timeout" to mapOf(
+                            "seconds" to 0
+                        ),
                         "upgrade_configs" to listOf(
                             mapOf(
                                 "upgrade_type" to "websocket",
