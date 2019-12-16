@@ -48,6 +48,16 @@
 
 * [Overview](frontend-web/README.md)
 
+## ISO-27001
+
+* [ISMS Committee](isms_committee_structure.md)
+
+* [Acceptable usage](acceptableusage.md)
+
+* [Monitoring](monitoring.md)
+
+* [Procedures and rules](infrastructure/wiki/escience_procedures.md)
+    * [Continous integration/Delivery](infrastructure/wiki/JenkinsDoc.md)
 
 
 <!-- 

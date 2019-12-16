@@ -3,7 +3,7 @@ This document is created to link relevant documentation so it can be referred to
 
 The eScience Center Steering commity authorises new Projects. The Project are then split into activities.
 
-Activities is allokated to a team an acitivity has one or more repositories on GitHub.
+Activities is allocated to a team an activity has one or more repositories on GitHub.
 
 
 
