@@ -52,8 +52,16 @@ The project leader controls access to both of these systems.
 
 ## Procedure and Backwards Compatibility
 
-Under normal conditions, before deploying a new version you must ensure that
-the software checks every mark in the following list:
+Services are generally first deployed to our development environment for
+testing and development purposes.
+
+All deployment goes through Kubernetes. Each service stores its Kubernetes
+files in its `k8/` folder. These are kept in sync with the development version.
+These files include everything needed to deploy SDUCloud.
+
+When a service has gone through sufficient testing we deploy the ready
+services to Kubernetes. Before deployment the following checklist is used for
+affected software:
 
 - [ ] The software has been built and tested by Jenkins. Tests must pass and
       the build must be stable.
@@ -66,18 +74,9 @@ the software checks every mark in the following list:
       index for that call must be updated. See
       [Auditing](../../service-common/wiki/auditing.md) for more information.
 
-Services are generally first deployed to our development environment for
-testing and development purposes.
-
-All deployment goes through Kubernetes. Each service stores its Kubernetes
-files in its `k8/` folder. These are kept in sync with the development version.
-These files include everything needed to deploy SDUCloud.
-
-When a service has gone through sufficient testing we deploy the ready services
-to Kubernetes. The following steps are taken:
+The deployment procedure itself is as follows:
 
 1. Create an inventory of services to push
 2. Determine if any migrations are needed (also in Kubernetes resources)
 3. Run migrations (via `kubectl apply`)
 4. Apply new deployments (via `kubectl apply`)
-

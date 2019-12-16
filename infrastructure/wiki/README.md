@@ -9,7 +9,7 @@ then split into activities.
 Activities is allocated to a team an activity has one or more repositories on
 GitHub.
 
-1. SDUCloud[SDUCloud](../../../README.md)
+1. SDUCloud[SDUCloud](../../README.md)
    - This activity has a development system (sect. 12.1.4).
 2. Infrastructure - Hardware, Storage setup and configuration.
    - [Infrastructure](https://github.com/SDU-eScience/Infrastructure/blob/master/sdu-pm-cluster/README.md)
@@ -36,16 +36,35 @@ actual section within the ISO 27002/2013 document.
 
 ### Git Repository (sect. 12.1.2)
 
-2 factor authentication is activated for the repositories on GitHub.
+SDUCloud uses a [git repository](https://git-scm.com/) for all SDUCloud
+related code and documentation. The root of the repository contains a
+directory for every software module.
 
-GitHub is used to manage the source code, versioning, Teams and developer
-permissions.
+The documentation for each module is placed in a folder called `wiki/`.
+Documentation is automatically generated from this folder.
+
+All microservices end in the suffix `-service`. You can read more about the
+structure of a microservice [here](../service-common/wiki/README.md).
+
+The `master` branch of the git repository contains code which is either in
+production or currently in testing to become the new production version.
+Developers create new branches for feature/issue development.
+
+The git repository is hosted on [GitHub](https://github.com). An organization
+exists for the [SDU eScience Center](https://github.com/sdu-escience). We keep
+several repositories. We typically have at least one repository per project.
+
+The GitHub organization uses the
+["teams"](https://help.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-teams)
+feature for managing permissions within the organization. This includes
+permissions such as read and write permissions to each repository.
 
 The developers are divided in Teams, each working on a separate repository.
 Each Team is granted read/write permissions to their working repository.
-
 Admin permission (read/write/add users/delete) to the repositories is granted
 to the Project Leader as well as the ISMS admin.
+ 
+2 factor authentication is required for the repositories on GitHub.
 
 ### Internal Artifact Repositories
 
@@ -67,8 +86,8 @@ or broken dependencies.
 
 ### Testing (sect. 12.1.2)
 
-Generation of automatic unit and integration tests is a part of the deployments
-cycle.  The Project Leader is ensuring that automatic tests covers relevant
+Creation of automatic unit and integration tests is a part of the development
+cycle. The project leader is ensures that the tests covers relevant
 scenarios.
 
 Automatic testing is performed by our Continuous Integration (CI) system, 
@@ -77,10 +96,8 @@ Automatic testing is performed by our Continuous Integration (CI) system,
 ### Code Review (sect. 12.1.2)
 
 The code is reviewed by the Project Leader before being merged into the
-`master` branch.
-
-When a team member has made a commit within the source code, tests and
-documentation are maintained and reviewed.
+`master` branch. When code is pushed to the `master` branch tests are
+automatically run.
 
 When the commit is accepted it will merged into the `master` branch. Code on
 the `master` branch eventually reaches the production system after a test
@@ -97,8 +114,6 @@ Deployment procedures and relevant technologies are listed
 [here](./deployment.md).
 
 ## Support
-
-* contact with support/help desk
 
 The support staff handles all tickets that are being entered by users or the
 ones initiated by the monitoring system.
@@ -134,7 +149,7 @@ incidents from the previous week and upcoming tasks for the coming week.
 All relevant logs are consumed using the ELK stack and presented in real time.
 The output is mainly presented as Kibana and Grafana views using a number of
 thresholds for the system events. The auditing system is described
-[here](../../service-common/wiki/auditing.md).
+[here](../service-common/wiki/auditing.md).
 
 The support team monitors the output.
 
@@ -150,19 +165,15 @@ If undesired system behavior is observed - the Project Leader will be notified
 by an automatically generated ticket and decide what action must be taken.
 The generated support ticket will hold the documentation/comments.
  
-If the issue involves a user or a project the relevant PI/user will be notified.
+If the issue involves a user or an SDUCloud project the relevant user/PI will
+be notified.
 
 ## Internal Audits (sect. 12.2.1)
 
-Each month https://cloud.sdu.dk be scanned and penetration tested by the
+Each month https://cloud.sdu.dk is scanned and penetration tested by the
 security department at SDU.
 
----
-
-## Sections pending migration
-
-The following sections are in the process of being migrated to new documents.
-They are left here as they have not yet been migrated.
+## Infrastructure
 
 ### Development (sect. 12.1.2)
 
@@ -172,9 +183,7 @@ system (dev/prod).
 Root access is generally not needed since most configuration and deployment is
 automated.
 
-### Deployment / CD (sect. 12.1.2)
-
-[Deployment](../../service-common/wiki/deployment.md)
+### Deployment
 
 Deployment and configuration is performed via an automated configuration
 manager (ACM) tool  (e.g. Ansible).
@@ -185,22 +194,6 @@ Leader.
 The ISMS admin is consulted by the Project Leader in relation to security and
 access policies. The Project Leader is responsible for upgrading the
 subcomponents like web servers and other dependencies.
-
-
-### Secret management
-
-Identity management is handled by Wayf.
-
-Transactions are authorised through JWT´s.
-
-https://jwt.io
-
-Inside K8´s the secret management features from K8 are being used.
-
-https://kubernetes-security.info
-
-> infrastructure level secrets (password management, key management for e.g.
-> CEPH and SSH, or encryption) are stored within GitHub which have to changed.
 
 ### Operations
 
@@ -230,4 +223,26 @@ The information that is being collected is:
 
 If a change is observed an email is sent to the Project Leader so the change
 can be accepted and verified or investigated.
+
+---
+
+## Sections pending migration
+
+The following sections are in the process of being migrated to new documents.
+They are left here as they have not yet been migrated.
+
+### Secret management
+
+Identity management is handled by Wayf.
+
+Transactions are authorised through JWT´s.
+
+https://jwt.io
+
+Inside K8´s the secret management features from K8 are being used.
+
+https://kubernetes-security.info
+
+> infrastructure level secrets (password management, key management for e.g.
+> CEPH and SSH, or encryption) are stored within GitHub which have to changed.
 

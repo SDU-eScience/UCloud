@@ -38,9 +38,6 @@ are to blame.
 Most of the services run their build and tests straight out of the box.
 However some services require additional work to be able to run.
 
-- `storage-service` requires to be run in a linux environment containing
-certain packages before some of the tests will work. Therefore it is run from
-within a Docker container based on a Ubuntu image. 
 - `frontend-web` requires `npm` to be able to run its tests. It is therefore
 run within a Docker container based on the Node11-Alpine image.
 
@@ -55,8 +52,6 @@ each services base folder. We have chosen that the build of Docker images
 should not be triggered automatically since we rarely need all services to
 have their Docker image created. Usually we do this manually for a specific
 service when it have been patched.
-
-
 
 ### Future enhancements
 
