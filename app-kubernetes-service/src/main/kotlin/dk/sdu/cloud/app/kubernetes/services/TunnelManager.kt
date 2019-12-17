@@ -128,7 +128,8 @@ class TunnelManager(private val k8: K8Dependencies) {
                 }
             )
         } else {
-            val ipAddress = podResource.get().status.podIP
+            val ipAddress =
+                podResource.get().status.podIP ?: throw RPCException("Application not found", HttpStatusCode.NotFound)
             log.debug("Running inside of kubernetes going directly to pod at $ipAddress")
             return Tunnel(
                 jobId = jobId,
