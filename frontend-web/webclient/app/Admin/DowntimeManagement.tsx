@@ -136,9 +136,9 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
 
         return (
             <Box width="420px" mt="10px">
-                <DowntimeList downtimes={inProgress} name="In progress" remove={remove} />
-                <DowntimeList downtimes={upcoming} name="Upcoming" remove={remove} />
-                <DowntimeList downtimes={expired} name="Expired" remove={remove} />
+                <DowntimeList downtimes={inProgress} title="In progress" remove={remove} />
+                <DowntimeList downtimes={upcoming} title="Upcoming" remove={remove} />
+                <DowntimeList downtimes={expired} title="Expired" remove={remove} />
             </Box>
         );
     }
@@ -216,11 +216,11 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
     }
 }
 
-export function DowntimeList(props: {downtimes: Downtime[], name: string, remove?: (id: number) => void}) {
+export function DowntimeList(props: {downtimes: Downtime[], title: string, remove?: (id: number) => void}) {
     if (props.downtimes.length === 0) return null;
     return (
         <>
-            {props.name}
+            {props.title}
             <List bordered={false}>
                 {props.downtimes.map(it => (<SingleDowntime key={it.id} downtime={it} remove={props.remove} />))}
             </List>

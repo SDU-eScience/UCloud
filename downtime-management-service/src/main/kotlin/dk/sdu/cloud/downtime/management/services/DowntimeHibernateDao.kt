@@ -16,9 +16,10 @@ import java.util.*
 
 class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
     override fun add(session: HibernateSession, user: SecurityPrincipal, downtime: DowntimeWithoutId) {
-        if (downtime.start > downtime.end)
+        if (downtime.start > downtime.end) {
             throw RPCException("Downtime can't end before it begins.", HttpStatusCode.BadRequest)
-        val entity = DowntimeEntity(downtime.start, downtime.end, downtime.text)
+        }
+        val entity = DowntimeEntity(Date(downtime.start), Date(downtime.end), downtime.text)
         session.save(entity)
     }
 
@@ -32,7 +33,7 @@ class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
     }
 
     override fun removeExpired(session: HibernateSession, user: SecurityPrincipal) {
-        val now = Date().time
+        val now = Date()
         session.deleteCriteria<DowntimeEntity> {
             entity[DowntimeEntity::end] lessThan now
         }.executeUpdate()
@@ -49,7 +50,7 @@ class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
         ) {
             literal(true).toPredicate()
         }.mapItems {
-            Downtime(it.id!!, it.start, it.end, it.text)
+            Downtime(it.id!!, it.start.time, it.end.time, it.text)
         }
 
 
@@ -58,17 +59,17 @@ class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
         user: SecurityPrincipal,
         paging: NormalizedPaginationRequest
     ): Page<Downtime> {
-        val now = Date().time
+        val now = Date()
         return session.paginatedCriteria<DowntimeEntity>(paging) {
             entity[DowntimeEntity::start] greaterThan now
         }.mapItems {
-            Downtime(it.id!!, it.start, it.end, it.text)
+            Downtime(it.id!!, it.start.time, it.end.time, it.text)
         }
     }
 
     override fun getById(session: HibernateSession, user: SecurityPrincipal, id: Long): Downtime {
         val entity =
             DowntimeEntity[session, id] ?: throw RPCException("No downtime with id found", HttpStatusCode.NotFound)
-        return Downtime(entity.id!!, entity.start, entity.end, entity.text)
+        return Downtime(entity.id!!, entity.start.time, entity.end.time, entity.text)
     }
 }

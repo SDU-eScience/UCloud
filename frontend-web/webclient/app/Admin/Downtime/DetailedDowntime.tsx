@@ -31,7 +31,7 @@ export function DetailedDowntime() {
                     <Flex justifyContent="center">
                         <Box>
                             <Heading>Downtime</Heading>
-                            <DowntimeList downtimes={[downtime]} name="" />
+                            <DowntimeList downtimes={[downtime]} title="" />
                             <Markdown
                                 source={downtime.text}
                                 unwrapDisallowed

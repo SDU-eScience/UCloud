@@ -7,13 +7,16 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.WithId
+import java.util.*
 import javax.persistence.*
 
 @Entity
 @Table(name = "downtimes")
 data class DowntimeEntity(
-    var start: Long,
-    var end: Long,
+    @Temporal(TemporalType.TIMESTAMP)
+    var start: Date,
+    @Temporal(TemporalType.TIMESTAMP)
+    var end: Date,
 
     @Column(columnDefinition = "TEXT")
     var text: String,

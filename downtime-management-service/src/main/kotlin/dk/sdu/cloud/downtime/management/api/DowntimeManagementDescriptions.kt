@@ -14,7 +14,7 @@ interface BaseDowntime {
     val text: String
 }
 
-data class DowntimeWithoutId(override val start: Long, override val end: Long, override val text: String): BaseDowntime
+data class DowntimeWithoutId(override val start: Long, override val end: Long, override val text: String) : BaseDowntime
 data class Downtime(val id: Long, override val start: Long, override val end: Long, override val text: String) :
     BaseDowntime
 typealias DowntimePageResponse = Page<Downtime>
