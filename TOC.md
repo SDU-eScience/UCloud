@@ -50,6 +50,8 @@
 
 ## ISO-27001
 
+* [ISMS Introduction](infrastructure/wiki/procedures/isms_introduction.md)
+
 * [ISMS Committee](infrastructure/wiki/procedures/isms_committee_structure.md)
 
 * [Acceptable usage](infrastructure/wiki/procedures/acceptableusage.md)
@@ -61,4 +63,3 @@
 
 
 
-    
