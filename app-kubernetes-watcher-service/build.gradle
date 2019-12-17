@@ -19,7 +19,7 @@ dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:$authApiVersion"
     compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
-    compile 'io.fabric8:kubernetes-client:4.1.3'
+    compile 'io.fabric8:kubernetes-client:4.6.4'
 }
 
 sduCloud.createTasksForApiJar("app.kubernetes.watcher", [])

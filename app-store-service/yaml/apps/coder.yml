@@ -53,10 +53,6 @@ invocation:
 web:
   port: 8443
 
-tags:
-  - Development
-  - Editor
-
 outputFileGlobs:
   - "*"
 

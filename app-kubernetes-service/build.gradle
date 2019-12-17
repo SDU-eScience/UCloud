@@ -19,7 +19,7 @@ repositories {
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:$authApiVersion"
-    compile 'io.fabric8:kubernetes-client:4.1.3'
+    compile 'io.fabric8:kubernetes-client:4.6.4'
     compile 'dk.sdu.cloud:app-fs-kubernetes-api:0.1.5'
     compile "dk.sdu.cloud:app-orchestrator-api:$appOrchestratorApiVersion"
     compile "dk.sdu.cloud:app-kubernetes-watcher-api:0.1.3"
