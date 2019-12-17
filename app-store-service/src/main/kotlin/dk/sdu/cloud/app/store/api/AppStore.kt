@@ -24,7 +24,8 @@ data class FindApplicationAndOptionalDependencies(
 )
 
 data class HasPermissionRequest(
-    val applicationName: String,
+    val name: String,
+    val version: String,
     val permission: Set<ApplicationAccessRight>
 )
 
@@ -39,7 +40,8 @@ data class UpdateAclRequest(
 }
 
 data class IsPublicRequest(
-    val applicationName: String
+    val name: String,
+    val version: String
 )
 
 
@@ -229,7 +231,8 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             http {
                 path {
                     using(baseContext)
-                    +boundTo(IsPublicRequest::applicationName)
+                    +boundTo(IsPublicRequest::name)
+                    +boundTo(IsPublicRequest::version)
                 }
             }
         }
@@ -307,7 +310,8 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             path {
                 using(baseContext)
                 +"permission"
-                +boundTo(HasPermissionRequest::applicationName)
+                +boundTo(HasPermissionRequest::name)
+                +boundTo(HasPermissionRequest::version)
                 +boundTo(HasPermissionRequest::permission)
             }
         }

@@ -54,7 +54,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.hasPermission) {
-            ok(appStore.hasPermission(ctx.securityPrincipal, request.applicationName, request.permission))
+            ok(appStore.hasPermission(ctx.securityPrincipal, request.name, request.version, request.permission))
         }
 
         implement(AppStore.listAcl) {
@@ -79,7 +79,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.isPublic) {
-            ok(appStore.isPublic(ctx.securityPrincipal, request.applicationName))
+            ok(appStore.isPublic(ctx.securityPrincipal, request.name, request.version))
         }
 
         implement(AppStore.setPublic) {

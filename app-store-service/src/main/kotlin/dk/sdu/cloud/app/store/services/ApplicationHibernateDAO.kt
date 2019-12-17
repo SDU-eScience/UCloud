@@ -1,8 +1,10 @@
 package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.services.acl.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
@@ -12,7 +14,8 @@ import java.util.*
 
 @Suppress("TooManyFunctions") // Does not make sense to split
 class ApplicationHibernateDAO(
-    private val toolDAO: ToolHibernateDAO
+    private val toolDAO: ToolHibernateDAO,
+    private val aclDAO: AclHibernateDao
 ) : ApplicationDAO<HibernateSession> {
     private val byNameAndVersionCache = Collections.synchronizedMap(HashMap<NameAndVersion, Pair<Application, Long>>())
 
@@ -35,14 +38,40 @@ class ApplicationHibernateDAO(
 
             query.executeUpdate()
         } else {
-            session.save(
-                FavoriteApplicationEntity(
-                    foundApp.id.name,
-                    foundApp.id.version,
-                    user.username
+            if (internalHasPermission(session, user, foundApp.id.name, foundApp.id.version, ApplicationAccessRight.LAUNCH)) {
+                session.save(
+                    FavoriteApplicationEntity(
+                        foundApp.id.name,
+                        foundApp.id.version,
+                        user.username
+                    )
                 )
-            )
+            } else {
+                throw RPCException("Unauthorized favorite request", HttpStatusCode.Unauthorized)
+            }
         }
+    }
+
+    /*
+     * Avoid using if possible, especially in loops
+     */
+    private fun internalHasPermission(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        name: String,
+        version: String,
+        permission: ApplicationAccessRight
+    ): Boolean {
+        if (user.role == Role.ADMIN) return true
+        if (isPublic(session, user, name, version)) return true
+        if (aclDAO.hasPermission(
+                session,
+                UserEntity(user.username, EntityType.USER),
+                name,
+                setOf(permission)
+            )
+        ) return true
+        return false
     }
 
     private fun isFavorite(session: HibernateSession, user: SecurityPrincipal, name: String, version: String): Boolean {
@@ -70,21 +99,42 @@ class ApplicationHibernateDAO(
             criteria.select(count(entity))
         }.createQuery(session).uniqueResult()
 
-        val itemsWithoutTags = session.typedQuery<ApplicationEntity>(
-            """
-                select application
-                from FavoriteApplicationEntity as fav, ApplicationEntity as application
-                where
-                    fav.user = :user and
-                    fav.applicationName = application.id.name and
-                    fav.applicationVersion = application.id.version
-                order by fav.applicationName
-            """.trimIndent()
-        ).setParameter("user", user.username)
-            .paginatedList(paging)
-            .asSequence()
-            .map { it.toModel() }
-            .toList()
+        val itemsWithoutTags = if (Roles.PRIVILEDGED.contains(user.role)) {
+            session.typedQuery<ApplicationEntity>(
+                """
+                    select application
+                    from FavoriteApplicationEntity as fav, ApplicationEntity as application
+                    where
+                        fav.user = :user and
+                        fav.applicationName = application.id.name and
+                        fav.applicationVersion = application.id.version
+                    order by fav.applicationName
+                """.trimIndent()
+            ).setParameter("user", user.username)
+                .paginatedList(paging)
+                .asSequence()
+                .map { it.toModel() }
+                .toList()
+        } else {
+            session.typedQuery<ApplicationEntity>(
+                """
+                    select application
+                    from FavoriteApplicationEntity as fav, ApplicationEntity as application
+                    LEFT JOIN PermissionEntry as permission
+                    ON permission.key.applicationName = application.id.name
+                    where
+                        fav.user = :user and
+                        fav.applicationName = application.id.name and
+                        fav.applicationVersion = application.id.version and
+                        (application.isPublic = TRUE or permission.key.userEntity = :user)
+                    order by fav.applicationName
+                """.trimIndent()
+            ).setParameter("user", user.username)
+                .paginatedList(paging)
+                .asSequence()
+                .map { it.toModel() }
+                .toList()
+        }
 
         val apps = itemsWithoutTags.map { it.metadata.name }
         val allTags = session
@@ -393,13 +443,21 @@ class ApplicationHibernateDAO(
     ): Application {
         val cacheKey = NameAndVersion(name, version)
         val (cached, expiry) = byNameAndVersionCache[cacheKey] ?: Pair(null, 0L)
-        if (cached != null && expiry > System.currentTimeMillis()) return cached
+        if (cached != null && expiry > System.currentTimeMillis()) {
+            if (internalHasPermission(session, user!!, cached!!.metadata.name, cached!!.metadata.version, ApplicationAccessRight.CANCEL)) {
+                return cached
+            }
+        }
 
         val result = internalByNameAndVersion(session, name, version)
             ?.toModelWithInvocation() ?: throw ApplicationException.NotFound()
 
-        byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
-        return result
+        if (internalHasPermission(session, user!!, result.metadata.name, result.metadata.version, ApplicationAccessRight.CANCEL)) {
+            byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
+            return result
+        } else {
+            throw ApplicationException.NotFound()
+        }
     }
 
     override fun findBySupportedFileExtension(
@@ -457,6 +515,7 @@ class ApplicationHibernateDAO(
         name: String,
         version: String
     ): ApplicationWithFavoriteAndTags {
+        println("Hello world 2")
         val entity = internalByNameAndVersion(session, name, version)?.toModelWithInvocation()
             ?: throw ApplicationException.NotFound()
         return preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()
@@ -744,13 +803,13 @@ class ApplicationHibernateDAO(
         return ToolLogoEntity[session, toolName]?.data
     }
 
-    override fun isPublic(session: HibernateSession, user: SecurityPrincipal, name: String): Boolean {
-        return session.criteria<ApplicationEntity>(
-            orderBy = { listOf(descending(entity[ApplicationEntity::createdAt])) },
-            predicate = {
-                entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name
-            }
-        ).uniqueResult().isPublic
+    override fun isPublic(session: HibernateSession, user: SecurityPrincipal, name: String, version: String): Boolean {
+        return session.criteria<ApplicationEntity> {
+            allOf(
+                entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal name,
+                entity[ApplicationEntity::id][EmbeddedNameAndVersion::version] equal version
+            )
+        }.uniqueResult().isPublic
     }
 
     override fun setPublic(

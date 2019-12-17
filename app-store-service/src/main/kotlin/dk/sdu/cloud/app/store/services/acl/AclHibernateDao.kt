@@ -28,15 +28,14 @@ class AclHibernateDao : AclDao<HibernateSession> {
     override fun hasPermission(
         session: HibernateSession,
         accessEntity: UserEntity,
-        applicationName: String,
+        name: String,
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
-        println("Checking permission")
         val result = session.criteria<PermissionEntry> {
             allOf(
                 (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id),
                 (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type),
-                (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName)
+                (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal name)
             )
         }.uniqueResultOptional()
 

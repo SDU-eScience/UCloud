@@ -133,7 +133,8 @@ interface ApplicationDAO<Session> {
     fun isPublic(
         session: Session,
         user: SecurityPrincipal,
-        name: String
+        name: String,
+        version: String
     ): Boolean
 
     fun setPublic(

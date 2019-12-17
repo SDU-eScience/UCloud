@@ -13,7 +13,6 @@ enum class ApplicationAccessRight {
 object ApplicationPermission {
     val CANCEL = setOf(ApplicationAccessRight.LAUNCH, ApplicationAccessRight.CANCEL)
     val LAUNCH = setOf(ApplicationAccessRight.LAUNCH)
-    val CHANGE = emptySet<ApplicationAccessRight>()
 }
 
 data class UserEntity(
@@ -30,7 +29,7 @@ interface AclDao<Session> {
     fun hasPermission(
         session: Session,
         entity: UserEntity,
-        applicationName: String,
+        name: String,
         permission: Set<ApplicationAccessRight>
     ): Boolean
 

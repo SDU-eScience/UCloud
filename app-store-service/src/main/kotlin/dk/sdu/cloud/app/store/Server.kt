@@ -35,7 +35,7 @@ class Server(override val micro: Micro) : CommonServer {
         val elasticDAO = ElasticDAO(micro.elasticHighLevelClient)
         val toolDAO = ToolHibernateDAO()
         val aclDao = AclHibernateDao()
-        val applicationDAO = ApplicationHibernateDAO(toolDAO)
+        val applicationDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
 
         val db = micro.hibernateDatabase

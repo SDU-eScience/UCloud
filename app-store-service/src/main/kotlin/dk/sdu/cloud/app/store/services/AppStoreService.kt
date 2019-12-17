@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.store.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.services.acl.*
@@ -105,10 +106,11 @@ class AppStoreService<DBSession>(
     fun hasPermission(
         securityPrincipal: SecurityPrincipal,
         name: String,
+        version: String,
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
         return db.withTransaction { session ->
-            applicationDAO.isPublic(session, securityPrincipal, name) ||
+            applicationDAO.isPublic(session, securityPrincipal, name, version) ||
             aclDao.hasPermission(
                 session,
                 UserEntity(securityPrincipal.username, EntityType.USER),
@@ -122,15 +124,8 @@ class AppStoreService<DBSession>(
         securityPrincipal: SecurityPrincipal,
         applicationName: String
     ): List<EntityWithPermission> {
-
         return db.withTransaction { session ->
-            return if (aclDao.hasPermission(
-                    session,
-                    UserEntity(securityPrincipal.username, EntityType.USER),
-                    applicationName,
-                    ApplicationPermission.CHANGE
-                ) || applicationDAO.isOwnerOfApplication(session, securityPrincipal, applicationName)
-            ) {
+            return if (securityPrincipal.role == Role.ADMIN) {
                 aclDao.listAcl(
                     session,
                     applicationName
@@ -146,26 +141,12 @@ class AppStoreService<DBSession>(
         applicationName: String,
         changes: List<ACLEntryRequest>
     ) {
-        val userEntity = UserEntity(securityPrincipal.username, EntityType.USER)
-
-        println("Reached updatePermissions")
-
         return db.withTransaction { session ->
-            if (aclDao.hasPermission(
-                    session,
-                    userEntity,
-                    applicationName,
-                    ApplicationPermission.CHANGE
-                ) || applicationDAO.isOwnerOfApplication(session, securityPrincipal, applicationName)
-            ) {
-                println("permission granted")
-
+            if (securityPrincipal.role == Role.ADMIN) {
                 changes.forEach { change ->
                     if (!change.revoke) {
-                        println("Calling updatePermissionsWithSession")
                         updatePermissionsWithSession(session, applicationName, change.entity, change.rights)
                     } else {
-                        println("Calling revokePermissionsWithSession")
                         revokePermissionWithSession(session, applicationName, change.entity)
                     }
                 }
@@ -175,17 +156,16 @@ class AppStoreService<DBSession>(
         }
     }
 
-    fun updatePermissionsWithSession(
+    private fun updatePermissionsWithSession(
         session: DBSession,
         applicationName: String,
         entity: UserEntity,
         permissions: ApplicationAccessRight
     ) {
-        println("Updating permission")
         aclDao.updatePermissions(session, entity, applicationName, permissions)
     }
 
-    fun revokePermissionWithSession(
+    private fun revokePermissionWithSession(
         session: DBSession,
         applicationName: String,
         entity: UserEntity
@@ -230,13 +210,15 @@ class AppStoreService<DBSession>(
 
     fun isPublic(
         securityPrincipal: SecurityPrincipal,
-        name: String
+        name: String,
+        version: String
     ): Boolean =
         db.withTransaction {
             applicationDAO.isPublic(
                 it,
                 securityPrincipal,
-                name
+                name,
+                version
             )
         }
 
