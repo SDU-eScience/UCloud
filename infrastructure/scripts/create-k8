@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -e
 
 # Utility functions
 function confirm() {
@@ -78,6 +77,9 @@ refreshToken=`echo $tokens | json refreshToken`
 
 echo "PSQL SU Password:"
 read -s psqlpwd;
+kubectl exec -t -n $namespace $name -- psql -c "drop owned by \"${db_user}\" cascade;" postgresql://stolon:${psqlpwd}@localhost/postgres
+kubectl exec -t -n $namespace $name -- psql -c "drop schema \"${db_user}\";" postgresql://stolon:${psqlpwd}@localhost/postgres
+kubectl exec -t -n $namespace $name -- psql -c "drop user \"${db_user}\";" postgresql://stolon:${psqlpwd}@localhost/postgres
 kubectl exec -t -n $namespace $name -- psql -c "create user \"${db_user}\" password '$password';" postgresql://stolon:${psqlpwd}@localhost/postgres
 kubectl exec -t -n $namespace $name -- psql -c "create schema \"$schema\" authorization \"$db_user\";" postgresql://stolon:${psqlpwd}@localhost/postgres
 
@@ -87,6 +89,7 @@ cat > $refreshFile << EOF
 refreshToken: $refreshToken
 EOF
 
+kubectl delete secret ${service_name}-refresh-token
 kubectl create secret generic ${service_name}-refresh-token --from-file=$refreshFile
 rm $refreshFile
 
@@ -101,5 +104,6 @@ hibernate:
         password: $password
 EOF
 
+kubectl delete secret ${service_name}-psql
 kubectl create secret generic ${service_name}-psql --from-file=$dbFile
 rm $dbFile

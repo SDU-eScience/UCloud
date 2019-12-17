@@ -41,7 +41,7 @@ describe("PP", () => {
     test.skip("Change PP-value", () => {
         const pP = shallow(<PP visible />);
         pP.findWhere(it => !!it.props().type().range).simulate("change", {target: {value: "500"}});
-        expect(pP.state()["duration"]).toBe(500);
+        expect(pP.state().duration).toBe(500);
     });
 });
 

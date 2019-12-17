@@ -19,7 +19,7 @@ export const InputFileParameter = (props: InputFileParameterProps) => (
             key={props.parameter.name}
             path={props.parameterRef.current?.value ?? ""}
             onFileSelect={file => {
-                props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Client.homeFolder))
+                props.parameterRef.current!.value = resolvePath(replaceHomeFolder(file.path, Client.homeFolder));
             }}
             inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
             isRequired={!props.parameter.optional}
@@ -36,7 +36,7 @@ export const InputDirectoryParameter = (props: InputFileParameterProps) => (
             key={props.parameter.name}
             path={props.parameterRef.current?.value ?? ""}
             onFileSelect={file => {
-                props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Client.homeFolder)))
+                props.parameterRef.current!.value = addTrailingSlash(resolvePath(replaceHomeFolder(file.path, Client.homeFolder)));
             }}
             inputRef={props.parameterRef as React.RefObject<HTMLInputElement>}
             canSelectFolders

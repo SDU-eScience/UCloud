@@ -23,27 +23,27 @@ class HibernateSessionFactory(
 
     val autoDetectedEntities: List<Class<*>> = emptyList()
 ) : DBSessionFactory<HibernateSession> {
-    override fun openSession(): HibernateSession {
+    override suspend fun openSession(): HibernateSession {
         return factory.openSession()
     }
 
-    override fun closeSession(session: HibernateSession) {
+    override suspend fun closeSession(session: HibernateSession) {
         session.close()
     }
 
-    override fun openTransaction(session: HibernateSession) {
+    override suspend fun openTransaction(session: HibernateSession) {
         session.beginTransaction()
     }
 
-    override fun commit(session: HibernateSession) {
+    override suspend fun commit(session: HibernateSession) {
         session.transaction.commit()
     }
 
-    override fun close() {
+    override suspend fun close() {
         factory.close()
     }
 
-    override fun flush(session: HibernateSession) {
+    override suspend fun flush(session: HibernateSession) {
         session.flush()
     }
 

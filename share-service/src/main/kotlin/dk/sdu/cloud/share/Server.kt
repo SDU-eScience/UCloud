@@ -6,19 +6,20 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
+import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.share.http.ShareController
 import dk.sdu.cloud.share.processors.StorageEventProcessor
 import dk.sdu.cloud.share.services.ProcessingService
-import dk.sdu.cloud.share.services.ShareHibernateDAO
+import dk.sdu.cloud.share.services.ShareAsyncDao
 import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
 import dk.sdu.cloud.share.services.ShareSynchronization
@@ -34,7 +35,7 @@ class Server(
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
         // Core services
-        val shareDao = ShareHibernateDAO()
+        val shareDao = ShareAsyncDao()
         val userClientFactory: (String) -> AuthenticatedClient = {
             RefreshingJWTAuthenticator(
                 micro.client,
@@ -43,9 +44,10 @@ class Server(
             ).authenticateClient(OutgoingHttpCall)
         }
 
+        val db = AsyncDBSessionFactory(micro.databaseConfig)
         val shareService = ShareService(
             serviceClient = client,
-            db = micro.hibernateDatabase,
+            db = db,
             shareDao = shareDao,
             userClientFactory = userClientFactory,
             devMode = micro.developmentModeEnabled,
@@ -53,12 +55,12 @@ class Server(
         )
 
         val processingService =
-            ProcessingService(micro.hibernateDatabase, shareDao, userClientFactory, client, shareService)
+            ProcessingService(db, shareDao, shareService)
 
-        val shareQueryService = ShareQueryService(micro.hibernateDatabase, shareDao, client)
+        val shareQueryService = ShareQueryService(db, shareDao, client)
 
         if (micro.commandLineArguments.contains("--sync")) {
-            val service = ShareSynchronization(micro.hibernateDatabase, shareDao, userClientFactory)
+            val service = ShareSynchronization(db, shareDao, userClientFactory)
             runBlocking {
                 service.synchronize()
             }
