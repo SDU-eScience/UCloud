@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.store.services
 import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
 import dk.sdu.cloud.app.store.api.ApplicationMetadata
 import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.app.store.util.normToolDesc
 import dk.sdu.cloud.app.store.util.withNameAndVersion
@@ -38,10 +39,11 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
+            val aclDao = AclHibernateDao()
 
             toolDAO.create(it, user, normToolDesc)
 
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
             appDAO.create(it, user, normAppDesc)
 
             run {
@@ -86,10 +88,11 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
+            val aclDao = AclHibernateDao()
 
             toolDAO.create(it, user, normToolDesc)
 
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
             appDAO.create(it, user, normAppDesc)
 
 
@@ -118,7 +121,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
             run {
                 // Load from specific version
                 val loadedApp = appDAO.findByNameAndVersionForUser(it, user, "name", "2.2")
@@ -138,10 +142,11 @@ class ApplicationHibernateDaoTest {
             val version2 = normAppDesc.withNameAndVersion("app", "v2")
 
             val toolDAO = ToolHibernateDAO()
+            val aclDao = AclHibernateDao()
 
             toolDAO.create(it, user, normToolDesc)
 
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
             appDAO.create(it, user, version1)
             Thread.sleep(1000) // Wait a bit to make sure they get different createdAt
             appDAO.create(it, user, version2)
@@ -160,12 +165,14 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
+            val aclDao = AclHibernateDao()
+
             toolDAO.create(it, user, normToolDesc)
 
             val applicationA = normAppDesc.withNameAndVersionAndTitle("name1", "1", "AAA")
             val applicationB = normAppDesc.withNameAndVersionAndTitle("name2", "1", "BBB")
 
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
             appDAO.create(it, user, applicationA)
             appDAO.create(it, user, applicationB)
 
@@ -271,10 +278,11 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
+            val aclDao = AclHibernateDao()
 
             toolDAO.create(it, user, normToolDesc)
 
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
             appDAO.create(it, user, normAppDesc)
             appDAO.create(it, user, normAppDesc)
 
@@ -289,10 +297,11 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
+            val aclDao = AclHibernateDao()
 
             toolDAO.create(it, user, normToolDesc)
 
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
             appDAO.create(it, user, normAppDesc)
             appDAO.create(it, TestUsers.user5, normAppDesc)
 
@@ -307,7 +316,7 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
 
-            val appDAO = ApplicationHibernateDAO(ToolHibernateDAO())
+            val appDAO = ApplicationHibernateDAO(ToolHibernateDAO(), AclHibernateDao())
             appDAO.create(it, user, normAppDesc)
         }
 
@@ -320,7 +329,7 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
 
-            val appDAO = ApplicationHibernateDAO(ToolHibernateDAO())
+            val appDAO = ApplicationHibernateDAO(ToolHibernateDAO(), AclHibernateDao())
             appDAO.findByNameAndVersion(it, user, "name", "version")
         }
 
@@ -334,9 +343,10 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
+            val aclDao = AclHibernateDao()
             toolDAO.create(it, user, normToolDesc)
 
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             val commonTag = "common"
             val appA = normAppDesc.withNameAndVersionAndTitle("A", "1", "Atitle")
@@ -392,9 +402,10 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
+            val aclDao = AclHibernateDao()
             toolDAO.create(it, user, normToolDesc)
 
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             val userA = TestUsers.user.copy(username = "userA")
             val userB = TestUsers.user.copy(username = "userB")
@@ -437,10 +448,11 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
+            val aclDao = AclHibernateDao()
 
             toolDAO.create(it, user, normToolDesc)
 
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             appDAO.toggleFavorite(it, user, "App1", "1.4")
         }
@@ -454,9 +466,10 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
+            val aclDao = AclHibernateDao()
             toolDAO.create(it, user, normToolDesc)
 
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
             val appA = normAppDesc.withNameAndVersion("A", "1")
 
             appDAO.create(it, user, appA)
@@ -509,7 +522,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
             appDAO.createTags(it, user, "notAnApp", listOf("A3"))
         }
 
@@ -522,7 +536,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
             appDAO.deleteTags(it, user, "notAnApp", listOf("A3"))
         }
     }
@@ -533,7 +548,8 @@ class ApplicationHibernateDaoTest {
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
         val toolDao = ToolHibernateDAO()
-        val appDao = ApplicationHibernateDAO(toolDao)
+        val aclDao = AclHibernateDao()
+        val appDao = ApplicationHibernateDAO(toolDao, aclDao)
         val t1 = "tool1"
         val t2 = "tool2"
         val version = "1"
@@ -579,7 +595,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             toolDAO.create(
                 it,
@@ -612,7 +629,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             toolDAO.create(
                 it,
@@ -644,7 +662,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             runBlocking {
                 val logo = appDAO.fetchLogo(it, "name")
@@ -691,7 +710,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             toolDAO.create(
                 it,
@@ -725,7 +745,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             toolDAO.create(
                 it,
@@ -759,7 +780,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             try {
                 appDAO.createLogo(it, TestUsers.user, "name", ByteArray(1024))
@@ -781,7 +803,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             try {
                 appDAO.clearLogo(it, TestUsers.user, "name")
@@ -803,7 +826,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             toolDAO.create(
                 it,
@@ -861,7 +885,8 @@ class ApplicationHibernateDaoTest {
         val db = micro.hibernateDatabase
         db.withTransaction {
             val toolDAO = ToolHibernateDAO()
-            val appDAO = ApplicationHibernateDAO(toolDAO)
+            val aclDao = AclHibernateDao()
+            val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
             toolDAO.create(
                 it,

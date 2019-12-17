@@ -35,7 +35,8 @@ class AppStoreTest{
         micro.install(ElasticFeature)
 
         val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
-        val appDao = ApplicationHibernateDAO(toolHibernateDAO)
+        val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
+        val appDao = ApplicationHibernateDAO(toolHibernateDAO, aclHibernateDao)
         val elasticDAO = ElasticDAO(micro.elasticHighLevelClient)
         val aclDao = AclHibernateDao()
         val applicationService = AppStoreService(micro.hibernateDatabase, appDao, toolHibernateDAO, aclDao, elasticDAO)
@@ -150,7 +151,8 @@ class AppStoreTest{
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
-        val appDAO = ApplicationHibernateDAO(toolHibernateDAO)
+        val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
+        val appDAO = ApplicationHibernateDAO(toolHibernateDAO, aclHibernateDao)
         val aclDao = AclHibernateDao()
         val elasticDAO = mockk<ElasticDAO>(relaxed = true)
 

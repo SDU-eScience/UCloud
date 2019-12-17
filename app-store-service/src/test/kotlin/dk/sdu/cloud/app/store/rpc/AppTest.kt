@@ -67,7 +67,8 @@ class AppTest {
                 val user = TestUsers.user
                 val toolDao = ToolHibernateDAO()
                 val elasticDAO = mockk<ElasticDAO>()
-                val appDao = ApplicationHibernateDAO(toolDao)
+                val aclDao = AclHibernateDao()
+                val appDao = ApplicationHibernateDAO(toolDao, aclDao)
                 micro.install(HibernateFeature)
                 micro.hibernateDatabase.withTransaction {
                     toolDao.create(it, user, normToolDesc)
@@ -184,8 +185,9 @@ class AppTest {
             setup = {
                 val user = TestUsers.user
                 val toolDao = ToolHibernateDAO()
+                val aclDao = AclHibernateDao()
                 val elasticDAO = mockk<ElasticDAO>()
-                val appDao = ApplicationHibernateDAO(toolDao)
+                val appDao = ApplicationHibernateDAO(toolDao, aclDao)
                 micro.install(HibernateFeature)
                 micro.hibernateDatabase.withTransaction {
                     toolDao.create(it, user, normToolDesc)
@@ -267,8 +269,9 @@ class AppTest {
         withKtorTest(
             setup = {
                 val toolDao = ToolHibernateDAO()
+                val aclDao = AclHibernateDao()
                 val elasticDAO = mockk<ElasticDAO>()
-                val appDao = ApplicationHibernateDAO(toolDao)
+                val appDao = ApplicationHibernateDAO(toolDao, aclDao)
                 micro.install(HibernateFeature)
                 micro.hibernateDatabase.withTransaction {
                     toolDao.create(it, TestUsers.user, normToolDesc)
@@ -336,8 +339,8 @@ class AppTest {
 
                 micro.install(HibernateFeature)
                 configureAppServer(appDao, elasticDAO)
-            },
 
+            },
             test = {
                 sendRequest(
                     method = HttpMethod.Get,
