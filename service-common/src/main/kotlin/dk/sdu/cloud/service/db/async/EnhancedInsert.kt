@@ -23,7 +23,7 @@ suspend fun AsyncDBConnection.insert(table: String, columnToValue: Map<String, A
     // Quick sanity check (columns should not come from user data)
     val keys = columnToValue.keys.toList()
     keys.forEach {
-        if (!it.matches(safeSqlNameRegex)) throw IllegalArgumentException("Insecure column name $it")
+        require(it.matches(safeSqlNameRegex)) { "Insecure column name $it" }
     }
 
     sendPreparedStatement(

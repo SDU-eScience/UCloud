@@ -1,6 +1,5 @@
 package dk.sdu.cloud.share.services
 
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.api.StorageEvent
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.service.Loggable
@@ -14,8 +13,6 @@ import kotlinx.coroutines.launch
 class ProcessingService<Session>(
     private val db: DBSessionFactory<Session>,
     private val shareDao: ShareDAO<Session>,
-    private val userCloudFactory: (refreshToken: String) -> AuthenticatedClient,
-    private val serviceClient: AuthenticatedClient,
     private val shareService: ShareService<*>
 ) {
     suspend fun handleFilesMoved(events: List<StorageEvent.Moved>) {
@@ -57,7 +54,6 @@ class ProcessingService<Session>(
             deletedShareJobs.joinAll()
         }
     }
-
 
     companion object : Loggable {
         override val log = logger()

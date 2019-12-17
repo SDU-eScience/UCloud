@@ -55,7 +55,7 @@ class Server(
         )
 
         val processingService =
-            ProcessingService(db, shareDao, userClientFactory, client, shareService)
+            ProcessingService(db, shareDao, shareService)
 
         val shareQueryService = ShareQueryService(db, shareDao, client)
 
