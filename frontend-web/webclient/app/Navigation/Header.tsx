@@ -188,24 +188,12 @@ function Header(props: HeaderProps) {
 
     async function fetchDowntimes() {
         try {
-            const result = await promises.makeCancelable(Client.get<Downtime[]>("/downtime/listUpcoming")).promise;
-            setUpcomingDowntime(findEarliestDowntime(result.response).id);
+            const result = await promises.makeCancelable(Client.get<Page<Downtime>>("/downtime/listUpcoming")).promise;
+            if (result.response.itemsInTotal > 0) setUpcomingDowntime(result.response.items[0].id);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Could not fetch upcoming downtimes.");
         }
     }
-}
-
-function findEarliestDowntime(downtimes: Downtime[]): Exclude<Downtime, "end" | "text"> {
-    if (downtimes.length === 0) return {start: 0, end: 0, id: -1, text: ""};
-    const [downtime] = downtimes;
-    downtimes.forEach(d => {
-        if (d.start < downtime.start) {
-            downtime.id = d.id;
-            downtime.start = d.start;
-        }
-    });
-    return downtime;
 }
 
 export const Refresh = ({

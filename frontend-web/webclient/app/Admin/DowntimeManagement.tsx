@@ -112,7 +112,7 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
                     width={1}
                     onClick={removeAllExpired}
                     color="red"
-                    disabled={downtimes.itemsInTotal > 0}
+                    disabled={getExpired().length > 0}
                 >
                     Clear expired downtimes
                 </Button>
@@ -120,11 +120,16 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
         />
     );
 
+    function getExpired() {
+        const now = new Date().getTime();
+        return downtimes.items.filter(it => it.end < now);
+    }
+
     function pageRenderer(page: Page<Downtime>) {
         const now = new Date().getTime();
         const inProgress = page.items.filter(it => it.start < now && now < it.end);
         const upcoming = page.items.filter(it => it.start > now); // FIXME Won't ever be shown, I guess
-        const expired = page.items.filter(it => it.end < now);
+        const expired = getExpired();
 
         if (inProgress.length + upcoming.length + expired.length !== page.items.length)
             throw Error("Sizes of inProgress, upcoming and expired don't match page size.");
@@ -157,7 +162,7 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
 
         try {
             await promises.makeCancelable(
-                Client.post("/downtime/add", {start: start.getTime(), end: end.getTime(), text})
+                Client.put("/downtime", {start: start.getTime(), end: end.getTime(), text})
             ).promise;
             snackbarStore.addSnack({
                 type: SnackType.Success,
@@ -189,7 +194,7 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
             title: "Remove planned downtime?",
             message: "",
             onConfirm: async () => {
-                await Client.post("downtime/remove", {id});
+                await Client.delete("downtime", {id});
                 fetchDowntimes(downtimes.pageNumber, downtimes.itemsInTotal);
             }
         });

@@ -9,7 +9,7 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: downtime-management
-      prefix: ^/api/downtime/management(/.*)?$
+      prefix: ^/api/downtime(/.*)?$
       prefix_regex: true
       service: downtime-management:8080
       rewrite: ""

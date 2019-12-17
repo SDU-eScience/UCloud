@@ -43,7 +43,10 @@ class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
         user: SecurityPrincipal,
         paging: NormalizedPaginationRequest
     ): Page<Downtime> =
-        session.paginatedCriteria<DowntimeEntity>(paging) {
+        session.paginatedCriteria<DowntimeEntity>(
+            paging,
+            orderBy = { listOf(ascending(entity[DowntimeEntity::start])) }
+        ) {
             literal(true).toPredicate()
         }.mapItems {
             Downtime(it.id!!, it.start, it.end, it.text)

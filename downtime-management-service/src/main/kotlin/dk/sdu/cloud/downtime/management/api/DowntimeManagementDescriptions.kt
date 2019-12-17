@@ -8,8 +8,15 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import io.ktor.http.HttpMethod
 
-data class DowntimeWithoutId(val start: Long, val end: Long, val text: String)
-data class Downtime(val id: Long, val start: Long, val end: Long, val text: String)
+interface BaseDowntime {
+    val start: Long
+    val end: Long
+    val text: String
+}
+
+data class DowntimeWithoutId(override val start: Long, override val end: Long, override val text: String): BaseDowntime
+data class Downtime(val id: Long, override val start: Long, override val end: Long, override val text: String) :
+    BaseDowntime
 typealias DowntimePageResponse = Page<Downtime>
 
 data class RemoveDowntimeRequest(val id: Long)
@@ -81,11 +88,10 @@ object DowntimeManagementDescriptions : CallDescriptionContainer("downtime.manag
         }
 
         http {
-            method = HttpMethod.Post
+            method = HttpMethod.Put
 
             path {
                 using(baseContext)
-                +"add"
             }
 
             body { bindEntireRequestFromBody() }
@@ -99,11 +105,10 @@ object DowntimeManagementDescriptions : CallDescriptionContainer("downtime.manag
         }
 
         http {
-            method = HttpMethod.Post
+            method = HttpMethod.Delete
 
             path {
                 using(baseContext)
-                +"remove"
             }
 
             body { bindEntireRequestFromBody() }
@@ -126,7 +131,7 @@ object DowntimeManagementDescriptions : CallDescriptionContainer("downtime.manag
         }
     }
 
-    val getById = call<GetByIdRequest, GetByIdResponse,CommonErrorMessage>("getById") {
+    val getById = call<GetByIdRequest, GetByIdResponse, CommonErrorMessage>("getById") {
         auth {
             access = AccessRight.READ
         }
@@ -136,10 +141,6 @@ object DowntimeManagementDescriptions : CallDescriptionContainer("downtime.manag
 
             path {
                 using(baseContext)
-                +"getById"
-            }
-
-            params {
                 +boundTo(GetByIdRequest::id)
             }
         }
