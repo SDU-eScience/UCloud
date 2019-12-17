@@ -128,6 +128,7 @@ class K8JobCreationService(
                             metadata {
                                 withName(podName)
                                 withNamespace(k8.nameAllocator.namespace)
+                                withBackoffLimit(0)
 
                                 withLabels(
                                     mapOf(
