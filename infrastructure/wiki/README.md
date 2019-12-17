@@ -9,7 +9,7 @@ then split into activities.
 Activities is allocated to a team an activity has one or more repositories on
 GitHub.
 
-1. SDUCloud[SDUCloud](../../README.md)
+1. [SDUCloud](../../README.md)
    - This activity has a development system (sect. 12.1.4).
 2. Infrastructure - Hardware, Storage setup and configuration.
    - [Infrastructure](https://github.com/SDU-eScience/Infrastructure/blob/master/sdu-pm-cluster/README.md)
