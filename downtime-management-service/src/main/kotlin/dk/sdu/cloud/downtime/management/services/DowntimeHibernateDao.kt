@@ -6,21 +6,29 @@ import dk.sdu.cloud.downtime.management.api.Downtime
 import dk.sdu.cloud.downtime.management.api.DowntimeWithoutId
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.deleteCriteria
+import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import java.util.*
 
 class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
     override fun add(session: HibernateSession, user: SecurityPrincipal, downtime: DowntimeWithoutId) {
+        if (downtime.start > downtime.end)
+            throw RPCException("Downtime can't end before it begins.", HttpStatusCode.BadRequest)
         val entity = DowntimeEntity(downtime.start, downtime.end, downtime.text)
         session.save(entity)
     }
 
     override fun remove(session: HibernateSession, user: SecurityPrincipal, id: Long) {
-        session.deleteCriteria<DowntimeEntity> {
+        val count = session.deleteCriteria<DowntimeEntity> {
             entity[DowntimeEntity::id] equal id
         }.executeUpdate()
+        if (count == 0) {
+            throw RPCException("No downtime found by id.", HttpStatusCode.BadRequest)
+        }
     }
 
     override fun removeExpired(session: HibernateSession, user: SecurityPrincipal) {
@@ -56,7 +64,8 @@ class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
     }
 
     override fun getById(session: HibernateSession, user: SecurityPrincipal, id: Long): Downtime {
-        val entity = DowntimeEntity[session, id] ?: throw RPCException("No downtime with id found", HttpStatusCode.NotFound)
+        val entity =
+            DowntimeEntity[session, id] ?: throw RPCException("No downtime with id found", HttpStatusCode.NotFound)
         return Downtime(entity.id!!, entity.start, entity.end, entity.text)
     }
 }

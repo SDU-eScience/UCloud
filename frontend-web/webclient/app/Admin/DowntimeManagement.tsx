@@ -11,7 +11,7 @@ import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
-import {Box, Button, Flex, Icon, Input, InputGroup, List, TextArea, Link} from "ui-components";
+import {Box, Button, Flex, Icon, Input, InputGroup, List, TextArea} from "ui-components";
 import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
@@ -149,6 +149,10 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
             return;
         } else if (text == null || text === "") {
             snackbarStore.addFailure("Please fill out text field");
+            return;
+        } else if (start.getTime() > end.getTime()) {
+            snackbarStore.addFailure("End time cannot be before start.")
+            return;
         }
 
         try {
@@ -169,11 +173,10 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
     async function fetchDowntimes(page: number, itemsPerPage: number) {
         try {
             setLoading(true);
-            const result = await promises.makeCancelable(
+            const {response} = await promises.makeCancelable(
                 Client.get<Page<Downtime>>(`/downtime/listAll?itemsPerPage=${itemsPerPage}&page=${page}`)
             ).promise;
-            setDowntimes(result.response);
-
+            setDowntimes(response);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Could no fetch downtimes.");
         } finally {
