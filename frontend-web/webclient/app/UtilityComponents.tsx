@@ -130,7 +130,7 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
                             <Button onClick={submit} ml="5px">Add</Button>
                         </Flex>
                     </Label>
-                    {loading ? null : paths.map(path => (<List key={path} simple byPath={path} />))}
+                    {loading ? null : paths.map(path => (<List innerComponent key={path} simple byPath={path} />))}
                 </form>
                 {!inDevEnvironment() || paths.length !== 1 ? null : (
                     <>
