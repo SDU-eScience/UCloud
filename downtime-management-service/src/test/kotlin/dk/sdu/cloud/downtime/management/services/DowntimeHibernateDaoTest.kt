@@ -27,8 +27,8 @@ class DowntimeHibernateDaoTest {
         val db = initMicroAndGetDb()
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
-            dao.add(session, user, DowntimeWithoutId(Date().time - 1, Date().time + 1, "This is some text"))
-            assert(dao.listAll(session, user, defaultPaginationRequest).itemsInTotal == 1)
+            dao.add(session, DowntimeWithoutId(Date().time - 1, Date().time + 1, "This is some text"))
+            assert(dao.listAll(session, defaultPaginationRequest).itemsInTotal == 1)
         }
     }
 
@@ -37,11 +37,11 @@ class DowntimeHibernateDaoTest {
         val db = initMicroAndGetDb()
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
-            dao.add(session, user, DowntimeWithoutId(Date().time - 100, Date().time + 100, "Text for the weary soul."))
-            assert(dao.listAll(session, user, defaultPaginationRequest).itemsInTotal == 1)
-            val id = dao.listAll(session, user, defaultPaginationRequest).items[0].id
-            dao.remove(session, user, id)
-            assert(dao.listAll(session, user, defaultPaginationRequest).itemsInTotal == 0)
+            dao.add(session, DowntimeWithoutId(Date().time - 100, Date().time + 100, "Text for the weary soul."))
+            assert(dao.listAll(session, defaultPaginationRequest).itemsInTotal == 1)
+            val id = dao.listAll(session, defaultPaginationRequest).items[0].id
+            dao.remove(session, id)
+            assert(dao.listAll(session, defaultPaginationRequest).itemsInTotal == 0)
         }
     }
 
@@ -52,9 +52,9 @@ class DowntimeHibernateDaoTest {
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
             (0..99).forEach { i ->
-                dao.add(session, user, DowntimeWithoutId(Date().time, Date().time, "$i"))
+                dao.add(session, DowntimeWithoutId(Date().time, Date().time, "$i"))
             }
-            assert(dao.listAll(session, user, defaultPaginationRequest).itemsInTotal == 100)
+            assert(dao.listAll(session, defaultPaginationRequest).itemsInTotal == 100)
         }
     }
 
@@ -64,11 +64,11 @@ class DowntimeHibernateDaoTest {
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
             (0..99).forEach { i ->
-                dao.add(session, user, DowntimeWithoutId(Date().time - i, Date().time - i, "$i"))
+                dao.add(session, DowntimeWithoutId(Date().time - i, Date().time - i, "$i"))
             }
-            dao.add(session, user, DowntimeWithoutId(Date().time + 500, Date().time + 5000, "Hello"))
-            assert(dao.listAll(session, user, defaultPaginationRequest).itemsInTotal == 101)
-            assert(dao.listUpcoming(session, user, defaultPaginationRequest).itemsInTotal == 1)
+            dao.add(session, DowntimeWithoutId(Date().time + 500, Date().time + 5000, "Hello"))
+            assert(dao.listAll(session, defaultPaginationRequest).itemsInTotal == 101)
+            assert(dao.listUpcoming(session, defaultPaginationRequest).itemsInTotal == 1)
         }
     }
 
@@ -78,12 +78,12 @@ class DowntimeHibernateDaoTest {
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
             (0..99).forEach { i ->
-                dao.add(session, user, DowntimeWithoutId(Date().time - i, Date().time - i, "$i"))
+                dao.add(session, DowntimeWithoutId(Date().time - i, Date().time - i, "$i"))
             }
-            dao.add(session, user, DowntimeWithoutId(Date().time + 500, Date().time + 5000, "Hello"))
-            assert(dao.listAll(session, user, defaultPaginationRequest).itemsInTotal == 101)
+            dao.add(session, DowntimeWithoutId(Date().time + 500, Date().time + 5000, "Hello"))
+            assert(dao.listAll(session, defaultPaginationRequest).itemsInTotal == 101)
             dao.removeExpired(session, user)
-            assert(dao.listAll(session, user, defaultPaginationRequest).itemsInTotal == 1)
+            assert(dao.listAll(session, defaultPaginationRequest).itemsInTotal == 1)
         }
     }
 
@@ -93,12 +93,12 @@ class DowntimeHibernateDaoTest {
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
             (0..9).forEach { i ->
-                dao.add(session, user, DowntimeWithoutId(i.toLong(), i.toLong(), "$i"))
+                dao.add(session, DowntimeWithoutId(i.toLong(), i.toLong(), "$i"))
             }
 
-            val downtime = dao.listAll(session, user, defaultPaginationRequest).items[5]
+            val downtime = dao.listAll(session, defaultPaginationRequest).items[5]
 
-            assert(downtime == dao.getById(session, user, downtime.id))
+            assert(downtime == dao.getById(session, downtime.id))
         }
     }
 }

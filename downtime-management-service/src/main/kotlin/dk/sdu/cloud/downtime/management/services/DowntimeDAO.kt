@@ -31,25 +31,21 @@ data class DowntimeEntity(
 interface DowntimeDAO<Session> {
     fun add(
         session: Session,
-        user: SecurityPrincipal,
         downtime: DowntimeWithoutId
     )
 
     fun remove(
         session: Session,
-        user: SecurityPrincipal,
         id: Long
     )
 
     fun listAll(
         session: Session,
-        user: SecurityPrincipal,
         paging: NormalizedPaginationRequest
     ): Page<Downtime>
 
     fun listUpcoming(
         session: Session,
-        user: SecurityPrincipal,
         paging: NormalizedPaginationRequest
     ): Page<Downtime>
 
@@ -60,7 +56,6 @@ interface DowntimeDAO<Session> {
 
     fun getById(
         session: Session,
-        user: SecurityPrincipal,
         id: Long
     ): Downtime
 }

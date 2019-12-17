@@ -18,7 +18,7 @@ class DowntimeManagementController<DBSession>(
         }
 
         implement(DowntimeManagementDescriptions.listUpcoming) {
-            ok(downtimeManagementService.listUpcoming(ctx.securityPrincipal, request.normalize()))
+            ok(downtimeManagementService.listUpcoming(request.normalize()))
         }
 
         implement(DowntimeManagementDescriptions.add) {
@@ -34,7 +34,7 @@ class DowntimeManagementController<DBSession>(
         }
 
         implement(DowntimeManagementDescriptions.getById) {
-            ok(downtimeManagementService.getById(ctx.securityPrincipal, request.id))
+            ok(downtimeManagementService.getById(request.id))
         }
 
         return@configure

@@ -15,7 +15,7 @@ import io.ktor.http.HttpStatusCode
 import java.util.*
 
 class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
-    override fun add(session: HibernateSession, user: SecurityPrincipal, downtime: DowntimeWithoutId) {
+    override fun add(session: HibernateSession, downtime: DowntimeWithoutId) {
         if (downtime.start > downtime.end) {
             throw RPCException("Downtime can't end before it begins.", HttpStatusCode.BadRequest)
         }
@@ -23,7 +23,7 @@ class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
         session.save(entity)
     }
 
-    override fun remove(session: HibernateSession, user: SecurityPrincipal, id: Long) {
+    override fun remove(session: HibernateSession, id: Long) {
         val count = session.deleteCriteria<DowntimeEntity> {
             entity[DowntimeEntity::id] equal id
         }.executeUpdate()
@@ -39,11 +39,7 @@ class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
         }.executeUpdate()
     }
 
-    override fun listAll(
-        session: HibernateSession,
-        user: SecurityPrincipal,
-        paging: NormalizedPaginationRequest
-    ): Page<Downtime> =
+    override fun listAll(session: HibernateSession, paging: NormalizedPaginationRequest): Page<Downtime> =
         session.paginatedCriteria<DowntimeEntity>(
             paging,
             orderBy = { listOf(ascending(entity[DowntimeEntity::start])) }
@@ -54,11 +50,7 @@ class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
         }
 
 
-    override fun listUpcoming(
-        session: HibernateSession,
-        user: SecurityPrincipal,
-        paging: NormalizedPaginationRequest
-    ): Page<Downtime> {
+    override fun listUpcoming(session: HibernateSession, paging: NormalizedPaginationRequest): Page<Downtime> {
         val now = Date()
         return session.paginatedCriteria<DowntimeEntity>(paging) {
             entity[DowntimeEntity::start] greaterThan now
@@ -67,7 +59,7 @@ class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
         }
     }
 
-    override fun getById(session: HibernateSession, user: SecurityPrincipal, id: Long): Downtime {
+    override fun getById(session: HibernateSession, id: Long): Downtime {
         val entity =
             DowntimeEntity[session, id] ?: throw RPCException("No downtime with id found", HttpStatusCode.NotFound)
         return Downtime(entity.id!!, entity.start.time, entity.end.time, entity.text)
