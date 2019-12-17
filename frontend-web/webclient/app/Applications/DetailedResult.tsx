@@ -254,7 +254,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     />
 
                     {outputFolder === "" || appState !== JobState.SUCCESS && appState !== JobState.FAILURE ? null : (
-                        <Panel>
+                        <Panel width={1}>
                             <Heading.h4>Output Files</Heading.h4>
                             <EmbeddedFileTable path={outputFolder} />
                         </Panel>
@@ -297,7 +297,6 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
 };
 
 const Panel = styled(Box)`
-    width: 100%;
     margin-bottom: 1em;
 `;
 
