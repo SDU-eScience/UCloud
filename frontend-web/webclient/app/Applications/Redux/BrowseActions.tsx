@@ -12,7 +12,7 @@ export enum Tag {
 export type Type = ReceiveApp | ReceiveAppsByKey;
 
 type ReceiveApp = PayloadAction<typeof Tag.RECEIVE_APP, LoadableEvent<Page<FullAppInfo>>>;
-type ReceiveAppsByKey = PayloadAction<typeof Tag.RECEIVE_APPS_BY_KEY, {page: Page<FullAppInfo>, key: string}>
+type ReceiveAppsByKey = PayloadAction<typeof Tag.RECEIVE_APPS_BY_KEY, {page: Page<FullAppInfo>, key: string}>;
 
 export const receivePage = (page: Page<FullAppInfo>): ReceiveApp => ({
     type: Tag.RECEIVE_APP,
@@ -49,7 +49,7 @@ export const fetch = async (itemsPerPage: number, page: number): Promise<Receive
     )
 });
 
-export async function receiveAppsByKey(itemsPerPage: number, page: number, tag: string): Promise<ReceiveAppsByKey> { 
+export async function receiveAppsByKey(itemsPerPage: number, page: number, tag: string): Promise<ReceiveAppsByKey> {
     return ({
         type: Tag.RECEIVE_APPS_BY_KEY,
         payload: {
@@ -63,4 +63,4 @@ export async function receiveAppsByKey(itemsPerPage: number, page: number, tag: 
             ))).response,
             key: tag
     }});
-};
+}

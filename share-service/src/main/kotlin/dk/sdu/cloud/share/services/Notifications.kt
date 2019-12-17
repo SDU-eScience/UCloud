@@ -18,21 +18,25 @@ suspend fun aSendCreatedNotification(
 ): Job =
     coroutineScope {
         launch {
-            NotificationDescriptions.create.call(
-                CreateNotification(
-                    user = share.sharedWith,
-                    notification = Notification(
-                        type = "SHARE_REQUEST",
-                        message = "$owner has shared a file with you",
+            try {
+                NotificationDescriptions.create.call(
+                    CreateNotification(
+                        user = share.sharedWith,
+                        notification = Notification(
+                            type = "SHARE_REQUEST",
+                            message = "$owner has shared a file with you",
 
-                        meta = mapOf(
-                            "shareId" to id,
-                            "path" to share.path,
-                            "rights" to share.rights
+                            meta = mapOf(
+                                "shareId" to id,
+                                "path" to share.path,
+                                "rights" to share.rights
+                            )
                         )
-                    )
-                ),
-                serviceClient
-            )
+                    ),
+                    serviceClient
+                )
+            } catch (ignored: Throwable) {
+                // Ignored
+            }
         }
     }

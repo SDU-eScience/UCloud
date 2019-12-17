@@ -3,6 +3,7 @@ package dk.sdu.cloud.service.test
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.micro.ClientFeature
 import dk.sdu.cloud.micro.ConfigurationFeature
+import dk.sdu.cloud.micro.DatabaseConfigurationFeature
 import dk.sdu.cloud.micro.DeinitFeature
 import dk.sdu.cloud.micro.DevelopmentOverrides
 import dk.sdu.cloud.micro.KtorServerProviderFeature
@@ -38,10 +39,9 @@ private val databaseConfig by lazy {
         it.writeText(
             """
           ---
-          hibernate:
-            database:
-              profile: TEST_H2
-              logSql: true
+          database:
+            profile: TEST_H2
+            logSql: true
         """.trimIndent()
         )
     }
@@ -73,6 +73,7 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
         install(ServiceDiscoveryOverrides)
         install(DevelopmentOverrides) // Always activated
         install(LogFeature)
+        install(DatabaseConfigurationFeature)
 
         attributes[KtorServerProviderFeature.serverProviderKey] = { module ->
             val engine = TestApplicationEngine()

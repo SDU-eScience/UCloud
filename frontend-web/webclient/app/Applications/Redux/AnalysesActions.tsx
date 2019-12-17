@@ -86,7 +86,7 @@ export const checkAllAnalyses = (checked: boolean) => ({
     }
 });
 
-type CheckAnalysis = PayloadAction<typeof CHECK_ANALYSIS, {jobId: string, checked: boolean}>
+type CheckAnalysis = PayloadAction<typeof CHECK_ANALYSIS, {jobId: string, checked: boolean}>;
 export const checkAnalysis = (jobId: string, checked: boolean) => ({
     type: CHECK_ANALYSIS,
     payload: {

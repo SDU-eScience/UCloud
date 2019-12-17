@@ -29,6 +29,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.share.api.ShareId
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.Shares

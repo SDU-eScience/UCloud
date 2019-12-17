@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: audit-ingestion-service
-          image: registry.cloud.sdu.dk/sdu-cloud/audit-ingestion-service:0.1.7
+          image: registry.cloud.sdu.dk/sdu-cloud/audit-ingestion-service:0.1.9
           args:
           - /opt/service/bin/service
           - --config-dir

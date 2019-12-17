@@ -31,6 +31,9 @@ spec:
     - to:
       - ipBlock:
           cidr: 10.144.4.166/32 # allow tek-ansys.tek.c.sdu.dk
+    - to:
+      - ipBlock:
+          cidr: 10.144.4.169/32 # allow tek-comsol0a.tek.c.sdu.dk
             
 
 ---

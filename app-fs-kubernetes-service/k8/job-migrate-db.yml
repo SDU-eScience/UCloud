@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
         - name: app-fs-kubernetes-service
-          image: registry.cloud.sdu.dk/sdu-cloud/app-fs-kubernetes-service:0.1.0
+          image: registry.cloud.sdu.dk/sdu-cloud/app-fs-kubernetes-service:0.1.5
           args:
           - /opt/service/bin/service
           - --config-dir

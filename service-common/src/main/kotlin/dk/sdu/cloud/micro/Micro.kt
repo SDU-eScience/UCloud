@@ -120,6 +120,8 @@ fun Micro.installDefaultFeatures() {
     install(TokenValidationFeature)
     install(ServerFeature)
     install(FrontendOverrides)
+    install(DatabaseConfigurationFeature)
+    install(FlywayFeature)
 }
 
 fun Micro.initWithDefaultFeatures(

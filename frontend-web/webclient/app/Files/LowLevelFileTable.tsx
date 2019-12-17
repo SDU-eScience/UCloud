@@ -556,9 +556,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                             <Spacer
                                 left={isMasterDisabled ? null : (
                                     <Box mr="18px">
-                                        <Label>
-                                            All files selected:
+                                        <Label ml={10}>
                                             <Checkbox
+                                                size={27}
                                                 data-tag="masterCheckbox"
                                                 onClick={() => setChecked(
                                                     allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked
@@ -567,6 +567,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                                 disabled={isMasterDisabled}
                                                 onChange={UF.stopPropagation}
                                             />
+                                            <Box as={"span"} ml={"4px"}>Select all</Box>
                                         </Label>
                                     </Box>
                                 )}

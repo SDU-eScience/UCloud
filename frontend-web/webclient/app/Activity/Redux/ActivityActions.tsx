@@ -32,7 +32,7 @@ export const setErrorMessage = (): ActivityError => ({
 });
 
 export const SET_ACTIVITY_LOADING = "SET_ACTIVITY_LOADING";
-type SetActivityLoading = SetLoadingAction<typeof SET_ACTIVITY_LOADING>
+type SetActivityLoading = SetLoadingAction<typeof SET_ACTIVITY_LOADING>;
 export const setLoading = (loading: boolean): SetActivityLoading => ({
     type: SET_ACTIVITY_LOADING,
     payload: {loading}

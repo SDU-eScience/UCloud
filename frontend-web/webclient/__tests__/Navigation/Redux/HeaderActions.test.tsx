@@ -1,5 +1,5 @@
 import * as HeaderActions from "../../../app/Navigation/Redux/HeaderActions";
-import {store} from "../../../app/Utilities/ReduxUtilities"
+import {store} from "../../../app/Utilities/ReduxUtilities";
 
 describe("HeaderActions", () => {
     test("Set prioritized search", () => {
