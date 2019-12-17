@@ -143,6 +143,9 @@ class IngoingWebSocketInterceptor(
             //
             // Setting pingPeriod to null fixes all of this. It does, however, mean that a lot of open subscriptions
             // will timeout after some time (whenever the load balancer decides).
+            //
+            // NOTE(Dan):
+            // We have now inserted our own ping from the server. This should hopefully keep the connection alive.
 
             pingPeriod = null
         }
@@ -154,8 +157,14 @@ class IngoingWebSocketInterceptor(
                     val session = WSSession(UUID.randomUUID().toString(), this)
                     val callsByName = calls.associateBy { it.fullName }
 
+                    var nextPing = System.currentTimeMillis() + PING_PERIOD
                     try {
                         while (isActive && session.isActive) {
+                            if (System.currentTimeMillis() >= nextPing) {
+                                session.rawSend("""{"ping":"pong"}""")
+                                nextPing = System.currentTimeMillis() + PING_PERIOD
+                            }
+
                             val frame = try {
                                 withTimeout(1_000) {
                                     incoming.receive()
@@ -298,6 +307,7 @@ class IngoingWebSocketInterceptor(
         override val log = logger()
 
         internal val callConfigKey = AttributeKey<WebsocketServerCallConfig>("ws-server-call-config")
+        private const val PING_PERIOD = 1000L * 60
     }
 }
 
