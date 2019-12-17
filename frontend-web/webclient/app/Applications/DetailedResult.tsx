@@ -297,6 +297,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
 };
 
 const Panel = styled(Box)`
+    width: 100%;
     margin-bottom: 1em;
 `;
 
