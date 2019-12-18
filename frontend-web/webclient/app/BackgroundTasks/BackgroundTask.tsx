@@ -8,6 +8,7 @@ import {useCallback, useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Dictionary, Page} from "Types";
 import {Icon} from "ui-components";
@@ -22,6 +23,7 @@ import {calculateUploadSpeed} from "Uploader/Uploader";
 import {sizeToHumanReadableWithUnit} from "Utilities/FileUtilities";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
+import {errorMessageOrDefault} from "UtilityFunctions";
 
 interface BackgroundTaskProps {
     activeUploads: number;
@@ -207,8 +209,14 @@ const mapDispatchToProps = (dispatch: Dispatch) => ({
     showUploader: () => dispatch(setUploaderVisible(true, Client.homeFolder)),
     onTaskUpdate: (update: TaskUpdate) => dispatch(taskUpdateAction(update)),
     loadInitialTasks: async () => {
-        const result = (await Client.get<Page<Task>>(buildQueryString("/tasks", {itemsPerPage: 100, page: 0}))).response;
-        dispatch(taskLoadAction(result));
+        try {
+            const result = (await Client.get<Page<Task>>(
+                buildQueryString("/tasks", {itemsPerPage: 100, page: 0}))
+            ).response;
+            dispatch(taskLoadAction(result));
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Could not fetch background tasks."));
+        }
     }
 });
 
