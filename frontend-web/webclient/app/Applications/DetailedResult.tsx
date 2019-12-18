@@ -124,8 +124,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     }
                 });
             }
-        }
-        );
+        });
 
         return () => {
             connection.close();
@@ -391,7 +390,7 @@ const StepTrackerItem: React.FunctionComponent<{
 
     return (
         <Step active={active}>
-            <JobStateIcon state={stateToDisplay} color={complete && thisFailed ? "red" : undefined} mr="0.7em" size="30px" />
+            <JobStateIcon isExpired={false} state={stateToDisplay} color={complete && thisFailed ? "red" : undefined} mr="0.7em" size="30px" />
             <Hide sm xs md lg>
                 <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
             </Hide>
