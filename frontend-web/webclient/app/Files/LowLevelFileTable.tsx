@@ -671,7 +671,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                             mb="50px"
                                             trigger={(
                                                 <Link to={filePreviewQuery(f.path)}>
-                                                    <Icon cursor="pointer" size="2em" mr="4px" name="eye" />
+                                                    <Icon cursor="pointer" size="24px" mt="4px" mr="8px" color="gray" name="preview" />
                                                 </Link>
                                             )}
                                         >
