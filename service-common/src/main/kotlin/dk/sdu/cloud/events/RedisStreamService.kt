@@ -6,6 +6,7 @@ import io.lettuce.core.Consumer
 import io.lettuce.core.Limit
 import io.lettuce.core.Range
 import io.lettuce.core.RedisClient
+import io.lettuce.core.RedisConnectionException
 import io.lettuce.core.StreamMessage
 import io.lettuce.core.XAddArgs
 import io.lettuce.core.XReadArgs
@@ -13,14 +14,19 @@ import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.sync.RedisCommands
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.util.*
+import java.util.concurrent.CompletionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.coroutines.CoroutineContext
@@ -28,15 +34,15 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.coroutines.suspendCoroutine
 
-private object RedisScope : CoroutineScope {
+internal object RedisScope : CoroutineScope, Loggable {
+    override val log = logger()
     private lateinit var dispatcher: CoroutineDispatcher
     private var executor: ExecutorService? = null
 
     private val isRunning: Boolean
         get() = executor != null
 
-    override val coroutineContext: CoroutineContext
-        get() = dispatcher
+    override lateinit var coroutineContext: CoroutineContext
 
     fun start() {
         synchronized(this) {
@@ -45,6 +51,9 @@ private object RedisScope : CoroutineScope {
             val newCachedThreadPool = Executors.newCachedThreadPool()
             executor = newCachedThreadPool
             dispatcher = newCachedThreadPool.asCoroutineDispatcher()
+            coroutineContext = SupervisorJob() + dispatcher + CoroutineExceptionHandler { context, throwable ->
+                log.warn("Exception in RedisScope\n${throwable.stackTraceToString()}")
+            }
         }
     }
 
@@ -74,94 +83,128 @@ class RedisStreamService(
         consumer: EventConsumer<V>,
         rescheduleIdleJobsAfterMs: Long
     ) {
+        internalSubscribe(stream, consumer, rescheduleIdleJobsAfterMs)
+    }
+
+    private fun <V : Any> internalSubscribe(
+        stream: EventStream<V>,
+        consumer: EventConsumer<V>,
+        rescheduleIdleJobsAfterMs: Long,
+        criticalFailureTimestamps: List<Long> = emptyList()
+    ) {
         RedisScope.start() // Start if we haven't already
 
-        RedisScope.launch {
-            run {
-                val redis = connManager.getConnection()
-                initializeStream(redis, stream)
-
-                // Create the group or fail if it already exists. We just ignore the exception assuming it means
-                // that it already exists. If it failed entirely we will fail once we start consumption.
-                runCatching { redis.xgroupA(stream.name, group) }
+        run {
+            val now = System.currentTimeMillis()
+            if (criticalFailureTimestamps.filter { now - it >= FAILURE_PERIOD }.size > MAX_FAILURES) {
+                throw IllegalStateException("Too many Redis failures!")
             }
+        }
 
-            val messagesNotYetAcknowledged = HashSet<String>()
-            suspend fun RedisAsyncCommands<String, String>.dispatchToInternalConsumer(
-                messages: List<StreamMessage<String, String>>
-            ) {
-                val events = messages.mapNotNull { message ->
-                    val textValue = message.body?.values?.first() ?: return@mapNotNull null
-                    if (textValue == STREAM_INIT_MSG) return@mapNotNull null
+        RedisScope.launch {
+            try {
+                run {
+                    val redis = connManager.getConnection()
+                    initializeStream(redis, stream)
 
-                    runCatching { stream.deserialize(textValue) }.getOrNull()
+                    // Create the group or fail if it already exists. We just ignore the exception assuming it means
+                    // that it already exists. If it failed entirely we will fail once we start consumption.
+                    runCatching { redis.xgroupA(stream.name, group) }
                 }
 
-                if (consumer is EventConsumer.Immediate) {
-                    val ids = messages.map { it.id }
-                    launch {
+                val messagesNotYetAcknowledged = HashSet<String>()
+                suspend fun RedisAsyncCommands<String, String>.dispatchToInternalConsumer(
+                    messages: List<StreamMessage<String, String>>
+                ) {
+                    val events = messages.mapNotNull { message ->
+                        val textValue = message.body?.values?.first() ?: return@mapNotNull null
+                        if (textValue == STREAM_INIT_MSG) return@mapNotNull null
+
+                        runCatching { stream.deserialize(textValue) }.getOrNull()
+                    }
+
+                    if (consumer is EventConsumer.Immediate) {
+                        val ids = messages.map { it.id }
+                        launch {
+                            @Suppress("TooGenericExceptionCaught")
+                            try {
+                                if (consumer.accept(events)) {
+                                    xackA(stream.name, group, ids.toSet())
+                                    Unit // I think this will fix a class cast exception
+                                }
+                            } catch (ex: Throwable) {
+                                log.warn("Caught exception while consuming from $stream")
+                                log.warn(ex.stackTraceToString())
+                            }
+                        }
+                    } else {
+                        messagesNotYetAcknowledged.addAll(messages.map { it.id })
                         @Suppress("TooGenericExceptionCaught")
                         try {
                             if (consumer.accept(events)) {
-                                xackA(stream.name, group, ids.toSet())
-                                Unit // I think this will fix a class cast exception
+                                xackA(stream.name, group, messagesNotYetAcknowledged)
+                                messagesNotYetAcknowledged.clear()
                             }
                         } catch (ex: Throwable) {
                             log.warn("Caught exception while consuming from $stream")
                             log.warn(ex.stackTraceToString())
                         }
                     }
-                } else {
-                    messagesNotYetAcknowledged.addAll(messages.map { it.id })
-                    @Suppress("TooGenericExceptionCaught")
-                    try {
-                        if (consumer.accept(events)) {
-                            xackA(stream.name, group, messagesNotYetAcknowledged)
-                            messagesNotYetAcknowledged.clear()
-                        }
-                    } catch (ex: Throwable) {
-                        log.warn("Caught exception while consuming from $stream")
-                        log.warn(ex.stackTraceToString())
-                    }
                 }
-            }
 
-            var nextClaim = 0L
-            fun setNextClaimTimer() = run { nextClaim = System.currentTimeMillis() + 5_000 }
-            setNextClaimTimer()
+                var nextClaim = 0L
+                fun setNextClaimTimer() = run { nextClaim = System.currentTimeMillis() + 5_000 }
+                setNextClaimTimer()
 
-            while (true) {
-                val redis = connManager.getConnection()
-                if (System.currentTimeMillis() >= nextClaim) {
-                    // We reschedule messages that weren't acknowledged if they have been idle fore more than
-                    // minimumIdleTime. It goes through the normal consumption mechanism.
-                    val pending = redis.xpendingA(stream.name, group, limit = 500)
-                    val ids = pending.filter { it.msSinceLastAttempt >= rescheduleIdleJobsAfterMs }.map { it.id }
+                while (true) {
+                    val redis = connManager.getConnection()
+                    if (System.currentTimeMillis() >= nextClaim) {
+                        // We reschedule messages that weren't acknowledged if they have been idle fore more than
+                        // minimumIdleTime. It goes through the normal consumption mechanism.
+                        val pending = redis.xpendingA(stream.name, group, limit = 500)
+                        val ids =
+                            pending.filter { it.msSinceLastAttempt >= rescheduleIdleJobsAfterMs }.map { it.id }
 
-                    if (ids.isNotEmpty()) {
+                        if (ids.isNotEmpty()) {
+                            redis.dispatchToInternalConsumer(
+                                redis.xclaimA(
+                                    stream.name,
+                                    group,
+                                    consumerId,
+                                    rescheduleIdleJobsAfterMs,
+                                    ids
+                                )
+                            )
+                        }
+
+                        setNextClaimTimer()
+                    } else {
                         redis.dispatchToInternalConsumer(
-                            redis.xclaimA(
-                                stream.name,
-                                group,
-                                consumerId,
-                                rescheduleIdleJobsAfterMs,
-                                ids
+                            redis.xreadgroupA(
+                                group, consumerId,
+                                XReadArgs.StreamOffset.lastConsumed(stream.name),
+                                offset = XReadArgs.Builder.count(50)
                             )
                         )
+
+                        delay(50)
                     }
-
-                    setNextClaimTimer()
-                } else {
-                    redis.dispatchToInternalConsumer(
-                        redis.xreadgroupA(
-                            group, consumerId,
-                            XReadArgs.StreamOffset.lastConsumed(stream.name),
-                            offset = XReadArgs.Builder.count(50)
-                        )
-                    )
-
-                    delay(50)
                 }
+            } catch (ex: Throwable) {
+                if (ex is RedisConnectionException || ex is CompletionException) {
+                    log.warn("Lost connection to Redis")
+                } else {
+                    log.warn("Caught exception in Redis subscription!\n${ex.stackTraceToString()}")
+                }
+
+                delay(6000)
+
+                internalSubscribe(
+                    stream,
+                    consumer,
+                    rescheduleIdleJobsAfterMs,
+                    criticalFailureTimestamps + System.currentTimeMillis()
+                )
             }
         }
     }
@@ -195,6 +238,8 @@ class RedisStreamService(
     companion object : Loggable {
         override val log = logger()
         const val STREAM_INIT_MSG = "stream-init"
+        private const val MAX_FAILURES = 100
+        private const val FAILURE_PERIOD = 1000L * 60 * 60
     }
 }
 
@@ -262,7 +307,7 @@ class RedisEventProducer<V : Any>(
         // In some cases the async API for this have been taking upwards of 40 seconds to return. We have no
         // such problems when using the sync API. We launch the job in the RedisScope which will use a cached
         // thread pool (suitable for blocking tasks).
-        RedisScope.launch {
+        withContext(RedisScope.coroutineContext) {
             val conn = connManager.getSync()
             events.forEach { event ->
                 conn.xadd(
@@ -271,7 +316,7 @@ class RedisEventProducer<V : Any>(
                     mapOf("msg" to stream.serialize(event))
                 )
             }
-        }.join()
+        }
     }
 }
 

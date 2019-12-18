@@ -1,18 +1,29 @@
 package dk.sdu.cloud.notification.services
 
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.service.db.H2_TEST_CONFIG
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.initializeMicro
+import io.mockk.MockKAnnotations
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-private fun withDatabase(closure: (HibernateSessionFactory) -> Unit) {
-    HibernateSessionFactory.create(H2_TEST_CONFIG.copy(showSQLInStdout = true)).use(closure)
+private fun withDatabase(closure: suspend (HibernateSessionFactory) -> Unit) {
+    val micro = initializeMicro()
+    micro.install(HibernateFeature)
+    val db = micro.hibernateDatabase
+    runBlocking {
+        closure(db)
+    }
 }
 
 class NotificationHibernateDAOTest {

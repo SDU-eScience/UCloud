@@ -130,7 +130,12 @@ class StreamFollowService<DBSession>(
                                     handler = { message ->
                                         streamId = message.streamId
                                         debug("Sending new log message")
-                                        callContext.sendWSMessage(FollowWSResponse(message.stdout, message.stderr))
+                                        callContext.sendWSMessage(
+                                            FollowWSResponse(
+                                                message.stdout,
+                                                message.stderr
+                                            )
+                                        )
                                     }
                                 )
                             }

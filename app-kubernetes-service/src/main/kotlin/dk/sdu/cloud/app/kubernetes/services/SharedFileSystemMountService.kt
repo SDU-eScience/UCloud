@@ -29,7 +29,8 @@ class SharedFileSystemMountService {
                     null,
                     DATA_STORAGE,
                     false,
-                    "$ROOT_DIRECTORY/$id"
+                    "$ROOT_DIRECTORY/$id",
+                    null
                 )
             )
         }

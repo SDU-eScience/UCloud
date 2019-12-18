@@ -19,11 +19,6 @@ description: >
   Python, R, and Scala with support for Apache Spark, 
   Clojure, Go, Groovy, Java, Javascript, Julia, Kotlin, Octave, Ruby, SQL.
 
-
-tags:
-  - Development
-  - Editor
-  - Featured
   
 invocation:
 - start_jupyter

@@ -7,7 +7,6 @@ import dk.sdu.cloud.micro.*
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(AppKubernetesWatcherServiceDescription, args)
-        install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
         install(HealthCheckFeature)
     }

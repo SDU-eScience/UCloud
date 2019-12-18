@@ -2,6 +2,8 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.BroadcastingStream
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -58,10 +60,15 @@ class ApplicationProxyService(
     suspend fun initializeListener() {
         broadcastingStream.subscribe(ProxyEvents.events) { event ->
             GlobalScope.launch {
-                if (event.shouldCreate) {
-                    addEntry(createOrUseExistingTunnel(event.id))
-                } else {
-                    removeEntry(event.id)
+                try {
+                    if (event.shouldCreate) {
+                        addEntry(createOrUseExistingTunnel(event.id))
+                    } else {
+                        removeEntry(event.id)
+                    }
+                } catch (ex: Throwable) {
+                    log.info("Caught exception while creating tunnel")
+                    log.info(ex.stackTraceToString())
                 }
             }
         }
@@ -83,6 +90,10 @@ class ApplicationProxyService(
         val job = jobCache.findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val remotePort = job.application.invocation.web?.port ?: 80
         return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort)
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
