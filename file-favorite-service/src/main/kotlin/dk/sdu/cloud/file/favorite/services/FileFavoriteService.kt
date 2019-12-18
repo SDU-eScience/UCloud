@@ -84,7 +84,7 @@ class FileFavoriteService<DBSession>(
         return failures
     }
 
-    fun getFavoriteStatus(files: List<StorageFile>, user: SecurityPrincipalToken): Map<String, Boolean> =
+   suspend fun getFavoriteStatus(files: List<StorageFile>, user: SecurityPrincipalToken): Map<String, Boolean> =
         db.withTransaction { dao.bulkIsFavorite(it, files, user) }
 
     suspend fun listAll(
@@ -128,7 +128,7 @@ class FileFavoriteService<DBSession>(
         )
     }
 
-    fun deleteById(fileIds: Set<String>) {
+    suspend fun deleteById(fileIds: Set<String>) {
         db.withTransaction {
             dao.deleteById(it, fileIds)
         }

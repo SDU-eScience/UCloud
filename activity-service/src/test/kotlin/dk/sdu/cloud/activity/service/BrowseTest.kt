@@ -12,6 +12,7 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
@@ -29,7 +30,7 @@ class BrowseTest {
     }
 
     @Test
-    fun `test large batch job - same op`() {
+    fun `test large batch job - same op`() = runBlocking {
         val timestamp = System.currentTimeMillis()
         val batchSize = 1000
 
@@ -46,5 +47,6 @@ class BrowseTest {
             { it.numberOfHiddenResults },
             (batchSize - collapseThreshold).toLong()
         )
+        Unit
     }
 }
