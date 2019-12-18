@@ -100,7 +100,9 @@ class WSSession internal constructor(val id: String, val underlyingSession: WebS
 
     suspend fun close(reason: String? = null) {
         isActive = false
-        underlyingSession.close(CloseReason(CloseReason.Codes.NORMAL, reason ?: "Unspecified reason"))
+        runCatching {
+            underlyingSession.close(CloseReason(CloseReason.Codes.NORMAL, reason ?: "Unspecified reason"))
+        }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -161,7 +163,11 @@ class IngoingWebSocketInterceptor(
                     try {
                         while (isActive && session.isActive) {
                             if (System.currentTimeMillis() >= nextPing) {
-                                session.rawSend("""{"ping":"pong"}""")
+                                try {
+                                    session.rawSend("""{"ping":"pong"}""")
+                                } catch (ex: ClosedSendChannelException) {
+                                    break
+                                }
                                 nextPing = System.currentTimeMillis() + PING_PERIOD
                             }
 
@@ -325,8 +331,14 @@ val CallDescription<*, *, *>.wsServerConfig: WebsocketServerCallConfig
     }
 
 // TODO This is not using the correct writer
-suspend fun <S : Any> CallHandler<*, S, *>.sendWSMessage(message: S) {
+suspend fun <S : Any> CallHandler<*, S, *>.sendWSMessage(message: S, suppressClosedChannelException: Boolean = true) {
     withContext<WSCall> {
-        ctx.sendMessage(message, description.successType)
+        try {
+            ctx.sendMessage(message, description.successType)
+        } catch (ex: ClosedSendChannelException) {
+            if (!suppressClosedChannelException) {
+                throw ex
+            }
+        }
     }
 }

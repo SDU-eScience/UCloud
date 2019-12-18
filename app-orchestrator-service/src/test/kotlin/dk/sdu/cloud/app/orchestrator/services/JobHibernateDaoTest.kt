@@ -1,17 +1,17 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.JobSortBy
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.app.orchestrator.api.SortOrder
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc2
 import dk.sdu.cloud.app.orchestrator.utils.normTool
 import dk.sdu.cloud.app.orchestrator.utils.normToolDesc
-import dk.sdu.cloud.app.orchestrator.utils.verifiedJob
-import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
-import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken2
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -30,10 +30,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.util.*
-import kotlin.math.absoluteValue
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.random.Random
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 
@@ -76,21 +74,21 @@ class JobHibernateDaoTest {
     }
 
     @Test(expected = JobException.NotFound::class)
-    fun `update status - not found tests`() {
+    fun `update status - not found tests`() = runBlocking {
         db.withTransaction(autoFlush = true) {
             jobHibDao.updateStatus(it, systemId, "good")
         }
     }
 
     @Test(expected = JobException.NotFound::class)
-    fun `update status and statue - not found tests`() {
+    fun `update status and statue - not found tests`() = runBlocking {
         db.withTransaction(autoFlush = true) {
             jobHibDao.updateStateAndStatus(it, systemId, JobState.PREPARED, "good")
         }
     }
 
     @Test
-    fun `create, find and update jobinfo test`() {
+    fun `create, find and update jobinfo test`() = runBlocking {
 
         db.withTransaction(autoFlush = true) {
             val jobWithToken = VerifiedJobWithAccessToken(
@@ -150,19 +148,21 @@ class JobHibernateDaoTest {
 
         db.withTransaction(autoFlush = true) {
             val result =
-                runBlocking { jobHibDao.list(
-                    it,
-                    user.createToken(),
-                    NormalizedPaginationRequest(10, 0),
-                    application = null,
-                    version = null
-                ) }
+                runBlocking {
+                    jobHibDao.list(
+                        it,
+                        user.createToken(),
+                        NormalizedPaginationRequest(10, 0),
+                        application = null,
+                        version = null
+                    )
+                }
             assertEquals(1, result.itemsInTotal)
         }
     }
 
     @Test
-    fun `Add and retrieve jobs based on createdAt, both min and max`() {
+    fun `Add and retrieve jobs based on createdAt, both min and max`() = runBlocking {
 
         db.withTransaction(autoFlush = true) {
             val firstJob = VerifiedJobWithAccessToken(
@@ -250,7 +250,7 @@ class JobHibernateDaoTest {
     }
 
     @Test
-    fun `Add and retrieve jobs based on createdAt, either min or max`() {
+    fun `Add and retrieve jobs based on createdAt, either min or max`() = runBlocking {
 
         db.withTransaction(autoFlush = true) {
             val firstJob = VerifiedJobWithAccessToken(
@@ -380,7 +380,7 @@ class JobHibernateDaoTest {
     }
 
     @Test
-    fun `Add and retrieve apps based on state`() {
+    fun `Add and retrieve apps based on state`() = runBlocking {
 
         db.withTransaction {
             addJob(it)
@@ -425,15 +425,15 @@ class JobHibernateDaoTest {
         }
     }
 
-    @Test (expected = JobException::class)
-    fun `Update Workspace - not found test`() {
+    @Test(expected = JobException::class)
+    fun `Update Workspace - not found test`() = runBlocking {
         db.withTransaction {
             jobHibDao.updateWorkspace(it, "systemId", "workspace")
         }
     }
 
     @Test
-    fun `Update Workspace`() {
+    fun `Update Workspace`() = runBlocking {
         db.withTransaction {
             addJob(it)
             jobHibDao.updateWorkspace(it, systemId, "workspace")
@@ -441,7 +441,7 @@ class JobHibernateDaoTest {
     }
 
     @Test
-    fun `test different sort by and order`() {
+    fun `test different sort by and order`() = runBlocking {
         val extraID = UUID.randomUUID().toString()
         val userToken = user.createToken()
         db.withTransaction { session ->
@@ -494,7 +494,7 @@ class JobHibernateDaoTest {
 
             runBlocking {
                 val page = jobHibDao.list(
-                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy =  JobSortBy.STATE
+                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.STATE
                 )
                 assertEquals(page.items.first().job.application.metadata.name, appName)
                 assertEquals(page.items.last().job.application.metadata.name, appName2)
@@ -502,7 +502,7 @@ class JobHibernateDaoTest {
 
             runBlocking {
                 val page = jobHibDao.list(
-                    it, userToken, NormalizedPaginationRequest(10, 0),sortBy = JobSortBy.LAST_UPDATE
+                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.LAST_UPDATE
                 )
                 assertEquals(page.items.first().job.application.metadata.name, appName2)
                 assertEquals(page.items.last().job.application.metadata.name, appName)

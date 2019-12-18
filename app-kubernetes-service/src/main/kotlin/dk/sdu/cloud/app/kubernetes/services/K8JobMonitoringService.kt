@@ -24,7 +24,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
 import kotlinx.coroutines.launch
 import java.time.ZonedDateTime
-import kotlin.system.exitProcess
 
 const val LOCK_PREFIX = "lock-app-k8-job-"
 const val STATUS_PREFIX = "status-app-k8-job-"
@@ -55,7 +54,8 @@ class K8JobMonitoringService(
                         val state = getCompletionState(jobId)
                         if (state.get() != true) {
                             k8.changeState(jobId, JobState.TRANSFER_SUCCESS, "Job did not complete within deadline.")
-                            transferLogAndMarkAsCompleted(jobId, jobId, null, false)
+                            val userPod = k8.nameAllocator.listPods(jobId).firstOrNull()?.metadata?.name
+                            transferLogAndMarkAsCompleted(jobId, userPod, null, false)
                             state.set(true)
                         }
                     }
@@ -187,21 +187,23 @@ class K8JobMonitoringService(
 
     private suspend fun transferLogAndMarkAsCompleted(
         jobId: String,
-        podName: String,
+        podName: String?,
         duration: SimpleDuration?,
         success: Boolean
     ) {
-        val logFile = logService.downloadLog(podName)
-        if (logFile != null) {
-            ComputationCallbackDescriptions.submitFile.call(
-                SubmitComputationResult(
-                    jobId,
-                    "stdout.txt",
-                    false,
-                    BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
-                ),
-                k8.serviceClient
-            ).orThrow()
+        if (podName != null) {
+            val logFile = logService.downloadLog(podName)
+            if (logFile != null) {
+                ComputationCallbackDescriptions.submitFile.call(
+                    SubmitComputationResult(
+                        jobId,
+                        "stdout.txt",
+                        false,
+                        BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
+                    ),
+                    k8.serviceClient
+                ).orThrow()
+            }
         }
 
         ComputationCallbackDescriptions.completed.call(
