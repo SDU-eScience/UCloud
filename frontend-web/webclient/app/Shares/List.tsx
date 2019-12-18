@@ -103,8 +103,8 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
     }, [page]);
 
     const AvatarComponent = (props: {username: string}) => {
-        const avatar = avatars.data?.avatars[props.username] ?? defaultAvatar;
-        return <UserAvatar avatar={avatar} mr={"10px"} />;
+        const avatar = avatars.data?.avatars?.[props.username] ?? defaultAvatar;
+        return <UserAvatar avatar={avatar} mr="10px" />;
     };
 
     const GroupedShareCardWrapper = (props: {shareByPath: SharesByPath; simple: boolean;}) => {
@@ -173,10 +173,10 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
                     No shares for <b>{getFilenameFromPath(props.byPath!)}</b>
                 </div>
             ) : <NoShares sharedByMe={sharedByMe} />}
-            onPageChanged={(pageNumber, page) => setFetchParams(listShares({
+            onPageChanged={(pageNumber, {itemsPerPage}) => setFetchParams(listShares({
                 sharedByMe,
                 page: pageNumber,
-                itemsPerPage: page.itemsPerPage
+                itemsPerPage
             }))}
             pageRenderer={() => (
                 <>
@@ -454,7 +454,7 @@ export const ShareRow: React.FunctionComponent<{
                         onClick={() => sendCommandAndUpdate(revokeShare(share.id))}
                     />
                 ) : (
-                        <Button color={"red"} ml={"16px"} onClick={doRevoke}>
+                        <Button color="red" ml="16px" onClick={doRevoke}>
                             <Icon name="close" size="1em" mr=".7em" />
                             Revoke
                         </Button>
@@ -464,7 +464,7 @@ export const ShareRow: React.FunctionComponent<{
     }
 
     return (
-        <Flex alignItems={"center"} mb={"16px"}>
+        <Flex alignItems="center" mb="16px">
             {props.children}
 
             <div>
