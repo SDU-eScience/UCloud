@@ -28,6 +28,8 @@ class Server(
         val elasticHighLevelClient = micro.elasticHighLevelClient
         val elasticLowLevelClient = micro.elasticLowLevelClient
 
+        startServices(wait = false)
+
         if (micro.commandLineArguments.contains("--setup")) {
             @Suppress("TooGenericExceptionCaught")
             try {
@@ -128,7 +130,5 @@ class Server(
                 exitProcess(1)
             }
         }
-
-        startServices()
     }
 }

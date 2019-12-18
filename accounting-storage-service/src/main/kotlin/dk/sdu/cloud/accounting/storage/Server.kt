@@ -35,6 +35,7 @@ class Server(
 
         if (micro.commandLineArguments.contains("--scan")) {
             log.info("Running scan instead of server")
+            startServices(wait = false)
             runBlocking {
                 storageAccountingService.collectCurrentStorageUsage()
             }
