@@ -18,7 +18,7 @@ export const JobStateIcon: React.FunctionComponent<{
         return (
             <Icon
                 name="chrono"
-                color="yellow"
+                color="orange"
                 size={props.size}
                 {...props}
             />
