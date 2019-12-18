@@ -86,8 +86,9 @@ class Server(override val micro: Micro) : CommonServer {
         if (micro.commandLineArguments.contains("--migrate-apps-to-elastic")) {
             @Suppress("TooGenericExceptionCaught")
             try {
+                val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin", 42000)
                 micro.hibernateDatabase.withTransaction { session ->
-                    val apps = applicationDAO.getAllApps(session)
+                    val apps = applicationDAO.getAllApps(session, dummyUser)
                     apps.forEach {  app ->
                         val name = app.id.name.toLowerCase()
                         val version = app.id.version.toLowerCase()

@@ -111,7 +111,6 @@ class ApplicationHibernateDaoTest {
                 assertEquals("Authors", loadedApp.metadata.authors.first())
             }
         }
-
     }
 
     @Test(expected = ApplicationException.NotFound::class)
@@ -847,7 +846,7 @@ class ApplicationHibernateDaoTest {
                 normAppDesc
             )
 
-            appDAO.getAllApps(it).forEach { app -> println(app.id) }
+            appDAO.getAllApps(it, TestUsers.admin).forEach { app -> println(app.id) }
 
             val ids1 = appDAO.findAllByID(
                 it,
