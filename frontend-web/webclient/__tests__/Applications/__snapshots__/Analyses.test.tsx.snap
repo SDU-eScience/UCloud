@@ -979,6 +979,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               fill="currentcolor"
               fillRule="evenodd"
               height={24}
+              isExpired={false}
               mr="8px"
               state="FAILURE"
               viewBox="0 0 25 24"
@@ -989,7 +990,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 fillRule="nonzero"
               />
             </svg>
-             
             Failure
           </td>
           <td
@@ -1088,6 +1088,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               fill="currentcolor"
               fillRule="evenodd"
               height={24}
+              isExpired={false}
               mr="8px"
               state="FAILURE"
               viewBox="0 0 25 24"
@@ -1098,7 +1099,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 fillRule="nonzero"
               />
             </svg>
-             
             Failure
           </td>
           <td
@@ -1197,6 +1197,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               fill="currentcolor"
               fillRule="evenodd"
               height={24}
+              isExpired={false}
               mr="8px"
               state="FAILURE"
               viewBox="0 0 25 24"
@@ -1207,7 +1208,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 fillRule="nonzero"
               />
             </svg>
-             
             Failure
           </td>
           <td
@@ -1306,6 +1306,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               fill="currentcolor"
               fillRule="evenodd"
               height={24}
+              isExpired={false}
               mr="8px"
               state="SUCCESS"
               viewBox="0 0 25 19"
@@ -1316,7 +1317,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
                 fillRule="nonzero"
               />
             </svg>
-             
             Success
           </td>
           <td
