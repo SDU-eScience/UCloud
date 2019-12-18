@@ -28,6 +28,7 @@ import {errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {ApplicationType, FollowStdStreamResponse, isJobStateFinal, JobState, JobWithStatus, WithAppInvocation} from ".";
 import {JobStateIcon} from "./JobStateIcon";
 import {pad} from "./View";
+import {runApplication} from "./Pages";
 
 interface DetailedResultOperations {
     setPageTitle: (jobId: string) => void;
@@ -52,7 +53,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const promises = usePromiseKeeper();
 
     const jobId = props.match.params.jobId;
-    const outputFolder = jobWithStatus && jobWithStatus.outputFolder ? jobWithStatus.outputFolder : "";
+    const outputFolder = jobWithStatus?.outputFolder ?? "";
 
     async function fetchJob() {
         try {
@@ -210,13 +211,16 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                         <Heading.h4>Job Information</Heading.h4>
                         <Card height="auto" p="14px 14px 14px 14px">
                             <List>
-                                {jobWithStatus === null || jobWithStatus.name === null ? null :
+                                {jobWithStatus === null || jobWithStatus.name === null ? null : (
                                     <InfoBox><b>Name:</b> {jobWithStatus.name}</InfoBox>
-                                }
+                                )}
 
                                 <InfoBox>
                                     <b>Application:</b>{" "}
                                     {jobWithStatus.metadata.title} v{jobWithStatus.metadata.version}
+                                    <Link to={runApplication(jobWithStatus.metadata)}>
+                                        <Button ml="10px" px="10px" py="5px">Run app again</Button>
+                                    </Link>
                                 </InfoBox>
 
                                 <InfoBox><b>Status:</b> {status}</InfoBox>
@@ -224,7 +228,9 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                                 {appState !== JobState.SUCCESS ? null : (
                                     <InfoBox>
                                         Application has completed successfully.
-                                    Click <Link to={fileTablePage(outputFolder)}>here</Link> to go to the output.
+                                    Click <Link to={fileTablePage(outputFolder)}>
+                                            <Button px="10px" py="5px">here</Button>
+                                        </Link> to go to the output.
                                     </InfoBox>
                                 )}
 
