@@ -174,8 +174,8 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
                 </div>
             ) : <NoShares sharedByMe={sharedByMe} />}
             onPageChanged={(pageNumber, {itemsPerPage}) => setFetchParams(listShares({
-                sharedByMe,
                 page: pageNumber,
+                sharedByMe,
                 itemsPerPage
             }))}
             pageRenderer={() => (
@@ -251,8 +251,11 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const [isLoading, sendCommand] = useAsyncCommand();
 
     const revokeAll = async () => {
-        const revoke = () => groupedShare.shares.filter(it => inCancelableState(it.state))
-            .forEach(({id}) => sendCommand(revokeShare(id)));
+        const revoke = async () => {
+            await Promise.all(groupedShare.shares.filter(it => inCancelableState(it.state))
+                .map(async ({id}) => await sendCommand(revokeShare(id))));
+            props.onUpdate();
+        };
         if (!props.simple) {
             addStandardDialog({
                 title: "Revoke?",
@@ -339,7 +342,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                         right={(
                             <Button
                                 type="button"
-                                onClick={props.simple && !confirmRevokeAll ? () => setConfirmRevokeAll(true) : () => revokeAll()}
+                                onClick={() => props.simple && !confirmRevokeAll ? setConfirmRevokeAll(true) : revokeAll()}
                                 disabled={isLoading}
                                 color={confirmRevokeAll ? "red" : "blue"}
                                 mb="8px"
