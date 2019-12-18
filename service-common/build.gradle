@@ -7,6 +7,7 @@ buildscript {
     ext.kotlin_version = "1.3.41"
     ext.ktor_version = "1.2.3"
     ext.dokka_version = "0.9.18"
+    ext.jasync_version = "1.0.12"
 
     repositories {
         mavenCentral()
@@ -38,7 +39,7 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version '1.10.6'
+version '1.11.0'
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"
@@ -104,6 +105,9 @@ dependencies {
     compile group: 'org.hibernate', name: 'hibernate-core', version: '5.4.1.Final'
     compile group: 'org.hibernate', name: 'hibernate-hikaricp', version: '5.4.1.Final'
     compile 'org.flywaydb:flyway-core:5.2.4'
+
+    compile "com.github.jasync-sql:jasync-common:$jasync_version"
+    compile "com.github.jasync-sql:jasync-postgresql:$jasync_version"
 
     compile 'eu.infomas:annotation-detector:3.0.5'
 

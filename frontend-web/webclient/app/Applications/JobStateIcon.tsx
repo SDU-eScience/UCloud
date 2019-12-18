@@ -5,13 +5,25 @@ import Icon, {IconName} from "ui-components/Icon";
 import {colors, ThemeColor} from "ui-components/theme";
 
 export const JobStateIcon: React.FunctionComponent<{
-    state: JobState,
-    size?: number | string,
-    color?: ThemeColor
-} & SpaceProps> = (props) => {
+    state: JobState;
+    isExpired: boolean;
+    size?: number | string;
+    color?: ThemeColor;
+} & SpaceProps> = props => {
     let iconName: IconName;
     // let defaultColor: ThemeColor = "iconColor";
     let defaultColor;
+
+    if (props.isExpired) {
+        return (
+            <Icon
+                name="chrono"
+                color="yellow"
+                size={props.size}
+                {...props}
+            />
+        );
+    }
 
     switch (props.state) {
         case JobState.VALIDATED:

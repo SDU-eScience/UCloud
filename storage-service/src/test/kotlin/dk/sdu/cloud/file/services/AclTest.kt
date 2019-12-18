@@ -26,8 +26,11 @@ class AclTest {
         micro.install(HibernateFeature)
         aclService = AclService(micro.hibernateDatabase, AclHibernateDao(), MockedHomeFolderService, { it.normalize() })
 
-        micro.hibernateDatabase.withTransaction {
-            it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;").executeUpdate()
+        runBlocking {
+            micro.hibernateDatabase.withTransaction {
+                it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;")
+                    .executeUpdate()
+            }
         }
     }
 

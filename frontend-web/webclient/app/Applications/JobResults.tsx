@@ -186,7 +186,10 @@ function JobResults(props: AnalysesProps & {history: History}) {
             </Box>
             <Box
                 cursor="pointer"
-                onClick={fetchJobsInRange(new Date(startOfYesterday), new Date(startOfYesterday.getTime() + dayInMillis))}
+                onClick={fetchJobsInRange(
+                    new Date(startOfYesterday),
+                    new Date(startOfYesterday.getTime() + dayInMillis)
+                )}
             >
                 <TextSpan>Yesterday</TextSpan>
             </Box>
@@ -342,14 +345,16 @@ interface RowProps {
 }
 const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) => {
     const metadata = analysis.metadata;
-
+    const isExpired = analysis.status === "Job did not complete within deadline.";
     return (
-        <TableRow cursor={"pointer"}>
+        <TableRow cursor="pointer">
             <TableCell textAlign="center">
                 {children}
             </TableCell>
             <TableCell onClick={to}>{analysis.name ? analysis.name : shortUUID(analysis.jobId)}</TableCell>
-            <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
+            <TableCell onClick={to}>
+                <JobStateIcon state={analysis.state} isExpired={isExpired} mr={"8px"} />
+                {isExpired ? "Expired" : capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
             {hide ? null : (

@@ -1,0 +1,7 @@
+---
+name: downtime-management
+
+namespaces:
+- downtime.management
+
+dependencies: []

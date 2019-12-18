@@ -165,12 +165,6 @@ class AclService<Session>(
         }
     }
 
-    fun dumpAllForDebugging(): Map<String, List<UserWithPermissions>> {
-        db.withTransaction {
-            return dao.dumpAllForDebugging(it)
-        }
-    }
-
     companion object : Loggable {
         override val log = logger()
     }

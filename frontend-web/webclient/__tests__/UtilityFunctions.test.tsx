@@ -127,7 +127,7 @@ const mockAcls: Acl[] = [
         ],
         group: false
     }
-]
+];
 
 test("Get multiple owners from Acls", () =>
     expect(UF.getMembersString(mockAcls)).toBe("2 members")

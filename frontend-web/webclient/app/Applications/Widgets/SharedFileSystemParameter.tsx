@@ -92,7 +92,7 @@ export const SharedFileSystemParameter: React.FunctionComponent<SharedFileSystem
                                 if (command !== undefined && !isCommandLoading) {
                                     const resp = await invokeCommand<{id: string}>(command);
                                     if (resp !== null) {
-                                        setSelectedMount(fakeMount(resp.id, command.parameters["title"], mountLocation));
+                                        setSelectedMount(fakeMount(resp.id, command.parameters.title, mountLocation));
                                     }
                                     setListParams(listFileSystems({}));
                                 }

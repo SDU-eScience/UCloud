@@ -1,4 +1,4 @@
-import * as React from "react"
+import * as React from "react";
 import {generateId as uniqueId} from "UtilityFunctions";
 
 export default class Sunglasses extends React.Component {

@@ -9,6 +9,8 @@ import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlin.system.exitProcess
 
@@ -24,35 +26,37 @@ class ShareSynchronization<DBSession>(
 ) {
     suspend fun synchronize() {
         db.withTransaction { session ->
-            shareDao.listAll(session).forEach { share ->
-                log.info("Synchronizing share: $share")
-                var retries = 0
-                while (retries < maxRetries) {
-                    val result = FileDescriptions.updateAcl.call(
-                        UpdateAclRequest(
-                            share.path,
-                            listOf(ACLEntryRequest(share.sharedWith, share.rights)),
-                            automaticRollback = false
-                        ),
-                        userClientFactory(share.ownerToken)
-                    )
+            coroutineScope {
+                shareDao.listAll(this@coroutineScope, session).consumeEach { share ->
+                    log.info("Synchronizing share: $share")
+                    var retries = 0
+                    while (retries < maxRetries) {
+                        val result = FileDescriptions.updateAcl.call(
+                            UpdateAclRequest(
+                                share.path,
+                                listOf(ACLEntryRequest(share.sharedWith, share.rights)),
+                                automaticRollback = false
+                            ),
+                            userClientFactory(share.ownerToken)
+                        )
 
-                    if (result is IngoingCallResponse.Ok) {
-                        break
-                    } else {
-                        delay(1000)
+                        if (result is IngoingCallResponse.Ok) {
+                            break
+                        } else {
+                            delay(1000)
+                        }
+
+                        retries++
                     }
 
-                    retries++
-                }
-
-                if (retries >= maxRetries) {
-                    log.warn("Was unable to synchronize share: $share")
+                    if (retries >= maxRetries) {
+                        log.warn("Was unable to synchronize share: $share")
+                    }
                 }
             }
+            log.info("Synchronization complete!")
+            exitProcess(0)
         }
-        log.info("Synchronization complete!")
-        exitProcess(0)
     }
 
     companion object : Loggable {
