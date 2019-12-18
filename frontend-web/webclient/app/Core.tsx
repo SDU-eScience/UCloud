@@ -1,5 +1,8 @@
 import * as Accounting from "Accounting";
 import Activity from "Activity/Page";
+import {DetailedDowntime} from "Admin/Downtime/DetailedDowntime";
+import DowntimeManagement from "Admin/DowntimeManagement";
+import AdminOverview from "Admin/Overview";
 import UserCreation from "Admin/UserCreation";
 import {dispatchUserAction, onLogin} from "App";
 import ApplicationsBrowse from "Applications/Browse";
@@ -94,7 +97,11 @@ const Core = () => {
 
                     <Route exact path="/shares" component={requireAuth(Share.List)} />
 
-                    <Route exact path="/admin/usercreation" component={requireAuth(UserCreation)} />
+                    <Route exact path="/admin" component={requireAuth(AdminOverview)} />
+                    <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)} />
+                    <Route exact path="/admin/downtime" component={requireAuth(DowntimeManagement)} />
+
+                    <Route exact path="/downtime/detailed/:id" component={requireAuth(DetailedDowntime)} />
 
                     <Route exact path="/users/settings" component={requireAuth(UserSettings)} />
                     <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)} />
@@ -112,7 +119,7 @@ const Core = () => {
     );
 };
 
-function requireAuth<T>(Delegate: React.FunctionComponent<T>) {
+function requireAuth<T>(Delegate: React.FunctionComponent<T>): React.FunctionComponent<T> {
     return (props: T & RouteComponentProps) => {
         if (!Client.isLoggedIn) {
             props.history.push("/login");

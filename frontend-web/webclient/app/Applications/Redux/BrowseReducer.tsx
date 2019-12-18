@@ -1,9 +1,9 @@
 import {Reducer as ReduxReducer} from "redux";
-import {Type as ActionType, Tag} from "./BrowseActions";
-import {Type as ReduxType, init} from "./BrowseObject";
+import {Tag, Type as ActionType} from "./BrowseActions";
+import {init, Type as ReduxType} from "./BrowseObject";
 
 export interface Reducer {
-    applicationsBrowse: ReduxReducer<ReduxType>
+    applicationsBrowse: ReduxReducer<ReduxType>;
 }
 
 const reducer = (state: ReduxType = init().applicationsBrowse, action: ActionType): ReduxType => {
@@ -16,9 +16,9 @@ const reducer = (state: ReduxType = init().applicationsBrowse, action: ActionTyp
         case Tag.RECEIVE_APP: {
             return {...state, applicationsPage: {...action.payload, loading: false}};
         }
-        default: {
+        case Tag.RECEIVE_APPS_BY_KEY_ERROR:
+        default:
             return state;
-        }
     }
 };
 

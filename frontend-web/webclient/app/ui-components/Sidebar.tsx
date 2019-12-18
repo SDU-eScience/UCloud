@@ -191,7 +191,7 @@ export const sideBarMenuElements: {
         ], predicate: () => Client.isLoggedIn
     },
     auditing: {items: [{icon: "activity", label: "Activity", to: "/activity/"}], predicate: () => Client.isLoggedIn},
-    admin: {items: [{icon: "admin", label: "Admin", to: "/admin/userCreation/"}], predicate: () => Client.userIsAdmin}
+    admin: {items: [{icon: "admin", label: "Admin", to: "/admin"}], predicate: () => Client.userIsAdmin}
 };
 
 interface SidebarStateProps {

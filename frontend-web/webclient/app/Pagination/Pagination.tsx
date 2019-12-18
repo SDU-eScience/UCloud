@@ -138,7 +138,7 @@ export const EntriesPerPageSelector = ({
             minWidth="80px"
             width="80px"
             chevron
-            trigger={<TextSpan> {`${content} ${entriesPerPage}`}</TextSpan>}
+            trigger={<TextSpan> {`${content ?? "Entries per page"} ${entriesPerPage}`}</TextSpan>}
         >
             {EntriesPerPageSelectorOptions.map((opt, i) => (
                 <Text
