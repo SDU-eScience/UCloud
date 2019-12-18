@@ -44,7 +44,7 @@
     "@types/enzyme": "^3.10.4",
     "@types/enzyme-adapter-react-16": "^1.0.5",
     "@types/history": "^4.7.3",
-    "@types/jest": "24.0.23",
+    "@types/jest": "24.0.24",
     "@types/json-schema": "^7.0.3",
     "@types/jsonwebtoken": "^8.3.5",
     "@types/rc-slider": "^8.6.5",
