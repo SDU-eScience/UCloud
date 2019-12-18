@@ -28,7 +28,7 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
-import {cancelJob, cancelJobDialog, inCancelableState} from "Utilities/ApplicationUtilities";
+import {cancelJob, cancelJobDialog, inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
 import {Arrow, MasterCheckbox} from "UtilityComponents";
 import {prettierString} from "UtilityFunctions";
 import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions";
@@ -345,7 +345,7 @@ interface RowProps {
 }
 const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) => {
     const metadata = analysis.metadata;
-    const isExpired = analysis.status === "Job did not complete within deadline.";
+    const isExpired = isRunExpired(analysis);
     return (
         <TableRow cursor="pointer">
             <TableCell textAlign="center">

@@ -40,6 +40,8 @@ import {
     receiveFavorites,
     setAllLoading
 } from "./Redux/DashboardActions";
+import {JobStateIcon} from "Applications/JobStateIcon";
+import {isRunExpired} from "Utilities/ApplicationUtilities";
 
 const DashboardCard: React.FunctionComponent<{title: string, isLoading: boolean}> = ({title, isLoading, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
@@ -252,11 +254,12 @@ const DashboardAnalyses = ({
             <List>
                 {analyses.map((analysis: JobWithStatus, index: number) => (
                     <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
-                        <Icon
-                            name={statusToIconName(analysis.state)}
-                            color={statusToColor(analysis.state)}
+                        <JobStateIcon
                             size="1.2em"
                             pr="0.3em"
+                            state={analysis.state}
+                            isExpired={isRunExpired(analysis)}
+                            mr={"8px"}
                         />
                         <Link to={`/applications/results/${analysis.jobId}`}>
                             <EllipsedText width={130} fontSize={2}>
