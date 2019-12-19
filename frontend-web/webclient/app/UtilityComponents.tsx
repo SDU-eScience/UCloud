@@ -100,7 +100,7 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
     const [access, setAccess] = React.useState<"read" | "read_edit">("read");
     const [linkAccess, setLinkAccess] = React.useState<"read" | "read_edit">("read");
     const [loading, setLoading] = React.useState(false);
-    const [sharableLink, setSharableLink] = React.useState("");
+    const [shareableLink, setShareableLink] = React.useState("");
 
     return (
         <SharePromptWrapper>
@@ -136,15 +136,15 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
                     <>
                         <Divider />
                         <Flex>
-                            <Heading.h3 mb="4px">Sharable links</Heading.h3>
-                            {!sharableLink ? null : (
+                            <Heading.h3 mb="4px">Shareable links</Heading.h3>
+                            {!shareableLink ? null : (
                                 <Text
                                     fontSize="14px"
                                     bold
                                     ml="8px"
                                     mt="9px"
                                     cursor="pointer"
-                                    onClick={() => setSharableLink("")}
+                                    onClick={() => setShareableLink("")}
                                     color="red"
                                 >
                                     Remove
@@ -152,13 +152,11 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
                             )}
                         </Flex>
                         <Flex mb="10px">
-                            {!sharableLink ? (
+                            {!shareableLink ? (
                                 <>
                                     <Box mr="auto" />
-                                    <Button
-                                        onClick={() => setSharableLink("https://example.com")}
-                                    >
-                                        Generate Sharable Link
+                                    <Button onClick={() => setShareableLink("https://example.com")}>
+                                        Generate Shareable Link
                                     </Button>
                                     <Box ml="12px" mt="6px">
                                         <ClickableDropdown
@@ -172,11 +170,11 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
                                 </>
                             ) : (
                                     <>
-                                        <Input readOnly value={sharableLink} rightLabel />
+                                        <Input readOnly value={shareableLink} rightLabel />
                                         <InputLabel
                                             rightLabel
                                             onClick={() => copyToClipboard({
-                                                value: sharableLink,
+                                                value: shareableLink,
                                                 message: "Link copied to clipboard"
                                             })}
                                             backgroundColor="blue"
