@@ -1,20 +1,18 @@
 #Elasticsearch
-To help make metadata searchable and to keep our logging information we use [Elasticsearch](https://www.elastic.co/products/elasticsearch).
+To help make our metadata on files and applications searchable and to keep our logging information we use [Elasticsearch](https://www.elastic.co/products/elasticsearch).
 This is done by having two separate Elasticsearch clusters: One for logs and another for metadata.
 
 ##Shared Configuration and General Setup
-Both clusters consists of 3+ data nodes of 5 TB storage each, 3 master nodes and 2+ client nodes.
+Both clusters consists of 3+ data nodes, 3 master nodes and 2+ client nodes.
 
 Elasticsearch tries to distributes data evenly between its data nodes, however it supports that if a node crosses 
 certain thresholds called [watermarks](https://www.elastic.co/guide/en/elasticsearch/reference/current/disk-allocator.html) 
 it will take action to try to redistribute, if available, or to stop nodes from creating more shards or even make 
-them read only until the problem has been resolved. These limitation are shared by both clusters and are as following:
-- Low: 50GB storage remaining on node.  
-  Result: No more shards for replicas can be allocated to this node.
-- High: 25GB storage remaining on node.  
-  Result: Start to automatically relocate shards away from node to generate more space.
-- Flood stage: 10GB storage remaining on node.  
-  Result: Each index that has shards on this node will now be put into read_only_allow_delete mode. This mode can only 
+them read only until the problem has been resolved. These limitation are divided into 3 different levels and are shared 
+by both clusters:
+- Low: No more shards for replicas can be allocated to this node.
+- High: Start to automatically relocate shards away from node to generate more space.
+- Flood stage: Each index that has shards on this node will now be put into read_only_allow_delete mode. This mode can only 
   be removed manually by the cluster admin after fixing the storage problem.
 
 ##Metadata Searching
@@ -26,7 +24,7 @@ in our metadata Elasticsearch cluster. The files index consists of 5 primary sha
 possible to handle large amount of updates and searches. Should there be any need for it, an additional files index can
 be created and work alongside the original files index without any notable efficiency decrease.  
 Since the correctness of this index is of high importance and that there is a risk of storage events being lost in 
-transit we also do security scans of the system to ensure that the storage system and the metadata is in sync.
+transit we also do scans of the system to ensure that the storage system and the metadata is in sync.
 ###Applications
 When a applications is created name, version, title and tags are also created in the application index of our metadata 
 Elasticsearch cluster. This information is used to enable advanced search of applications in an efficient manner. 

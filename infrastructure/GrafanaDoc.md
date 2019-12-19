@@ -9,15 +9,15 @@ To be able to create dashboards, Grafana needs to have access to different datas
   Keeps logs from the system and also the audit trail of the users allowing us to generate metrics on request time, 
   request types, number of 4XX requests, user activity etc.
 - Prometheus  
-  Prometheus has a node exporter installed on all the nodes in the Kubernetes cluster. These exporters ships metrics 
-  from these nodes. These are used for showing RAM, Disk and CPU usage of individual pods along side the Kubernetes 
-  plugin.
+  [Prometheus](https://prometheus.io/) has a node exporter installed on all the nodes in the Kubernetes cluster. 
+  These exporters ships metrics from these nodes. These are used for showing RAM, Disk and CPU usage of individual 
+  pods along side the Kubernetes plugin.
 - Kubernetes Plugin  
-  Gathers information of the Kubernetes cluster available through [kubectl](https://kubernetes.io/docs/reference/kubectl/overview/).
+  Gathers information of the Kubernetes cluster available through [kubectl](https://kubernetes.io/docs/reference/kubectl/overview/) 
+  along side Prometheus.
 - Postgres  
   Grants access to our database and gives us the possibility to query it for things like: number of applications,
   number of users etc..
-
 
 ##Dashboards
 We have 9 dashboards that can be divided into the following categories: 
