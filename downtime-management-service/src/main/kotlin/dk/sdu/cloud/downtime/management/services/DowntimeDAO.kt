@@ -14,8 +14,10 @@ import javax.persistence.*
 @Table(name = "downtimes")
 data class DowntimeEntity(
     @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "start_time")
     var start: Date,
     @Temporal(TemporalType.TIMESTAMP)
+    @Column(name = "end_time")
     var end: Date,
 
     @Column(columnDefinition = "TEXT")
