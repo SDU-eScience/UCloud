@@ -59,7 +59,7 @@
 * [Monitoring](infrastructure/wiki/monitoring.md)
 
 * [Procedures and rules](infrastructure/wiki/README.md)
-    * [Continous integration/Delivery](infrastructure/wiki/JenkinsDoc.md)
+    * [Continous integration/Delivery](infrastructure/wiki/Jenkins.md)
 
 
 
