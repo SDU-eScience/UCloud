@@ -91,7 +91,7 @@ cycle. The project leader is ensures that the tests covers relevant
 scenarios.
 
 Automatic testing is performed by our Continuous Integration (CI) system, 
-[Jenkins](Jenkins.md). The Project Leader grants access to the CI system.
+[Jenkins](Jenkins.md). The director grants access to the CI system.
 
 ### Code Review (sect. 12.1.2)
 
@@ -175,35 +175,48 @@ security department at SDU.
 
 ## Infrastructure
 
-### Development (sect. 12.1.2)
+Our infrastructure is managed using Ansible, which is a tool for automatising
+the deployment and configuration of machines and software. Every task, such as
+software installation and system configuration, is defined in a declarative
+language that describes a given state for the machine. Once a state is defined,
+it can be applied to a machine using Ansible, which is an idempotent operation.
+Because each operation is idempotent, whenever we make a change to a given
+state, we can simply apply everything again. This is the core feature of
+Ansible.
 
-Members from the development team generally does not have root access to any
-system (dev/prod).
+In the language of Ansible a state is called a *role* and they can be called
+from *playbooks*. A playbook can call multiple roles and/or perform individual
+tasks. Using Ansible, the content of the playbooks are then executed on the
+remote machines, which applies the specified configuration.
 
-Root access is generally not needed since most configuration and deployment is
-automated.
+Whenever a machine needs to be reinstalled or reconfigured, we simply run a
+series of playbooks on that machine. The playbooks can also be used for
+gathering information about the current state of the machine. For example, we
+have a dedicated playbook that returns an inventory of all hardware and
+software on the machines.
 
-### Deployment
+## Upgrade procedure
 
-Deployment and configuration is performed via an automated configuration
-manager (ACM) tool  (e.g. Ansible).
+Because all our services are running with redundancy, whenever a machine needs
+to be updated, we can simply take it out of production and perform the
+necessary updates. Once an update is complete we ensure that everything is
+working as expected. Assuming everything looks correct, we then add the machine
+back into the production system. When multiple machines, that are running the
+same service, need to be updated, this prodecure is performed one machine at at
+time, such that no downtime is necessary.
 
-ACM scripts are maintained by the project Teams and reviewed by the Project
-Leader.
+Should it happen that an update either fails or in other ways causes problems,
+then we have the possibility of rolling the system back to its previous state.
+This is possible because our Ansible configuration files are under version
+control and because we keep all previous package versions in our local
+repository.
 
-The ISMS admin is consulted by the Project Leader in relation to security and
-access policies. The Project Leader is responsible for upgrading the
-subcomponents like web servers and other dependencies.
+For major upgrades we always test the new configuration and program packages on
+spare machines to minimise the risk of an update causing serious problems on
+the production system.
 
-### Operations
-
-According to the ACM configuration scripts  the software is deployed on a
-number of nodes. 
-
-Deployments are initiated by Project Leaders and coordinated with the Teams.
-
-When a deployment requires downtime the users must be kept informed by the
-support Team.
+In the unfortunate case where an update actually disrupts the production
+system, the incident is reported to the ISMS administrator.
 
 ### Inventory
 
@@ -245,4 +258,13 @@ https://kubernetes-security.info
 
 > infrastructure level secrets (password management, key management for e.g.
 > CEPH and SSH, or encryption) are stored within GitHub which have to changed.
+
+### Development (sect. 12.1.2)
+
+Members from the development team generally does not have root access to any
+system (dev/prod).
+
+Root access is generally not needed since most configuration and deployment is
+automated.
+
 
