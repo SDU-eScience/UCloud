@@ -52,7 +52,7 @@ const FilePreview = (props: FilePreviewProps) => {
                 snackbarStore.addFailure("Directories cannot be previewed.");
                 setError("Preview for folders not supported");
                 setDownloadButton(true);
-            } else if (stat.size! > 25_000_000) {
+            } else if (stat.size! > 5_000_000) {
                 snackbarStore.addFailure("File size too large. Download instead.");
                 setError("File size too large to preview.");
                 setDownloadButton(true);
@@ -201,6 +201,7 @@ const mapDispatchToProps = (dispatch: Dispatch): FilePreviewOperations => ({
 const Code = styled.code`
     max-height: 90vh;
     maxWidth: 90vw;
+    overflow-y: scroll;
     white-space: pre-wrap;
 `;
 

@@ -8,7 +8,7 @@ export const analyses: Page<JobWithStatus> = {
     items: [{
         name: "Thomas",
         jobId: "bbcf5395-e78e-4fa7-a4e1-989fe5ce21ee",
-        owner: "jonas@hinchely.dk",
+        owner: "j@h.com",
         state: JobState.FAILURE,
         status: "Internal error",
         createdAt: 1535464968479,
@@ -28,7 +28,7 @@ export const analyses: Page<JobWithStatus> = {
     }, {
         name: "Johnny",
         jobId: "15274bec-ef72-4ed2-97ff-2be1829a2db1",
-        owner: "jonas@hinchely.dk",
+        owner: "j@h.com",
         failedState: null,
         expiresAt: null,
         maxTime: null,
@@ -48,7 +48,7 @@ export const analyses: Page<JobWithStatus> = {
     }, {
         name: "Fred",
         jobId: "3544b177-e9a7-4323-bcde-c4d6e442dc36",
-        owner: "jonas@hinchely.dk",
+        owner: "j@h.com",
         state: JobState.FAILURE,
         failedState: null,
         expiresAt: null,
@@ -68,7 +68,7 @@ export const analyses: Page<JobWithStatus> = {
     }, {
         name: "Nathan",
         jobId: "e28defb0-d66c-4461-91f6-b09afd85480c",
-        owner: "jonas@hinchely.dk",
+        owner: "j@h.com",
         state: JobState.SUCCESS,
         status: "OK",
         failedState: null,
