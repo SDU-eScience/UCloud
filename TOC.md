@@ -50,13 +50,13 @@
 
 ## ISO-27001
 
-* [ISMS Introduction](infrastructure/wiki/procedures/isms_introduction.md)
+* [ISMS Introduction](infrastructure/wiki/isms_introduction.md)
 
-* [ISMS Committee](infrastructure/wiki/procedures/isms_committee_structure.md)
+* [ISMS Committee](infrastructure/wiki/isms_committee_structure.md)
 
-* [Acceptable usage](infrastructure/wiki/procedures/acceptableusage.md)
+* [Acceptable usage](infrastructure/wiki/acceptableusage.md)
 
-* [Monitoring](infrastructure/wiki/procedures/monitoring.md)
+* [Monitoring](infrastructure/wiki/monitoring.md)
 
 * [Procedures and rules](infrastructure/wiki/README.md)
     * [Continous integration/Delivery](infrastructure/wiki/JenkinsDoc.md)
