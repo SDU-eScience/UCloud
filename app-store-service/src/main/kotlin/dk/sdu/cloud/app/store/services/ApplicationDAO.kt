@@ -35,6 +35,7 @@ interface ApplicationDAO<Session> {
 
     fun multiKeywordsearch(
         session: Session,
+        user: SecurityPrincipal,
         keywords: List<String>,
         paging: NormalizedPaginationRequest
     ): List<ApplicationEntity>

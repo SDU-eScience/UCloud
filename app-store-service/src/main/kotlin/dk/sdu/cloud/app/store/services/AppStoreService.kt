@@ -349,7 +349,7 @@ class AppStoreService<DBSession>(
             }
 
             val applications = db.withTransaction { session ->
-                applicationDAO.multiKeywordsearch(session, titles.toList(), paging)
+                applicationDAO.multiKeywordsearch(session, user, titles.toList(), paging)
             }
 
             return sortAndCreatePageByScore(applications, results, user, paging)
