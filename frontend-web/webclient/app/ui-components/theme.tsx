@@ -143,8 +143,8 @@ const lightRed = "#fcc";
 const red = "#c00"; // secondary
 const darkRed = "#800";
 //// Orange
-const orange = "#fa0"; // secondary
-const darkOrange = "#a50";
+const orange = "#ff6400"; // secondary
+const darkOrange = "#ff5722";
 //// Purple
 const lightPurple = "#ecf";
 const purple = "#70b"; // secondary
