@@ -73,7 +73,7 @@ class ToolHibernateDaoTest {
     )
 
     @Test
-    fun `find all by name test - no results`() {
+    suspend fun `find all by name test - no results`() {
         withDatabase { db ->
             val tool = ToolHibernateDAO()
             val results =

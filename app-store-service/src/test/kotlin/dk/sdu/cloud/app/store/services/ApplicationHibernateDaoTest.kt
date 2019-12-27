@@ -33,7 +33,7 @@ class ApplicationHibernateDaoTest {
     private val user = TestUsers.user
 
     @Test
-    fun `create, find, update test`() {
+    suspend fun `create, find, update test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -82,7 +82,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `test find by name and version user`() {
+    suspend fun `test find by name and version user`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -114,7 +114,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test(expected = ApplicationException.NotFound::class)
-    fun `test find by name and version user - notfound`() {
+    suspend fun `test find by name and version user - notfound`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -132,7 +132,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `test creating different versions`() {
+    suspend fun `test creating different versions`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -158,7 +158,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `search test`() {
+    suspend fun `search test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -271,7 +271,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test(expected = ApplicationException.AlreadyExists::class)
-    fun `Create - already exists - test`() {
+    suspend fun `Create - already exists - test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -290,7 +290,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test(expected = ApplicationException.NotAllowed::class)
-    fun `Create - Not Allowed - test`() {
+    suspend fun `Create - Not Allowed - test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -309,7 +309,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test(expected = ApplicationException.BadToolReference::class)
-    fun `Create - bad tool - test`() {
+    suspend fun `Create - bad tool - test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -322,7 +322,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test(expected = ApplicationException.NotFound::class)
-    fun `Find by name - not found - test`() {
+    suspend fun `Find by name - not found - test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -336,7 +336,7 @@ class ApplicationHibernateDaoTest {
 
     //@Ignore // Code only works in postgres
     @Test
-    fun `tagSearch test`() {
+    suspend fun `tagSearch test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -395,7 +395,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `Favorite test`() {
+    suspend fun `Favorite test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -441,7 +441,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test(expected = ApplicationException.BadApplication::class)
-    fun `Favorite test - Not an app`() {
+    suspend fun `Favorite test - Not an app`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -459,7 +459,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `create and delete tags`() {
+    suspend fun `create and delete tags`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -515,7 +515,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test(expected = RPCException::class)
-    fun `create tag for invalid app`() {
+    suspend fun `create tag for invalid app`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -529,7 +529,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test(expected = RPCException::class)
-    fun `delete tag for invalid app`() {
+    suspend fun `delete tag for invalid app`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -542,7 +542,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `find latest by tool`() {
+    suspend fun `find latest by tool`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -588,7 +588,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `Find by supported file ext test CC only`() {
+    suspend fun `Find by supported file ext test CC only`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -622,7 +622,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `Prepare page for user - no user test`() {
+    suspend fun `Prepare page for user - no user test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -655,7 +655,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `Create and Delete Logo test`() {
+    suspend fun `Create and Delete Logo test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -703,7 +703,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `Create Logo - forbidden`() {
+    suspend fun `Create Logo - forbidden`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -738,7 +738,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `Delete Logo - forbidden`() {
+    suspend fun `Delete Logo - forbidden`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -773,7 +773,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `Create Logo - NotFound`() {
+    suspend fun `Create Logo - NotFound`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -796,7 +796,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `Delete Logo - NotFound`() {
+    suspend fun `Delete Logo - NotFound`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -819,7 +819,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `Find all by ID test`() {
+    suspend fun `Find all by ID test`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -878,7 +878,7 @@ class ApplicationHibernateDaoTest {
     }
 
     @Test
-    fun `find all by IDs - no ids given`() {
+    suspend fun `find all by IDs - no ids given`() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val db = micro.hibernateDatabase
@@ -915,6 +915,4 @@ class ApplicationHibernateDaoTest {
             assertTrue(results.isEmpty())
         }
     }
-
-
 }

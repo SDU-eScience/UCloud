@@ -25,7 +25,7 @@ class AppStoreService<DBSession>(
     private val aclDao: AclDao<DBSession>,
     private val elasticDAO: ElasticDAO
 ) {
-    fun toggleFavorite(securityPrincipal: SecurityPrincipal, name: String, version: String) {
+    suspend fun toggleFavorite(securityPrincipal: SecurityPrincipal, name: String, version: String) {
         db.withTransaction { session ->
             applicationDAO.toggleFavorite(
                 session,
@@ -36,7 +36,7 @@ class AppStoreService<DBSession>(
         }
     }
 
-    fun retrieveFavorites(
+    suspend fun retrieveFavorites(
         securityPrincipal: SecurityPrincipal,
         request: PaginationRequest
     ): Page<ApplicationSummaryWithFavorite> = db.withTransaction { session ->
@@ -47,7 +47,7 @@ class AppStoreService<DBSession>(
         )
     }
 
-    fun searchTags(
+    suspend fun searchTags(
         securityPrincipal: SecurityPrincipal,
         tags: List<String>,
         normalizedPaginationRequest: NormalizedPaginationRequest
@@ -61,7 +61,7 @@ class AppStoreService<DBSession>(
             )
         }
 
-    fun searchApps(
+    suspend fun searchApps(
         securityPrincipal: SecurityPrincipal,
         query: String,
         normalizedPaginationRequest: NormalizedPaginationRequest
@@ -75,7 +75,7 @@ class AppStoreService<DBSession>(
             )
         }
 
-    fun findByNameAndVersion(
+    suspend fun findByNameAndVersion(
         securityPrincipal: SecurityPrincipal,
         name: String,
         version: String
@@ -103,7 +103,7 @@ class AppStoreService<DBSession>(
         }
     }
 
-    fun hasPermission(
+    suspend fun hasPermission(
         securityPrincipal: SecurityPrincipal,
         name: String,
         version: String,
@@ -120,7 +120,7 @@ class AppStoreService<DBSession>(
         }
     }
 
-    fun listAcl(
+    suspend fun listAcl(
         securityPrincipal: SecurityPrincipal,
         applicationName: String
     ): List<EntityWithPermission> {
@@ -136,7 +136,7 @@ class AppStoreService<DBSession>(
         }
     }
 
-    fun updatePermissions(
+    suspend fun updatePermissions(
         securityPrincipal: SecurityPrincipal,
         applicationName: String,
         changes: List<ACLEntryRequest>
@@ -173,7 +173,7 @@ class AppStoreService<DBSession>(
         aclDao.revokePermission(session, entity, applicationName)
     }
 
-    fun findBySupportedFileExtension(
+    suspend fun findBySupportedFileExtension(
         securityPrincipal: SecurityPrincipal,
         files: List<String>
     ): List<ApplicationWithExtension> {
@@ -194,7 +194,7 @@ class AppStoreService<DBSession>(
         }
     }
 
-    fun findByName(
+    suspend fun findByName(
         securityPrincipal: SecurityPrincipal,
         name: String,
         normalizedPaginationRequest: NormalizedPaginationRequest
@@ -208,7 +208,7 @@ class AppStoreService<DBSession>(
             )
         }
 
-    fun isPublic(
+    suspend fun isPublic(
         securityPrincipal: SecurityPrincipal,
         name: String,
         version: String
@@ -222,7 +222,7 @@ class AppStoreService<DBSession>(
             )
         }
 
-    fun setPublic(
+    suspend fun setPublic(
         securityPrincipal: SecurityPrincipal,
         name: String,
         version: String,
@@ -239,7 +239,7 @@ class AppStoreService<DBSession>(
         }
     }
 
-    fun listAll(
+    suspend fun listAll(
         securityPrincipal: SecurityPrincipal,
         normalizedPaginationRequest: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> =
@@ -252,7 +252,7 @@ class AppStoreService<DBSession>(
 
         }
 
-    fun create(securityPrincipal: SecurityPrincipal, application: Application, content: String) {
+    suspend fun create(securityPrincipal: SecurityPrincipal, application: Application, content: String) {
         db.withTransaction { session ->
             applicationDAO.create(session, securityPrincipal, application, content)
         }
@@ -264,7 +264,7 @@ class AppStoreService<DBSession>(
         )
     }
 
-    fun createTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
+    suspend fun createTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
         db.withTransaction { session ->
             applicationDAO.createTags(session, user, applicationName, tags)
         }
@@ -272,14 +272,14 @@ class AppStoreService<DBSession>(
 
     }
 
-    fun deleteTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
+    suspend fun deleteTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
         db.withTransaction { session ->
             applicationDAO.deleteTags(session, user, applicationName, tags)
         }
         elasticDAO.removeTagFromElastic(applicationName, tags)
     }
 
-    fun findLatestByTool(
+    suspend fun findLatestByTool(
         user: SecurityPrincipal,
         tool: String,
         paging: NormalizedPaginationRequest
@@ -289,7 +289,7 @@ class AppStoreService<DBSession>(
         }
     }
 
-    fun advancedSearch(
+    suspend fun advancedSearch(
         user: SecurityPrincipal,
         query: String?,
         tagFilter: List<String>?,
@@ -357,7 +357,7 @@ class AppStoreService<DBSession>(
     }
 
 
-    private fun sortAndCreatePageByScore(
+    private suspend fun sortAndCreatePageByScore(
         applications: List<ApplicationEntity>,
         results: SearchResponse,
         user: SecurityPrincipal,

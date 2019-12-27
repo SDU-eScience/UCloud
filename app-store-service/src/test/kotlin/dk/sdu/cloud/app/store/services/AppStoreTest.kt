@@ -29,7 +29,7 @@ class AppStoreTest{
     //Requires running Elastic with empty application index
     @Ignore
     @Test
-    fun realTestOfCreateAndDeleteTag() {
+    suspend fun realTestOfCreateAndDeleteTag() {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         micro.install(ElasticFeature)
@@ -160,7 +160,7 @@ class AppStoreTest{
     }
 
     @Test
-    fun `toggle favorites and retrieve`() {
+    suspend fun `toggle favorites and retrieve`() {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
         appStoreService.create(TestUsers.admin, normAppDesc, "content")
         appStoreService.toggleFavorite(
@@ -186,7 +186,7 @@ class AppStoreTest{
     }
 
     @Test
-    fun `add remove search tags`() {
+    suspend fun `add remove search tags`() {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
         appStoreService.create(TestUsers.admin, normAppDesc, "content")
         appStoreService.create(TestUsers.admin, normAppDesc2, "content2")
@@ -206,7 +206,7 @@ class AppStoreTest{
     }
 
     @Test
-    fun `Add and search for app`() {
+    suspend fun `Add and search for app`() {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
         appStoreService.create(TestUsers.admin, normAppDesc, "content")
         appStoreService.create(

@@ -43,6 +43,8 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.io.ByteReadChannel
 import org.junit.Test
 import kotlin.test.assertEquals
@@ -70,14 +72,16 @@ class AppTest {
                 val aclDao = AclHibernateDao()
                 val appDao = ApplicationHibernateDAO(toolDao, aclDao)
                 micro.install(HibernateFeature)
-                micro.hibernateDatabase.withTransaction {
-                    toolDao.create(it, user, normToolDesc)
-                    appDao.create(it, user, normAppDesc)
-                    appDao.create(
-                        it,
-                        user,
-                        normAppDesc2.copy(metadata = normAppDesc2.metadata.copy(name = "App4", version = "4.4"))
-                    )
+                GlobalScope.async {
+                    micro.hibernateDatabase.withTransaction {
+                        toolDao.create(it, user, normToolDesc)
+                        appDao.create(it, user, normAppDesc)
+                        appDao.create(
+                            it,
+                            user,
+                            normAppDesc2.copy(metadata = normAppDesc2.metadata.copy(name = "App4", version = "4.4"))
+                        )
+                    }
                 }
                 configureAppServer(appDao, elasticDAO)
             },
@@ -189,21 +193,23 @@ class AppTest {
                 val elasticDAO = mockk<ElasticDAO>()
                 val appDao = ApplicationHibernateDAO(toolDao, aclDao)
                 micro.install(HibernateFeature)
-                micro.hibernateDatabase.withTransaction {
-                    toolDao.create(it, user, normToolDesc)
-                    appDao.create(
-                        it,
-                        user,
-                        normAppDesc.withNameAndVersionAndTitle("name1", "1", "1title")
-                    )
-                    appDao.create(
-                        it,
-                        user,
-                        normAppDesc2.withNameAndVersionAndTitle("name2", "2", "2title")
-                    )
+                GlobalScope.async {
+                    micro.hibernateDatabase.withTransaction {
+                        toolDao.create(it, user, normToolDesc)
+                        appDao.create(
+                            it,
+                            user,
+                            normAppDesc.withNameAndVersionAndTitle("name1", "1", "1title")
+                        )
+                        appDao.create(
+                            it,
+                            user,
+                            normAppDesc2.withNameAndVersionAndTitle("name2", "2", "2title")
+                        )
 
-                    appDao.createTags(it, user, "name1", listOf("tag1", "tag2"))
-                    appDao.createTags(it, user, "name2", listOf("tag2", "tag3"))
+                        appDao.createTags(it, user, "name1", listOf("tag1", "tag2"))
+                        appDao.createTags(it, user, "name2", listOf("tag2", "tag3"))
+                    }
                 }
                 configureAppServer(appDao, elasticDAO)
             },
@@ -273,10 +279,12 @@ class AppTest {
                 val elasticDAO = mockk<ElasticDAO>()
                 val appDao = ApplicationHibernateDAO(toolDao, aclDao)
                 micro.install(HibernateFeature)
-                micro.hibernateDatabase.withTransaction {
-                    toolDao.create(it, TestUsers.user, normToolDesc)
-                    appDao.create(it, TestUsers.user, app)
+                GlobalScope.async {
+                    micro.hibernateDatabase.withTransaction {
+                        toolDao.create(it, TestUsers.user, normToolDesc)
+                        appDao.create(it, TestUsers.user, app)
 
+                    }
                 }
                 configureAppServer(appDao, elasticDAO)
             },
