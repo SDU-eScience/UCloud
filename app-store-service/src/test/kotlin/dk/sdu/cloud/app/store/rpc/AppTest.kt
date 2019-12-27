@@ -43,9 +43,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
-import kotlinx.coroutines.io.ByteReadChannel
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -72,7 +70,7 @@ class AppTest {
                 val aclDao = AclHibernateDao()
                 val appDao = ApplicationHibernateDAO(toolDao, aclDao)
                 micro.install(HibernateFeature)
-                GlobalScope.async {
+                runBlocking {
                     micro.hibernateDatabase.withTransaction {
                         toolDao.create(it, user, normToolDesc)
                         appDao.create(it, user, normAppDesc)
@@ -193,7 +191,7 @@ class AppTest {
                 val elasticDAO = mockk<ElasticDAO>()
                 val appDao = ApplicationHibernateDAO(toolDao, aclDao)
                 micro.install(HibernateFeature)
-                GlobalScope.async {
+                runBlocking {
                     micro.hibernateDatabase.withTransaction {
                         toolDao.create(it, user, normToolDesc)
                         appDao.create(
@@ -279,7 +277,7 @@ class AppTest {
                 val elasticDAO = mockk<ElasticDAO>()
                 val appDao = ApplicationHibernateDAO(toolDao, aclDao)
                 micro.install(HibernateFeature)
-                GlobalScope.async {
+                runBlocking {
                     micro.hibernateDatabase.withTransaction {
                         toolDao.create(it, TestUsers.user, normToolDesc)
                         appDao.create(it, TestUsers.user, app)
