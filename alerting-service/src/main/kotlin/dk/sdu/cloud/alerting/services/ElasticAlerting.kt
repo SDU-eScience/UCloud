@@ -226,6 +226,9 @@ class ElasticAlerting(
             val shardsResponse = lowLevelClient.performRequest(Request("GET", "/_cat/shards?h=i,d"))
             if (shardsResponse.statusLine.statusCode != 200) {
                 log.warn("Status code for shard response was not 200")
+                if (testMode) {
+                    return
+                }
                 delay(ONE_HOUR)
                 continue
             }
@@ -242,6 +245,9 @@ class ElasticAlerting(
                         Alert("Alert: Doc count of index: $index is to high. Reindex or delete entires. " +
                                 "Doc Count: $docCount out of ${Integer.MAX_VALUE} possible")
                     )
+                    if (testMode) {
+                        return
+                    }
                 }
                 else if (docCount > DOC_LOW_LIMIT) {
                     log.warn("docCount of index: $index is above low limit: $docCount")
@@ -250,7 +256,13 @@ class ElasticAlerting(
                                 "Be aware of potential need for reindexing index. " +
                                 "Doc Count: $docCount out of ${Integer.MAX_VALUE} possible")
                     )
+                    if (testMode) {
+                        return
+                    }
                 }
+            }
+            if (testMode) {
+                return
             }
             delay(THIRTY_MIN)
         }

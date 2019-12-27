@@ -40,9 +40,10 @@ class Server(
                 exitProcess(1)
             }
         }
-        /*GlobalScope.launch {
+
+        GlobalScope.launch {
             try {
-                log.info("Alert on clusterheath - starting up")
+                log.info("Alert on clusterhealth - starting up")
                 ElasticAlerting(elasticHighLevelClient, alertService).alertOnClusterHealth()
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
@@ -120,6 +121,6 @@ class Server(
                     Alert("WARNING: Alert on many 4xx through ambassador caught exception: ${ex.stackTraceToString()}.")
                 )
             }
-        }*/
+        }
     }
 }
