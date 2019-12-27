@@ -189,7 +189,7 @@ class ElasticAlerting(
 
             val settingsResponse = lowLevelClient.performRequest(Request("GET", "_cluster/settings?flat_settings=true"))
             if (settingsResponse.statusLine.statusCode != 200) {
-                log.warn("Statuscode for settings response was not 200")
+                log.warn("Status code for settings response was not 200")
                 delay(ONE_HOUR)
                 continue
             }
@@ -218,6 +218,41 @@ class ElasticAlerting(
                 delay(THIRTY_MIN)
             else
                 delay(HALF_DAY)
+        }
+    }
+
+    suspend fun alertOnNumberOfDocs(lowLevelClient: RestClient) {
+        while(true) {
+            val shardsResponse = lowLevelClient.performRequest(Request("GET", "/_cat/shards?h=i,d"))
+            if (shardsResponse.statusLine.statusCode != 200) {
+                log.warn("Status code for shard response was not 200")
+                delay(ONE_HOUR)
+                continue
+            }
+            val entity = EntityUtils.toString(shardsResponse.entity)
+            val lines = entity.split("\n")
+            lines.forEach { line ->
+                if (line.isNullOrBlank()) return@forEach
+                val segments = line.split(" ")
+                val index = segments.first()
+                val docCount = segments.last().toInt()
+                if (docCount > DOC_HIGH_LIMIT) {
+                    log.warn("docCount of index: $index is above High limit: $docCount")
+                    alertService.createAlert(
+                        Alert("Alert: Doc count of index: $index is to high. Reindex or delete entires. " +
+                                "Doc Count: $docCount out of ${Integer.MAX_VALUE} possible")
+                    )
+                }
+                else if (docCount > DOC_LOW_LIMIT) {
+                    log.warn("docCount of index: $index is above low limit: $docCount")
+                    alertService.createAlert(
+                        Alert("Alert: Doc count of index: $index has reached low limit. " +
+                                "Be aware of potential need for reindexing index. " +
+                                "Doc Count: $docCount out of ${Integer.MAX_VALUE} possible")
+                    )
+                }
+            }
+            delay(THIRTY_MIN)
         }
     }
 

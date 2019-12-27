@@ -30,11 +30,25 @@ class Server(
 
         GlobalScope.launch {
             try {
+                log.info("Alert on shard docs - starting up")
+                ElasticAlerting(elasticHighLevelClient, alertService).alertOnNumberOfDocs(elasticLowLevelClient)
+            } catch (ex: Exception) {
+                log.warn(ex.stackTraceToString())
+                alertService.createAlert(
+                    Alert("WARNING: Alert on cluster health caught exception: ${ex.stackTraceToString()}.")
+                )
+                exitProcess(1)
+            }
+        }
+        /*GlobalScope.launch {
+            try {
                 log.info("Alert on clusterheath - starting up")
                 ElasticAlerting(elasticHighLevelClient, alertService).alertOnClusterHealth()
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
-                alertService.createAlert(Alert("WARNING: Alert on cluster health caught exception: ${ex.message}."))
+                alertService.createAlert(
+                    Alert("WARNING: Alert on cluster health caught exception: ${ex.stackTraceToString()}.")
+                )
                 exitProcess(1)
             }
         }
@@ -45,7 +59,9 @@ class Server(
                 NetworkTrafficAlerts(elasticHighLevelClient, alertService).alertOnStatusCode(config)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on StatusCode caught exception: ${ex.message}.")
-                alertService.createAlert(Alert("WARNING: Alert on 500 status' caught exception: ${ex.message}."))
+                alertService.createAlert(
+                    Alert("WARNING: Alert on 500 status' caught exception: ${ex.stackTraceToString()}.")
+                )
                 exitProcess(1)
             }
         }
@@ -60,7 +76,9 @@ class Server(
                 ElasticAlerting(elasticHighLevelClient, alertService).alertOnStorage(elasticLowLevelClient, config)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on elastic storage caught exception: ${ex}.")
-                alertService.createAlert(Alert("WARNING: Alert on cluster storage caught exception: ${ex.message}."))
+                alertService.createAlert(
+                    Alert("WARNING: Alert on cluster storage caught exception: ${ex.stackTraceToString()}.")
+                )
                 elasticLowLevelClient.close()
             }
         }
@@ -71,7 +89,9 @@ class Server(
                 KubernetesAlerting().crashLoopAndFailedDetection(alertService)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on crashLoop caught exception: ${ex}.")
-                alertService.createAlert(Alert("WARNING: Alert on crash loop caught exception: ${ex.message}."))
+                alertService.createAlert(
+                    Alert("WARNING: Alert on crash loop caught exception: ${ex.stackTraceToString()}.")
+                )
                 exitProcess(1)
             }
         }
@@ -82,7 +102,9 @@ class Server(
                 ElasticAlerting(elasticHighLevelClient, alertService).alertOnIndicesCount(elasticLowLevelClient, config)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on elastic indices count caught exception: ${ex}.")
-                alertService.createAlert(Alert("WARNING: Alert on cluster storage caught exception: ${ex.message}."))
+                alertService.createAlert(
+                    Alert("WARNING: Alert on cluster storage caught exception: ${ex.stackTraceToString()}.")
+                )
                 elasticLowLevelClient.close()
             }
         }
@@ -95,9 +117,9 @@ class Server(
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on many 4xx through ambassador caught exception: ${ex}.")
                 alertService.createAlert(
-                    Alert("WARNING: Alert on many 4xx through ambassador caught exception: ${ex.message}.")
+                    Alert("WARNING: Alert on many 4xx through ambassador caught exception: ${ex.stackTraceToString()}.")
                 )
             }
-        }
+        }*/
     }
 }
