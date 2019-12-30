@@ -7,6 +7,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
+import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchResponse
@@ -126,6 +127,17 @@ class ElasticDAO(
 
         elasticClient.index(request, RequestOptions.DEFAULT)
         flushElastic()
+    }
+
+    fun deleteApplicationInElastic(
+        name: String, version: String
+    ) {
+        val results = findApplicationInElasticOrNull(name, version) ?: throw RPCException.fromStatusCode(
+            HttpStatusCode.NotFound
+        )
+        val id = results.hits.hits.first().id
+        val deleteRequest = DeleteRequest(APPLICATION_INDEX, id)
+        elasticClient.delete(deleteRequest, RequestOptions.DEFAULT)
     }
 
     fun updateApplicationDescriptionInElastic(appName: String, appVersion: String, newDescription: String) {

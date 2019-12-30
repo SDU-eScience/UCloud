@@ -264,6 +264,14 @@ class AppStoreService<DBSession>(
         )
     }
 
+    suspend fun delete(securityPrincipal: SecurityPrincipal, name: String, version: String) {
+        db.withTransaction { session ->
+            applicationDAO.delete(session, securityPrincipal, name, version)
+        }
+
+        elasticDAO.deleteApplicationInElastic(name, version)
+    }
+
     suspend fun createTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
         db.withTransaction { session ->
             applicationDAO.createTags(session, user, applicationName, tags)

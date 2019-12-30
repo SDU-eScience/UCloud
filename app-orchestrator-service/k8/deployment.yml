@@ -17,7 +17,14 @@ spec:
     spec:
       containers:
       - name: app-orchestrator
-        image: registry.cloud.sdu.dk/sdu-cloud/app-orchestrator-service:0.8.15
+        image: registry.cloud.sdu.dk/sdu-cloud/app-orchestrator-service:0.8.17
+        livenessProbe:
+          httpGet:
+            port: 8080
+            path: /status
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          failureThreshold: 5
         command:
         - /opt/service/bin/service
         - --config-dir

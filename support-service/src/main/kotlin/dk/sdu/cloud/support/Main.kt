@@ -1,8 +1,10 @@
 package dk.sdu.cloud.support
 
+import dk.sdu.cloud.micro.HealthCheckFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.initWithDefaultFeatures
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.runScriptHandler
 
 import dk.sdu.cloud.support.api.SupportServiceDescription
@@ -22,6 +24,7 @@ data class SlackNotifierConfig(
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(SupportServiceDescription, args)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

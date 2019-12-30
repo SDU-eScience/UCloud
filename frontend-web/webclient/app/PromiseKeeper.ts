@@ -1,3 +1,5 @@
+import {useState, useEffect} from "react";
+
 export default class PromiseKeeper {
     public canceledKeeper: boolean = false;
     private promises: Array<CancelablePromise<any>>;
@@ -35,7 +37,7 @@ export default class PromiseKeeper {
      */
     public cancelPromises = (): void => {
         this.canceledKeeper = true;
-        this.promises.forEach((it) => it.cancel());
+        this.promises.forEach(it => it.cancel());
         this.promises = [];
     }
 
@@ -49,4 +51,12 @@ interface CancelablePromise<T> {
     promise: Promise<T>;
     cancel: VoidFunction;
     hasCanceled_: boolean;
+}
+
+export function usePromiseKeeper() {
+    const [promises] = useState(new PromiseKeeper());
+    useEffect(() => {
+        return () => promises.cancelPromises();
+    });
+    return promises;
 }

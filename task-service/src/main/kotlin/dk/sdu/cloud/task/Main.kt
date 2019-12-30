@@ -9,6 +9,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(TaskServiceDescription, args)
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

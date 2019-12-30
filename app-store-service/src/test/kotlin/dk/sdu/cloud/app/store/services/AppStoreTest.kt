@@ -253,6 +253,32 @@ class AppStoreTest{
             assertEquals(2, allApps.itemsInTotal)
         }
     }
+
+    @Test (expected = ApplicationException.NotFound::class)
+    fun `test delete - not found`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        runBlocking {
+            appStoreService.delete(TestUsers.admin, "name", "2.2")
+        }
+    }
+
+    @Test
+    fun `test delete`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        runBlocking {
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.delete(TestUsers.admin, "name", "2.2")
+        }
+    }
+
+    @Test (expected = ApplicationException.NotAllowed::class)
+    fun `test delete - not same user`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        runBlocking {
+            appStoreService.create(TestUsers.user, normAppDesc, "content")
+            appStoreService.delete(TestUsers.user2, "name", "2.2")
+        }
+    }
 /*
     @Test
     fun `advanced search CC Test - no description`() {

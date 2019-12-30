@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.15.1'
+version '1.15.4'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"
@@ -11,13 +11,11 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.10.2"
+    ext.serviceCommonVersion = "1.10.4"
     ext.fileApiVersion = "3.0.1"
 }
 
 dependencies {
-    compile 'mbuhot:eskotlin:0.4.0'
-
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:file-api:$fileApiVersion"
     compile "dk.sdu.cloud:auth-api:1.21.0"

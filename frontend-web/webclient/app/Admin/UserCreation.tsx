@@ -1,7 +1,7 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setActivePage, setLoading, SetStatusLoading} from "Navigation/Redux/StatusActions";
-import PromiseKeeper from "PromiseKeeper";
+import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
@@ -27,11 +27,10 @@ const initialState: UserCreationState = {
 function UserCreation(props: UserCreationOperations) {
     // Use reducer instead, or break into smaller ones.
     const [state, setState] = React.useState(initialState);
-    const [promiseKeeper] = React.useState(new PromiseKeeper());
+    const promiseKeeper = usePromiseKeeper();
 
     React.useEffect(() => {
         props.setActivePage();
-        return () => promiseKeeper.cancelPromises();
     }, []);
 
     function updateFields(field: keyof UserCreationState, value: string) {

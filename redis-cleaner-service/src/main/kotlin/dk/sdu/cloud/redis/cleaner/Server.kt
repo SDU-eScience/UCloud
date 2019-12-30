@@ -97,7 +97,7 @@ class Server(override val micro: Micro) : CommonServer {
     private fun parseId(id: String): Pair<String, String> = id.split("-").let { Pair(it[0], it[1]) }
 
     companion object {
-        const val MAX_AGE = (1000L * 60 * 60 * 24 * 60)
+        const val MAX_AGE = (1000L * 60 * 60 * 24 * 5)
         const val RANGE_LIMIT = 1000L
     }
 }

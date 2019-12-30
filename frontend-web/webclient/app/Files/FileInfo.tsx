@@ -61,10 +61,12 @@ function FileInfo(props: Readonly<FileInfo>) {
     }, []);
 
     React.useEffect(() => {
-        const fileType = props.file && props.file.fileType;
+        const fileType = props.file?.fileType;
         if (fileType === "DIRECTORY") {
             Client.post<{size: number}>(directorySizeQuery, {paths: [file!.path]})
                 .then(it => setSize(it.response.size));
+        } else {
+            setSize(file?.size ?? 0);
         }
     }, [props.file && props.file.size]);
 

@@ -116,6 +116,9 @@ data class FindLatestByToolRequest(
 ) : WithPaginationRequest
 typealias FindLatestByToolResponse = Page<Application>
 
+data class DeleteAppRequest(val name: String, val version: String)
+typealias DeleteAppResponse = Unit
+
 object AppStore : CallDescriptionContainer("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
@@ -426,6 +429,23 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             method = HttpMethod.Put
             path { using(baseContext) }
             // body { //YAML Body TODO Implement support }
+        }
+    }
+
+    val delete = call<DeleteAppRequest, DeleteAppResponse, CommonErrorMessage>("delete") {
+        auth {
+            roles = Roles.ADMIN
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 

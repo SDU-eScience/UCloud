@@ -1,6 +1,7 @@
 package dk.sdu.cloud.notification
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.micro.HealthCheckFeature
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.initWithDefaultFeatures
@@ -13,6 +14,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(NotificationServiceDescription, args)
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

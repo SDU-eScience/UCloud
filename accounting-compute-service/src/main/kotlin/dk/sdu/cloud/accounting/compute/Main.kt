@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.compute
 
 import dk.sdu.cloud.accounting.compute.api.AccountingComputeServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.micro.HealthCheckFeature
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.initWithDefaultFeatures
@@ -13,6 +14,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(AccountingComputeServiceDescription, args)
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

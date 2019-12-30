@@ -3,17 +3,18 @@ import {FilePreviewReduxState, ReduxObject} from "DefaultObjects";
 import {File} from "Files";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
+import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {useLocation} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Button, Icon} from "ui-components";
+import {Box, Button, Icon} from "ui-components";
 import Error from "ui-components/Error";
 import {Spacer} from "ui-components/Spacer";
-import {downloadFiles, statFileOrNull} from "Utilities/FileUtilities";
-import {extensionFromPath, extensionTypeFromPath, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
+import {downloadFiles, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
+import {extensionFromPath, extensionTypeFromPath, isPreviewSupported, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
 import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
 interface FilePreviewStateProps {
@@ -34,23 +35,35 @@ const FilePreview = (props: FilePreviewProps) => {
     const [error, setError] = React.useState("");
     const [showDownloadButton, setDownloadButton] = React.useState(false);
     const fileType = extensionTypeFromPath(filepath());
+    const promises = usePromiseKeeper();
 
     React.useEffect(() => {
         const path = filepath();
-        statFileOrNull(path).then(stat => {
+        if (!isPreviewSupported(extensionFromPath(path))) {
+            setError("Preview is not supported for file type.");
+            setDownloadButton(true);
+            return;
+        }
+        promises.makeCancelable(statFileOrNull(path)).promise.then(stat => {
             if (stat === null) {
                 snackbarStore.addFailure("File not found");
                 setError("File not found");
-            } else if (stat.size! > 30_000_000) {
+            } else if (isDirectory({fileType: stat.fileType})) {
+                snackbarStore.addFailure("Directories cannot be previewed.");
+                setError("Preview for folders not supported");
+                setDownloadButton(true);
+            } else if (stat.size! > 5_000_000) {
                 snackbarStore.addFailure("File size too large. Download instead.");
                 setError("File size too large to preview.");
                 setDownloadButton(true);
             } else {
-                Client.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
+                promises.makeCancelable(
+                    Client.createOneTimeTokenWithPermission("files.download:read")
+                ).promise.then((token: string) => {
                     fetch(Client.computeURL(
-                        "/api",
-                        `/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`
+                        "/api", `/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`
                     )).then(async content => {
+                        if (promises.canceledKeeper) return;
                         switch (fileType) {
                             case "image":
                             case "audio":
@@ -67,9 +80,19 @@ const FilePreview = (props: FilePreviewProps) => {
                                 setDownloadButton(true);
                                 break;
                         }
-                    }).catch(it => typeof it === "string" ? setError(it) : setError("An error occurred fetching file content"));
+                    }).catch(it => {
+                        /* Must be solveable more elegantly */
+                        if (!it.isCanceled)
+                            typeof it === "string" ? setError(it) : setError("An error occurred fetching file content");
+                    });
+                }).catch(it => {
+                    if (!it.isCanceled)
+                        typeof it === "string" ? setError(it) : setError("An error occurred fetching permission");
                 });
             }
+        }).catch(it => {
+            if (!it.isCanceled)
+                typeof it === "string" ? setError(it) : setError("An error occurred fetching info");
         });
     }, []);
 
@@ -84,16 +107,17 @@ const FilePreview = (props: FilePreviewProps) => {
                     Download file
                 </Button>
             );
-        } else if (!fileContent) return (<LoadingIcon size={36} />);
+        } else if (error) return null;
+        else if (!fileContent) return (<LoadingIcon size={36} />);
         switch (fileType) {
             case "text":
             case "code":
                 /* TODO: Syntax highlighting (Google Prettify?) */
                 return (
-                    <>
+                    <div>
                         <Spacer left={<div />} right={<ExpandingIcon name="fullscreen" onClick={onTryFullScreen} />} />
                         <code className="fullscreen" style={{whiteSpace: "pre-wrap"}}>{fileContent}</code>
-                    </>
+                    </div>
                 );
             case "image":
                 return (
@@ -106,27 +130,24 @@ const FilePreview = (props: FilePreviewProps) => {
                 return <audio controls src={fileContent} />;
             case "video":
                 return (
-                    <video
-                        style={{maxWidth: "100%", maxHeight: "100%", verticalAlign: "middle"}}
-                        src={fileContent}
-                        controls
-                    />
+                    <video src={fileContent} controls />
                 );
             case "pdf":
                 return (
-                    <>
+                    <div>
                         <Spacer
                             left={<div />}
                             right={<ExpandingIcon name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
                         />
                         <embed
+                            style={{
+                                width: "85vw",
+                                height: "89vh"
+                            }}
                             className="fullscreen"
-                            width="999999"
-                            height="1080"
-                            style={{maxWidth: "100%", maxHeight: "100%"}}
                             src={fileContent}
                         />
-                    </>
+                    </div>
                 );
             default:
                 return (<div>Can't render content</div>);
@@ -143,7 +164,12 @@ const FilePreview = (props: FilePreviewProps) => {
     }
 
     if (props.isEmbedded) {
-        return showContent();
+        return (
+            <>
+                <Error error={error} />
+                {showContent()}
+            </>
+        );
     }
 
     return (
@@ -151,12 +177,24 @@ const FilePreview = (props: FilePreviewProps) => {
             main={(
                 <>
                     <Error error={error} />
-                    {showContent()}
+                    <Box height="50px" />
+                    <ContentWrapper>
+                        {showContent()}
+                    </ContentWrapper>
                 </>
             )}
         />
     );
 };
+
+const ContentWrapper = styled.div`
+    display: flex;
+    width: 100%;
+    height: 80vh;
+    justify-items: center;
+    justify-content: center;
+    align-items: center;
+`;
 
 const ExpandingIcon = styled(Icon)`
     &:hover {

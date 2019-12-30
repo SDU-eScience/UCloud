@@ -17,7 +17,14 @@ spec:
     spec:
       containers:
       - name: activity-service
-        image: registry.cloud.sdu.dk/sdu-cloud/activity-service:1.4.5.RC-1
+        image: registry.cloud.sdu.dk/sdu-cloud/activity-service:1.4.8
+        livenessProbe:
+          httpGet:
+            port: 8080
+            path: /status
+          initialDelaySeconds: 3
+          periodSeconds: 30
+          failureThreshold: 5
         command:
         - /opt/service/bin/service
         - --config-dir

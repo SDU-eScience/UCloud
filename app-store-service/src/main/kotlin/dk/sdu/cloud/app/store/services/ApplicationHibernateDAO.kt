@@ -843,6 +843,17 @@ class ApplicationHibernateDAO(
         session.save(entity)
     }
 
+    override fun delete(session: HibernateSession, user: SecurityPrincipal, name: String, version: String) {
+        val existingOwner = findOwnerOfApplication(session, name)
+        if (existingOwner != null && !canUserPerformWriteOperation(existingOwner, user)) {
+            throw ApplicationException.NotAllowed()
+        }
+
+        val existingApp = internalByNameAndVersion(session, name, version) ?: throw ApplicationException.NotFound()
+
+        session.delete(existingApp)
+    }
+
     override fun createTags(
         session: HibernateSession,
         user: SecurityPrincipal,

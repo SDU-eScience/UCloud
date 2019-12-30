@@ -13,15 +13,15 @@ roles:
   ingest: "false"
   data: "false"
 
-esJavaOpts: "-Xmx6g -Xms6g"
+esJavaOpts: "-Xmx8g -Xms8g"
 
 resources:
   limits: 
     cpu: "2000m"
-    memory: "8Gi"
+    memory: "12Gi"
   requests:
     cpu: "2000m"
-    memory: "8Gi"
+    memory: "12Gi"
 
 volumeClaimTemplate:
   accessModes: [ "ReadWriteOnce" ]

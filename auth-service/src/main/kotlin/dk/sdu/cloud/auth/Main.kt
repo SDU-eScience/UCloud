@@ -12,6 +12,7 @@ import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.ServiceMode
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
+import dk.sdu.cloud.micro.HealthCheckFeature
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
@@ -89,6 +90,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(AuthServiceDescription, args)
         install(HibernateFeature)
         installAuth()
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

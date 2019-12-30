@@ -2,6 +2,7 @@ package dk.sdu.cloud.alerting
 
 import dk.sdu.cloud.alerting.api.AlertingServiceDescription
 import dk.sdu.cloud.micro.ElasticFeature
+import dk.sdu.cloud.micro.HealthCheckFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.initWithDefaultFeatures
@@ -42,6 +43,7 @@ fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(AlertingServiceDescription, args)
         install(ElasticFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return

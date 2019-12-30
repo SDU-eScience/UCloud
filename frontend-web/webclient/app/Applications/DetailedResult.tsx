@@ -6,7 +6,7 @@ import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setLoading, updatePageTitle} from "Navigation/Redux/StatusActions";
-import PromiseKeeper from "PromiseKeeper";
+import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import {connect} from "react-redux";
@@ -49,12 +49,10 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const [interactiveLink, setInteractiveLink] = useState<string | null>(null);
     const [timeLeft, setTimeLeft] = useState<number>(-1);
     const [xtermRef, appendToXterm, resetXterm] = useXTerm();
-    const [promises] = useState(new PromiseKeeper());
+    const promises = usePromiseKeeper();
 
     const jobId = props.match.params.jobId;
     const outputFolder = jobWithStatus && jobWithStatus.outputFolder ? jobWithStatus.outputFolder : "";
-
-    useEffect(() => () => promises.cancelPromises(), []);
 
     async function fetchJob() {
         try {

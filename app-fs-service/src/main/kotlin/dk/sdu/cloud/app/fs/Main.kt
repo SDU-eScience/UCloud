@@ -9,6 +9,7 @@ fun main(args: Array<String>) {
         initWithDefaultFeatures(AppFsServiceDescription, args)
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
+        install(HibernateFeature)
     }
 
     if (micro.runScriptHandler()) return

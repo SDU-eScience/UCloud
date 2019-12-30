@@ -142,6 +142,11 @@ class AppStoreController<DBSession>(
             }
         }
 
+        implement(AppStore.delete) {
+            appStore.delete(ctx.securityPrincipal, request.name, request.version)
+            ok(Unit)
+        }
+
         implement(AppStore.createTag) {
             appStore.createTags(
                 request.tags,
