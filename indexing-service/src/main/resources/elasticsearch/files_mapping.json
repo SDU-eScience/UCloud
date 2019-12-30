@@ -30,64 +30,50 @@
     }
   },
   "mappings": {
-    "doc": {
-      "properties": {
-        "path": {
-          "type": "text",
-          "analyzer": "path-analyzer",
-          "search_analyzer": "keyword",
-          "fields": {
-            "keyword": {
-              "type": "keyword"
-            }
-          }
-        },
-        "fileName": {
-          "type": "text",
-          "fields": {
-            "keyword": {
-              "type": "keyword"
-            },
-            "extension": {
-              "type": "text",
-              "analyzer": "extension-analyzer",
-              "search_analyzer": "keyword"
-            }
-          }
-        },
-        "fileDepth": {
-          "type": "long"
-        },
-        "id": {
-          "type": "keyword"
-        },
-        "fileType": {
-          "type": "keyword"
-        },
-        "owner": {
-          "type": "keyword"
-        },
-        "size": {
-          "type": "long"
-        },
-        "fileTimestamps": {
-          "type": "object"
-        },
-        "checksum": {
-          "type": "object"
-        },
-        "sensitivity": {
-          "type": "keyword"
-        },
-        "annotations": {
-          "type": "text",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
+    "properties": {
+      "path": {
+        "type": "text",
+        "analyzer": "path-analyzer",
+        "search_analyzer": "keyword",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
           }
         }
+      },
+      "fileName": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          },
+          "extension": {
+            "type": "text",
+            "analyzer": "extension-analyzer",
+            "search_analyzer": "keyword"
+          }
+        }
+      },
+      "fileDepth": {
+        "type": "long"
+      },
+      "id": {
+        "type": "keyword"
+      },
+      "fileType": {
+        "type": "keyword"
+      },
+      "owner": {
+        "type": "keyword"
+      },
+      "size": {
+        "type": "long"
+      },
+      "fileTimestamps": {
+        "type": "object"
+      },
+      "sensitivity": {
+        "type": "keyword"
       }
     }
   }

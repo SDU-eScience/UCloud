@@ -1,7 +1,0 @@
----
-name: rpc-test
-
-namespaces:
-- rpc.test
-
-dependencies: []

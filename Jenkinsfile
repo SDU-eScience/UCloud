@@ -44,7 +44,9 @@ volumes: [
             def list = sh(script: 'ls', returnStdout: true).split("\n")
             for (String item : list) {
                 if (item.endsWith("-service")) {
-                    serviceList.add(item)
+                    if (!item.endsWith("app-abacus-service")) {
+                        serviceList.add(item)
+                    }
                 }
             }
             for (String item : serviceList) {
@@ -147,10 +149,6 @@ def sendAlert(String alertMessage) {
     withCredentials(
         [string(credentialsId: "slackToken", variable: "slackToken")]
     ) {
-        slackSend(
-            baseUrl: 'https://sdu-escience.slack.com/services/hooks/jenkins-ci/',
-            message: alertMessage,
-            token: "$slackToken"
-        )
+        slackSend(channel: "devalerts", message: alertMessage, tokenCredentialId: 'slackToken')
     }
 }

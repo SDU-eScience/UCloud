@@ -28,6 +28,7 @@ kibanaConfig:
     elasticsearch.ssl:
       certificateAuthorities: /usr/share/kibana/config/certs/elastic-node.p12
       verificationMode: certificate
+
     
 protocol: http
 

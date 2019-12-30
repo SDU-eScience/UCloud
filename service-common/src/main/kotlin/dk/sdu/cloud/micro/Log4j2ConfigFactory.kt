@@ -106,7 +106,7 @@ internal object Log4j2ConfigFactory : ConfigurationFactory() {
     }
 
     fun initialize(ctx: Micro) {
-        if (ctx.developmentModeEnabled) {
+        if (ctx.developmentModeEnabled || ctx.commandLineArguments.contains("--debug")) {
             loggerContext.configuration.getLoggerConfig(LogManager.ROOT_LOGGER_NAME).level = Level.DEBUG
         }
 

@@ -103,10 +103,8 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
     }, [page]);
 
     const AvatarComponent = (props: {username: string}) => {
-        let avatar = defaultAvatar;
-        const loadedAvatar = avatars.data?.avatars[props.username] ?? undefined;
-        if (!!loadedAvatar) avatar = loadedAvatar;
-        return <UserAvatar avatar={avatar} mr={"10px"} />;
+        const avatar = avatars.data?.avatars?.[props.username] ?? defaultAvatar;
+        return <UserAvatar avatar={avatar} mr="10px" />;
     };
 
     const GroupedShareCardWrapper = (props: {shareByPath: SharesByPath; simple: boolean;}) => {
@@ -175,10 +173,10 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
                     No shares for <b>{getFilenameFromPath(props.byPath!)}</b>
                 </div>
             ) : <NoShares sharedByMe={sharedByMe} />}
-            onPageChanged={(pageNumber, page) => setFetchParams(listShares({
-                sharedByMe,
+            onPageChanged={(pageNumber, {itemsPerPage}) => setFetchParams(listShares({
                 page: pageNumber,
-                itemsPerPage: page.itemsPerPage
+                sharedByMe,
+                itemsPerPage
             }))}
             pageRenderer={() => (
                 <>
@@ -224,6 +222,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
 
     const [isCreatingShare, setIsCreatingShare] = useState(false);
     const [newShareRights, setNewShareRights] = useState(AccessRights.READ_RIGHTS);
+    const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
     const newShareUsername = useRef<HTMLInputElement>(null);
 
     const doCreateShare = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -252,12 +251,21 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const [isLoading, sendCommand] = useAsyncCommand();
 
     const revokeAll = async () => {
-        addStandardDialog({
-            title: "Revoke?",
-            message: `Remove all shares for ${getFilenameFromPath(groupedShare.path)}?`,
-            onConfirm: () => groupedShare.shares.filter(it => inCancelableState(it.state))
-                .forEach(({id}) => sendCommand(revokeShare(id)))
-        });
+        const revoke = async () => {
+            await Promise.all(groupedShare.shares.filter(it => inCancelableState(it.state))
+                .map(async ({id}) => await sendCommand(revokeShare(id))));
+            props.onUpdate();
+        };
+        if (!props.simple) {
+            addStandardDialog({
+                title: "Revoke?",
+                message: `Remove all shares for ${getFilenameFromPath(groupedShare.path)}?`,
+                onConfirm: revoke
+            });
+        } else {
+            revoke();
+            setConfirmRevokeAll(false);
+        }
     };
 
     const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || groupedShare.sharedByMe ?
@@ -331,7 +339,18 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                 groupedShare.shares.length > 1) ? null : (
                     <Spacer
                         left={<Box />}
-                        right={<Button onClick={revokeAll} disabled={isLoading} mb="8px" mr="16px">Remove all</Button>}
+                        right={(
+                            <Button
+                                type="button"
+                                onClick={() => props.simple && !confirmRevokeAll ? setConfirmRevokeAll(true) : revokeAll()}
+                                disabled={isLoading}
+                                color={confirmRevokeAll ? "red" : "blue"}
+                                mb="8px"
+                                mr="16px"
+                            >
+                                {!confirmRevokeAll ? "Remove all" : "Confirm remove all"}
+                            </Button>
+                        )}
                     />
                 )}
         </Card>
@@ -438,7 +457,7 @@ export const ShareRow: React.FunctionComponent<{
                         onClick={() => sendCommandAndUpdate(revokeShare(share.id))}
                     />
                 ) : (
-                        <Button color={"red"} ml={"16px"} onClick={doRevoke}>
+                        <Button color="red" ml="16px" onClick={doRevoke}>
                             <Icon name="close" size="1em" mr=".7em" />
                             Revoke
                         </Button>
@@ -448,7 +467,7 @@ export const ShareRow: React.FunctionComponent<{
     }
 
     return (
-        <Flex alignItems={"center"} mb={"16px"}>
+        <Flex alignItems="center" mb="16px">
             {props.children}
 
             <div>

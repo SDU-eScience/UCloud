@@ -29,12 +29,12 @@ class CompletedJobsService<DBSession>(
     /**
      * Inserts a single event. Assumes input to be normalized, see [normalizeUsername].
      */
-    fun insert(event: AccountingJobCompletedEvent): Unit = insertBatch(listOf(event))
+    suspend fun insert(event: AccountingJobCompletedEvent): Unit = insertBatch(listOf(event))
 
     /**
      * Inserts batch events. Assumes input to be normalized, see [normalizeUsername].
      */
-    fun insertBatch(events: List<AccountingJobCompletedEvent>) {
+    suspend fun insertBatch(events: List<AccountingJobCompletedEvent>) {
         db.withTransaction { session ->
             events.forEach {
                 dao.upsert(session, it)

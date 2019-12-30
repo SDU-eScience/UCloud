@@ -8,10 +8,10 @@ export const notifications: Page<Notification> = {
     items: [
         {
             type: "SHARE_REQUEST",
-            message: "jonas@hinchely.dk has shared a file with you",
+            message: "j@h.com has shared a file with you",
             id: 3,
             meta: {
-                path: "/home/jonas@hinchely.dk/AdEoA_Blackboard.pdf",
+                path: "/home/j@h.com/AdEoA_Blackboard.pdf",
                 rights: ["EXECUTE", "WRITE"],
                 shareId: 3
             },
@@ -19,10 +19,10 @@ export const notifications: Page<Notification> = {
             read: false
         }, {
             type: "SHARE_REQUEST",
-            message: "jonas@hinchely.dk has shared a file with you",
+            message: "j@h.com has shared a file with you",
             id: 2,
             meta: {
-                path: "/home/jonas@hinchely.dk/AABA",
+                path: "/home/j@h.com/AABA",
                 rights: ["READ"],
                 shareId: 2
             },

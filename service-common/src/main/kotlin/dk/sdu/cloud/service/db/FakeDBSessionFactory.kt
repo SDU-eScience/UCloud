@@ -6,13 +6,13 @@ package dk.sdu.cloud.service.db
  * Can be useful if existing code doesn't require DB sessions to be opened.
  */
 object FakeDBSessionFactory : DBSessionFactory<Unit> {
-    override fun openSession() {}
+    override suspend fun openSession() {}
 
-    override fun closeSession(session: Unit) {}
+    override suspend fun closeSession(session: Unit) {}
 
-    override fun openTransaction(session: Unit) {}
+    override suspend fun openTransaction(session: Unit) {}
 
-    override fun commit(session: Unit) {}
+    override suspend fun commit(session: Unit) {}
 
-    override fun close() {}
+    override suspend fun close() {}
 }

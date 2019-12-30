@@ -11,7 +11,7 @@ import {
 
 export interface Override {
     path: string;
-    method: { value: string; };
+    method: {value: string;};
     destination: {
         scheme?: string;
         host?: string;
@@ -131,83 +131,87 @@ export default class HttpClient {
      * @param {disallowProjects} disallowProjects - true if this call should not use the project token (Default: false).
      * @return {Promise} promise
      */
-    public async call(
-        {
-            method,
-            path,
-            body,
-            context = this.apiContext,
-            maxRetries = 5,
-            disallowProjects = false,
-            withCredentials = false
-        }: CallParameters
-    ): Promise<any> {
+    public async call({
+        method,
+        path,
+        body,
+        context = this.apiContext,
+        maxRetries = 5,
+        disallowProjects = false,
+        withCredentials = false
+    }: CallParameters): Promise<any> {
         await this.waitForCloudReady();
 
         if (path.indexOf("/") !== 0) path = "/" + path;
-        return this.receiveAccessTokenOrRefreshIt(disallowProjects).then(token => {
-            return new Promise((resolve, reject) => {
-                const req = new XMLHttpRequest();
-                req.open(method, this.computeURL(context, path));
-                req.setRequestHeader("Authorization", `Bearer ${token}`);
-                req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-                req.responseType = "text"; // Explicitly set, otherwise issues with empty response
-                if (withCredentials) {
-                    req.withCredentials = true;
-                }
-
-                const rejectOrRetry = (parsedResponse?) => {
-                    if (req.status === 401) {
-                        this.forceRefresh = true;
+        return this.receiveAccessTokenOrRefreshIt(disallowProjects)
+            .catch(it => {
+                console.warn(it);
+                snackbarStore.addFailure("Could not refresh login token.");
+                if ([401, 403].includes(it.status)) HttpClient.clearTokens();
+            })
+            .then(token => {
+                return new Promise((resolve, reject) => {
+                    const req = new XMLHttpRequest();
+                    req.open(method, this.computeURL(context, path));
+                    req.setRequestHeader("Authorization", `Bearer ${token}`);
+                    req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+                    req.responseType = "text"; // Explicitly set, otherwise issues with empty response
+                    if (withCredentials) {
+                        req.withCredentials = true;
                     }
 
-                    if (maxRetries >= 1 && is5xxStatusCode(req.status)) {
-                        this.call({
-                            maxRetries: maxRetries - 1,
-                            method,
-                            path,
-                            body,
-                            context
-                        })
-                            .catch(e => reject(e)).then(e => resolve(e));
-                    } else {
-                        reject({request: req, response: parsedResponse});
-                    }
-                };
-
-                req.onload = async () => {
-                    try {
-                        const responseContentType = req.getResponseHeader("content-type");
-                        let parsedResponse = req.response.length === 0 ? "{}" : req.response;
-
-                        // JSON Parsing
-                        if (responseContentType !== null) {
-                            if (responseContentType.indexOf("application/json") !== -1 ||
-                                responseContentType.indexOf("application/javascript") !== -1) {
-                                parsedResponse = JSON.parse(parsedResponse);
-                            }
+                    const rejectOrRetry = (parsedResponse?) => {
+                        if (req.status === 401) {
+                            this.forceRefresh = true;
                         }
 
-                        if (inSuccessRange(req.status)) {
-                            resolve({
-                                response: parsedResponse,
-                                request: req,
-                            });
+                        if (maxRetries >= 1 && is5xxStatusCode(req.status)) {
+                            this.call({
+                                maxRetries: maxRetries - 1,
+                                method,
+                                path,
+                                body,
+                                context
+                            })
+                                .catch(e => reject(e)).then(e => resolve(e));
                         } else {
-                            rejectOrRetry(parsedResponse);
+                            reject({request: req, response: parsedResponse});
                         }
-                    } catch (e) {
-                        rejectOrRetry();
-                    }
-                };
+                    };
 
-                if (body) {
-                    req.send(JSON.stringify(body));
-                } else {
-                    req.send();
-                }
+                    req.onload = async () => {
+                        try {
+                            const responseContentType = req.getResponseHeader("content-type");
+                            let parsedResponse = req.response.length === 0 ? "{}" : req.response;
+
+                            // JSON Parsing
+                            if (responseContentType !== null) {
+                                if (responseContentType.indexOf("application/json") !== -1 ||
+                                    responseContentType.indexOf("application/javascript") !== -1) {
+                                    parsedResponse = JSON.parse(parsedResponse);
+                                }
+                            }
+
+                            if (inSuccessRange(req.status)) {
+                                resolve({
+                                    response: parsedResponse,
+                                    request: req,
+                                });
+                            } else {
+                                rejectOrRetry(parsedResponse);
+                            }
+                        } catch (e) {
+                            rejectOrRetry();
+                        }
+                    };
+
+                    if (body) {
+                        req.send(JSON.stringify(body));
+                    } else {
+                        req.send();
+                    }
+                });
             });
-        });
     }
 
     public computeURL(context: string, path: string): string {
@@ -234,23 +238,32 @@ export default class HttpClient {
     public async get<T = any>(
         path: string,
         context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false
+    ): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "GET", path, body: undefined, context, disallowProjects});
     }
 
     /**
      * Calls with the POST HTTP method. See call(method, path, body)
      */
-    public async post<T = any>(path: string, body?: object, context = this.apiContext,
-                               disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+    public async post<T = any>(
+        path: string,
+        body?: object,
+        context = this.apiContext,
+        disallowProjects: boolean = false
+    ): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "POST", path, body, context, disallowProjects});
     }
 
     /**
      * Calls with the PUT HTTP method. See call(method, path, body)
      */
-    public async put<T = any>(path: string, body: object, context = this.apiContext,
-                              disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+    public async put<T = any>(
+        path: string,
+        body: object,
+        context = this.apiContext,
+        disallowProjects: boolean = false
+    ): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "PUT", path, body, context, disallowProjects});
     }
 
@@ -258,7 +271,7 @@ export default class HttpClient {
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
     public async delete<T = void>(path: string, body: object, context = this.apiContext,
-                                  disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "DELETE", path, body, context, disallowProjects});
     }
 
@@ -266,7 +279,7 @@ export default class HttpClient {
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
     public async patch<T = any>(path: string, body: object, context = this.apiContext,
-                                disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "PATCH", path, body, context, disallowProjects});
     }
 
@@ -274,7 +287,7 @@ export default class HttpClient {
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
     public async options<T = any>(path: string, body: object, context = this.apiContext,
-                                  disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "OPTIONS", path, body, context, disallowProjects});
     }
 
@@ -282,7 +295,7 @@ export default class HttpClient {
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
     public async head<T = any>(path: string, context = this.apiContext,
-                               disallowProjects: boolean = false): Promise<{ request: XMLHttpRequest, response: T }> {
+        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
         return this.call({method: "HEAD", path, body: undefined, context, disallowProjects});
     }
 
@@ -353,6 +366,53 @@ export default class HttpClient {
     }
 
     /**
+     * Attempts to receive a (non-expired) JWT access token from storage. In case the token has expired at attempt will
+     * be made to refresh it. If it is not possible to refresh the token a MissingAuthError will be thrown. This would
+     * indicate the user no longer has valid credentials. At this point it would make sense to present the user with
+     * the login page.
+     *
+     * @return {Promise} a promise of an access token
+     */
+    public async receiveAccessTokenOrRefreshIt(disallowProjects: boolean = false): Promise<any> {
+        await this.waitForCloudReady();
+
+        let tokenPromise: Promise<any> | null = null;
+        if (this.isTokenExpired(disallowProjects) || this.forceRefresh) {
+            tokenPromise = this.refresh(disallowProjects);
+            this.forceRefresh = false;
+        } else {
+            tokenPromise = new Promise((resolve, reject) => resolve(this.retrieveToken(disallowProjects)));
+        }
+        return tokenPromise;
+    }
+
+    public createOneTimeTokenWithPermission(permission, disallowProjects: boolean = false): Promise<any> {
+        return this.receiveAccessTokenOrRefreshIt(disallowProjects)
+            .then(token => {
+                const oneTimeToken = this.computeURL(this.authContext, `/request/?audience=${permission}`);
+                return new Promise((resolve, reject) => {
+                    const req = new XMLHttpRequest();
+                    req.open("POST", oneTimeToken);
+                    req.setRequestHeader("Authorization", `Bearer ${token}`);
+                    req.setRequestHeader("Content-Type", "application/json");
+                    req.onload = () => {
+                        try {
+                            if (inRange({status: req.status, min: 200, max: 299})) {
+                                const response = req.response.length === 0 ? "{}" : req.response;
+                                resolve({response: JSON.parse(response), request: req});
+                            } else {
+                                reject(req.response);
+                            }
+                        } catch (e) {
+                            reject(e.response);
+                        }
+                    };
+                    req.send();
+                });
+            }).then((data: any) => new Promise(resolve => resolve(data.response.accessToken)));
+    }
+
+    /**
      * Returns the userInfo (the payload of the JWT). Be aware that the JWT is not verified, this means that a user
      * will be able to put whatever they want in this. This is normally not a problem since all backend services _will_
      * verify the token.
@@ -379,53 +439,6 @@ export default class HttpClient {
         } else {
             return HttpClient.storedAccessToken;
         }
-    }
-
-    /**
-     * Attempts to receive a (non-expired) JWT access token from storage. In case the token has expired at attempt will
-     * be made to refresh it. If it is not possible to refresh the token a MissingAuthError will be thrown. This would
-     * indicate the user no longer has valid credentials. At this point it would make sense to present the user with
-     * the login page.
-     *
-     * @return {Promise} a promise of an access token
-     */
-    async receiveAccessTokenOrRefreshIt(disallowProjects: boolean = false): Promise<any> {
-        await this.waitForCloudReady();
-
-        let tokenPromise: Promise<any> | null = null;
-        if (this.isTokenExpired(disallowProjects) || this.forceRefresh) {
-            tokenPromise = this.refresh(disallowProjects);
-            this.forceRefresh = false;
-        } else {
-            tokenPromise = new Promise((resolve, reject) => resolve(this.retrieveToken(disallowProjects)));
-        }
-        return tokenPromise;
-    }
-
-    createOneTimeTokenWithPermission(permission, disallowProjects: boolean = false): Promise<any> {
-        return this.receiveAccessTokenOrRefreshIt(disallowProjects)
-            .then(token => {
-                let oneTimeToken = this.computeURL(this.authContext, `/request/?audience=${permission}`);
-                return new Promise((resolve, reject) => {
-                    let req = new XMLHttpRequest();
-                    req.open("POST", oneTimeToken);
-                    req.setRequestHeader("Authorization", `Bearer ${token}`);
-                    req.setRequestHeader("Content-Type", "application/json");
-                    req.onload = () => {
-                        try {
-                            if (inRange({status: req.status, min: 200, max: 299})) {
-                                const response = req.response.length === 0 ? "{}" : req.response;
-                                resolve({response: JSON.parse(response), request: req});
-                            } else {
-                                reject(req.response);
-                            }
-                        } catch (e) {
-                            reject(e.response);
-                        }
-                    };
-                    req.send();
-                });
-            }).then((data: any) => new Promise(resolve => resolve(data.response.accessToken)));
     }
 
     private async refresh(disallowProjects: boolean): Promise<string> {
@@ -455,7 +468,7 @@ export default class HttpClient {
 
             const refreshPath = this.computeURL(this.authContext, "/refresh/web");
             return new Promise((resolve, reject) => {
-                let req = new XMLHttpRequest();
+                const req = new XMLHttpRequest();
                 req.open("POST", refreshPath);
                 req.setRequestHeader("X-CSRFToken", csrfToken);
                 if (process.env.NODE_ENV === "development") {

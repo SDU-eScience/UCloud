@@ -38,78 +38,81 @@ class FileFavoriteServiceTest {
     @Test
     fun `test toggle, check, untoggle favorite`() {
         withDatabase { db ->
-            val user = TestUsers.user
-            val micro = initializeMicro()
-            val cloud = ClientMock.authenticatedClient
-            val dao = FileFavoriteHibernateDAO()
-            val service = FileFavoriteService(db, dao, cloud)
-
-            ClientMock.mockCallSuccess(Subscriptions.addSubscription, Unit)
-            ClientMock.mockCallSuccess(Subscriptions.removeSubscription, Unit)
-
-            fileStatMock()
-
             runBlocking {
-                val failures = service.toggleFavorite(
-                    listOf("/home/user/1", "/home/user/2", "/home/user/3"),
-                    user.createToken(),
-                    cloud
+                val user = TestUsers.user
+                val micro = initializeMicro()
+                val cloud = ClientMock.authenticatedClient
+                val dao = FileFavoriteHibernateDAO()
+                val service = FileFavoriteService(db, dao, cloud)
+
+                ClientMock.mockCallSuccess(Subscriptions.addSubscription, Unit)
+                ClientMock.mockCallSuccess(Subscriptions.removeSubscription, Unit)
+
+                fileStatMock()
+
+                run {
+                    val failures = service.toggleFavorite(
+                        listOf("/home/user/1", "/home/user/2", "/home/user/3"),
+                        user.createToken(),
+                        cloud
+                    )
+                    assertTrue(failures.isEmpty())
+                }
+
+                val favorites = service.getFavoriteStatus(
+                    listOf(
+                        storageFile,
+                        storageFile.copy(pathOrNull = "/home/user/2", fileIdOrNull = "fileId2"),
+                        storageFile.copy(pathOrNull = "/home/user/4", fileIdOrNull = "fileId4")
+                    ),
+                    user.createToken()
                 )
-                assertTrue(failures.isEmpty())
-            }
-            val favorites = service.getFavoriteStatus(
-                listOf(
-                    storageFile,
-                    storageFile.copy(pathOrNull = "/home/user/2", fileIdOrNull = "fileId2"),
-                    storageFile.copy(pathOrNull = "/home/user/4", fileIdOrNull = "fileId4")
-                ),
-                user.createToken()
-            )
 
-            assertTrue(favorites["fileId"]!!)
-            assertTrue(favorites["fileId2"]!!)
-            assertFalse(favorites["fileId4"]!!)
+                assertTrue(favorites["fileId"]!!)
+                assertTrue(favorites["fileId2"]!!)
+                assertFalse(favorites["fileId4"]!!)
 
-            runBlocking {
-                val failures = service.toggleFavorite(
-                    listOf("/home/user/1", "/home/user/2", "/home/user/3"),
-                    user.createToken(),
-                    cloud
+                run {
+                    val failures = service.toggleFavorite(
+                        listOf("/home/user/1", "/home/user/2", "/home/user/3"),
+                        user.createToken(),
+                        cloud
+                    )
+                    assertTrue(failures.isEmpty())
+                }
+
+                val favorites2 = service.getFavoriteStatus(
+                    listOf(
+                        storageFile,
+                        storageFile.copy(pathOrNull = "/home/user/2", fileIdOrNull = "fileId2"),
+                        storageFile.copy(pathOrNull = "/home/user/4", fileIdOrNull = "fileId4")
+                    ),
+                    user.createToken()
                 )
-                assertTrue(failures.isEmpty())
+
+                assertFalse(favorites2["fileId"]!!)
+                assertFalse(favorites2["fileId2"]!!)
+                assertFalse(favorites2["fileId4"]!!)
+
             }
-
-            val favorites2 = service.getFavoriteStatus(
-                listOf(
-                    storageFile,
-                    storageFile.copy(pathOrNull = "/home/user/2", fileIdOrNull = "fileId2"),
-                    storageFile.copy(pathOrNull = "/home/user/4", fileIdOrNull = "fileId4")
-                ),
-                user.createToken()
-            )
-
-            assertFalse(favorites2["fileId"]!!)
-            assertFalse(favorites2["fileId2"]!!)
-            assertFalse(favorites2["fileId4"]!!)
-
         }
     }
 
     @Test
     fun `test toggle - stat failed`() {
         withDatabase { db ->
-            val user = TestUsers.user
-            val micro = initializeMicro()
-            val cloud = ClientMock.authenticatedClient
-            val dao = FileFavoriteHibernateDAO()
-            val service = FileFavoriteService(db, dao, cloud)
-
-            ClientMock.mockCallSuccess(Subscriptions.addSubscription, Unit)
-            ClientMock.mockCallSuccess(Subscriptions.removeSubscription, Unit)
-
-            fileStatMock()
-
             runBlocking {
+                val user = TestUsers.user
+                val micro = initializeMicro()
+                val cloud = ClientMock.authenticatedClient
+                val dao = FileFavoriteHibernateDAO()
+                val service = FileFavoriteService(db, dao, cloud)
+
+                ClientMock.mockCallSuccess(Subscriptions.addSubscription, Unit)
+                ClientMock.mockCallSuccess(Subscriptions.removeSubscription, Unit)
+
+                fileStatMock()
+
                 val failures = service.toggleFavorite(
                     listOf("/home/user/1", "/home/user/4", "/home/user/5"),
                     user.createToken(),
@@ -117,18 +120,18 @@ class FileFavoriteServiceTest {
                 )
                 assertEquals("/home/user/4", failures.first())
                 assertEquals("/home/user/5", failures.last())
+
+                val favorites = service.getFavoriteStatus(
+                    listOf(
+                        storageFile,
+                        storageFile.copy(pathOrNull = "/home/user/2", fileIdOrNull = "fileId2")
+                    ),
+                    user.createToken()
+                )
+
+                assertTrue(favorites["fileId"]!!)
+                assertFalse(favorites["fileId2"]!!)
             }
-
-            val favorites = service.getFavoriteStatus(
-                listOf(
-                    storageFile,
-                    storageFile.copy(pathOrNull = "/home/user/2", fileIdOrNull = "fileId2")
-                ),
-                user.createToken()
-            )
-
-            assertTrue(favorites["fileId"]!!)
-            assertFalse(favorites["fileId2"]!!)
         }
     }
 

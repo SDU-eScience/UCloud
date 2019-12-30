@@ -33,10 +33,9 @@ import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSScope
 import dk.sdu.cloud.file.services.linuxfs.linuxFSRealPathSupplier
-import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.backgroundScope
-import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -46,6 +45,7 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.H2_DIALECT
+import dk.sdu.cloud.service.db.H2_DRIVER
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
@@ -192,14 +192,10 @@ class Server(
         startServices()
     }
 
-    private fun supportReverseInH2(micro: Micro) {
-        val config =
-            micro.configuration.requestChunkAtOrNull<HibernateFeature.Feature.Config>(*HibernateFeature.CONFIG_PATH)
-                ?: return
+    private suspend fun supportReverseInH2(micro: Micro) {
+        val databaseConfig = micro.databaseConfig
 
-        if (config.dialect == H2_DIALECT || config.profile == HibernateFeature.Feature.Profile.TEST_H2 ||
-            config.profile == HibernateFeature.Feature.Profile.PERSISTENT_H2
-        ) {
+        if (databaseConfig.dialect == H2_DIALECT || databaseConfig.driver == H2_DRIVER) {
             // Add database 'polyfill' for postgres reverse function.
             log.info("Adding the H2 polyfill")
             micro.hibernateDatabase.withTransaction { session ->

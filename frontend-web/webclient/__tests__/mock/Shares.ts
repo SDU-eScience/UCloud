@@ -7,8 +7,8 @@ export const shares: Page<SharesByPath> = {
     pageNumber: 0,
     items: [
         {
-            path: "/home/jonas@hinchely.dk/AdEoA_Blackboard.pdf",
-            sharedBy: "jonas@hinchely.dk",
+            path: "/home/j@h.com/AdEoA_Blackboard.pdf",
+            sharedBy: "j@h.com",
             sharedByMe: true,
             shares: [{
                 id: "3",

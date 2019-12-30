@@ -10,9 +10,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.events.EventStreamService
-import dk.sdu.cloud.file.api.BulkDownloadRequest
 import dk.sdu.cloud.file.api.BulkFileAudit
-import dk.sdu.cloud.file.api.DownloadByURI
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.MoveRequest
@@ -31,7 +29,6 @@ class StorageAuditProcessor<DBSession>(
 ) {
     private val transformers: Map<EventStream<String>, List<Transformer>> = mapOf(
         FileDescriptions.auditStream to listOf(
-            this::transformBulkDownload,
             this::transformStat,
             this::transformMove,
             this::transformDownload
@@ -93,22 +90,6 @@ class StorageAuditProcessor<DBSession>(
             return it.request.fileIds.filterNotNull().map {
                 ActivityEvent.Download(username, System.currentTimeMillis(), it, path)
             }
-        }
-
-        return null
-    }
-
-    private fun transformBulkDownload(parsedEvent: JsonNode): List<ActivityEvent>? {
-        FileDescriptions.bulkDownload.parseAuditMessageOrNull<BulkFileAudit<BulkDownloadRequest>>(parsedEvent)?.let {
-            val username = it.username ?: return null
-            return it.request.fileIds.asSequence().filterNotNull().mapIndexed { index, fileId ->
-                ActivityEvent.Download(
-                    username,
-                    System.currentTimeMillis(),
-                    fileId,
-                    it.request.fileIds.getOrNull(index) ?: "UNKNOWN_FILE"
-                )
-            }.toList()
         }
 
         return null

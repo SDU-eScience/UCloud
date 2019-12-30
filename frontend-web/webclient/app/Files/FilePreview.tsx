@@ -113,45 +113,29 @@ const FilePreview = (props: FilePreviewProps) => {
             case "text":
             case "code":
                 /* TODO: Syntax highlighting (Google Prettify?) */
-                return (
-                    <div>
-                        <Spacer left={<div />} right={<ExpandingIcon name="fullscreen" onClick={onTryFullScreen} />} />
-                        <code className="fullscreen" style={{whiteSpace: "pre-wrap"}}>{fileContent}</code>
-                    </div>
-                );
+                return <Code className="fullscreen">{fileContent}</Code>;
             case "image":
-                return (
-                    <>
-                        <Spacer left={<div />} right={<ExpandingIcon name="fullscreen" onClick={onTryFullScreen} />} />
-                        <img src={fileContent} className="fullscreen" />
-                    </>
-                );
+                return <Img src={fileContent} className="fullscreen" />;
             case "audio":
                 return <audio controls src={fileContent} />;
             case "video":
-                return (
-                    <video src={fileContent} controls />
-                );
+                return <Video src={fileContent} controls />;
             case "pdf":
-                return (
-                    <div>
-                        <Spacer
-                            left={<div />}
-                            right={<ExpandingIcon name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
-                        />
-                        <embed
-                            style={{
-                                width: "85vw",
-                                height: "89vh"
-                            }}
-                            className="fullscreen"
-                            src={fileContent}
-                        />
-                    </div>
-                );
+                return <div><Embed className="fullscreen" src={fileContent} /></div>;
             default:
-                return (<div>Can't render content</div>);
+                return <div>Can't render content</div>;
         }
+    }
+
+    function FullScreenIcon() {
+        if (!fileContent) return null;
+        if (!["pdf", "text", "code", "image"].includes(fileType as string)) return null;
+        return (
+            <Spacer
+                left={<div />}
+                right={<ExpandingIcon name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
+            />
+        );
     }
 
     function onTryFullScreen() {
@@ -167,6 +151,7 @@ const FilePreview = (props: FilePreviewProps) => {
         return (
             <>
                 <Error error={error} />
+                <FullScreenIcon />
                 {showContent()}
             </>
         );
@@ -178,6 +163,7 @@ const FilePreview = (props: FilePreviewProps) => {
                 <>
                     <Error error={error} />
                     <Box height="50px" />
+                    <FullScreenIcon />
                     <ContentWrapper>
                         {showContent()}
                     </ContentWrapper>
@@ -211,5 +197,27 @@ const mapDispatchToProps = (dispatch: Dispatch): FilePreviewOperations => ({
     fetchFile: async path => dispatch(await fetchPreviewFile(path)),
     setError: error => dispatch(setFilePreviewError(error))
 });
+
+const Code = styled.code`
+    max-height: 90vh;
+    maxWidth: 90vw;
+    overflow-y: scroll;
+    white-space: pre-wrap;
+`;
+
+const Embed = styled.embed`
+    width: 85vw;
+    height: 89vh;
+`;
+
+const Video = styled.video`
+    max-height: 90vh;
+    max-width: 90vw;
+`;
+
+const Img = styled.img`
+    max-height: 90vh;
+    max-width: 90vw;
+`;
 
 export default connect(mapStateToProps, mapDispatchToProps)(FilePreview);

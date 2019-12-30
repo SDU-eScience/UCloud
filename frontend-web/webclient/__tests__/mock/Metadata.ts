@@ -1,6 +1,6 @@
 export const metadata = {
     metadata: {
-        sduCloudRoot: "/home/jonas@hinchely.dk/The Project",
+        sduCloudRoot: "/home/j@h.com/The Project",
         sduCloudRootId: "1099513093326",
         title: "Untitled project",
         creators: [],

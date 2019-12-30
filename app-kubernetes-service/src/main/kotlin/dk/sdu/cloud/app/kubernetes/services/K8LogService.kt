@@ -60,9 +60,10 @@ class K8LogService(
             if (ex.code != 400 && ex.code != 404) {
                 throw ex
             }
-        }
 
-        return null
+            log.debug("Could not find a log")
+            return null
+        }
     }
 
     companion object : Loggable {

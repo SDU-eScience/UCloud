@@ -32,10 +32,5 @@ container:
   changeWorkingDirectory: true
   runAsRoot: true
 
-tags:
-  - Development
-  - Editor
-  - R
-
 outputFileGlobs:
   - "*"

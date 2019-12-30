@@ -4,22 +4,23 @@ version '1.2.7'
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.stats.MainKt"
 
-apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.22/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"
 
 repositories {
     jcenter()
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.10.4"
+    ext.serviceCommonVersion = "1.10.5"
+    ext.authApiVersion = "1.26.4"
 }
 
 dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
-    compile "dk.sdu.cloud:auth-api:1.21.0"
-    compile "dk.sdu.cloud:indexing-api:1.15.1"
-    compile "dk.sdu.cloud:file-api:3.0.4"
+    compile "dk.sdu.cloud:auth-api:${authApiVersion}"
+    compile "dk.sdu.cloud:indexing-api:1.15.4"
+    compile "dk.sdu.cloud:file-api:3.0.7"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 

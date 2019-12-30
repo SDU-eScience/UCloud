@@ -48,6 +48,7 @@ class Server(override val micro: Micro) : CommonServer {
         if (xlen == 0L) return
 
         log.info("Cleaning stream $keyName")
+        log.info("Number of elements in stream : $xlen")
 
         var count = 0L
         var range: Range<String> = Range.unbounded<String>()
@@ -84,7 +85,6 @@ class Server(override val micro: Micro) : CommonServer {
                 doTrim()
                 break
             }
-
             count += items.size
 
             val (ts, id) = parseId(items.last().id)
@@ -98,6 +98,6 @@ class Server(override val micro: Micro) : CommonServer {
 
     companion object {
         const val MAX_AGE = (1000L * 60 * 60 * 24 * 5)
-        const val RANGE_LIMIT = 1000L
+        const val RANGE_LIMIT = 500L
     }
 }

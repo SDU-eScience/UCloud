@@ -28,7 +28,7 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
-import {cancelJob, cancelJobDialog, inCancelableState} from "Utilities/ApplicationUtilities";
+import {cancelJob, cancelJobDialog, inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
 import {Arrow, MasterCheckbox} from "UtilityComponents";
 import {prettierString} from "UtilityFunctions";
 import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions";
@@ -186,7 +186,10 @@ function JobResults(props: AnalysesProps & {history: History}) {
             </Box>
             <Box
                 cursor="pointer"
-                onClick={fetchJobsInRange(new Date(startOfYesterday), new Date(startOfYesterday.getTime() + dayInMillis))}
+                onClick={fetchJobsInRange(
+                    new Date(startOfYesterday),
+                    new Date(startOfYesterday.getTime() + dayInMillis)
+                )}
             >
                 <TextSpan>Yesterday</TextSpan>
             </Box>
@@ -342,14 +345,16 @@ interface RowProps {
 }
 const Row: React.FunctionComponent<RowProps> = ({analysis, to, hide, children}) => {
     const metadata = analysis.metadata;
-
+    const isExpired = isRunExpired(analysis);
     return (
-        <TableRow cursor={"pointer"}>
+        <TableRow cursor="pointer">
             <TableCell textAlign="center">
                 {children}
             </TableCell>
             <TableCell onClick={to}>{analysis.name ? analysis.name : shortUUID(analysis.jobId)}</TableCell>
-            <TableCell onClick={to}><JobStateIcon state={analysis.state} mr={"8px"} /> {capitalized(analysis.state)}
+            <TableCell onClick={to}>
+                <JobStateIcon state={analysis.state} isExpired={isExpired} mr={"8px"} />
+                {isExpired ? "Expired" : capitalized(analysis.state)}
             </TableCell>
             <TableCell onClick={to}>{metadata.title} v{metadata.version}</TableCell>
             {hide ? null : (

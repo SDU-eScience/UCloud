@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.TolerationKeyAndValue
-import dk.sdu.cloud.app.kubernetes.services.K8NameAllocator.Companion.JOB_ID_LABEL
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.store.api.ContainerDescription
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -73,6 +72,16 @@ class K8JobCreationService(
                 log.warn(ex.stackTraceToString())
             }
         }
+
+        try {
+            k8.nameAllocator.findJobs(requestId).delete()
+        } catch (ex: Throwable) {
+            val isExceptionExpected = ex is KubernetesClientException && ex.status?.code in setOf(400, 404)
+            if (!isExceptionExpected) {
+                log.warn("Caught exception while deleting jobs")
+                log.warn(ex.stackTraceToString())
+            }
+        }
     }
 
     @Suppress("LongMethod", "ComplexMethod") // Just a DSL
@@ -128,6 +137,7 @@ class K8JobCreationService(
                             metadata {
                                 withName(podName)
                                 withNamespace(k8.nameAllocator.namespace)
+                                withBackoffLimit(0)
 
                                 withLabels(
                                     mapOf(
@@ -168,6 +178,7 @@ class K8JobCreationService(
                                                     null,
                                                     MULTI_NODE_STORAGE,
                                                     false,
+                                                    null,
                                                     null
                                                 )
                                             )
@@ -241,7 +252,8 @@ class K8JobCreationService(
                                                     0,
                                                     null,
                                                     emptyList(),
-                                                    emptyList()
+                                                    emptyList(),
+                                                    null
                                                 )
                                             )
                                         } else if (containerConfig.runAsRealUser) {
@@ -253,7 +265,8 @@ class K8JobCreationService(
                                                     uid,
                                                     null,
                                                     emptyList(),
-                                                    emptyList()
+                                                    emptyList(),
+                                                    null
                                                 )
                                             )
                                         }
@@ -271,7 +284,8 @@ class K8JobCreationService(
                                                     ?: throw RPCException(
                                                         "No workspace found",
                                                         HttpStatusCode.BadRequest
-                                                    )
+                                                    ),
+                                                null
                                             ),
 
                                             VolumeMount(
@@ -286,7 +300,8 @@ class K8JobCreationService(
                                                     ?: throw RPCException(
                                                         "No workspace found",
                                                         HttpStatusCode.BadRequest
-                                                    )
+                                                    ),
+                                                null
                                             ),
 
                                             VolumeMount(
@@ -294,6 +309,7 @@ class K8JobCreationService(
                                                 null,
                                                 MULTI_NODE_STORAGE,
                                                 true,
+                                                null,
                                                 null
                                             ),
 
@@ -459,7 +475,7 @@ class K8JobCreationService(
                 log.debug("Looking for peers with ID: ${peer.jobId}")
                 k8.client.pods()
                     .inNamespace(k8.nameAllocator.namespace)
-                    .withLabel(JOB_ID_LABEL, peer.jobId)
+                    .withLabel(K8NameAllocator.JOB_ID_LABEL, peer.jobId)
                     .list()
                     .items
             }

@@ -5,13 +5,7 @@ import dk.sdu.cloud.activity.api.ActivityEventGroup
 import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.ActivityFilter
 import dk.sdu.cloud.activity.api.type
-import dk.sdu.cloud.calls.client.bearerAuth
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.withoutAuthentication
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import dk.sdu.cloud.file.api.fileId
-import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.NormalizedScrollRequest
@@ -25,7 +19,7 @@ class ActivityService<DBSession>(
     private val activityDao: ActivityEventDao<DBSession>,
     private val fileLookupService: FileLookupService
 ) {
-    fun insertBatch(events: List<ActivityEvent>) {
+    suspend fun insertBatch(events: List<ActivityEvent>) {
         db.withTransaction { session ->
             activityDao.insertBatch(session, events)
         }
@@ -44,7 +38,7 @@ class ActivityService<DBSession>(
         }
     }
 
-    fun findEventsForFileId(
+    suspend fun findEventsForFileId(
         pagination: NormalizedPaginationRequest,
         fileId: String
     ): Page<ActivityEvent> {
@@ -53,7 +47,7 @@ class ActivityService<DBSession>(
         }
     }
 
-    fun findEventsForUser(
+    suspend fun findEventsForUser(
         pagination: NormalizedPaginationRequest,
         user: String
     ): Page<ActivityEvent> {
@@ -62,7 +56,7 @@ class ActivityService<DBSession>(
         }
     }
 
-    fun browseForUser(
+    suspend fun browseForUser(
         scroll: NormalizedScrollRequest<Int>,
         user: String,
         collapseThreshold: Int,

@@ -7,7 +7,7 @@ export interface Props {
 }
 
 export class Skull extends React.Component<Props> {
-  static optionValue = "Skull";
+  public static optionValue = "Skull";
   public render() {
     return (
       <g
@@ -24,7 +24,7 @@ export class Skull extends React.Component<Props> {
 }
 
 export class SkullOutline extends React.Component<Props> {
-  static optionValue = "SkullOutline";
+  public static optionValue = "SkullOutline";
   public render() {
     return (
       <g
@@ -62,7 +62,7 @@ export class SkullOutline extends React.Component<Props> {
 }
 
 export class Bat extends React.Component<Props> {
-  static optionValue = "Bat";
+  public static optionValue = "Bat";
   public render() {
     return (
       <g
@@ -79,7 +79,7 @@ export class Bat extends React.Component<Props> {
 }
 
 export class Cumbia extends React.Component<Props> {
-  static optionValue = "Cumbia";
+  public static optionValue = "Cumbia";
   public render() {
     return (
       <g
@@ -142,7 +142,7 @@ export class Cumbia extends React.Component<Props> {
 }
 
 export class Deer extends React.Component<Props> {
-  static optionValue = "Deer";
+  public static optionValue = "Deer";
   public render() {
     return (
       <g
@@ -159,7 +159,7 @@ export class Deer extends React.Component<Props> {
 }
 
 export class Diamond extends React.Component<Props> {
-  static optionValue = "Diamond";
+  public static optionValue = "Diamond";
   public render() {
     return (
       <g
@@ -197,7 +197,7 @@ export class Diamond extends React.Component<Props> {
 }
 
 export class Hola extends React.Component<Props> {
-  static optionValue = "Hola";
+  public static optionValue = "Hola";
   public render() {
     return (
       <g
@@ -214,7 +214,7 @@ export class Hola extends React.Component<Props> {
 }
 
 export class Selena extends React.Component<Props> {
-  static optionValue = "Selena";
+  public static optionValue = "Selena";
   public render() {
     return (
       <g
@@ -247,7 +247,7 @@ export class Selena extends React.Component<Props> {
 }
 
 export class Pizza extends React.Component<Props> {
-  static optionValue = "Pizza";
+  public static optionValue = "Pizza";
   public render() {
     return (
       <g
@@ -280,7 +280,7 @@ export class Pizza extends React.Component<Props> {
 }
 
 export class Resist extends React.Component<Props> {
-  static optionValue = "Resist";
+  public static optionValue = "Resist";
 
   public render() {
     return (
@@ -339,7 +339,7 @@ export class Resist extends React.Component<Props> {
 }
 
 export class Bear extends React.Component<Props> {
-  static optionValue = "Bear";
+  public static optionValue = "Bear";
   private mask1 = uniqueId("react-mask-");
   private path1 = uniqueId("react-path-");
 
@@ -455,7 +455,7 @@ export class EScienceLogo extends React.Component<Props> {
                 26.00,52.00 27.00,52.00 27.00,52.00 Z" />
               </g>
           </g>
-    ); 
+    );
   }
 }
 
@@ -595,7 +595,7 @@ export class Teeth extends React.Component<Props> {
 }
 
 export class Espie extends React.Component<Props> {
-  static optionValue = "Espie";
+  public static optionValue = "Espie";
 
   public render() {
     return (
@@ -785,7 +785,7 @@ export class Espie extends React.Component<Props> {
        strokeWidth="0.26458332px"
        strokeLinecap="butt"
        strokeLinejoin="miter"
-       strokeOpacity={1}/>
+       strokeOpacity={1} />
   </g>
   <g
      transform="translate(-68.153024,-127.04402)"
@@ -799,7 +799,7 @@ export class Espie extends React.Component<Props> {
        strokeWidth="0.26458332px"
        strokeLinecap="butt"
        strokeLinejoin="miter"
-       strokeOpacity={1}/>
+       strokeOpacity={1} />
     <path
        id="path850-3"
        d="m 104.1176,130.51412 c -1.84625,0.0474 -1.89325,1.54437 -1.93199,3.6594 -0.0347,1.8934 -0.0134,3.88221 -0.14563,5.73668 0.58325,0.17759 1.07122,3e-5 1.07122,3e-5 0,0 0.0337,-8.24859 1.0064,-9.39563 z"

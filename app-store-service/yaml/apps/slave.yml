@@ -15,7 +15,6 @@ authors:
 - Dan Thrane
 
 description: ""
-tags: []
 
 invocation:
 - start_jupyter

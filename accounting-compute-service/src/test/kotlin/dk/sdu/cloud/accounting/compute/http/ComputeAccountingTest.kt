@@ -31,6 +31,7 @@ import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -47,7 +48,9 @@ private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
     }
 
     val events = (0 until 10).map { dummyEvent }
-    completeJobsService.insertBatch(events)
+    runBlocking {
+        completeJobsService.insertBatch(events)
+    }
     configureComputeAccountingServer(completeJobsService)
 }
 

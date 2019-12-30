@@ -4,7 +4,8 @@ import {
     ApplicationParameter,
     JobState,
     ParameterTypes,
-    RunsSortBy
+    RunsSortBy,
+    JobWithStatus
 } from "Applications";
 import {RangeRef} from "Applications/Widgets/RangeParameters";
 import HttpClient from "Authentication/lib";
@@ -82,6 +83,10 @@ export const cancelJobDialog = (
 
 export const cancelJob = (client: HttpClient, jobId: string): Promise<{request: XMLHttpRequest, response: void}> =>
     client.delete(cancelJobQuery, {jobId});
+
+export function isRunExpired(run: JobWithStatus) {
+    return run.status === "Job did not complete within deadline.";
+}
 
 interface FavoriteApplicationFromPage<T> {
     name: string;

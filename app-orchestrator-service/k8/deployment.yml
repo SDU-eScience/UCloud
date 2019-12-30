@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: app-orchestrator
-        image: registry.cloud.sdu.dk/sdu-cloud/app-orchestrator-service:0.8.17
+        image: registry.cloud.sdu.dk/sdu-cloud/app-orchestrator-service:0.8.24
         livenessProbe:
           httpGet:
             port: 8080
@@ -35,6 +35,7 @@ spec:
         - /etc/psql
         - --config-dir
         - /etc/config
+        - --debug
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token

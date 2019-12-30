@@ -100,7 +100,9 @@ class WSSession internal constructor(val id: String, val underlyingSession: WebS
 
     suspend fun close(reason: String? = null) {
         isActive = false
-        underlyingSession.close(CloseReason(CloseReason.Codes.NORMAL, reason ?: "Unspecified reason"))
+        runCatching {
+            underlyingSession.close(CloseReason(CloseReason.Codes.NORMAL, reason ?: "Unspecified reason"))
+        }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -143,6 +145,9 @@ class IngoingWebSocketInterceptor(
             //
             // Setting pingPeriod to null fixes all of this. It does, however, mean that a lot of open subscriptions
             // will timeout after some time (whenever the load balancer decides).
+            //
+            // NOTE(Dan):
+            // We have now inserted our own ping from the server. This should hopefully keep the connection alive.
 
             pingPeriod = null
         }
@@ -154,8 +159,18 @@ class IngoingWebSocketInterceptor(
                     val session = WSSession(UUID.randomUUID().toString(), this)
                     val callsByName = calls.associateBy { it.fullName }
 
+                    var nextPing = System.currentTimeMillis() + PING_PERIOD
                     try {
                         while (isActive && session.isActive) {
+                            if (System.currentTimeMillis() >= nextPing) {
+                                try {
+                                    session.rawSend("""{"ping":"pong"}""")
+                                } catch (ex: ClosedSendChannelException) {
+                                    break
+                                }
+                                nextPing = System.currentTimeMillis() + PING_PERIOD
+                            }
+
                             val frame = try {
                                 withTimeout(1_000) {
                                     incoming.receive()
@@ -298,6 +313,7 @@ class IngoingWebSocketInterceptor(
         override val log = logger()
 
         internal val callConfigKey = AttributeKey<WebsocketServerCallConfig>("ws-server-call-config")
+        private const val PING_PERIOD = 1000L * 60
     }
 }
 
@@ -315,8 +331,14 @@ val CallDescription<*, *, *>.wsServerConfig: WebsocketServerCallConfig
     }
 
 // TODO This is not using the correct writer
-suspend fun <S : Any> CallHandler<*, S, *>.sendWSMessage(message: S) {
+suspend fun <S : Any> CallHandler<*, S, *>.sendWSMessage(message: S, suppressClosedChannelException: Boolean = true) {
     withContext<WSCall> {
-        ctx.sendMessage(message, description.successType)
+        try {
+            ctx.sendMessage(message, description.successType)
+        } catch (ex: ClosedSendChannelException) {
+            if (!suppressClosedChannelException) {
+                throw ex
+            }
+        }
     }
 }

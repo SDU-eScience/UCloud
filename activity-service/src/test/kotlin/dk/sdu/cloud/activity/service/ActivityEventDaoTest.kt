@@ -11,6 +11,7 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.withDatabase
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -19,68 +20,74 @@ class ActivityEventDaoTest {
     @Test
     fun `insert Test and find by user`() {
         withDatabase { db ->
-            val dao = HibernateActivityEventDao()
-            val results = db.withTransaction {
-                dao.insert(it, downloadEvent)
-                dao.insert(it, updatedEvent)
-                dao.findByUser(
-                    it,
-                    NormalizedPaginationRequest(10, 0),
-                    TestUsers.user.username
-                )
-            }
+            runBlocking {
+                val dao = HibernateActivityEventDao()
+                val results = db.withTransaction {
+                    dao.insert(it, downloadEvent)
+                    dao.insert(it, updatedEvent)
+                    dao.findByUser(
+                        it,
+                        NormalizedPaginationRequest(10, 0),
+                        TestUsers.user.username
+                    )
+                }
 
-            assertEquals(2, results.itemsInTotal)
-            assertEquals(downloadEvent, results.items.first())
-            assertEquals(updatedEvent, results.items.last())
+                assertEquals(2, results.itemsInTotal)
+                assertEquals(downloadEvent, results.items.first())
+                assertEquals(updatedEvent, results.items.last())
+            }
         }
     }
 
     @Test
     fun `insert batch and find by user Test`() {
         withDatabase { db ->
-            val dao = HibernateActivityEventDao()
-            val results = db.withTransaction {
-                dao.insertBatch(it, listOf(favoriteEvent, inspectedEvent))
-                dao.findByUser(
-                    it,
-                    NormalizedPaginationRequest(10, 0),
-                    TestUsers.user.username
-                )
-            }
+            runBlocking {
+                val dao = HibernateActivityEventDao()
+                val results = db.withTransaction {
+                    dao.insertBatch(it, listOf(favoriteEvent, inspectedEvent))
+                    dao.findByUser(
+                        it,
+                        NormalizedPaginationRequest(10, 0),
+                        TestUsers.user.username
+                    )
+                }
 
-            assertEquals(2, results.itemsInTotal)
-            assertEquals(inspectedEvent, results.items.first())
-            assertEquals(favoriteEvent, results.items.last())
+                assertEquals(2, results.itemsInTotal)
+                assertEquals(inspectedEvent, results.items.first())
+                assertEquals(favoriteEvent, results.items.last())
+            }
         }
     }
 
     @Test
     fun `insert and find by fileID Test`() {
         withDatabase { db ->
-            val dao = HibernateActivityEventDao()
-            var results = db.withTransaction {
-                dao.insertBatch(it, listOf(movedEvent, deletedEvent))
-                dao.findByFileId(
-                    it,
-                    NormalizedPaginationRequest(10, 0),
-                    "5"
-                )
+            runBlocking {
+                val dao = HibernateActivityEventDao()
+                var results = db.withTransaction {
+                    dao.insertBatch(it, listOf(movedEvent, deletedEvent))
+                    dao.findByFileId(
+                        it,
+                        NormalizedPaginationRequest(10, 0),
+                        "5"
+                    )
+                }
+
+                assertEquals(1, results.itemsInTotal)
+                assertEquals(movedEvent, results.items.first())
+
+                results = db.withTransaction {
+                    dao.findByFileId(
+                        it,
+                        NormalizedPaginationRequest(10, 0),
+                        "6"
+                    )
+                }
+
+                assertEquals(1, results.itemsInTotal)
+                assertEquals(deletedEvent, results.items.first())
             }
-
-            assertEquals(1, results.itemsInTotal)
-            assertEquals(movedEvent, results.items.first())
-
-            results = db.withTransaction {
-                dao.findByFileId(
-                    it,
-                    NormalizedPaginationRequest(10, 0),
-                    "6"
-                )
-            }
-
-            assertEquals(1, results.itemsInTotal)
-            assertEquals(deletedEvent, results.items.first())
         }
     }
 }

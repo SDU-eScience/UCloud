@@ -28,6 +28,7 @@ import {errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {ApplicationType, FollowStdStreamResponse, isJobStateFinal, JobState, JobWithStatus, WithAppInvocation} from ".";
 import {JobStateIcon} from "./JobStateIcon";
 import {pad} from "./View";
+import {runApplication} from "./Pages";
 
 interface DetailedResultOperations {
     setPageTitle: (jobId: string) => void;
@@ -52,7 +53,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const promises = usePromiseKeeper();
 
     const jobId = props.match.params.jobId;
-    const outputFolder = jobWithStatus && jobWithStatus.outputFolder ? jobWithStatus.outputFolder : "";
+    const outputFolder = jobWithStatus?.outputFolder ?? "";
 
     async function fetchJob() {
         try {
@@ -124,8 +125,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     }
                 });
             }
-        }
-        );
+        });
 
         return () => {
             connection.close();
@@ -210,13 +210,16 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                         <Heading.h4>Job Information</Heading.h4>
                         <Card height="auto" p="14px 14px 14px 14px">
                             <List>
-                                {jobWithStatus === null || jobWithStatus.name === null ? null :
+                                {jobWithStatus === null || jobWithStatus.name === null ? null : (
                                     <InfoBox><b>Name:</b> {jobWithStatus.name}</InfoBox>
-                                }
+                                )}
 
                                 <InfoBox>
                                     <b>Application:</b>{" "}
                                     {jobWithStatus.metadata.title} v{jobWithStatus.metadata.version}
+                                    <Link to={runApplication(jobWithStatus.metadata)}>
+                                        <Button ml="10px" px="10px" py="5px">Run app again</Button>
+                                    </Link>
                                 </InfoBox>
 
                                 <InfoBox><b>Status:</b> {status}</InfoBox>
@@ -224,7 +227,9 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                                 {appState !== JobState.SUCCESS ? null : (
                                     <InfoBox>
                                         Application has completed successfully.
-                                    Click <Link to={fileTablePage(outputFolder)}>here</Link> to go to the output.
+                                    Click <Link to={fileTablePage(outputFolder)}>
+                                            <Button px="10px" py="5px">here</Button>
+                                        </Link> to go to the output.
                                     </InfoBox>
                                 )}
 
@@ -254,7 +259,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                     />
 
                     {outputFolder === "" || appState !== JobState.SUCCESS && appState !== JobState.FAILURE ? null : (
-                        <Panel>
+                        <Panel width={1}>
                             <Heading.h4>Output Files</Heading.h4>
                             <EmbeddedFileTable path={outputFolder} />
                         </Panel>
@@ -390,7 +395,7 @@ const StepTrackerItem: React.FunctionComponent<{
 
     return (
         <Step active={active}>
-            <JobStateIcon state={stateToDisplay} color={complete && thisFailed ? "red" : undefined} mr="0.7em" size="30px" />
+            <JobStateIcon isExpired={false} state={stateToDisplay} color={complete && thisFailed ? "red" : undefined} mr="0.7em" size="30px" />
             <Hide sm xs md lg>
                 <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
             </Hide>

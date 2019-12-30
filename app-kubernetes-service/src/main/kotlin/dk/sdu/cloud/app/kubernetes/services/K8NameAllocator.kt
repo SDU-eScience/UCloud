@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.kubernetes.services
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.client.KubernetesClient
 
-
 class K8NameAllocator(
     val namespace: String,
     val appRole: String,

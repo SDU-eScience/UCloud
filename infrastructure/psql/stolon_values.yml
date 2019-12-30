@@ -5,6 +5,40 @@ persistence:
   size: 250Gi
 
 pgParameters:
-  max_connections: "1000"
-  maintenance_work_mem: 250MB
-  shared_buffers: 4000MB
+  datestyle: "iso, mdy"
+  default_text_search_config: "pg_catalog.english"
+  dynamic_shared_memory_type: "posix"
+  lc_messages: "en_US.utf8"
+  lc_monetary: "en_US.utf8"
+  lc_numeric: "en_US.utf8"
+  lc_time: "en_US.utf8"
+  log_timezone: "UTC"
+  maintenance_work_mem: "250MB"
+  max_connections: "2000"
+  shared_buffers: "4000MB"
+  timezone: "UTC"
+  wal_level: "replica"
+  log_connections: "true"
+  log_disconnections: "true"
+  log_statement: "mod"
+  log_destination: "stderr"
+  logging_collector: "true"
+  shared_preload_libraries: "pgaudit"
+  ssl: off
+
+keeper:
+  volumes:
+  - name: pgaudit
+    configMap:
+      name: pgaudit
+  volumeMounts:
+  - name: pgaudit
+    mountPath: /usr/lib/postgresql/10/lib/pgaudit.so
+    subPath: pgaudit.so
+
+image:
+  tag: v0.14.0-pg10
+
+# Note: Before upgrading a realease set the following values:
+# replicationPassword: -----
+# superuserPassword: -----

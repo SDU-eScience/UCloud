@@ -22,6 +22,7 @@ import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.readText
 import io.ktor.http.fullPath
 import io.ktor.util.KtorExperimentalAPI
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -139,6 +140,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
                 }
             } catch (ex: ClosedReceiveChannelException) {
                 // Do nothing. It is expected that the channel will close down.
+            } catch (ex: CancellationException) {
+                // Do nothing. It is expected that the channel will close down.
             }
 
             response
@@ -250,7 +253,11 @@ internal class WSClientSession constructor(
                             val channel = channels[incomingStreamId] ?: return@withLock
 
                             if (!channel.isClosedForSend) {
-                                channel.send(WSRawMessage(type, status, incomingStreamId, payload))
+                                try {
+                                    channel.send(WSRawMessage(type, status, incomingStreamId, payload))
+                                } catch (ex: CancellationException) {
+                                    // Ignored
+                                }
                             } else {
                                 unsubscribe(incomingStreamId)
                             }

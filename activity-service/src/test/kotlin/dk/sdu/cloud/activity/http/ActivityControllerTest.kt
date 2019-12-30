@@ -27,6 +27,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.runBlocking
 import org.hibernate.Session
 import org.junit.Test
 import java.util.*
@@ -52,7 +53,7 @@ class ActivityControllerTest {
                     val expectedResult =
                         listOf(ActivityEvent.Download("user1", 0L, fileId, "file")).paginate(paginationRequest)
 
-                    every { activityService.findEventsForFileId(any(), any()) } returns expectedResult
+                    coEvery { activityService.findEventsForFileId(any(), any()) } returns expectedResult
 
                     val response = handleRequest(HttpMethod.Get, "/api/activity/by-file-id?id=$fileId") {
                         setUser(role = Role.ADMIN)
@@ -65,10 +66,12 @@ class ActivityControllerTest {
                     assertEquals(expectedResult, parsedResult)
 
                     verify(exactly = 1) {
-                        activityService.findEventsForFileId(
-                            match { it.itemsPerPage == paginationRequest.itemsPerPage && it.page == paginationRequest.page },
-                            fileId
-                        )
+                        runBlocking {
+                            activityService.findEventsForFileId(
+                                match { it.itemsPerPage == paginationRequest.itemsPerPage && it.page == paginationRequest.page },
+                                fileId
+                            )
+                        }
                     }
                 }
             }

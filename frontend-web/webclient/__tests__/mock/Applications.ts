@@ -8,7 +8,7 @@ export const applicationsPage: Page<Application> = {
     items: [
         {
             favorite: false,
-            owner: "jonas@hinchely.dk",
+            owner: "j@h.com",
             createdAt: 1531306829400,
             modifiedAt: 1531306829400,
             imageUrl: "",
@@ -17,7 +17,7 @@ export const applicationsPage: Page<Application> = {
                 resources: {multiNodeSupport: false},
                 info: {name: "palms", version: "1.0.0"},
                 tool: {name: "palms", version: "1.0.0"},
-                authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                authors: ["Don Dan <danny_don@sdu.dk>"],
                 title: "PALMS",
                 description: "The central role of places in which physical activity (PA) is done is now widely recognized, so it is important to measure both activity and its location. At present, other than using the very expensive method of doubly-labeled water, if a researcher wants to measure PA in free living humans the most accurate technologies are either combined heart rate and motion (HR+M) sensors or accelerometers. But these devices do not collect data on where the activity occurs. If a researcher wants to know where a person performs physical activity, this information must be collected by means of self report after the PA has occurred. More recently, strategies utilizing ecological momentary assessment (EMA) have been used to sample behavioral experiences, including physical activity, in free living humans while they occur. However, this approach depends upon time- or event-critical sampling of self-reported information and thus continues to depend on self-report from the user to enter the information. Objective measurement of walking and cycling using portable global positioning system (GPS) devices has been successful but GPS data have yet to be combined with highly accurate PA measurement in a way that can be used across settings and populations.\n",
                 invocation: [
@@ -563,7 +563,7 @@ export const applicationsPage: Page<Application> = {
                 outputFileGlobs: ["stdout.txt", "stderr.txt"]
             },
             tool: {
-                owner: "jonas@hinchely.dk",
+                owner: "j@h.com",
                 createdAt: 1531304428595,
                 modifiedAt: 1531304428595,
                 description: {
@@ -581,7 +581,7 @@ export const applicationsPage: Page<Application> = {
                         seconds: 0
                     },
                     requiredModules: [],
-                    authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                    authors: ["Don Dan <donny_dan@sdu.dk>"],
                     title: "PALMS",
                     description: "Tools for running PALMS",
                     backend: "SINGULARITY"
@@ -590,11 +590,11 @@ export const applicationsPage: Page<Application> = {
         }, {
             imageUrl: "",
             favorite: false,
-            owner: "jonas@hinchely.dk", createdAt: 1531308013745, modifiedAt: 1531308013745, description: {
+            owner: "j@h.com", createdAt: 1531308013745, modifiedAt: 1531308013745, description: {
                 tags: [],
                 resources: {multiNodeSupport: false},
                 info: {name: "bwa-mem", version: "1.0.0"}, tool: {name: "bwa-sambamba", version: "3.3.0"},
-                authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                authors: ["Don Dan <donny_dan@sdu.dk>"],
                 title: "BWA-MEM",
                 description: "BWA-MEM",
                 invocation: [{
@@ -697,7 +697,7 @@ export const applicationsPage: Page<Application> = {
                 }],
                 outputFileGlobs: ["sample.bam * ", "stdout.txt", "stderr.txt"]
             }, tool: {
-                owner: "jonas@hinchely.dk",
+                owner: "j@h.com",
                 createdAt: 1531304635371,
                 modifiedAt: 1531304635371,
                 description: {
@@ -710,7 +710,7 @@ export const applicationsPage: Page<Application> = {
                         minutes: 0,
                         seconds: 0
                     }, requiredModules: [],
-                    authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                    authors: ["Don Dan <donny_dan@sdu.dk>"],
                     title: "bwa-sambamba",
                     description: "Tools for running bwa-sambamba",
                     backend: "UDOCKER"
@@ -719,12 +719,12 @@ export const applicationsPage: Page<Application> = {
         }, {
             imageUrl: "",
             favorite: false,
-            owner: "jonas@hinchely.dk", createdAt: 1531305600165, modifiedAt: 1531305600165, description: {
+            owner: "j@h.com", createdAt: 1531305600165, modifiedAt: 1531305600165, description: {
                 tags: [],
                 resources: {multiNodeSupport: false},
                 info: {name: "figlet-count", version: "1.0.0"},
                 tool: {name: "figlet", version: "1.0.0"},
-                authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                authors: ["Don Dan <donny_dan@sdu.dk>"],
                 title: "Figlet Counter",
                 description: "Count with Figlet!\n",
                 invocation: [
@@ -753,7 +753,7 @@ export const applicationsPage: Page<Application> = {
                     }], outputFileGlobs: ["stdout.txt", "stderr.txt"]
             },
             tool: {
-                owner: "jonas@hinchely.dk",
+                owner: "j@h.com",
                 createdAt: 1531303905548,
                 modifiedAt: 1531303905548,
                 description: {
@@ -764,7 +764,7 @@ export const applicationsPage: Page<Application> = {
                     defaultTasksPerNode: 1,
                     defaultAllocationTime: {hours: 0, minutes: 1, seconds: 0},
                     requiredModules: [],
-                    authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                    authors: ["Don Dan <donny_dan@sdu.dk>"],
                     title: "Figlet",
                     description: "Tool for rendering text.", backend: "SINGULARITY"
                 }
@@ -772,12 +772,12 @@ export const applicationsPage: Page<Application> = {
         }, {
             favorite: false,
             imageUrl: "",
-            owner: "jonas@hinchely.dk", createdAt: 1531307297437, modifiedAt: 1531307297437, description: {
+            owner: "j@h.com", createdAt: 1531307297437, modifiedAt: 1531307297437, description: {
                 tags: [],
                 resources: {multiNodeSupport: false},
                 info: {name: "tqdist_triplet", version: "1.0.0"},
                 tool: {name: "tqdist", version: "1.0.0"},
-                authors: ["Andreas Sand", "Morten K. Holt", "Jens Johansen", "Gerth StÃ¸lting Brodal", "Thomas Mailund", "Christian N.S. Pedersen"],
+                authors: ["Andy Sandy", "Morten Kork", "Jens Jensen", "Anders Staaaalig", "Mail Mail", "Christian Christiansen"],
                 title: "tqDist: Triplet Distance",
                 description: "Distance measures between trees are useful for comparing trees in a systematic manner and several different distance measures have been proposed. The triplet and quartet distances, for rooted and unrooted trees, are defined as the number of subsets of three or four leaves, respectively, where the topologies of the induced sub-trees differ. These distances can trivially be computed by explicitly enumerating all sets of three or four leaves and testing if the topologies are different, but this leads to time complexities at least of the order n^3 or n^4 just for enumerating the sets. The different topologies can be counted implicitly, however, and using this tqDist computes the triplet distance between rooted trees in O(n log n) time and the quartet distance between unrooted trees in O(dn log n) time, where d degree of the tree with the smallest degree.\n",
                 invocation: [
@@ -824,7 +824,7 @@ export const applicationsPage: Page<Application> = {
                         type: ParameterTypes.InputFile
                     }], outputFileGlobs: ["stdout.txt", "stderr.txt"]
             }, tool: {
-                owner: "jonas@hinchely.dk",
+                owner: "j@h.com",
                 createdAt: 1531304469178,
                 modifiedAt: 1531304469178,
                 description: {
@@ -835,7 +835,7 @@ export const applicationsPage: Page<Application> = {
                     defaultTasksPerNode: 1,
                     defaultAllocationTime: {hours: 0, minutes: 10, seconds: 0},
                     requiredModules: [],
-                    authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                    authors: ["Don Dan <donny_dan@sdu.dk>"],
                     title: "tqDist",
                     description: "Tools for running tqDist",
                     backend: "SINGULARITY"
@@ -844,7 +844,7 @@ export const applicationsPage: Page<Application> = {
         }, {
             favorite: false,
             imageUrl: "",
-            owner: "jonas@hinchely.dk",
+            owner: "j@h.com",
             createdAt: 1531305389134,
             modifiedAt: 1531305389134,
             description: {
@@ -852,7 +852,7 @@ export const applicationsPage: Page<Application> = {
                 resources: {multiNodeSupport: false},
                 info: {name: "figlet", version: "1.0.0"},
                 tool: {name: "figlet", version: "1.0.0"},
-                authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                authors: ["Don Dan <donny_dan@sdu.dk>"],
                 title: "Figlet", description: "Render some text!\n",
                 invocation: [
                     {type: "word", word: "figlet"},
@@ -878,7 +878,7 @@ export const applicationsPage: Page<Application> = {
                 outputFileGlobs: ["stdout.txt", "stderr.txt"]
             },
             tool: {
-                owner: "jonas@hinchely.dk",
+                owner: "j@h.com",
                 createdAt: 1531303905548,
                 modifiedAt: 1531303905548,
                 description: {
@@ -889,7 +889,7 @@ export const applicationsPage: Page<Application> = {
                     defaultTasksPerNode: 1,
                     defaultAllocationTime: {hours: 0, minutes: 1, seconds: 0},
                     requiredModules: [],
-                    authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                    authors: ["Don Dan <donny_dan@sdu.dk>"],
                     title: "Figlet",
                     description: "Tool for rendering text.",
                     backend: "SINGULARITY"
@@ -898,12 +898,12 @@ export const applicationsPage: Page<Application> = {
         }, {
             favorite: false,
             imageUrl: "",
-            owner: "jonas@hinchely.dk", createdAt: 1531307717715, modifiedAt: 1531307717715, description: {
+            owner: "j@h.com", createdAt: 1531307717715, modifiedAt: 1531307717715, description: {
                 tags: [],
                 resources: {multiNodeSupport: false},
                 info: {name: "rapidnj", version: "2.3.2"},
                 tool: {name: "rapidnj", version: "2.3.2"},
-                authors: ["Martin Simonsen", "Thomas Mailund", "Christian N. S. Pedersen"],
+                authors: ["Martin Signer", "Ashey Mai", "Thomas Pedersen"],
                 title: "RapidNJ", description: "RapidNJ is an algorithmic engineered implementation of canonical neighbour-joining. It uses an efficient search heuristic to speed-up the core computations of the neighbour-joining method that enables RapidNJ to outperform other state-of-the-art neighbour-joining implementations\n",
                 invocation: [
                     {type: "word", word: "rapidnj"},
@@ -938,7 +938,7 @@ export const applicationsPage: Page<Application> = {
                     }],
                 outputFileGlobs: ["stdout.txt", "stderr.txt"]
             }, tool: {
-                owner: "jonas@hinchely.dk",
+                owner: "j@h.com",
                 createdAt: 1531304528792,
                 modifiedAt: 1531304528792,
                 description: {
@@ -949,7 +949,7 @@ export const applicationsPage: Page<Application> = {
                     defaultTasksPerNode: 1,
                     defaultAllocationTime: {hours: 0, minutes: 10, seconds: 0},
                     requiredModules: [],
-                    authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                    authors: ["Don Dan <donny_dan@sdu.dk>"],
                     title: "RapidNJ",
                     description: "Tools for running rapidnj",
                     backend: "SINGULARITY"
@@ -958,7 +958,7 @@ export const applicationsPage: Page<Application> = {
         }, {
             favorite: false,
             imageUrl: "",
-            owner: "jonas@hinchely.dk",
+            owner: "j@h.com",
             createdAt: 1531304975016,
             modifiedAt: 1531304975016,
             description: {
@@ -966,7 +966,7 @@ export const applicationsPage: Page<Application> = {
                 resources: {multiNodeSupport: false},
                 info: {name: "searchgui_msgf", version: "3.3.0"},
                 tool: {name: "searchgui", version: "3.3.0"},
-                authors: ["Vaudel M", "Barsnes H", "Berven FS", "Sickmann A", "Martens L."],
+                authors: ["Vaudelville", "Asnes A", "Bervy FileSystem", "Sickman Abra", "Martins Long"],
                 title: "SearchCLI: MS-GF+",
                 description: "SearchGUI is a user-friendly open-source graphical user interface for configuring and running proteomics identification search engines and de novo sequencing algorithms, currently supporting  [X! Tandem](http://www.thegpm.org/tandem), [MS-GF+](http://www.ncbi.nlm.nih.gov/pubmed/?term=25358478),  [MS Amanda](http://ms.imp.ac.at/?goto#msamanda), [MyriMatch](http://www.ncbi.nlm.nih.gov/pubmed/?term=17269722),  [Comet](http://comet-ms.sourceforge.net/), [Tide](http://cruxtoolkit.sourceforge.net),  [Andromeda](http://www.coxdocs.org/doku.php?id=maxquant:andromeda:start), [OMSSA](http://www.ncbi.nlm.nih.gov/pubmed/15473683),  [Novor](http://rapidnovor.com) and  [DirecTag](http://fenchurch.mc.vanderbilt.edu/bumbershoot/directag/).\n",
                 invocation: [{
@@ -1055,7 +1055,7 @@ export const applicationsPage: Page<Application> = {
                 }],
                 outputFileGlobs: ["*.html", "*.zip", "stdout.txt", "stderr.txt"]
             }, tool: {
-                owner: "jonas@hinchely.dk",
+                owner: "j@h.com",
                 createdAt: 1531304587935,
                 modifiedAt: 1531304587935,
                 description: {
@@ -1066,7 +1066,7 @@ export const applicationsPage: Page<Application> = {
                     defaultTasksPerNode: 1,
                     defaultAllocationTime: {hours: 3, minutes: 0, seconds: 0},
                     requiredModules: [],
-                    authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                    authors: ["Don Dan <donny_dan@sdu.dk>"],
                     title: "SearchGUI",
                     description: "Tools for running SearchGUI",
                     backend: "UDOCKER"
@@ -1075,12 +1075,12 @@ export const applicationsPage: Page<Application> = {
         }, {
             favorite: false,
             imageUrl: "",
-            owner: "jonas@hinchely.dk", createdAt: 1531307353519, modifiedAt: 1531307353519, description: {
+            owner: "j@h.com", createdAt: 1531307353519, modifiedAt: 1531307353519, description: {
                 tags: [],
                 resources: {multiNodeSupport: false},
                 info: {name: "tqdist_quartet", version: "1.0.0"},
                 tool: {name: "tqdist", version: "1.0.0"},
-                authors: ["Andreas Sand", "Morten K. Holt", "Jens Johansen", "Gerth StÃ¸lting Brodal", "Thomas Mailund", "Christian N.S. Pedersen"],
+                authors: ["Andreas Sandtaeller", "Morten Kork", "Jens Jens", "Gret Brovallery", "Gert Mail", "Per Pedersen"],
                 title: "tqDist: Quartet Distance",
                 description: "Distance measures between trees are useful for comparing trees in a systematic manner and several different distance measures have been proposed. The triplet and quartet distances, for rooted and unrooted trees, are defined as the number of subsets of three or four leaves, respectively, where the topologies of the induced sub-trees differ. These distances can trivially be computed by explicitly enumerating all sets of three or four leaves and testing if the topologies are different, but this leads to time complexities at least of the order n^3 or n^4 just for enumerating the sets. The different topologies can be counted implicitly, however, and using this tqDist computes the triplet distance between rooted trees in O(n log n) time and the quartet distance between unrooted trees in O(dn log n) time, where d degree of the tree with the smallest degree.\n",
                 invocation: [{
@@ -1114,7 +1114,7 @@ export const applicationsPage: Page<Application> = {
                 }],
                 outputFileGlobs: ["stdout.txt", "stderr.txt"]
             }, tool: {
-                owner: "jonas@hinchely.dk",
+                owner: "j@h.com",
                 createdAt: 1531304469178,
                 modifiedAt: 1531304469178,
                 description: {
@@ -1129,7 +1129,7 @@ export const applicationsPage: Page<Application> = {
                         seconds: 0
                     },
                     requiredModules: [],
-                    authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+                    authors: ["Don Dan <donny_dan@sdu.dk>"],
                     title: "tqDist",
                     description: "Tools for running tqDist",
                     backend: "SINGULARITY"
@@ -1140,7 +1140,7 @@ export const applicationsPage: Page<Application> = {
 };
 
 export const detailedApplication = {
-    owner: "jonas@hinchely.dk",
+    owner: "j@h.com",
     createdAt: 1531305600165,
     modifiedAt: 1531305600165,
     description: {
@@ -1152,7 +1152,7 @@ export const detailedApplication = {
             name: "figlet",
             version: "1.0.0"
         },
-        authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+        authors: ["Don Dan <donny_dan@sdu.dk>"],
         title: "Figlet Counter",
         description: "Count with Figlet!\n",
         invocation: [
@@ -1176,7 +1176,7 @@ export const detailedApplication = {
         outputFileGlobs: ["stdout.txt", "stderr.txt"]
     },
     tool: {
-        owner: "jonas@hinchely.dk",
+        owner: "j@h.com",
         createdAt: 1531303905548,
         modifiedAt: 1531303905548,
         description: {
@@ -1193,7 +1193,7 @@ export const detailedApplication = {
                 seconds: 0
             },
             requiredModules: [],
-            authors: ["Dan Sebastian Thrane <dthrane@imada.sdu.dk>"],
+            authors: ["Don Dan <donny_dan@sdu.dk>"],
             title: "Figlet",
             description: "Tool for rendering text.",
             backend: "SINGULARITY"

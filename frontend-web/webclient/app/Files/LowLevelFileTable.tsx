@@ -1,7 +1,6 @@
 import {AppToolLogo} from "Applications/AppToolLogo";
 import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
-import {ACLAvatars} from "AvataaarLib/UserAvatar";
 import {format} from "date-fns/esm";
 import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
@@ -53,7 +52,7 @@ import {
     sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {addStandardDialog, Arrow, FileIcon, MasterCheckbox} from "UtilityComponents";
+import {addStandardDialog, Arrow, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 
 export interface LowLevelFileTableProps {
@@ -287,7 +286,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
     const [applications, setApplications] = useState(new Map<string, QuickLaunchApp[]>());
     const history = useHistory();
 
-    const {page, error, pageLoading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged} =
+    const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
         apiForComponent(props, sortByColumns, setSortByColumns);
 
     // Fetch quick launch applications upon page refresh
@@ -557,9 +556,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                             <Spacer
                                 left={isMasterDisabled ? null : (
                                     <Box mr="18px">
-                                        <Label>
-                                            All files selected:
+                                        <Label ml={10}>
                                             <Checkbox
+                                                size={27}
                                                 data-tag="masterCheckbox"
                                                 onClick={() => setChecked(
                                                     allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked
@@ -568,6 +567,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                                 disabled={isMasterDisabled}
                                                 onChange={UF.stopPropagation}
                                             />
+                                            <Box as={"span"} ml={"4px"}>Select all</Box>
                                         </Label>
                                     </Box>
                                 )}
@@ -671,7 +671,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                             mb="50px"
                                             trigger={(
                                                 <Link to={filePreviewQuery(f.path)}>
-                                                    <Icon cursor="pointer" size="2em" mr="4px" name="eye" />
+                                                    <Icon cursor="pointer" size="24px" mt="4px" mr="8px" color="gray" name="preview" />
                                                 </Link>
                                             )}
                                         >

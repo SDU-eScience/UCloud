@@ -450,3 +450,7 @@ export function stopPropagationAndPreventDefault<T extends {preventDefault(): vo
     preventDefault(e);
     stopPropagation(e);
 }
+
+export function displayErrorMessageOrDefault(e: any, fallback: string) {
+    snackbarStore.addFailure(errorMessageOrDefault(e, fallback));
+}

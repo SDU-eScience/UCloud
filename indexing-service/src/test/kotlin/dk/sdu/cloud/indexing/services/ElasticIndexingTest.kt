@@ -99,9 +99,10 @@ class ElasticIndexingTest {
         val elastic = ElasticIndexingService(rest)
 
         every { rest.update(any(), any()) } answers {
-            val response = UpdateResponse()
+            val response = mockk<UpdateResponse>(relaxed = true)
             response
         }
+
 
         elastic.handleEvent(eventCreatedOrRefreshed)
     }
@@ -112,7 +113,7 @@ class ElasticIndexingTest {
         val elastic = ElasticIndexingService(rest)
 
         every { rest.delete(any(), any()) } answers {
-            val response = DeleteResponse()
+            val response = DeleteResponse(mockk(relaxed = true))
             response
         }
 
@@ -126,7 +127,7 @@ class ElasticIndexingTest {
         val elastic = ElasticIndexingService(rest)
 
         every { rest.update(any(), any()) } answers {
-            val response = UpdateResponse()
+            val response = UpdateResponse(mockk(relaxed = true))
             response
         }
 
@@ -140,7 +141,7 @@ class ElasticIndexingTest {
         val elastic = ElasticIndexingService(rest)
 
         every { rest.update(any(), any()) } answers {
-            val response = UpdateResponse()
+            val response = mockk<UpdateResponse>()
             response
         }
 
@@ -153,7 +154,7 @@ class ElasticIndexingTest {
         val elastic = ElasticIndexingService(rest)
 
         every { rest.update(any(), any()) } answers {
-            val response = UpdateResponse()
+            val response = UpdateResponse(mockk())
             response
         }
 
@@ -167,7 +168,7 @@ class ElasticIndexingTest {
         val elastic = ElasticIndexingService(rest)
 
         every { rest.update(any(), any()) } answers {
-            val response = UpdateResponse()
+            val response = UpdateResponse(mockk())
             response
         }
 
@@ -196,7 +197,7 @@ class ElasticIndexingTest {
         }
 
         every { rest.update(any(), any()) } answers {
-            val response = UpdateResponse()
+            val response = UpdateResponse(mockk())
             response
         }
 
