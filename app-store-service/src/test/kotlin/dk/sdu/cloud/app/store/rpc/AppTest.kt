@@ -44,6 +44,7 @@ import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
 import kotlinx.coroutines.runBlocking
+import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -323,6 +324,7 @@ class AppTest {
         )
     }
 
+    @Ignore
     @Test
     fun `find By Name And Version test`() {
         val name = "app"
