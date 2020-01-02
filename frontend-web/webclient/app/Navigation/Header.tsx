@@ -75,11 +75,13 @@ function Header(props: HeaderProps) {
     const promises = usePromiseKeeper();
 
     React.useEffect(() => {
-        if (Client.isLoggedIn) props.fetchAvatar();
-        setIntervalId(setInterval(fetchDowntimes, 600_000));
-        fetchDowntimes();
-        return () => clearInterval(intervalId);
-    }, []);
+        if (Client.isLoggedIn) {
+            props.fetchAvatar();
+            setIntervalId(setInterval(fetchDowntimes, 600_000));
+            fetchDowntimes();
+        }
+        return () => {if (intervalId !== -1) clearInterval(intervalId);};
+    }, [Client.isLoggedIn]);
 
     // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
     // The following is only supposed to work for the initial load.
