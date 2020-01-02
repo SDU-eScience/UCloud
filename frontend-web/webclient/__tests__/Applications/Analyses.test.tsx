@@ -4,28 +4,18 @@ import * as React from "react";
 import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";
 import {create} from "react-test-renderer";
-import {createResponsiveStateReducer, responsiveStoreEnhancer} from "redux-responsive";
 import {ThemeProvider} from "styled-components";
 import JobResults from "../../app/Applications/JobResults";
-import analyses from "../../app/Applications/Redux/AnalysesReducer";
-import {initAnalyses} from "../../app/DefaultObjects";
-import theme, {responsiveBP} from "../../app/ui-components/theme";
-import {configureStore} from "../../app/Utilities/ReduxUtilities";
+import theme from "../../app/ui-components/theme";
+import {store} from "../../app/Utilities/ReduxUtilities";
 import {analyses as analysesPage} from "../mock/Analyses";
-
-const configureTestStore = () => configureStore({analyses: initAnalyses()}, {
-    analyses,
-    responsive: createResponsiveStateReducer(
-        responsiveBP,
-        {infinity: "xxl"}),
-}, responsiveStoreEnhancer);
 
 describe("Analyses component", () => {
     test("Mount component with non-empty page", () => {
-        const store = configureTestStore();
-        store.getState().analyses.page = analysesPage;
+        const storeCopy = {...store}
+        storeCopy.getState().analyses.page = analysesPage;
         expect(create(
-            <Provider store={store}>
+            <Provider store={storeCopy}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
                         <JobResults history={createMemoryHistory()} />

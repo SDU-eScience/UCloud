@@ -24,7 +24,7 @@ import uploader from "Uploader/Redux/UploaderReducer";
 import avatar from "UserSettings/Redux/AvataaarReducer";
 
 export function configureStore(
-    initialObject: Partial<ReduxObject>,
+    initialObject: ReduxObject,
     reducers,
     enhancers?
 ): Store<ReduxObject, AnyAction> {

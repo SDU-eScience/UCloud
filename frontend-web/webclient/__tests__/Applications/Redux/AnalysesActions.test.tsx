@@ -1,9 +1,7 @@
 import * as AnalysesActions from "../../../app/Applications/Redux/AnalysesActions";
-import analysesReducer from "../../../app/Applications/Redux/AnalysesReducer";
-import { configureStore } from "../../../app/Utilities/ReduxUtilities";
-import { initAnalyses } from "../../../app/DefaultObjects";
+import {store} from "../../../app/Utilities/ReduxUtilities";
 
-const emptyPageStore = configureStore({ analyses: initAnalyses() }, { analyses: analysesReducer });
+const emptyPageStore = {...store};
 
 describe("Analyses Actions", () => {
 
