@@ -20,6 +20,9 @@ import dk.sdu.cloud.app.store.util.normAppDesc2
 import dk.sdu.cloud.app.store.util.normToolDesc
 import dk.sdu.cloud.app.store.util.withNameAndVersion
 import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.ElasticFeature
@@ -55,7 +58,15 @@ private fun KtorApplicationTestSetupContext.configureAppServer(
 ): List<Controller> {
     val toolDao = mockk<ToolDAO<HibernateSession>>(relaxed = true)
     val aclDao = mockk<AclDao<HibernateSession>>(relaxed = true)
-    val appStore = AppStoreService(micro.hibernateDatabase, appDao, toolDao, aclDao, elasticDAO)
+    val authClient = mockk<AuthenticatedClient>(relaxed = true)
+    val appStore = AppStoreService(
+        micro.hibernateDatabase,
+        authClient,
+        appDao,
+        toolDao,
+        aclDao,
+        elasticDAO
+    )
     val logoService = LogoService(micro.hibernateDatabase, appDao, toolDao)
     return listOf(AppStoreController(appStore, logoService))
 }
@@ -468,7 +479,7 @@ class AppTest {
 
                 every { appDao.createTags(any(), any(), any(), any()) } just runs
                 every { appDao.deleteTags(any(), any(), any(), any()) } just runs
-                every { elasticDAO.addTagToElastic(any(), any())} just runs
+                every { elasticDAO.addTagToElastic(any(), any()) } just runs
                 every { elasticDAO.removeTagFromElastic(any(), any()) } just runs
                 micro.install(HibernateFeature)
                 configureAppServer(appDao, elasticDAO)
@@ -501,37 +512,38 @@ class AppTest {
             }
         )
     }
-/*
-    @Test
-    fun advancedSearch() {
-        withKtorTest(
-            setup = {
-                micro.install(ElasticFeature)
-                micro.install(HibernateFeature)
-                val appDao = mockk<ApplicationHibernateDAO>(relaxed = true)
-                val elasticDAO = mockk<ElasticDAO>(relaxed = true)
-                configureAppServer(appDao, elasticDAO)
-            },
-            test = {
-                val advancedSearchRequest = sendJson(
-                    method = HttpMethod.Post,
-                    path = "api/hpc/apps/advancedSearch",
-                    user = TestUsers.admin,
-                    request = AdvancedSearchRequest(
-                        normAppDesc2.metadata.name,
-                        normAppDesc2.metadata.version,
-                        normAppDesc2.metadata.description,
-                        null,
-                        10,
-                        0
-                    )
-                )
 
-                advancedSearchRequest.assertSuccess()
-            }
-        )
-    }
-*/
+    /*
+        @Test
+        fun advancedSearch() {
+            withKtorTest(
+                setup = {
+                    micro.install(ElasticFeature)
+                    micro.install(HibernateFeature)
+                    val appDao = mockk<ApplicationHibernateDAO>(relaxed = true)
+                    val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+                    configureAppServer(appDao, elasticDAO)
+                },
+                test = {
+                    val advancedSearchRequest = sendJson(
+                        method = HttpMethod.Post,
+                        path = "api/hpc/apps/advancedSearch",
+                        user = TestUsers.admin,
+                        request = AdvancedSearchRequest(
+                            normAppDesc2.metadata.name,
+                            normAppDesc2.metadata.version,
+                            normAppDesc2.metadata.description,
+                            null,
+                            10,
+                            0
+                        )
+                    )
+
+                    advancedSearchRequest.assertSuccess()
+                }
+            )
+        }
+    */
     @Test
     fun `update Logo test`() {
         withKtorTest(
@@ -549,7 +561,7 @@ class AppTest {
                     configure = {
                         addHeader("Upload-Name", "name")
                         addHeader("Content-Length", "4")
-                        setBody(byteArrayOf(1,2,3,4))
+                        setBody(byteArrayOf(1, 2, 3, 4))
                     }
                 )
 

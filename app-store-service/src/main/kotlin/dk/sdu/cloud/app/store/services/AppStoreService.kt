@@ -5,7 +5,12 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.services.acl.*
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -16,10 +21,13 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.elasticsearch.action.search.SearchResponse
 
 class AppStoreService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
+    private val authenticatedClient: AuthenticatedClient,
     private val applicationDAO: ApplicationDAO<DBSession>,
     private val toolDao: ToolDAO<DBSession>,
     private val aclDao: AclDao<DBSession>,
@@ -156,12 +164,29 @@ class AppStoreService<DBSession>(
         }
     }
 
-    private fun updatePermissionsWithSession(
+    private suspend fun updatePermissionsWithSession(
         session: DBSession,
         applicationName: String,
         entity: UserEntity,
         permissions: ApplicationAccessRight
     ) {
+        if (entity.type == EntityType.USER) {
+            log.debug("Verifying that user exists")
+
+            val lookupJob = GlobalScope.launch {
+                val lookup = UserDescriptions.lookupUsers.call(
+                    LookupUsersRequest(listOf(entity.id)),
+                    authenticatedClient
+                ).orRethrowAs { throw RPCException("Could not look up user", HttpStatusCode.BadRequest) }
+                lookup.results[entity.id]
+                    ?: throw RPCException("The user does not exist", HttpStatusCode.BadRequest)
+                if (lookup.results[entity.id]?.role == Role.SERVICE) {
+                    throw RPCException("The user does not exist", HttpStatusCode.BadRequest)
+                }
+            }
+
+            lookupJob.join()
+        }
         aclDao.updatePermissions(session, entity, applicationName, permissions)
     }
 

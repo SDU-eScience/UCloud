@@ -14,6 +14,8 @@ import dk.sdu.cloud.app.store.services.LogoService
 import dk.sdu.cloud.app.store.services.ToolHibernateDAO
 import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.util.yamlMapper
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.elasticHighLevelClient
@@ -42,7 +44,8 @@ class Server(override val micro: Micro) : CommonServer {
 
 
         val db = micro.hibernateDatabase
-        val appStoreService = AppStoreService(db, applicationDAO, toolDAO, aclDao, elasticDAO)
+        val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val appStoreService = AppStoreService(db, authenticatedClient, applicationDAO, toolDAO, aclDao, elasticDAO)
         val logoService = LogoService(db, applicationDAO, toolDAO)
 
         with(micro.server) {

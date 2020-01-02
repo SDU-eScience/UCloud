@@ -52,8 +52,6 @@ class AclHibernateDao : AclDao<HibernateSession> {
         applicationName: String,
         permissions: ApplicationAccessRight
     ) {
-        println("AclHibernateDao Updating permissions") 
-        
         val permissionEntry = PermissionEntry(
             PermissionEntry.Key(
                 userEntity.id,

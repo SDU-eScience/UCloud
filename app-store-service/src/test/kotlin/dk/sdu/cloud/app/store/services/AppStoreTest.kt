@@ -5,6 +5,9 @@ import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.app.store.util.normAppDesc2
 import dk.sdu.cloud.app.store.util.withNameAndVersion
 import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.ElasticFeature
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.elasticHighLevelClient
@@ -21,7 +24,7 @@ import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class AppStoreTest{
+class AppStoreTest {
 
     //Requires running Elastic with empty application index
     @Ignore
@@ -36,8 +39,13 @@ class AppStoreTest{
         val appDao = ApplicationHibernateDAO(toolHibernateDAO, aclHibernateDao)
         val elasticDAO = ElasticDAO(micro.elasticHighLevelClient)
         val aclDao = AclHibernateDao()
+        val authClient = mockk<AuthenticatedClient>(relaxed = true)
         val applicationService =
-            AppStoreService(micro.hibernateDatabase, appDao, toolHibernateDAO, aclDao, elasticDAO)
+            AppStoreService(
+                micro.hibernateDatabase,
+                authClient,
+                appDao, toolHibernateDAO, aclDao, elasticDAO
+            )
 
         runBlocking {
             applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.1"), "content")
@@ -61,7 +69,7 @@ class AppStoreTest{
                 "",
                 listOf("test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             val advancedSearchResultForAll = applicationService.advancedSearch(
@@ -69,7 +77,7 @@ class AppStoreTest{
                 "",
                 listOf("test1", "test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             assertEquals(0, advancedSearchResultForTest1.itemsInTotal)
@@ -97,7 +105,7 @@ class AppStoreTest{
                 "",
                 listOf("test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             val advancedSearchResultForAll = applicationService.advancedSearch(
@@ -105,7 +113,7 @@ class AppStoreTest{
                 "",
                 listOf("test1", "test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             assertEquals(3, advancedSearchResultForTest1.itemsInTotal)
@@ -133,7 +141,7 @@ class AppStoreTest{
                 "",
                 listOf("test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             val advancedSearchResultForAll = applicationService.advancedSearch(
@@ -141,7 +149,7 @@ class AppStoreTest{
                 "",
                 listOf("test1", "test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             assertEquals(3, advancedSearchResultForTest1.itemsInTotal)
@@ -151,7 +159,7 @@ class AppStoreTest{
         }
     }
 
-    private fun initAppStoreWithMockedElasticAndTool (): AppStoreService<HibernateSession> {
+    private fun initAppStoreWithMockedElasticAndTool(): AppStoreService<HibernateSession> {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
@@ -159,8 +167,13 @@ class AppStoreTest{
         val appDAO = ApplicationHibernateDAO(toolHibernateDAO, aclHibernateDao)
         val aclDao = AclHibernateDao()
         val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+        val authClient = mockk<AuthenticatedClient>(relaxed = true)
 
-        return AppStoreService(micro.hibernateDatabase, appDAO, toolHibernateDAO, aclDao, elasticDAO)
+        return AppStoreService(
+            micro.hibernateDatabase,
+            authClient,
+            appDAO, toolHibernateDAO, aclDao, elasticDAO
+        )
     }
 
     @Test
@@ -254,7 +267,7 @@ class AppStoreTest{
         }
     }
 
-    @Test (expected = ApplicationException.NotFound::class)
+    @Test(expected = ApplicationException.NotFound::class)
     fun `test delete - not found`() {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
         runBlocking {
@@ -271,7 +284,7 @@ class AppStoreTest{
         }
     }
 
-    @Test (expected = ApplicationException.NotAllowed::class)
+    @Test(expected = ApplicationException.NotAllowed::class)
     fun `test delete - not same user`() {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
         runBlocking {
