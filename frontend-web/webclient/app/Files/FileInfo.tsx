@@ -25,7 +25,8 @@ import {
     fileTablePage,
     getParentPath,
     reclassifyFile,
-    sizeToString
+    sizeToString,
+    isFilePreviewSupported
 } from "Utilities/FileUtilities";
 import {capitalized, removeTrailingSlash} from "UtilityFunctions";
 import FilePreview from "./FilePreview";
@@ -96,11 +97,7 @@ function FileInfo(props: Readonly<FileInfo>) {
                         }}
                     />
 
-                    {previewShown ? <FilePreview isEmbedded /> : (
-                        <Flex justifyContent="center">
-                            <Button my="10px" onClick={() => setPreviewShown(true)}>Show preview</Button>
-                        </Flex>
-                    )}
+                    <ShowFilePreview />
 
                     {activity.items.length ? (
                         <Flex flexDirection="row" justifyContent="center">
@@ -118,6 +115,16 @@ function FileInfo(props: Readonly<FileInfo>) {
 
     function queryParams(): URLSearchParams {
         return new URLSearchParams(props.location.search);
+    }
+
+    function ShowFilePreview() {
+        if (file == null || !isFilePreviewSupported(file)) return null;
+        if (previewShown) return <FilePreview isEmbedded />;
+        return (
+            <Flex justifyContent="center">
+                <Button my="10px" onClick={() => setPreviewShown(true)}>Show preview</Button>
+            </Flex>
+        );
     }
 
     function path(): string {

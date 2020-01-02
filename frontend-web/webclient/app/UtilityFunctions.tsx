@@ -161,7 +161,7 @@ export const extensionType = (ext: string): ExtensionType => {
     }
 };
 
-export const isPreviewSupported = (ext: string): boolean => {
+export const isExtPreviewSupported = (ext: string): boolean => {
     switch (ext) {
         case "md":
         case "swift":
