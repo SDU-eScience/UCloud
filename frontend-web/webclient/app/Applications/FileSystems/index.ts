@@ -2,16 +2,16 @@ import {APICallParameters} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 export interface SharedFileSystem {
-    id: string,
-    owner: string,
-    backend: string,
-    title: string,
-    createdAt: number
+    id: string;
+    owner: string;
+    backend: string;
+    title: string;
+    createdAt: number;
 }
 
 export interface SharedFileSystemMount {
-    sharedFileSystem: SharedFileSystem,
-    mountedAt: string
+    sharedFileSystem: SharedFileSystem;
+    mountedAt: string;
 }
 
 interface CreateFileSystemParameters {

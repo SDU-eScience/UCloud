@@ -3,7 +3,7 @@ import styled from "styled-components";
 import Box from "./Box";
 import Flex from "./Flex";
 import Text from "./Text";
-import {default as theme, ThemeColor} from "./theme";
+import {ThemeColor} from "./theme";
 
 interface ProgressBaseProps {
     height?: number | string;

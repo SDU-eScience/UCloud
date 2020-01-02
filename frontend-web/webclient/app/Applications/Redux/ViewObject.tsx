@@ -1,21 +1,21 @@
-import {WithAppMetadata, FullAppInfo} from "Applications";
-import { Page } from "Types";
-import { emptyLoadableContent, LoadableContent } from "LoadableContent";
+import {FullAppInfo} from "Applications";
+import {emptyLoadableContent, LoadableContent} from "LoadableContent";
+import {Page} from "Types";
 
 export interface Type {
-    application: LoadableContent<FullAppInfo>
-    previous: LoadableContent<Page<FullAppInfo>>
-    favorite: LoadableContent<void>
+    application: LoadableContent<FullAppInfo>;
+    previous: LoadableContent<Page<FullAppInfo>>;
+    favorite: LoadableContent<void>;
 }
 
 export interface Wrapper {
-    applicationView: Type
+    applicationView: Type;
 }
 
 export function init(): Wrapper {
     return {
-        applicationView: { 
-            application: emptyLoadableContent(), 
+        applicationView: {
+            application: emptyLoadableContent(),
             previous: emptyLoadableContent(),
             favorite: emptyLoadableContent()
         }
