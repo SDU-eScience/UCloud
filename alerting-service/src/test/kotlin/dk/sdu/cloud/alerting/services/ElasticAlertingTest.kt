@@ -1,12 +1,17 @@
 package dk.sdu.cloud.alerting.services
 
 import dk.sdu.cloud.alerting.Configuration
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import jdk.internal.util.xml.impl.Input
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.toUtf8Bytes
+import org.apache.http.Header
+import org.apache.http.HttpEntity
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthResponse
 import org.elasticsearch.client.ClusterClient
 import org.elasticsearch.client.Response
@@ -14,6 +19,8 @@ import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.cluster.health.ClusterHealthStatus
 import org.junit.Test
+import java.io.ByteArrayInputStream
+import java.io.InputStream
 import java.net.ConnectException
 import kotlin.test.assertEquals
 
@@ -189,6 +196,121 @@ class ElasticAlertingTest {
 
         runBlocking {ea.alertOnIndicesCount(lowRest, Configuration())}
 
+    }
+
+    @Test
+    fun `alert on doc count - not 200 response`() {
+        val rest = mockk<RestHighLevelClient>()
+        val alerting = mockk<AlertingService>()
+        val ea = ElasticAlerting(rest, alerting, true)
+
+        val lowRest = mockk<RestClient>()
+
+        every { lowRest.performRequest(any()) } answers {
+            val response = mockk<Response>()
+            every { response.statusLine.statusCode} returns 404
+            response
+        }
+
+        runBlocking {
+            ea.alertOnNumberOfDocs(lowRest)
+        }
+    }
+
+    @Test
+    fun `alert on doc count - low limit`() {
+        val rest = mockk<RestHighLevelClient>()
+        val alerting = mockk<AlertingService>()
+        val ea = ElasticAlerting(rest, alerting, true)
+
+        val lowRest = mockk<RestClient>()
+
+        every { lowRest.performRequest(any()) } answers {
+            val response = mockk<Response>()
+            every { response.statusLine.statusCode} returns 200
+            every { response.entity} answers {
+                val entity = mockk<HttpEntity>()
+                every {entity.contentType} answers {
+                    mockk<Header>(relaxed = true)
+                }
+                every { entity.contentLength } returns "index 1600000000".length.toLong()
+                every { entity.content } answers {
+                    ByteArrayInputStream( "index 1600000000".toUtf8Bytes())
+                }
+                entity
+            }
+            response
+        }
+
+        coEvery { alerting.createAlert(any()) } just runs
+
+        runBlocking {
+            ea.alertOnNumberOfDocs(lowRest)
+        }
+    }
+
+    @Test
+    fun `alert on doc count - high limit`() {
+        val rest = mockk<RestHighLevelClient>()
+        val alerting = mockk<AlertingService>()
+        val ea = ElasticAlerting(rest, alerting, true)
+
+        val lowRest = mockk<RestClient>()
+
+        every { lowRest.performRequest(any()) } answers {
+            val response = mockk<Response>()
+            every { response.statusLine.statusCode} returns 200
+            every { response.entity} answers {
+                val entity = mockk<HttpEntity>()
+                every {entity.contentType} answers {
+                    mockk<Header>(relaxed = true)
+                }
+                every { entity.contentLength } returns "index 2000000000".length.toLong()
+                every { entity.content } answers {
+                    ByteArrayInputStream( "index 2000000000".toUtf8Bytes())
+                }
+                entity
+            }
+            response
+        }
+
+        coEvery { alerting.createAlert(any()) } just runs
+
+        runBlocking {
+            ea.alertOnNumberOfDocs(lowRest)
+        }
+    }
+
+    @Test
+    fun `alert on doc count`() {
+        val rest = mockk<RestHighLevelClient>()
+        val alerting = mockk<AlertingService>()
+        val ea = ElasticAlerting(rest, alerting, true)
+
+        val lowRest = mockk<RestClient>()
+
+        every { lowRest.performRequest(any()) } answers {
+            val response = mockk<Response>()
+            every { response.statusLine.statusCode} returns 200
+            every { response.entity} answers {
+                val entity = mockk<HttpEntity>()
+                every {entity.contentType} answers {
+                    mockk<Header>(relaxed = true)
+                }
+                every { entity.contentLength } returns "index 84".length.toLong()
+                every { entity.content } answers {
+                    ByteArrayInputStream( "index 84".toUtf8Bytes())
+                }
+                entity
+            }
+            response
+        }
+
+        coEvery { alerting.createAlert(any()) } just runs
+
+        runBlocking {
+            ea.alertOnNumberOfDocs(lowRest)
+        }
     }
 
 }
