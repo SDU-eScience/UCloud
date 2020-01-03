@@ -589,14 +589,9 @@ class ApplicationHibernateDAO(
                     """
                         select * from {h-schema}applications as A
                         where A.name = :name 
-                        and (
-                            A.is_public = true or :user in (
-                                select P.entity from {h-schema}permissions as P where P.application_name = A.name 
-                            )
-                        )
                         order by A.created_at desc
                     """.trimIndent(), ApplicationEntity::class.java
-                ).setParameter("name", name).setParameter("user", user?.username ?: "")
+                ).setParameter("name", name)
                 .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
             )
         } else {
