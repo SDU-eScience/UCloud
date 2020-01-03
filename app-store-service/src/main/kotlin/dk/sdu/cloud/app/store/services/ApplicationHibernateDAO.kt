@@ -183,10 +183,10 @@ class ApplicationHibernateDAO(
                         )
                     )
                 """.trimIndent(), TagEntity::class.java
-                )
-                    .setParameter("user", user.username)
-                    .setParameterList("tags", tags)
-                    .resultList.distinctBy { it.applicationName }.map { it.applicationName }
+            )
+                .setParameter("user", user.username)
+                .setParameterList("tags", tags)
+                .resultList.distinctBy { it.applicationName }.map { it.applicationName }
         }
     }
 
@@ -509,8 +509,8 @@ class ApplicationHibernateDAO(
                 ) and lower(A.title) like '%' || :query || '%'
                 order by A.title
             """.trimIndent()
-                ).setParameter("query", normalizedQuery).paginatedList(paging)
-                    .map { it.toModelWithInvocation() }
+            ).setParameter("query", normalizedQuery).paginatedList(paging)
+                .map { it.toModelWithInvocation() }
         } else {
             session.createNativeQuery<ApplicationEntity>(
                 """
@@ -525,7 +525,8 @@ class ApplicationHibernateDAO(
                        select P.entity from {h-schema}permissions as P where P.application_name = A.name and 1=1
                    ))
                    order by A.title 
-                """.trimIndent(), ApplicationEntity::class.java)
+                """.trimIndent(), ApplicationEntity::class.java
+            )
                 .setParameter("query", normalizedQuery).setParameter("user", user.username).paginatedList(paging)
                 .map { it.toModelWithInvocation() }
         }
@@ -592,7 +593,7 @@ class ApplicationHibernateDAO(
                         order by A.created_at desc
                     """.trimIndent(), ApplicationEntity::class.java
                 ).setParameter("name", name)
-                .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
+                    .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
             )
         } else {
             preparePageForUser(
@@ -839,6 +840,10 @@ class ApplicationHibernateDAO(
     override fun delete(session: HibernateSession, user: SecurityPrincipal, name: String, version: String) {
         val existingOwner = findOwnerOfApplication(session, name)
         if (existingOwner != null && !canUserPerformWriteOperation(existingOwner, user)) {
+            throw ApplicationException.NotAllowed()
+        }
+
+        if (internalFindAllByName(session, user, name, paging = NormalizedPaginationRequest(25, 0)).itemsInTotal <= 1) {
             throw ApplicationException.NotAllowed()
         }
 
@@ -1095,9 +1100,9 @@ class ApplicationHibernateDAO(
                 ) and A.toolName = :toolName
             """.trimIndent()
             )
-            .setParameter("toolName", tool)
-            .uniqueResult()
-            .toInt()
+                .setParameter("toolName", tool)
+                .uniqueResult()
+                .toInt()
         } else {
             session.typedQuery<Long>(
                 """
@@ -1135,7 +1140,7 @@ class ApplicationHibernateDAO(
                         ) and A.toolName = :toolName
                     order by A.id.name
                 """.trimIndent()
-                )
+            )
                 .setParameter("toolName", tool)
                 .paginatedList(paging)
                 .map { it.toModelWithInvocation() }
