@@ -596,7 +596,7 @@ class ApplicationHibernateDAO(
                         )
                         order by A.created_at desc
                     """.trimIndent(), ApplicationEntity::class.java
-                ).setParameter("name", name).setParameter("user", user?.username)
+                ).setParameter("name", name).setParameter("user", user?.username ?: "")
                 .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
             )
         } else {
@@ -612,7 +612,7 @@ class ApplicationHibernateDAO(
                             ))
                         order by A.created_at desc
                     """.trimIndent(), ApplicationEntity::class.java
-                ).setParameter("user", user?.username)
+                ).setParameter("user", user?.username ?: "")
                     .setParameter("name", name)
                     .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
             )
@@ -724,8 +724,6 @@ class ApplicationHibernateDAO(
 
         val entity = internalByNameAndVersion(session, name, version)?.toModelWithInvocation()
             ?: throw ApplicationException.NotFound()
-
-        println(entity.metadata.title)
 
         return preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()
     }
