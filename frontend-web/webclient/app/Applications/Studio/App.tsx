@@ -411,7 +411,10 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                 </Text>
                                                             </Box>
                                                         ),
-                                                        onConfirm: () => Client.delete("/hpc/apps", { name: name, version: version.version }),
+                                                        onConfirm: async () => {
+                                                            await Client.delete("/hpc/apps", { name: name, version: version.version })
+                                                            setAppParameters(listByName({...appParameters.parameters}));
+                                                        },
                                                         confirmText: "Delete"
                                                     })}
                                                 >
