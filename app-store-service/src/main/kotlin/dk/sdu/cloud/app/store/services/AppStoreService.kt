@@ -22,6 +22,7 @@ import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import org.elasticsearch.action.search.SearchResponse
 
@@ -173,21 +174,22 @@ class AppStoreService<DBSession>(
         if (entity.type == EntityType.USER) {
             log.debug("Verifying that user exists")
 
-            val lookupJob = GlobalScope.launch {
-                val lookup = UserDescriptions.lookupUsers.call(
-                    LookupUsersRequest(listOf(entity.id)),
-                    authenticatedClient
-                ).orRethrowAs { throw RPCException("Could not look up user", HttpStatusCode.BadRequest) }
-                lookup.results[entity.id]
-                    ?: throw RPCException("The user does not exist", HttpStatusCode.BadRequest)
-                if (lookup.results[entity.id]?.role == Role.SERVICE) {
-                    throw RPCException("The user does not exist", HttpStatusCode.BadRequest)
-                }
+            val lookup = UserDescriptions.lookupUsers.call(
+                LookupUsersRequest(listOf(entity.id)),
+                authenticatedClient
+            ).orRethrowAs {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Could not look up user")
             }
-
-            lookupJob.join()
+            if (lookup.results[entity.id] !== null) {
+                if (lookup.results[entity.id]?.role == Role.SERVICE) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "The user does not exist")
+                } else {
+                    aclDao.updatePermissions(session, entity, applicationName, permissions)
+                }
+            } else {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "The user does not exist")
+            }
         }
-        aclDao.updatePermissions(session, entity, applicationName, permissions)
     }
 
     private fun revokePermissionWithSession(
