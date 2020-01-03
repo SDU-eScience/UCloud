@@ -5,24 +5,13 @@ import * as React from "react";
 import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";
 import {create} from "react-test-renderer";
-import {createResponsiveStateReducer} from "redux-responsive";
 import {ThemeProvider} from "styled-components";
 import UserCreation from "../../app/Admin/UserCreation";
-import {initResponsive, initStatus} from "../../app/DefaultObjects";
-import status from "../../app/Navigation/Redux/StatusReducer";
 import PromiseKeeper from "../../app/PromiseKeeper";
-import {responsiveBP} from "../../app/ui-components/theme";
 import theme from "../../app/ui-components/theme";
-import {configureStore} from "../../app/Utilities/ReduxUtilities";
+import {store} from "../../app/Utilities/ReduxUtilities";
 
 configure({adapter: new Adapter()});
-
-const store = configureStore({status: initStatus(), responsive: initResponsive()}, {
-    status,
-    responsive: createResponsiveStateReducer(
-        responsiveBP,
-        {infinity: "xxl"})
-});
 
 const userCreation = () => (
     <Provider store={store}>
