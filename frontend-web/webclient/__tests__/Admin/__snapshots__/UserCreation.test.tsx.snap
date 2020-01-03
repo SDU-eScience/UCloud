@@ -12,7 +12,7 @@ exports[`UserCreation Mount 1`] = `
 
 .c3 {
   padding-top: 64px;
-  padding-right: 240px;
+  padding-right: 14px;
 }
 
 .c7 {
