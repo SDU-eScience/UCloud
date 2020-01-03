@@ -89,8 +89,7 @@ export function createApplicationTag(props: CreateApplicationTagProps): APICallP
 }
 
 export enum ApplicationAccessRight {
-    LAUNCH = "LAUNCH",
-    CANCEL = "CANCEL"
+    LAUNCH = "LAUNCH"
 }
 
 export enum UserEntityType {

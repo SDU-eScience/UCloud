@@ -42,7 +42,6 @@ class Server(override val micro: Micro) : CommonServer {
         val aclDao = AclHibernateDao()
         val applicationDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
-
         val db = micro.hibernateDatabase
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val appStoreService = AppStoreService(db, authenticatedClient, applicationDAO, toolDAO, aclDao, elasticDAO)
@@ -56,36 +55,36 @@ class Server(override val micro: Micro) : CommonServer {
         }
 
         if (micro.developmentModeEnabled) {
-            val listOfApps = GlobalScope.async {
-                db.withTransaction {
+            GlobalScope.async {
+                val listOfApps = db.withTransaction {
                     applicationDAO.listLatestVersion(it, null, NormalizedPaginationRequest(null, null))
                 }
-            }
 
-            if (listOfApps.getCompleted().itemsInTotal == 0) {
-                val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin", 42000)
-                @Suppress("TooGenericExceptionCaught")
-                GlobalScope.launch {
-                    db.withTransaction { session ->
-                        val tools = File("yaml", "tools")
-                        tools.listFiles()?.forEach {
-                            try {
-                                val description = yamlMapper.readValue<ToolDescription>(it)
-                                toolDAO.create(session, dummyUser, description.normalize())
-                            } catch (ex: Exception) {
-                                log.info("Could not create tool: $it")
-                                log.info(ex.stackTraceToString())
+                if (listOfApps.itemsInTotal == 0) {
+                    val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin", 42000)
+                    @Suppress("TooGenericExceptionCaught")
+                    GlobalScope.launch {
+                        db.withTransaction { session ->
+                            val tools = File("yaml", "tools")
+                            tools.listFiles()?.forEach {
+                                try {
+                                    val description = yamlMapper.readValue<ToolDescription>(it)
+                                    toolDAO.create(session, dummyUser, description.normalize())
+                                } catch (ex: Exception) {
+                                    log.info("Could not create tool: $it")
+                                    log.info(ex.stackTraceToString())
+                                }
                             }
-                        }
 
-                        val apps = File("yaml", "apps")
-                        apps.listFiles()?.forEach {
-                            try {
-                                val description = yamlMapper.readValue<ApplicationDescription>(it)
-                                applicationDAO.create(session, dummyUser, description.normalize())
-                            } catch (ex: Exception) {
-                                log.info("Could not create app: $it")
-                                log.info(ex.stackTraceToString())
+                            val apps = File("yaml", "apps")
+                            apps.listFiles()?.forEach {
+                                try {
+                                    val description = yamlMapper.readValue<ApplicationDescription>(it)
+                                    applicationDAO.create(session, dummyUser, description.normalize())
+                                } catch (ex: Exception) {
+                                    log.info("Could not create app: $it")
+                                    log.info(ex.stackTraceToString())
+                                }
                             }
                         }
                     }

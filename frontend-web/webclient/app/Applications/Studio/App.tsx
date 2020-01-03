@@ -56,8 +56,6 @@ interface AppVersion {
 
 function prettifyAccessRight(accessRight: ApplicationAccessRight) {
     switch (accessRight) {
-        case ApplicationAccessRight.CANCEL:
-            return "Can only cancel";
         case ApplicationAccessRight.LAUNCH:
             return "Can launch";
     }
@@ -89,9 +87,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
         useCloudAPI<Page<WithAppMetadata & WithAllAppTags>>({noop: true}, emptyPage);
     const [versions, setVersions] = useState<AppVersion[]>([]);
 
-    const readEditOptions = [
-        {text: prettifyAccessRight(ApplicationAccessRight.LAUNCH), value: ApplicationAccessRight.LAUNCH},
-        {text: prettifyAccessRight(ApplicationAccessRight.CANCEL), value: ApplicationAccessRight.CANCEL}
+    const permissionLevels = [
+        {text: prettifyAccessRight(ApplicationAccessRight.LAUNCH), value: ApplicationAccessRight.LAUNCH}
     ];
 
     const LeftAlignedTableHeader = styled(TableHeader)`
@@ -279,13 +276,13 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                         ref={newPermissionField}
                                         placeholder="Username"
                                     />
-                                    <InputLabel width="350px" rightLabel>
+                                    <InputLabel width="250px" rightLabel>
                                         <ClickableDropdown
                                             chevron
                                             width="180px"
-                                            onChange={(val: ApplicationAccessRight.LAUNCH | ApplicationAccessRight.CANCEL) => setAccess(val)}
+                                            onChange={(val: ApplicationAccessRight.LAUNCH) => setAccess(val)}
                                             trigger={<Box as="span" minWidth="250px">{prettifyAccessRight(access)}</Box>}
-                                            options={readEditOptions}
+                                            options={permissionLevels}
                                         />
                                     </InputLabel>
                                     <Button attached width="300px" disabled={commandLoading} type={"submit"}>Add permission</Button>

@@ -633,7 +633,7 @@ class ApplicationHibernateDAO(
                     user!!,
                     cached.metadata.name,
                     cached.metadata.version,
-                    ApplicationAccessRight.CANCEL
+                    ApplicationAccessRight.LAUNCH
                 )
             ) {
                 return cached
@@ -648,7 +648,7 @@ class ApplicationHibernateDAO(
                 user!!,
                 result.metadata.name,
                 result.metadata.version,
-                ApplicationAccessRight.CANCEL
+                ApplicationAccessRight.LAUNCH
             )
         ) {
             byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
@@ -718,7 +718,7 @@ class ApplicationHibernateDAO(
                 user,
                 name,
                 version,
-                ApplicationAccessRight.CANCEL
+                ApplicationAccessRight.LAUNCH
             )
         ) throw ApplicationException.NotFound()
 
