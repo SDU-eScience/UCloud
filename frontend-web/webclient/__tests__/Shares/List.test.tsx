@@ -4,22 +4,13 @@ import {create} from "react-test-renderer";
 import {MemoryRouter} from "react-router";
 import {configure} from "enzyme"
 import * as Adapter from "enzyme-adapter-react-16";
-import theme, {responsiveBP} from "../../app/ui-components/theme";
+import theme from "../../app/ui-components/theme";
 import {ThemeProvider} from "styled-components";
 import "jest-styled-components";
-import {configureStore} from "../../app/Utilities/ReduxUtilities";
-import {initResponsive} from "../../app/DefaultObjects";
-import {createResponsiveStateReducer} from "redux-responsive";
+import {store} from "../../app/Utilities/ReduxUtilities";
 import {Provider} from "react-redux";
 
 configure({adapter: new Adapter()});
-
-const store = configureStore({responsive: initResponsive()}, {
-    responsive: createResponsiveStateReducer(
-        responsiveBP,
-        {infinity: "xxl"}
-    )
-});
 
 describe("Shares List", () => {
     test("Shares component", () => {
@@ -27,9 +18,10 @@ describe("Shares List", () => {
             <Provider store={store}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <List/>
+                        <List />
                     </MemoryRouter>
                 </ThemeProvider>
-            </Provider>)).toMatchSnapshot();
+            </Provider>
+        )).toMatchSnapshot();
     });
 });

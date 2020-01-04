@@ -628,10 +628,16 @@ export function isAnySharedFs(files: File[]): boolean {
     return files.some(it => it.fileType === "SHARED_FS");
 }
 
+export function isFilePreviewSupported(f: File): boolean {
+    if (isDirectory(f)) return false;
+    if (f.sensitivityLevel === "SENSITIVE") return false;
+    if (UF.isExtPreviewSupported(UF.extensionFromPath(f.path))) return true;
+    return false;
+}
+
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
 export const filePreviewPage = (path: string): string => `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 export const fileTablePage = (path: string): string => `/files?path=${encodeURIComponent(resolvePath(path))}`;
 
 export const archiveExtensions: string[] = [".tar.gz", ".zip"];
 export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
-

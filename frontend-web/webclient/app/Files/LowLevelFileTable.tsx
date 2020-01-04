@@ -42,6 +42,7 @@ import {
     getParentPath,
     isAnyMockFile, isAnySharedFs,
     isDirectory,
+    isFilePreviewSupported,
     isInvalidPathName,
     mergeFilePages,
     MOCK_RELATIVE,
@@ -662,7 +663,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                 <Flex mt="5px" onClick={UF.stopPropagation}>
                                     {/* Show members as icons */}
                                     {/* {!f.acl ? null : <ACLAvatars members={f.acl.map(it => it.entity)} />} */}
-                                    {!(props.previewEnabled && UF.isPreviewSupported(UF.extensionFromPath(f.path))) ? null : (
+                                    {!(props.previewEnabled && isFilePreviewSupported(f)) ? null : (
                                         <Tooltip
                                             wrapperOffsetLeft="0"
                                             wrapperOffsetTop="4px"
@@ -891,7 +892,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                     >
                         {fileName}
                     </BaseLink>
-                ) : props.previewEnabled && UF.isPreviewSupported(UF.extensionFromPath(props.file.path)) ?
+                ) : props.previewEnabled && isFilePreviewSupported(props.file) ?
                         <Link to={filePreviewQuery(props.file.path)}>{fileName}</Link> :
                         fileName
                 }

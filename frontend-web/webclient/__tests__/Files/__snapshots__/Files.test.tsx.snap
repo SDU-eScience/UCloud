@@ -210,7 +210,7 @@ exports[`Mount Files component 1`] = `
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  height: 100%;
+  height: 98%;
   -webkit-flex-direction: column;
   -ms-flex-direction: column;
   flex-direction: column;

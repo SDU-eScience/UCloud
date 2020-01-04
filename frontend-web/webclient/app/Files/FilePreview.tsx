@@ -14,7 +14,7 @@ import {Box, Button, Icon} from "ui-components";
 import Error from "ui-components/Error";
 import {Spacer} from "ui-components/Spacer";
 import {downloadFiles, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
-import {extensionFromPath, extensionTypeFromPath, isPreviewSupported, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
+import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
 import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
 interface FilePreviewStateProps {
@@ -39,7 +39,7 @@ const FilePreview = (props: FilePreviewProps) => {
 
     React.useEffect(() => {
         const path = filepath();
-        if (!isPreviewSupported(extensionFromPath(path))) {
+        if (!isExtPreviewSupported(extensionFromPath(path))) {
             setError("Preview is not supported for file type.");
             setDownloadButton(true);
             return;

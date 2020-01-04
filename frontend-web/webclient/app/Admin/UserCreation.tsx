@@ -9,9 +9,7 @@ import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, Input, Label} from "ui-components";
 import * as Heading from "ui-components/Heading";
-import Link from "ui-components/Link";
 import {SidebarPages} from "ui-components/Sidebar";
-import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {UserCreationState} from ".";
 
@@ -86,15 +84,6 @@ function UserCreation(props: UserCreationOperations) {
         <MainContainer
             header={<Heading.h1>User Creation</Heading.h1>}
             headerSize={64}
-            sidebar={(
-                <VerticalButtonGroup>
-                    <Link to={"/applications/studio"}>
-                        <Button type={"button"}>
-                            Application Studio
-                        </Button>
-                    </Link>
-                </VerticalButtonGroup>
-            )}
             main={(
                 <>
                     <p>Admins can create new users on this page.</p>

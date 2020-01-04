@@ -15,6 +15,7 @@ import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import {PaginationButtons} from "Pagination";
 import * as Pagination from "Pagination";
+import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {connect} from "react-redux";
@@ -223,6 +224,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const [isCreatingShare, setIsCreatingShare] = useState(false);
     const [newShareRights, setNewShareRights] = useState(AccessRights.READ_RIGHTS);
     const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
+    const promises = usePromiseKeeper();
     const newShareUsername = useRef<HTMLInputElement>(null);
 
     const doCreateShare = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -237,13 +239,15 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
 
             try {
                 setIsCreatingShare(true);
-                await callAPI(createShare(groupedShare.path, username, newShareRights));
+                await promises.makeCancelable(
+                    callAPI(createShare(groupedShare.path, username, newShareRights))
+                ).promise;
                 newShareUsername.current!.value = "";
                 props.onUpdate();
             } catch (e) {
                 defaultErrorHandler(e);
             } finally {
-                setIsCreatingShare(false);
+                if (!promises.canceledKeeper) setIsCreatingShare(false);
             }
         }
     };
@@ -295,7 +299,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
             <Box px={3} pt={3}>
                 {!groupedShare.sharedByMe || props.simple ? null : (
                     <form onSubmit={doCreateShare}>
-                        <Flex mb={"16px"} alignItems={"center"}>
+                        <Flex mb="16px" alignItems="center">
                             <Flex flex="1 0 auto">
                                 <Flex flex="1 0 auto" zIndex={1}>
                                     <Input
@@ -342,7 +346,8 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                         right={(
                             <Button
                                 type="button"
-                                onClick={() => props.simple && !confirmRevokeAll ? setConfirmRevokeAll(true) : revokeAll()}
+                                onClick={() => props.simple && !confirmRevokeAll ?
+                                    setConfirmRevokeAll(true) : revokeAll()}
                                 disabled={isLoading}
                                 color={confirmRevokeAll ? "red" : "blue"}
                                 mb="8px"

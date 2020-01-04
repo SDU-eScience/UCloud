@@ -1,5 +1,5 @@
-import { ActivityReduxObject } from "DefaultObjects";
-import { ScrollRequest } from "Scroll";
+import {ActivityReduxObject} from "DefaultObjects";
+import {ScrollRequest} from "Scroll";
 
 export enum ActivityType {
     DOWNLOAD = "download",
@@ -49,7 +49,6 @@ export interface ActivityDispatchProps {
     updateFilter: (filter: Partial<ActivityFilter>) => void;
 }
 
-export interface ActivityOwnProps {
-}
+export interface ActivityOwnProps {/* EMPTY */}
 
 export type ActivityProps = ActivityReduxObject & ActivityDispatchProps & ActivityOwnProps;

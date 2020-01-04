@@ -12,7 +12,7 @@ import {dialogStore} from "../app/Dialog/DialogStore";
 import {SortBy, SortOrder} from "../app/Files";
 import {theme} from "../app/ui-components";
 import {mockFile} from "../app/Utilities/FileUtilities";
-import {configureStore} from "../app/Utilities/ReduxUtilities";
+import {store} from "../app/Utilities/ReduxUtilities";
 import {
     addStandardDialog,
     Arrow,
@@ -163,7 +163,7 @@ describe("Dialogs", () => {
 
 test("Share prompt", () => {
     expect(create(
-        <Provider store={configureStore({dashboard: initDashboard()}, {dashboard})}>
+        <Provider store={store}>
             <ThemeProvider theme={theme}>
                 <SharePrompt paths={[""]} client={Client} />
             </ThemeProvider>

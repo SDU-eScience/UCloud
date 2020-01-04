@@ -14,6 +14,7 @@ import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {usePromiseKeeper} from "PromiseKeeper";
 
 interface StandardDialog {
     title?: string;
@@ -101,6 +102,7 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
     const [linkAccess, setLinkAccess] = React.useState<"read" | "read_edit">("read");
     const [loading, setLoading] = React.useState(false);
     const [shareableLink, setShareableLink] = React.useState("");
+    const promises = usePromiseKeeper();
 
     return (
         <SharePromptWrapper>
@@ -223,7 +225,7 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
                     if (!(paths.length > 1 && "why" in e.response && e.response.why !== "Already exists"))
                         snackbarStore.addFailure(e.response.why);
                 }).finally(() => {
-                    if (failures + successes === paths.length) setLoading(false);
+                    if (!promises.canceledKeeper && failures + successes === paths.length) setLoading(false);
                 });
         });
     }

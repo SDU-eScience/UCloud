@@ -4,7 +4,7 @@ import Flex from "./Flex";
 import OutlineButton from "./OutlineButton";
 
 const VerticalButtonGroup = styled(Flex)`
-    height: 100%;
+    height: 98%;
     flex-direction: column;
 
     //leave some space on top if buttons grow on hover
