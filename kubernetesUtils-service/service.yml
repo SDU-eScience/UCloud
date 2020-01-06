@@ -1,0 +1,7 @@
+---
+name: kubernetesUtils
+
+namespaces:
+- kubernetesUtils
+
+dependencies: []
