@@ -138,10 +138,21 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
                         handler(message.payload!!)
                     }
                 }
-            } catch (ex: ClosedReceiveChannelException) {
-                // Do nothing. It is expected that the channel will close down.
-            } catch (ex: CancellationException) {
-                // Do nothing. It is expected that the channel will close down.
+            } catch (ex: Throwable) {
+                runCatching {
+                    // Make sure the underlying session is also closed. Otherwise we risk that the connection
+                    // pool won't renew this session.
+                    session.underlyingSession.close(cause = ex)
+                }
+
+                if (ex is ClosedReceiveChannelException || ex is CancellationException) {
+                    // Do nothing. It is expected that the channel will close down.
+                    log.debug("Channel was closed")
+                    response = WSMessage.Response(streamId, null, HttpStatusCode.BadGateway.value)
+
+                } else {
+                    throw ex
+                }
             }
 
             response

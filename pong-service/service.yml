@@ -1,0 +1,7 @@
+---
+name: pong
+
+namespaces:
+- pong
+
+dependencies: []

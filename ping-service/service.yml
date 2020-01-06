@@ -1,0 +1,8 @@
+---
+name: ping
+
+namespaces:
+- ping
+
+dependencies:
+- pong
