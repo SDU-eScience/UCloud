@@ -297,9 +297,7 @@ export function ifPresent<T>(f: T | undefined, handler: (f: T) => void) {
     if (f) handler(f);
 }
 
-// FIXME The frontend can't handle downloading multiple files currently. When fixed, remove === 1 check.
-export const downloadAllowed = (files: File[]) =>
-    files.length === 1 && files.every(f => f.sensitivityLevel !== "SENSITIVE");
+export const downloadAllowed = (files: File[]) => files.every(f => f.sensitivityLevel !== "SENSITIVE");
 
 /**
  * Capizalises the input string and replaces _ (underscores) with whitespace.

@@ -229,13 +229,8 @@ test("To same UUDI", () =>
 
 // Download allowed
 
-
-test("Download not allowed", () =>
-    expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items)).toBe(false)
-);
-
 test("Download allowed", () =>
-    expect(UF.downloadAllowed([mockFilesSensitivityConfidential.items[0]])).toBe(true)
+    expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items)).toBe(true)
 );
 
 const highSensitivityFile = newMockFile({
@@ -313,5 +308,7 @@ describe("Sort by prettier string", () => {
     test("Path", () => expect(UF.sortByToPrettierString(SortBy.PATH)).toBe("Filename"));
     test("Size", () => expect(UF.sortByToPrettierString(SortBy.SIZE)).toBe("Size"));
     test("Sensitivity", () => expect(UF.sortByToPrettierString(SortBy.SENSITIVITY_LEVEL)).toBe("File sensitivity"));
-    test("default_example", () => expect(UF.sortByToPrettierString("default_example" as SortBy)).toBe("Default example"));
+    test("default_example", () =>
+        expect(UF.sortByToPrettierString("default_example" as SortBy)).toBe("Default example")
+    );
 });
