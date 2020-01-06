@@ -26,8 +26,7 @@ class AppsAndToolsTest {
                 )
             ),
             mapOf(Pair("arg1", ApplicationParameter.Text("arg1") )),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
 
         assertEquals("name@2.2", v1.tool.toString())
@@ -81,8 +80,7 @@ class AppsAndToolsTest {
                 )
             ),
             mapOf(Pair("arg1", ApplicationParameter.Text("arg1") )),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -97,8 +95,7 @@ class AppsAndToolsTest {
             "description",
             listOf(2),
             mapOf(Pair("string", mockk(relaxed = true))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -113,8 +110,7 @@ class AppsAndToolsTest {
             "description",
             listOf(mapOf(Pair("type", "var"), Pair("vars", "hello"))),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -129,8 +125,7 @@ class AppsAndToolsTest {
             "description",
             listOf(mapOf(Pair("type", "var"))),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -145,8 +140,7 @@ class AppsAndToolsTest {
             "description",
             listOf(mapOf(Pair("type", "flag"), Pair("var", "hello"), Pair("flag", "true"))),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -162,8 +156,7 @@ class AppsAndToolsTest {
             "description",
             listOf(mapOf(Pair("type", "NO"))),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -178,8 +171,7 @@ class AppsAndToolsTest {
             "description",
             listOf(mapOf(Pair("type", "flag"))),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -194,8 +186,7 @@ class AppsAndToolsTest {
             "description",
             listOf(mapOf(Pair("type", "flag"), Pair("var", "hello"))),
             mapOf(Pair("hello", ApplicationParameter.Bool("hello"))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -210,8 +201,7 @@ class AppsAndToolsTest {
             "description",
             listOf(mapOf(Pair("notType", "var"))),
             mapOf(Pair("string", mockk(relaxed = true))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -226,8 +216,7 @@ class AppsAndToolsTest {
             "description",
             listOf(mapOf(Pair("type", "var"), Pair("vars", "hello"))),
             mapOf(Pair("string", ApplicationParameter.Bool("hello"))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -242,8 +231,7 @@ class AppsAndToolsTest {
             "description",
             listOf(2),
             mapOf(Pair("string", mockk(relaxed = true))),
-            listOf("globs", "globs"),
-            true
+            listOf("globs", "globs")
         )
     }
 
@@ -258,8 +246,7 @@ class AppsAndToolsTest {
             "description",
             listOf(Pair("type", "var")),
             mapOf(Pair("string", mockk(relaxed = true))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -370,8 +357,7 @@ class AppsAndToolsTest {
             "description",
             listOf("string"),
             mapOf(Pair("string", mockk(relaxed = true))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
@@ -386,8 +372,7 @@ class AppsAndToolsTest {
             "description",
             listOf("string"),
             mapOf(Pair("string", mockk(relaxed = true))),
-            listOf("globs"),
-            true
+            listOf("globs")
         )
     }
 
