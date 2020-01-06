@@ -6,6 +6,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.ApplicationDescription
+import dk.sdu.cloud.app.store.api.IsPublicResponse
 import dk.sdu.cloud.app.store.api.tags
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.services.LogoService
@@ -79,7 +80,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.isPublic) {
-            ok(appStore.isPublic(ctx.securityPrincipal, request.name, request.version))
+            ok(IsPublicResponse(public = appStore.isPublic(ctx.securityPrincipal, request.applications)))
         }
 
         implement(AppStore.setPublic) {

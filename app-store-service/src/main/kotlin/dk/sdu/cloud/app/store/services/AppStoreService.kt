@@ -238,16 +238,20 @@ class AppStoreService<DBSession>(
 
     suspend fun isPublic(
         securityPrincipal: SecurityPrincipal,
-        appName: String,
-        appVersion: String
-    ): Boolean {
-        return db.withTransaction {
-            applicationDAO.isPublic(
-                it,
-                securityPrincipal,
-                appName,
-                appVersion
-            )
+        applications: List<NameAndVersion>
+    ): Map<NameAndVersion, Boolean> {
+        return db.withTransaction {session ->
+            applications.map { app ->
+                Pair<NameAndVersion, Boolean>(
+                    NameAndVersion(app.name, app.version),
+                    applicationDAO.isPublic(
+                        session,
+                        securityPrincipal,
+                        app.name,
+                        app.version
+                    )
+                )
+            }.toMap()
         }
     }
 

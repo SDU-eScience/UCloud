@@ -40,8 +40,11 @@ data class UpdateAclRequest(
 }
 
 data class IsPublicRequest(
-    val name: String,
-    val version: String
+    val applications: List<NameAndVersion>
+)
+
+data class IsPublicResponse(
+    val public: Map<NameAndVersion, Boolean>
 )
 
 
@@ -225,17 +228,23 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         }
 
     val isPublic =
-        call<IsPublicRequest, Boolean, CommonErrorMessage>("isPublic") {
+        call<IsPublicRequest, IsPublicResponse, CommonErrorMessage>("isPublic") {
             auth {
                 roles = Roles.PRIVILEDGED
                 access = AccessRight.READ
             }
 
             http {
+                method = HttpMethod.Post
+
                 path {
                     using(baseContext)
-                    +boundTo(IsPublicRequest::name)
-                    +boundTo(IsPublicRequest::version)
+                    +"isPublic"
+                }
+
+                body {
+                    bindEntireRequestFromBody()
+
                 }
             }
         }
