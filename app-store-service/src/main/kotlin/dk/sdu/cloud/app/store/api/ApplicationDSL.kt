@@ -30,8 +30,6 @@ sealed class ApplicationDescription(val application: String) {
         invocation: List<Any>,
         val parameters: Map<String, ApplicationParameter<*>> = emptyMap(),
         outputFileGlobs: List<String> = emptyList(),
-        var isPublic: Boolean,
-
         applicationType: String? = null,
         val vnc: VncDescription? = null,
         val web: WebDescription? = null,
@@ -115,7 +113,6 @@ sealed class ApplicationDescription(val application: String) {
             }?.toMap()
 
             this.fileExtensions = fileExtensions
-            this.isPublic = isPublic
         }
 
         private fun parseInvocationParameter(
@@ -231,7 +228,7 @@ sealed class ApplicationDescription(val application: String) {
                 title,
                 description,
                 null,
-                isPublic
+                false
             )
 
             val invocation = ApplicationInvocationDescription(
