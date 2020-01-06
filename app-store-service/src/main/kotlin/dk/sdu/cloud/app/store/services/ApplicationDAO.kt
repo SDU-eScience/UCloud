@@ -79,7 +79,7 @@ interface ApplicationDAO<Session> {
     fun isOwnerOfApplication(
         session: Session,
         user: SecurityPrincipal,
-        name: String
+        appName: String
     ): Boolean
 
     fun create(
@@ -92,8 +92,8 @@ interface ApplicationDAO<Session> {
     fun delete(
         session: Session,
         user: SecurityPrincipal,
-        name: String,
-        version: String
+        appName: String,
+        appVersion: String
     )
 
     fun createTags(
@@ -141,15 +141,15 @@ interface ApplicationDAO<Session> {
     fun isPublic(
         session: Session,
         user: SecurityPrincipal,
-        name: String,
-        version: String
+        appName: String,
+        appVersion: String
     ): Boolean
 
     fun setPublic(
         session: Session,
         user: SecurityPrincipal,
-        name: String,
-        version: String,
+        appName: String,
+        appVersion: String,
         public: Boolean
     )
 

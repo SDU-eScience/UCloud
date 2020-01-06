@@ -22,6 +22,26 @@ val normAppDesc = Application(
     )
 )
 
+val normAppDescDiffVersion = Application(
+    ApplicationMetadata(
+        "name",
+        "2.3",
+        listOf("Authors"),
+        "title",
+        "app description",
+        null,
+        true
+    ),
+    ApplicationInvocationDescription(
+        ToolReference("tool", "1.0.0", null),
+        mockk(relaxed = true),
+        emptyList(),
+        listOf("glob"),
+        fileExtensions = emptyList()
+    )
+)
+
+
 val normAppDesc2 = normAppDesc.withNameAndVersionAndTitle("app", "1.2", "application")
 
 val normAppDesc3 = normAppDesc

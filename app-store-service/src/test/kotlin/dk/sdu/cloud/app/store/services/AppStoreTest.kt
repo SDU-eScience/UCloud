@@ -1,10 +1,7 @@
 package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
-import dk.sdu.cloud.app.store.util.normAppDesc
-import dk.sdu.cloud.app.store.util.normAppDesc2
-import dk.sdu.cloud.app.store.util.withNameAndVersion
-import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
+import dk.sdu.cloud.app.store.util.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -267,11 +264,21 @@ class AppStoreTest {
         }
     }
 
+    @Test(expected = ApplicationException.NotAllowed::class)
+    fun `test delete - not allowed`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        runBlocking {
+            appStoreService.delete(TestUsers.admin, "name", "2.2")
+        }
+    }
+
     @Test(expected = ApplicationException.NotFound::class)
     fun `test delete - not found`() {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
         runBlocking {
-            appStoreService.delete(TestUsers.admin, "name", "2.2")
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.create(TestUsers.admin, normAppDescDiffVersion, "content")
+            appStoreService.delete(TestUsers.admin, "name", "0.0.0")
         }
     }
 
@@ -280,6 +287,7 @@ class AppStoreTest {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
         runBlocking {
             appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.create(TestUsers.admin, normAppDescDiffVersion, "content")
             appStoreService.delete(TestUsers.admin, "name", "2.2")
         }
     }

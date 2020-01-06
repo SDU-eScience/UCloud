@@ -28,8 +28,8 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -55,7 +55,7 @@ class Server(override val micro: Micro) : CommonServer {
         }
 
         if (micro.developmentModeEnabled) {
-            GlobalScope.async {
+            GlobalScope.launch {
                 val listOfApps = db.withTransaction {
                     applicationDAO.listLatestVersion(it, null, NormalizedPaginationRequest(null, null))
                 }
@@ -96,7 +96,7 @@ class Server(override val micro: Micro) : CommonServer {
             @Suppress("TooGenericExceptionCaught")
             try {
                 val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin", 42000)
-                GlobalScope.launch {
+                runBlocking {
                     micro.hibernateDatabase.withTransaction { session ->
                         val apps = applicationDAO.getAllApps(session, dummyUser)
                         apps.forEach { app ->

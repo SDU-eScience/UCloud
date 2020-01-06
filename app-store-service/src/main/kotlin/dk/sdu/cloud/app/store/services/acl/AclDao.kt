@@ -23,7 +23,7 @@ interface AclDao<Session> {
     fun hasPermission(
         session: Session,
         entity: UserEntity,
-        name: String,
+        appName: String,
         permission: Set<ApplicationAccessRight>
     ): Boolean
 

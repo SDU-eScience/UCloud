@@ -69,16 +69,14 @@ class ApplicationHibernateDAO(
         version: String,
         permission: ApplicationAccessRight
     ): Boolean {
-        if (Roles.PRIVILEDGED.contains(user.role)) return true
+        if (user.role in Roles.PRIVILEDGED) return true
         if (isPublic(session, user, name, version)) return true
-        if (aclDAO.hasPermission(
-                session,
-                UserEntity(user.username, EntityType.USER),
-                name,
-                setOf(permission)
-            )
-        ) return true
-        return false
+        return aclDAO.hasPermission(
+            session,
+            UserEntity(user.username, EntityType.USER),
+            name,
+            setOf(permission)
+        )
     }
 
     private fun isFavorite(session: HibernateSession, user: SecurityPrincipal, name: String, version: String): Boolean {
@@ -106,7 +104,7 @@ class ApplicationHibernateDAO(
             criteria.select(count(entity))
         }.createQuery(session).uniqueResult()
 
-        val itemsWithoutTags = if (Roles.PRIVILEDGED.contains(user.role)) {
+        val itemsWithoutTags = if (user.role in Roles.PRIVILEDGED) {
             session.typedQuery<ApplicationEntity>(
                 """
                     select application
@@ -166,7 +164,7 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal,
         tags: List<String>
     ): List<String> {
-        return if (Roles.PRIVILEDGED.contains(user.role)) {
+        return if (user.role in Roles.PRIVILEDGED) {
             session.criteria<TagEntity> {
                 (entity[TagEntity::tag] isInCollection tags)
             }.resultList.distinctBy { it.applicationName }.map { it.applicationName }
@@ -195,7 +193,7 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal,
         applicationNames: List<String>
     ): Pair<Query<ApplicationEntity>, Int> {
-        if (Roles.PRIVILEDGED.contains(user.role)) {
+        if (user.role in Roles.PRIVILEDGED) {
             val itemsInTotal = session.typedQuery<Long>(
                 """
                 select count (A.title)
@@ -214,7 +212,7 @@ class ApplicationHibernateDAO(
                 session.typedQuery<ApplicationEntity>(
                     """
                 from ApplicationEntity as A where (A.createdAt) in (
-                    select max(createdAt)
+                    select max(B.createdAt)
                     from ApplicationEntity as B
                     where (A.title= B.title)
                     group by title
@@ -229,9 +227,9 @@ class ApplicationHibernateDAO(
                 select count (A.title)
                 from ApplicationEntity as A
                 where (A.createdAt) in (
-                    select max(createdAt)
+                    select max(B.createdAt)
                     from ApplicationEntity as B
-                    where (A.title= B.title)
+                    where (A.title = B.title)
                     group by title
                 ) and (A.id.name) in (:applications) and
                 (A.isPublic = true or :user in (
@@ -354,11 +352,11 @@ class ApplicationHibernateDAO(
         keywords: List<String>,
         keywordsQuery: String
     ): Query<ApplicationEntity> {
-        return if (Roles.PRIVILEDGED.contains(user.role)) {
+        return if (user.role in Roles.PRIVILEDGED) {
             session.typedQuery<ApplicationEntity>(
                 """
                     from ApplicationEntity as A where (A.createdAt) in (
-                        select max(createdAt)
+                        select max(B.createdAt)
                         from ApplicationEntity as B
                         where A.title = B.title
                         group by title
@@ -401,7 +399,7 @@ class ApplicationHibernateDAO(
     ): Page<ApplicationSummaryWithFavorite> {
 
         val keywordsQuery = createKeywordQuery(keywords)
-        val count = if (Roles.PRIVILEDGED.contains(user.role)) {
+        val count = if (user.role in Roles.PRIVILEDGED) {
             session.typedQuery<Long>(
                 """
             select count (A.title)
@@ -466,7 +464,7 @@ class ApplicationHibernateDAO(
         normalizedQuery: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val count = if (Roles.PRIVILEDGED.contains(user.role)) {
+        val count = if (user.role in Roles.PRIVILEDGED) {
             session.typedQuery<Long>(
                 """
                 select count (A.title)
@@ -498,7 +496,7 @@ class ApplicationHibernateDAO(
                 .singleResult.toInt()
         }
 
-        val items = if (Roles.PRIVILEDGED.contains(user.role)) {
+        val items = if (user.role in Roles.PRIVILEDGED) {
             session.typedQuery<ApplicationEntity>(
                 """
                 from ApplicationEntity as A where (A.createdAt) in (
@@ -544,7 +542,7 @@ class ApplicationHibernateDAO(
     }
 
     fun getAllApps(session: HibernateSession, user: SecurityPrincipal): List<ApplicationEntity> {
-        return if (Roles.PRIVILEDGED.contains(user.role)) {
+        return if (user.role in Roles.PRIVILEDGED) {
             session.typedQuery<ApplicationEntity>(
                 """
                     from ApplicationEntity as A
@@ -582,7 +580,7 @@ class ApplicationHibernateDAO(
         name: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationWithFavoriteAndTags> {
-        return if (Roles.PRIVILEDGED.contains(user?.role)) {
+        return if (user?.role in Roles.PRIVILEDGED) {
             preparePageForUser(
                 session,
                 user?.username,
@@ -729,7 +727,7 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal?,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val count = if (Roles.PRIVILEDGED.contains(user?.role)) {
+        val count = if (user?.role in Roles.PRIVILEDGED) {
             session.typedQuery<Long>(
                 """
                 select count (A.id.name)
@@ -749,16 +747,21 @@ class ApplicationHibernateDAO(
                 from ApplicationEntity as A where (A.createdAt) in (
                     select max(createdAt)
                     from ApplicationEntity as B
-                    where A.id.name = B.id.name
+                    where A.id.name = B.id.name and (
+                        A.isPublic = true or
+                        :user in (
+                            select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                        )
+                    )
                     group by id.name
                 )
                 """.trimIndent()
-            ).uniqueResult()
+            ).setParameter("user", user?.username ?: "").uniqueResult()
                 .toInt()
         }
 
 
-        val items = if (Roles.PRIVILEDGED.contains(user?.role)) {
+        val items = if (user?.role in Roles.PRIVILEDGED) {
             session.typedQuery<ApplicationEntity>(
                 """
                 from ApplicationEntity as A where (A.createdAt) in (
@@ -777,12 +780,17 @@ class ApplicationHibernateDAO(
                 from ApplicationEntity as A where (A.createdAt) in (
                     select max(createdAt)
                     from ApplicationEntity as B
-                    where A.id.name = B.id.name
+                    where A.id.name = B.id.name  and (
+                        A.isPublic = true or
+                        :user in (
+                            select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                        )
+                    )
                     group by id.name
                 )
                 order by A.id.name
             """.trimIndent()
-            ).paginatedList(paging)
+            ).setParameter("user", user?.username ?: "").paginatedList(paging)
                 .map { it.toModelWithInvocation() }
         }
 
@@ -843,6 +851,7 @@ class ApplicationHibernateDAO(
             throw ApplicationException.NotAllowed()
         }
 
+        // Prevent deletion of last version of application
         if (internalFindAllByName(session, user, name, paging = NormalizedPaginationRequest(25, 0)).itemsInTotal <= 1) {
             throw ApplicationException.NotAllowed()
         }
@@ -1071,7 +1080,7 @@ class ApplicationHibernateDAO(
         version: String,
         public: Boolean
     ) {
-        if (!Roles.PRIVILEDGED.contains(user.role)) throw ApplicationException.NotAllowed()
+        if (user.role !in Roles.PRIVILEDGED) throw ApplicationException.NotAllowed()
         val existing = internalByNameAndVersion(session, name, version) ?: throw ApplicationException.NotFound()
         if (!canUserPerformWriteOperation(existing.owner, user)) throw ApplicationException.NotAllowed()
 
@@ -1087,7 +1096,7 @@ class ApplicationHibernateDAO(
         tool: String,
         paging: NormalizedPaginationRequest
     ): Page<Application> {
-        val count = if (Roles.PRIVILEDGED.contains(user.role)) {
+        val count = if (user.role in Roles.PRIVILEDGED) {
             session.typedQuery<Long>(
                 """
                 select count (A.id.name)
@@ -1116,7 +1125,7 @@ class ApplicationHibernateDAO(
                 ) and A.toolName = :toolName and (
                     A.isPublic = true or
                     :user in (
-                        select P.key.userEntity from PermissionEntry where P.key.application_name = A.name
+                        select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.name
                     )
                 )
             """.trimIndent()
@@ -1127,7 +1136,7 @@ class ApplicationHibernateDAO(
                 .toInt()
         }
 
-        val items = if (Roles.PRIVILEDGED.contains(user.role)) {
+        val items = if (user.role in Roles.PRIVILEDGED) {
             session.typedQuery<ApplicationEntity>(
                 """
                     from ApplicationEntity as A 
@@ -1157,7 +1166,7 @@ class ApplicationHibernateDAO(
                         ) and A.toolName = :toolName and (
                             A.isPublic = true or
                             :user in (
-                                select P.key.userEntity from PermissionEntry as P where P.key.application_name = A.name
+                                select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.name
                             )
                         )
                     order by A.id.name

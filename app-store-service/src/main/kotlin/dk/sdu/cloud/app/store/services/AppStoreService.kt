@@ -114,18 +114,18 @@ class AppStoreService<DBSession>(
 
     suspend fun hasPermission(
         securityPrincipal: SecurityPrincipal,
-        name: String,
-        version: String,
+        appName: String,
+        appVersion: String,
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
         return db.withTransaction { session ->
-            applicationDAO.isPublic(session, securityPrincipal, name, version) ||
-            aclDao.hasPermission(
-                session,
-                UserEntity(securityPrincipal.username, EntityType.USER),
-                name,
-                permissions
-            )
+            applicationDAO.isPublic(session, securityPrincipal, appName, appVersion) ||
+                    aclDao.hasPermission(
+                        session,
+                        UserEntity(securityPrincipal.username, EntityType.USER),
+                        appName,
+                        permissions
+                    )
         }
     }
 
@@ -133,15 +133,15 @@ class AppStoreService<DBSession>(
         securityPrincipal: SecurityPrincipal,
         applicationName: String
     ): List<EntityWithPermission> {
+        if (securityPrincipal.role != Role.ADMIN) throw RPCException(
+            "Unable to access application permissions",
+            HttpStatusCode.Unauthorized
+        )
         return db.withTransaction { session ->
-            return if (securityPrincipal.role == Role.ADMIN) {
-                aclDao.listAcl(
-                    session,
-                    applicationName
-                )
-            } else {
-                throw RPCException("Unable to access application permissions", HttpStatusCode.Unauthorized)
-            }
+            aclDao.listAcl(
+                session,
+                applicationName
+            )
         }
     }
 
@@ -178,17 +178,18 @@ class AppStoreService<DBSession>(
                 LookupUsersRequest(listOf(entity.id)),
                 authenticatedClient
             ).orRethrowAs {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Could not look up user")
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
-            if (lookup.results[entity.id] !== null) {
-                if (lookup.results[entity.id]?.role == Role.SERVICE) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "The user does not exist")
-                } else {
-                    aclDao.updatePermissions(session, entity, applicationName, permissions)
-                }
-            } else {
+
+            if (lookup.results[entity.id] == null) throw RPCException.fromStatusCode(
+                HttpStatusCode.BadRequest,
+                "The user does not exist"
+            )
+
+            if (lookup.results[entity.id]?.role == Role.SERVICE) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "The user does not exist")
             }
+            aclDao.updatePermissions(session, entity, applicationName, permissions)
         }
     }
 
@@ -237,30 +238,31 @@ class AppStoreService<DBSession>(
 
     suspend fun isPublic(
         securityPrincipal: SecurityPrincipal,
-        name: String,
-        version: String
-    ): Boolean =
-        db.withTransaction {
+        appName: String,
+        appVersion: String
+    ): Boolean {
+        return db.withTransaction {
             applicationDAO.isPublic(
                 it,
                 securityPrincipal,
-                name,
-                version
+                appName,
+                appVersion
             )
         }
+    }
 
     suspend fun setPublic(
         securityPrincipal: SecurityPrincipal,
-        name: String,
-        version: String,
+        appName: String,
+        appVersion: String,
         public: Boolean
     ) {
         db.withTransaction {
             applicationDAO.setPublic(
                 it,
                 securityPrincipal,
-                name,
-                version,
+                appName,
+                appVersion,
                 public
             )
         }
