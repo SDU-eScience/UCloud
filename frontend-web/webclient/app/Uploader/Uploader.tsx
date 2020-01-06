@@ -610,7 +610,7 @@ const ConflictFile = ({file}: ConflictFile) => !!file ?
     <div>File already exists in folder, {sizeToString(file.size!)}</div> : null;
 
 const mapStateToProps = ({uploader}: ReduxObject): UploaderStateProps => ({
-    activeUploads: uploader.uploads.filter(it => it.uploadXHR?.readyState !== XMLHttpRequest.DONE),
+    activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),
     path: uploader.path,
     visible: uploader.visible,
     allowMultiple: true,
