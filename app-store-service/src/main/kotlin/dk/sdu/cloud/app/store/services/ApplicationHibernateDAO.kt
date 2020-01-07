@@ -119,8 +119,8 @@ class ApplicationHibernateDAO(
                 order by fav.applicationName
             """.trimIndent()
         ).setParameter("user", user.username)
-            .setParameter("role", user.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("role", user.role)
+            .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
             .asSequence()
             .map { it.toModel() }
@@ -164,8 +164,8 @@ class ApplicationHibernateDAO(
         )
             .setParameter("user", user.username)
             .setParameterList("tags", tags)
-            .setParameter("role", user.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("role", user.role)
+            .setParameterList("privileged", Roles.PRIVILEDGED)
             .resultList.distinctBy { it.applicationName }.map { it.applicationName }
     }
 
@@ -190,7 +190,7 @@ class ApplicationHibernateDAO(
             """.trimIndent()
         ).setParameter("applications", applicationNames)
             .setParameter("user", user.username)
-            .setParameter("role", user.role.toString())
+            .setParameter("role", user.role)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .uniqueResult()
             .toInt()
@@ -212,8 +212,8 @@ class ApplicationHibernateDAO(
         """.trimIndent()
             ).setParameter("applications", applicationNames)
                 .setParameter("user", user.username)
-                .setParameter("role", user.role.toString())
-                .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+                .setParameter("role", user.role)
+                .setParameterList("privileged", Roles.PRIVILEDGED)
             , itemsInTotal
         )
     }
@@ -325,8 +325,8 @@ class ApplicationHibernateDAO(
                 order by A.title
             """.trimIndent()
         ).setParameter("user", user.username)
-            .setParameter("role", user.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("role", user.role)
+            .setParameterList("privileged", Roles.PRIVILEDGED)
             .also {
                 for ((i, item) in keywords.withIndex()) {
                     it.setParameter("query$i", item)
@@ -357,8 +357,8 @@ class ApplicationHibernateDAO(
             ) or :role in (:privileged))
             """.trimIndent()
         ).setParameter("user", user.username)
-            .setParameter("role", user.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() }).also {
+            .setParameter("role", user.role)
+            .setParameterList("privileged", Roles.PRIVILEDGED).also {
                 for ((i, item) in keywords.withIndex()) {
                     it.setParameter("query$i", item)
                 }
@@ -406,8 +406,8 @@ class ApplicationHibernateDAO(
             """.trimIndent()
         ).setParameter("query", normalizedQuery)
             .setParameter("user", user.username)
-            .setParameter("role", user.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("role", user.role)
+            .setParameterList("privileged", Roles.PRIVILEDGED)
             .singleResult.toInt()
 
         val items = session.createNativeQuery<ApplicationEntity>(
@@ -427,8 +427,8 @@ class ApplicationHibernateDAO(
         )
             .setParameter("query", normalizedQuery)
             .setParameter("user", user.username)
-            .setParameter("role", user.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("role", user.role)
+            .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
@@ -455,8 +455,8 @@ class ApplicationHibernateDAO(
                 order by A.title
             """.trimIndent()
         ).setParameter("query", "")
-            .setParameter("role", user.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("role", user.role)
+            .setParameterList("privileged", Roles.PRIVILEDGED)
             .setParameter("user", user.username).resultList
     }
 
@@ -489,8 +489,8 @@ class ApplicationHibernateDAO(
                 """.trimIndent(), ApplicationEntity::class.java
             ).setParameter("user", user?.username ?: "")
                 .setParameter("name", appName)
-                .setParameter("role", user?.role.toString())
-                .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+                .setParameter("role", user?.role ?: Role.UNKNOWN)
+                .setParameterList("privileged", Roles.PRIVILEDGED)
                 .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
         )
     }
@@ -625,8 +625,8 @@ class ApplicationHibernateDAO(
                 )
             """.trimIndent()
         ).setParameter("user", user?.username ?: "")
-            .setParameter("role", user?.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("role", user?.role ?: Role.UNKNOWN)
+            .setParameterList("privileged", Roles.PRIVILEDGED)
             .uniqueResult()
             .toInt()
 
@@ -647,8 +647,8 @@ class ApplicationHibernateDAO(
                 order by A.id.name
             """.trimIndent()
         ).setParameter("user", user?.username ?: "")
-            .setParameter("role", user?.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("role", user?.role ?: Role.UNKNOWN)
+            .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
@@ -973,8 +973,8 @@ class ApplicationHibernateDAO(
         )
             .setParameter("toolName", tool)
             .setParameter("user", user.username)
-            .setParameter("role", user.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("role", user.role)
+            .setParameterList("privileged", Roles.PRIVILEDGED)
             .uniqueResult()
             .toInt()
 
@@ -998,8 +998,8 @@ class ApplicationHibernateDAO(
         )
             .setParameter("toolName", tool)
             .setParameter("user", user.username)
-            .setParameter("role", user.role.toString())
-            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("role", user.role)
+            .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
