@@ -35,7 +35,7 @@ class AppStoreController<DBSession>(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AppStore.toggleFavorite) {
-            ok(appStore.toggleFavorite(ctx.securityPrincipal, request.name, request.version))
+            ok(appStore.toggleFavorite(ctx.securityPrincipal, request.appName, request.appVersion))
         }
 
         implement(AppStore.retrieveFavorites) {
@@ -51,15 +51,15 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.findByNameAndVersion) {
-            ok(appStore.findByNameAndVersion(ctx.securityPrincipal, request.name, request.version))
+            ok(appStore.findByNameAndVersion(ctx.securityPrincipal, request.appName, request.appVersion))
         }
 
         implement(AppStore.hasPermission) {
-            ok(appStore.hasPermission(ctx.securityPrincipal, request.name, request.version, request.permission))
+            ok(appStore.hasPermission(ctx.securityPrincipal, request.appName, request.appVersion, request.permission))
         }
 
         implement(AppStore.listAcl) {
-            ok(appStore.listAcl(ctx.securityPrincipal, request.name))
+            ok(appStore.listAcl(ctx.securityPrincipal, request.appName))
         }
 
         implement(AppStore.updateAcl) {
@@ -76,7 +76,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.findByName) {
-            ok(appStore.findByName(ctx.securityPrincipal, request.name, request.normalize()))
+            ok(appStore.findByName(ctx.securityPrincipal, request.appName, request.normalize()))
         }
 
         implement(AppStore.isPublic) {
@@ -84,7 +84,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.setPublic) {
-            ok(appStore.setPublic(ctx.securityPrincipal, request.name, request.version, request.public))
+            ok(appStore.setPublic(ctx.securityPrincipal, request.appName, request.appVersion, request.public))
         }
 
         implement(AppStore.listAll) {
@@ -144,7 +144,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.delete) {
-            appStore.delete(ctx.securityPrincipal, request.name, request.version)
+            appStore.delete(ctx.securityPrincipal, request.appName, request.appVersion)
             ok(Unit)
         }
 

@@ -9,8 +9,8 @@ interface ApplicationDAO<Session> {
     fun toggleFavorite(
         session: Session,
         user: SecurityPrincipal,
-        name: String,
-        version: String
+        appName: String,
+        appVersion: String
     )
 
     fun retrieveFavorites(
@@ -44,7 +44,7 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal?,
 
-        name: String,
+        appName: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
@@ -58,15 +58,15 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal?,
 
-        name: String,
-        version: String
+        appName: String,
+        appVersion: String
     ): Application
 
     fun findByNameAndVersionForUser(
         session: Session,
         user: SecurityPrincipal,
-        name: String,
-        version: String
+        appName: String,
+        appVersion: String
     ): ApplicationWithFavoriteAndTags
 
     fun listLatestVersion(
@@ -119,8 +119,8 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal,
 
-        name: String,
-        version: String,
+        appName: String,
+        appVersion: String,
 
         newDescription: String? = null,
         newAuthors: List<String>? = null
@@ -130,13 +130,13 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal,
 
-        name: String,
+        appName: String,
         imageBytes: ByteArray
     )
 
-    fun clearLogo(session: Session, user: SecurityPrincipal, name: String)
+    fun clearLogo(session: Session, user: SecurityPrincipal, appName: String)
 
-    fun fetchLogo(session: Session, name: String): ByteArray?
+    fun fetchLogo(session: Session, appName: String): ByteArray?
 
     fun isPublic(
         session: Session,

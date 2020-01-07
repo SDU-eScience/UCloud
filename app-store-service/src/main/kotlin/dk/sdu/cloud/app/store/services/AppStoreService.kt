@@ -34,13 +34,13 @@ class AppStoreService<DBSession>(
     private val aclDao: AclDao<DBSession>,
     private val elasticDAO: ElasticDAO
 ) {
-    suspend fun toggleFavorite(securityPrincipal: SecurityPrincipal, name: String, version: String) {
+    suspend fun toggleFavorite(securityPrincipal: SecurityPrincipal, appName: String, appVersion: String) {
         db.withTransaction { session ->
             applicationDAO.toggleFavorite(
                 session,
                 securityPrincipal,
-                name,
-                version
+                appName,
+                appVersion
             )
         }
     }
@@ -86,15 +86,15 @@ class AppStoreService<DBSession>(
 
     suspend fun findByNameAndVersion(
         securityPrincipal: SecurityPrincipal,
-        name: String,
-        version: String
+        appName: String,
+        appVersion: String
     ): ApplicationWithFavoriteAndTags {
         db.withTransaction { session ->
             val result = applicationDAO.findByNameAndVersionForUser(
                 session,
                 securityPrincipal,
-                name,
-                version
+                appName,
+                appVersion
             )
 
             val toolRef = result.invocation.tool
@@ -224,14 +224,14 @@ class AppStoreService<DBSession>(
 
     suspend fun findByName(
         securityPrincipal: SecurityPrincipal,
-        name: String,
+        appName: String,
         normalizedPaginationRequest: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> =
         db.withTransaction {
             applicationDAO.findAllByName(
                 it,
                 securityPrincipal,
-                name,
+                appName,
                 normalizedPaginationRequest
             )
         }
@@ -297,12 +297,12 @@ class AppStoreService<DBSession>(
         )
     }
 
-    suspend fun delete(securityPrincipal: SecurityPrincipal, name: String, version: String) {
+    suspend fun delete(securityPrincipal: SecurityPrincipal, appName: String, appVersion: String) {
         db.withTransaction { session ->
-            applicationDAO.delete(session, securityPrincipal, name, version)
+            applicationDAO.delete(session, securityPrincipal, appName, appVersion)
         }
 
-        elasticDAO.deleteApplicationInElastic(name, version)
+        elasticDAO.deleteApplicationInElastic(appName, appVersion)
     }
 
     suspend fun createTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {

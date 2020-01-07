@@ -38,14 +38,15 @@ class ApplicationHibernateDAO(
 
             query.executeUpdate()
         } else {
-            if (internalHasPermission(
-                    session,
-                    user,
-                    foundApp.id.name,
-                    foundApp.id.version,
-                    ApplicationAccessRight.LAUNCH
-                )
-            ) {
+            val userHasPermission = internalHasPermission(
+                session,
+                user,
+                foundApp.id.name,
+                foundApp.id.version,
+                ApplicationAccessRight.LAUNCH
+            )
+
+            if (userHasPermission) {
                 session.save(
                     FavoriteApplicationEntity(
                         foundApp.id.name,

@@ -19,13 +19,13 @@ import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
 data class FindApplicationAndOptionalDependencies(
-    val name: String,
-    val version: String
+    val appName: String,
+    val appVersion: String
 )
 
 data class HasPermissionRequest(
-    val name: String,
-    val version: String,
+    val appName: String,
+    val appVersion: String,
     val permission: Set<ApplicationAccessRight>
 )
 
@@ -49,12 +49,12 @@ data class IsPublicResponse(
 
 
 data class ListAclRequest(
-    val name: String
+    val appName: String
 )
 
 data class FavoriteRequest(
-    val name: String,
-    val version: String
+    val appName: String,
+    val appVersion: String
 )
 
 data class ACLEntryRequest(
@@ -64,8 +64,8 @@ data class ACLEntryRequest(
 )
 
 data class SetPublicRequest(
-    val name: String,
-    val version: String,
+    val appName: String,
+    val appVersion: String,
     val public: Boolean
 )
 
@@ -119,7 +119,7 @@ data class FindLatestByToolRequest(
 ) : WithPaginationRequest
 typealias FindLatestByToolResponse = Page<Application>
 
-data class DeleteAppRequest(val name: String, val version: String)
+data class DeleteAppRequest(val appName: String, val appVersion: String)
 typealias DeleteAppResponse = Unit
 
 object AppStore : CallDescriptionContainer("hpc.apps") {
@@ -136,8 +136,8 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             path {
                 using(baseContext)
                 +"favorites"
-                +boundTo(FavoriteRequest::name)
-                +boundTo(FavoriteRequest::version)
+                +boundTo(FavoriteRequest::appName)
+                +boundTo(FavoriteRequest::appVersion)
             }
         }
     }
@@ -217,7 +217,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             http {
                 path {
                     using(baseContext)
-                    +boundTo(FindByNameAndPagination::name)
+                    +boundTo(FindByNameAndPagination::appName)
                 }
 
                 params {
@@ -301,8 +301,8 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         http {
             path {
                 using(baseContext)
-                +boundTo(FindApplicationAndOptionalDependencies::name)
-                +boundTo(FindApplicationAndOptionalDependencies::version)
+                +boundTo(FindApplicationAndOptionalDependencies::appName)
+                +boundTo(FindApplicationAndOptionalDependencies::appVersion)
             }
         }
     }
@@ -322,8 +322,8 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             path {
                 using(baseContext)
                 +"permission"
-                +boundTo(HasPermissionRequest::name)
-                +boundTo(HasPermissionRequest::version)
+                +boundTo(HasPermissionRequest::appName)
+                +boundTo(HasPermissionRequest::appVersion)
                 +boundTo(HasPermissionRequest::permission)
             }
         }
@@ -342,7 +342,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             path {
                 using(baseContext)
                 +"list-acl"
-                +boundTo(ListAclRequest::name)
+                +boundTo(ListAclRequest::appName)
             }
         }
     }

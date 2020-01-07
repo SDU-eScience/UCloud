@@ -38,7 +38,7 @@ class ToolController<DBSession>(
                 source.findAllByName(
                     it,
                     ctx.securityPrincipal,
-                    request.name,
+                    request.appName,
                     request.normalize()
                 )
             }
