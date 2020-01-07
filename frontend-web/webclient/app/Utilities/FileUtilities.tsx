@@ -420,18 +420,17 @@ export function getFilenameFromPath(path: string): string {
     return fileName;
 }
 
-export function downloadFiles(files: Array<{path: string}>, setLoading: () => void, client: HttpClient) {
+export function downloadFiles(files: Array<{path: string}>, client: HttpClient) {
     files.map(f => f.path).forEach(p =>
         client.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
             const element = document.createElement("a");
-            element.setAttribute(
-                "href",
-                client.computeURL(
-                    "/api",
-                    `/files/download?path=${encodeURIComponent(p)}&token=${encodeURIComponent(token)}`
-                )
+            const url = client.computeURL(
+                "/api",
+                `/files/download?path=${encodeURIComponent(p)}&token=${encodeURIComponent(token)}`
             );
+            element.setAttribute("href", url);
             element.style.display = "none";
+            element.download = url;
             document.body.appendChild(element);
             element.click();
             document.body.removeChild(element);

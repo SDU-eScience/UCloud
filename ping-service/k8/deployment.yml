@@ -1,0 +1,56 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ping
+  labels:
+    app: ping
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ping
+  template:
+    metadata:
+      labels:
+        app: ping
+    spec:
+      containers:
+      - name: ping
+        image: registry.cloud.sdu.dk/sdu-cloud/ping-service:0.1.0
+        command:
+        - /opt/service/bin/service
+        - --config-dir
+        - /etc/refresh-token
+        - --config-dir
+        - /etc/token-validation
+        - --config-dir
+        - /etc/psql
+        volumeMounts:
+        - mountPath: /etc/refresh-token
+          name: refresh-token
+        - mountPath: /etc/token-validation
+          name: token-validation
+        - mountPath: /etc/psql
+          name: ping-psql
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+
+      volumes:
+      - name: refresh-token
+        secret:
+          optional: false
+          secretName: ping-refresh-token
+      - name: token-validation
+        configMap:
+          name: token-validation
+      - name: ping-psql
+        secret:
+          optional: false
+          secretName: ping-psql
+
+      imagePullSecrets:
+        - name: esci-docker

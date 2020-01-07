@@ -410,7 +410,7 @@ class RpcServer {
             }
 
             if (!isEarlyClose) {
-                // Attempt to send a reponse (if possible). Silently discard any exception as it is likely a failure
+                // Attempt to send a response (if possible). Silently discard any exception as it is likely a failure
                 // on the wire.
                 runCatching {
                     source.produceResponse(ctx, call, callResult)

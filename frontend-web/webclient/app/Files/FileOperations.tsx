@@ -120,7 +120,7 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "Download",
-        onClick: files => downloadFiles(files, () => 42, Client),
+        onClick: files => downloadFiles(files, Client),
         disabled: files => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files) ||
             isAnyMockFile(files) || isAnySharedFs(files),
         icon: "download"
