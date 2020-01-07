@@ -62,15 +62,14 @@ function prettifyAccessRight(accessRight: ApplicationAccessRight) {
 }
 
 async function loadApplicationPermissionEntries(appName: string): Promise<ApplicationPermissionEntry[]> {
-    const entries: ApplicationPermissionEntry[] = [];
-    const {response} = await Client.get(`/hpc/apps/list-acl/${appName}`);
+    const {response} = await Client.get<Array<{entity: UserEntity, permission: ApplicationAccessRight}>>(`/hpc/apps/list-acl/${appName}`);
     return response.map(item => {
         const entityObj: UserEntity = { id: item.entity.id, type: item.entity.type };
         const entry: ApplicationPermissionEntry = {
             entity: entityObj,
             permission: item.permission,
         };
-        entries.push(entry);
+        return entry;
     });
 }
 
@@ -106,7 +105,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     // Loading of application versions
     useEffect(() =>  {
         const appVersions: AppVersion[] = [];
-        apps.data.items.map(item => {
+        apps.data.items.forEach(item => {
             appVersions.push({ version: item.metadata.version, isPublic: item.metadata.public });
         });
         setVersions(appVersions);
