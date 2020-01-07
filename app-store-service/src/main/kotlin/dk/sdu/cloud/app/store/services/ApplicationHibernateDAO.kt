@@ -105,42 +105,26 @@ class ApplicationHibernateDAO(
             criteria.select(count(entity))
         }.createQuery(session).uniqueResult()
 
-        val itemsWithoutTags = if (user.role in Roles.PRIVILEDGED) {
-            session.typedQuery<ApplicationEntity>(
-                """
-                    select application
-                    from FavoriteApplicationEntity as fav, ApplicationEntity as application
-                    where
-                        fav.user = :user and
-                        fav.applicationName = application.id.name and
-                        fav.applicationVersion = application.id.version
-                    order by fav.applicationName
-                """.trimIndent()
-            ).setParameter("user", user.username)
-                .paginatedList(paging)
-                .asSequence()
-                .map { it.toModel() }
-                .toList()
-        } else {
-            session.typedQuery<ApplicationEntity>(
-                """
-                    select application
-                    from FavoriteApplicationEntity as fav, ApplicationEntity as application
-                    left join PermissionEntry as permission
-                    ON permission.key.applicationName = application.id.name
-                    where
-                        fav.user = :user and
-                        fav.applicationName = application.id.name and
-                        fav.applicationVersion = application.id.version and
-                        (application.isPublic = TRUE or permission.key.userEntity = :user)
-                    order by fav.applicationName
-                """.trimIndent()
-            ).setParameter("user", user.username)
-                .paginatedList(paging)
-                .asSequence()
-                .map { it.toModel() }
-                .toList()
-        }
+        val itemsWithoutTags = session.typedQuery<ApplicationEntity>(
+            """
+                select application
+                from FavoriteApplicationEntity as fav, ApplicationEntity as application
+                left join PermissionEntry as permission
+                ON permission.key.applicationName = application.id.name
+                where
+                    fav.user = :user and
+                    fav.applicationName = application.id.name and
+                    fav.applicationVersion = application.id.version and
+                    (application.isPublic = TRUE or permission.key.userEntity = :user or :role in (:privileged))
+                order by fav.applicationName
+            """.trimIndent()
+        ).setParameter("user", user.username)
+            .setParameter("role", user.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .paginatedList(paging)
+            .asSequence()
+            .map { it.toModel() }
+            .toList()
 
         val apps = itemsWithoutTags.map { it.metadata.name }
         val allTags = session
@@ -165,28 +149,24 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal,
         tags: List<String>
     ): List<String> {
-        return if (user.role in Roles.PRIVILEDGED) {
-            session.criteria<TagEntity> {
-                (entity[TagEntity::tag] isInCollection tags)
-            }.resultList.distinctBy { it.applicationName }.map { it.applicationName }
-        } else {
-            session.createNativeQuery<TagEntity>(
-                """
-                select T.application_name, T.tag, T.id from {h-schema}application_tags as T
-                where T.tag in (:tags)
-                    and (
-                        exists (
-                            select A.is_public from {h-schema}applications as A where A.name = T.application_name and A.is_public = true
-                        ) or exists (
-                            select P.entity from {h-schema}permissions as P where P.application_name = T.application_name and P.entity = :user
-                        )
-                    )
-                """.trimIndent(), TagEntity::class.java
-            )
-                .setParameter("user", user.username)
-                .setParameterList("tags", tags)
-                .resultList.distinctBy { it.applicationName }.map { it.applicationName }
-        }
+        return session.createNativeQuery<TagEntity>(
+            """
+            select T.application_name, T.tag, T.id from {h-schema}application_tags as T
+            where T.tag in (:tags)
+                and (
+                    exists (
+                        select A.is_public from {h-schema}applications as A where A.name = T.application_name and A.is_public = true
+                    ) or exists (
+                        select P.entity from {h-schema}permissions as P where P.application_name = T.application_name and P.entity = :user
+                    ) or :role in (:privileged)
+                )
+            """.trimIndent(), TagEntity::class.java
+        )
+            .setParameter("user", user.username)
+            .setParameterList("tags", tags)
+            .setParameter("role", user.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .resultList.distinctBy { it.applicationName }.map { it.applicationName }
     }
 
     private fun findAppsFromAppNames(
@@ -194,71 +174,48 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal,
         applicationNames: List<String>
     ): Pair<Query<ApplicationEntity>, Int> {
-        if (user.role in Roles.PRIVILEDGED) {
-            val itemsInTotal = session.typedQuery<Long>(
+        val itemsInTotal = session.typedQuery<Long>(
+            """
+            select count (A.title)
+            from ApplicationEntity as A
+            where (A.createdAt) in (
+                select max(B.createdAt)
+                from ApplicationEntity as B
+                where (A.title = B.title)
+                group by title
+            ) and (A.id.name) in (:applications) and
+            (A.isPublic = true or :user in (
+                select P.key.userEntity from PermissionEntry as P where A.id.name = P.key.applicationName
+            ) or :role in (:privileged))
+            """.trimIndent()
+        ).setParameter("applications", applicationNames)
+            .setParameter("user", user.username)
+            .setParameter("role", user.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .uniqueResult()
+            .toInt()
+
+        return Pair(
+            session.typedQuery<ApplicationEntity>(
                 """
-                select count (A.title)
-                from ApplicationEntity as A where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where (A.title= B.title)
-                    group by title
-                ) and A.id.name in (:applications)
-                """.trimIndent()
+            from ApplicationEntity as A
+            where (A.createdAt) in (
+                select max(createdAt)
+                from ApplicationEntity as B
+                where (A.title= B.title)
+                group by title
+            ) and (A.id.name) in (:applications) and
+            (A.isPublic = true or :user in (
+                select P.key.userEntity from PermissionEntry as P where A.id.name = P.key.applicationName
+            ) or :role in (:privileged))
+            order by A.title
+        """.trimIndent()
             ).setParameter("applications", applicationNames)
-                .uniqueResult()
-                .toInt()
-
-            return Pair(
-                session.typedQuery<ApplicationEntity>(
-                    """
-                from ApplicationEntity as A where (A.createdAt) in (
-                    select max(B.createdAt)
-                    from ApplicationEntity as B
-                    where (A.title= B.title)
-                    group by title
-                ) and (A.id.name) in (:applications)
-                order by A.title
-            """.trimIndent()
-                ).setParameter("applications", applicationNames), itemsInTotal
-            )
-        } else {
-            val itemsInTotal = session.typedQuery<Long>(
-                """
-                select count (A.title)
-                from ApplicationEntity as A
-                where (A.createdAt) in (
-                    select max(B.createdAt)
-                    from ApplicationEntity as B
-                    where (A.title = B.title)
-                    group by title
-                ) and (A.id.name) in (:applications) and
-                (A.isPublic = true or :user in (
-                    select P.key.userEntity from PermissionEntry as P where A.id.name = P.key.applicationName
-                ))
-                """.trimIndent()
-            ).setParameter("applications", applicationNames).setParameter("user", user.username)
-                .uniqueResult()
-                .toInt()
-
-            return Pair(
-                session.typedQuery<ApplicationEntity>(
-                    """
-                from ApplicationEntity as A
-                where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where (A.title= B.title)
-                    group by title
-                ) and (A.id.name) in (:applications) and
-                (A.isPublic = true or :user in (
-                    select P.key.userEntity from PermissionEntry as P where A.id.name = P.key.applicationName
-                ))
-                order by A.title
-            """.trimIndent()
-                ).setParameter("applications", applicationNames).setParameter("user", user.username), itemsInTotal
-            )
-        }
+                .setParameter("user", user.username)
+                .setParameter("role", user.role.toString())
+                .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            , itemsInTotal
+        )
     }
 
 
@@ -353,43 +310,28 @@ class ApplicationHibernateDAO(
         keywords: List<String>,
         keywordsQuery: String
     ): Query<ApplicationEntity> {
-        return if (user.role in Roles.PRIVILEDGED) {
-            session.typedQuery<ApplicationEntity>(
-                """
-                    from ApplicationEntity as A where (A.createdAt) in (
-                        select max(B.createdAt)
-                        from ApplicationEntity as B
-                        where A.title = B.title
-                        group by title
-                    ) and $keywordsQuery
-                    order by A.title
-                """.trimIndent()
-            ).also {
+        return session.typedQuery<ApplicationEntity>(
+            """
+                from ApplicationEntity as A
+                where (A.createdAt) in (
+                    select max(createdAt)
+                    from ApplicationEntity as B
+                    where A.title = B.title
+                    group by title
+                ) and $keywordsQuery and
+                (A.isPublic = true or :user in (
+                    select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                ) or :role in (:privileged))
+                order by A.title
+            """.trimIndent()
+        ).setParameter("user", user.username)
+            .setParameter("role", user.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .also {
                 for ((i, item) in keywords.withIndex()) {
                     it.setParameter("query$i", item)
                 }
             }
-        } else {
-            session.typedQuery<ApplicationEntity>(
-                """
-                    from ApplicationEntity as A
-                    where (A.createdAt) in (
-                        select max(createdAt)
-                        from ApplicationEntity as B
-                        where A.title = B.title
-                        group by title
-                    ) and $keywordsQuery and
-                    (A.isPublic = true or :user in (
-                        select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
-                    ))
-                    order by A.title
-                """.trimIndent()
-            ).setParameter("user", user.username).also {
-                for ((i, item) in keywords.withIndex()) {
-                    it.setParameter("query$i", item)
-                }
-            }
-        }
     }
 
     private fun doMultiKeywordSearch(
@@ -400,25 +342,8 @@ class ApplicationHibernateDAO(
     ): Page<ApplicationSummaryWithFavorite> {
 
         val keywordsQuery = createKeywordQuery(keywords)
-        val count = if (user.role in Roles.PRIVILEDGED) {
-            session.typedQuery<Long>(
-                """
-            select count (A.title)
-            from ApplicationEntity as A where (A.createdAt) in (
-                select max(createdAt)
-                from ApplicationEntity as B
-                where A.title = B.title
-                group by title
-            ) and $keywordsQuery
-            """.trimIndent()
-            ).also {
-                for ((i, item) in keywords.withIndex()) {
-                    it.setParameter("query$i", item)
-                }
-            }.uniqueResult().toInt()
-        } else {
-            session.typedQuery<Long>(
-                """
+        val count = session.typedQuery<Long>(
+            """
             select count (A.title)
             from ApplicationEntity as A
             where (A.createdAt) in (
@@ -429,14 +354,15 @@ class ApplicationHibernateDAO(
             ) and $keywordsQuery and
             (A.isPublic = true or :user in (
                 select P.key.userEntity from PermissionEntry as P where A.id.name = P.key.applicationName 
-            ))
+            ) or :role in (:privileged))
             """.trimIndent()
-            ).setParameter("user", user.username).also {
+        ).setParameter("user", user.username)
+            .setParameter("role", user.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() }).also {
                 for ((i, item) in keywords.withIndex()) {
                     it.setParameter("query$i", item)
                 }
             }.uniqueResult().toInt()
-        }
 
         val items = createMultiKeyWordApplicationEntityQuery(
             session,
@@ -465,70 +391,46 @@ class ApplicationHibernateDAO(
         normalizedQuery: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val count = if (user.role in Roles.PRIVILEDGED) {
-            session.typedQuery<Long>(
-                """
-                select count (A.title)
-                from ApplicationEntity as A where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where A.title = B.title
-                    group by title
-                ) and lower(A.title) like '%' || :query || '%'
-                """.trimIndent()
-            ).setParameter("query", normalizedQuery)
-                .uniqueResult()
-                .toInt()
-        } else {
-            session.typedQuery<Long>(
-                """
-                   select count(A.title) from ApplicationEntity as A
-                   where (A.createdAt) in (
-                       select max(B.createdAt)
-                       from ApplicationEntity as B
-                       where A.title = B.title
-                       group by title
-                   ) and lower(A.title) like '%' || :query || '%' and
-                   (A.isPublic = true or :user in (
-                       select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
-                   ))
-                """.trimIndent()
-            ).setParameter("query", normalizedQuery).setParameter("user", user.username)
-                .singleResult.toInt()
-        }
-
-        val items = if (user.role in Roles.PRIVILEDGED) {
-            session.typedQuery<ApplicationEntity>(
-                """
-                from ApplicationEntity as A where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where A.title = B.title
-                    group by title
-                ) and lower(A.title) like '%' || :query || '%'
-                order by A.title
+        val count = session.typedQuery<Long>(
+            """
+               select count(A.title) from ApplicationEntity as A
+               where (A.createdAt) in (
+                   select max(B.createdAt)
+                   from ApplicationEntity as B
+                   where A.title = B.title
+                   group by title
+               ) and lower(A.title) like '%' || :query || '%' and
+               (A.isPublic = true or :user in (
+                   select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+               ) or :role in (:privileged))
             """.trimIndent()
-            ).setParameter("query", normalizedQuery).paginatedList(paging)
-                .map { it.toModelWithInvocation() }
-        } else {
-            session.createNativeQuery<ApplicationEntity>(
-                """
-                   select * from {h-schema}applications as A
-                   where (A.created_at) in (
-                       select max(B.created_at)
-                       from {h-schema}applications as B
-                       where A.title = B.title
-                       group by title
-                   ) and lower(A.title) like '%' || :query || '%' and
-                   (A.is_public = true or :user in (
-                       select P.entity from {h-schema}permissions as P where P.application_name = A.name and 1=1
-                   ))
-                   order by A.title 
-                """.trimIndent(), ApplicationEntity::class.java
-            )
-                .setParameter("query", normalizedQuery).setParameter("user", user.username).paginatedList(paging)
-                .map { it.toModelWithInvocation() }
-        }
+        ).setParameter("query", normalizedQuery)
+            .setParameter("user", user.username)
+            .setParameter("role", user.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .singleResult.toInt()
+
+        val items = session.createNativeQuery<ApplicationEntity>(
+            """
+               select * from {h-schema}applications as A
+               where (A.created_at) in (
+                   select max(B.created_at)
+                   from {h-schema}applications as B
+                   where A.title = B.title
+                   group by title
+               ) and lower(A.title) like '%' || :query || '%' and
+               (A.is_public = true or :user in (
+                   select P.entity from {h-schema}permissions as P where P.application_name = A.name
+               ) or :role in (:privileged))
+               order by A.title 
+            """.trimIndent(), ApplicationEntity::class.java
+        )
+            .setParameter("query", normalizedQuery)
+            .setParameter("user", user.username)
+            .setParameter("role", user.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .paginatedList(paging)
+            .map { it.toModelWithInvocation() }
 
         return preparePageForUser(
             session,
@@ -543,27 +445,19 @@ class ApplicationHibernateDAO(
     }
 
     fun getAllApps(session: HibernateSession, user: SecurityPrincipal): List<ApplicationEntity> {
-        return if (user.role in Roles.PRIVILEDGED) {
-            session.typedQuery<ApplicationEntity>(
-                """
-                    from ApplicationEntity as A
-                    where lower(A.title) like '%' || :query || '%'
-                    order by A.title
-                """.trimIndent()
-            ).setParameter("query", "").resultList
-        } else {
-            session.typedQuery<ApplicationEntity>(
-                """
-                    from ApplicationEntity as A
-                    where lower(A.title) like '%' || :query || '%' and
-                        (A.isPublic = true or :user in (
-                            select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
-                        ))
-                    order by A.title
-                """.trimIndent()
-            ).setParameter("query", "")
-                .setParameter("user", user.username).resultList
-        }
+        return session.typedQuery<ApplicationEntity>(
+            """
+                from ApplicationEntity as A
+                where lower(A.title) like '%' || :query || '%' and
+                    (A.isPublic = true or :user in (
+                        select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                    ) or :role in (:privileged))
+                order by A.title
+            """.trimIndent()
+        ).setParameter("query", "")
+            .setParameter("role", user.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .setParameter("user", user.username).resultList
     }
 
     override fun findAllByName(
@@ -581,37 +475,24 @@ class ApplicationHibernateDAO(
         name: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationWithFavoriteAndTags> {
-        return if (user?.role in Roles.PRIVILEDGED) {
-            preparePageForUser(
-                session,
-                user?.username,
-                session.createNativeQuery<ApplicationEntity>(
-                    """
-                        select * from {h-schema}applications as A
-                        where A.name = :name 
-                        order by A.created_at desc
-                    """.trimIndent(), ApplicationEntity::class.java
-                ).setParameter("name", name)
-                    .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
-            )
-        } else {
-            preparePageForUser(
-                session,
-                user?.username,
-                session.createNativeQuery<ApplicationEntity>(
-                    """
-                        select * from {h-schema}applications as A
-                        where A.name = :name 
-                            and (A.is_public = true or :user in (
-                                select entity from {h-schema}permissions as P where P.application_name = A.name
-                            ))
-                        order by A.created_at desc
-                    """.trimIndent(), ApplicationEntity::class.java
-                ).setParameter("user", user?.username ?: "")
-                    .setParameter("name", name)
-                    .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
-            )
-        }
+        return preparePageForUser(
+            session,
+            user?.username,
+            session.createNativeQuery<ApplicationEntity>(
+                """
+                    select * from {h-schema}applications as A
+                    where A.name = :name 
+                        and (A.is_public = true or :user in (
+                            select entity from {h-schema}permissions as P where P.application_name = A.name
+                        ) or :role in (:privileged))
+                    order by A.created_at desc
+                """.trimIndent(), ApplicationEntity::class.java
+            ).setParameter("user", user?.username ?: "")
+                .setParameter("name", name)
+                .setParameter("role", user?.role.toString())
+                .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+                .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
+        )
     }
 
     override fun findByNameAndVersion(
@@ -728,22 +609,8 @@ class ApplicationHibernateDAO(
         user: SecurityPrincipal?,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val count = if (user?.role in Roles.PRIVILEDGED) {
-            session.typedQuery<Long>(
-                """
-                select count (A.id.name)
-                from ApplicationEntity as A where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where A.id.name = B.id.name
-                    group by id.name
-                )
-                """.trimIndent()
-            ).uniqueResult()
-                .toInt()
-        } else {
-            session.typedQuery<Long>(
-                """
+        val count = session.typedQuery<Long>(
+            """
                 select count (A.id.name)
                 from ApplicationEntity as A where (A.createdAt) in (
                     select max(createdAt)
@@ -752,32 +619,20 @@ class ApplicationHibernateDAO(
                         A.isPublic = true or
                         :user in (
                             select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
-                        )
+                        ) or :role in (:privileged)
                     )
                     group by id.name
                 )
-                """.trimIndent()
-            ).setParameter("user", user?.username ?: "").uniqueResult()
-                .toInt()
-        }
-
-
-        val items = if (user?.role in Roles.PRIVILEDGED) {
-            session.typedQuery<ApplicationEntity>(
-                """
-                from ApplicationEntity as A where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where A.id.name = B.id.name
-                    group by id.name
-                )
-                order by A.id.name
             """.trimIndent()
-            ).paginatedList(paging)
-                .map { it.toModelWithInvocation() }
-        } else {
-            session.typedQuery<ApplicationEntity>(
-                """
+        ).setParameter("user", user?.username ?: "")
+            .setParameter("role", user?.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .uniqueResult()
+            .toInt()
+
+
+        val items = session.typedQuery<ApplicationEntity>(
+            """
                 from ApplicationEntity as A where (A.createdAt) in (
                     select max(createdAt)
                     from ApplicationEntity as B
@@ -785,15 +640,17 @@ class ApplicationHibernateDAO(
                         A.isPublic = true or
                         :user in (
                             select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
-                        )
+                        ) or :role in (:privileged)
                     )
                     group by id.name
                 )
                 order by A.id.name
             """.trimIndent()
-            ).setParameter("user", user?.username ?: "").paginatedList(paging)
-                .map { it.toModelWithInvocation() }
-        }
+        ).setParameter("user", user?.username ?: "")
+            .setParameter("role", user?.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .paginatedList(paging)
+            .map { it.toModelWithInvocation() }
 
 
         return preparePageForUser(
@@ -1097,25 +954,8 @@ class ApplicationHibernateDAO(
         tool: String,
         paging: NormalizedPaginationRequest
     ): Page<Application> {
-        val count = if (user.role in Roles.PRIVILEDGED) {
-            session.typedQuery<Long>(
-                """
-                select count (A.id.name)
-                from ApplicationEntity as A
-                where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where A.id.name = B.id.name
-                    group by id.name
-                ) and A.toolName = :toolName
-            """.trimIndent()
-            )
-                .setParameter("toolName", tool)
-                .uniqueResult()
-                .toInt()
-        } else {
-            session.typedQuery<Long>(
-                """
+        val count = session.typedQuery<Long>(
+            """
                 select count (A.id.name)
                 from ApplicationEntity as A
                 where (A.createdAt) in (
@@ -1126,57 +966,42 @@ class ApplicationHibernateDAO(
                 ) and A.toolName = :toolName and (
                     A.isPublic = true or
                     :user in (
-                        select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.name
-                    )
+                        select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                    ) or :role in (:privileged)
                 )
             """.trimIndent()
-            )
-                .setParameter("toolName", tool)
-                .setParameter("user", user.username)
-                .uniqueResult()
-                .toInt()
-        }
+        )
+            .setParameter("toolName", tool)
+            .setParameter("user", user.username)
+            .setParameter("role", user.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .uniqueResult()
+            .toInt()
 
-        val items = if (user.role in Roles.PRIVILEDGED) {
-            session.typedQuery<ApplicationEntity>(
-                """
-                    from ApplicationEntity as A 
-                    where 
-                        (A.createdAt) in (
-                            select max(createdAt)
-                            from ApplicationEntity as B
-                            where A.id.name = B.id.name
-                            group by id.name
-                        ) and A.toolName = :toolName
-                    order by A.id.name
-                """.trimIndent()
-            )
-                .setParameter("toolName", tool)
-                .paginatedList(paging)
-                .map { it.toModelWithInvocation() }
-        } else {
-            session.typedQuery<ApplicationEntity>(
-                """
-                    from ApplicationEntity as A 
-                    where 
-                        (A.createdAt) in (
-                            select max(createdAt)
-                            from ApplicationEntity as B
-                            where A.id.name = B.id.name
-                            group by id.name
-                        ) and A.toolName = :toolName and (
-                            A.isPublic = true or
-                            :user in (
-                                select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.name
-                            )
-                        )
-                    order by A.id.name
-                """.trimIndent()
-            )
-                .setParameter("toolName", tool)
-                .paginatedList(paging)
-                .map { it.toModelWithInvocation() }
-        }
+        val items = session.typedQuery<ApplicationEntity>(
+            """
+                from ApplicationEntity as A 
+                where 
+                    (A.createdAt) in (
+                        select max(createdAt)
+                        from ApplicationEntity as B
+                        where A.id.name = B.id.name
+                        group by id.name
+                    ) and A.toolName = :toolName and (
+                        A.isPublic = true or
+                        :user in (
+                            select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                        ) or :role in (:privileged)
+                    )
+                order by A.id.name
+            """.trimIndent()
+        )
+            .setParameter("toolName", tool)
+            .setParameter("user", user.username)
+            .setParameter("role", user.role.toString())
+            .setParameterList("privileged", Roles.PRIVILEDGED.map { it.toString() })
+            .paginatedList(paging)
+            .map { it.toModelWithInvocation() }
 
         return Page(count, paging.itemsPerPage, paging.page, items)
     }
