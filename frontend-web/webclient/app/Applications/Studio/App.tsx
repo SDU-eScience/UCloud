@@ -63,16 +63,15 @@ function prettifyAccessRight(accessRight: ApplicationAccessRight) {
 
 async function loadApplicationPermissionEntries(appName: string): Promise<ApplicationPermissionEntry[]> {
     const entries: ApplicationPermissionEntry[] = [];
-    const {response} = await Client.get(`/hpc/apps/list-acl/${appName}`)
-    response.forEach(item => {
-        let entityObj: UserEntity = { id: item.entity.id, type: item.entity.type };
-        let entry: ApplicationPermissionEntry = {
+    const {response} = await Client.get(`/hpc/apps/list-acl/${appName}`);
+    return response.map(item => {
+        const entityObj: UserEntity = { id: item.entity.id, type: item.entity.type };
+        const entry: ApplicationPermissionEntry = {
             entity: entityObj,
             permission: item.permission,
         };
         entries.push(entry);
     });
-    return entries;
 }
 
 const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOperations> = props => {
@@ -106,7 +105,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
 
     // Loading of application versions
     useEffect(() =>  {
-        let appVersions: AppVersion[] = [];
+        const appVersions: AppVersion[] = [];
         apps.data.items.map(item => {
             appVersions.push({ version: item.metadata.version, isPublic: item.metadata.public });
         });
@@ -360,7 +359,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     </TableRow>
                                 </LeftAlignedTableHeader>
                                 <tbody>
-                                    {versions.map( version => 
+                                    {versions.map(version => ( 
                                         <TableRow key={version.version}>
                                             <TableCell>
                                                 <Heading.h3>{version.version}</Heading.h3>
@@ -422,7 +421,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                 </Button>
                                             </TableCell>
                                         </TableRow>
-                                    )}
+                                    ))}
                                 </tbody>
                             </Table>
                         </Box>

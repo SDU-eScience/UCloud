@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.util.*
 import dk.sdu.cloud.auth.api.authenticator
@@ -261,6 +262,50 @@ class AppStoreTest {
                 appStoreService.listAll(TestUsers.admin, NormalizedPaginationRequest(10, 0))
 
             assertEquals(2, allApps.itemsInTotal)
+        }
+    }
+
+    @Test
+    fun `app set public and bulk test is public`() {
+        runBlocking {
+            val appStoreService = initAppStoreWithMockedElasticAndTool()
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.create(
+                TestUsers.admin,
+                normAppDesc.withNameAndVersionAndTitle(
+                    "application", "4.4", "anotherTitle"
+                ),
+                "content2"
+            )
+
+            assertEquals(
+                mapOf(
+                    NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version) to true,
+                    NameAndVersion("application", "4.4") to true
+                ),
+                appStoreService.isPublic(
+                    TestUsers.admin, listOf(
+                        NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version),
+                        NameAndVersion("application", "4.4")
+                    )
+                )
+            )
+
+            appStoreService.setPublic(TestUsers.admin, normAppDesc.metadata.name, normAppDesc.metadata.version, false)
+            appStoreService.setPublic(TestUsers.admin, "application", "4.4", false)
+
+            assertEquals(
+                mapOf(
+                    NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version) to false,
+                    NameAndVersion("application", "4.4") to false
+                ),
+                appStoreService.isPublic(
+                    TestUsers.admin, listOf(
+                        NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version),
+                        NameAndVersion("application", "4.4")
+                    )
+                )
+            )
         }
     }
 
