@@ -129,14 +129,13 @@ interface ApplicationDAO<Session> {
     fun createLogo(
         session: Session,
         user: SecurityPrincipal,
-
-        appName: String,
+        name: String,
         imageBytes: ByteArray
     )
 
-    fun clearLogo(session: Session, user: SecurityPrincipal, appName: String)
+    fun clearLogo(session: Session, user: SecurityPrincipal, name: String)
 
-    fun fetchLogo(session: Session, appName: String): ByteArray?
+    fun fetchLogo(session: Session, name: String): ByteArray?
 
     fun isPublic(
         session: Session,
