@@ -174,10 +174,10 @@ class ApplicationHibernateDAO(
                 select T.application_name, T.tag, T.id from {h-schema}application_tags as T
                 where T.tag in (:tags)
                     and (
-                        true in (
-                            select A.is_public from {h-schema}applications as A where A.name = T.application_name
-                        ) or :user in (
-                            select P.entity from {h-schema}permissions as P where P.application_name = T.application_name
+                        exists (
+                            select A.is_public from {h-schema}applications as A where A.name = T.application_name and A.is_public = true
+                        ) or exists (
+                            select P.entity from {h-schema}permissions as P where P.application_name = T.application_name and P.entity = :user
                         )
                     )
                 """.trimIndent(), TagEntity::class.java
