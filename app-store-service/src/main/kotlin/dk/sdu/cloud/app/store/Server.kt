@@ -27,8 +27,6 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import kotlin.system.exitProcess
@@ -55,7 +53,7 @@ class Server(override val micro: Micro) : CommonServer {
         }
 
         if (micro.developmentModeEnabled) {
-            GlobalScope.launch {
+            runBlocking {
                 val listOfApps = db.withTransaction {
                     applicationDAO.listLatestVersion(it, null, NormalizedPaginationRequest(null, null))
                 }
@@ -63,28 +61,26 @@ class Server(override val micro: Micro) : CommonServer {
                 if (listOfApps.itemsInTotal == 0) {
                     val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin", 42000)
                     @Suppress("TooGenericExceptionCaught")
-                    GlobalScope.launch {
-                        db.withTransaction { session ->
-                            val tools = File("yaml", "tools")
-                            tools.listFiles()?.forEach {
-                                try {
-                                    val description = yamlMapper.readValue<ToolDescription>(it)
-                                    toolDAO.create(session, dummyUser, description.normalize())
-                                } catch (ex: Exception) {
-                                    log.info("Could not create tool: $it")
-                                    log.info(ex.stackTraceToString())
-                                }
+                    db.withTransaction { session ->
+                        val tools = File("yaml", "tools")
+                        tools.listFiles()?.forEach {
+                            try {
+                                val description = yamlMapper.readValue<ToolDescription>(it)
+                                toolDAO.create(session, dummyUser, description.normalize())
+                            } catch (ex: Exception) {
+                                log.info("Could not create tool: $it")
+                                log.info(ex.stackTraceToString())
                             }
+                        }
 
-                            val apps = File("yaml", "apps")
-                            apps.listFiles()?.forEach {
-                                try {
-                                    val description = yamlMapper.readValue<ApplicationDescription>(it)
-                                    applicationDAO.create(session, dummyUser, description.normalize())
-                                } catch (ex: Exception) {
-                                    log.info("Could not create app: $it")
-                                    log.info(ex.stackTraceToString())
-                                }
+                        val apps = File("yaml", "apps")
+                        apps.listFiles()?.forEach {
+                            try {
+                                val description = yamlMapper.readValue<ApplicationDescription>(it)
+                                applicationDAO.create(session, dummyUser, description.normalize())
+                            } catch (ex: Exception) {
+                                log.info("Could not create app: $it")
+                                log.info(ex.stackTraceToString())
                             }
                         }
                     }
