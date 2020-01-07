@@ -80,7 +80,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.isPublic) {
-            ok(IsPublicResponse(public = appStore.isPublic(ctx.securityPrincipal, request.applications)))
+            ok(IsPublicResponse(appStore.isPublic(ctx.securityPrincipal, request.applications)))
         }
 
         implement(AppStore.setPublic) {
