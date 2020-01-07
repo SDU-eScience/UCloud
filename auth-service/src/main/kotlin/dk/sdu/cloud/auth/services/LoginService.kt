@@ -21,7 +21,7 @@ class LoginService<Session>(
     private val loginAttempts: LoginAttemptDao<Session>,
     private val loginResponder: LoginResponder<Session>
 ) {
-    private fun attemptLogin(username: String, password: String): Pair<Principal?, LoginResponse> {
+    private suspend fun attemptLogin(username: String, password: String): Pair<Principal?, LoginResponse> {
         return db.withTransaction { session ->
             if (loginAttempts.timeUntilNextAllowedLogin(session, username) != null) {
                 Pair(null, LoginResponse.TOO_MANY_REQUESTS)

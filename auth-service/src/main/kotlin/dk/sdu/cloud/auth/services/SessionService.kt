@@ -17,7 +17,7 @@ class SessionService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val refreshTokenDao: RefreshTokenDAO<DBSession>
 ) {
-    fun listSessions(user: SecurityPrincipalToken, paging: NormalizedPaginationRequest): Page<Session> {
+    suspend fun listSessions(user: SecurityPrincipalToken, paging: NormalizedPaginationRequest): Page<Session> {
         validateToken(user)
 
         return db.withTransaction { session ->
@@ -31,7 +31,7 @@ class SessionService<DBSession>(
         }
     }
 
-    fun invalidateSessions(user: SecurityPrincipalToken) {
+    suspend fun invalidateSessions(user: SecurityPrincipalToken) {
         validateToken(user)
 
         db.withTransaction { session ->

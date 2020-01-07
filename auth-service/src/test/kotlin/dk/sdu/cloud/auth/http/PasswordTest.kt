@@ -21,10 +21,10 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.setBody
-import io.mockk.every
+import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
-import kotlin.test.assertEquals
 
 class PasswordTest {
     private val passwordHashingService = PasswordHashingService()
@@ -59,8 +59,8 @@ class PasswordTest {
         )
 
         val twoFactorChallengeService = mockk<TwoFactorChallengeService<HibernateSession>>(relaxed = true)
-        every { twoFactorChallengeService.isConnected(any()) } returns false
-        every { twoFactorChallengeService.createLoginChallengeOrNull(any(), any()) } returns null
+        coEvery { twoFactorChallengeService.isConnected(any()) } returns false
+        coEvery { twoFactorChallengeService.createLoginChallengeOrNull(any(), any()) } returns null
 
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
         val loginService = LoginService(
@@ -91,12 +91,14 @@ class PasswordTest {
         withKtorTest(
             setup = {
                 with(createPasswordController()) {
-                    db.withTransaction {
-                        UserHibernateDAO(passwordHashingService).insert(it, person)
-                        ServiceDAO.insert(Service(name = "_service", endpoint = "http://service"))
-                    }
+                    runBlocking {
+                        db.withTransaction {
+                            UserHibernateDAO(passwordHashingService).insert(it, person)
+                            ServiceDAO.insert(Service(name = "_service", endpoint = "http://service"))
+                        }
 
-                    controllers
+                        controllers
+                    }
                 }
             },
 
@@ -115,12 +117,14 @@ class PasswordTest {
     fun `Login test - password wrong`() {
         withKtorTest(
             setup = {
-                with(createPasswordController()) {
-                    db.withTransaction {
-                        UserHibernateDAO(passwordHashingService).insert(it, person)
-                    }
+                runBlocking {
+                    with(createPasswordController()) {
+                        db.withTransaction {
+                            UserHibernateDAO(passwordHashingService).insert(it, person)
+                        }
 
-                    controllers
+                        controllers
+                    }
                 }
             },
             test = {

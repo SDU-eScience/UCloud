@@ -9,6 +9,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import junit.framework.TestCase.assertEquals
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -63,7 +64,7 @@ class TwoFactorChallengeServiceTest {
     }
 
     @Test
-    fun `test creating credentials for valid user`() {
+    fun `test creating credentials for valid user`(): Unit = runBlocking {
         with(initTest<Any>()) {
             val user = userDAO.withUser()
 
@@ -82,18 +83,19 @@ class TwoFactorChallengeServiceTest {
     }
 
     @Test(expected = TwoFactorException.InvalidPrincipalType::class)
-    fun `test creating credentials for service`() {
+    fun `test creating credentials for service`(): Unit = runBlocking {
         with(initTest<Any>()) {
             val user = userDAO.withUser(ServicePrincipal("_foobar", Role.SERVICE))
 
             every { twoFactorDAO.findEnforcedCredentialsOrNull(any(), user.id) } returns null
 
             service.createSetupCredentialsAndChallenge(user.id)
+            Unit
         }
     }
 
     @Test(expected = TwoFactorException.AlreadyBound::class)
-    fun `test creating credentials when already bound`() {
+    fun `test creating credentials when already bound`(): Unit = runBlocking {
         with(initTest<Any>()) {
             val user = userDAO.withUser()
 
@@ -105,30 +107,33 @@ class TwoFactorChallengeServiceTest {
             )
 
             service.createSetupCredentialsAndChallenge(user.id)
+            Unit
         }
     }
 
     @Test(expected = TwoFactorException.InternalError::class)
-    fun `test creating credentials when user does not exist`() {
+    fun `test creating credentials when user does not exist`(): Unit = runBlocking {
         with(initTest<Any>()) {
             every { userDAO.findByIdOrNull(any(), any()) } returns null
             every { userDAO.findById(any(), any()) } throws UserException.NotFound()
 
             service.createSetupCredentialsAndChallenge("doesNotExist")
+            Unit
         }
     }
 
     @Test(expected = TwoFactorException.InvalidChallenge::class)
-    fun `test verification - no challenge`() {
+    fun `test verification - no challenge`(): Unit = runBlocking {
         with(initTest<Any>()) {
             every { twoFactorDAO.findActiveChallengeOrNull(any(), any()) } returns null
 
             service.verifyChallenge("123456", 0)
+            Unit
         }
     }
 
     @Test
-    fun `test verification - with challenge`() {
+    fun `test verification - with challenge`(): Unit = runBlocking {
         val totpService = mockk<TOTPService>(relaxed = true)
         with(initTest<Any>(totpService = totpService)) {
             val user = userDAO.withUser()
@@ -152,7 +157,7 @@ class TwoFactorChallengeServiceTest {
     }
 
     @Test
-    fun `test upgrading credentials - happy path`() {
+    fun `test upgrading credentials - happy path`(): Unit = runBlocking {
         with(initTest<Any>()) {
             val user = userDAO.withUser()
             val credentials = TwoFactorCredentials(user, "secret", false, 42)
@@ -171,7 +176,7 @@ class TwoFactorChallengeServiceTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun `test upgrading credentials - already enforced`() {
+    fun `test upgrading credentials - already enforced`(): Unit = runBlocking {
         with(initTest<Any>()) {
             val user = userDAO.withUser()
             val credentials = TwoFactorCredentials(user, "secret", true, 42)
@@ -180,7 +185,7 @@ class TwoFactorChallengeServiceTest {
     }
 
     @Test
-    fun `test creating login challenge - no enforced`() {
+    fun `test creating login challenge - no enforced`(): Unit = runBlocking {
         with(initTest<Any>()) {
             every { twoFactorDAO.findEnforcedCredentialsOrNull(any(), any()) } returns null
 
@@ -189,7 +194,7 @@ class TwoFactorChallengeServiceTest {
     }
 
     @Test
-    fun `test creating login challenge`() {
+    fun `test creating login challenge`(): Unit = runBlocking {
         with(initTest<Any>()) {
             val user = userDAO.withUser()
             every { twoFactorDAO.findEnforcedCredentialsOrNull(any(), any()) } returns TwoFactorCredentials(
@@ -208,7 +213,7 @@ class TwoFactorChallengeServiceTest {
     }
 
     @Test
-    fun `test is connected`() {
+    fun `test is connected`(): Unit = runBlocking {
         with(initTest<Any>()) {
             val user = userDAO.withUser()
             every { twoFactorDAO.findEnforcedCredentialsOrNull(any(), any()) } returns TwoFactorCredentials(
@@ -223,7 +228,7 @@ class TwoFactorChallengeServiceTest {
     }
 
     @Test
-    fun `test is not connected`() {
+    fun `test is not connected`(): Unit = runBlocking {
         with(initTest<Any>()) {
             val user = userDAO.withUser()
             every { twoFactorDAO.findEnforcedCredentialsOrNull(any(), any()) } returns null

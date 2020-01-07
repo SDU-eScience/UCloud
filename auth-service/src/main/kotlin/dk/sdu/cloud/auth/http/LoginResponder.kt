@@ -1,6 +1,5 @@
 package dk.sdu.cloud.auth.http
 
-import dk.sdu.cloud.auth.api.AccessTokenAndCsrf
 import dk.sdu.cloud.auth.api.OptionalAuthenticationTokens
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.services.ServiceDAO

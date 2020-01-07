@@ -3,7 +3,6 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.ServicePrincipal
-import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -14,6 +13,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.every
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import org.hibernate.NonUniqueObjectException
 import org.junit.Test
 import java.util.*
@@ -61,7 +61,7 @@ class UserHibernateDAOTest {
     }
 
     @Test
-    fun `insert, find and delete`() {
+    fun `insert, find and delete`(): Unit = runBlocking {
         db.withTransaction { session ->
             val userHibernate = UserHibernateDAO(passwordHashingService)
             userHibernate.insert(session, person)
@@ -72,7 +72,7 @@ class UserHibernateDAOTest {
     }
 
     @Test
-    fun `insert 2 and list all`() {
+    fun `insert 2 and list all`(): Unit = runBlocking {
         db.withTransaction { session ->
             val userHibernate = UserHibernateDAO(passwordHashingService)
             userHibernate.insert(session, person)
@@ -88,7 +88,7 @@ class UserHibernateDAOTest {
     }
 
     @Test(expected = NonUniqueObjectException::class)
-    fun `insert 2 with same email`() {
+    fun `insert 2 with same email`(): Unit = runBlocking {
         db.withTransaction { session ->
             val userHibernate = UserHibernateDAO(passwordHashingService)
             userHibernate.insert(session, person)
@@ -98,14 +98,14 @@ class UserHibernateDAOTest {
     }
 
     @Test(expected = UserException.NotFound::class)
-    fun `delete non existing user`() {
+    fun `delete non existing user`(): Unit = runBlocking {
         val session = db.openSession()
         val userHibernate = UserHibernateDAO(passwordHashingService)
         userHibernate.delete(session, "test@testmail.com")
     }
 
     @Test
-    fun `insert WAYF`() {
+    fun `insert WAYF`(): Unit = runBlocking {
         val auth = mockk<SamlRequestProcessor>()
         val userDao = UserHibernateDAO(passwordHashingService)
         every { auth.authenticated } returns true

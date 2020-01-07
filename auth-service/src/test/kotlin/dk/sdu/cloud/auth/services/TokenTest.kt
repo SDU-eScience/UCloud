@@ -44,7 +44,7 @@ class TokenTest {
         initializeMicro().tokenValidation as TokenValidationJWT
     }
 
-    private fun createTokenService(): TestContext {
+    private fun createTokenService(): TestContext = runBlocking {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
 
@@ -82,7 +82,7 @@ class TokenTest {
             tokenValidation = testJwtVerifier
         )
 
-        return TestContext(
+        TestContext(
             tokenService,
             userDao,
             refreshTokenDao,
@@ -93,7 +93,7 @@ class TokenTest {
     }
 
     @Test
-    fun `create and register test`() {
+    fun `create and register test`(): Unit = runBlocking {
         with(createTokenService()) {
             val result = tokenService.createAndRegisterTokenFor(person)
             val parsedJwt = testJwtVerifier.validate(result.accessToken)
@@ -144,7 +144,7 @@ class TokenTest {
     }
 
     @Test
-    fun `request one time token test`() {
+    fun `request one time token test`(): Unit = runBlocking {
         val user = "test@testmail.com"
         val jwt = TokenValidationMock.createTokenForUser(user, Role.USER)
         with(createTokenService()) {
@@ -161,7 +161,7 @@ class TokenTest {
     }
 
     @Test
-    fun `refresh test`() {
+    fun `refresh test`(): Unit = runBlocking {
         with(createTokenService()) {
             db.withTransaction { session ->
                 val refreshTAU = RefreshTokenAndUser(email, token, "")
@@ -179,14 +179,15 @@ class TokenTest {
     }
 
     @Test(expected = RefreshTokenException.InvalidToken::class)
-    fun `refresh test - not valid token`() {
+    fun `refresh test - not valid token`(): Unit = runBlocking {
         with(createTokenService()) {
             tokenService.refresh("not a token")
+            Unit
         }
     }
 
     @Test
-    fun `logout test `() {
+    fun `logout test `(): Unit = runBlocking {
         with(createTokenService()) {
             db.withTransaction { session ->
                 val refreshTAU = RefreshTokenAndUser(email, token, "")
@@ -198,7 +199,7 @@ class TokenTest {
     }
 
     @Test(expected = RefreshTokenException.InvalidToken::class)
-    fun `logout test - not valid token`() {
+    fun `logout test - not valid token`(): Unit = runBlocking {
         with(createTokenService()) {
             tokenService.logout("not a token")
         }

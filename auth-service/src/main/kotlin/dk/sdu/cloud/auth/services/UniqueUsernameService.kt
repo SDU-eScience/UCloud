@@ -17,7 +17,7 @@ class UniqueUsernameService<DBSession>(
      * This function will not perform any locking of the username and could become unavailable immediately after this
      * function returns.
      */
-    fun generateUniqueName(idealUsername: String): String {
+    suspend fun generateUniqueName(idealUsername: String): String {
         val normalizedUsername = idealUsername.lines().first().replace(SEPARATOR.toString(), "")
         if (normalizedUsername.length > 250) throw IllegalArgumentException("Username too long")
 

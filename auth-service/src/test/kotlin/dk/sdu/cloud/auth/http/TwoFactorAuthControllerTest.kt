@@ -34,6 +34,7 @@ import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -54,7 +55,7 @@ class TwoFactorAuthControllerTest {
         val db: DBSessionFactory<HibernateSession>
     )
 
-    private fun TestContext.withUser(
+    private suspend fun TestContext.withUser(
         principal: Principal = Person.ByPassword(
             "user",
             Role.USER,
@@ -91,7 +92,7 @@ class TwoFactorAuthControllerTest {
             )
         },
 
-        consumer: TestApplicationEngine.(TestContext) -> Unit
+        consumer: suspend TestApplicationEngine.(TestContext) -> Unit
     ) {
         lateinit var twoFactorService: TwoFactorChallengeService<HibernateSession>
         lateinit var loginResponder: LoginResponder<HibernateSession>
@@ -113,7 +114,9 @@ class TwoFactorAuthControllerTest {
                     qrService,
                     micro.hibernateDatabase
                 )
-                engine.consumer(ctx)
+                runBlocking {
+                    engine.consumer(ctx)
+                }
             }
         )
     }

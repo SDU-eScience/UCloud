@@ -8,8 +8,13 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.initializeMicro
+import kotlinx.coroutines.runBlocking
 import kotlin.math.pow
-import kotlin.test.*
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class LoginAttemptServiceTest {
     private lateinit var micro: Micro
@@ -27,7 +32,7 @@ class LoginAttemptServiceTest {
     }
 
     @Test
-    fun `test that login attempts are allowed`() {
+    fun `test that login attempts are allowed`(): Unit = runBlocking {
         db.withTransaction { session ->
             repeat(LoginAttemptHibernateDao.LOCKOUT_THRESHOLD) {
                 assertNull(dao.timeUntilNextAllowedLogin(session, user))
@@ -37,7 +42,7 @@ class LoginAttemptServiceTest {
     }
 
     @Test
-    fun `test that attempts are blocked`() {
+    fun `test that attempts are blocked`(): Unit = runBlocking {
         db.withTransaction { session ->
             repeat(LoginAttemptHibernateDao.LOCKOUT_THRESHOLD + 1) {
                 dao.logAttempt(session, user)
@@ -55,7 +60,7 @@ class LoginAttemptServiceTest {
     }
 
     @Test
-    fun `test that time increases and decreases`() {
+    fun `test that time increases and decreases`(): Unit = runBlocking {
         db.withTransaction { session ->
             repeat(LoginAttemptHibernateDao.LOCKOUT_THRESHOLD + 1) {
                 dao.timeUntilNextAllowedLogin(session, user)

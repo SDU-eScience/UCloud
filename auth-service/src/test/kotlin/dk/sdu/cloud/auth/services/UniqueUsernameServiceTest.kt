@@ -10,6 +10,7 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.assertThatProperty
 import dk.sdu.cloud.service.test.initializeMicro
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.Ignore
@@ -42,7 +43,7 @@ class UniqueUsernameServiceTest {
     }
 
     @Test
-    fun `generate a single username`() {
+    fun `generate a single username`(): Unit = runBlocking {
         val prefix = "DanThrane"
         val id = service.generateUniqueName(prefix)
         db.withTransaction { userDao.insert(it, personTemplate.copy(id = id)) }
@@ -50,7 +51,7 @@ class UniqueUsernameServiceTest {
     }
 
     @Test
-    fun `generate 1000 usernames`() {
+    fun `generate 1000 usernames`(): Unit = runBlocking {
         val prefix = "DanThrane"
         repeat(1000) {
             val id = service.generateUniqueName(prefix)
@@ -62,7 +63,7 @@ class UniqueUsernameServiceTest {
 
     @Ignore
     @Test
-    fun `generate 11000 usernames`() {
+    fun `generate 11000 usernames`(): Unit = runBlocking {
         val prefix = "DanThrane"
         repeat(11000) {
             val id = service.generateUniqueName(prefix)
