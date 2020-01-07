@@ -125,7 +125,7 @@ class ElasticIndexingService(
         updateDocWithNewFile(event.file)
 
     private fun handleDeleted(event: StorageEvent.Deleted): DeleteRequest {
-        return DeleteRequest(FILES_INDEX, DOC_TYPE, event.file.fileId)
+        return DeleteRequest(FILES_INDEX, event.file.fileId)
     }
 
     // TODO We should only update if event timestamp is lower than current. This protects somewhat against
@@ -147,7 +147,7 @@ class ElasticIndexingService(
             sensitivity = file.ownSensitivityLevel
         )
 
-        return UpdateRequest(FILES_INDEX, DOC_TYPE, indexedFile.id).apply {
+        return UpdateRequest(FILES_INDEX, indexedFile.id).apply {
             val writeValueAsBytes = mapper.writeValueAsBytes(indexedFile)
             doc(writeValueAsBytes, XContentType.JSON)
             docAsUpsert(true)
@@ -174,7 +174,7 @@ class ElasticIndexingService(
                 }
             },
 
-            handler = { request.add(DeleteRequest(FILES_INDEX, DOC_TYPE, it.id)) }
+            handler = { request.add(DeleteRequest(FILES_INDEX, it.id)) }
         )
 
         return request
