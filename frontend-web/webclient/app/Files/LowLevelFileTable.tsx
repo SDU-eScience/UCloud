@@ -393,7 +393,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
 
 
     // Aliases
-    const isForbiddenPath = error === "Forbidden";
+    const isForbiddenPath = ["Forbidden", "Not Found"].includes(error ?? "");
     const isEmbedded = props.embedded !== false;
     const sortingSupported = !props.embedded;
     const fileOperations = props.fileOperations !== undefined ? props.fileOperations : defaultFileOperations;
