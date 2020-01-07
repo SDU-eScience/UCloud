@@ -77,9 +77,9 @@ function Header(props: HeaderProps) {
     React.useEffect(() => {
         if (Client.isLoggedIn) {
             props.fetchAvatar();
-            setIntervalId(setInterval(fetchDowntimes, 600_000));
             fetchDowntimes();
         }
+        setIntervalId(setInterval(fetchDowntimes, 600_000));
         return () => {if (intervalId !== -1) clearInterval(intervalId);};
     }, [Client.isLoggedIn]);
 
@@ -190,6 +190,7 @@ function Header(props: HeaderProps) {
 
     async function fetchDowntimes() {
         try {
+            if (!Client.isLoggedIn) return;
             const result = await promises.makeCancelable(Client.get<Page<Downtime>>("/downtime/listUpcoming")).promise;
             if (result.response.itemsInTotal > 0) setUpcomingDowntime(result.response.items[0].id);
         } catch (err) {
