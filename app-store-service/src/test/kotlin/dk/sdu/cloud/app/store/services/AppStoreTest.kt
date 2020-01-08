@@ -225,6 +225,30 @@ class AppStoreTest {
     }
 
     @Test
+    fun `add tags and delete tags - duplicate tags `() {
+        runBlocking {
+            val appStoreService = initAppStoreWithMockedElasticAndTool()
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.create(TestUsers.admin, normAppDesc2, "content2")
+
+            appStoreService.createTags(listOf("tag1", "tag2"), normAppDesc.metadata.name, TestUsers.admin)
+
+            appStoreService.createTags(listOf("tag2", "tag3"), normAppDesc.metadata.name, TestUsers.admin)
+
+            val tags1 =
+                appStoreService.searchTags(TestUsers.admin, listOf("tag2"), NormalizedPaginationRequest(10, 0))
+            assertEquals(1, tags1.itemsInTotal)
+            assertEquals(normAppDesc.metadata.name, tags1.items.first().metadata.name)
+
+            appStoreService.deleteTags(listOf("tag2"), normAppDesc.metadata.name, TestUsers.admin)
+
+            val tags2 =
+                appStoreService.searchTags(TestUsers.admin, listOf("tag2"), NormalizedPaginationRequest(10, 0))
+            assertEquals(0, tags2.itemsInTotal)
+        }
+    }
+
+    @Test
     fun `Add and search for app`() {
         runBlocking {
             val appStoreService = initAppStoreWithMockedElasticAndTool()
