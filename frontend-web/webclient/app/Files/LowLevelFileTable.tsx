@@ -107,14 +107,14 @@ export interface ListDirectoryRequest {
 }
 
 export const listDirectory = ({
-                                  path,
-                                  page,
-                                  itemsPerPage,
-                                  order,
-                                  sortBy,
-                                  attrs,
-                                  type
-                              }: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
+    path,
+    page,
+    itemsPerPage,
+    order,
+    sortBy,
+    attrs,
+    type
+}: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/files",
@@ -368,13 +368,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
             if (props.path === undefined) return;
             const fileId = "newFolderId";
             setInjectedViaState([
-                    mockFile({
-                        path: `${props.path}/newFolder`,
-                        fileId,
-                        tag: MOCK_RENAME_TAG,
-                        type: "DIRECTORY"
-                    })
-                ]
+                mockFile({
+                    path: `${props.path}/newFolder`,
+                    fileId,
+                    tag: MOCK_RENAME_TAG,
+                    type: "DIRECTORY"
+                })
+            ]
             );
             setFileBeingRenamed(fileId);
 
@@ -607,7 +607,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                                 pl="15px"
                                                 onClick={() => setSorting(
                                                     sortByColumns[0], order === SortOrder.ASCENDING ?
-                                                        SortOrder.DESCENDING : SortOrder.ASCENDING, 0
+                                                    SortOrder.DESCENDING : SortOrder.ASCENDING, 0
                                                 )}
                                             >
                                                 <>
@@ -684,8 +684,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                             mb="50px"
                                             trigger={(
                                                 <Link to={filePreviewQuery(f.path)}>
-                                                    <Icon cursor="pointer" size="24px" mt="4px" mr="8px" color="gray"
-                                                          name="preview" />
+                                                    <Icon
+                                                        cursor="pointer"
+                                                        size="24px"
+                                                        mt="4px"
+                                                        mr="8px"
+                                                        color="gray"
+                                                        name="preview"
+                                                    />
                                                 </Link>
                                             )}
                                         >
@@ -739,14 +745,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                             </ClickableDropdown>
                                         </Box>
                                     ) : (
-                                        <Box mt="-2px" ml="5px">
-                                            <FileOperations
-                                                files={[f]}
-                                                fileOperations={fileOperations}
-                                                callback={callbacks}
-                                            />
-                                        </Box>
-                                    )}
+                                            <Box mt="-2px" ml="5px">
+                                                <FileOperations
+                                                    files={[f]}
+                                                    fileOperations={fileOperations}
+                                                    callback={callbacks}
+                                                />
+                                            </Box>
+                                        )}
                                 </Flex>
                             )}
                         />
@@ -859,14 +865,14 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
         />
     ) : (
-        <Truncate
-            width={[170, 250, 300, 250, 500, "100%"]}
-            mb="-4px"
-            fontSize={20}
-        >
-            {getFilenameFromPath(props.file.path)}
-        </Truncate>
-    );
+            <Truncate
+                width={[170, 250, 300, 250, 500, "100%"]}
+                mb="-4px"
+                fontSize={20}
+            >
+                {getFilenameFromPath(props.file.path)}
+            </Truncate>
+        );
 
     return (
         <Flex>
@@ -906,8 +912,8 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         {fileName}
                     </BaseLink>
                 ) : props.previewEnabled && isFilePreviewSupported(props.file) ?
-                    <Link to={filePreviewQuery(props.file.path)}>{fileName}</Link> :
-                    fileName
+                        <Link to={filePreviewQuery(props.file.path)}>{fileName}</Link> :
+                        fileName
                 }
 
                 <Hide sm xs>
@@ -941,7 +947,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     );
 };
 
-const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }) => {
+const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
     interface IconDef {
         color: string;
         text: string;
@@ -980,7 +986,7 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }) => 
     );
 };
 
-const SensitivityBadge = styled.div<{ bg: string }>`
+const SensitivityBadge = styled.div<{bg: string}>`
     content: '';
     height: 2em;
     width: 2em;
@@ -1005,7 +1011,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
     const buttons: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode === true);
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
-    const Operation = ({fileOp}: { fileOp: FileOperation }) => {
+    const Operation = ({fileOp}: {fileOp: FileOperation}) => {
         if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
@@ -1061,7 +1067,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
     if (typeof applications === "undefined") return null;
     if (applications.length < 1) return null;
 
-    const Operation = ({quickLaunchApp}: { quickLaunchApp: QuickLaunchApp }) => {
+    const Operation = ({quickLaunchApp}: {quickLaunchApp: QuickLaunchApp}) => {
         return (
             <Flex
                 cursor="pointer"
