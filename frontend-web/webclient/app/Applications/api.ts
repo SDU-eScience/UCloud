@@ -2,7 +2,6 @@ import {JobState, RunsSortBy} from "Applications/index";
 import {APICallParameters} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {SortOrder} from "Files";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
@@ -82,6 +81,46 @@ export function createApplicationTag(props: CreateApplicationTagProps): APICallP
         reloadId: Math.random(),
         method: "POST",
         path: "/hpc/apps/createTag",
+        payload: props,
+        parameters: props
+    };
+}
+
+export enum ApplicationAccessRight {
+    LAUNCH = "LAUNCH"
+}
+
+export enum UserEntityType {
+    USER = "USER",
+    PROJECT_AND_GROUP = "PROJECT_AND_GROUP"
+}
+
+export interface UserEntity {
+    id: string;
+    type: UserEntityType;
+}
+
+export interface ApplicationPermissionEntry {
+    entity: UserEntity;
+    permission: ApplicationAccessRight;
+}
+
+export interface UpdateApplicationPermissionEntry {
+    entity: UserEntity;
+    rights: ApplicationAccessRight;
+    revoke: boolean;
+}
+
+export interface UpdateApplicationPermissionProps {
+    applicationName: string;
+    changes: UpdateApplicationPermissionEntry[];
+}
+
+export function updateApplicationPermission(props: UpdateApplicationPermissionProps): APICallParameters<UpdateApplicationPermissionProps> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/hpc/apps/updateAcl",
         payload: props,
         parameters: props
     };

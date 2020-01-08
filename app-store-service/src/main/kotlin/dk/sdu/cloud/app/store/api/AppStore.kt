@@ -3,6 +3,9 @@ package dk.sdu.cloud.app.store.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.app.store.services.acl.UserEntity
+import dk.sdu.cloud.app.store.services.acl.ApplicationAccessRight
+import dk.sdu.cloud.app.store.services.acl.EntityWithPermission
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
@@ -16,13 +19,54 @@ import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
 data class FindApplicationAndOptionalDependencies(
-    val name: String,
-    val version: String
+    val appName: String,
+    val appVersion: String
+)
+
+data class HasPermissionRequest(
+    val appName: String,
+    val appVersion: String,
+    val permission: Set<ApplicationAccessRight>
+)
+
+data class UpdateAclRequest(
+    val applicationName: String,
+    val changes: List<ACLEntryRequest>
+) {
+    init {
+        if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
+        if (changes.size > 1000) throw IllegalArgumentException("Too many new entries")
+    }
+}
+
+data class IsPublicRequest(
+    val applications: List<NameAndVersion>
+)
+
+data class IsPublicResponse(
+    val public: Map<NameAndVersion, Boolean>
+)
+
+
+data class ListAclRequest(
+    val appName: String
 )
 
 data class FavoriteRequest(
-    val name: String,
-    val version: String
+    val appName: String,
+    val appVersion: String
+)
+
+data class ACLEntryRequest(
+    val entity: UserEntity,
+    val rights: ApplicationAccessRight,
+    val revoke: Boolean = false
+)
+
+data class SetPublicRequest(
+    val appName: String,
+    val appVersion: String,
+    val public: Boolean
 )
 
 data class TagSearchRequest(
@@ -75,6 +119,9 @@ data class FindLatestByToolRequest(
 ) : WithPaginationRequest
 typealias FindLatestByToolResponse = Page<Application>
 
+data class DeleteAppRequest(val appName: String, val appVersion: String)
+typealias DeleteAppResponse = Unit
+
 object AppStore : CallDescriptionContainer("hpc.apps") {
     const val baseContext = "/api/hpc/apps/"
 
@@ -89,8 +136,8 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             path {
                 using(baseContext)
                 +"favorites"
-                +boundTo(FavoriteRequest::name)
-                +boundTo(FavoriteRequest::version)
+                +boundTo(FavoriteRequest::appName)
+                +boundTo(FavoriteRequest::appVersion)
             }
         }
     }
@@ -170,7 +217,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             http {
                 path {
                     using(baseContext)
-                    +boundTo(FindByNameAndPagination::name)
+                    +boundTo(FindByNameAndPagination::appName)
                 }
 
                 params {
@@ -179,6 +226,48 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
                 }
             }
         }
+
+    val isPublic =
+        call<IsPublicRequest, IsPublicResponse, CommonErrorMessage>("isPublic") {
+            auth {
+                roles = Roles.PRIVILEDGED
+                access = AccessRight.READ
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"isPublic"
+                }
+
+                body {
+                    bindEntireRequestFromBody()
+
+                }
+            }
+        }
+
+    val setPublic = call<SetPublicRequest, Unit, CommonErrorMessage>("setPublic")  {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"setPublic"
+            }
+
+            body {
+                bindEntireRequestFromBody()
+            }
+        }
+    }
 
     val advancedSearch = call<AdvancedSearchRequest, Page<ApplicationSummaryWithFavorite>,CommonErrorMessage>("advancedSearch") {
         auth {
@@ -212,11 +301,71 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         http {
             path {
                 using(baseContext)
-                +boundTo(FindApplicationAndOptionalDependencies::name)
-                +boundTo(FindApplicationAndOptionalDependencies::version)
+                +boundTo(FindApplicationAndOptionalDependencies::appName)
+                +boundTo(FindApplicationAndOptionalDependencies::appVersion)
             }
         }
     }
+
+    val hasPermission = call<
+            HasPermissionRequest,
+            Boolean,
+            CommonErrorMessage>("hasPermission") {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"permission"
+                +boundTo(HasPermissionRequest::appName)
+                +boundTo(HasPermissionRequest::appVersion)
+                +boundTo(HasPermissionRequest::permission)
+            }
+        }
+    }
+
+    val listAcl = call<
+            ListAclRequest,
+            List<EntityWithPermission>,
+            CommonErrorMessage>("listAcl") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        http {
+            path {
+                using(baseContext)
+                +"list-acl"
+                +boundTo(ListAclRequest::appName)
+            }
+        }
+    }
+
+    val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"updateAcl"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+
 
     val findBySupportedFileExtension =
         call<FindBySupportedFileExtension, List<ApplicationWithExtension>, CommonErrorMessage>("findBySupportedFileExtension") {
@@ -289,6 +438,23 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             method = HttpMethod.Put
             path { using(baseContext) }
             // body { //YAML Body TODO Implement support }
+        }
+    }
+
+    val delete = call<DeleteAppRequest, DeleteAppResponse, CommonErrorMessage>("delete") {
+        auth {
+            roles = Roles.ADMIN
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 

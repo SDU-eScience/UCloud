@@ -311,6 +311,7 @@ export interface ApplicationMetadata {
     title: string;
     description: string;
     website?: string;
+    public: boolean;
 }
 
 export enum ApplicationType {

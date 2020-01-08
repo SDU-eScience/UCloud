@@ -30,7 +30,6 @@ sealed class ApplicationDescription(val application: String) {
         invocation: List<Any>,
         val parameters: Map<String, ApplicationParameter<*>> = emptyMap(),
         outputFileGlobs: List<String> = emptyList(),
-
         applicationType: String? = null,
         val vnc: VncDescription? = null,
         val web: WebDescription? = null,
@@ -46,7 +45,6 @@ sealed class ApplicationDescription(val application: String) {
 
         val outputFileGlobs: List<String>
         val applicationType: ApplicationType
-
         init {
             ::title.requireNotBlank()
             ::title.disallowCharacters('\n', '/')
@@ -229,7 +227,8 @@ sealed class ApplicationDescription(val application: String) {
                 authors,
                 title,
                 description,
-                null
+                null,
+                false
             )
 
             val invocation = ApplicationInvocationDescription(

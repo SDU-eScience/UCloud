@@ -6,6 +6,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.ApplicationDescription
+import dk.sdu.cloud.app.store.api.IsPublicResponse
 import dk.sdu.cloud.app.store.api.tags
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.services.LogoService
@@ -34,7 +35,7 @@ class AppStoreController<DBSession>(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AppStore.toggleFavorite) {
-            ok(appStore.toggleFavorite(ctx.securityPrincipal, request.name, request.version))
+            ok(appStore.toggleFavorite(ctx.securityPrincipal, request.appName, request.appVersion))
         }
 
         implement(AppStore.retrieveFavorites) {
@@ -50,7 +51,19 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.findByNameAndVersion) {
-            ok(appStore.findByNameAndVersion(ctx.securityPrincipal, request.name, request.version))
+            ok(appStore.findByNameAndVersion(ctx.securityPrincipal, request.appName, request.appVersion))
+        }
+
+        implement(AppStore.hasPermission) {
+            ok(appStore.hasPermission(ctx.securityPrincipal, request.appName, request.appVersion, request.permission))
+        }
+
+        implement(AppStore.listAcl) {
+            ok(appStore.listAcl(ctx.securityPrincipal, request.appName))
+        }
+
+        implement(AppStore.updateAcl) {
+            ok(appStore.updatePermissions(ctx.securityPrincipal, request.applicationName, request.changes))
         }
 
         implement(AppStore.findBySupportedFileExtension) {
@@ -63,7 +76,15 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.findByName) {
-            ok(appStore.findByName(ctx.securityPrincipal, request.name, request.normalize()))
+            ok(appStore.findByName(ctx.securityPrincipal, request.appName, request.normalize()))
+        }
+
+        implement(AppStore.isPublic) {
+            ok(IsPublicResponse(appStore.isPublic(ctx.securityPrincipal, request.applications)))
+        }
+
+        implement(AppStore.setPublic) {
+            ok(appStore.setPublic(ctx.securityPrincipal, request.appName, request.appVersion, request.public))
         }
 
         implement(AppStore.listAll) {
@@ -120,6 +141,11 @@ class AppStoreController<DBSession>(
 
                 ok(Unit)
             }
+        }
+
+        implement(AppStore.delete) {
+            appStore.delete(ctx.securityPrincipal, request.appName, request.appVersion)
+            ok(Unit)
         }
 
         implement(AppStore.createTag) {
