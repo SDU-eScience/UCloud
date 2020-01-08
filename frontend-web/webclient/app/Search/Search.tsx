@@ -15,7 +15,7 @@ import * as Pagination from "Pagination";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {SelectableText, SelectableTextWrapper} from "ui-components";
+import {SelectableText, SelectableTextWrapper, Box} from "ui-components";
 import {GridCardGroup} from "ui-components/Grid";
 import Hide from "ui-components/Hide";
 import {SidebarPages} from "ui-components/Sidebar";
@@ -86,13 +86,30 @@ function Search(props: SearchProps) {
 
     let main: React.ReactNode = null;
     const {priority} = props.match.params;
+    const entriesPerPage = (
+        <Box my="8px">
+            <Spacer
+                left={null}
+                right={(
+                    <Pagination.EntriesPerPageSelector
+                        onChange={itemsPerPage => fetchAll(itemsPerPage)}
+                        content={`${prettierString(priority)} per page`}
+                        entriesPerPage={
+                            priority === "files" ? props.files.itemsPerPage :
+                                props.applications.itemsPerPage
+                        }
+                    />
+                )}
+            />
+        </Box>
+    );
     if (priority === "files") {
         main = (
             <>
                 <Hide xxl xl lg>
                     <DetailedFileSearch cantHide onSearch={fetchAll} />
                 </Hide>
-
+                {entriesPerPage}
                 <EmbeddedFileTable
                     onPageChanged={page => props.searchFiles(
                         fileSearchBody(props.fileSearch, props.files.itemsPerPage, page)
@@ -109,6 +126,7 @@ function Search(props: SearchProps) {
                 <Hide xxl xl lg>
                     <DetailedApplicationSearch onSearch={fetchAll} />
                 </Hide>
+                {entriesPerPage}
                 <Pagination.List
                     loading={applicationsLoading}
                     pageRenderer={({items}) => (
@@ -148,18 +166,12 @@ function Search(props: SearchProps) {
                     <SelectableTextWrapper>
                         {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index} />)}
                     </SelectableTextWrapper>
-                    <Spacer
-                        left={null}
-                        right={(
-                            <Pagination.EntriesPerPageSelector
-                                onChange={itemsPerPage => fetchAll(itemsPerPage)}
-                                content={`${prettierString(priority)} per page`}
-                                entriesPerPage={
-                                    priority === "files" ? props.files.itemsPerPage : props.applications.itemsPerPage
-                                }
-                            />
-                        )}
-                    />
+                    <Hide md sm xs>
+                        <Spacer
+                            left={null}
+                            right={entriesPerPage}
+                        />
+                    </Hide>
                 </React.Fragment>
             )}
             main={main}
