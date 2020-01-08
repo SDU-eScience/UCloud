@@ -180,8 +180,8 @@ const initialPageParameters: ListDirectoryRequest = {
     path: "TO_BE_REPLACED"
 };
 
-function apiForComponent(
-    props, /* FIXME: ADD TYPESAFETY */
+function useApiForComponent(
+    props: LowLevelFileTableProps,
     sortByColumns: [SortBy, SortBy],
     setSortByColumns: (s: [SortBy, SortBy]) => void
 ): InternalFileTableAPI {
@@ -302,7 +302,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
     const history = useHistory();
 
     const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
-        apiForComponent(props, sortByColumns, setSortByColumns);
+        useApiForComponent(props, sortByColumns, setSortByColumns);
 
     // Fetch quick launch applications upon page refresh
     useEffect(() => {
@@ -920,7 +920,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
                 <Hide sm xs>
                     <Flex>
-                        {!props.file.size ? null : (
+                        {!props.file.size || isDirectory(props.file) ? null : (
                             <Text fontSize={0} title="Size" mr="12px" color="gray">
                                 {sizeToString(props.file.size)}
                             </Text>

@@ -67,7 +67,7 @@ function Installed(props: InstalledProps & {header: React.ReactNode}) {
     function pageRenderer(page: Page<FullAppInfo>) {
         return (
             <Box mt="5px">
-                <InstalledPage onFavorite={onFavoriteApp} page={page} />
+                <ApplicationPage onFavorite={onFavoriteApp} page={page} />
             </Box>
         );
     }
@@ -77,7 +77,7 @@ function Installed(props: InstalledProps & {header: React.ReactNode}) {
     }
 
     const page = props.applications.content as Page<FullAppInfo>;
-    const itemsPerPage = !!page ? page.itemsPerPage : 25;
+    const itemsPerPage = page?.itemsPerPage ?? 25;
     const main = (
         <Box maxWidth="98%">
             <Spacer
@@ -115,12 +115,12 @@ function Installed(props: InstalledProps & {header: React.ReactNode}) {
     }
 }
 
-interface InstalledPageProps {
+interface ApplicationPageProps {
     page: Page<FullAppInfo>;
     onFavorite: (name: string, version: string) => void;
 }
 
-const InstalledPage: React.FunctionComponent<InstalledPageProps> = props => (
+export const ApplicationPage: React.FunctionComponent<ApplicationPageProps> = props => (
     <GridCardGroup>
         {props.page.items.map((it, idx) => (
             <ApplicationCard

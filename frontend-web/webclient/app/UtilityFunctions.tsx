@@ -300,10 +300,10 @@ export function ifPresent<T>(f: T | undefined, handler: (f: T) => void) {
 export const downloadAllowed = (files: File[]) => files.every(f => f.sensitivityLevel !== "SENSITIVE");
 
 /**
- * Capizalises the input string and replaces _ (underscores) with whitespace.
+ * Capitalizes the input string and replaces _ (underscores) with whitespace.
  * @param str
  */
-export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ");
+export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
 
 export function defaultErrorHandler(
     error: {request: XMLHttpRequest, response: any}
@@ -392,7 +392,7 @@ interface CopyToClipboard {
     message: string;
 }
 
-export function copyToClipboard({value, message}: CopyToClipboard) {
+export function copyToClipboard({value, message}: CopyToClipboard): void {
     const input = document.createElement("input");
     input.value = value ?? "";
     document.body.appendChild(input);
@@ -436,15 +436,15 @@ export const generateId = ((): (target: string) => string => {
     };
 })();
 
-export function stopPropagation<T extends {stopPropagation(): void}>(e: T) {
+export function stopPropagation(e: {stopPropagation(): void}) {
     e.stopPropagation();
 }
 
-export function preventDefault<T extends {preventDefault(): void}>(e: T) {
+export function preventDefault(e: {preventDefault(): void}) {
     e.preventDefault();
 }
 
-export function stopPropagationAndPreventDefault<T extends {preventDefault(): void; stopPropagation(): void}>(e: T) {
+export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}) {
     preventDefault(e);
     stopPropagation(e);
 }

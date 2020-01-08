@@ -9,14 +9,13 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page} from "Types";
-import {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import {favoriteApplicationFromPage} from "Utilities/ApplicationUtilities";
 import {getQueryParam, getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {FullAppInfo} from ".";
-import {ApplicationCard} from "./Card";
+import {ApplicationPage} from "./Installed";
 import * as Pages from "./Pages";
 import * as Actions from "./Redux/BrowseActions";
 import {Type as ReduxType} from "./Redux/BrowseObject";
@@ -80,19 +79,7 @@ class Applications extends React.Component<ApplicationsProps> {
         );
     }
 
-    private renderPage = (page: Page<FullAppInfo>): JSX.Element => (
-        <GridCardGroup>
-            {page.items.map((app, index) => (
-                <ApplicationCard
-                    key={index}
-                    onFavorite={this.onFavorite}
-                    app={app}
-                    isFavorite={app.favorite}
-                    tags={app.tags}
-                />
-            ))}
-        </GridCardGroup>
-    )
+    private renderPage = (page: Page<FullAppInfo>) => (<ApplicationPage onFavorite={this.onFavorite} page={page} />)
 
     private onFavorite = async (name: string, version: string) => {
         const page = this.props.applicationsPage.content as Page<FullAppInfo>;
