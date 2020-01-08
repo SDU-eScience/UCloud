@@ -13,7 +13,7 @@ exports[`Header Mount header 1`] = `
   align-items: center;
 }
 
-.c22 {
+.c21 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -25,14 +25,14 @@ exports[`Header Mount header 1`] = `
   justify-content: center;
 }
 
-.c25 {
+.c24 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
 }
 
-.c28 {
+.c27 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -48,25 +48,25 @@ exports[`Header Mount header 1`] = `
   overflow: hidden;
 }
 
-.c7 {
+.c6 {
   margin-left: auto;
 }
 
-.c21 {
+.c20 {
   margin-right: auto;
 }
 
-.c23 {
+.c22 {
   width: 24px;
 }
 
-.c12 {
+.c11 {
   position: absolute;
   top: 7px;
   left: 6px;
 }
 
-.c17 {
+.c16 {
   position: absolute;
   top: -12.5px;
   bottom: 0;
@@ -82,7 +82,7 @@ exports[`Header Mount header 1`] = `
   cursor: inherit;
 }
 
-.c18 {
+.c17 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -90,7 +90,7 @@ exports[`Header Mount header 1`] = `
   cursor: pointer;
 }
 
-.c20 {
+.c19 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -99,7 +99,7 @@ exports[`Header Mount header 1`] = `
   margin-right: 3px;
 }
 
-.c24 {
+.c23 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -108,7 +108,7 @@ exports[`Header Mount header 1`] = `
   color: #fff;
 }
 
-.c27 {
+.c26 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -124,11 +124,11 @@ exports[`Header Mount header 1`] = `
   color: #fff;
 }
 
-.c16 {
+.c15 {
   cursor: pointer;
 }
 
-.c11 {
+.c10 {
   display: block;
   font-family: inherit;
   color: inherit;
@@ -143,28 +143,28 @@ exports[`Header Mount header 1`] = `
   width: 100%;
 }
 
-.c11::-webkit-input-placeholder {
+.c10::-webkit-input-placeholder {
   color: #8393A7;
 }
 
-.c11::-moz-placeholder {
+.c10::-moz-placeholder {
   color: #8393A7;
 }
 
-.c11:-ms-input-placeholder {
+.c10:-ms-input-placeholder {
   color: #8393A7;
 }
 
-.c11::placeholder {
+.c10::placeholder {
   color: #8393A7;
 }
 
-.c11:focus {
+.c10:focus {
   outline: none;
   background-color: transparent;
 }
 
-.c13 {
+.c12 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;
   -moz-letter-spacing: 0.2px;
@@ -189,22 +189,22 @@ exports[`Header Mount header 1`] = `
   color: #006aff;
 }
 
-.c9 {
+.c8 {
   position: relative;
 }
 
-.c26 {
+.c25 {
   position: relative;
   top: 0;
   left: 0;
 }
 
-.c15 {
+.c14 {
   position: relative;
   display: inline-block;
 }
 
-.c15:hover > div {
+.c14:hover > div {
   display: block;
 }
 
@@ -227,17 +227,7 @@ exports[`Header Mount header 1`] = `
   box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
 }
 
-.c6 {
-  cursor: inherit;
-  font-size: 17px;
-  margin-left: 4px;
-  margin-top: -7px;
-  color: #c00;
-  vertical-align: top;
-  font-weight: 700;
-}
-
-.c10 {
+.c9 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -255,36 +245,36 @@ exports[`Header Mount header 1`] = `
   border-radius: 5px;
 }
 
-.c10 input::-webkit-input-placeholder,
-.c10 input::-moz-placeholder,
-.c10 input::-ms-input-placeholder,
-.c10 input:-moz-placeholder {
+.c9 input::-webkit-input-placeholder,
+.c9 input::-moz-placeholder,
+.c9 input::-ms-input-placeholder,
+.c9 input:-moz-placeholder {
   color: white;
 }
 
-.c10 input:focus::-webkit-input-placeholder,
-.c10 input:focus::-moz-placeholder,
-.c10 input:focus::-ms-input-placeholder,
-.c10 input:focus::-moz-placeholder {
+.c9 input:focus::-webkit-input-placeholder,
+.c9 input:focus::-moz-placeholder,
+.c9 input:focus::-ms-input-placeholder,
+.c9 input:focus::-moz-placeholder {
   color: black;
 }
 
-.c10 input:focus ~ div > span > div > svg,
-.c10 input:focus + div > label > svg {
+.c9 input:focus ~ div > span > div > svg,
+.c9 input:focus + div > label > svg {
   color: black;
 }
 
-.c10 input ~ div > span > div > svg,
-.c10 input + div > label > svg {
+.c9 input ~ div > span > div > svg,
+.c9 input + div > label > svg {
   color: white;
 }
 
-.c10 > input:focus {
+.c9 > input:focus {
   color: black;
   background-color: white;
 }
 
-.c10 > .c14 > .c4 > input {
+.c9 > .c13 > .c4 > input {
   width: 350px;
   height: 36px;
   padding-right: 10px;
@@ -292,37 +282,37 @@ exports[`Header Mount header 1`] = `
 }
 
 @media screen and (max-width:511px) {
-  .c8 {
+  .c7 {
     display: none;
   }
 }
 
 @media screen and (min-width:512px) and (max-width:639px) {
-  .c8 {
+  .c7 {
     display: none;
   }
 }
 
 @media screen and (min-width:640px) and (max-width:767px) {
-  .c8 {
+  .c7 {
     display: none;
   }
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c19 {
+  .c18 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c19 {
+  .c18 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c19 {
+  .c18 {
     display: none;
   }
 }
@@ -695,30 +685,22 @@ exports[`Header Mount header 1`] = `
       >
         UCloud
       </div>
-      <div
-        className="c4 c6"
-        color="red"
-        cursor="inherit"
-        fontSize={17}
-      >
-        BETA
-      </div>
     </div>
   </a>
   <div
-    className="c7"
+    className="c6"
   />
   <div
-    className="c8"
+    className="c7"
   >
     <div
-      className="c9"
+      className="c8"
     >
       <div
-        className="c10"
+        className="c9"
       >
         <input
-          className="c11"
+          className="c10"
           id="search_input"
           onChange={[Function]}
           onKeyDown={[Function]}
@@ -727,10 +709,10 @@ exports[`Header Mount header 1`] = `
           width="100%"
         />
         <div
-          className="c12"
+          className="c11"
         >
           <label
-            className="c13"
+            className="c12"
             color="black"
             fontSize={1}
             fontWeight="bold"
@@ -752,19 +734,19 @@ exports[`Header Mount header 1`] = `
           </label>
         </div>
         <div
-          className="c14 c15"
+          className="c13 c14"
           data-tag="dropdown"
         >
           <span
-            className="c4 c16"
+            className="c4 c15"
             cursor="pointer"
             onClick={[Function]}
           >
             <div
-              className="c17"
+              className="c16"
             >
               <svg
-                className="c18"
+                className="c17"
                 clipRule="evenodd"
                 cursor="pointer"
                 fill="currentcolor"
@@ -784,10 +766,10 @@ exports[`Header Mount header 1`] = `
     </div>
   </div>
   <div
-    className="c19"
+    className="c18"
   >
     <svg
-      className="c20"
+      className="c19"
       cursor="pointer"
       fill="currentcolor"
       height="32"
@@ -802,32 +784,32 @@ exports[`Header Mount header 1`] = `
     </svg>
   </div>
   <div
-    className="c21"
+    className="c20"
   />
   <div
-    className="c22"
+    className="c21"
     width="48px"
   >
     <div
-      className="c23"
+      className="c22"
       width="24px"
     />
   </div>
   <div
-    className="c14 c15"
+    className="c13 c14"
     data-tag="dropdown"
   >
     <span
-      className="c4 c16"
+      className="c4 c15"
       cursor="pointer"
       onClick={[Function]}
     >
       <div
-        className="c22"
+        className="c21"
         width="48px"
       >
         <svg
-          className="c24"
+          className="c23"
           clipRule="evenodd"
           color="headerIconColor"
           color2="#006aff"
@@ -852,26 +834,26 @@ exports[`Header Mount header 1`] = `
     </span>
   </div>
   <div
-    className="c14 c15"
+    className="c13 c14"
     data-tag="dropdown"
   >
     <span
-      className="c4 c16"
+      className="c4 c15"
       cursor="pointer"
       onClick={[Function]}
     >
       <div
-        className="c25"
+        className="c24"
       >
         <div
-          className="c26"
+          className="c25"
         >
           <div
-            className="c22"
+            className="c21"
             width="48px"
           >
             <svg
-              className="c27"
+              className="c26"
               clipRule="evenodd"
               color="headerIconColor"
               color2="#c9d3df"
@@ -898,19 +880,19 @@ exports[`Header Mount header 1`] = `
     </span>
   </div>
   <div
-    className="c14 c15"
+    className="c13 c14"
     data-tag="dropdown"
   >
     <span
-      className="c4 c16"
+      className="c4 c15"
       cursor="pointer"
       onClick={[Function]}
     >
       <div
-        className="c25"
+        className="c24"
       >
         <div
-          className="c28"
+          className="c27"
           height="48px"
           width="60px"
         >
