@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: indexing-service
-        image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.15.6-DEVONLY
+        image: registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.15.7
         livenessProbe:
           httpGet:
             port: 8080

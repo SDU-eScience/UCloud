@@ -13,7 +13,7 @@ spec:
 
           containers:
           - name: elastic-management
-            image: registry.cloud.sdu.dk/sdu-cloud/elastic-management:1.0.20
+            image: registry.cloud.sdu.dk/sdu-cloud/elastic-management:1.0.21
             livenessProbe:
               httpGet:
                 port: 8080

@@ -58,7 +58,7 @@ class ElasticQueryService(
     private val mapper = defaultMapper
 
     override fun findFileByIdOrNull(id: String): StorageFile? {
-        return elasticClient[GetRequest(FILES_INDEX, DOC_TYPE, id), RequestOptions.DEFAULT]
+        return elasticClient[GetRequest(FILES_INDEX, id), RequestOptions.DEFAULT]
             ?.takeIf { it.isExists }
             ?.let { mapper.readValue<ElasticIndexedFile>(it.sourceAsString) }
             ?.toMaterializedFile()
@@ -398,7 +398,6 @@ class ElasticQueryService(
         override val log = logger()
 
         private const val FILES_INDEX = ElasticIndexingService.FILES_INDEX
-        private const val DOC_TYPE = ElasticIndexingService.DOC_TYPE
 
         private const val MAX_FILES_IN_REVERSE_BATCH_LOOKUP = 100
 
