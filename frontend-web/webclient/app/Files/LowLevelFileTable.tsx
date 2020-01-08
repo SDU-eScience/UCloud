@@ -656,6 +656,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                         onClick={() => {
                             if (!isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
                         }}
+                        pb={"4px"}
+                        pt={"4px"}
                         width="100%"
                         key={f.path}
                     >
