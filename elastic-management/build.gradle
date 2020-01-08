@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.0.20'
+version '1.0.21'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.elastic.management.MainKt"
@@ -12,7 +12,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.10.5"
+    ext.serviceCommonVersion = "1.11.7"
 }
 
 dependencies {
