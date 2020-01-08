@@ -57,7 +57,8 @@ import {
     inDevEnvironment,
     isLightThemeStored,
     prettierString,
-    stopPropagationAndPreventDefault
+    stopPropagationAndPreventDefault,
+    shouldHideSidebarAndHeader
 } from "UtilityFunctions";
 import {DEV_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 
@@ -85,7 +86,7 @@ function Header(props: HeaderProps) {
 
     // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
     // The following is only supposed to work for the initial load.
-    if (window.location.pathname === "/app/login" && window.location.search === "?dav=true") return null;
+    if (shouldHideSidebarAndHeader()) return null;
 
     if (!Client.isLoggedIn) return null;
 

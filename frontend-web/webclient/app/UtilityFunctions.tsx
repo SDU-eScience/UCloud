@@ -452,3 +452,7 @@ export function stopPropagationAndPreventDefault(e: {preventDefault(): void; sto
 export function displayErrorMessageOrDefault(e: any, fallback: string) {
     snackbarStore.addFailure(errorMessageOrDefault(e, fallback));
 }
+
+export function shouldHideSidebarAndHeader() {
+    return ["/app/login", "/app/login/wayf"].includes(window.location.pathname) && window.location.search === "?dav=true";
+}

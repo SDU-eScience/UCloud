@@ -5,7 +5,7 @@ import * as React from "react";
 import {connect} from "react-redux";
 import styled, {css} from "styled-components";
 import {fileTablePage} from "Utilities/FileUtilities";
-import {copyToClipboard, inDevEnvironment} from "UtilityFunctions";
+import {copyToClipboard, inDevEnvironment, shouldHideSidebarAndHeader} from "UtilityFunctions";
 import {DATA_PROTECTION_LINK, DATA_PROTECTION_TEXT} from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
@@ -209,7 +209,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
 
     // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
     // The following is only supposed to work for the initial load.
-    if (window.location.pathname === "/app/login" && window.location.search === "?dav=true") return null;
+    if (shouldHideSidebarAndHeader()) return null;
 
     const sidebar = Object.keys(sideBarEntries)
         .map(key => sideBarEntries[key])
