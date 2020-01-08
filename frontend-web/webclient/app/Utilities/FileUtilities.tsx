@@ -630,6 +630,10 @@ export function isAnySharedFs(files: File[]): boolean {
     return files.some(it => it.fileType === "SHARED_FS");
 }
 
+export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
+    return files.some(it => isFixedFolder(it.path, client.homeFolder));
+}
+
 export function isFilePreviewSupported(f: File): boolean {
     if (isDirectory(f)) return false;
     if (f.sensitivityLevel === "SENSITIVE") return false;
