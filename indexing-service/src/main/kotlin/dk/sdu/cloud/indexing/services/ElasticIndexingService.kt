@@ -184,6 +184,5 @@ class ElasticIndexingService(
         override val log: Logger = logger()
 
         internal const val FILES_INDEX = "files"
-        internal const val DOC_TYPE = "doc"
     }
 }
