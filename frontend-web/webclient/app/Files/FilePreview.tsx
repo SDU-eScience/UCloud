@@ -133,7 +133,7 @@ const FilePreview = (props: FilePreviewProps) => {
         return (
             <Spacer
                 left={<div />}
-                right={<ExpandingIcon name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
+                right={<ExpandingIcon mt="-60px" name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
             />
         );
     }
