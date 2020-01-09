@@ -34,11 +34,18 @@ const size = (p: {size: string, theme: Theme}) => {
 
 export const fullWidth = (props: {fullWidth?: boolean}) => props.fullWidth ? {width: "100%"} : null;
 
+export const attached = (props: {attached?: boolean}) => props.attached ?
+  `border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  margin-left: -5px;`
+ : null;
+
 export interface ButtonProps extends ButtonStyleProps, HeightProps, SpaceProps, SizeProps, WidthProps {
   fullWidth?: boolean;
   textColor?: ThemeColor;
   lineHeight?: number | string;
   title?: string;
+  attached?: boolean;
 }
 
 const Button = styled.button<ButtonProps>`
@@ -72,7 +79,7 @@ const Button = styled.button<ButtonProps>`
     transform: scale(1.03);
   }
 
-  ${fullWidth} ${size} ${space} ${height} ${width};
+  ${attached} ${fullWidth} ${size} ${space} ${height} ${width};
 `;
 
 Button.defaultProps = {

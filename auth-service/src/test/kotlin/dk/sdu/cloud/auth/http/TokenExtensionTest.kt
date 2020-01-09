@@ -35,6 +35,7 @@ import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 
 class TokenExtensionTest {
@@ -131,7 +132,7 @@ class TokenExtensionTest {
             test = {
                 val principal = createUser(securityPrincipal)
 
-                val initialToken = tokenService.createAndRegisterTokenFor(principal).accessToken
+                val initialToken = runBlocking { tokenService.createAndRegisterTokenFor(principal).accessToken }
                 val initialPrincipalToken =
                     tokenValidationJWT.decodeToken(tokenValidationJWT.validate(initialToken))
                 assertThatPropertyEquals(initialPrincipalToken, { it.extendedByChain.size }, 0)
@@ -171,7 +172,7 @@ class TokenExtensionTest {
 
             test = {
                 val principal = createUser(securityPrincipal)
-                val initialToken = tokenService.createAndRegisterTokenFor(principal).accessToken
+                val initialToken = runBlocking { tokenService.createAndRegisterTokenFor(principal).accessToken }
                 val initialPrincipalToken =
                     tokenValidationJWT.decodeToken(tokenValidationJWT.validate(initialToken))
                 assertThatPropertyEquals(initialPrincipalToken, { it.extendedByChain.size }, 0)

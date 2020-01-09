@@ -57,7 +57,8 @@ import {
     inDevEnvironment,
     isLightThemeStored,
     prettierString,
-    stopPropagationAndPreventDefault
+    stopPropagationAndPreventDefault,
+    shouldHideSidebarAndHeader
 } from "UtilityFunctions";
 import {DEV_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 
@@ -77,15 +78,15 @@ function Header(props: HeaderProps) {
     React.useEffect(() => {
         if (Client.isLoggedIn) {
             props.fetchAvatar();
-            setIntervalId(setInterval(fetchDowntimes, 600_000));
             fetchDowntimes();
         }
+        setIntervalId(setInterval(fetchDowntimes, 600_000));
         return () => {if (intervalId !== -1) clearInterval(intervalId);};
     }, [Client.isLoggedIn]);
 
     // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.
     // The following is only supposed to work for the initial load.
-    if (window.location.pathname === "/app/login" && window.location.search === "?dav=true") return null;
+    if (shouldHideSidebarAndHeader()) return null;
 
     if (!Client.isLoggedIn) return null;
 
@@ -190,6 +191,7 @@ function Header(props: HeaderProps) {
 
     async function fetchDowntimes() {
         try {
+            if (!Client.isLoggedIn) return;
             const result = await promises.makeCancelable(Client.get<Page<Downtime>>("/downtime/listUpcoming")).promise;
             if (result.response.itemsInTotal > 0) setUpcomingDowntime(result.response.items[0].id);
         } catch (err) {

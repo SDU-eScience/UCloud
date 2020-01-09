@@ -9,8 +9,8 @@ interface ApplicationDAO<Session> {
     fun toggleFavorite(
         session: Session,
         user: SecurityPrincipal,
-        name: String,
-        version: String
+        appName: String,
+        appVersion: String
     )
 
     fun retrieveFavorites(
@@ -35,6 +35,7 @@ interface ApplicationDAO<Session> {
 
     fun multiKeywordsearch(
         session: Session,
+        user: SecurityPrincipal,
         keywords: List<String>,
         paging: NormalizedPaginationRequest
     ): List<ApplicationEntity>
@@ -43,7 +44,7 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal?,
 
-        name: String,
+        appName: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
@@ -57,15 +58,15 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal?,
 
-        name: String,
-        version: String
+        appName: String,
+        appVersion: String
     ): Application
 
     fun findByNameAndVersionForUser(
         session: Session,
         user: SecurityPrincipal,
-        name: String,
-        version: String
+        appName: String,
+        appVersion: String
     ): ApplicationWithFavoriteAndTags
 
     fun listLatestVersion(
@@ -75,11 +76,24 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
+    fun isOwnerOfApplication(
+        session: Session,
+        user: SecurityPrincipal,
+        appName: String
+    ): Boolean
+
     fun create(
         session: Session,
         user: SecurityPrincipal,
         description: Application,
         originalDocument: String = ""
+    )
+
+    fun delete(
+        session: Session,
+        user: SecurityPrincipal,
+        appName: String,
+        appVersion: String
     )
 
     fun createTags(
@@ -105,8 +119,8 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal,
 
-        name: String,
-        version: String,
+        appName: String,
+        appVersion: String,
 
         newDescription: String? = null,
         newAuthors: List<String>? = null
@@ -115,7 +129,6 @@ interface ApplicationDAO<Session> {
     fun createLogo(
         session: Session,
         user: SecurityPrincipal,
-
         name: String,
         imageBytes: ByteArray
     )
@@ -123,6 +136,21 @@ interface ApplicationDAO<Session> {
     fun clearLogo(session: Session, user: SecurityPrincipal, name: String)
 
     fun fetchLogo(session: Session, name: String): ByteArray?
+
+    fun isPublic(
+        session: Session,
+        user: SecurityPrincipal,
+        appName: String,
+        appVersion: String
+    ): Boolean
+
+    fun setPublic(
+        session: Session,
+        user: SecurityPrincipal,
+        appName: String,
+        appVersion: String,
+        public: Boolean
+    )
 
     fun findAllByID(
         session: Session,

@@ -21,10 +21,10 @@ import {
     getFilenameFromPath,
     getParentPath,
     inTrashDir,
+    isAnyFixedFolder,
     isAnyMockFile,
     isAnySharedFs,
     isArchiveExtension,
-    isFixedFolder,
     moveToTrash,
     replaceHomeFolder,
     resolvePath,
@@ -91,7 +91,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Rename",
         onClick: (files, cb) => cb.startRenaming(files[0]),
         disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files) ||
-            isAnyMockFile(files) || isAnySharedFs(files),
+            isAnyMockFile(files) || isAnySharedFs(files) || isAnyFixedFolder(files, Client),
         icon: "rename"
     },
     {
@@ -129,14 +129,15 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Share",
         onClick: (files) => shareFiles({files, client: Client}),
         disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
-            isAnyMockFile(files) || isAnySharedFs(files),
+            isAnyMockFile(files) || isAnySharedFs(files) || isAnyFixedFolder(files, Client),
         icon: "share"
     },
     {
         text: "Sensitivity",
         onClick: (files, cb) =>
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
-        disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) || isAnySharedFs(files),
+        disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) || isAnySharedFs(files) ||
+            isAnyFixedFolder(files, Client),
         icon: "verified"
     },
     {
@@ -153,7 +154,8 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) || isAnySharedFs(files),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) || isAnySharedFs(files) ||
+            isAnyFixedFolder(files, Client),
         icon: "copy",
     },
     {
@@ -170,7 +172,8 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) || isAnySharedFs(files),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) || isAnySharedFs(files) ||
+            isAnyFixedFolder(files, Client),
         icon: "move",
     },
     {
@@ -208,8 +211,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Move to Trash",
         onClick: (files, cb) =>
             moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload()}),
-        disabled: (files) => (!allFilesHasAccessRight("WRITE", files) ||
-            files.some(f => isFixedFolder(f.path, Client.homeFolder)) ||
+        disabled: (files) => (!allFilesHasAccessRight("WRITE", files) || isAnyFixedFolder(files, Client) ||
             files.every(({path}) => inTrashDir(path, Client))) || isAnyMockFile(files) || isAnySharedFs(files),
         icon: "trash",
         color: "red"

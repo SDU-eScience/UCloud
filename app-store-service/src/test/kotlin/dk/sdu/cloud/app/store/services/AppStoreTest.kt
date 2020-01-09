@@ -1,9 +1,11 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.app.store.util.normAppDesc
-import dk.sdu.cloud.app.store.util.normAppDesc2
-import dk.sdu.cloud.app.store.util.withNameAndVersion
-import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
+import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
+import dk.sdu.cloud.app.store.util.*
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.ElasticFeature
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.elasticHighLevelClient
@@ -12,18 +14,15 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
-import org.elasticsearch.action.admin.indices.flush.FlushRequest
-import org.elasticsearch.client.RequestOptions
 import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class AppStoreTest{
+class AppStoreTest {
 
     //Requires running Elastic with empty application index
     @Ignore
@@ -34,13 +33,23 @@ class AppStoreTest{
         micro.install(ElasticFeature)
 
         val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
-        val appDao = ApplicationHibernateDAO(toolHibernateDAO)
+        val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
+        val appDao = ApplicationHibernateDAO(toolHibernateDAO, aclHibernateDao)
         val elasticDAO = ElasticDAO(micro.elasticHighLevelClient)
-        val applicationService = AppStoreService(micro.hibernateDatabase, appDao, toolHibernateDAO, elasticDAO)
+        val aclDao = AclHibernateDao()
+        val authClient = mockk<AuthenticatedClient>(relaxed = true)
+        val applicationService =
+            AppStoreService(
+                micro.hibernateDatabase,
+                authClient,
+                appDao, toolHibernateDAO, aclDao, elasticDAO
+            )
 
-        applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.1"), "content")
-        applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.2"), "content")
-        applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.3"), "content")
+        runBlocking {
+            applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.1"), "content")
+            applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.2"), "content")
+            applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.3"), "content")
+        }
 
         Thread.sleep(1000)
 
@@ -58,7 +67,7 @@ class AppStoreTest{
                 "",
                 listOf("test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             val advancedSearchResultForAll = applicationService.advancedSearch(
@@ -66,7 +75,7 @@ class AppStoreTest{
                 "",
                 listOf("test1", "test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             assertEquals(0, advancedSearchResultForTest1.itemsInTotal)
@@ -74,7 +83,9 @@ class AppStoreTest{
             assertEquals(0, advancedSearchResultForAll.itemsInTotal)
         }
 
-        applicationService.createTags(listOf("test1", "test2"), "ansys", TestUsers.admin)
+        runBlocking {
+            applicationService.createTags(listOf("test1", "test2"), "ansys", TestUsers.admin)
+        }
 
         Thread.sleep(1000)
 
@@ -92,7 +103,7 @@ class AppStoreTest{
                 "",
                 listOf("test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             val advancedSearchResultForAll = applicationService.advancedSearch(
@@ -100,7 +111,7 @@ class AppStoreTest{
                 "",
                 listOf("test1", "test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             assertEquals(3, advancedSearchResultForTest1.itemsInTotal)
@@ -108,7 +119,9 @@ class AppStoreTest{
             assertEquals(3, advancedSearchResultForAll.itemsInTotal)
         }
 
-        applicationService.deleteTags(listOf("test2"), "ansys", TestUsers.admin)
+        runBlocking {
+            applicationService.deleteTags(listOf("test2"), "ansys", TestUsers.admin)
+        }
 
         Thread.sleep(1000)
 
@@ -126,7 +139,7 @@ class AppStoreTest{
                 "",
                 listOf("test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             val advancedSearchResultForAll = applicationService.advancedSearch(
@@ -134,7 +147,7 @@ class AppStoreTest{
                 "",
                 listOf("test1", "test2"),
                 true,
-                NormalizedPaginationRequest(10,0)
+                NormalizedPaginationRequest(10, 0)
             )
 
             assertEquals(3, advancedSearchResultForTest1.itemsInTotal)
@@ -144,98 +157,217 @@ class AppStoreTest{
         }
     }
 
-    private fun initAppStoreWithMockedElasticAndTool (): AppStoreService<HibernateSession> {
+    private fun initAppStoreWithMockedElasticAndTool(): AppStoreService<HibernateSession> {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
         val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
-        val appDAO = ApplicationHibernateDAO(toolHibernateDAO)
+        val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
+        val appDAO = ApplicationHibernateDAO(toolHibernateDAO, aclHibernateDao)
+        val aclDao = AclHibernateDao()
         val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+        val authClient = mockk<AuthenticatedClient>(relaxed = true)
 
-        return AppStoreService(micro.hibernateDatabase, appDAO, toolHibernateDAO, elasticDAO)
+        return AppStoreService(
+            micro.hibernateDatabase,
+            authClient,
+            appDAO, toolHibernateDAO, aclDao, elasticDAO
+        )
     }
 
     @Test
     fun `toggle favorites and retrieve`() {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
-        appStoreService.create(TestUsers.admin, normAppDesc, "content")
-        appStoreService.toggleFavorite(
-            TestUsers.user,
-            normAppDesc.metadata.name,
-            normAppDesc.metadata.version
-        )
-
-        val retrievedFav = appStoreService.retrieveFavorites(TestUsers.user, PaginationRequest())
-
-        assertEquals(1, retrievedFav.itemsInTotal)
-        assertEquals(normAppDesc.metadata.title, retrievedFav.items.first().metadata.title)
-
-        appStoreService.toggleFavorite(
-            TestUsers.user,
-            normAppDesc.metadata.name,
-            normAppDesc.metadata.version
-        )
-
-        val retrievedFavAfterRemoved = appStoreService.retrieveFavorites(TestUsers.user, PaginationRequest())
-
-        assertEquals(0, retrievedFavAfterRemoved.itemsInTotal)
-    }
-
-    @Test
-    fun `add remove search tags`() {
-        val appStoreService = initAppStoreWithMockedElasticAndTool()
-        appStoreService.create(TestUsers.admin, normAppDesc, "content")
-        appStoreService.create(TestUsers.admin, normAppDesc2, "content2")
-
-        appStoreService.createTags(listOf("tag1", "tag2"), normAppDesc.metadata.name, TestUsers.admin)
-
-        val tags =
-            appStoreService.searchTags(TestUsers.admin, listOf("tag1"), NormalizedPaginationRequest(10,0))
-        assertEquals(1, tags.itemsInTotal)
-        assertEquals(normAppDesc.metadata.name, tags.items.first().metadata.name)
-
-        appStoreService.deleteTags(listOf("tag1"), normAppDesc.metadata.name, TestUsers.admin)
-
-        val tagsAfterDelete =
-            appStoreService.searchTags(TestUsers.admin, listOf("tag1"), NormalizedPaginationRequest(10,0))
-        assertEquals(0, tagsAfterDelete.itemsInTotal)
-    }
-
-    @Test
-    fun `Add and search for app`() {
-        val appStoreService = initAppStoreWithMockedElasticAndTool()
-        appStoreService.create(TestUsers.admin, normAppDesc, "content")
-        appStoreService.create(
-            TestUsers.admin,
-            normAppDesc.withNameAndVersionAndTitle(
-                "application", "4.4", "anotherTitle"
-            ),
-            "content2")
-
-        val foundApps =
-            appStoreService.searchApps(TestUsers.admin, "anotherTitle", NormalizedPaginationRequest(10,0))
-
-        assertEquals(1, foundApps.itemsInTotal)
-        assertEquals("anotherTitle", foundApps.items.first().metadata.title)
-
-        val foundByNameAndVersion =
-            appStoreService.findByNameAndVersion(
-                TestUsers.admin,
+        runBlocking {
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.toggleFavorite(
+                TestUsers.user,
                 normAppDesc.metadata.name,
                 normAppDesc.metadata.version
             )
 
-        assertEquals(normAppDesc.metadata.title, foundByNameAndVersion.metadata.title)
+            val retrievedFav = appStoreService.retrieveFavorites(TestUsers.user, PaginationRequest())
 
-        val foundByName =
-            appStoreService.findByName(TestUsers.admin, "application", NormalizedPaginationRequest(10,0))
+            assertEquals(1, retrievedFav.itemsInTotal)
+            assertEquals(normAppDesc.metadata.title, retrievedFav.items.first().metadata.title)
 
-        assertEquals(1, foundByName.itemsInTotal)
-        assertEquals("anotherTitle", foundByName.items.first().metadata.title)
+            appStoreService.toggleFavorite(
+                TestUsers.user,
+                normAppDesc.metadata.name,
+                normAppDesc.metadata.version
+            )
 
-        val allApps =
-            appStoreService.listAll(TestUsers.admin, NormalizedPaginationRequest(10,0))
+            val retrievedFavAfterRemoved = appStoreService.retrieveFavorites(TestUsers.user, PaginationRequest())
 
-        assertEquals(2, allApps.itemsInTotal)
+            assertEquals(0, retrievedFavAfterRemoved.itemsInTotal)
+        }
+    }
+
+    @Test
+    fun `add remove search tags`() {
+        runBlocking {
+            val appStoreService = initAppStoreWithMockedElasticAndTool()
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.create(TestUsers.admin, normAppDesc2, "content2")
+
+            appStoreService.createTags(listOf("tag1", "tag2"), normAppDesc.metadata.name, TestUsers.admin)
+
+            val tags =
+                appStoreService.searchTags(TestUsers.admin, listOf("tag1"), NormalizedPaginationRequest(10, 0))
+            assertEquals(1, tags.itemsInTotal)
+            assertEquals(normAppDesc.metadata.name, tags.items.first().metadata.name)
+
+            appStoreService.deleteTags(listOf("tag1"), normAppDesc.metadata.name, TestUsers.admin)
+
+            val tagsAfterDelete =
+                appStoreService.searchTags(TestUsers.admin, listOf("tag1"), NormalizedPaginationRequest(10, 0))
+            assertEquals(0, tagsAfterDelete.itemsInTotal)
+        }
+    }
+
+    @Test
+    fun `add tags and delete tags - duplicate tags `() {
+        runBlocking {
+            val appStoreService = initAppStoreWithMockedElasticAndTool()
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.create(TestUsers.admin, normAppDesc2, "content2")
+
+            appStoreService.createTags(listOf("tag1", "tag2"), normAppDesc.metadata.name, TestUsers.admin)
+
+            appStoreService.createTags(listOf("tag2", "tag3"), normAppDesc.metadata.name, TestUsers.admin)
+
+            val tags1 =
+                appStoreService.searchTags(TestUsers.admin, listOf("tag2"), NormalizedPaginationRequest(10, 0))
+            assertEquals(1, tags1.itemsInTotal)
+            assertEquals(normAppDesc.metadata.name, tags1.items.first().metadata.name)
+
+            appStoreService.deleteTags(listOf("tag2"), normAppDesc.metadata.name, TestUsers.admin)
+
+            val tags2 =
+                appStoreService.searchTags(TestUsers.admin, listOf("tag2"), NormalizedPaginationRequest(10, 0))
+            assertEquals(0, tags2.itemsInTotal)
+        }
+    }
+
+    @Test
+    fun `Add and search for app`() {
+        runBlocking {
+            val appStoreService = initAppStoreWithMockedElasticAndTool()
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.create(
+                TestUsers.admin,
+                normAppDesc.withNameAndVersionAndTitle(
+                    "application", "4.4", "anotherTitle"
+                ),
+                "content2"
+            )
+
+            val foundApps =
+                appStoreService.searchApps(TestUsers.admin, "anotherTitle", NormalizedPaginationRequest(10, 0))
+
+            assertEquals(1, foundApps.itemsInTotal)
+            assertEquals("anotherTitle", foundApps.items.first().metadata.title)
+
+            val foundByNameAndVersion =
+                appStoreService.findByNameAndVersion(
+                    TestUsers.admin,
+                    normAppDesc.metadata.name,
+                    normAppDesc.metadata.version
+                )
+
+            assertEquals(normAppDesc.metadata.title, foundByNameAndVersion.metadata.title)
+
+            val foundByName =
+                appStoreService.findByName(TestUsers.admin, "application", NormalizedPaginationRequest(10, 0))
+
+            assertEquals(1, foundByName.itemsInTotal)
+            assertEquals("anotherTitle", foundByName.items.first().metadata.title)
+
+            val allApps =
+                appStoreService.listAll(TestUsers.admin, NormalizedPaginationRequest(10, 0))
+
+            assertEquals(2, allApps.itemsInTotal)
+        }
+    }
+
+    @Test
+    fun `app set public and bulk test is public`() {
+        runBlocking {
+            val appStoreService = initAppStoreWithMockedElasticAndTool()
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.create(
+                TestUsers.admin,
+                normAppDesc.withNameAndVersionAndTitle(
+                    "application", "4.4", "anotherTitle"
+                ),
+                "content2"
+            )
+
+            assertEquals(
+                mapOf(
+                    NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version) to true,
+                    NameAndVersion("application", "4.4") to true
+                ),
+                appStoreService.isPublic(
+                    TestUsers.admin, listOf(
+                        NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version),
+                        NameAndVersion("application", "4.4")
+                    )
+                )
+            )
+
+            appStoreService.setPublic(TestUsers.admin, normAppDesc.metadata.name, normAppDesc.metadata.version, false)
+            appStoreService.setPublic(TestUsers.admin, "application", "4.4", false)
+
+            assertEquals(
+                mapOf(
+                    NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version) to false,
+                    NameAndVersion("application", "4.4") to false
+                ),
+                appStoreService.isPublic(
+                    TestUsers.admin, listOf(
+                        NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version),
+                        NameAndVersion("application", "4.4")
+                    )
+                )
+            )
+        }
+    }
+
+    @Test(expected = ApplicationException.NotAllowed::class)
+    fun `test delete - not allowed`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        runBlocking {
+            appStoreService.delete(TestUsers.admin, "name", "2.2")
+        }
+    }
+
+    @Test(expected = ApplicationException.NotFound::class)
+    fun `test delete - not found`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        runBlocking {
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.create(TestUsers.admin, normAppDescDiffVersion, "content")
+            appStoreService.delete(TestUsers.admin, "name", "0.0.0")
+        }
+    }
+
+    @Test
+    fun `test delete`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        runBlocking {
+            appStoreService.create(TestUsers.admin, normAppDesc, "content")
+            appStoreService.create(TestUsers.admin, normAppDescDiffVersion, "content")
+            appStoreService.delete(TestUsers.admin, "name", "2.2")
+        }
+    }
+
+    @Test(expected = ApplicationException.NotAllowed::class)
+    fun `test delete - not same user`() {
+        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        runBlocking {
+            appStoreService.create(TestUsers.user, normAppDesc, "content")
+            appStoreService.delete(TestUsers.user2, "name", "2.2")
+        }
     }
 /*
     @Test

@@ -42,7 +42,7 @@ class TwoFactorChallengeService<DBSession>(
      *
      * The end-user must complete this challenge before the 2FA device is activated on their account.
      */
-    fun createSetupCredentialsAndChallenge(username: String): Create2FACredentialsResponse {
+    suspend fun createSetupCredentialsAndChallenge(username: String): Create2FACredentialsResponse {
         val newCredentials = totpService.createSharedSecret()
         return db.withTransaction { dbSession ->
             val user = userDAO.findByIdOrNull(dbSession, username) ?: run {
@@ -77,7 +77,7 @@ class TwoFactorChallengeService<DBSession>(
     /**
      * Verifies that a challenge has been completed successfully
      */
-    fun verifyChallenge(challengeId: String, verificationCode: Int): Pair<Boolean, TwoFactorChallenge> {
+    suspend fun verifyChallenge(challengeId: String, verificationCode: Int): Pair<Boolean, TwoFactorChallenge> {
         val challenge = db.withTransaction { dbSession ->
             twoFactorDAO.findActiveChallengeOrNull(dbSession, challengeId)
                 ?: throw TwoFactorException.InvalidChallenge()
@@ -89,7 +89,7 @@ class TwoFactorChallengeService<DBSession>(
         )
     }
 
-    fun upgradeCredentials(credentials: TwoFactorCredentials) {
+    suspend fun upgradeCredentials(credentials: TwoFactorCredentials) {
         if (credentials.enforced) throw IllegalArgumentException("credentials are already enforced")
         db.withTransaction { dbSession ->
             twoFactorDAO.createCredentials(dbSession, credentials.copy(enforced = true, id = null))
@@ -99,7 +99,7 @@ class TwoFactorChallengeService<DBSession>(
     /**
      * Creates a login challenge for a [username] with an enforced 2FA device
      */
-    fun createLoginChallengeOrNull(username: String, service: String): String? {
+    suspend fun createLoginChallengeOrNull(username: String, service: String): String? {
         return db.withTransaction { dbSession ->
             val credentials = twoFactorDAO.findEnforcedCredentialsOrNull(dbSession, username)
                 ?: return null
@@ -119,7 +119,7 @@ class TwoFactorChallengeService<DBSession>(
         }
     }
 
-    fun isConnected(username: String): Boolean {
+    suspend fun isConnected(username: String): Boolean {
         return db.withTransaction { dbSession ->
             twoFactorDAO.findEnforcedCredentialsOrNull(dbSession, username)
         } != null

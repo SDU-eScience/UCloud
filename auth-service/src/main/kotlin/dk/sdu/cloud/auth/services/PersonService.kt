@@ -35,7 +35,7 @@ class PersonService(
         )
     }
 
-    fun createUserByWAYF(authenticatedUser: SamlRequestProcessor): Person.ByWAYF {
+    suspend fun createUserByWAYF(authenticatedUser: SamlRequestProcessor): Person.ByWAYF {
         if (!authenticatedUser.authenticated) throw IllegalStateException("User is not authenticated")
         val id = authenticatedUser.attributes["eduPersonTargetedID"]?.firstOrNull()
             ?: throw IllegalArgumentException("Missing EduPersonTargetedId")

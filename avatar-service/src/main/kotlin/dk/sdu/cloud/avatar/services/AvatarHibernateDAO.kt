@@ -134,6 +134,7 @@ class AvatarHibernateDAO : AvatarDAO<HibernateSession> {
             foundAvatar.mouthTypes = avatar.mouthTypes
             foundAvatar.skinColors = avatar.skinColors
             foundAvatar.clothesGraphic = avatar.clothesGraphic
+            foundAvatar.hatColor = avatar.hatColor
             session.update(foundAvatar)
         } else {
             val entity = avatar.toEntity(user)

@@ -2,13 +2,13 @@ import styled from "styled-components";
 import {color, ColorProps, space, SpaceProps, style} from "styled-system";
 
 export interface BaseLinkProps extends SpaceProps, ColorProps {
-  hoverColor?: string;
+    hoverColor?: string;
 }
 
 const hoverColor = style({
-  prop: "hoverColor",
-  cssProperty: "color",
-  key: "colors"
+    prop: "hoverColor",
+    cssProperty: "color",
+    key: "colors"
 });
 
 const BaseLink = styled.a<BaseLinkProps>`
@@ -23,8 +23,8 @@ const BaseLink = styled.a<BaseLinkProps>`
 `;
 
 BaseLink.defaultProps = {
-  color: "text",
-  hoverColor: "textHighlight"
+    color: "text",
+    hoverColor: "textHighlight"
 };
 
 BaseLink.displayName = "BaseLink";

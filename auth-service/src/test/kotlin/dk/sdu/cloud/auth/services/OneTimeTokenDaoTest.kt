@@ -4,6 +4,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.withDatabase
 import io.mockk.every
 import io.mockk.spyk
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -13,10 +14,12 @@ class OneTimeTokenDaoTest {
     @Test
     fun `claim test`() {
         withDatabase { db ->
-            db.withTransaction {
-                val ott = OneTimeTokenHibernateDAO()
-                val returnValue = ott.claim(it, "jti", "claimedByMe")
-                assertTrue(returnValue)
+            runBlocking {
+                db.withTransaction {
+                    val ott = OneTimeTokenHibernateDAO()
+                    val returnValue = ott.claim(it, "jti", "claimedByMe")
+                    assertTrue(returnValue)
+                }
             }
         }
     }
@@ -25,7 +28,7 @@ class OneTimeTokenDaoTest {
     fun `claim test - with exceptiion`() {
         withDatabase { db ->
             val ott = OneTimeTokenHibernateDAO()
-            val session = spyk(db.openSession())
+            val session = runBlocking { spyk(db.openSession()) }
             every { session.save(any()) } answers {
                 throw Exception()
             }

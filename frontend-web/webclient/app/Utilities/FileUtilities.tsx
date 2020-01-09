@@ -513,8 +513,9 @@ export const shareFiles = async ({files, client}: ShareFiles) => {
 };
 
 const moveToTrashDialog = ({filePaths, onConfirm}: {onConfirm: () => void, filePaths: string[]}): void => {
+    const withEllipsis = getFilenameFromPath(filePaths[0]).length > 35;
     const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
-        `Move file ${getFilenameFromPath(filePaths[0])} to trash?`;
+        `Move file ${getFilenameFromPath(filePaths[0]).slice(0, 35)}${withEllipsis ? "..." : ""} to trash?`;
 
     addStandardDialog({
         title: "Move files to trash",
@@ -554,10 +555,12 @@ function resultToNotification({failures, paths, homeFolder}: ResultToNotificatio
     }
 }
 
-const successResponse = (paths: string[], homeFolder: string) =>
-    paths.length > 1 ?
+function successResponse(paths: string[], homeFolder: string): string {
+    const withEllipsis = replaceHomeFolder(paths[0], homeFolder).length > 25;
+    return paths.length > 1 ?
         `${paths.length} files moved to trash.` :
-        `${replaceHomeFolder(paths[0], homeFolder)} moved to trash`;
+        `${replaceHomeFolder(paths[0], homeFolder).slice(0, 25)}${withEllipsis ? "..." : ""} moved to trash`;
+}
 
 interface MoveToTrash {
     files: File[];
@@ -625,6 +628,10 @@ export function isAnyMockFile(files: File[]): boolean {
 
 export function isAnySharedFs(files: File[]): boolean {
     return files.some(it => it.fileType === "SHARED_FS");
+}
+
+export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
+    return files.some(it => isFixedFolder(it.path, client.homeFolder));
 }
 
 export function isFilePreviewSupported(f: File): boolean {

@@ -43,7 +43,7 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
         http {
             path {
                 using(baseContext)
-                +boundTo(FindByNameAndPagination::name)
+                +boundTo(FindByNameAndPagination::appName)
             }
 
             params {

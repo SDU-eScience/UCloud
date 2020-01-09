@@ -20,21 +20,16 @@ class ExpiredEntriesDeleteService(
         val date = Date().time
 
         val expiredCount = elastic.count(
-            CountRequest().source(
-                SearchSourceBuilder().query(
-                    QueryBuilders.rangeQuery("expiry")
+            CountRequest().query(
+                QueryBuilders.rangeQuery("expiry")
                         .lte(date)
-                )
-            )
-                .indices(index),
+            ).indices(index),
             RequestOptions.DEFAULT
         ).count
 
         val sizeOfIndex = elastic.count(
-            CountRequest().source(
-                SearchSourceBuilder().query(
-                    QueryBuilders.matchAllQuery()
-                )
+            CountRequest().query(
+                QueryBuilders.matchAllQuery()
             ).indices(index),
             RequestOptions.DEFAULT
         ).count
@@ -60,13 +55,13 @@ class ExpiredEntriesDeleteService(
     }
 
     fun deleteOldRancherLogs() {
-        val currentdate = LocalDate.now()
+        val currentDate = LocalDate.now()
         val daysToSave = 180
 
         val indexToDelete = if (indexExists("development_default-*", elastic))
-            "development_default-${currentdate.minusDays(daysToSave.toLong())}"
+            "development_default-${currentDate.minusDays(daysToSave.toLong())}"
         else
-            "kubernetes-production-${currentdate.minusDays(daysToSave.toLong())}"
+            "kubernetes-production-${currentDate.minusDays(daysToSave.toLong())}"
 
         if (!indexExists(indexToDelete, elastic)) {
             log.info("no index with the name $indexToDelete")

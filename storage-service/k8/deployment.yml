@@ -37,7 +37,7 @@ spec:
         env:
         - name: JAVA_OPTS
           value: -server
-        image: registry.cloud.sdu.dk/sdu-cloud/storage-service:3.0.8
+        image: registry.cloud.sdu.dk/sdu-cloud/storage-service:3.0.9
         livenessProbe:
           httpGet:
             port: 8080

@@ -15,6 +15,5 @@ fun main(args: Array<String>) {
 
     if (micro.runScriptHandler()) return
 
-
     Server(micro).start()
 }

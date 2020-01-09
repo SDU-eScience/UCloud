@@ -20,7 +20,21 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
-import {Button, Checkbox, Divider, Hide, Icon, Input, Label, Link, List, OutlineButton, Text, Tooltip, Truncate} from "ui-components";
+import {
+    Button,
+    Checkbox,
+    Divider,
+    Hide,
+    Icon,
+    Input,
+    Label,
+    Link,
+    List,
+    OutlineButton,
+    Text,
+    Tooltip,
+    Truncate
+} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
@@ -166,8 +180,8 @@ const initialPageParameters: ListDirectoryRequest = {
     path: "TO_BE_REPLACED"
 };
 
-function apiForComponent(
-    props, /* FIXME: ADD TYPESAFETY */
+function useApiForComponent(
+    props: LowLevelFileTableProps,
     sortByColumns: [SortBy, SortBy],
     setSortByColumns: (s: [SortBy, SortBy]) => void
 ): InternalFileTableAPI {
@@ -225,12 +239,12 @@ function apiForComponent(
         const error = pageError;
         const loading = pageLoading;
 
-        const setSorting = (sortBy: SortBy, order: SortOrder, column?: number) => {
+        const setSorting = (sortBy: SortBy, order: SortOrder, column?: 0 | 1) => {
             let sortByToUse = sortBy;
             if (sortBy === SortBy.ACL) sortByToUse = pageParameters.sortBy;
 
             if (column !== undefined) {
-                setSortingColumnAt(sortBy, column as 0 | 1);
+                setSortingColumnAt(sortBy, column);
 
                 const newColumns: [SortBy, SortBy] = [sortByColumns[0], sortByColumns[1]];
                 newColumns[column] = sortBy;
@@ -288,7 +302,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
     const history = useHistory();
 
     const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
-        apiForComponent(props, sortByColumns, setSortByColumns);
+        useApiForComponent(props, sortByColumns, setSortByColumns);
 
     // Fetch quick launch applications upon page refresh
     useEffect(() => {
@@ -393,7 +407,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
 
 
     // Aliases
-    const isForbiddenPath = error === "Forbidden";
+    const isForbiddenPath = ["Forbidden", "Not Found"].includes(error ?? "");
     const isEmbedded = props.embedded !== false;
     const sortingSupported = !props.embedded;
     const fileOperations = props.fileOperations !== undefined ? props.fileOperations : defaultFileOperations;
@@ -523,28 +537,26 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
 
                             {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
 
-                            {!UF.inDevEnvironment() ? null : (
-                                <OutlineButton
-                                    onClick={() => props.activeUploadCount ? addStandardDialog({
-                                        title: "Continue",
-                                        message: (
-                                            <Box>
-                                                <Text>You have tasks that will be cancelled if you continue.</Text>
-                                                {props.activeUploadCount ? (
-                                                    <Text>
-                                                        {props.activeUploadCount} uploads in progress.
-                                                    </Text>
-                                                ) : ""}
-                                                {/* TODO: TASKS */}
-                                            </Box>
-                                        ),
-                                        onConfirm: () => toWebDav(),
-                                        confirmText: "OK"
-                                    }) : toWebDav()}
-                                >
-                                    Use your files locally
-                                </OutlineButton>
-                            )}
+                            <OutlineButton
+                                onClick={() => props.activeUploadCount ? addStandardDialog({
+                                    title: "Continue",
+                                    message: (
+                                        <Box>
+                                            <Text>You have tasks that will be cancelled if you continue.</Text>
+                                            {props.activeUploadCount ? (
+                                                <Text>
+                                                    {props.activeUploadCount} uploads in progress.
+                                                </Text>
+                                            ) : ""}
+                                            {/* TODO: TASKS */}
+                                        </Box>
+                                    ),
+                                    onConfirm: () => toWebDav(),
+                                    confirmText: "OK"
+                                }) : toWebDav()}
+                            >
+                                Use your files locally (BETA)
+                            </OutlineButton>
                         </VerticalButtonGroup>
                     )}
                 </Box>
@@ -644,6 +656,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                         onClick={() => {
                             if (!isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
                         }}
+                        pb={"4px"}
+                        pt={"4px"}
                         width="100%"
                         key={f.path}
                     >
@@ -672,7 +686,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                             mb="50px"
                                             trigger={(
                                                 <Link to={filePreviewQuery(f.path)}>
-                                                    <Icon cursor="pointer" size="24px" mt="4px" mr="8px" color="gray" name="preview" />
+                                                    <Icon
+                                                        cursor="pointer"
+                                                        size="24px"
+                                                        mt="4px"
+                                                        mr="8px"
+                                                        color="gray"
+                                                        name="preview"
+                                                    />
                                                 </Link>
                                             )}
                                         >
@@ -899,7 +920,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
                 <Hide sm xs>
                     <Flex>
-                        {!props.file.size ? null : (
+                        {!props.file.size || isDirectory(props.file) ? null : (
                             <Text fontSize={0} title="Size" mr="12px" color="gray">
                                 {sizeToString(props.file.size)}
                             </Text>

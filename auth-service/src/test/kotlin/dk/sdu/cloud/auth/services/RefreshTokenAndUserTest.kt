@@ -4,6 +4,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.withDatabase
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -17,26 +18,28 @@ class RefreshTokenAndUserTest {
     @Test
     fun `insert, find and delete`() {
         withDatabase { db ->
-            val email = "test@testmail.com"
-            val token = "tokenToGive"
+            runBlocking {
+                val email = "test@testmail.com"
+                val token = "tokenToGive"
 
-            db.withTransaction { session ->
-                val person = personService.createUserByPassword(
-                    "FirstName Middle",
-                    "Lastname",
-                    email,
-                    Role.ADMIN,
-                    "ThisIsMyPassword"
-                )
-                UserHibernateDAO(passwordHashingService).insert(session, person)
-                val refreshTAU = RefreshTokenAndUser(email, token, "")
-                val refreshHibernateTAU = RefreshTokenHibernateDAO()
+                db.withTransaction { session ->
+                    val person = personService.createUserByPassword(
+                        "FirstName Middle",
+                        "Lastname",
+                        email,
+                        Role.ADMIN,
+                        "ThisIsMyPassword"
+                    )
+                    UserHibernateDAO(passwordHashingService).insert(session, person)
+                    val refreshTAU = RefreshTokenAndUser(email, token, "")
+                    val refreshHibernateTAU = RefreshTokenHibernateDAO()
 
-                refreshHibernateTAU.insert(session, refreshTAU)
+                    refreshHibernateTAU.insert(session, refreshTAU)
 
-                assertEquals(email, refreshHibernateTAU.findById(session, token)?.associatedUser)
-                assertTrue(refreshHibernateTAU.delete(session, token))
-                assertNull(refreshHibernateTAU.findById(session, token))
+                    assertEquals(email, refreshHibernateTAU.findById(session, token)?.associatedUser)
+                    assertTrue(refreshHibernateTAU.delete(session, token))
+                    assertNull(refreshHibernateTAU.findById(session, token))
+                }
             }
         }
     }
@@ -44,10 +47,12 @@ class RefreshTokenAndUserTest {
     @Test(expected = UserException.NotFound::class)
     fun `insert - user not found`() {
         withDatabase { db ->
-            db.withTransaction { session ->
-                val refreshTAU = RefreshTokenAndUser("non existing User", "token", "")
-                val refreshHibernateTAU = RefreshTokenHibernateDAO()
-                refreshHibernateTAU.insert(session, refreshTAU)
+            runBlocking {
+                db.withTransaction { session ->
+                    val refreshTAU = RefreshTokenAndUser("non existing User", "token", "")
+                    val refreshHibernateTAU = RefreshTokenHibernateDAO()
+                    refreshHibernateTAU.insert(session, refreshTAU)
+                }
             }
         }
     }
@@ -55,8 +60,10 @@ class RefreshTokenAndUserTest {
     @Test
     fun `delete - does not exist`() {
         withDatabase { db ->
-            db.withTransaction { session ->
-                assertFalse(RefreshTokenHibernateDAO().delete(session, "token"))
+            runBlocking {
+                db.withTransaction { session ->
+                    assertFalse(RefreshTokenHibernateDAO().delete(session, "token"))
+                }
             }
         }
     }

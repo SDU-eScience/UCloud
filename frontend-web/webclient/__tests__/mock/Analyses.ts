@@ -23,7 +23,8 @@ export const analyses: Page<JobWithStatus> = {
             name: "",
             title: "",
             version: "",
-            website: ""
+            website: "",
+            public: true
         }
     }, {
         name: "Johnny",
@@ -43,7 +44,8 @@ export const analyses: Page<JobWithStatus> = {
             name: "",
             title: "",
             version: "",
-            website: ""
+            website: "",
+            public: true
         }
     }, {
         name: "Fred",
@@ -63,7 +65,8 @@ export const analyses: Page<JobWithStatus> = {
             name: "",
             title: "",
             version: "",
-            website: ""
+            website: "",
+            public: true
         }
     }, {
         name: "Nathan",
@@ -83,7 +86,8 @@ export const analyses: Page<JobWithStatus> = {
             name: "",
             title: "",
             version: "",
-            website: ""
+            website: "",
+            public: true
         }
     }],
     pagesInTotal: 0

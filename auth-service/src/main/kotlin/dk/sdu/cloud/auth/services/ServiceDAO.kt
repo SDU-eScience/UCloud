@@ -19,7 +19,7 @@ object ServiceDAO : Loggable {
     override val log = logger()
 
     fun insert(service: Service): Boolean {
-        log.debug("insert($service)")
+        log.info("insert($service)")
         if (service.name !in inMemoryDb) {
             inMemoryDb[service.name] = service
             return true
@@ -32,4 +32,3 @@ object ServiceDAO : Loggable {
         return inMemoryDb[name].also { log.debug("Returning $it") }
     }
 }
-

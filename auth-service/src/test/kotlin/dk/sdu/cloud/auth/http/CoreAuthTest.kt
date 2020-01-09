@@ -45,6 +45,7 @@ import io.ktor.server.testing.TestApplicationResponse
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -121,7 +122,7 @@ class CoreAuthTest {
         enablePassword: Boolean = true,
         enableWayf: Boolean = false,
         serviceExtensionPolicy: Map<String, Set<SecurityScope>> = emptyMap(),
-        test: TestApplicationEngine.(ctx: TestContext) -> Unit
+        test: suspend TestApplicationEngine.(ctx: TestContext) -> Unit
     ) {
         lateinit var ctx: TestContext
         withKtorTest(
@@ -131,7 +132,9 @@ class CoreAuthTest {
             },
 
             test = {
-                engine.test(ctx)
+                runBlocking {
+                    engine.test(ctx)
+                }
             }
         )
     }
@@ -336,7 +339,7 @@ class CoreAuthTest {
         }
     }
 
-    private fun webRefreshInitialize(ctx: TestContext): RefreshTokenAndUser {
+    private suspend fun webRefreshInitialize(ctx: TestContext): RefreshTokenAndUser {
         val (username, role) = "user" to Role.USER
         lateinit var refreshToken: RefreshTokenAndUser
         ctx.db.withTransaction { session ->

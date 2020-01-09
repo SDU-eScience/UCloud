@@ -96,7 +96,7 @@ fun RestHighLevelClient.scrollThroughSearch(
     var resp: SearchResponse = search(request, RequestOptions.DEFAULT)
     while (resp.hits.hits.isNotEmpty()) {
         handler(resp)
-        resp = searchScroll(SearchScrollRequest(resp.scrollId).apply {
+        resp = scroll(SearchScrollRequest(resp.scrollId).apply {
             scroll(TimeValue.timeValueMinutes(1))
         }, RequestOptions.DEFAULT)
     }
@@ -126,7 +126,7 @@ private fun <T> actionListener(continuation: Continuation<T>): ActionListener<T>
 }
 
 fun SearchResponse.scroll(client: RestHighLevelClient): SearchResponse =
-    client.searchScroll(SearchScrollRequest(scrollId), RequestOptions.DEFAULT)
+    client.scroll(SearchScrollRequest(scrollId), RequestOptions.DEFAULT)
 
 fun SearchResponse.clearScroll(client: RestHighLevelClient): ClearScrollResponse =
     client.clearScroll(ClearScrollRequest().apply { scrollIds = listOf(scrollId) }, RequestOptions.DEFAULT)

@@ -61,7 +61,7 @@ class TokenService<DBSession>(
      * - [AccessTokenContents.sessionReference]
      * - [AccessTokenContents.claimableId]
      */
-    fun createAndRegisterTokenFor(
+    suspend fun createAndRegisterTokenFor(
         user: Principal,
         tokenTemplate: AccessTokenContents = AccessTokenContents(
             user,
@@ -107,7 +107,7 @@ class TokenService<DBSession>(
         return AuthenticationTokens(accessToken, refreshToken, newCsrf)
     }
 
-    fun extendToken(
+    suspend fun extendToken(
         token: SecurityPrincipalToken,
         expiresIn: Long,
         rawSecurityScopes: List<String>,
@@ -205,7 +205,7 @@ class TokenService<DBSession>(
         }
     }
 
-    fun requestOneTimeToken(jwt: String, audience: List<SecurityScope>): OneTimeAccessToken {
+    suspend fun requestOneTimeToken(jwt: String, audience: List<SecurityScope>): OneTimeAccessToken {
         log.debug("Requesting one-time token: audience=$audience jwt=$jwt")
 
         val validated = tokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
@@ -252,7 +252,7 @@ class TokenService<DBSession>(
         return AccessTokenAndCsrf(accessToken, token.csrf)
     }
 
-    fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {
+    suspend fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {
         return db.withTransaction { session ->
             log.debug("Refreshing token: rawToken='$rawToken'")
             val token = refreshTokenDao.findById(session, rawToken) ?: run {
@@ -271,11 +271,11 @@ class TokenService<DBSession>(
         }
     }
 
-    fun logout(refreshToken: String, csrfToken: String? = null) {
+    suspend fun logout(refreshToken: String, csrfToken: String? = null) {
         bulkLogout(listOf(RefreshTokenAndCsrf(refreshToken, csrfToken)), suppressExceptions = false)
     }
 
-    fun bulkLogout(tokens: List<RefreshTokenAndCsrf>, suppressExceptions: Boolean = false) {
+    suspend fun bulkLogout(tokens: List<RefreshTokenAndCsrf>, suppressExceptions: Boolean = false) {
         db.withTransaction {
             tokens.forEach { (refreshToken, csrfToken) ->
                 if (csrfToken == null) {

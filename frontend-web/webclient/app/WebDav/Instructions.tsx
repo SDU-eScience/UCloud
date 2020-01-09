@@ -24,7 +24,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
 
     return (
         <ContentContainer>
-            <Heading.h2 mt={16}>{PRODUCT_NAME} - Mounting Your Files Locally</Heading.h2>
+            <Heading.h2 mt={16}>{PRODUCT_NAME} - Mounting Your Files Locally (Beta)</Heading.h2>
             <Heading.h3>To continue select your platform below</Heading.h3>
 
             <CollapsibleBox

@@ -2,12 +2,14 @@ package dk.sdu.cloud.auth.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.AuthenticationTokens
 import dk.sdu.cloud.auth.api.ChangePasswordRequest
 import dk.sdu.cloud.auth.api.CreateSingleUserRequest
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.PersonService
+import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.defaultMapper
@@ -28,6 +30,7 @@ import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationRequest
+import io.mockk.coEvery
 import io.mockk.mockk
 import org.hibernate.Session
 import org.junit.Test
@@ -60,6 +63,16 @@ class UserTest {
         hsfactory: HibernateSessionFactory = mockk(relaxed = true),
         userCreationService: UserCreationService<Session> = mockk(relaxed = true)
     ): List<UserController<HibernateSession>> {
+        val tokenService = mockk<TokenService<HibernateSession>>(relaxed = true)
+        coEvery {
+            tokenService.createAndRegisterTokenFor(
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns AuthenticationTokens("tok", "tok", "tok")
         return listOf(
             UserController(
                 hsfactory,
@@ -67,7 +80,7 @@ class UserTest {
                 userDao,
                 userCreationService,
                 mockk(relaxed = true),
-                mockk(relaxed = true)
+                tokenService
             )
         )
     }

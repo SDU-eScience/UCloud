@@ -27,8 +27,8 @@ import {fileTablePage} from "Utilities/FileUtilities";
 import {errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {ApplicationType, FollowStdStreamResponse, isJobStateFinal, JobState, JobWithStatus, WithAppInvocation} from ".";
 import {JobStateIcon} from "./JobStateIcon";
-import {pad} from "./View";
 import {runApplication} from "./Pages";
+import {pad} from "./View";
 
 interface DetailedResultOperations {
     setPageTitle: (jobId: string) => void;
@@ -395,7 +395,13 @@ const StepTrackerItem: React.FunctionComponent<{
 
     return (
         <Step active={active}>
-            <JobStateIcon isExpired={false} state={stateToDisplay} color={complete && thisFailed ? "red" : undefined} mr="0.7em" size="30px" />
+            <JobStateIcon
+                isExpired={false}
+                state={stateToDisplay}
+                color={complete && thisFailed ? "red" : undefined}
+                mr="0.7em"
+                size="30px"
+            />
             <Hide sm xs md lg>
                 <TextSpan fontSize={3}>{stateToTitle(stateToDisplay)}</TextSpan>
             </Hide>

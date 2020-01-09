@@ -32,6 +32,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.startServices
 import io.ktor.routing.route
 import io.ktor.routing.routing
+import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
 import java.security.SecureRandom
@@ -117,29 +118,31 @@ class Server(
         log.info("Core services constructed!")
 
         if (micro.developmentModeEnabled) {
-            log.info("In development mode. Checking if we need to create a dummy account.")
-            val existingDevAdmin = db.withTransaction { userDao.findByIdOrNull(it, "admin@dev") }
-            val adminUser = "admin@dev"
-            if (existingDevAdmin == null) {
-                createTestAccount(personService, userCreationService, tokenService, adminUser, Role.ADMIN)
-                createTestAccount(personService, userCreationService, tokenService, "user@dev", Role.USER)
-            } else {
-                val idx = micro.commandLineArguments.indexOf("--save-config")
-                if (idx != -1) {
-                    val tokens = db.withTransaction { session ->
-                        refreshTokenDao.findTokenForUser(session, adminUser)
-                    }
-                    val refreshToken = tokens?.token
-                    val csrfToken = tokens?.csrf
-                    val configLocation = micro.commandLineArguments.getOrNull(idx + 1)
-                    if (configLocation != null) {
-                        File(configLocation).writeText(
-                            """
+            runBlocking {
+                log.info("In development mode. Checking if we need to create a dummy account.")
+                val existingDevAdmin = db.withTransaction { userDao.findByIdOrNull(it, "admin@dev") }
+                val adminUser = "admin@dev"
+                if (existingDevAdmin == null) {
+                    createTestAccount(personService, userCreationService, tokenService, adminUser, Role.ADMIN)
+                    createTestAccount(personService, userCreationService, tokenService, "user@dev", Role.USER)
+                } else {
+                    val idx = micro.commandLineArguments.indexOf("--save-config")
+                    if (idx != -1) {
+                        val tokens = db.withTransaction { session ->
+                            refreshTokenDao.findTokenForUser(session, adminUser)
+                        }
+                        val refreshToken = tokens?.token
+                        val csrfToken = tokens?.csrf
+                        val configLocation = micro.commandLineArguments.getOrNull(idx + 1)
+                        if (configLocation != null) {
+                            File(configLocation).writeText(
+                                """
                             ---
                             refreshToken: "$refreshToken"
                             devCsrfToken: $csrfToken
                             """.trimIndent()
-                        )
+                            )
+                        }
                     }
                 }
             }
@@ -208,7 +211,7 @@ class Server(
         startServices()
     }
 
-    private fun createTestAccount(
+    private suspend fun createTestAccount(
         personService: PersonService,
         userCreationService: UserCreationService<HibernateSession>,
         tokenService: TokenService<HibernateSession>,

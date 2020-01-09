@@ -21,6 +21,9 @@ import dk.sdu.cloud.service.db.updateCriteria
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.hibernate.ScrollMode
 import org.hibernate.ScrollableResults
 import org.hibernate.StatelessSession
@@ -54,6 +57,7 @@ class UserIterationService(
     private val maxConnections: Int = 10
 ) {
     private lateinit var cleaner: ScheduledExecutorService
+    private val mutex = Mutex()
 
     private data class OpenIterator(
         val state: CursorState,
@@ -67,30 +71,32 @@ class UserIterationService(
         if (this::cleaner.isInitialized) throw IllegalStateException()
         cleaner = Executors.newSingleThreadScheduledExecutor()
         cleaner.scheduleAtFixedRate({
-            try {
-                log.debug("Running clean up script")
-                synchronized(this) {
-                    val iterator = openIterators.iterator()
-                    while (iterator.hasNext()) {
-                        val next = iterator.next()
-                        val state = db.withTransaction {
-                            cursorStateDao.findByIdOrNull(it, next.key)
-                        }
+            runBlocking {
+                try {
+                    log.debug("Running clean up script")
+                    mutex.withLock {
+                        val iterator = openIterators.iterator()
+                        while (iterator.hasNext()) {
+                            val next = iterator.next()
+                            val state = db.withTransaction {
+                                cursorStateDao.findByIdOrNull(it, next.key)
+                            }
 
-                        if (state == null) {
-                            log.debug("Removing ${next.key} (could not find in db)")
-                            iterator.remove()
-                        } else {
-                            if (System.currentTimeMillis() > state.expiresAt) {
-                                log.debug("Removing ${next.key} (expired)")
+                            if (state == null) {
+                                log.debug("Removing ${next.key} (could not find in db)")
                                 iterator.remove()
+                            } else {
+                                if (System.currentTimeMillis() > state.expiresAt) {
+                                    log.debug("Removing ${next.key} (expired)")
+                                    iterator.remove()
+                                }
                             }
                         }
                     }
+                } catch (ex: Throwable) {
+                    log.warn("Caught exception in UserIterationService cleaner thread!")
+                    log.warn(ex.stackTraceToString())
                 }
-            } catch (ex: Throwable) {
-                log.warn("Caught exception in UserIterationService cleaner thread!")
-                log.warn(ex.stackTraceToString())
             }
         }, 1, 1, TimeUnit.MINUTES)
     }
@@ -100,8 +106,8 @@ class UserIterationService(
         cleaner.shutdown()
     }
 
-    fun create(): String {
-        synchronized(this) {
+    suspend fun create(): String {
+        mutex.withLock {
             if (openIterators.size >= maxConnections) throw UserIteratorException.TooManyOpen()
 
             val id = UUID.randomUUID().toString()
@@ -176,7 +182,7 @@ class UserIterationService(
         }
     }
 
-    private fun findRemoteCloud(id: String): HostInfo {
+    private suspend fun findRemoteCloud(id: String): HostInfo {
         val state = db.withTransaction {
             cursorStateDao.findByIdOrNull(it, id)
         } ?: throw UserIterationException.BadIterator()

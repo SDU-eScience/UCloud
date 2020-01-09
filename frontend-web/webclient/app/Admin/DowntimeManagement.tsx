@@ -128,7 +128,7 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
     function pageRenderer(page: Page<Downtime>) {
         const now = new Date().getTime();
         const inProgress = page.items.filter(it => it.start < now && now < it.end);
-        const upcoming = page.items.filter(it => it.start > now); // FIXME Won't ever be shown, I guess
+        const upcoming = page.items.filter(it => it.start > now);
         const expired = getExpired();
 
         if (inProgress.length + upcoming.length + expired.length !== page.items.length)
