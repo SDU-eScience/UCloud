@@ -63,7 +63,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
 
     return (
         <>
-            {!cantHide ? (
+            {cantHide ? null : (
                 <OutlineButton
                     fullWidth
                     color="darkGreen"
@@ -71,7 +71,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                 >
                     Hide Advanced Search
                 </OutlineButton>
-            ) : null}
+            )}
             <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                 <Box mt="0.5em">
                     <form onSubmit={onSubmit}>

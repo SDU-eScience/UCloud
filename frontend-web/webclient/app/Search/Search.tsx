@@ -96,6 +96,7 @@ function Search(props: SearchProps) {
     let main: React.ReactNode = null;
     const {priority} = props.match.params;
     const entriesPerPage = (
+
         <Box my="8px">
             <Spacer
                 left={null}
@@ -117,8 +118,8 @@ function Search(props: SearchProps) {
             <>
                 <Hide xxl xl lg>
                     <DetailedFileSearch cantHide />
+                    {entriesPerPage}
                 </Hide>
-                {entriesPerPage}
                 <EmbeddedFileTable
                     onPageChanged={page => props.searchFiles(
                         fileSearchBody(props.fileSearch, props.search, props.files.itemsPerPage, page)
@@ -134,8 +135,8 @@ function Search(props: SearchProps) {
             <>
                 <Hide xxl xl lg>
                     <DetailedApplicationSearch />
+                    {entriesPerPage}
                 </Hide>
-                {entriesPerPage}
                 <Pagination.List
                     loading={applicationsLoading}
                     pageRenderer={({items}) => (
@@ -177,10 +178,7 @@ function Search(props: SearchProps) {
                         {allowedSearchTypes.map((pane, index) => <Tab searchType={pane} key={index} />)}
                     </SelectableTextWrapper>
                     <Hide md sm xs>
-                        <Spacer
-                            left={null}
-                            right={entriesPerPage}
-                        />
+                        <Spacer left={null} right={entriesPerPage} />
                     </Hide>
                 </React.Fragment>
             )}

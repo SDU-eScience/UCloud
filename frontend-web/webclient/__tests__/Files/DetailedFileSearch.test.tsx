@@ -11,7 +11,6 @@ import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
 
 configure({adapter: new Adapter()});
-function noOp() {/*  */}
 
 describe("Detailed File Search", () => {
     test("Mount file search", () => {
@@ -19,7 +18,7 @@ describe("Detailed File Search", () => {
             <Provider store={store}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <DetailedFileSearch onSearch={noOp} />
+                        <DetailedFileSearch />
                     </MemoryRouter>
                 </ThemeProvider>
             </Provider>
