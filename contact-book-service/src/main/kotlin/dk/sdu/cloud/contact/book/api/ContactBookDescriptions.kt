@@ -28,6 +28,11 @@ data class QueryContactsResponse(
     val contacts: List<String>
 )
 
+data class AllContactsForUserRequest(
+    val fromUser: String
+)
+typealias AllContactsForUserResponse = QueryContactsResponse
+
 
 object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
      const val baseContext = "/api/contactbook"
@@ -66,7 +71,9 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
         }
     }
 
-    val listAllContactsForUser = call<QueryContactsRequest, QueryContactsResponse, CommonErrorMessage>("listAllContactsForUser") {
+    val listAllContactsForUser = call<
+            AllContactsForUserRequest, AllContactsForUserResponse, CommonErrorMessage
+            >("listAllContactsForUser") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ
@@ -78,7 +85,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
             path {
                 using(baseContext)
                 +"all"
-                +boundTo(QueryContactsRequest::fromUser)
+                +boundTo(AllContactsForUserRequest::fromUser)
             }
         }
     }
