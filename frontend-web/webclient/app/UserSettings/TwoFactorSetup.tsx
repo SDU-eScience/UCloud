@@ -1,7 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import * as React from "react";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, Divider, ExternalLink, Flex, Input} from "ui-components";
 import Box from "ui-components/Box";

@@ -2,7 +2,6 @@ import {Client} from "Authentication/HttpClientInstance";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
 import {Box, Button, Flex, Icon, Image, Input, Relative, Text, theme} from "ui-components";

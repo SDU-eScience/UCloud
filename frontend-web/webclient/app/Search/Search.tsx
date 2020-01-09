@@ -15,7 +15,7 @@ import * as Pagination from "Pagination";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {SelectableText, SelectableTextWrapper, Box} from "ui-components";
+import {Box, SelectableText, SelectableTextWrapper} from "ui-components";
 import {GridCardGroup} from "ui-components/Grid";
 import Hide from "ui-components/Hide";
 import {SidebarPages} from "ui-components/Sidebar";
@@ -43,27 +43,36 @@ function Search(props: SearchProps) {
         };
     }, []);
 
-    const setPath = (text: string) => {
-        props.setPrioritizedSearch(text as HeaderSearchType);
-        props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
-    };
+    React.useEffect(() => {
+        props.setPrioritizedSearch(props.match.params.priority as HeaderSearchType);
+    }, [props.match.params.priority]);
+
+    React.useEffect(() => {
+        props.setSearch(props.search);
+        fetchAll();
+    }, [query(props)]);
+
+    const setPath = (text: string) => props.history.push(searchPage(text.toLocaleLowerCase(), props.search));
 
     function fetchAll(itemsPerPage?: number) {
         props.searchFiles(fileSearchBody(
-            {...props.fileSearch, fileName: query(props)},
+            props.fileSearch,
+            props.search,
             itemsPerPage || props.files.itemsPerPage,
             props.files.pageNumber
         ));
         props.searchApplications(applicationSearchBody(
-            {...props.applicationSearch, appQuery: query(props)},
+            props.applicationSearch,
+            props.search,
             itemsPerPage || props.applications.itemsPerPage,
             props.applications.pageNumber
         ));
-        props.history.push(searchPage(props.match.params.priority, query(props)));
+        props.history.push(searchPage(props.match.params.priority, props.search));
     }
 
     const refreshFiles = () => props.searchFiles(fileSearchBody(
-        {...props.fileSearch, fileName: props.fileSearch.fileName},
+        props.fileSearch,
+        props.search,
         props.files.itemsPerPage,
         props.files.pageNumber
     ));
@@ -107,12 +116,12 @@ function Search(props: SearchProps) {
         main = (
             <>
                 <Hide xxl xl lg>
-                    <DetailedFileSearch cantHide onSearch={fetchAll} />
+                    <DetailedFileSearch cantHide />
                 </Hide>
                 {entriesPerPage}
                 <EmbeddedFileTable
                     onPageChanged={page => props.searchFiles(
-                        fileSearchBody(props.fileSearch, props.files.itemsPerPage, page)
+                        fileSearchBody(props.fileSearch, props.search, props.files.itemsPerPage, page)
                     )}
                     page={files ? files : emptyPage}
                     onReloadRequested={refreshFiles}
@@ -124,7 +133,7 @@ function Search(props: SearchProps) {
         main = (
             <>
                 <Hide xxl xl lg>
-                    <DetailedApplicationSearch onSearch={fetchAll} />
+                    <DetailedApplicationSearch />
                 </Hide>
                 {entriesPerPage}
                 <Pagination.List
@@ -150,6 +159,7 @@ function Search(props: SearchProps) {
                     onPageChanged={pageNumber => props.searchApplications(
                         applicationSearchBody(
                             props.applicationSearch,
+                            props.search,
                             props.applications.itemsPerPage,
                             pageNumber
                         ))
@@ -218,6 +228,7 @@ export default connect(mapStateToProps, mapDispatchToProps)(Search);
 
 export function fileSearchBody(
     fileSearch: DetailedFileSearchReduxState,
+    fileName: string,
     itemsPerPage: number,
     page: number
 ): AdvancedSearchRequest {
@@ -234,7 +245,7 @@ export function fileSearchBody(
     };
 
     return {
-        fileName: fileSearch.fileName,
+        fileName,
         extensions: [...fileSearch.extensions],
         fileTypes,
         createdAt: typeof createdAt.after === "number" ||
@@ -249,12 +260,13 @@ export function fileSearchBody(
 
 export function applicationSearchBody(
     body: DetailedApplicationSearchReduxState,
+    appName: string,
     itemsPerPage: number,
     page: number
 ): AppSearchRequest {
-    const {appQuery, tags, showAllVersions} = body;
+    const {tags, showAllVersions} = body;
     return {
-        query: !!appQuery ? appQuery : undefined,
+        query: appName,
         tags: tags.size > 0 ? [...tags] : undefined,
         showAllVersions,
         itemsPerPage,
