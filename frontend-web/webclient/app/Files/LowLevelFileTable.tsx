@@ -867,17 +867,13 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
         />
     ) : (
-            <Truncate
-                width={[170, 250, 300, 250, 500, "100%"]}
-                mb="-4px"
-                fontSize={20}
-            >
+            <Truncate width={1} mb="-4px" fontSize={20}>
                 {getFilenameFromPath(props.file.path)}
             </Truncate>
         );
 
     return (
-        <Flex>
+        <Flex maxWidth="calc(100% - 210px)">
             <Box mx="10px" mt="9px">
                 {isAnyMockFile([props.file]) || isAnySharedFs([props.file]) ? <Box width="24px" /> : (
                     <Icon
