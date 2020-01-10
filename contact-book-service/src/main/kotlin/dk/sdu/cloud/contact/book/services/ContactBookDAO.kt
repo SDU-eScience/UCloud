@@ -22,4 +22,10 @@ interface ContactBookDAO {
         fromUser: String,
         toUser: String
     )
+
+    fun insertBulk(
+        fromUser: String,
+        toUser: List<String>,
+        serviceOrigin: String
+    )
 }

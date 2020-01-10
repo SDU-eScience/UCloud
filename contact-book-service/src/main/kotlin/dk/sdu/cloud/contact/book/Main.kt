@@ -8,7 +8,7 @@ fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(ContactBookServiceDescription, args)
         install(RefreshingJWTCloudFeature)
-        install(HibernateFeature)
+        install(ElasticFeature)
         install(HealthCheckFeature)
     }
 
