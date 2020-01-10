@@ -909,7 +909,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                     >
                         {fileName}
                     </BaseLink>
-                ) : props.previewEnabled && isFilePreviewSupported(props.file) ?
+                ) : props.previewEnabled && isFilePreviewSupported(props.file) && !beingRenamed ?
                         <Link to={filePreviewQuery(props.file.path)}>{fileName}</Link> :
                         fileName
                 }
