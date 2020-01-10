@@ -22,8 +22,7 @@ spec:
           - /etc/token-validation
           - --config-dir
           - /etc/psql
-          - --run-script
-          - migrate-db
+          - --createIndex
           volumeMounts:
           - mountPath: /etc/refresh-token
             name: refresh-token
