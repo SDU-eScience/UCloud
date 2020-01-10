@@ -169,7 +169,7 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
                 )
                 .must(
                     QueryBuilders.wildcardQuery(
-                        "toUser", query
+                        "toUser", "$query*"
                     )
                 )
                 .must(
