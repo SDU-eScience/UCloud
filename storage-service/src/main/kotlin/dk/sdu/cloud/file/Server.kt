@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.api.WorkspaceMode
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.ExtractController
@@ -17,6 +18,8 @@ import dk.sdu.cloud.file.processors.ScanProcessor
 import dk.sdu.cloud.file.processors.StorageProcessor
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLWorker
+import dk.sdu.cloud.file.services.CopyFilesWorkspaceCreator
+import dk.sdu.cloud.file.services.CopyOnWriteWorkspaceCreator
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileScanner
@@ -111,7 +114,17 @@ class Server(
             micro.eventStreamService
         )
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer, micro.backgroundScope)
-        val workspaceService = WorkspaceService(fsRootFile, fileScanner, newAclService, coreFileSystem, processRunner)
+        val workspaceService = WorkspaceService(fsRootFile, mapOf(
+            WorkspaceMode.COPY_FILES to CopyFilesWorkspaceCreator(
+                fsRootFile.absoluteFile.normalize(),
+                fileScanner,
+                newAclService,
+                coreFileSystem,
+                processRunner
+            ),
+
+            WorkspaceMode.COPY_ON_WRITE to CopyOnWriteWorkspaceCreator(fsRootFile.absoluteFile.normalize(), newAclService)
+        ))
 
         // RPC services
         val wsService = WSFileSessionService(processRunner)
