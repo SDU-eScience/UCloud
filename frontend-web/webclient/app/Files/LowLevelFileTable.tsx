@@ -69,6 +69,7 @@ import {
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, Arrow, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
+import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -677,29 +678,52 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                 <Flex mt="5px" onClick={UF.stopPropagation}>
                                     {/* Show members as icons */}
                                     {/* {!f.acl ? null : <ACLAvatars members={f.acl.map(it => it.entity)} />} */}
-                                    {!(props.previewEnabled && isFilePreviewSupported(f)) ? null : (
-                                        <Tooltip
-                                            wrapperOffsetLeft="0"
-                                            wrapperOffsetTop="4px"
-                                            right="0"
-                                            top="1"
-                                            mb="50px"
-                                            trigger={(
-                                                <Link to={filePreviewQuery(f.path)}>
-                                                    <Icon
-                                                        cursor="pointer"
-                                                        size="24px"
-                                                        mt="4px"
-                                                        mr="8px"
-                                                        color="gray"
-                                                        name="preview"
-                                                    />
-                                                </Link>
+                                    {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
+                                        (f.size != null && f.size) < PREVIEW_MAX_SIZE ? (
+                                            <Tooltip
+                                                wrapperOffsetLeft="0"
+                                                wrapperOffsetTop="4px"
+                                                right="0"
+                                                top="1"
+                                                mb="50px"
+                                                trigger={(
+                                                    <Link to={filePreviewQuery(f.path)}>
+                                                        <Icon
+                                                            cursor="pointer"
+                                                            size="24px"
+                                                            mt="4px"
+                                                            mr="8px"
+                                                            color="gray"
+                                                            name="preview"
+                                                        />
+                                                    </Link>
+                                                )}
+                                            >
+                                                Preview available
+                                            </Tooltip>
+                                        ) : (
+                                                <Tooltip
+                                                    wrapperOffsetLeft="0"
+                                                    wrapperOffsetTop="4px"
+                                                    tooltipContentWidth="85px"
+                                                    right="0"
+                                                    top="1"
+                                                    mb="50px"
+                                                    trigger={(
+                                                        <Icon
+                                                            opacity="0.2"
+                                                            cursor="default"
+                                                            size="24px"
+                                                            mt="4px"
+                                                            mr="8px"
+                                                            color="gray"
+                                                            name="preview"
+                                                        />
+                                                    )}
+                                                >
+                                                    File too large for preview
+                                                </Tooltip>
                                             )}
-                                        >
-                                            Preview available
-                                        </Tooltip>
-                                    )}
                                     {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
                                         ((applications.get(f.path) ?? []).length < 1) ? null : (
                                             <ClickableDropdown
