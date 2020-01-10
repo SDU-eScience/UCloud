@@ -132,7 +132,7 @@ class CopyOnWriteWorkspaceCreator(
                             mount.source
                         )
                     )
-                } else {
+                } else if (Files.isRegularFile(file)) {
                     TODO("Files not yet implemented")
                 }
             } catch (ex: Throwable) {
@@ -179,6 +179,7 @@ class CopyOnWriteWorkspaceCreator(
                     deletedFiles.add(realPath)
                 } else {
                     // Updated or new file
+                    TODO()
                 }
             }
         }

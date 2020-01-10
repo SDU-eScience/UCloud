@@ -78,7 +78,6 @@ class WorkspaceService(
         return creator.transfer(
             workspaceId,
             manifest,
-            workspace,
             replaceExisting,
             matchers,
             destination,

@@ -12,6 +12,7 @@ import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.relativize
+import dk.sdu.cloud.file.api.withNewId
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
@@ -26,9 +27,11 @@ import dk.sdu.cloud.task.api.runTask
 import kotlinx.coroutines.delay
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.*
 import kotlin.random.Random
 
 const val XATTR_BIRTH = "birth"
+const val XATTR_ID = "fid"
 
 class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
@@ -37,18 +40,36 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val wsServiceClient: AuthenticatedClient,
     private val backgroundScope: BackgroundScope
 ) {
-    private suspend fun writeTimeOfBirth(
+    private data class NewFileData(
+        val fileId: String
+    )
+    private suspend fun handlePotentialFileCreation(
         ctx: Ctx,
         path: String
-    ) {
+    ): NewFileData? {
         // Note: We don't unwrap as this is expected to fail due to it already being present.
-        fs.setExtendedAttribute(
+        val newFile = fs.setExtendedAttribute(
             ctx,
             path,
             XATTR_BIRTH,
             (System.currentTimeMillis() / 1000).toString(),
             allowOverwrite = false
-        )
+        ).statusCode == 0
+
+        if (newFile) {
+            val newFileId = UUID.randomUUID().toString()
+            val success = fs.setExtendedAttribute(
+                ctx,
+                path,
+                XATTR_ID,
+                newFileId,
+                allowOverwrite = false
+            ).statusCode == 0
+
+            return if (success) NewFileData(newFileId)
+            else null
+        }
+        return null
     }
 
     suspend fun write(
@@ -62,7 +83,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
         fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
-        writeTimeOfBirth(ctx, targetPath)
+        handlePotentialFileCreation(ctx, targetPath)
         fs.write(ctx, writer).emitAll()
         return targetPath
     }
@@ -92,7 +113,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
                 val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
                 fs.copy(ctx, from, targetPath, conflictPolicy, this).emitAll()
-                writeTimeOfBirth(ctx, targetPath)
+                handlePotentialFileCreation(ctx, targetPath)
                 setSensitivity(ctx, targetPath, sensitivityLevel)
 
                 return targetPath
@@ -106,7 +127,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 val newRoot = renameAccordingToPolicy(ctx, to, conflictPolicy).normalize()
                 status = "Copying files from '$from' to '$newRoot'"
                 if (!exists(ctx, newRoot)) {
-                    fs.makeDirectory(ctx, newRoot).emitAll()
+                    makeDirectory(ctx, newRoot)
                 }
 
                 val tree = tree(ctx, from, setOf(FileAttribute.PATH, FileAttribute.SIZE))
@@ -127,7 +148,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                             val targetPath = renameAccordingToPolicy(ctx, desired, conflictPolicy)
                             fs.copy(ctx, currentPath, targetPath, conflictPolicy, this).emitAll()
 
-                            writeTimeOfBirth(ctx, targetPath)
+                            handlePotentialFileCreation(ctx, targetPath)
                         }
                     )
 
@@ -209,8 +230,13 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         ctx: Ctx,
         path: String
     ) {
-        fs.makeDirectory(ctx, path).emitAll()
-        writeTimeOfBirth(ctx, path)
+        val events = fs.makeDirectory(ctx, path).unwrap()
+        val newFileData = handlePotentialFileCreation(ctx, path)
+        if (newFileData != null) {
+            eventProducer.produce(events.map { it.copy(file = it.file.withNewId(newFileData.fileId)) })
+        } else {
+            eventProducer.produce(events)
+        }
     }
 
     suspend fun move(

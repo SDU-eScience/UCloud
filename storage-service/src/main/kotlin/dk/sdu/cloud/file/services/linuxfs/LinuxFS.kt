@@ -22,6 +22,7 @@ import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.XATTR_BIRTH
+import dk.sdu.cloud.file.services.XATTR_ID
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
@@ -435,7 +436,11 @@ class LinuxFS(
                         }
                     } ?: return@run
 
-                    if (FileAttribute.INODE in mode) inode = (attributes.getValue("ino") as Long).toString()
+                    if (FileAttribute.INODE in mode) {
+                        inode = runCatching { getExtendedAttributeInternal(systemFile, XATTR_ID) }.getOrNull()
+                            ?: (attributes.getValue("ino") as Long).toString()
+                    }
+
                     if (FileAttribute.UNIX_MODE in mode) unixMode = attributes["mode"] as Int
                 }
 
