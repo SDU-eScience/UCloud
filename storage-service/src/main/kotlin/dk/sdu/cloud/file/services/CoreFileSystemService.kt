@@ -14,8 +14,10 @@ import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.relativize
 import dk.sdu.cloud.file.api.withNewId
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
+import dk.sdu.cloud.file.util.toCreatedEvent
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -40,24 +42,27 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val wsServiceClient: AuthenticatedClient,
     private val backgroundScope: BackgroundScope
 ) {
-    private data class NewFileData(
+    internal data class NewFileData(
         val fileId: String
     )
-    private suspend fun handlePotentialFileCreation(
+
+    internal suspend fun handlePotentialFileCreation(
         ctx: Ctx,
-        path: String
+        path: String,
+        preAllocatedCreation: Long? = null,
+        preAllocatedFileId: String? = null
     ): NewFileData? {
         // Note: We don't unwrap as this is expected to fail due to it already being present.
         val newFile = fs.setExtendedAttribute(
             ctx,
             path,
             XATTR_BIRTH,
-            (System.currentTimeMillis() / 1000).toString(),
+            ((preAllocatedCreation ?: System.currentTimeMillis()) / 1000).toString(),
             allowOverwrite = false
         ).statusCode == 0
 
         if (newFile) {
-            val newFileId = UUID.randomUUID().toString()
+            val newFileId = preAllocatedFileId ?: UUID.randomUUID().toString()
             val success = fs.setExtendedAttribute(
                 ctx,
                 path,
@@ -70,6 +75,12 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             else null
         }
         return null
+    }
+
+    internal suspend fun emitUpdateEvent(ctx: Ctx, path: String) {
+        eventProducer.produce(
+            fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap().toCreatedEvent()
+        )
     }
 
     suspend fun write(

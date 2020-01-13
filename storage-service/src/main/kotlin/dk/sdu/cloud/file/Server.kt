@@ -123,7 +123,12 @@ class Server(
                 processRunner
             ),
 
-            WorkspaceMode.COPY_ON_WRITE to CopyOnWriteWorkspaceCreator(fsRootFile.absoluteFile.normalize(), newAclService)
+            WorkspaceMode.COPY_ON_WRITE to CopyOnWriteWorkspaceCreator(
+                fsRootFile.absoluteFile.normalize(),
+                newAclService,
+                processRunner,
+                coreFileSystem
+            )
         ))
 
         // RPC services

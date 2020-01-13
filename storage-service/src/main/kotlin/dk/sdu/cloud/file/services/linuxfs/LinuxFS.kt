@@ -78,8 +78,8 @@ class LinuxFS(
         writeConflictPolicy: WriteConflictPolicy,
         task: TaskContext
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
-        translateAndCheckFile(from)
-        val systemTo = File(translateAndCheckFile(to))
+        translateAndCheckFile(ctx, from)
+        val systemTo = File(translateAndCheckFile(ctx, to))
         aclService.requirePermission(from, ctx.user, AccessRight.READ)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
@@ -107,8 +107,8 @@ class LinuxFS(
         val opts =
             if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
 
-        val systemFrom = File(translateAndCheckFile(from))
-        val systemTo = File(translateAndCheckFile(to))
+        val systemFrom = File(translateAndCheckFile(ctx, from))
+        val systemTo = File(translateAndCheckFile(ctx, to))
 
         if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
             try {
@@ -135,8 +135,8 @@ class LinuxFS(
         writeConflictPolicy: WriteConflictPolicy,
         task: TaskContext
     ): FSResult<List<StorageEvent.Moved>> = ctx.submit {
-        val systemFrom = File(translateAndCheckFile(from))
-        val systemTo = File(translateAndCheckFile(to))
+        val systemFrom = File(translateAndCheckFile(ctx, from))
+        val systemTo = File(translateAndCheckFile(ctx, to))
 
         // We need write permission on from's parent to avoid being able to steal a file by changing the owner.
         aclService.requirePermission(from.parent(), ctx.user, AccessRight.WRITE)
@@ -212,8 +212,8 @@ class LinuxFS(
         to: String,
         writeConflictPolicy: WriteConflictPolicy
     ) {
-        val systemFrom = File(translateAndCheckFile(from))
-        val systemTo = File(translateAndCheckFile(to))
+        val systemFrom = File(translateAndCheckFile(ctx, from))
+        val systemTo = File(translateAndCheckFile(ctx, to))
 
         val opts =
             if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
@@ -249,7 +249,7 @@ class LinuxFS(
         aclService.requirePermission(directory, ctx.user, AccessRight.READ)
 
         val systemFiles = run {
-            val file = File(translateAndCheckFile(directory))
+            val file = File(translateAndCheckFile(ctx, directory))
             val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
             (requestedDirectory.listFiles() ?: throw FSException.PermissionException())
@@ -301,7 +301,7 @@ class LinuxFS(
 
             // Time for the second lookup. We will retrieve all attributes we don't already know about and merge them
             // with first lookup.
-            val relevantFiles = relevantFileRows.map { File(translateAndCheckFile(it.path)) }
+            val relevantFiles = relevantFileRows.map { File(translateAndCheckFile(ctx, it.path)) }
 
             val desiredMode = mode - setOf(sortingAttribute) + setOf(FileAttribute.PATH)
 
@@ -569,7 +569,7 @@ class LinuxFS(
             aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
             aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
-            val systemFile = File(translateAndCheckFile(path))
+            val systemFile = File(translateAndCheckFile(ctx, path))
             val deletedRows = ArrayList<StorageEvent.Deleted>()
 
             if (!Files.exists(systemFile.toPath(), LinkOption.NOFOLLOW_LINKS)) throw FSException.NotFound()
@@ -617,7 +617,7 @@ class LinuxFS(
         allowOverwrite: Boolean
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
         log.debug("${ctx.user} is attempting to open $path")
-        val systemFile = File(translateAndCheckFile(path))
+        val systemFile = File(translateAndCheckFile(ctx, path))
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
         if (ctx.outputStream == null) {
@@ -701,7 +701,7 @@ class LinuxFS(
     ): FSResult<List<FileRow>> = ctx.submit {
         aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
-        val systemFile = File(translateAndCheckFile(path))
+        val systemFile = File(translateAndCheckFile(ctx, path))
         FSResult(
             0,
             Files.walk(systemFile.toPath())
@@ -718,7 +718,7 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         path: String
     ): FSResult<List<StorageEvent.CreatedOrRefreshed>> = ctx.submit {
-        val systemFile = File(translateAndCheckFile(path))
+        val systemFile = File(translateAndCheckFile(ctx, path))
         aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
 
         Files.createDirectory(systemFile.toPath(), PosixFilePermissions.asFileAttribute(DEFAULT_DIRECTORY_MODE))
@@ -759,7 +759,7 @@ class LinuxFS(
 
         FSResult(
             0,
-            getExtendedAttributeInternal(File(translateAndCheckFile(path)), attribute)
+            getExtendedAttributeInternal(File(translateAndCheckFile(ctx,path)), attribute)
         )
     }
 
@@ -775,7 +775,7 @@ class LinuxFS(
 
         FSResult(
             StandardCLib.setxattr(
-                translateAndCheckFile(path),
+                translateAndCheckFile(ctx, path),
                 "user.$attribute",
                 value,
                 allowOverwrite
@@ -791,7 +791,7 @@ class LinuxFS(
 
             FSResult(
                 0,
-                StandardCLib.listxattr(translateAndCheckFile(path)).map { it.removePrefix("user.") }
+                StandardCLib.listxattr(translateAndCheckFile(ctx, path)).map { it.removePrefix("user.") }
             )
         }
 
@@ -804,14 +804,14 @@ class LinuxFS(
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
         FSResult(
-            StandardCLib.removexattr(translateAndCheckFile(path), "user.$attribute"),
+            StandardCLib.removexattr(translateAndCheckFile(ctx, path), "user.$attribute"),
             Unit
         )
     }
 
     override suspend fun stat(ctx: LinuxFSRunner, path: String, mode: Set<FileAttribute>): FSResult<FileRow> =
         ctx.submit {
-            val systemFile = File(translateAndCheckFile(path))
+            val systemFile = File(translateAndCheckFile(ctx, path))
             aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
             FSResult(
@@ -828,7 +828,7 @@ class LinuxFS(
             throw FSException.CriticalException("Internal error")
         }
 
-        val systemFile = File(translateAndCheckFile(path))
+        val systemFile = File(translateAndCheckFile(ctx, path))
         ctx.inputStream = FileChannel.open(systemFile.toPath(), StandardOpenOption.READ)
         ctx.inputSystemFile = systemFile
         FSResult(0, Unit)
@@ -868,8 +868,12 @@ class LinuxFS(
         return linuxFSToCloudPath(fsRoot, this)
     }
 
-    private fun translateAndCheckFile(internalPath: String, isDirectory: Boolean = false): String {
-        return translateAndCheckFile(fsRoot, internalPath, isDirectory)
+    private fun translateAndCheckFile(
+        ctx: LinuxFSRunner,
+        internalPath: String,
+        isDirectory: Boolean = false
+    ): String {
+        return translateAndCheckFile(fsRoot, internalPath, isDirectory, ctx.user == SERVICE_USER)
     }
 
     companion object : Loggable {
@@ -903,8 +907,13 @@ private fun linuxFSToCloudPath(fsRoot: File, path: String): String {
     return ("/" + path.substringAfter(fsRoot.normalize().absolutePath).removePrefix("/")).normalize()
 }
 
-fun translateAndCheckFile(fsRoot: File, internalPath: String, isDirectory: Boolean = false): String {
-    val userRoot = File(fsRoot, "home").absolutePath.normalize().removeSuffix("/") + "/"
+fun translateAndCheckFile(
+    fsRoot: File,
+    internalPath: String,
+    isDirectory: Boolean = false,
+    isServiceUser: Boolean = false
+): String {
+    val root = (if (!isServiceUser) File(fsRoot, "home") else fsRoot).absolutePath.normalize().removeSuffix("/") + "/"
     val systemFile = File(fsRoot, internalPath)
     val path = systemFile
         .normalize()
@@ -916,7 +925,7 @@ fun translateAndCheckFile(fsRoot: File, internalPath: String, isDirectory: Boole
         systemFile.delete()
     }
 
-    if (!path.startsWith(userRoot) && path.removeSuffix("/") != userRoot.removeSuffix("/")) {
+    if (!path.startsWith(root) && path.removeSuffix("/") != root.removeSuffix("/")) {
         throw FSException.BadRequest("path is not in user-root")
     }
 
