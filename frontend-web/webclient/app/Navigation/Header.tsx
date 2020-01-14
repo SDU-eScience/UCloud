@@ -192,7 +192,7 @@ function Header(props: HeaderProps) {
     async function fetchDowntimes() {
         try {
             if (!Client.isLoggedIn) return;
-            const result = await promises.makeCancelable(Client.get<Page<Downtime>>("/downtime/listUpcoming")).promise;
+            const result = await promises.makeCancelable(Client.get<Page<Downtime>>("/downtime/listPending")).promise;
             if (result.response.itemsInTotal > 0) setUpcomingDowntime(result.response.items[0].id);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Could not fetch upcoming downtimes.");

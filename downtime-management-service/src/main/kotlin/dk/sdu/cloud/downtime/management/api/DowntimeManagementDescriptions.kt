@@ -61,7 +61,7 @@ object DowntimeManagementDescriptions : CallDescriptionContainer("downtime.manag
         }
     }
 
-    val listUpcoming = call<FetchUpcomingRequest, FetchUpcomingResponse, CommonErrorMessage>("fetchUpcoming") {
+    val listPending = call<FetchUpcomingRequest, FetchUpcomingResponse, CommonErrorMessage>("fetchUpcoming") {
         auth {
             access = AccessRight.READ
         }
@@ -71,7 +71,7 @@ object DowntimeManagementDescriptions : CallDescriptionContainer("downtime.manag
 
             path {
                 using(baseContext)
-                +"listUpcoming"
+                +"listPending"
             }
 
             params {

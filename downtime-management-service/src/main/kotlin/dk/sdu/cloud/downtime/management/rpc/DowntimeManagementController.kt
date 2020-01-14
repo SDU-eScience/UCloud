@@ -1,6 +1,5 @@
 package dk.sdu.cloud.downtime.management.rpc
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.downtime.management.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
@@ -17,8 +16,8 @@ class DowntimeManagementController<DBSession>(
             ok(downtimeManagementService.listAll(ctx.securityPrincipal, request.normalize()))
         }
 
-        implement(DowntimeManagementDescriptions.listUpcoming) {
-            ok(downtimeManagementService.listUpcoming(request.normalize()))
+        implement(DowntimeManagementDescriptions.listPending) {
+            ok(downtimeManagementService.listPending(request.normalize()))
         }
 
         implement(DowntimeManagementDescriptions.add) {
