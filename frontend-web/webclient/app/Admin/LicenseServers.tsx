@@ -24,7 +24,7 @@ interface LicenseServer {
 }
 
 /*async function loadLicenseServers(): Promise<LicenseServer[]> {
-    const {response} = await Client.get<Array<LicenseServer>>(`/app/license/list-acl`);
+    const {response} = await Client.get<Array<LicenseServer>>(`/app/license/listAll`);
     return response.map(item => {
         const entityObj: UserEntity = { id: item.entity.id, type: item.entity.type };
         const entry: ApplicationPermissionEntry = {
@@ -172,7 +172,6 @@ function LicenseServers(props: LicenseServersOperations) {
                                 type="submit"
                                 color="green"
                                 disabled={submitted}
-
                             >
                                 Add License Server
                             </Button>
