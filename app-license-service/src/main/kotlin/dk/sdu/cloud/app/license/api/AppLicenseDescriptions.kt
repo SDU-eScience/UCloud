@@ -123,7 +123,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                +"list-all"
+                +"listAll"
             }
         }
     }

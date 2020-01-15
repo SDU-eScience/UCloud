@@ -48,7 +48,11 @@ class AppLicenseService<Session>(
     }
 
     fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
+        val license = if (request.license.isNullOrBlank()) { null } else { request.license }
         val serverId = UUID.randomUUID().toString()
+        val port = if (request.port.matches("^[0-9]{2,5}$".toRegex())) { request.port } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Invalid port")
+        }
 
         db.withTransaction { session ->
             appLicenseDao.create(
@@ -57,8 +61,8 @@ class AppLicenseService<Session>(
                 LicenseServer(
                     request.name,
                     request.address,
-                    request.port,
-                    request.license
+                    port,
+                    license
                 )
             )
 

@@ -26,7 +26,7 @@ interface AppLicenseDao<Session> {
 
     fun listAll(
         session: Session,
-        entity: SecurityPrincipal
+        user: SecurityPrincipal
     ): List<LicenseServerWithId>?
 
     fun update(

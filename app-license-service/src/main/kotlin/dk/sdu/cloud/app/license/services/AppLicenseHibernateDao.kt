@@ -20,13 +20,13 @@ class LicenseServerEntity(
     @Column(name = "id", unique = true, nullable = false)
     var id: String,
 
-    @get:Column(name = "name", unique = false, nullable = true)
+    @get:Column(name = "name", unique = false, nullable = false)
     var name: String,
 
-    @Column(name = "address", unique = false, nullable = true)
+    @Column(name = "address", unique = false, nullable = false)
     var address: String,
 
-    @Column(name = "port", unique = false, nullable = true)
+    @Column(name = "port", unique = false, nullable = false)
     var port: String,
 
     @Column(name = "license", unique = false, nullable = true)
@@ -38,7 +38,7 @@ class LicenseServerEntity(
             name = name,
             address = address,
             port = port,
-            license = license
+            license = if (license.isNullOrBlank()) { null } else { license }
         )
     }
 
@@ -55,6 +55,8 @@ class LicenseServerEntity(
 class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
 
     override fun create(session: HibernateSession, serverId: String, appLicenseServer: LicenseServer) {
+        println("Adding license with key: ${appLicenseServer.license}")
+
         val licenseServer = LicenseServerEntity(
             serverId,
             appLicenseServer.name,
