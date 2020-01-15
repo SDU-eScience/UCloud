@@ -4,7 +4,7 @@ import {Dispatch} from "redux";
 import {SidebarPages} from "ui-components/Sidebar";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
-import {Button, Input, Label, Flex, Box, Text, Icon} from "ui-components";
+import {Button, Input, Label, Flex, Box, Text, Icon, Tooltip} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Client} from "Authentication/HttpClientInstance";
@@ -20,20 +20,22 @@ interface LicenseServer {
     name: string;
     address: string;
     port: string;
-    license: string;
+    license: string | null;
 }
 
-/*async function loadLicenseServers(): Promise<LicenseServer[]> {
+async function loadLicenseServers(): Promise<LicenseServer[]> {
     const {response} = await Client.get<Array<LicenseServer>>(`/app/license/listAll`);
     return response.map(item => {
-        const entityObj: UserEntity = { id: item.entity.id, type: item.entity.type };
-        const entry: ApplicationPermissionEntry = {
-            entity: entityObj,
-            permission: item.permission,
+        const entry: LicenseServer = {
+            id: item.id,
+            name: item.name,
+            address: item.address,
+            port: item.port,
+            license: item.license
         };
         return entry;
     });
-}*/
+}
 
 
 function LicenseServers(props: LicenseServersOperations) {
@@ -52,6 +54,18 @@ function LicenseServers(props: LicenseServersOperations) {
     React.useEffect(() => {
         props.setActivePage();
     }, []);
+
+
+    async function setLicenseServersOnInit() {
+        setLicenseServers(await loadLicenseServers());
+    }
+
+    React.useEffect(() =>  {
+        setLicenseServersOnInit();
+    }, []);
+
+ 
+
 
     async function submit(e: React.SyntheticEvent) {
         e.preventDefault();
@@ -72,7 +86,7 @@ function LicenseServers(props: LicenseServersOperations) {
             try {
                 props.setLoading(true);
                 await promiseKeeper.makeCancelable(
-                    Client.post("/app/license/new", {name, address, port, license}, "")
+                    Client.post("/api/app/license/new", {name, address, port, license}, "")
                 ).promise;
                 snackbarStore.addSnack(
                     {message: `License server '${name}' successfully added`, type: SnackType.Success}
@@ -83,15 +97,9 @@ function LicenseServers(props: LicenseServersOperations) {
                 setLicense(() => "");
             } catch (e) {
                 const status = defaultErrorHandler(e);
-                /*if (status === 400) {
-                    snackbarStore.addSnack({
-                        message: "User already exists",
-                        type: SnackType.Information
-                    });
-                    setState({...state, nameError: true});
-                }*/
             } finally {
                 props.setLoading(false);
+                setLicenseServersOnInit()
             }
         }
     }
@@ -177,62 +185,89 @@ function LicenseServers(props: LicenseServersOperations) {
                             </Button>
                         </form>
 
-                        { (licenseServers.length > 0) ? (
-                            <Table>
-                                <LeftAlignedTableHeader>
-                                    <TableRow>
-                                        <TableHeaderCell width="300px">Name</TableHeaderCell>
-                                        <TableHeaderCell>Address</TableHeaderCell>
-                                        <TableHeaderCell>Key</TableHeaderCell>
-                                        <TableHeaderCell width={50}>Delete</TableHeaderCell>
-                                    </TableRow>
-                                </LeftAlignedTableHeader>
-                                <tbody>
-                                    {licenseServers.map(licenseServer => (
-                                        <TableRow key={licenseServer.id}>
-                                            <TableCell>{licenseServer.id}</TableCell>
-                                            <TableCell>{licenseServer.address}</TableCell>
-                                            <TableCell textAlign="right">
-                                                <Button
-                                                    color={"red"}
-                                                    type={"button"}
-                                                    onClick={() => addStandardDialog({
-                                                        title: `Are you sure?`,
-                                                        message: (
-                                                            <Box>
-                                                                <Text>
-                                                                    Remove license server {licenseServer.id}?
-                                                                </Text>
-                                                            </Box>
-                                                        ),
-                                                        onConfirm: async () => {
-                                                            /*await invokeCommand(updateLicenseServer(
-                                                                {
-                                                                    licenseId: licenseServer.id,
-                                                                    changes: [
-                                                                        {
-                                                                            name: licenseServer.name,
-                                                                            address: licenseServer.address,
-                                                                            port: licenseServer.port,
-                                                                            license: licenseServer.license
-                                                                        }
-                                                                    ]
-                                                                }
-                                                            ));*/
-                                                            //await setLicenseServers(await loadLicenseServers());
-                                                        }
-                                                    })}
-                                                >
-                                                    <Icon size={16} name="trash" />
-                                                </Button>
-                                            </TableCell>
+                        <Box mt={30}>
+                            { (licenseServers.length > 0) ? (
+                                <Table>
+                                    <LeftAlignedTableHeader>
+                                        <TableRow>
+                                            <TableHeaderCell width="300px">Name</TableHeaderCell>
+                                            <TableHeaderCell>Address</TableHeaderCell>
+                                            <TableHeaderCell width={50}>Key</TableHeaderCell>
+                                            <TableHeaderCell width={50}>Delete</TableHeaderCell>
                                         </TableRow>
-                                    ))}
-                                </tbody>
-                            </Table>
-                        ) : (
-                            <Text textAlign="center">No license servers found</Text>
-                        )}
+                                    </LeftAlignedTableHeader>
+                                    <tbody>
+                                        {licenseServers.map(licenseServer => (
+                                            <TableRow key={licenseServer.id}>
+                                                <TableCell>{licenseServer.name}</TableCell>
+                                                <TableCell>{licenseServer.address}</TableCell>
+                                                <TableCell textAlign="right">
+                                                    { licenseServer.license !== null ? (
+                                                        <Tooltip
+                                                            tooltipContentWidth="400px"
+                                                            wrapperOffsetLeft="0"
+                                                            wrapperOffsetTop="4px"
+                                                            right="0"
+                                                            top="1"
+                                                            mb="50px"
+                                                            trigger={(
+                                                                <Icon
+                                                                    size="20px"
+                                                                    mt="4px"
+                                                                    mr="8px"
+                                                                    color="gray"
+                                                                    name="key"
+                                                                />
+                                                            )}
+                                                        >
+                                                            { licenseServer.license }
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <Text></Text>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell textAlign="right">
+                                                    <Button
+                                                        color={"red"}
+                                                        type={"button"}
+                                                        onClick={() => addStandardDialog({
+                                                            title: `Are you sure?`,
+                                                            message: (
+                                                                <Box>
+                                                                    <Text>
+                                                                        Remove license server {licenseServer.id}?
+                                                                    </Text>
+                                                                </Box>
+                                                            ),
+                                                            onConfirm: async () => {
+                                                                /*await invokeCommand(updateLicenseServer(
+                                                                    {
+                                                                        licenseId: licenseServer.id,
+                                                                        changes: [
+                                                                            {
+                                                                                name: licenseServer.name,
+                                                                                address: licenseServer.address,
+                                                                                port: licenseServer.port,
+                                                                                license: licenseServer.license
+                                                                            }
+                                                                        ]
+                                                                    }
+                                                                ));*/
+                                                                await setLicenseServers(await loadLicenseServers());
+                                                            }
+                                                        })}
+                                                    >
+                                                        <Icon size={16} name="trash" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </tbody>
+                                </Table>
+                            ) : (
+                                <Text textAlign="center">No license servers found</Text>
+                            )}
+                        </Box>
                     </Box>
                 </>
             )}
