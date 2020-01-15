@@ -351,10 +351,10 @@ export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>) {
     return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em" />);
 }
 
-export function PP({ visible: boolean }) {
+export function PP(props: {visible: boolean}) {
     const [duration, setDuration] = React.useState(500);
 
-    if (!visible) return null;
+    if (!props.visible) return null;
     // From https://codepen.io/nathangath/pen/RgvzVY/
     return (
         <div className="center">
@@ -370,7 +370,7 @@ export function PP({ visible: boolean }) {
                 <path id="body">
                     <animate
                         attributeName="fill"
-                        dur={`${this.state.duration}ms`}
+                        dur={`${duration}ms`}
                         repeatCount="indefinite"
                         keyTimes="0;0.1;0.2;0.3;0.4;0.5;0.6;0.7;0.8;0.9;1"
                         values="
