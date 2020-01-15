@@ -1,7 +1,5 @@
 package dk.sdu.cloud.app.license.services
 
-import dk.sdu.cloud.app.license.api.AddApplicationsToServerRequest
-import dk.sdu.cloud.app.license.api.Application
 import dk.sdu.cloud.app.license.api.NewServerRequest
 import dk.sdu.cloud.app.license.api.UpdateServerRequest
 import dk.sdu.cloud.app.license.services.acl.AclHibernateDao
@@ -44,8 +42,7 @@ class AppLicenseTest {
                 "testName",
                 "example.com",
                 "1234",
-                 null,
-                null
+                 null
             ),
             user
         )
@@ -62,7 +59,6 @@ class AppLicenseTest {
                 "testName",
                 "example.com",
                 "1234",
-                null,
                 null
             ),
             user
@@ -96,7 +92,6 @@ class AppLicenseTest {
                 "testName",
                 "example.com",
                 "1234",
-                null,
                 null
             ),
             user
@@ -120,64 +115,5 @@ class AppLicenseTest {
 
         assertFails { appLicenseService.getLicenseServer(serverId, user2) }
         assertEquals("example.com", appLicenseService.getLicenseServer(serverId, user)?.address)
-    }
-
-    @Test
-    fun `save multiple and list`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
-
-        val appList1 = listOf(
-            Application("app1"),
-            Application("app2"),
-            Application("app3")
-        )
-
-        val appList2 = listOf(
-            Application("app2")
-        )
-
-        val serverId = appLicenseService.createLicenseServer(
-            NewServerRequest(
-                "testName",
-                "example.com",
-                "1234",
-                null,
-                null
-            ),
-            user
-        )
-
-        appLicenseService.createLicenseServer(
-            NewServerRequest(
-                "testName2",
-                "example2.com",
-                "1234",
-                null,
-                appList2
-            ),
-            user
-        )
-
-        appLicenseService.addApplicationsToServer(
-            AddApplicationsToServerRequest(
-                appList1,
-                serverId
-            ),
-            user
-        )
-
-        val serverListApp1 = appLicenseService.listServers(Application("app1"), user)
-        assertEquals(1, serverListApp1.size)
-        assertTrue(serverListApp1.map { it.name }.contains("testName"))
-
-        val serverListApp2 = appLicenseService.listServers(Application("app2"), user)
-        assertEquals(2, serverListApp2?.size)
-        assertTrue(serverListApp2.map { it.name }.contains("testName"))
-        assertTrue(serverListApp2.map { it.name }.contains("testName2"))
-
-        val serverListApp3 = appLicenseService.listServers(Application("app3"), user)
-        assertEquals(1, serverListApp3.size)
-        assertTrue(serverListApp3.map { it.name }.contains("testName"))
-
     }
 }

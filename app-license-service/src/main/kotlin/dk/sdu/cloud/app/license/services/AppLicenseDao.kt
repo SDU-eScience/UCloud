@@ -1,43 +1,36 @@
 package dk.sdu.cloud.app.license.services
 
-import dk.sdu.cloud.app.license.api.Application
-import dk.sdu.cloud.app.license.api.ApplicationLicenseServer
-import dk.sdu.cloud.app.license.services.acl.AclService
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.app.license.api.LicenseServer
+import dk.sdu.cloud.app.license.api.LicenseServerId
+import dk.sdu.cloud.app.license.api.LicenseServerWithId
 import dk.sdu.cloud.app.license.services.acl.UserEntity
 
 interface AppLicenseDao<Session> {
     fun getById(
         session: Session,
         id: String
-    ): LicenseServerEntity?
+    ): LicenseServerWithId?
 
     fun create(
         session: Session,
         serverId: String,
-        appLicenseServer: ApplicationLicenseServer
-    )
-
-    fun addApplicationToServer(
-        session: Session,
-        application: Application,
-        serverId: String
-    )
-
-    fun removeApplicationFromServer(
-        session: Session,
-        application: Application,
-        serverId: String
+        appLicenseServer: LicenseServer
     )
 
     fun list(
         session: Session,
-        application: Application,
+        names: List<String>,
         entity: UserEntity
-    ): List<ApplicationLicenseServer>?
+    ): List<LicenseServerId>?
 
-    fun save(
+    fun listAll(
         session: Session,
-        appLicenseServer: ApplicationLicenseServer,
-        withId: String
+        entity: SecurityPrincipal
+    ): List<LicenseServerWithId>?
+
+    fun update(
+        session: Session,
+        appLicenseServer: LicenseServerWithId
     )
 }

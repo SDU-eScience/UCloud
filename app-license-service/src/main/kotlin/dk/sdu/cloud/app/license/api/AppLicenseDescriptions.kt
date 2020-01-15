@@ -22,22 +22,34 @@ data class UpdateServerRequest(
     val withId: String
 )
 
-data class AddApplicationsToServerRequest(
-    val applications: List<Application>,
-    val serverId: String
-)
-
 data class NewServerRequest(
     val name: String,
     val address: String,
     val port: String,
-    val license: String?,
-    val applications: List<Application>?
+    val license: String?
 )
 
-data class Application(
+data class LicenseServerWithId(
+    val id: String,
+    val name: String,
+    val address: String,
+    val port: String,
+    val license: String?
+)
+
+data class LicenseServer(
+    val name: String,
+    val address: String,
+    val port: String,
+    val license: String?
+)
+
+data class LicenseServerId(
+    val id: String,
     val name: String
 )
+
+data class ListLicenseServersRequest(val names: List<String>);
 
 data class UpdateServerResponse(val serverId: String)
 data class NewServerResponse(val serverId: String)
@@ -61,7 +73,7 @@ data class ACLEntryRequest(
 object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
     val baseContext = "/api/app/license"
 
-    val get = call<LicenseServerRequest, ApplicationLicenseServer, CommonErrorMessage>("get") {
+    val get = call<LicenseServerRequest, LicenseServerWithId, CommonErrorMessage>("get") {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -80,7 +92,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
-    val listByApp = call<Application, List<ApplicationLicenseServer>, CommonErrorMessage>("listByApp") {
+    val list = call<ListLicenseServersRequest, List<LicenseServerId>, CommonErrorMessage>("list") {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -91,14 +103,31 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                +"list-by-app"
+                +"list"
             }
 
             params {
-                +boundTo(Application::name)
+                +boundTo(ListLicenseServersRequest::names)
             }
         }
     }
+
+    val listAll = call<Unit, List<LicenseServerWithId>, CommonErrorMessage>("listAll") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"list-all"
+            }
+        }
+    }
+
 
     val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         auth {

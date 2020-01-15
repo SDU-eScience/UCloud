@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.license.rpc
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.AppLicenseService
 import dk.sdu.cloud.app.license.services.acl.UserEntity
@@ -23,8 +22,11 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             )
 
             val licenseServer = licenseService.getLicenseServer(request.serverId, entity)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
             ok(
-                ApplicationLicenseServer(
+                LicenseServerWithId(
+                    licenseServer.id,
                     licenseServer.name,
                     licenseServer.address,
                     licenseServer.port,
@@ -42,14 +44,19 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             ok(licenseService.updateAcl(request, entity))
         }
 
-        implement(AppLicenseDescriptions.listByApp)  {
+        implement(AppLicenseDescriptions.list)  {
             val entity = UserEntity(
                 ctx.securityPrincipal.username,
                 EntityType.USER
             )
 
-            ok(licenseService.listServers(request, entity))
+            ok(licenseService.listServers(request.names, entity))
         }
+
+        implement(AppLicenseDescriptions.listAll)  {
+            ok(licenseService.listAllServers(ctx.securityPrincipal))
+        }
+
 
         implement(AppLicenseDescriptions.update) {
             val entity = UserEntity(
