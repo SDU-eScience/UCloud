@@ -1,7 +1,6 @@
 import {configure} from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import {createBrowserHistory} from "history";
-import "jest-styled-components";
 import * as React from "react";
 import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";

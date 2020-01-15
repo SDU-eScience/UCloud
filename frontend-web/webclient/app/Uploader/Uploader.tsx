@@ -110,7 +110,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
 
     private readonly MAX_CONCURRENT_UPLOADS = 5;
 
-    private modalStyle = {
+    private readonly modalStyle = {
         // https://github.com/reactjs/react-modal/issues/62
         content: {
             borderRadius: "4px",
@@ -119,7 +119,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
             left: "50%",
             maxHeight: "80vh",
             padding: "2rem",
-            position: "fixed",
+            position: "fixed" as "fixed", // FIXME: Why is this necessary? Should work with enum instead.
             right: "auto",
             top: "50%",
             transform: "translate(-50%,-50%)",

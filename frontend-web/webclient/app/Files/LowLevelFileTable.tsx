@@ -278,7 +278,6 @@ function useApiForComponent(
 
 // tslint:disable-next-line: variable-name
 const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
-    responsive: ResponsiveReduxObject;
     showUploader: (path: string) => void;
     setUploaderCallback: (cb?: () => void) => void;
     appendUpload: (uploads: Upload) => void;
@@ -657,8 +656,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                         onClick={() => {
                             if (!isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
                         }}
-                        pb={"4px"}
-                        pt={"4px"}
+                        pb="4px"
+                        pt="4px"
                         width="100%"
                         key={f.path}
                     >
@@ -803,11 +802,11 @@ function toWebDav() {
     document.body.removeChild(a);
 }
 
-const mapStateToProps = ({responsive, uploader}: ReduxObject) => {
+const mapStateToProps = ({uploader}: ReduxObject) => {
     const activeUploadCount = uploader.uploads.filter(it =>
         (it.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
         (it.uploadXHR?.readyState ?? -1 < XMLHttpRequest.DONE)).length;
-    return {responsive, activeUploadCount};
+    return {activeUploadCount};
 };
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({

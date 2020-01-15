@@ -157,7 +157,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   flex: 1 1 auto;
 }
 
-.c17 .c37 {
+.c17 .sc-fzXfLU {
   border: 0;
   box-shadow: none;
 }
@@ -374,7 +374,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   className="c0 c1"
 >
   <div
-    className="c0 c2"
+    className="c0 sc-AykKD c2"
     height={48}
     width={1}
   >
@@ -423,7 +423,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
     className="c0 c9"
   >
     <div
-      className="c0 c10"
+      className="c0 sc-AykKD c10"
       height="100%"
       width={340}
     >
@@ -804,7 +804,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           cursor="auto"
         >
           <th
-            className="c25"
+            className="sc-fzXfPg c25"
             width="4%"
           >
             <label
@@ -857,25 +857,25 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             </label>
           </th>
           <th
-            className="c29"
+            className="sc-fzXfPg c29"
             onClick={[Function]}
           >
             Name
           </th>
           <th
-            className="c29"
+            className="sc-fzXfPg c29"
             onClick={[Function]}
           >
             State
           </th>
           <th
-            className="c29"
+            className="sc-fzXfPg c29"
             onClick={[Function]}
           >
             Application
           </th>
           <th
-            className="c29"
+            className="sc-fzXfPg c29"
             onClick={[Function]}
           >
             <svg
@@ -896,7 +896,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             Created at
           </th>
           <th
-            className="c29"
+            className="sc-fzXfPg c29"
             onClick={[Function]}
           >
             Expiration
