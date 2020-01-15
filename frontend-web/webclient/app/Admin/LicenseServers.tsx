@@ -14,6 +14,9 @@ import styled from "styled-components";
 import {defaultErrorHandler} from "UtilityFunctions";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
+import * as ReactModal from "react-modal";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
+import {TextSpan} from "ui-components/Text";
 
 interface LicenseServer {
     id: string,
@@ -48,6 +51,8 @@ function LicenseServers(props: LicenseServersOperations) {
     const [addressError, setAddressError] = React.useState(false);
     const [portError, setPortError] = React.useState(false);
     const [licenseServers, setLicenseServers] = React.useState<LicenseServer[]>([]);
+    const [isAccessListOpen, setAccessListOpen] = React.useState<boolean>(false);
+    const [openAccessListServer, setOpenAccessListServer] = React.useState<LicenseServer|null>(null);
 
     const promiseKeeper = usePromiseKeeper();
 
@@ -56,14 +61,19 @@ function LicenseServers(props: LicenseServersOperations) {
     }, []);
 
 
-    async function setLicenseServersOnInit() {
+    async function loadAndSetLicenseServers() {
         setLicenseServers(await loadLicenseServers());
     }
 
-    React.useEffect(() =>  {
-        setLicenseServersOnInit();
+    React.useEffect(() => {
+        loadAndSetLicenseServers();
     }, []);
 
+    React.useEffect(() => {
+        if(isAccessListOpen) {
+            // TODO: load ACL 
+        }
+    }, [isAccessListOpen])
  
 
 
@@ -99,7 +109,7 @@ function LicenseServers(props: LicenseServersOperations) {
                 const status = defaultErrorHandler(e);
             } finally {
                 props.setLoading(false);
-                setLicenseServersOnInit()
+                loadAndSetLicenseServers()
             }
         }
     }
@@ -190,9 +200,10 @@ function LicenseServers(props: LicenseServersOperations) {
                                 <Table>
                                     <LeftAlignedTableHeader>
                                         <TableRow>
-                                            <TableHeaderCell width="300px">Name</TableHeaderCell>
+                                            <TableHeaderCell>Name</TableHeaderCell>
                                             <TableHeaderCell>Address</TableHeaderCell>
                                             <TableHeaderCell width={50}>Key</TableHeaderCell>
+                                            <TableHeaderCell width={70}>Access</TableHeaderCell>
                                             <TableHeaderCell width={50}>Delete</TableHeaderCell>
                                         </TableRow>
                                     </LeftAlignedTableHeader>
@@ -201,10 +212,10 @@ function LicenseServers(props: LicenseServersOperations) {
                                             <TableRow key={licenseServer.id}>
                                                 <TableCell>{licenseServer.name}</TableCell>
                                                 <TableCell>{licenseServer.address}</TableCell>
-                                                <TableCell textAlign="right">
+                                                <TableCell textAlign="center">
                                                     { licenseServer.license !== null ? (
                                                         <Tooltip
-                                                            tooltipContentWidth="400px"
+                                                            tooltipContentWidth="300px"
                                                             wrapperOffsetLeft="0"
                                                             wrapperOffsetTop="4px"
                                                             right="0"
@@ -225,6 +236,21 @@ function LicenseServers(props: LicenseServersOperations) {
                                                     ) : (
                                                         <Text></Text>
                                                     )}
+                                                </TableCell>
+                                                <TableCell textAlign="center">
+                                                    <Icon
+                                                        cursor="pointer"
+                                                        size="20px"
+                                                        mt="4px"
+                                                        mr="8px"
+                                                        color="gray"
+                                                        color2="midGray"
+                                                        name="projects"
+                                                        onClick={() => {
+                                                            setAccessListOpen(true)
+                                                            setOpenAccessListServer(licenseServer)
+                                                        }}
+                                                    />
                                                 </TableCell>
                                                 <TableCell textAlign="right">
                                                     <Button
@@ -253,7 +279,7 @@ function LicenseServers(props: LicenseServersOperations) {
                                                                         ]
                                                                     }
                                                                 ));*/
-                                                                await setLicenseServers(await loadLicenseServers());
+                                                                loadAndSetLicenseServers()
                                                             }
                                                         })}
                                                     >
@@ -269,6 +295,118 @@ function LicenseServers(props: LicenseServersOperations) {
                             )}
                         </Box>
                     </Box>
+                    <ReactModal
+                        isOpen={isAccessListOpen}
+                        onRequestClose={() => setAccessListOpen(false)}
+                        shouldCloseOnEsc={true}
+                        ariaHideApp={false}
+                        style={defaultModalStyle}
+                    >
+                        <div>
+                            <Flex alignItems={"center"}>
+                                <Heading.h3>
+                                    <TextSpan color="gray">Access control for</TextSpan> { openAccessListServer?.name }
+                                </Heading.h3>
+                            </Flex>
+                            <Box mt={16} mb={30}>
+                                <form
+                                    /*onSubmit={async e => {
+                                        e.preventDefault();
+                                        if (commandLoading) return;
+
+                                        const permissionField = newPermissionField.current;
+                                        if (permissionField === null) return;
+
+                                        const permissionValue = permissionField.value;
+                                        if (permissionValue === "") return;
+
+                                        await invokeCommand(updateApplicationPermission(
+                                            {
+                                                applicationName: name,
+                                                changes: [
+                                                    {
+                                                        entity: { id: permissionValue, type: UserEntityType.USER },
+                                                        rights: access,
+                                                        revoke: false
+                                                    }
+                                                ]
+                                            }
+                                        ));
+                                        setPermissionEntries(await loadApplicationPermissionEntries(name));
+
+                                        permissionField.value = "";
+                                    }}*/
+                                >
+                                    <Flex height={45}>
+                                        <Input
+                                            rightLabel
+                                            required
+                                            type="text"
+                                            //ref={newPermissionField}
+                                            placeholder="Username"
+                                        />
+                                        <Button
+                                            attached
+                                            width="300px"
+                                            //disabled={commandLoading}
+                                            type={"submit"}
+                                        >
+                                            Add permission
+                                        </Button>
+                                    </Flex>
+                                </form>
+                            </Box>
+                            <Table width="600px">
+                                <LeftAlignedTableHeader>
+                                    <TableRow>
+                                        <TableHeaderCell>Name</TableHeaderCell>
+                                        <TableHeaderCell width={50}>Delete</TableHeaderCell>
+                                    </TableRow>
+                                </LeftAlignedTableHeader>
+                                <tbody>
+                                    {licenseServers.map(licenseServer => (
+                                        <TableRow key={licenseServer.id}>
+                                            <TableCell>{licenseServer.name}</TableCell>
+                                            <TableCell textAlign="right">
+                                                <Button
+                                                    color={"red"}
+                                                    type={"button"}
+                                                    onClick={() => addStandardDialog({
+                                                        title: `Are you sure?`,
+                                                        message: (
+                                                            <Box>
+                                                                <Text>
+                                                                    Remove license server {licenseServer.id}?
+                                                                </Text>
+                                                            </Box>
+                                                        ),
+                                                        onConfirm: async () => {
+                                                            /*await invokeCommand(updateLicenseServer(
+                                                                {
+                                                                    licenseId: licenseServer.id,
+                                                                    changes: [
+                                                                        {
+                                                                            name: licenseServer.name,
+                                                                            address: licenseServer.address,
+                                                                            port: licenseServer.port,
+                                                                            license: licenseServer.license
+                                                                        }
+                                                                    ]
+                                                                }
+                                                            ));*/
+                                                            loadAndSetLicenseServers()
+                                                        }
+                                                    })}
+                                                >
+                                                    <Icon size={16} name="trash" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </tbody>
+                            </Table>
+                        </div>
+                    </ReactModal>
                 </>
             )}
         />
