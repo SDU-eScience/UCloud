@@ -61,7 +61,7 @@ object DowntimeManagementDescriptions : CallDescriptionContainer("downtime.manag
         }
     }
 
-    val listPending = call<FetchUpcomingRequest, FetchUpcomingResponse, CommonErrorMessage>("fetchUpcoming") {
+    val listPending = call<FetchUpcomingRequest, FetchUpcomingResponse, CommonErrorMessage>("fetchPending") {
         auth {
             access = AccessRight.READ
         }
@@ -72,6 +72,27 @@ object DowntimeManagementDescriptions : CallDescriptionContainer("downtime.manag
             path {
                 using(baseContext)
                 +"listPending"
+            }
+
+            params {
+                +boundTo(FetchUpcomingRequest::page)
+                +boundTo(FetchUpcomingRequest::itemsPerPage)
+            }
+        }
+    }
+
+    @Deprecated("Renamed", ReplaceWith("listPending"))
+    val listUpcoming = call<FetchUpcomingRequest, FetchUpcomingResponse, CommonErrorMessage>("listUpcoming") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listUpcoming"
             }
 
             params {

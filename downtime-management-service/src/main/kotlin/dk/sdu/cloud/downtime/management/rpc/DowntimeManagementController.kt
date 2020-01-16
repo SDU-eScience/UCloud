@@ -20,6 +20,10 @@ class DowntimeManagementController<DBSession>(
             ok(downtimeManagementService.listPending(request.normalize()))
         }
 
+        implement(DowntimeManagementDescriptions.listUpcoming) {
+            ok(downtimeManagementService.listPending(request.normalize()))
+        }
+
         implement(DowntimeManagementDescriptions.add) {
             ok(downtimeManagementService.add(ctx.securityPrincipal, request))
         }
