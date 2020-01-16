@@ -10,6 +10,7 @@ import dk.sdu.cloud.file.api.CowWorkspace
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.file.api.SNAPS_FILE
+import dk.sdu.cloud.file.api.SNAPS_TXT_FILE
 import dk.sdu.cloud.file.api.WorkspaceMode
 import dk.sdu.cloud.file.api.WorkspaceMount
 import dk.sdu.cloud.file.api.fileName
@@ -159,6 +160,19 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         }
 
         workspace.resolve(SNAPS_FILE).toFile().writeBytes(defaultMapper.writeValueAsBytes(CowWorkspace(snaps)))
+        workspace.resolve(SNAPS_TXT_FILE).toFile().writeText(
+            buildString {
+                snaps.forEach { snap ->
+                    require(!snap.directoryName.contains("\n"))
+                    require(!snap.realPath.contains("\n"))
+                    require(!snap.snapshotPath.contains("\n"))
+
+                    appendln(snap.directoryName)
+                    appendln(snap.realPath)
+                    appendln(snap.snapshotPath)
+                }
+            }
+        )
 
         CreatedWorkspace(workspaceId, failures)
     }
@@ -171,7 +185,6 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         destination: String,
         defaultDestinationDir: Path
     ): List<String> {
-        log.debug("transfer $id $manifest $destination $defaultDestinationDir")
         val workspace = workspaceFile(fsRoot, id)
         val cowManifest = defaultMapper.readValue<CowWorkspace>(workspace.resolve(SNAPS_FILE).toFile())
         val snapshotsDirectory = workspace.resolve(SNAPSHOT_LAYER)
@@ -180,12 +193,6 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         val canWriteToDefault =
             aclService.hasPermission(defaultDestinationDir.toCloudPath(), manifest.username, AccessRight.WRITE)
 
-        log.debug("workspace = $workspace")
-        log.debug("cowManifest = $cowManifest")
-        log.debug("snapshotsDirectory = $snapshotsDirectory")
-        log.debug("workDirectory = $workDirectory")
-        log.debug("canWriteToDefault = $canWriteToDefault")
-
         cowManifest.snapshots.forEach { snapshot ->
             val snapshotRoot = snapshotsDirectory.resolve(snapshot.directoryName)
             val upper = snapshotRoot.resolve(UPPER_LAYER)
@@ -193,12 +200,12 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
 
             val hasWriteAccess = aclService.hasPermission(snapshot.realPath, manifest.username, AccessRight.WRITE)
             if (hasWriteAccess) {
-                transferSnapshot(upper, realRootPath, transferredFiles)
+                transferSnapshot(manifest.username, upper, realRootPath, transferredFiles)
             } else {
                 if (canWriteToDefault) {
-                    fsRunner.withContext(SERVICE_USER) { rootCtx ->
-                        upper.listAndClose().forEach { rootPath ->
-                            transferToDefault(rootPath, defaultDestinationDir, rootCtx, transferredFiles)
+                    fsRunner.withContext(manifest.username) { rootCtx ->
+                        upper.listAndClose().forEach { file ->
+                            transferToDefault(snapshotRoot, file, defaultDestinationDir, rootCtx, transferredFiles)
                         }
                     }
                 }
@@ -206,19 +213,20 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         }
 
         if (canWriteToDefault) {
-            fsRunner.withContext(SERVICE_USER) { rootCtx ->
+            fsRunner.withContext(manifest.username) { ctx ->
                 workDirectory
                     .listAndClose()
                     .asSequence()
                     .filter { child ->
-                        matchers.any { it.matches(child) }
+                        matchers.any { it.matches(child.fileName) }
                     }
-                    .forEach { rootPath ->
-                        transferToDefault(rootPath, defaultDestinationDir, rootCtx, transferredFiles)
+                    .forEach { file ->
+                        transferToDefault(workDirectory, file, defaultDestinationDir, ctx, transferredFiles)
                     }
             }
         }
 
+        log.info("Completely done: $transferredFiles")
         return transferredFiles
     }
 
@@ -227,37 +235,44 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
     @Suppress("BlockingMethodInNonBlockingContext")
     private suspend fun transferToDefault(
         rootPath: Path,
+        directory: Path,
         defaultDestinationDir: Path,
-        rootCtx: Ctx,
+        ctx: Ctx,
         transferredFiles: ArrayList<String>
     ) {
-        Files.walk(rootPath).asSequence().forEach { path ->
-            val relativePath = defaultDestinationDir.relativize(path)
-            val realPath = defaultDestinationDir.resolve(relativePath)
-            val cloudPath = realPath.toCloudPath()
-            val workspaceCloudPath = path.toCloudPath()
+        fsRunner.withContext(SERVICE_USER) { rootCtx ->
+            Files.walk(directory).asSequence().forEach { path ->
+                val relativePath = rootPath.relativize(path)
+                log.info("The relative path is $relativePath")
+                val realPath = defaultDestinationDir.resolve(relativePath)
+                val cloudPath = realPath.toCloudPath()
+                val workspaceCloudPath = path.toCloudPath()
 
-            log.debug("transferToDefault($rootPath, $defaultDestinationDir, $path)")
+                if (Files.isRegularFile(path)) {
+                    sanitizeFile(path)
+                    coreFs.handlePotentialFileCreation(rootCtx, workspaceCloudPath)
+                    Files.move(
+                        path,
+                        realPath,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING
+                    )
 
-            if (Files.isRegularFile(path)) {
-                sanitizeFile(path)
-                coreFs.handlePotentialFileCreation(rootCtx, workspaceCloudPath)
-                Files.move(
-                    path,
-                    realPath,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING
-                )
-
-                coreFs.emitUpdateEvent(rootCtx, cloudPath)
-                transferredFiles.add(cloudPath)
-            } else if (Files.isDirectory(path)) {
-                coreFs.makeDirectory(rootCtx, cloudPath)
+                    coreFs.emitUpdateEvent(rootCtx, cloudPath)
+                    transferredFiles.add(cloudPath)
+                } else if (Files.isDirectory(path)) {
+                    try {
+                        coreFs.makeDirectory(ctx, cloudPath)
+                    } catch (ex: FSException.AlreadyExists) {
+                        // Ignored
+                    }
+                }
             }
         }
     }
 
     private suspend fun transferSnapshot(
+        username: String,
         upper: Path,
         realRootPath: Path,
         transferredFiles: ArrayList<String>
@@ -277,13 +292,15 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                 if (Files.isRegularFile(path)) {
                     val fileName = path.toFile().name
                     if (fileName.startsWith(DELETED_PREFIX)) {
-                        try {
-                            coreFs.delete(
-                                rootCtx,
-                                realPath.resolveSibling(fileName.removePrefix(DELETED_PREFIX)).toCloudPath()
-                            )
-                        } catch (ex: FSException.NotFound) {
-                            // Ignored
+                        fsRunner.withContext(username) { ctx ->
+                            try {
+                                coreFs.delete(
+                                    ctx,
+                                    realPath.resolveSibling(fileName.removePrefix(DELETED_PREFIX)).toCloudPath()
+                                )
+                            } catch (ex: FSException.NotFound) {
+                                // Ignored
+                            }
                         }
                     } else {
                         sanitizeFile(path)
@@ -304,9 +321,11 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                         val existingCreation = existingFile?.timestamps?.created
 
                         if (existingFile != null && existingFile.fileType != FileType.FILE) {
-                            // Type mismatch. We should delete the existing entry before creating a new one
-                            // (with a new ID)
-                            coreFs.delete(rootCtx, cloudPath)
+                            fsRunner.withContext(username) { ctx ->
+                                // Type mismatch. We should delete the existing entry before creating a new one
+                                // (with a new ID)
+                                coreFs.delete(ctx, cloudPath)
+                            }
                         }
 
                         // File has been updated
@@ -328,11 +347,13 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                         transferredFiles.add(cloudPath)
                     }
                 } else if (Files.isDirectory(path)) {
-                    try {
-                        coreFs.makeDirectory(rootCtx, cloudPath)
-                        transferredFiles.add(cloudPath)
-                    } catch (ex: FSException.AlreadyExists) {
-                        // Ignored
+                    fsRunner.withContext(username) { ctx ->
+                        try {
+                            coreFs.makeDirectory(ctx, cloudPath)
+                            transferredFiles.add(cloudPath)
+                        } catch (ex: FSException.AlreadyExists) {
+                            // Ignored
+                        }
                     }
                 }
             }

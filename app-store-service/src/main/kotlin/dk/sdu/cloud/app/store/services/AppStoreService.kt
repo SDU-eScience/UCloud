@@ -21,9 +21,6 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.launch
 import org.elasticsearch.action.search.SearchResponse
 
 class AppStoreService<DBSession>(

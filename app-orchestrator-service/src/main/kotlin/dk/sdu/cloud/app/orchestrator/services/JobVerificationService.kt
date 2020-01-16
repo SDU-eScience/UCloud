@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
 import dk.sdu.cloud.app.orchestrator.api.FileForUploadArchiveType
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.MachineReservation
+import dk.sdu.cloud.app.orchestrator.api.MountMode
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
@@ -172,7 +173,8 @@ class JobVerificationService<Session>(
                 project = unverifiedJob.decodedToken.projectOrNull(),
                 _sharedFileSystemMounts = sharedMounts,
                 _peers = allPeers,
-                reservation = reservation
+                reservation = reservation,
+                mountMode = unverifiedJob.request.mountMode ?: MountMode.COPY_FILES
             ),
             null,
             unverifiedJob.refreshToken

@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+
+# Manages the PV type cow.
+#
+# Dependencies:
+# - fuse-overlayfs
+# - cephfs kernel driver
+# - jq
+
+log() {
+    echo -ne $* >&1
+}
+
+PATH=$PATH:$(dirname "$0")/.bin
+cephfs_mount=/mnt/cephfs
+
+ismounted() {
+    query=$1
+    mount=`findmnt -n "${query}" 2>/dev/null | cut -d' ' -f1`
+    if [ "${mount}" == "${query}" ]; then
+        echo "1"
+    else
+        echo "0"
+    fi
+}
+
+mountcephfs() {
+    if [ $(ismounted $cephfs_mount) -eq 0 ]; then
+        mons=$(echo $1 | jq -r '."kubernetes.io/secret/cephMon"' | base64 -d)
+        user=$(echo $1 | jq -r '."kubernetes.io/secret/cephUser"' | base64 -d)
+        key=$(echo $1 | jq -r '."kubernetes.io/secret/cephKey"' | base64 -d)
+
+        mkdir -p "${cephfs_mount}" &> /dev/null
+        mount -t ceph "${mons}:/" "${cephfs_mount}" -o "name=${user},secret=${key}"
+    fi
+}
+
+domount() {
+    mntpath=$1
+    mountcephfs $2
+
+    workspace=$(echo $2 | jq -r .workspace)
+    snaps_txt="${cephfs_mount}/workspace/${workspace}/snaps.txt"
+    snaps_json="${cephfs_mount}/workspace/${workspace}/snaps.json"
+    mkdir -p /tmp/snaps &> /dev/null
+    cp "${snaps_json}" "/tmp/snaps/$(echo $mntpath | md5sum| awk '{ print $1 }')"
+
+    mount --bind "${cephfs_mount}/workspace/${workspace}/work" "${mntpath}"
+
+    xargs --no-run-if-empty -a "${snaps_txt}" -n 3 \
+        cowmount "${workspace}" "${mntpath}"
+
+    log '{"status":"Success"}'
+    exit 0
+}
+
+unmount() {
+    mntpath=$1
+
+    snaps_file="/tmp/snaps/$(echo $mntpath | md5sum | awk '{ print $1 }')"
+    all_dirs=$(cat ${snaps_file} | jq -r '.snapshots[] | .directoryName')
+
+    echo $all_dirs | xargs -I {} umount "${mntpath}/{}"
+    echo $all_dirs | xargs -I {} rmdir "${mntpath}/{}"
+
+    umount $mntpath
+
+    rm ${snaps_file}
+
+    log '{"status":"Success"}'
+    exit 0
+}
+
+op=$1
+
+shift
+
+case "$op" in
+    init)
+        log '{"status":"Success","capabilities":{"attach":false}}'
+        exit 0
+        ;;
+    mount)
+        domount $*
+        ;;
+    unmount)
+        unmount $*
+        ;;
+    *)
+        log '{"status":"Not supported"}'
+        exit 0
+esac
+
+exit 1
+

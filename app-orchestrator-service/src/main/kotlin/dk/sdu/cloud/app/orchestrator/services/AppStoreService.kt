@@ -32,7 +32,7 @@ class AppStoreService(
         permission: ApplicationAccessRight
     ): Boolean {
         return AppStore.hasPermission.call(
-            HasPermissionRequest(name, version, permission),
+            HasPermissionRequest(name, version, setOf(permission)),
             serviceClient
         ).throwIfInternal().orNull() ?: return false
     }

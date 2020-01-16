@@ -29,6 +29,7 @@ enum class WorkspaceMode {
 }
 
 const val SNAPS_FILE = "snaps.json"
+const val SNAPS_TXT_FILE = "snaps.txt"
 
 data class CowWorkspace(
     val snapshots: List<CowSnapshot>

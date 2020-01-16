@@ -5,38 +5,29 @@ import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.store.api.ContainerDescription
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.buildEnvironmentValue
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
-import io.fabric8.kubernetes.api.model.Capabilities
+import io.fabric8.kubernetes.api.model.Container
 import io.fabric8.kubernetes.api.model.DoneablePod
 import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
 import io.fabric8.kubernetes.api.model.EnvVar
-import io.fabric8.kubernetes.api.model.ExecAction
-import io.fabric8.kubernetes.api.model.Handler
-import io.fabric8.kubernetes.api.model.Lifecycle
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodSecurityContext
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
 import io.fabric8.kubernetes.api.model.Quantity
 import io.fabric8.kubernetes.api.model.ResourceRequirements
-import io.fabric8.kubernetes.api.model.SecurityContext
 import io.fabric8.kubernetes.api.model.Toleration
 import io.fabric8.kubernetes.api.model.VolumeMount
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.PodResource
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
 
 const val INPUT_DIRECTORY = "/input"
 const val WORKING_DIRECTORY = "/work"
 const val MULTI_NODE_DIRECTORY = "/etc/sducloud"
 const val DATA_STORAGE = "workspace-storage"
-const val RAW_DATA_CONTAINER = "raw-data"
-const val COW_STORAGE = "cow-setup"
 const val MULTI_NODE_STORAGE = "multi-node-config"
 const val MULTI_NODE_CONTAINER = "init"
 const val USER_CONTAINER = "user-job"
@@ -51,6 +42,7 @@ class K8JobCreationService(
     private val sharedFileSystemMountService: SharedFileSystemMountService,
     private val broadcastingStream: BroadcastingStream,
     private val hostAliasesService: HostAliasesService,
+    private val workspaceService: WorkspaceService,
     private val toleration: TolerationKeyAndValue? = null
 ) {
     fun create(verifiedJob: VerifiedJob) {
@@ -97,6 +89,7 @@ class K8JobCreationService(
         val (sharedVolumes, sharedMounts) = sharedFileSystemMountService.createVolumesAndMounts(verifiedJob)
         networkPolicyService.createPolicy(verifiedJob.id, verifiedJob.peers.map { it.jobId })
         val hostAliases = hostAliasesService.findAliasesForPeers(verifiedJob.peers)
+        val preparedWorkspace = workspaceService.prepare(verifiedJob)
 
         // Create a kubernetes job for each node in our job
         repeat(verifiedJob.nodes) { rank ->
@@ -193,7 +186,9 @@ class K8JobCreationService(
                                     )
                                 }
 
-                                withContainers(
+                                val allContainers = ArrayList<Container>()
+
+                                allContainers.add(
                                     container {
                                         val uid = LINUX_FS_USER_UID.toLong()
                                         val app = verifiedJob.application.invocation
@@ -280,31 +275,6 @@ class K8JobCreationService(
 
                                         withVolumeMounts(
                                             VolumeMount(
-                                                WORKING_DIRECTORY,
-                                                null,
-                                                DATA_STORAGE,
-                                                false,
-                                                verifiedJob.workspace
-                                                    ?.removePrefix("/")
-                                                    ?.removeSuffix("/")
-                                                    ?.let { it + "/output" }
-                                                    ?: throw RPCException(
-                                                        "No workspace found",
-                                                        HttpStatusCode.BadRequest
-                                                    ),
-                                                null
-                                            ),
-
-                                            VolumeMount(
-                                                INPUT_DIRECTORY,
-                                                null,
-                                                DATA_STORAGE,
-                                                true,
-                                                null,
-                                                null
-                                            ),
-
-                                            VolumeMount(
                                                 MULTI_NODE_DIRECTORY,
                                                 null,
                                                 MULTI_NODE_STORAGE,
@@ -313,97 +283,23 @@ class K8JobCreationService(
                                                 null
                                             ),
 
+                                            *preparedWorkspace.user.mounts.toTypedArray(),
                                             *sharedMounts.toTypedArray()
                                         )
 
                                         withHostAliases(*hostAliases.toTypedArray())
-                                    },
-                                    container {
-                                        withName("fuse-creator")
-                                        withImage("registry.cloud.sdu.dk/cow/creator:0.1.0")
-                                        withCommand(
-                                            "/bin/bash",
-                                            "-c",
-                                            "--"
-                                        )
-                                        withArgs(
-                                            """
-                                                echo "Creating mount...";
-                                                mkdir /mnt/{work, up};
-                                                fuse-overlayfs -o lowerdir=/mnt/cephfs,upperdir=/mnt/up,workdir=/mnt/work /mnt/merged;
-                                                touch /mnt/setup/done;
-                                                echo "Mount complete!"
-                                                tail -f /dev/null;
-                                            """
-                                        )
-                                        withLifecycle(
-                                            Lifecycle(
-                                                null,
-                                                Handler(
-                                                    ExecAction(
-                                                        listOf("/bin/bash", "-c", "--", "umount /mnt/merged || true")
-                                                    )na
-                                                    null,
-                                                    null
-                                                )
-                                            )
-                                        )
-                                        withSecurityContext(
-                                            SecurityContext().apply {
-                                                allowPrivilegeEscalation = true
-                                                capabilities = Capabilities(listOf("ALL"), emptyList())
-                                                privileged = true
-                                                readOnlyRootFilesystem = false
-                                                runAsNonRoot = false
-                                            }
-                                        )
-                                        withVolumeMounts(
-                                            VolumeMount().apply {
-                                                mountPath = "/mnt/cephfs"
-                                                name = DATA_STORAGE
-                                                subPath = verifiedJob.workspace
-                                                    ?.removePrefix("/")
-                                                    ?.removeSuffix("/")
-                                                    ?.let { it + "/input" }
-                                                    ?: throw RPCException(
-                                                        "No workspace found",
-                                                        HttpStatusCode.BadRequest
-                                                    )
-                                            },
-                                            VolumeMount().apply {
-                                                mountPath = "/mnt/merged"
-                                                name = DATA_STORAGE
-                                            }
-                                        )
                                     }
                                 )
 
+                                withContainers(allContainers)
+
                                 withVolumes(
                                     volume {
-                                        withName(RAW_DATA_CONTAINER)
-                                        withPersistentVolumeClaim(
-                                            PersistentVolumeClaimVolumeSource(
-                                                "cephfs",
-                                                false
-                                            )
-                                        )
+                                        name = MULTI_NODE_STORAGE
+                                        emptyDir = EmptyDirVolumeSource()
                                     },
 
-                                    volume {
-                                        withName(MULTI_NODE_STORAGE)
-                                        withEmptyDir(EmptyDirVolumeSource())
-                                    },
-
-                                    volume {
-                                        withName(DATA_STORAGE)
-                                        withEmptyDir(EmptyDirVolumeSource())
-                                    },
-
-                                    volume {
-                                        withName(COW_STORAGE)
-                                        withEmptyDir(EmptyDirVolumeSource())
-                                    }<
-
+                                    *preparedWorkspace.volumes.toTypedArray(),
                                     *sharedVolumes.toTypedArray()
                                 )
 
