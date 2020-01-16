@@ -678,7 +678,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                     {/* Show members as icons */}
                                     {/* {!f.acl ? null : <ACLAvatars members={f.acl.map(it => it.entity)} />} */}
                                     {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
-                                        (f.size != null && f.size) < PREVIEW_MAX_SIZE ? (
+                                        f.size != null && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
                                             <Tooltip
                                                 wrapperOffsetLeft="0"
                                                 wrapperOffsetTop="4px"
@@ -720,7 +720,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                                         />
                                                     )}
                                                 >
-                                                    File too large for preview
+                                                    {(f.size ?? 0) > 0 ? "File too large for preview" : "File is empty"}
                                                 </Tooltip>
                                             )}
                                     {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
