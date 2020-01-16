@@ -44,6 +44,10 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             ok(licenseService.updateAcl(request, entity))
         }
 
+        implement(AppLicenseDescriptions.listAcl)  {
+            ok(licenseService.listAcl(request, ctx.securityPrincipal))
+        }
+
         implement(AppLicenseDescriptions.list)  {
             val entity = UserEntity(
                 ctx.securityPrincipal.username,

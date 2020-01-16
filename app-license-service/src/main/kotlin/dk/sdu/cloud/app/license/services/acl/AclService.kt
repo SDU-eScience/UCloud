@@ -21,6 +21,9 @@ class AclService<Session>(
         db.withTransaction { session ->
             if (dao.hasPermission(session, serverId, entity, ServerAccessRight.READ_WRITE)) {
                 changes.forEach { change ->
+                    if (entity == change.entity) {
+                        throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not allowed")
+                    }
                     if (!change.revoke) {
                         updatePermissionsWithSession(session, serverId, change.entity, change.rights)
                     } else {

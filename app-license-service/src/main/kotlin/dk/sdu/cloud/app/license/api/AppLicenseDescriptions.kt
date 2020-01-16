@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.license.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.app.license.services.acl.EntityWithPermission
 import dk.sdu.cloud.app.license.services.acl.ServerAccessRight
 import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.calls.CallDescriptionContainer
@@ -27,6 +28,10 @@ data class NewServerRequest(
     val address: String,
     val port: String,
     val license: String?
+)
+
+data class ListAclRequest(
+    val serverId: String
 )
 
 data class LicenseServerWithId(
@@ -140,10 +145,30 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                +"update-acl"
+                +"updateAcl"
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val listAcl = call<ListAclRequest, List<EntityWithPermission>, CommonErrorMessage>("listAcl") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listAcl"
+            }
+
+            params {
+                +boundTo(ListAclRequest::serverId)
+            }
         }
     }
 

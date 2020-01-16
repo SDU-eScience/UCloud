@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.license.services
 
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.acl.*
@@ -15,17 +16,25 @@ class AppLicenseService<Session>(
     private val appLicenseDao: AppLicenseDao<Session>
 ) {
     fun getLicenseServer(serverId: String, entity: UserEntity): LicenseServerWithId? {
-        if (aclService.hasPermission(serverId, entity, ServerAccessRight.READ)) {
-
-            return db.withTransaction { session ->
-                appLicenseDao.getById(session, serverId)
-            } ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
+        if (!aclService.hasPermission(serverId, entity, ServerAccessRight.READ)) {
+            throw RPCException("Unauthorized request to license server", HttpStatusCode.Unauthorized)
         }
-        throw RPCException("Unauthorized request to license server", HttpStatusCode.Unauthorized)
+
+        return db.withTransaction { session ->
+            appLicenseDao.getById(session, serverId)
+        } ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
     }
 
     fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
         aclService.updatePermissions(request.serverId, request.changes, entity)
+    }
+
+    fun listAcl(request: ListAclRequest, user: SecurityPrincipal) : List<EntityWithPermission> {
+        return if(Roles.PRIVILEDGED.contains(user.role)) {
+            aclService.listAcl(request.serverId)
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not allowed")
+        }
     }
 
     fun listServers(names: List<String>, entity: UserEntity): List<LicenseServerId> {

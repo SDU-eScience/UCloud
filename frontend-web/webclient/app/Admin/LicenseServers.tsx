@@ -19,12 +19,20 @@ import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {TextSpan} from "ui-components/Text";
 
 interface LicenseServer {
-    id: string,
+    id: string;
     name: string;
     address: string;
     port: string;
     license: string | null;
 }
+
+interface AclEntry {
+    id: string;
+    type: string;
+    permission: string;
+}
+
+
 
 async function loadLicenseServers(): Promise<LicenseServer[]> {
     const {response} = await Client.get<Array<LicenseServer>>(`/app/license/listAll`);
@@ -35,6 +43,18 @@ async function loadLicenseServers(): Promise<LicenseServer[]> {
             address: item.address,
             port: item.port,
             license: item.license
+        };
+        return entry;
+    });
+}
+
+async function loadAcl(serverId: string): Promise<AclEntry[]> {
+    const {response} = await Client.get(`/app/license/listAcl?serverId=${serverId}`);
+    return response.map(item => {
+        const entry: AclEntry = {
+            id: item.entity.id,
+            type: item.entity.type,
+            permission: item.permission
         };
         return entry;
     });
@@ -53,6 +73,7 @@ function LicenseServers(props: LicenseServersOperations) {
     const [licenseServers, setLicenseServers] = React.useState<LicenseServer[]>([]);
     const [isAccessListOpen, setAccessListOpen] = React.useState<boolean>(false);
     const [openAccessListServer, setOpenAccessListServer] = React.useState<LicenseServer|null>(null);
+    const [accessList, setAccessList] = React.useState<AclEntry[]|null>(null);
 
     const promiseKeeper = usePromiseKeeper();
 
@@ -65,15 +86,22 @@ function LicenseServers(props: LicenseServersOperations) {
         setLicenseServers(await loadLicenseServers());
     }
 
+    async function loadAndSetAccessList(serverId: string) {
+        setAccessList(await loadAcl(serverId));
+    }
+
+
     React.useEffect(() => {
         loadAndSetLicenseServers();
     }, []);
 
     React.useEffect(() => {
-        if(isAccessListOpen) {
-            // TODO: load ACL 
+        if (isAccessListOpen && openAccessListServer !== null) {
+            loadAndSetAccessList(openAccessListServer.id);
         }
-    }, [isAccessListOpen])
+    }, [isAccessListOpen]);
+
+
  
 
 
@@ -141,8 +169,7 @@ function LicenseServers(props: LicenseServersOperations) {
             headerSize={64}
             main={(
                 <>
-                    <Box maxWidth={800} marginLeft="auto" marginRight="auto">
-                        <p>Admins can manage license servers on this page.</p>
+                    <Box maxWidth={800} mt={30} marginLeft="auto" marginRight="auto">
                         <form onSubmit={e => submit(e)}>
                             <Label mb="1em">
                                 Name
@@ -347,64 +374,68 @@ function LicenseServers(props: LicenseServersOperations) {
                                         />
                                         <Button
                                             attached
-                                            width="300px"
+                                            width="200px"
                                             //disabled={commandLoading}
                                             type={"submit"}
                                         >
-                                            Add permission
+                                            Grant access
                                         </Button>
                                     </Flex>
                                 </form>
                             </Box>
-                            <Table width="600px">
-                                <LeftAlignedTableHeader>
-                                    <TableRow>
-                                        <TableHeaderCell>Name</TableHeaderCell>
-                                        <TableHeaderCell width={50}>Delete</TableHeaderCell>
-                                    </TableRow>
-                                </LeftAlignedTableHeader>
-                                <tbody>
-                                    {licenseServers.map(licenseServer => (
-                                        <TableRow key={licenseServer.id}>
-                                            <TableCell>{licenseServer.name}</TableCell>
-                                            <TableCell textAlign="right">
-                                                <Button
-                                                    color={"red"}
-                                                    type={"button"}
-                                                    onClick={() => addStandardDialog({
-                                                        title: `Are you sure?`,
-                                                        message: (
-                                                            <Box>
-                                                                <Text>
-                                                                    Remove license server {licenseServer.id}?
-                                                                </Text>
-                                                            </Box>
-                                                        ),
-                                                        onConfirm: async () => {
-                                                            /*await invokeCommand(updateLicenseServer(
-                                                                {
-                                                                    licenseId: licenseServer.id,
-                                                                    changes: [
-                                                                        {
-                                                                            name: licenseServer.name,
-                                                                            address: licenseServer.address,
-                                                                            port: licenseServer.port,
-                                                                            license: licenseServer.license
-                                                                        }
-                                                                    ]
-                                                                }
-                                                            ));*/
-                                                            loadAndSetLicenseServers()
-                                                        }
-                                                    })}
-                                                >
-                                                    <Icon size={16} name="trash" />
-                                                </Button>
-                                            </TableCell>
+                            { (accessList !== null && accessList.length > 0) ? (
+                                <Table width="600px">
+                                    <LeftAlignedTableHeader>
+                                        <TableRow>
+                                            <TableHeaderCell>Name</TableHeaderCell>
+                                            <TableHeaderCell width={50}>Delete</TableHeaderCell>
                                         </TableRow>
-                                    ))}
-                                </tbody>
-                            </Table>
+                                    </LeftAlignedTableHeader>
+                                    <tbody>
+                                        {accessList!.map(accessEntry => (
+                                            <TableRow key={accessEntry.id}>
+                                                <TableCell>{accessEntry.id}</TableCell>
+                                                <TableCell textAlign="right">
+                                                    <Button
+                                                        color={"red"}
+                                                        type={"button"}
+                                                        onClick={() => addStandardDialog({
+                                                            title: `Are you sure?`,
+                                                            message: (
+                                                                <Box>
+                                                                    <Text>
+                                                                        Remove access for {accessEntry.id}?
+                                                                    </Text>
+                                                                </Box>
+                                                            ),
+                                                            onConfirm: async () => {
+                                                                /*await invokeCommand(updateLicenseServer(
+                                                                    {
+                                                                        licenseId: licenseServer.id,
+                                                                        changes: [
+                                                                            {
+                                                                                name: licenseServer.name,
+                                                                                address: licenseServer.address,
+                                                                                port: licenseServer.port,
+                                                                                license: licenseServer.license
+                                                                            }
+                                                                        ]
+                                                                    }
+                                                                ));*/
+                                                                loadAndSetLicenseServers()
+                                                            }
+                                                        })}
+                                                    >
+                                                        <Icon size={16} name="trash" />
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </tbody>
+                                </Table>
+                            ) : (
+                                <Text textAlign="center">No access entries found</Text>
+                            )}
                         </div>
                     </ReactModal>
                 </>
