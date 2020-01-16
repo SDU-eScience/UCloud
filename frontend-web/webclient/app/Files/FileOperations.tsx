@@ -33,6 +33,7 @@ import {
 } from "Utilities/FileUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
+import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 
 export interface FileOperationCallback {
     invokeAsyncWork: (fn: () => Promise<void>) => void;
@@ -197,8 +198,8 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Preview",
         onClick: (files, cb) => cb.history.push(filePreviewPage(files[0].path)),
         disabled: (files) => !UF.isExtPreviewSupported(UF.extensionFromPath(files[0].path)) ||
-            (!UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files) || isAnyMockFile(files) ||
-                isAnySharedFs(files)),
+            !UF.inRange({status: files[0].size ?? 0, min: 1, max: PREVIEW_MAX_SIZE}) || (!UF.downloadAllowed(files) ||
+                !allFilesHasAccessRight("READ", files) || isAnyMockFile(files) || isAnySharedFs(files)),
         icon: "search"
     },
     {
