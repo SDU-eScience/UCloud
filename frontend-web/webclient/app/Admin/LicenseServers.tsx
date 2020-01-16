@@ -12,11 +12,15 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 import styled from "styled-components";
 import {defaultErrorHandler} from "UtilityFunctions";
+import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
 import * as ReactModal from "react-modal";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {TextSpan} from "ui-components/Text";
+import {InputLabel} from "ui-components/Input";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {UserEntityType, LicenseServerAccessRight, updateLicenseServerPermission} from "Applications/api";
 
 interface LicenseServer {
     id: string;
@@ -26,16 +30,39 @@ interface LicenseServer {
     license: string | null;
 }
 
+
+const permissionLevels = [
+    {text: prettifyAccessRight(LicenseServerAccessRight.READ), value: LicenseServerAccessRight.READ},
+    {text: prettifyAccessRight(LicenseServerAccessRight.READ_WRITE), value: LicenseServerAccessRight.READ_WRITE},
+];
+
+function prettifyAccessRight(p: LicenseServerAccessRight): string {
+    switch(p) {
+        case LicenseServerAccessRight.READ: {
+            return "Read";
+        }
+        case LicenseServerAccessRight.READ_WRITE: {
+            return "Read/Write";
+        }
+        default: {
+            return "Unknown"
+        }
+
+    }
+}
+
 interface AclEntry {
     id: string;
     type: string;
-    permission: string;
+    permission: LicenseServerAccessRight;
 }
 
 
+function updateServerPermission() {}
+
 
 async function loadLicenseServers(): Promise<LicenseServer[]> {
-    const {response} = await Client.get<Array<LicenseServer>>(`/app/license/listAll`);
+    const {response} = await Client.get<LicenseServer[]>(`/app/license/listAll`);
     return response.map(item => {
         const entry: LicenseServer = {
             id: item.id,
@@ -60,7 +87,6 @@ async function loadAcl(serverId: string): Promise<AclEntry[]> {
     });
 }
 
-
 function LicenseServers(props: LicenseServersOperations) {
     const [submitted, setSubmitted] = React.useState(false);
     const [name, setName] = React.useState("");
@@ -74,6 +100,8 @@ function LicenseServers(props: LicenseServersOperations) {
     const [isAccessListOpen, setAccessListOpen] = React.useState<boolean>(false);
     const [openAccessListServer, setOpenAccessListServer] = React.useState<LicenseServer|null>(null);
     const [accessList, setAccessList] = React.useState<AclEntry[]|null>(null);
+    const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
+    const [commandLoading, invokeCommand] = useAsyncCommand();
 
     const promiseKeeper = usePromiseKeeper();
 
@@ -98,12 +126,13 @@ function LicenseServers(props: LicenseServersOperations) {
     React.useEffect(() => {
         if (isAccessListOpen && openAccessListServer !== null) {
             loadAndSetAccessList(openAccessListServer.id);
+        } else {
+            setAccessList(null);
         }
     }, [isAccessListOpen]);
 
 
- 
-
+    const newPermissionEntityField = React.useRef<HTMLInputElement>(null);
 
     async function submit(e: React.SyntheticEvent) {
         e.preventDefault();
@@ -337,41 +366,55 @@ function LicenseServers(props: LicenseServersOperations) {
                             </Flex>
                             <Box mt={16} mb={30}>
                                 <form
-                                    /*onSubmit={async e => {
+                                    onSubmit={async e => {
                                         e.preventDefault();
-                                        if (commandLoading) return;
 
-                                        const permissionField = newPermissionField.current;
-                                        if (permissionField === null) return;
+                                        const permissionEntityField = newPermissionEntityField.current;
+                                        if (permissionEntityField === null) return;
 
-                                        const permissionValue = permissionField.value;
-                                        if (permissionValue === "") return;
+                                        const permissionUserValue = permissionEntityField.value;
 
-                                        await invokeCommand(updateApplicationPermission(
+                                        console.log(permissionUserValue);
+                                        if (permissionUserValue === "") return;
+
+                                        if (openAccessListServer === null) return;
+                                        await invokeCommand(await updateLicenseServerPermission(
                                             {
-                                                applicationName: name,
+                                                serverId: openAccessListServer.id,
                                                 changes: [
                                                     {
-                                                        entity: { id: permissionValue, type: UserEntityType.USER },
-                                                        rights: access,
+                                                        entity: { id: permissionUserValue, type: UserEntityType.USER },
+                                                        rights: selectedAccess,
                                                         revoke: false
                                                     }
                                                 ]
                                             }
                                         ));
-                                        setPermissionEntries(await loadApplicationPermissionEntries(name));
 
-                                        permissionField.value = "";
-                                    }}*/
+                                        if (openAccessListServer !== null) {
+                                            loadAndSetAccessList(openAccessListServer.id);
+                                        }
+
+                                        permissionEntityField.value = "";
+                                    }}
                                 >
                                     <Flex height={45}>
                                         <Input
                                             rightLabel
                                             required
                                             type="text"
-                                            //ref={newPermissionField}
+                                            ref={newPermissionEntityField}
                                             placeholder="Username"
                                         />
+                                        <InputLabel width="220px" rightLabel>
+                                            <ClickableDropdown
+                                                chevron
+                                                width="180px"
+                                                onChange={(val: LicenseServerAccessRight.READ | LicenseServerAccessRight.READ_WRITE) => setSelectedAccess(val)}
+                                                trigger={<Box as="span" minWidth="220px">{prettifyAccessRight(selectedAccess)}</Box>}
+                                                options={permissionLevels}
+                                            />
+                                        </InputLabel>
                                         <Button
                                             attached
                                             width="200px"
@@ -383,56 +426,60 @@ function LicenseServers(props: LicenseServersOperations) {
                                     </Flex>
                                 </form>
                             </Box>
-                            { (accessList !== null && accessList.length > 0) ? (
-                                <Table width="600px">
-                                    <LeftAlignedTableHeader>
-                                        <TableRow>
-                                            <TableHeaderCell>Name</TableHeaderCell>
-                                            <TableHeaderCell width={50}>Delete</TableHeaderCell>
-                                        </TableRow>
-                                    </LeftAlignedTableHeader>
-                                    <tbody>
-                                        {accessList!.map(accessEntry => (
-                                            <TableRow key={accessEntry.id}>
-                                                <TableCell>{accessEntry.id}</TableCell>
-                                                <TableCell textAlign="right">
-                                                    <Button
-                                                        color={"red"}
-                                                        type={"button"}
-                                                        onClick={() => addStandardDialog({
-                                                            title: `Are you sure?`,
-                                                            message: (
-                                                                <Box>
-                                                                    <Text>
-                                                                        Remove access for {accessEntry.id}?
-                                                                    </Text>
-                                                                </Box>
-                                                            ),
-                                                            onConfirm: async () => {
-                                                                /*await invokeCommand(updateLicenseServer(
-                                                                    {
-                                                                        licenseId: licenseServer.id,
-                                                                        changes: [
-                                                                            {
-                                                                                name: licenseServer.name,
-                                                                                address: licenseServer.address,
-                                                                                port: licenseServer.port,
-                                                                                license: licenseServer.license
-                                                                            }
-                                                                        ]
-                                                                    }
-                                                                ));*/
-                                                                loadAndSetLicenseServers()
-                                                            }
-                                                        })}
-                                                    >
-                                                        <Icon size={16} name="trash" />
-                                                    </Button>
-                                                </TableCell>
+                            { (accessList !== null && accessList.length > 0 && isAccessListOpen) ? (
+                                <Box maxHeight="80vh">
+                                    <Table width="700px">
+                                        <LeftAlignedTableHeader>
+                                            <TableRow>
+                                                <TableHeaderCell>Name</TableHeaderCell>
+                                                <TableHeaderCell width={200}>Permission</TableHeaderCell>
+                                                <TableHeaderCell width={50}>Delete</TableHeaderCell>
                                             </TableRow>
-                                        ))}
-                                    </tbody>
-                                </Table>
+                                        </LeftAlignedTableHeader>
+                                        <tbody>
+                                            {accessList!.map(accessEntry => (
+                                                <TableRow key={accessEntry.id}>
+                                                    <TableCell>{accessEntry.id}</TableCell>
+                                                    <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
+                                                    <TableCell textAlign="right">
+                                                        <Button
+                                                            color={"red"}
+                                                            type={"button"}
+                                                            onClick={() => addStandardDialog({
+                                                                title: `Are you sure?`,
+                                                                message: (
+                                                                    <Box>
+                                                                        <Text>
+                                                                            Remove access for {accessEntry.id}?
+                                                                        </Text>
+                                                                    </Box>
+                                                                ),
+                                                                onConfirm: async () => {
+                                                                    /*await invokeCommand(updateLicenseServer(
+                                                                        {
+                                                                            licenseId: licenseServer.id,
+                                                                            changes: [
+                                                                                {
+                                                                                    name: licenseServer.name,
+                                                                                    address: licenseServer.address,
+                                                                                    port: licenseServer.port,
+                                                                                    license: licenseServer.license
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    ));*/
+                                                                    loadAndSetLicenseServers()
+                                                                }
+                                                            })}
+                                                        >
+                                                            <Icon size={16} name="trash" />
+                                                        </Button>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </tbody>
+                                    </Table>
+                                </Box>
                             ) : (
                                 <Text textAlign="center">No access entries found</Text>
                             )}
