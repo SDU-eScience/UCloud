@@ -2,8 +2,12 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.TolerationKeyAndValue
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.store.api.BooleanFlagParameter
 import dk.sdu.cloud.app.store.api.ContainerDescription
+import dk.sdu.cloud.app.store.api.EnvironmentVariableParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.VariableInvocationParameter
+import dk.sdu.cloud.app.store.api.WordInvocationParameter
 import dk.sdu.cloud.app.store.api.buildEnvironmentValue
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.BroadcastingStream
@@ -202,8 +206,9 @@ class K8JobCreationService(
                                                 }
                                             }.toMap()
 
-                                        val command =
-                                            app.invocation.flatMap { it.buildInvocationList(givenParameters) }
+                                        val command = app.invocation.flatMap { parameter ->
+                                            parameter.buildInvocationList(givenParameters)
+                                        }
 
                                         log.debug("Container is: ${tool.container}")
                                         log.debug("Executing command: $command")

@@ -125,27 +125,34 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
             )
 
             try {
-                val file = File(translateAndCheckFile(fsRoot, mount.source)).toPath()
-                if (Files.isDirectory(file)) {
-                    val targetName = mount.destination.fileName()
-
-                    val snapDirectory = file.resolve("./.snap/${workspaceId}")
-                    Files.createDirectory(snapDirectory)
-                    val root = workspace.resolve("./$SNAPSHOT_LAYER/$targetName")
-                    Files.createDirectories(root)
-                    Files.createDirectory(root.resolve(UPPER_LAYER))
-                    Files.createDirectory(root.resolve(WORK_LAYER))
-
-                    snaps.add(
-                        CowSnapshot(
-                            targetName,
-                            fsRoot.toPath().relativize(snapDirectory).normalize().toString(),
-                            mount.source
-                        )
-                    )
-                } else if (Files.isRegularFile(file)) {
-                    TODO("Files not yet implemented")
+                val file = run {
+                    val file = File(translateAndCheckFile(fsRoot, mount.source)).toPath()
+                    when {
+                        Files.isDirectory(file) -> file
+                        Files.isRegularFile(file) -> file.parent
+                        else -> {
+                            throw RPCException("Bad file: ${file.fileName}", HttpStatusCode.InternalServerError)
+                        }
+                    }
                 }
+
+                require(Files.isDirectory(file))
+                val targetName = mount.destination.fileName()
+
+                val snapDirectory = file.resolve("./.snap/${workspaceId}")
+                Files.createDirectory(snapDirectory)
+                val root = workspace.resolve("./$SNAPSHOT_LAYER/$targetName")
+                Files.createDirectories(root)
+                Files.createDirectory(root.resolve(UPPER_LAYER))
+                Files.createDirectory(root.resolve(WORK_LAYER))
+
+                snaps.add(
+                    CowSnapshot(
+                        targetName,
+                        fsRoot.toPath().relativize(snapDirectory).normalize().toString(),
+                        mount.source
+                    )
+                )
             } catch (ex: Throwable) {
                 log.info("Failed to add ${mount.source}. ${ex.message}")
                 log.debug(ex.stackTraceToString())
