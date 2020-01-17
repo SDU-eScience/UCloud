@@ -235,6 +235,7 @@ export interface DetailedFileSearchOperations {
     setFilename: (filename: string) => void;
     setLoading: (loading: boolean) => void;
     setTimes: (times: Times) => void;
+    setSearch: (search: string) => void;
 }
 
 export type DetailedFileSearchStateProps = DetailedFileSearchReduxState & DetailedFileSearchOperations;
@@ -245,7 +246,6 @@ export interface DetailedFileSearchReduxState {
     hidden: boolean;
     allowFolders: boolean;
     allowFiles: boolean;
-    fileName: string;
     extensions: Set<string>;
     tags: Set<string>;
     sensitivities: Set<SensitivityLevel>;

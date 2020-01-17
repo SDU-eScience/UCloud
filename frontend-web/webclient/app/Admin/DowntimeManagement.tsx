@@ -10,6 +10,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import styled from "styled-components";
 import {Page} from "Types";
 import {Box, Button, Flex, Icon, Input, InputGroup, List, TextArea} from "ui-components";
 import {DatePicker} from "ui-components/DatePicker";
@@ -76,15 +77,11 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
                                 </InputGroup>
                                 <Button ml="5px" mr="-5px">Add</Button>
                             </Flex>
-                            <TextArea
+                            <TextAreaWithMargin
                                 width={1}
                                 ref={textRef}
                                 rows={5}
                                 required
-                                style={{
-                                    marginTop: "5px",
-                                    marginLeft: "4px"
-                                }}
                             />
                         </form>
                         <Spacer
@@ -112,7 +109,7 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
                     width={1}
                     onClick={removeAllExpired}
                     color="red"
-                    disabled={getExpired().length > 0}
+                    disabled={getExpired().length === 0}
                 >
                     Clear expired downtimes
                 </Button>
@@ -215,6 +212,11 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
         });
     }
 }
+
+const TextAreaWithMargin = styled(TextArea)`
+    marginTop: 5px;
+    marginLeft: 4px;
+`;
 
 export function DowntimeList(props: {downtimes: Downtime[], title: string, remove?: (id: number) => void}) {
     if (props.downtimes.length === 0) return null;

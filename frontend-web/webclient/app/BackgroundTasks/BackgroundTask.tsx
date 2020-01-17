@@ -86,6 +86,7 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
             maximum: targetUploadSize,
             current: uploadedSize
         },
+        jobId: "upload-task",
         speed: {
             title: "Transfer speed",
             speed: humanReadable.size,
@@ -107,20 +108,18 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
                 top="37px"
                 trigger={<TasksIcon />}
             >
-                {props.activeUploads <= 0 ? null : <TaskComponent {...uploadTask} />}
+                {props.activeUploads <= 0 ? null : <TaskComponent onClick={props.showUploader} {...uploadTask} />}
                 {!props.tasks ? null :
-                    Object.values(props.tasks).map(update => {
-                        return (
-                            <TaskComponent
-                                key={update.jobId}
-                                jobId={update.jobId}
-                                onClick={setTaskInFocus}
-                                title={update.newTitle ?? ""}
-                                speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
-                                progress={update.progress ? update.progress : undefined}
-                            />
-                        );
-                    })
+                    Object.values(props.tasks).map(update => (
+                        <TaskComponent
+                            key={update.jobId}
+                            jobId={update.jobId}
+                            onClick={setTaskInFocus}
+                            title={update.newTitle ?? ""}
+                            speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
+                            progress={update.progress ? update.progress : undefined}
+                        />
+                    ))
                 }
             </ClickableDropdown>
 

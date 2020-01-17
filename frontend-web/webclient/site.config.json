@@ -7,5 +7,6 @@
     "PRODUCTION_WEBDAV_URL": "https://dav.cloud.sdu.dk/",
     "STATUS_PAGE": "https://status.cloud.sdu.dk",
     "DATA_PROTECTION_TEXT": "SDU Data Protection",
-    "DATA_PROTECTION_LINK": "https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse"
+    "DATA_PROTECTION_LINK": "https://www.sdu.dk/en/om_sdu/om_dette_websted/databeskyttelse",
+    "PREVIEW_MAX_SIZE": 5000000
 }

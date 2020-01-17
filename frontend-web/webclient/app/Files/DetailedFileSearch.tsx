@@ -4,8 +4,9 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory} from "react-router";
 import {Dispatch} from "redux";
+import {setSearch} from "Search/Redux/SearchActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Checkbox, Flex, Input, InputGroup, Label, OutlineButton, Stamp} from "ui-components";
+import {Button, Checkbox, Flex, Hide, Input, InputGroup, Label, OutlineButton, Stamp} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
@@ -31,7 +32,7 @@ interface DetailedFileSearchGivenProps {
     defaultFilename?: string;
     cantHide?: boolean;
     omitFileName?: boolean;
-    onSearch: () => void;
+    search: string;
 }
 
 type DetailedFileSearchProps = DetailedFileSearchStateProps & DetailedFileSearchGivenProps;
@@ -62,7 +63,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
 
     return (
         <>
-            {!cantHide ? (
+            {cantHide ? null : (
                 <OutlineButton
                     fullWidth
                     color="darkGreen"
@@ -70,10 +71,14 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
                 >
                     Hide Advanced Search
                 </OutlineButton>
-            ) : null}
+            )}
             <Flex flexDirection="column" pl="0.5em" pr="0.5em">
                 <Box mt="0.5em">
                     <form onSubmit={onSubmit}>
+                        <Hide lg xl xxl>
+                            <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
+                            <Input value={props.search} onChange={e => props.setSearch(e.target.value)} />
+                        </Hide>
                         <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
                         <InputGroup>
                             <DatePicker
@@ -277,8 +282,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
 
     function onSearch() {
         onAddExtension();
-        history.push(searchPage("files", props.fileName));
-        props.onSearch();
+        history.push(searchPage("files", props.search));
     }
 }
 
@@ -303,8 +307,12 @@ const extensionPresets = [
     {text: "Compressed files", value: ".zip .tar.gz"}
 ];
 
-const mapStateToProps = ({detailedFileSearch}: ReduxObject): DetailedFileSearchReduxState & {sizeCount: number} => ({
+const mapStateToProps = ({
+    detailedFileSearch,
+    simpleSearch
+}: ReduxObject): DetailedFileSearchReduxState & {search: string; sizeCount: number} => ({
     ...detailedFileSearch,
+    search: simpleSearch.search,
     sizeCount: detailedFileSearch.extensions.size + detailedFileSearch.tags.size + detailedFileSearch.sensitivities.size
 });
 
@@ -323,6 +331,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DetailedFileSearchOperations =>
     setFilename: filename => dispatch(DFSActions.setFilename(filename)),
     setLoading: loading => dispatch(DFSActions.setFilesSearchLoading(loading)),
     setTimes: times => dispatch(DFSActions.setTime(times)),
+    setSearch: search => dispatch(setSearch(search))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(DetailedFileSearch);

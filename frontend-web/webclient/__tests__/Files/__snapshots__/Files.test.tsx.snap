@@ -342,7 +342,7 @@ exports[`Mount Files component 1`] = `
   className="c0"
 >
   <div
-    className="c1"
+    className="sc-AykKG c1"
     height={96}
     width={1}
   >
@@ -436,7 +436,7 @@ exports[`Mount Files component 1`] = `
     className="c13"
   >
     <div
-      className="c14"
+      className="sc-AykKG c14"
       height="100%"
       width={240}
     >

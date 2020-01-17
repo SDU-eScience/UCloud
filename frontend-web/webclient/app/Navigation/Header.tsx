@@ -21,7 +21,7 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
-import {searchApplications, searchFiles, setApplicationsLoading, setFilesLoading} from "Search/Redux/SearchActions";
+import {searchApplications, searchFiles, setApplicationsLoading, setFilesLoading, setSearch} from "Search/Redux/SearchActions";
 import {applicationSearchBody, fileSearchBody} from "Search/Search";
 import styled from "styled-components";
 import {Page} from "Types";
@@ -57,8 +57,8 @@ import {
     inDevEnvironment,
     isLightThemeStored,
     prettierString,
-    stopPropagationAndPreventDefault,
-    shouldHideSidebarAndHeader
+    shouldHideSidebarAndHeader,
+    stopPropagationAndPreventDefault
 } from "UtilityFunctions";
 import {DEV_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 
@@ -192,7 +192,7 @@ function Header(props: HeaderProps) {
     async function fetchDowntimes() {
         try {
             if (!Client.isLoggedIn) return;
-            const result = await promises.makeCancelable(Client.get<Page<Downtime>>("/downtime/listUpcoming")).promise;
+            const result = await promises.makeCancelable(Client.get<Page<Downtime>>("/downtime/listPending")).promise;
             if (result.response.itemsInTotal > 0) setUpcomingDowntime(result.response.items[0].id);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Could not fetch upcoming downtimes.");
@@ -295,12 +295,14 @@ interface SearchStateProps {
     appSearch: DetailedApplicationSearchReduxState;
     files: Page<File>;
     applications: Page<FullAppInfo>;
+    search: string;
 }
 
 interface SearchOperations {
     setSearchType: (st: HeaderSearchType) => void;
     searchFiles: (body: AdvancedSearchRequest) => void;
     searchApplications: (body: AppSearchRequest) => void;
+    setSearch: (search: string) => void;
 }
 
 type SearchProps = SearchOperations & SearchStateProps;
@@ -309,7 +311,9 @@ type SearchProps = SearchOperations & SearchStateProps;
 const _Search = (props: SearchProps) => {
     const history = useHistory();
     const location = useLocation();
-    const [search, setSearch] = React.useState(getQueryParamOrElse({history, location}, "query", ""));
+    React.useEffect(() => {
+        props.setSearch(getQueryParamOrElse({history, location}, "query", ""));
+    }, []);
     const {prioritizedSearch, setSearchType} = props;
     const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
     return (
@@ -321,12 +325,12 @@ const _Search = (props: SearchProps) => {
                     pb="6px"
                     id="search_input"
                     type="text"
-                    value={search}
+                    value={props.search}
                     noBorder
                     onKeyDown={e => {
-                        if (e.keyCode === KeyCode.ENTER && search) fetchAll();
+                        if (e.keyCode === KeyCode.ENTER && props.search) fetchAll();
                     }}
-                    onChange={e => setSearch(e.target.value)}
+                    onChange={e => props.setSearch(e.target.value)}
                 />
                 <Absolute left="6px" top="7px">
                     <Label htmlFor="search_input">
@@ -363,15 +367,9 @@ const _Search = (props: SearchProps) => {
                         <Box mr="auto" />
                     </SelectableTextWrapper>
                     {prioritizedSearch === "files" ? (
-                        <DetailedFileSearch
-                            onSearch={() => fetchAll()}
-                            cantHide
-                        />
+                        <DetailedFileSearch cantHide />
                     ) : prioritizedSearch === "applications" ? (
-                        <DetailedApplicationSearch
-                            onSearch={() => fetchAll()}
-                            defaultAppQuery={search}
-                        />
+                        <DetailedApplicationSearch defaultAppQuery={props.search} />
                     ) : null}
                 </ClickableDropdown>
                 {!Client.isLoggedIn ? <Login /> : null}
@@ -383,18 +381,20 @@ const _Search = (props: SearchProps) => {
         props.searchFiles({
             ...fileSearchBody(
                 props.fileSearch,
+                props.search,
                 itemsPerPage ?? props.files.itemsPerPage,
                 props.files.pageNumber
-            ), fileName: search
+            ), fileName: props.search
         });
-        props.searchApplications({
-            ...applicationSearchBody(
+        props.searchApplications(
+            applicationSearchBody(
                 props.appSearch,
+                props.search,
                 itemsPerPage ?? props.applications.itemsPerPage,
                 props.applications.pageNumber
-            ), query: search
-        });
-        history.push(searchPage(prioritizedSearch, search));
+            )
+        );
+        history.push(searchPage(prioritizedSearch, props.search));
     }
 };
 
@@ -408,6 +408,7 @@ const mapSearchStateToProps = ({
     fileSearch: detailedFileSearch,
     appSearch: detailedApplicationSearch,
     files: simpleSearch.files,
+    search: simpleSearch.search,
     applications: simpleSearch.applications
 });
 
@@ -423,6 +424,7 @@ const mapSearchDispatchToProps = (dispatch: Dispatch): SearchOperations => ({
         dispatch(await searchApplications(body));
         dispatch(setAppQuery(body.query || ""));
     },
+    setSearch: search => dispatch(setSearch(search))
 });
 
 const Search = connect(mapSearchStateToProps, mapSearchDispatchToProps)(_Search);
@@ -435,7 +437,7 @@ const mapDispatchToProps = (dispatch: Dispatch): HeaderOperations => ({
     fetchAvatar: async () => {
         const action = await findAvatar();
         if (action !== null) dispatch(action);
-    }
+    },
 });
 
 const mapStateToProps = ({header, avatar, ...rest}: ReduxObject): HeaderStateToProps => ({

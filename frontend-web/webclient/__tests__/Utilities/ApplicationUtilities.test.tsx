@@ -1,10 +1,9 @@
-import {ParameterTypes} from "Applications";
-import "jest-styled-components";
+import {ParameterTypes} from "../../app/Applications";
 import {
     findKnownParameterValues,
     hpcApplicationsQuery,
     hpcJobQuery,
-} from "Utilities/ApplicationUtilities";
+} from "../../app/Utilities/ApplicationUtilities";
 
 describe("Application Utilities", () => {
     test("Create hpcJobQuery string", () => {

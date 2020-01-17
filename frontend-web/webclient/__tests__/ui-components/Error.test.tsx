@@ -4,7 +4,6 @@ import Error from "../../app/ui-components/Error";
 import {create} from "react-test-renderer";
 import {configure, mount} from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
-import "jest-styled-components";
 import {ThemeProvider} from "styled-components";
 configure({adapter: new Adapter()});
 

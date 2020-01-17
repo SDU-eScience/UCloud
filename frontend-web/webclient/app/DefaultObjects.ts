@@ -269,7 +269,6 @@ export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
     hidden: true,
     allowFolders: true,
     allowFiles: true,
-    fileName: "",
     extensions: new Set(),
     tags: new Set(),
     sensitivities: new Set(),
