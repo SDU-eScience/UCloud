@@ -61,6 +61,7 @@ import kotlin.streams.asSequence
  * ```
  * /
  *     /snaps.json
+ *     /snaps.txt
  *     /work (For remaining files)
  *     /snapshots (needed to namespace the snapshots)
  *         ${directoryName}/
@@ -112,7 +113,7 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         val failures = ArrayList<WorkspaceMount>()
         mounts.forEach { mount ->
             if (mount.readOnly) {
-                log.warn(
+                log.info(
                     "Ignoring readOnly property of workspace mount. This attribute is not supported for " +
                             "CoW workspaces"
                 )
@@ -235,7 +236,6 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
             }
         }
 
-        log.info("Completely done: $transferredFiles")
         return transferredFiles
     }
 
@@ -252,7 +252,7 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         fsRunner.withContext(SERVICE_USER) { rootCtx ->
             Files.walk(directory).asSequence().forEach { path ->
                 val relativePath = rootPath.relativize(path)
-                log.info("The relative path is $relativePath")
+                log.debug("transferToDefault: The relative path is $relativePath")
                 val realPath = defaultDestinationDir.resolve(relativePath)
                 val cloudPath = realPath.toCloudPath()
                 val workspaceCloudPath = path.toCloudPath()
