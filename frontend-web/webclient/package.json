@@ -81,7 +81,7 @@
     "ts-loader": "6.2.1",
     "tslint": "^5.20.1",
     "tslint-react": "^4.1.0",
-    "typescript": "^3.7.4",
+    "typescript": "^3.7.5",
     "url-loader": "3.0.0",
     "webpack": "4.41.5",
     "webpack-cli": "^3.3.10",
