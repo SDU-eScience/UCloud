@@ -46,7 +46,7 @@ interface DowntimeDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<Downtime>
 
-    fun listUpcoming(
+    fun listPending(
         session: Session,
         paging: NormalizedPaginationRequest
     ): Page<Downtime>
