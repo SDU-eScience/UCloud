@@ -14,7 +14,6 @@ import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationParameter
 import dk.sdu.cloud.app.store.api.FileTransferDescription
-import dk.sdu.cloud.app.store.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call

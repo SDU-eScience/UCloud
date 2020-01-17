@@ -20,7 +20,17 @@ import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {AccessRight, Page} from "Types";
-import {Box, Button, ContainerForText, Flex, Label, OutlineButton, VerticalButtonGroup} from "ui-components";
+import {
+    Box,
+    Button,
+    Checkbox,
+    ContainerForText,
+    Flex,
+    Label,
+    OutlineButton,
+    theme,
+    VerticalButtonGroup
+} from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Error from "ui-components/Error";
@@ -97,7 +107,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             previousRuns: emptyPage,
             reservation: React.createRef(),
             unknownParameters: [],
-            sharedFileSystems: {mounts: []}
+            sharedFileSystems: {mounts: []},
+            useCow: true
         };
     }
 
@@ -123,6 +134,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
     }
 
+    public toggleCow = () => {
+        this.setState(state => ({useCow: !state.useCow}));
+    }
+
     public render() {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
         if (!application) return <MainContainer main={<LoadingIcon size={18} />} />;
@@ -145,9 +160,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const mapParamToComponent = (parameter: ApplicationParameter) => {
             const ref = parameterValues.get(parameter.name)!;
+
             function handleParamChange() {
                 onParameterChange(parameter, false);
             }
+
             return (
                 <Parameter
                     key={parameter.name}
@@ -256,6 +273,16 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                     clearError={() => this.setState(() => ({unknownParameters: []}))}
                                 />
                             )}
+
+                            <Box mb={8} mt={8}>
+                                <Label>
+                                    <Checkbox size={28} checked={this.state.useCow} onClick={this.toggleCow} />
+                                    <span style={{color: theme.colors.green}}>BETA:</span>{" "}
+                                    Enable new file transfer method.
+                                    This should make data transfer significantly faster.
+                                </Label>
+                            </Box>
+
                             <RunSection>
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
@@ -311,33 +338,33 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     at the end of the job.
                                                 </>
                                             ) : (
-                                                    <>
-                                                        If you need to use your {" "}
-                                                        <Link
-                                                            to={fileTablePage(Client.homeFolder)}
-                                                            target="_blank"
-                                                        >
-                                                            files
-                                                        </Link>
-                                                        {" "}
-                                                        in this job then click {" "}
-                                                        <BaseLink
-                                                            href="#"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                this.addFolder();
-                                                            }}
-                                                        >
-                                                            "Add folder"
-                                                        </BaseLink>
-                                                        {" "}
-                                                        to select the relevant
-                                                        files.
+                                                <>
+                                                    If you need to use your {" "}
+                                                    <Link
+                                                        to={fileTablePage(Client.homeFolder)}
+                                                        target="_blank"
+                                                    >
+                                                        files
+                                                    </Link>
+                                                    {" "}
+                                                    in this job then click {" "}
+                                                    <BaseLink
+                                                        href="#"
+                                                        onClick={e => {
+                                                            e.preventDefault();
+                                                            this.addFolder();
+                                                        }}
+                                                    >
+                                                        "Add folder"
+                                                    </BaseLink>
+                                                    {" "}
+                                                    to select the relevant
+                                                    files.
                                                 </>
-                                                )}
+                                            )}
                                         </Box>
 
-                                        {this.state.mountedFolders.every(it => it.readOnly) ? "" :
+                                        {this.state.useCow || this.state.mountedFolders.every(it => it.readOnly) ? "" :
                                             "Note: Giving folders read/write access will make the startup and shutdown of the application longer."}
 
                                         {this.state.mountedFolders.map((entry, i) => (
@@ -362,20 +389,23 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                         defaultValue: "",
                                                         visible: true,
                                                         unitName: (
-                                                            <ClickableDropdown
-                                                                chevron
-                                                                width="180px"
-                                                                onChange={key => {
-                                                                    const {mountedFolders} = this.state;
-                                                                    mountedFolders[i].readOnly = key === "READ";
-                                                                    this.setState(() => ({mountedFolders}));
-                                                                }}
-                                                                trigger={entry.readOnly ? "Read only" : "Read/Write"}
-                                                                options={[
-                                                                    {text: "Read only", value: "READ"},
-                                                                    {text: "Read/Write", value: "READ/WRITE"}
-                                                                ]}
-                                                            />
+                                                            this.state.useCow ? null : (
+                                                                <ClickableDropdown
+                                                                    chevron
+                                                                    width="180px"
+                                                                    onChange={key => {
+                                                                        const {mountedFolders} = this.state;
+                                                                        mountedFolders[i].readOnly = key === "READ";
+                                                                        this.setState(() => ({mountedFolders}));
+                                                                    }}
+                                                                    trigger={entry.readOnly ?
+                                                                        "Read only" : "Read/Write"}
+                                                                    options={[
+                                                                        {text: "Read only", value: "READ"},
+                                                                        {text: "Read/Write", value: "READ/WRITE"}
+                                                                    ]}
+                                                                />
+                                                            )
                                                         ),
                                                     }}
                                                 />
@@ -405,21 +435,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                 File systems used by the <b>job</b> are automatically added to this job.
                                             </>
                                         ) : (
-                                                <>
-                                                    If you need to use the services of another job click{" "}
-                                                    <BaseLink
-                                                        href="#"
-                                                        onClick={e => {
-                                                            e.preventDefault();
-                                                            this.connectToJob();
-                                                        }}
-                                                    >
-                                                        "Connect to job".
-                                                    </BaseLink>
-                                                    {" "}
-                                                    These services include networking and shared application file systems.
+                                            <>
+                                                If you need to use the services of another job click{" "}
+                                                <BaseLink
+                                                    href="#"
+                                                    onClick={e => {
+                                                        e.preventDefault();
+                                                        this.connectToJob();
+                                                    }}
+                                                >
+                                                    "Connect to job".
+                                                </BaseLink>
+                                                {" "}
+                                                These services include networking and shared application file systems.
                                             </>
-                                            )}
+                                        )}
                                     </Box>
 
                                     {
@@ -530,7 +560,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             }
         }
 
-        const peers = [] as Array<{name: string, jobId: string}>;
+        const peers = [] as Array<{ name: string, jobId: string }>;
         {
             // Validate additional mounts
             for (const peer of this.state.additionalPeers) {
@@ -582,7 +612,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             peers,
             reservation,
             type: "start",
-            name: !!jobName ? jobName : null
+            name: !!jobName ? jobName : null,
+            mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES"
         };
 
         try {
@@ -768,7 +799,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.readAsText(file);
     }
 
-    private onImportFileSelected(file: {path: string}) {
+    private onImportFileSelected(file: { path: string }) {
         if (!file.path.endsWith(".json")) {
             addStandardDialog({
                 title: "Continue?",
@@ -781,7 +812,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.fetchAndImportParameters(file);
     }
 
-    private fetchAndImportParameters = async (file: {path: string}) => {
+    private fetchAndImportParameters = async (file: { path: string }) => {
         const fileStat = await Client.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed not allowed.");
@@ -948,20 +979,20 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
             <div>
                 <Button fullWidth as="label">
                     Upload file
-                <HiddenInputField
-                    type="file"
-                    onChange={e => {
-                        if (e.target.files) {
-                            const file = e.target.files[0];
-                            if (file.size > 10_000_000) {
-                                snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
-                            } else {
-                                importParameters(file);
+                    <HiddenInputField
+                        type="file"
+                        onChange={e => {
+                            if (e.target.files) {
+                                const file = e.target.files[0];
+                                if (file.size > 10_000_000) {
+                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
+                                } else {
+                                    importParameters(file);
+                                }
+                                dialogStore.success();
                             }
-                            dialogStore.success();
-                        }
-                    }}
-                />
+                        }}
+                    />
                 </Button>
                 <Button mt="6px" fullWidth onClick={() => (dialogStore.success(), showFileSelector())}>
                     Select file from {PRODUCT_NAME}

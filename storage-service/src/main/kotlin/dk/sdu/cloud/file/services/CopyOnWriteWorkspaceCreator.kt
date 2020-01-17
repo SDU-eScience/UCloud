@@ -220,12 +220,14 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         }
 
         if (canWriteToDefault) {
+            val snapshotNames = cowManifest.snapshots.map { it.directoryName }.toSet()
+
             fsRunner.withContext(manifest.username) { ctx ->
                 workDirectory
                     .listAndClose()
                     .asSequence()
                     .filter { child ->
-                        matchers.any { it.matches(child.fileName) }
+                        matchers.any { it.matches(child.fileName) } && child.fileName.toString() !in snapshotNames
                     }
                     .forEach { file ->
                         transferToDefault(workDirectory, file, defaultDestinationDir, ctx, transferredFiles)

@@ -16,7 +16,5 @@ cp -r "/opt/$DRIVER/.bin" "/flexmnt/$driver_dir/.bin"
 cp "/opt/$DRIVER/$DRIVER" "/flexmnt/$driver_dir/.$DRIVER"
 mv -f "/flexmnt/$driver_dir/.$DRIVER" "/flexmnt/$driver_dir/$DRIVER"
 
-while : ; do
-  sleep 3600
-done
+tail -f /dev/null
 

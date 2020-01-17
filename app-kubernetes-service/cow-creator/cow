@@ -47,7 +47,7 @@ domount() {
 
     mount --bind "${cephfs_mount}/workspace/${workspace}/work" "${mntpath}"
 
-    xargs --no-run-if-empty -a "${snaps_txt}" -n 3 \
+    xargs -d '\n' --no-run-if-empty -a "${snaps_txt}" -n 3 \
         cowmount "${workspace}" "${mntpath}"
 
     log '{"status":"Success"}'
@@ -60,8 +60,8 @@ unmount() {
     snaps_file="/tmp/snaps/$(echo $mntpath | md5sum | awk '{ print $1 }')"
     all_dirs=$(cat ${snaps_file} | jq -r '.snapshots[] | .directoryName')
 
-    echo $all_dirs | xargs -I {} umount "${mntpath}/{}"
-    echo $all_dirs | xargs -I {} rmdir "${mntpath}/{}"
+    echo $all_dirs | xargs -d '\n' -I {} umount "${mntpath}/{}"
+    echo $all_dirs | xargs -d '\n' -I {} rmdir "${mntpath}/{}"
 
     umount $mntpath
 
