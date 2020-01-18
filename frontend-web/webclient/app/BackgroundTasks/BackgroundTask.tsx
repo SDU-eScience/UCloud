@@ -64,36 +64,51 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
         setTaskInFocus(null);
     }, []);
 
-    let speedSum = 0;
-    let uploadedSize = 0;
-    let targetUploadSize = 0;
+    const [uploadInterval, setUploadInterval] = React.useState(-1);
+    const [uploadTask, setUploadTask] = React.useState<TaskComponentProps>(calculateUploadTask());
 
-    props.uploads.forEach(upload => {
-        if (upload.isUploading) {
-            speedSum += calculateUploadSpeed(upload);
-            targetUploadSize += upload.uploadSize;
-            if (upload.uploadEvents.length > 0) {
-                uploadedSize += upload.uploadEvents[upload.uploadEvents.length - 1].progressInBytes;
+    useEffect(() => {
+        if (props.activeUploads > 0 && uploadInterval === -1) {
+            setUploadInterval(setInterval(() => setUploadTask(calculateUploadTask()), 500));
+        } else if (props.activeUploads === 0 && uploadInterval !== -1) {
+            clearInterval(uploadInterval);
+            setUploadInterval(-1);
+        }
+    }, [props.activeUploads]);
+
+    function calculateUploadTask(): TaskComponentProps {
+        let speedSum = 0;
+        let uploadedSize = 0;
+        let targetUploadSize = 0;
+
+        props.uploads.forEach(upload => {
+            if (upload.isUploading) {
+                speedSum += calculateUploadSpeed(upload);
+                targetUploadSize += upload.uploadSize;
+                if (upload.uploadEvents.length > 0) {
+                    uploadedSize += upload.uploadEvents[upload.uploadEvents.length - 1].progressInBytes;
+                }
             }
-        }
-    });
+        });
 
-    const humanReadable = sizeToHumanReadableWithUnit(speedSum);
-    const uploadTask: TaskComponentProps = {
-        title: "File uploads",
-        progress: {
-            title: "Bytes uploaded",
-            maximum: targetUploadSize,
-            current: uploadedSize
-        },
-        jobId: "upload-task",
-        speed: {
-            title: "Transfer speed",
-            speed: humanReadable.size,
-            unit: humanReadable.unit + "/s",
-            asText: `${humanReadable.size} ${humanReadable.unit}/s`
-        }
-    };
+        const humanReadable = sizeToHumanReadableWithUnit(speedSum);
+
+        return {
+            title: "File uploads",
+            progress: {
+                title: "Bytes uploaded",
+                maximum: targetUploadSize,
+                current: uploadedSize
+            },
+            jobId: "upload-task",
+            speed: {
+                title: "Transfer speed",
+                speed: humanReadable.size,
+                unit: humanReadable.unit + "/s",
+                asText: `${(humanReadable.size).toFixed(2)} ${humanReadable.unit}/s`
+            }
+        };
+    }
 
     if (props.activeUploads <= 0 && (props.tasks === undefined || (Object.keys(props.tasks).length === 0))) {
         return null;

@@ -41,6 +41,7 @@ import {
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {FileIcon, overwriteDialog} from "UtilityComponents";
 import {
+    addTrailingSlash,
     errorMessageOrDefault,
     iconFromFilePath,
     ifPresent,
@@ -131,7 +132,6 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
     };
 
     public render() {
-
         const {uploads} = this.props;
         return (
             <Modal
@@ -396,11 +396,12 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
 
     private closeModal = () => {
         this.props.setUploaderVisible(false);
-        if (finishedUploads(this.props.uploads) !== this.props.uploads.length || this.props.uploads.length === 0)
+        if (finishedUploads(this.props.uploads) !== this.props.uploads.length || this.props.uploads.length === 0) {
             return;
+        }
         const path = getQueryParamOrElse(this.props, "path", "");
-        if ([...this.state.finishedUploadPaths].includes(path)) {
-            if (!!this.props.parentRefresh) this.props.parentRefresh();
+        if ([...this.state.finishedUploadPaths].map(it => addTrailingSlash(it)).includes(addTrailingSlash(path))) {
+            this.props.parentRefresh();
         }
     }
 }
@@ -469,7 +470,7 @@ const UploaderRow = (p: {
                         <Button
                             color="red"
                             onClick={e => ifPresent(p.onDelete, c => c(e))}
-                            data-tag={"removeUpload"}
+                            data-tag="removeUpload"
                         >
                             <Icon name="close" />
                         </Button>

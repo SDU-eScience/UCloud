@@ -4,7 +4,7 @@ import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
 import {Box} from "ui-components";
-import {MOCK_RELATIVE, mockFile, resolvePath} from "Utilities/FileUtilities";
+import {isDirectory, MOCK_RELATIVE, mockFile, resolvePath} from "Utilities/FileUtilities";
 import {addTrailingSlash} from "UtilityFunctions";
 import {File, FileSelectorProps} from ".";
 
@@ -68,7 +68,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                             }
                         }]}
                         foldersOnly={props.onlyAllowFolders}
-                        fileFilter={file => !props.onlyAllowFolders || file.fileType === "DIRECTORY"}
+                        fileFilter={file => !props.onlyAllowFolders || isDirectory(file)}
                         onFileNavigation={setPath}
                         injectedFiles={injectedFiles}
                         path={path}
