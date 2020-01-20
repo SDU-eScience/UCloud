@@ -30,7 +30,7 @@ import java.nio.file.Files
 
 class MultiPartUploadController<Ctx : FSUserContext>(
     private val serviceCloud: AuthenticatedClient,
-    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val backgroundScope: BackgroundScope
@@ -52,7 +52,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                 )
             )
 
-            commandRunnerFactory.withContext(owner) { ctx ->
+            commandRunnerFactory.withCtx(this, owner) { ctx ->
                 log.debug("writing")
 
                 val ingoingRequest = request.file.asIngoing()
@@ -101,7 +101,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                     uploader.upload(
                         serviceCloud,
                         fs,
-                        { commandRunnerFactory(user) },
+                        { commandRunnerFactory.createContext(this@implement, user) },
                         request.location,
                         policy,
                         temporaryFile.inputStream(),

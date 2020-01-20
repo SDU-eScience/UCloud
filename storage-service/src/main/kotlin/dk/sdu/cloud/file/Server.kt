@@ -162,7 +162,7 @@ class Server(
 
                 SimpleDownloadController(
                     client,
-                    processRunner,
+                    commandRunnerForCalls,
                     coreFileSystem,
                     tokenValidation,
                     fileLookupService
@@ -170,7 +170,7 @@ class Server(
 
                 MultiPartUploadController(
                     client,
-                    processRunner,
+                    commandRunnerForCalls,
                     coreFileSystem,
                     sensitivityService,
                     micro.backgroundScope
@@ -180,7 +180,7 @@ class Server(
                     client,
                     coreFileSystem,
                     fileLookupService,
-                    processRunner,
+                    commandRunnerForCalls,
                     sensitivityService,
                     micro.backgroundScope
                 ),

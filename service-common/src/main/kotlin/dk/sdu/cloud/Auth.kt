@@ -116,7 +116,9 @@ data class SecurityPrincipal(
      *
      * All new tokens _should_ contain this information explicitly.
      */
-    val twoFactorAuthentication: Boolean = true
+    val twoFactorAuthentication: Boolean = true,
+
+    val principalType: String? = null
 )
 
 /**
