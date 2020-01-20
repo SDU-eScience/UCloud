@@ -12,30 +12,26 @@ import io.ktor.http.HttpMethod
 
 data class InsertRequest(
     val fromUser: String,
-    val toUser: List<String>,
-    val serviceOrigin: String
+    val toUser: List<String>
 )
 typealias InsertResponse = Unit
 
 data class DeleteRequest(
     val fromUser: String,
-    val toUser: String,
-    val serviceOrigin: String
+    val toUser: String
 )
 typealias DeleteResponse = Unit
 
 data class QueryContactsRequest(
     val fromUser: String,
-    val query: String,
-    val serviceOrigin: String
+    val query: String
 )
 data class QueryContactsResponse(
     val contacts: List<String>
 )
 
 data class AllContactsForUserRequest(
-    val fromUser: String,
-    val serviceOrigin: String
+    val fromUser: String
 )
 typealias AllContactsForUserResponse = QueryContactsResponse
 
@@ -50,7 +46,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
         }
 
         http {
-            method = HttpMethod.Post
+            method = HttpMethod.Put
 
             path {
                 using(baseContext)
@@ -67,7 +63,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
         }
 
         http {
-            method = HttpMethod.Post
+            method = HttpMethod.Delete
 
             path {
                 using(baseContext)
@@ -103,7 +99,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
         }
 
         http {
-            method = HttpMethod.Get
+            method = HttpMethod.Post
 
             path {
                 using(baseContext)

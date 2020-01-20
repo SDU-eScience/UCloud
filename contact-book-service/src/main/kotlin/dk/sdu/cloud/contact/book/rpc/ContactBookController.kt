@@ -3,6 +3,7 @@ package dk.sdu.cloud.contact.book.rpc
 import dk.sdu.cloud.contact.book.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.contact.book.services.ContactBookService
 import dk.sdu.cloud.service.Loggable
 
@@ -11,23 +12,24 @@ class ContactBookController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ContactBookDescriptions.insert) {
-            contactBookService.insertContact(request.fromUser, request.toUser, request.serviceOrigin)
+            contactBookService.insertContact(request.fromUser, request.toUser, ctx.securityPrincipal.username)
             ok(Unit)
         }
 
         implement(ContactBookDescriptions.delete) {
-            contactBookService.deleteContact(request.fromUser, request.toUser, request.serviceOrigin)
+            contactBookService.deleteContact(request.fromUser, request.toUser, ctx.securityPrincipal.username)
+            ok(Unit)
         }
 
         implement(ContactBookDescriptions.listAllContactsForUser) {
             ok(QueryContactsResponse(
-                contactBookService.listAllContactsForUser(request.fromUser, request.serviceOrigin)
+                contactBookService.listAllContactsForUser(request.fromUser, ctx.securityPrincipal.username)
             ))
         }
 
         implement(ContactBookDescriptions.queryUserContacts) {
             ok(QueryContactsResponse(
-                contactBookService.queryUserContacts(request.fromUser, request.query, request.serviceOrigin)
+                contactBookService.queryUserContacts(request.fromUser, request.query, ctx.securityPrincipal.username)
             ))
         }
 

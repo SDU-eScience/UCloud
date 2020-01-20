@@ -6,6 +6,7 @@ import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.index.IndexRequest
+import org.elasticsearch.action.search.MultiSearchRequest
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
@@ -88,20 +89,35 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
     }
 
     override fun insertContact(fromUser: String, toUser: String, serviceOrigin: String) {
-        val request = createInsertContactRequest(fromUser, toUser, serviceOrigin)
-        elasticClient.index(request, RequestOptions.DEFAULT)
+        val exists = findSingleContactOrNull(fromUser, toUser, serviceOrigin)
+        if (exists == null) {
+            val request = createInsertContactRequest(fromUser, toUser, serviceOrigin)
+            elasticClient.index(request, RequestOptions.DEFAULT)
+        }
     }
 
     override fun insertContactsBulk(fromUser: String, toUser: List<String>, serviceOrigin: String) {
-        val request = BulkRequest()
+        val request = BulkRequest(CONTACT_BOOK_INDEX)
+        val multiSearchRequest = MultiSearchRequest()
         toUser.forEach { shareReceiver ->
-            val indexRequest = createInsertContactRequest(fromUser, shareReceiver, serviceOrigin)
-            request.add(indexRequest)
+            val searchRequest = createSingleContactSearch(fromUser, shareReceiver, serviceOrigin)
+            multiSearchRequest.add(searchRequest)
         }
-        elasticClient.bulk(request, RequestOptions.DEFAULT)
+        val mResponse = elasticClient.msearch(multiSearchRequest, RequestOptions.DEFAULT)
+        toUser.forEachIndexed { index, shareReceiver ->
+            val exists = mResponse.responses[index].response?.hits?.totalHits?.value
+            if (exists != null && exists.toInt() == 0) {
+                val indexRequest = createInsertContactRequest(fromUser, shareReceiver, serviceOrigin)
+                request.add(indexRequest)
+            }
+        }
+        //Empty bulk requests not allowed
+        if (request.numberOfActions() != 0) {
+            elasticClient.bulk(request, RequestOptions.DEFAULT)
+        }
     }
 
-    private fun findSingleContact(fromUser: String, toUser: String, serviceOrigin: String): SearchHit {
+    private fun createSingleContactSearch(fromUser: String, toUser: String, serviceOrigin: String): SearchRequest {
         val searchRequest = SearchRequest(CONTACT_BOOK_INDEX)
         val searchSource = SearchSourceBuilder().query(
             QueryBuilders.boolQuery()
@@ -122,18 +138,23 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
                 )
         )
         searchRequest.source(searchSource)
+        return searchRequest
+    }
 
+    private fun findSingleContactOrNull(fromUser: String, toUser: String, serviceOrigin: String): SearchHit? {
+        val searchRequest = createSingleContactSearch(fromUser, toUser, serviceOrigin)
         val response = elasticClient.search(searchRequest, RequestOptions.DEFAULT)
-        //Should be safe to use !!
-        when {
-            response.hits.totalHits!!.value.toInt() == 0 -> throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        return when {
+            response.hits.totalHits!!.value.toInt() == 0 -> null
+            response.hits.totalHits!!.value.toInt() == 1 -> response.hits.hits.first()
             response.hits.totalHits!!.value.toInt() > 1 -> throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
-            else -> return response.hits.hits.first()
+            else -> throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }
     }
 
     override fun deleteContact(fromUser: String, toUser: String, serviceOrigin: String) {
-        val doc = findSingleContact(fromUser, toUser, serviceOrigin)
+        val doc = findSingleContactOrNull(fromUser, toUser, serviceOrigin)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val deleteRequest = DeleteRequest(CONTACT_BOOK_INDEX, doc.id)
         elasticClient.delete(deleteRequest, RequestOptions.DEFAULT)
     }
