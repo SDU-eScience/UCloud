@@ -6,13 +6,16 @@ import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as Heading from "ui-components/Heading";
 import {errorMessageOrDefault} from "UtilityFunctions";
+import {PRODUCT_NAME, SITE_DOCUMENTATION_URL} from "../../site.config.json";
 import Box from "./Box";
 import Button from "./Button";
 import ClickableDropdown from "./ClickableDropdown";
+import ExternalLink from "./ExternalLink";
 import Flex from "./Flex";
 import Icon from "./Icon";
 import Label from "./Label";
 import Radio from "./Radio";
+import {Spacer} from "./Spacer";
 import {TextSpan} from "./Text";
 import TextArea from "./TextArea";
 
@@ -75,12 +78,19 @@ export default function Support() {
                 </Flex>
             )}
             width="650px"
-            height="350px"
+            height={`calc(350px + ${type === SupportType.SUGGESTION ? "20" : "0"}px)`}
             right="10px"
             top="37px"
         >
             <Box color="text">
-                <Heading.h3>Support Form</Heading.h3>
+                <Spacer
+                    left={<Heading.h3>Support Form</Heading.h3>}
+                    right={!SITE_DOCUMENTATION_URL ? null : (
+                        <ExternalLink href={SITE_DOCUMENTATION_URL}>
+                            <Icon name="docs" />Documentation
+                        </ExternalLink>
+                    )}
+                />
                 <Flex mt="3px">
                     <Label>
                         <Radio
@@ -99,8 +109,10 @@ export default function Support() {
                         <Icon name="bug" size="1.5em" ml=".5em" />
                     </Label>
                 </Flex>
-                {type === SupportType.SUGGESTION ? <p>Describe your suggestion and we will look into it.</p> :
-                    <p>Describe your problem below and we will investigate it.</p>}
+                {type === SupportType.BUG ? <p>Describe your problem below and we will investigate it.</p> :
+                    <p>Describe your suggestion and we will look into it.</p>
+                }
+
                 <form onSubmit={onSubmit}>
                     <TextArea width="100%" ref={textArea} rows={6} />
                     <Button
@@ -114,7 +126,7 @@ export default function Support() {
                     </Button>
                 </form>
             </Box>
-        </ClickableDropdown>
+        </ClickableDropdown >
     );
 
     function setBug() {

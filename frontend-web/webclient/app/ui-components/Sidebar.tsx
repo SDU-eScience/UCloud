@@ -6,7 +6,7 @@ import {connect} from "react-redux";
 import styled, {css} from "styled-components";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {copyToClipboard, inDevEnvironment, shouldHideSidebarAndHeader} from "UtilityFunctions";
-import {DATA_PROTECTION_LINK, DATA_PROTECTION_TEXT} from "../../site.config.json";
+import {DATA_PROTECTION_LINK, DATA_PROTECTION_TEXT, PRODUCT_NAME, SITE_DOCUMENTATION_URL} from "../../site.config.json";
 import Box from "./Box";
 import ExternalLink from "./ExternalLink";
 import Flex, {FlexCProps} from "./Flex";
@@ -262,6 +262,13 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                         Click to copy {Client.username} to clipboard
                     </Tooltip>
                 </SidebarTextLabel>
+            )}
+            {!SITE_DOCUMENTATION_URL ? null : (
+                <ExternalLink href={SITE_DOCUMENTATION_URL}>
+                    <SidebarTextLabel height="25px" icon="favIcon" iconSize="1em" textSize={1} space=".5em">
+                        {`${PRODUCT_NAME} Docs`}
+                    </SidebarTextLabel>
+                </ExternalLink>
             )}
             {!DATA_PROTECTION_LINK ? null : (
                 <ExternalLink href={DATA_PROTECTION_LINK}>
