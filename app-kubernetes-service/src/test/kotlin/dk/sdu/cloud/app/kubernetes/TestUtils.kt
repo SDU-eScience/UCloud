@@ -45,7 +45,8 @@ val applicationMetadata = ApplicationMetadata(
     listOf("Author1", "Author2"),
     "Application title",
     "Application description",
-    null
+    null,
+    isPublic = true
 )
 
 val applicationInvocation = ApplicationInvocationDescription(

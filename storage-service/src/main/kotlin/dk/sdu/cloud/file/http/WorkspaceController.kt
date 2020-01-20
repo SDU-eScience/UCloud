@@ -2,14 +2,13 @@ package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.file.api.WorkspaceDescriptions
+import dk.sdu.cloud.file.api.WorkspaceMode
 import dk.sdu.cloud.file.api.Workspaces
-import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.WorkspaceService
-import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.service.Controller
 
 class WorkspaceController(
-    private val workspaceService: WorkspaceService<LinuxFSRunner>
+    private val workspaceService: WorkspaceService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(WorkspaceDescriptions.create) {
@@ -17,7 +16,8 @@ class WorkspaceController(
                 request.username,
                 request.mounts,
                 request.allowFailures,
-                request.createSymbolicLinkAt
+                request.createSymbolicLinkAt,
+                request.mode ?: WorkspaceMode.COPY_FILES
             )
             ok(Workspaces.Create.Response(response.workspaceId, response.failures))
         }

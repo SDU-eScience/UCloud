@@ -1,12 +1,9 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
 import dk.sdu.cloud.app.orchestrator.api.ApplicationBackend
 import dk.sdu.cloud.app.orchestrator.api.CancelInternalResponse
-import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
-import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsRequest
 import dk.sdu.cloud.app.orchestrator.api.InternalStdStreamsResponse
 import dk.sdu.cloud.app.orchestrator.api.JobState
@@ -19,7 +16,13 @@ import dk.sdu.cloud.app.orchestrator.utils.startJobRequest
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindHomeFolderResponse
+import dk.sdu.cloud.file.api.LongRunningResponse
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.indexing.api.LookupDescriptions
 import dk.sdu.cloud.indexing.api.ReverseLookupResponse
 import dk.sdu.cloud.micro.BackgroundScopeFeature
@@ -43,9 +46,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
-import java.time.Clock
-import java.time.Instant
-import java.time.ZoneOffset
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
@@ -83,7 +83,8 @@ class JobOrchestratorTest {
                 SensitivityLevel.PRIVATE,
                 emptySet(), "123",
                 "user",
-                SensitivityLevel.PRIVATE)
+                SensitivityLevel.PRIVATE
+            )
         )
 
         ClientMock.mockCallSuccess(
@@ -271,17 +272,17 @@ class JobOrchestratorTest {
                 )
             }
 
-            run {
-                orchestrator.handleJobComplete(
-                    returnedID,
-                    SimpleDuration(1, 0, 0),
-                    false,
-                    TestUsers.user
-                )
-            }
+            orchestrator.handleJobComplete(
+                returnedID,
+                SimpleDuration(1, 0, 0),
+                false,
+                TestUsers.user
+            )
 
-            val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
-            assertEquals(JobState.FAILURE, job.currentState)
+            retrySection {
+                val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
+                assertEquals(JobState.FAILURE, job.currentState)
+            }
         }
     }
 
@@ -423,13 +424,15 @@ class JobOrchestratorTest {
             )
         }
 
-        runBlocking {
-            assertEquals(JobState.FAILURE, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
-            assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).failedState)
+        retrySection {
+            runBlocking {
+                assertEquals(JobState.FAILURE, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+                assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).failedState)
+            }
         }
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `handle proposed state change -  null backend and jobowner`() {
         runBlocking {
             orchestrator.handleProposedStateChange(
@@ -442,7 +445,12 @@ class JobOrchestratorTest {
     fun `handle proposed state change - cancel to Failure`() {
         var systemID = ""
         runBlocking {
-            systemID = orchestrator.startJob(startJobRequest.copy(backend = "backend"), TestUsers.user.createToken(), "refresh", client)
+            systemID = orchestrator.startJob(
+                startJobRequest.copy(backend = "backend"),
+                TestUsers.user.createToken(),
+                "refresh",
+                client
+            )
 
             orchestrator.handleProposedStateChange(
                 JobStateChange(systemID, JobState.CANCELING), null, TestUsers.user

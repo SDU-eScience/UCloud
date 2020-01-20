@@ -45,6 +45,7 @@ class K8JobMonitoringService(
 
     fun initializeListeners() {
         eventStreamService.subscribe(JobEvents.events, EventConsumer.Immediate { (jobName, condition) ->
+            log.debug("Received Kubernetes Event: $jobName $condition")
             val jobId = k8.nameAllocator.reverseLookupJobName(jobName) ?: return@Immediate
 
             // Check for failure
@@ -65,13 +66,19 @@ class K8JobMonitoringService(
             }
 
             val allPods = k8.nameAllocator.listPods(jobId)
+            log.debug("Found ${allPods.size} pods")
             if (allPods.isEmpty()) return@Immediate
 
             var isDone = true
             var maxDurationInMillis = 0L
             var isSuccess = true
             for (pod in allPods) {
-                val userContainer = pod.status.containerStatuses.getOrNull(0) ?: return@Immediate
+                log.debug(
+                    "Pod container status: " +
+                        pod.status.containerStatuses.joinToString(", ") { "${it.name} ${it.state.terminated}" }
+                )
+
+                val userContainer = pod.status.containerStatuses.find { it.name == USER_CONTAINER } ?: return@Immediate
                 val containerState = userContainer.state.terminated
 
                 if (containerState == null || containerState.startedAt == null) {

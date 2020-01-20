@@ -70,8 +70,7 @@ interface StorageFile {
      * The ID is guaranteed to be unique for an entire file system. Across (potential) federation it is not guaranteed
      * to be unique.
      *
-     * The ID is an opaque identifier, and its contents is entirely implementation dependant. For the CephFS
-     * implementation this identifier corresponds to the inode of the file.
+     * The ID is an opaque identifier, and its contents is entirely implementation dependant.
      */
     @get:JsonProperty("fileId")
     val fileIdOrNull: String?
@@ -198,4 +197,7 @@ enum class SensitivityLevel {
     SENSITIVE
 }
 
-
+internal fun StorageFile.withNewId(newId: String): StorageFile {
+    require(this is StorageFileImpl)
+    return copy(fileIdOrNull = newId)
+}
