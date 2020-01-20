@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
 import dk.sdu.cloud.app.orchestrator.api.FileForUploadArchiveType
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.MachineReservation
+import dk.sdu.cloud.app.orchestrator.api.MountMode
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
@@ -19,6 +20,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StatRequest
+import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -172,7 +174,8 @@ class JobVerificationService<Session>(
                 project = unverifiedJob.decodedToken.projectOrNull(),
                 _sharedFileSystemMounts = sharedMounts,
                 _peers = allPeers,
-                reservation = reservation
+                reservation = reservation,
+                mountMode = unverifiedJob.request.mountMode ?: MountMode.COPY_FILES
             ),
             null,
             unverifiedJob.refreshToken
@@ -194,15 +197,33 @@ class JobVerificationService<Session>(
     private fun verifyParameters(app: Application, job: UnverifiedJob): VerifiedJobInput {
         val userParameters = job.request.parameters
         return VerifiedJobInput(
-            app.invocation.parameters.map { appParameter ->
-                try {
-                    appParameter.name to appParameter.map(userParameters[appParameter.name])
-                } catch (ex: IllegalArgumentException) {
-                    log.debug(ex.stackTraceToString())
-                    log.debug("Invocation: ${app.invocation}")
-                    throw JobException.VerificationError("Bad parameter: ${appParameter.name}. ${ex.message}")
+            app.invocation.parameters
+                .asSequence()
+                .map { appParameter ->
+                    try {
+                        appParameter to appParameter.map(userParameters[appParameter.name])
+                    } catch (ex: IllegalArgumentException) {
+                        log.debug(ex.stackTraceToString())
+                        log.debug("Invocation: ${app.invocation}")
+                        throw JobException.VerificationError("Bad parameter: ${appParameter.name}. ${ex.message}")
+                    }
                 }
-            }.toMap()
+                .map { paramWithValue ->
+                    // Fix path for InputFiles with MountMode.COPY_ON_WRITE
+                    val (param, value) = paramWithValue
+                    if (job.request.mountMode != MountMode.COPY_ON_WRITE || value == null) return@map paramWithValue
+
+                    if (param is ApplicationParameter.InputFile) {
+                        value as FileTransferDescription
+                        param to value.copy(destination = "${value.destination.fileName()}/${value.destination}")
+                    } else {
+                        paramWithValue
+                    }
+                }
+                .map { (param, value) ->
+                    param.name to value
+                }
+                .toMap()
         )
     }
 

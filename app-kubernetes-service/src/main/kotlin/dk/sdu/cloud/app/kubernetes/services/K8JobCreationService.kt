@@ -2,18 +2,21 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.TolerationKeyAndValue
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.store.api.BooleanFlagParameter
 import dk.sdu.cloud.app.store.api.ContainerDescription
+import dk.sdu.cloud.app.store.api.EnvironmentVariableParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.VariableInvocationParameter
+import dk.sdu.cloud.app.store.api.WordInvocationParameter
 import dk.sdu.cloud.app.store.api.buildEnvironmentValue
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
+import io.fabric8.kubernetes.api.model.Container
 import io.fabric8.kubernetes.api.model.DoneablePod
 import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
 import io.fabric8.kubernetes.api.model.EnvVar
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.api.model.PodSecurityContext
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
@@ -23,7 +26,6 @@ import io.fabric8.kubernetes.api.model.Toleration
 import io.fabric8.kubernetes.api.model.VolumeMount
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.PodResource
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
 
 const val INPUT_DIRECTORY = "/input"
@@ -44,6 +46,7 @@ class K8JobCreationService(
     private val sharedFileSystemMountService: SharedFileSystemMountService,
     private val broadcastingStream: BroadcastingStream,
     private val hostAliasesService: HostAliasesService,
+    private val workspaceService: WorkspaceService,
     private val toleration: TolerationKeyAndValue? = null
 ) {
     fun create(verifiedJob: VerifiedJob) {
@@ -90,6 +93,7 @@ class K8JobCreationService(
         val (sharedVolumes, sharedMounts) = sharedFileSystemMountService.createVolumesAndMounts(verifiedJob)
         networkPolicyService.createPolicy(verifiedJob.id, verifiedJob.peers.map { it.jobId })
         val hostAliases = hostAliasesService.findAliasesForPeers(verifiedJob.peers)
+        val preparedWorkspace = workspaceService.prepare(verifiedJob)
 
         // Create a kubernetes job for each node in our job
         repeat(verifiedJob.nodes) { rank ->
@@ -186,7 +190,9 @@ class K8JobCreationService(
                                     )
                                 }
 
-                                withContainers(
+                                val allContainers = ArrayList<Container>()
+
+                                allContainers.add(
                                     container {
                                         val uid = LINUX_FS_USER_UID.toLong()
                                         val app = verifiedJob.application.invocation
@@ -200,8 +206,9 @@ class K8JobCreationService(
                                                 }
                                             }.toMap()
 
-                                        val command =
-                                            app.invocation.flatMap { it.buildInvocationList(givenParameters) }
+                                        val command = app.invocation.flatMap { parameter ->
+                                            parameter.buildInvocationList(givenParameters)
+                                        }
 
                                         log.debug("Container is: ${tool.container}")
                                         log.debug("Executing command: $command")
@@ -273,38 +280,6 @@ class K8JobCreationService(
 
                                         withVolumeMounts(
                                             VolumeMount(
-                                                WORKING_DIRECTORY,
-                                                null,
-                                                DATA_STORAGE,
-                                                false,
-                                                verifiedJob.workspace
-                                                    ?.removePrefix("/")
-                                                    ?.removeSuffix("/")
-                                                    ?.let { it + "/output" }
-                                                    ?: throw RPCException(
-                                                        "No workspace found",
-                                                        HttpStatusCode.BadRequest
-                                                    ),
-                                                null
-                                            ),
-
-                                            VolumeMount(
-                                                INPUT_DIRECTORY,
-                                                null,
-                                                DATA_STORAGE,
-                                                true,
-                                                verifiedJob.workspace
-                                                    ?.removePrefix("/")
-                                                    ?.removeSuffix("/")
-                                                    ?.let { it + "/input" }
-                                                    ?: throw RPCException(
-                                                        "No workspace found",
-                                                        HttpStatusCode.BadRequest
-                                                    ),
-                                                null
-                                            ),
-
-                                            VolumeMount(
                                                 MULTI_NODE_DIRECTORY,
                                                 null,
                                                 MULTI_NODE_STORAGE,
@@ -313,6 +288,7 @@ class K8JobCreationService(
                                                 null
                                             ),
 
+                                            *preparedWorkspace.user.mounts.toTypedArray(),
                                             *sharedMounts.toTypedArray()
                                         )
 
@@ -320,22 +296,15 @@ class K8JobCreationService(
                                     }
                                 )
 
+                                withContainers(allContainers)
+
                                 withVolumes(
                                     volume {
-                                        withName(DATA_STORAGE)
-                                        withPersistentVolumeClaim(
-                                            PersistentVolumeClaimVolumeSource(
-                                                "cephfs",
-                                                false
-                                            )
-                                        )
+                                        name = MULTI_NODE_STORAGE
+                                        emptyDir = EmptyDirVolumeSource()
                                     },
 
-                                    volume {
-                                        withName(MULTI_NODE_STORAGE)
-                                        withEmptyDir(EmptyDirVolumeSource())
-                                    },
-
+                                    *preparedWorkspace.volumes.toTypedArray(),
                                     *sharedVolumes.toTypedArray()
                                 )
 

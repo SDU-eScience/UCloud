@@ -174,6 +174,7 @@ export interface RunAppState {
     previousRuns: Page<File>;
     unknownParameters: string[];
     reservation: React.RefObject<HTMLInputElement>;
+    useCow: boolean;
 }
 
 export interface RunOperations extends SetStatusLoading {

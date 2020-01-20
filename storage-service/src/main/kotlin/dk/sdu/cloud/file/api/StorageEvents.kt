@@ -10,14 +10,14 @@ import java.util.*
 /**
  * Represents an event which has occurred inside of the storage system
  *
- * Each file has a unique identifier (implementation dependant, for CephFS this is the inode). Additionally every
+ * Each file has a unique identifier (implementation dependant). Additionally every
  * event contains the canonical path. SDUCloud doesn't support hard-links. As a result we can be certain that each
  * file has exactly one canonical path at any point in time.
  *
  * The effects of each event is guaranteed to have taken place internally in the system when they are emitted.
  *
  * __Note:__ Since events are emitted and consumed asynchronously you cannot be certain that the file is present at
- * the [StorageEvent.path] or that the file even exists, since multiple new events may have occurred when the event
+ * the [StorageEvent.file] or that the file even exists, since multiple new events may have occurred when the event
  * is consumed.
  *
  * __Note:__ The events are emitted on a best-effort basis. It is entirely possible that these events can be out-of-sync
@@ -59,7 +59,7 @@ sealed class StorageEvent {
     /**
      * Emitted when a file has been created or a full-refresh of the file is deemed necessary.
      *
-     * It is safe for clients to overwrite their previous entry at indexed by [id]. None of the old attributes are
+     * It is safe for clients to overwrite their previous entry at indexed by [file.id]. None of the old attributes are
      * guaranteed to be the same. For example, it is perfectly valid for the system not to emit a [Moved] event and just
      * send a new [CreatedOrRefreshed] event with a new [path]. This will, for example, occur when inconsistencies are
      * detected.
