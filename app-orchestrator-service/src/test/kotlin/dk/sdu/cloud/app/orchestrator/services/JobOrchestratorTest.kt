@@ -259,8 +259,10 @@ class JobOrchestratorTest {
                 )
             }
 
-            val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
-            assertEquals(JobState.SUCCESS, job.currentState)
+            retrySection {
+                val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
+                assertEquals(JobState.SUCCESS, job.currentState)
+            }
         }
 
         //failed
