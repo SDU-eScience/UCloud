@@ -1,3 +1,4 @@
+import {Client} from "Authentication/HttpClientInstance";
 import {ReduxObject} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -21,6 +22,10 @@ const UserSettings: React.FunctionComponent<UserSettingsOperations & UserSetting
         props.setActivePage();
     }, []);
 
+    const mustActivate2fa =
+        Client.userInfo?.twoFactorAuthentication === false &&
+        Client.userInfo?.principalType === "password";
+
     return (
         <Flex alignItems="center" flexDirection="column">
             <Box width={0.7}>
@@ -28,19 +33,25 @@ const UserSettings: React.FunctionComponent<UserSettingsOperations & UserSetting
                     header={<Heading.h1>User Settings</Heading.h1>}
                     main={(
                         <>
-                            <ChangePassword
-                                setLoading={props.setLoading}
-                            />
-
                             <TwoFactorSetup
+                                mustActivate2fa={mustActivate2fa}
                                 loading={props.headerLoading}
                                 setLoading={props.setLoading}
                             />
 
-                            <Sessions
-                                setLoading={props.setLoading}
-                                setRefresh={props.setRefresh}
-                            />
+                            {mustActivate2fa ? null : (
+                                <>
+                                    <ChangePassword
+                                        setLoading={props.setLoading}
+                                    />
+
+                                    <Sessions
+                                        setLoading={props.setLoading}
+                                        setRefresh={props.setRefresh}
+                                    />
+                                </>
+                            )}
+
                         </>
                     )}
                 />

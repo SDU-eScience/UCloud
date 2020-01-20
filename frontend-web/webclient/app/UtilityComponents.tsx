@@ -291,8 +291,8 @@ export function rewritePolicyDialog({
             <Box textAlign="right" mt="20px">
                 <Button
                     onClick={() => {
-                        resolve({applyToAll, cancelled: true})
-                        dialogStore.failure()
+                        resolve({applyToAll, cancelled: true});
+                        dialogStore.failure();
                     }}
                     color="red"
                     mr="5px"

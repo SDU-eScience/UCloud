@@ -417,7 +417,7 @@ export default class HttpClient {
      * will be able to put whatever they want in this. This is normally not a problem since all backend services _will_
      * verify the token.
      */
-    private get userInfo(): undefined | JWT {
+    get userInfo(): undefined | JWT {
         const token = this.decodedToken;
         if (!token) return undefined;
         else return this.decodedToken.payload;
@@ -633,6 +633,7 @@ interface JWT {
     iat: number;
     principalType: string;
     publicSessionReference?: string;
+    twoFactorAuthentication?: boolean;
 }
 
 export class MissingAuthError {
