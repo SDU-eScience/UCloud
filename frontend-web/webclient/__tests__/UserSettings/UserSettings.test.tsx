@@ -14,19 +14,19 @@ describe("UserSettings", () => {
     test.skip("Update current password field", () => {
         const userSettings = mount(<UserSettings />);
         userSettings.find("FormField").findWhere(it => it.props().placeholder === "Old password").find("input").simulate("change", {target: {value: "current password"}});
-        expect(userSettings.state("currentPassword")).toBe("current password")
+        expect(userSettings.state("currentPassword")).toBe("current password");
     });
 
     test.skip("Update new password field", () => {
         const userSettings = mount(<UserSettings />);
         userSettings.find("FormField").findWhere(it => it.props().placeholder === "New password").find("input").simulate("change", {target: {value: "new password"}});
-        expect(userSettings.state("newPassword")).toBe("new password")
+        expect(userSettings.state("newPassword")).toBe("new password");
     });
 
     test.skip("Update repeated password field", () => {
         const userSettings = mount(<UserSettings />);
         userSettings.find("FormField").findWhere(it => it.props().placeholder === "Repeat password").find("input").simulate("change", {target: {value: "repeated password"}});
-        expect(userSettings.state("repeatedPassword")).toBe("repeated password")
+        expect(userSettings.state("repeatedPassword")).toBe("repeated password");
     });
 
     test.skip("Submit with missing old password", () => {

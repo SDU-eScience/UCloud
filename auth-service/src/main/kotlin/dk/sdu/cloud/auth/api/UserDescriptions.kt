@@ -131,6 +131,11 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
         }
     }
 
+    /**
+     * Fetches more principals from an iterator.
+     *
+     * Note: twoFactorAuthentication field is not calculated correctly at the moment.
+     */
     val fetchNextIterator = call<FindByStringId, List<Principal>, CommonErrorMessage>("fetchNextIterator") {
         auth {
             roles = Roles.PRIVILEDGED

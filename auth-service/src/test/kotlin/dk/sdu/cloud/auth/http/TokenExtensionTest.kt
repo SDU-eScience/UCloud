@@ -14,6 +14,7 @@ import dk.sdu.cloud.auth.services.PasswordHashingService
 import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
 import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
 import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserCreationService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
@@ -50,6 +51,7 @@ class TokenExtensionTest {
     private lateinit var jwtFactory: JWTFactory
     private lateinit var tokenService: TokenService<HibernateSession>
     private lateinit var db: HibernateSessionFactory
+    private lateinit var twoFactorDao: TwoFactorHibernateDAO
 
     private fun KtorApplicationTestSetupContext.setup(
         extensionScopes: Map<String, Set<SecurityScope>>
@@ -61,7 +63,9 @@ class TokenExtensionTest {
         jwtFactory = JWTFactory(tokenValidationJWT.algorithm)
 
         passwordHashingService = PasswordHashingService()
-        userDao = UserHibernateDAO(passwordHashingService)
+
+        twoFactorDao = TwoFactorHibernateDAO()
+        userDao = UserHibernateDAO(passwordHashingService, twoFactorDao)
         ottDao = OneTimeTokenHibernateDAO()
         refreshTokenDao = RefreshTokenHibernateDAO()
 

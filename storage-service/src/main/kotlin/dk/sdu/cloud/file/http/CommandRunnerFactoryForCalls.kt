@@ -1,6 +1,9 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.WSCall
@@ -19,11 +22,15 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.selects.select
+import kotlin.reflect.KClass
 
 class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
     private val underlyingFactory: FSCommandRunnerFactory<Ctx>,
     private val websocketSessionService: WSFileSessionService<Ctx>
 ) {
+    val type: KClass<Ctx>
+        get() = underlyingFactory.type
+
     suspend fun withCtx(
         callHandler: CallHandler<*, *, *>,
         user: String = callHandler.ctx.securityPrincipal.username,
@@ -32,6 +39,8 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
         handler: suspend (Ctx) -> Unit
     ) {
         with(callHandler) {
+            verifyPrincipal()
+
             if (websockets) {
                 withContext<WSCall> {
                     websocketSessionService.submitJob(ctx, user) { handler(it) }
@@ -52,6 +61,8 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
         job: suspend (Ctx) -> CallResult<S, CommonErrorMessage>
     ) {
         with(callHandler) {
+            verifyPrincipal()
+
             withContext<HttpCall> {
                 val result: Deferred<CallResult<S, CommonErrorMessage>> = GlobalScope.async {
                     try {
@@ -83,12 +94,30 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
         }
     }
 
+    suspend fun createContext(callHandler: CallHandler<*, *, *>, username: String): Ctx {
+        callHandler.verifyPrincipal()
+        return underlyingFactory(username)
+    }
+
     private fun <S> CallHandler<*, LongRunningResponse<S>, CommonErrorMessage>.handleCallResult(
         it: CallResult<S, CommonErrorMessage>
     ) {
         when (it) {
             is CallResult.Success -> ok(LongRunningResponse.Result(it.item), it.status)
             is CallResult.Error -> error(it.item, it.status)
+        }
+    }
+
+    private fun CallHandler<*, *, *>.verifyPrincipal() {
+        val principal = ctx.securityPrincipal
+        if (principal.role == Role.USER && principal.principalType == "password" &&
+            !principal.twoFactorAuthentication
+        ) {
+            throw RPCException("2FA must be enabled before file services are allowed", HttpStatusCode.Forbidden)
+        }
+
+        if (principal.role in Roles.END_USER && !principal.serviceAgreementAccepted) {
+            throw RPCException("Service license agreement not yet accepted", HttpStatusCode.Forbidden)
         }
     }
 

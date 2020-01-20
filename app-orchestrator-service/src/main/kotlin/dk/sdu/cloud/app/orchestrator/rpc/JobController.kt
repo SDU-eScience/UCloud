@@ -1,6 +1,8 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.fs.api.AppFileSystems
 import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
 import dk.sdu.cloud.app.orchestrator.api.JobStartedResponse
@@ -19,6 +21,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.requiredAuthScope
@@ -44,10 +47,12 @@ class JobController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(JobDescriptions.findById) {
+            verifyPrincipal()
             ok(jobQueryService.findById(ctx.securityToken, request.id))
         }
 
         implement(JobDescriptions.listRecent) {
+            verifyPrincipal()
             ok(
                 jobQueryService.listRecent(
                     ctx.securityToken,
@@ -64,6 +69,7 @@ class JobController(
         }
 
         implement(JobDescriptions.start) {
+            verifyPrincipal()
             log.debug("Extending token")
             val maxTime = request.maxTime
             if (maxTime != null && maxTime.toMillis() > JOB_MAX_TIME) {
@@ -112,6 +118,7 @@ class JobController(
         }
 
         implement(JobDescriptions.cancel) {
+            verifyPrincipal()
             jobOrchestrator.handleProposedStateChange(
                 JobStateChange(request.jobId, JobState.CANCELING),
                 newStatus = "Job is cancelling...",
@@ -122,23 +129,44 @@ class JobController(
         }
 
         implement(JobDescriptions.follow) {
+            verifyPrincipal()
             ok(streamFollowService.followStreams(request, ctx.securityPrincipal.username))
         }
 
         implement(JobDescriptions.followWS) {
+            verifyPrincipal()
             streamFollowService.followWSStreams(request, ctx.securityPrincipal.username, this).join()
         }
 
         implement(JobDescriptions.queryVncParameters) {
+            verifyPrincipal()
             ok(vncService.queryVncParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
         }
 
         implement(JobDescriptions.queryWebParameters) {
+            verifyPrincipal()
             ok(webService.queryWebParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
         }
 
         implement(JobDescriptions.machineTypes) {
+            verifyPrincipal()
             ok(machineTypes)
+        }
+    }
+
+    private fun CallHandler<*, *, *>.verifyPrincipal() {
+        val principal = ctx.securityPrincipal
+        if (principal.role == Role.USER && !principal.twoFactorAuthentication &&
+            principal.principalType == "password"
+        ) {
+            throw RPCException(
+                "2FA must be activated before application services are available",
+                HttpStatusCode.Forbidden
+            )
+        }
+
+        if (principal.role in Roles.END_USER && !principal.serviceAgreementAccepted) {
+            throw RPCException("Service license agreement not yet accepted", HttpStatusCode.Forbidden)
         }
     }
 

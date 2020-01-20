@@ -6,7 +6,9 @@ import com.onelogin.saml2.settings.SettingsBuilder
 import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthServiceDescription
+import dk.sdu.cloud.auth.api.ServiceAgreementText
 import dk.sdu.cloud.auth.api.installAuth
+import dk.sdu.cloud.auth.services.SLAService
 import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.ServiceMode
@@ -82,7 +84,8 @@ data class AuthConfiguration(
     val production: Boolean = true,
     val tokenExtension: List<ServiceTokenExtension> = emptyList(),
     val trustedOrigins: List<String> = listOf("localhost"),
-    val services: List<Service> = emptyList()
+    val services: List<Service> = emptyList(),
+    val serviceLicenseAgreement: ServiceAgreementText? = null
 )
 
 fun main(args: Array<String>) {
