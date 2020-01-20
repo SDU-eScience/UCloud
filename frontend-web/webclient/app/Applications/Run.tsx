@@ -37,6 +37,7 @@ import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import Input, {HiddenInputField} from "ui-components/Input";
 import Link from "ui-components/Link";
+import {TextSpan} from "ui-components/Text";
 import {
     checkForMissingParameters,
     extractValuesFromWidgets,
@@ -277,7 +278,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                             <Box mb={8} mt={8}>
                                 <Label>
                                     <Checkbox size={28} checked={this.state.useCow} onClick={this.toggleCow} />
-                                    <span style={{color: theme.colors.green}}>BETA:</span>{" "}
+                                    <TextSpan color={theme.colors.green}>BETA:</TextSpan>{" "}
                                     Enable new file transfer method.
                                     This should make data transfer significantly faster.
                                 </Label>
