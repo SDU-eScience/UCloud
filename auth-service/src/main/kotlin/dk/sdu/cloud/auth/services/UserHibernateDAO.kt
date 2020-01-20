@@ -97,6 +97,7 @@ sealed class PersonEntity : PrincipalEntity() {
     abstract var phoneNumber: String?
     abstract var orcId: String?
     abstract var email: String?
+    abstract var serviceLicenseAgreement: Int
 }
 
 @Entity
@@ -112,6 +113,7 @@ data class PersonEntityByPassword(
     override var orcId: String?,
     override var uid: Long = 0,
     override var email: String? = null,
+    override var serviceLicenseAgreement: Int,
 
     var hashedPassword: ByteArray,
     var salt: ByteArray
@@ -128,6 +130,7 @@ data class PersonEntityByPassword(
             email,
             uid,
             totpStatus,
+            serviceLicenseAgreement,
             hashedPassword,
             salt
         )
@@ -147,6 +150,7 @@ data class PersonEntityByPassword(
         if (firstNames != other.firstNames) return false
         if (lastName != other.lastName) return false
         if (phoneNumber != other.phoneNumber) return false
+        if (serviceLicenseAgreement != other.serviceLicenseAgreement) return false
         if (orcId != other.orcId) return false
         if (email != other.email) return false
 
@@ -164,6 +168,7 @@ data class PersonEntityByPassword(
         result = 31 * result + (phoneNumber?.hashCode() ?: 0)
         result = 31 * result + (orcId?.hashCode() ?: 0)
         result = 31 * result + (email?.hashCode() ?: 0)
+        result = 31 * result + serviceLicenseAgreement.hashCode()
         return result
     }
 }
@@ -181,6 +186,7 @@ data class PersonEntityByWAYF(
     override var orcId: String?,
     override var uid: Long = 0,
     override var email: String? = null,
+    override var serviceLicenseAgreement: Int,
     var orgId: String,
     var wayfId: String
 ) : PersonEntity() {
@@ -195,6 +201,7 @@ data class PersonEntityByWAYF(
             orcId,
             email,
             uid,
+            serviceLicenseAgreement,
             orgId,
             wayfId
         )
@@ -302,6 +309,12 @@ class UserHibernateDAO(
         entity.salt = salt
         session.update(entity)
     }
+
+    override fun setAcceptedSlaVersion(session: HibernateSession, user: String, version: Int) {
+        val entity = PrincipalEntity[session, user] as? PersonEntity ?: throw UserException.NotFound()
+        entity.serviceLicenseAgreement = version
+        session.update(entity)
+    }
 }
 
 fun Principal.toEntity(): PrincipalEntity {
@@ -318,6 +331,7 @@ fun Principal.toEntity(): PrincipalEntity {
             orcId,
             uid,
             email,
+            serviceLicenseAgreement,
             organizationId,
             wayfId
         )
@@ -334,6 +348,7 @@ fun Principal.toEntity(): PrincipalEntity {
             orcId,
             uid,
             email,
+            serviceLicenseAgreement,
             password,
             salt
         )

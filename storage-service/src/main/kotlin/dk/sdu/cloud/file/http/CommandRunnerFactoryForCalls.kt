@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.HttpCall
@@ -113,6 +114,10 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
             !principal.twoFactorAuthentication
         ) {
             throw RPCException("2FA must be enabled before file services are allowed", HttpStatusCode.Forbidden)
+        }
+
+        if (principal.role in Roles.END_USER && !principal.serviceAgreementAccepted) {
+            throw RPCException("Service license agreement not yet accepted", HttpStatusCode.Forbidden)
         }
     }
 

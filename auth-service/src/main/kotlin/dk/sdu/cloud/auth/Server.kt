@@ -5,11 +5,13 @@ import com.onelogin.saml2.settings.Saml2Settings
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthStreams
+import dk.sdu.cloud.auth.api.ServiceAgreementText
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.auth.http.CoreAuthController
 import dk.sdu.cloud.auth.http.LoginResponder
 import dk.sdu.cloud.auth.http.PasswordController
 import dk.sdu.cloud.auth.http.SAMLController
+import dk.sdu.cloud.auth.http.SLAController
 import dk.sdu.cloud.auth.http.SessionsController
 import dk.sdu.cloud.auth.http.TwoFactorAuthController
 import dk.sdu.cloud.auth.http.UserController
@@ -104,7 +106,7 @@ class Server(
             personService,
             userDao,
             refreshTokenDao,
-            JWTFactory(jwtAlg),
+            JWTFactory(jwtAlg, config.serviceLicenseAgreement),
             userCreationService,
             tokenValidation,
             mergedExtensions,
@@ -114,6 +116,7 @@ class Server(
         val loginResponder = LoginResponder(tokenService, twoFactorChallengeService)
 
         val sessionService = SessionService(db, refreshTokenDao)
+        val slaService = SLAService(config.serviceLicenseAgreement ?: ServiceAgreementText(0, ""), db, userDao)
 
         log.info("Core services constructed!")
 
@@ -201,7 +204,9 @@ class Server(
 
                     TwoFactorAuthController(twoFactorChallengeService, loginResponder),
 
-                    SessionsController(sessionService)
+                    SessionsController(sessionService),
+
+                    SLAController(slaService)
                 )
             }
 

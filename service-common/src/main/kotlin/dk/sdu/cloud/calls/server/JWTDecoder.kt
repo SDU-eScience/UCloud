@@ -67,6 +67,7 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
 
     val email = validatedToken.optionalClaim("email") { it.asString() }
     val principalType = validatedToken.optionalClaim("principalType") { it.asString() }
+    val serviceAgreementAccepted = validatedToken.optionalClaim("serviceAgreementAccepted") { it.asBoolean() } ?: true
 
     val principal = SecurityPrincipal(
         validatedToken.subject,
@@ -76,7 +77,8 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
         validatedToken.getClaim("uid").asLong(),
         email,
         twoFactorAuthentication,
-        principalType
+        principalType,
+        serviceAgreementAccepted
     )
 
     val issuedAt = validatedToken.issuedAt.time

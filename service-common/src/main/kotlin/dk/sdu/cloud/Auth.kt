@@ -118,7 +118,12 @@ data class SecurityPrincipal(
      */
     val twoFactorAuthentication: Boolean = true,
 
-    val principalType: String? = null
+    val principalType: String? = null,
+
+    /**
+     * A boolean indicating if the service agreement has been accepted
+     */
+    val serviceAgreementAccepted: Boolean = false
 )
 
 /**

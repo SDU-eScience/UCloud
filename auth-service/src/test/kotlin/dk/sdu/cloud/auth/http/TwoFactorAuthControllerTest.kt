@@ -66,7 +66,8 @@ class TwoFactorAuthControllerTest {
             null,
             password = ByteArray(64),
             salt = ByteArray(64),
-            twoFactorAuthentication = false
+            twoFactorAuthentication = false,
+            serviceLicenseAgreement = 0
         )
     ): Principal {
         db.withTransaction { userDAO.insert(it, principal) }

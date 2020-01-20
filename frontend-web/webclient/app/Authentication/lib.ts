@@ -500,6 +500,11 @@ export default class HttpClient {
         }
     }
 
+    public async invalidateAccessToken() {
+        this.accessToken = "invalid-token";
+        await this.refresh(false);
+    }
+
     /**
      * Updates tokens received by the auth service.
      *
@@ -634,6 +639,7 @@ interface JWT {
     principalType: string;
     publicSessionReference?: string;
     twoFactorAuthentication?: boolean;
+    serviceLicenseAgreement?: boolean;
 }
 
 export class MissingAuthError {

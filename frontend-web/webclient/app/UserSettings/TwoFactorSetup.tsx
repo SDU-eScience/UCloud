@@ -188,6 +188,8 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & { loading
                 verificationCode: this.state.verificationCode
             }, "/auth", true);
 
+            await Client.invalidateAccessToken();
+
             this.setState(() => ({isConnectedToAccount: true}));
         } catch (res) {
             const response = res.response;

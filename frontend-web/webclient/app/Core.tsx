@@ -35,6 +35,7 @@ import ProjectView from "Project/View";
 import * as React from "react";
 import {Route, RouteComponentProps, Switch} from "react-router-dom";
 import Search from "Search/Search";
+import ServiceLicenseAgreement from "ServiceLicenseAgreement";
 import * as Share from "Shares";
 import Snackbars from "Snackbar/Snackbars";
 import Sidebar from "ui-components/Sidebar";
@@ -116,6 +117,12 @@ const Core = () => {
                     <Route exact path="/projects/create" component={requireAuth(ProjectCreate)} />
                     <Route exact path="/projects/view/:id" component={requireAuth(ProjectView)} />
 
+                    <Route
+                        exact
+                        path="/sla"
+                        component={requireAuth(ServiceLicenseAgreement, {requireTwoFactor: false, requireSla: false})}
+                    />
+
                     <Route component={NotFound} />
                 </Switch>
             </ErrorBoundary>
@@ -124,7 +131,8 @@ const Core = () => {
 };
 
 interface RequireAuthOpts {
-    requireTwoFactor: boolean;
+    requireTwoFactor?: boolean;
+    requireSla?: boolean;
 }
 
 function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuthOpts): React.FunctionComponent<T> {
@@ -133,6 +141,13 @@ function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuth
         if (!Client.isLoggedIn || info === undefined) {
             props.history.push("/login");
             return null;
+        }
+
+        if (opts === undefined || opts.requireSla !== false) {
+            if (info.serviceLicenseAgreement === false) {
+                props.history.push("/sla");
+                return null;
+            }
         }
 
         if (opts === undefined || opts.requireTwoFactor) {

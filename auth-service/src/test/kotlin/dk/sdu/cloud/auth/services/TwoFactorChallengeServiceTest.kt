@@ -33,7 +33,8 @@ class TwoFactorChallengeServiceTest {
             null,
             password = ByteArray(64),
             salt = ByteArray(64),
-            twoFactorAuthentication = false
+            twoFactorAuthentication = false,
+            serviceLicenseAgreement = 0
         )
     ): Principal {
         @Suppress("UNCHECKED_CAST")
@@ -201,7 +202,8 @@ class TwoFactorChallengeServiceTest {
             null,
             password = ByteArray(64),
             salt = ByteArray(64),
-            twoFactorAuthentication = false
+            twoFactorAuthentication = false,
+            serviceLicenseAgreement = 0
         )
 
         db.withTransaction { session ->

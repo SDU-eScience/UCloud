@@ -29,5 +29,6 @@ interface UserDAO<Session> {
     )
 
     fun delete(session: Session, id: String)
+    fun setAcceptedSlaVersion(session: Session, user: String, version: Int)
 }
 

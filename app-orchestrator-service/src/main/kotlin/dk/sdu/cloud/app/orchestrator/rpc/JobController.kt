@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.orchestrator.rpc
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.fs.api.AppFileSystems
 import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
 import dk.sdu.cloud.app.orchestrator.api.JobStartedResponse
@@ -162,6 +163,10 @@ class JobController(
                 "2FA must be activated before application services are available",
                 HttpStatusCode.Forbidden
             )
+        }
+
+        if (principal.role in Roles.END_USER && !principal.serviceAgreementAccepted) {
+            throw RPCException("Service license agreement not yet accepted", HttpStatusCode.Forbidden)
         }
     }
 

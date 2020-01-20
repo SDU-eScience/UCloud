@@ -136,7 +136,8 @@ class UserHibernateDAOTest {
             "phone",
             "orcid",
             hashedPassword = ByteArray(2),
-            salt = ByteArray(4)
+            salt = ByteArray(4),
+            serviceLicenseAgreement = 0
         )
         val person2 = PersonEntityByPassword(
             "id",
@@ -149,7 +150,8 @@ class UserHibernateDAOTest {
             "phone",
             "orcid",
             hashedPassword = ByteArray(2),
-            salt = ByteArray(4)
+            salt = ByteArray(4),
+            serviceLicenseAgreement = 0
         )
 
         assertEquals(person1, person2)
@@ -173,7 +175,8 @@ class UserHibernateDAOTest {
             "phone",
             "orcid",
             orgId = "orgid",
-            wayfId = "wayfid"
+            wayfId = "wayfid",
+            serviceLicenseAgreement = 0
         )
         val model = entity.toModel(false)
         val backToEntity = model.toEntity()
