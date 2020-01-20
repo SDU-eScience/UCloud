@@ -25,7 +25,7 @@ class AppLicenseService<Session>(
         } ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
     }
 
-    fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
+    suspend fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
         aclService.updatePermissions(request.serverId, request.changes, entity)
     }
 
@@ -56,7 +56,7 @@ class AppLicenseService<Session>(
         } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
     }
 
-    fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
+    suspend fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
         val license = if (request.license.isNullOrBlank()) { null } else { request.license }
         val serverId = UUID.randomUUID().toString()
         val port = if (request.port.matches("^[0-9]{2,5}$".toRegex())) { request.port } else {

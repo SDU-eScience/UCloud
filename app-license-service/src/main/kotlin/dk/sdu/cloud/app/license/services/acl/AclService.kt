@@ -1,13 +1,21 @@
 package dk.sdu.cloud.app.license.services.acl
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.license.api.ACLEntryRequest
+import dk.sdu.cloud.app.license.rpc.AppLicenseController
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 
 class AclService<Session>(
     private val db: DBSessionFactory<Session>,
+    private val authenticatedClient: AuthenticatedClient,
     private val dao: AclDao<Session>
 ) {
 
@@ -17,7 +25,7 @@ class AclService<Session>(
         }
     }
 
-    fun updatePermissions(serverId: String, changes: List<ACLEntryRequest>, entity: UserEntity) {
+    suspend fun updatePermissions(serverId: String, changes: List<ACLEntryRequest>, entity: UserEntity) {
         db.withTransaction { session ->
             if (dao.hasPermission(session, serverId, entity, ServerAccessRight.READ_WRITE)) {
                 changes.forEach { change ->
@@ -36,13 +44,32 @@ class AclService<Session>(
         }
     }
 
-    fun updatePermissionsWithSession(
+    suspend fun updatePermissionsWithSession(
         session: Session,
         serverId: String,
         entity: UserEntity,
         permissions: ServerAccessRight
     ) {
-        dao.updatePermissions(session, serverId, entity, permissions)
+        if (entity.type == EntityType.USER) {
+            AppLicenseController.log.debug("Verifying that user exists")
+
+            val lookup = UserDescriptions.lookupUsers.call(
+                LookupUsersRequest(listOf(entity.id)),
+                authenticatedClient
+            ).orRethrowAs {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
+
+            if (lookup.results[entity.id] == null) throw RPCException.fromStatusCode(
+                HttpStatusCode.BadRequest,
+                "The user does not exist"
+            )
+
+            if (lookup.results[entity.id]?.role == Role.SERVICE) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "The user does not exist")
+            }
+            dao.updatePermissions(session, serverId, entity, permissions)
+        }
     }
 
     fun listAcl(serverId: String): List<EntityWithPermission> {
