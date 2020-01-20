@@ -4,7 +4,6 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.store.services.acl.UserEntity
-import dk.sdu.cloud.app.store.services.acl.ApplicationAccessRight
 import dk.sdu.cloud.app.store.services.acl.EntityWithPermission
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth

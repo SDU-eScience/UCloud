@@ -23,6 +23,24 @@ data class WorkspaceMount(
 
 typealias WorkspaceDescriptions = Workspaces
 
+enum class WorkspaceMode {
+    COPY_FILES,
+    COPY_ON_WRITE
+}
+
+const val SNAPS_FILE = "snaps.json"
+const val SNAPS_TXT_FILE = "snaps.txt"
+
+data class CowWorkspace(
+    val snapshots: List<CowSnapshot>
+)
+
+data class CowSnapshot(
+    val directoryName: String,
+    val snapshotPath: String,
+    val realPath: String
+)
+
 object Workspaces : CallDescriptionContainer("files.workspace") {
     const val baseContext = "/api/files/workspaces"
 
@@ -31,7 +49,8 @@ object Workspaces : CallDescriptionContainer("files.workspace") {
             val username: String,
             val mounts: List<WorkspaceMount>,
             val allowFailures: Boolean,
-            val createSymbolicLinkAt: String
+            val createSymbolicLinkAt: String,
+            val mode: WorkspaceMode? = null
         )
 
         data class Response(val workspaceId: String, val failures: List<WorkspaceMount>)

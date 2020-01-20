@@ -1,10 +1,12 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.StorageEvents
+import dk.sdu.cloud.file.api.WorkspaceMode
+import dk.sdu.cloud.file.api.WorkspaceMount
+import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.services.acl.AccessRights
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.createDummyFS
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
@@ -25,7 +27,7 @@ import kotlin.test.assertFalse
 class WorkspaceTest : WithBackgroundScope() {
     private lateinit var micro: Micro
     private lateinit var aclService: AclService<*>
-    private lateinit var workspaceService: WorkspaceService<LinuxFSRunner>
+    private lateinit var workspaceService: WorkspaceService
     private lateinit var fsRoot: File
 
     @BeforeTest
@@ -55,12 +57,29 @@ class WorkspaceTest : WithBackgroundScope() {
             backgroundScope
         )
 
-        workspaceService = WorkspaceService(fsRoot, fileScanner, aclService, coreFileSystem, runner)
+        workspaceService = WorkspaceService(
+            fsRoot,
+            mapOf(
+                WorkspaceMode.COPY_FILES to CopyFilesWorkspaceCreator(
+                    fsRoot,
+                    fileScanner,
+                    aclService,
+                    coreFileSystem,
+                    runner
+                )
+            )
+        )
     }
 
     @Test
     fun `test creating workspace with no mounts`() = runBlocking {
-        val response = workspaceService.create("user", emptyList(), false, "/input")
+        val response = workspaceService.create(
+            "user",
+            emptyList(),
+            false,
+            "/input",
+            WorkspaceMode.COPY_FILES
+        )
         assertThatInstance(response) { it.failures.isEmpty() }
         workspaceService.transfer(response.workspaceId, emptyList(), "/home/user/foo", true)
         workspaceService.delete(response.workspaceId)
@@ -74,7 +93,8 @@ class WorkspaceTest : WithBackgroundScope() {
                 WorkspaceMount("/home/user/folder", "foo")
             ),
             false,
-            "/input"
+            "/input",
+            WorkspaceMode.COPY_FILES
         )
         assertThatInstance(response) { it.failures.isEmpty() }
         workspaceService.transfer(response.workspaceId, emptyList(), "/home/user/folder", true)
@@ -89,7 +109,8 @@ class WorkspaceTest : WithBackgroundScope() {
                 WorkspaceMount("/home/user/folder", "foo")
             ),
             false,
-            "/input"
+            "/input",
+            WorkspaceMode.COPY_FILES
         )
 
         return@runBlocking
@@ -106,7 +127,8 @@ class WorkspaceTest : WithBackgroundScope() {
                 WorkspaceMount(path, "foo")
             ),
             false,
-            "/input"
+            "/input",
+            WorkspaceMode.COPY_FILES
         )
 
         return@runBlocking
@@ -123,7 +145,8 @@ class WorkspaceTest : WithBackgroundScope() {
                 WorkspaceMount(path, "foo", readOnly = false)
             ),
             false,
-            "/input"
+            "/input",
+            WorkspaceMode.COPY_FILES
         )
 
         File(fsRoot, "/workspace/${creationResponse.workspaceId}/output/foo/qwe").writeText("Hello!")
@@ -145,7 +168,8 @@ class WorkspaceTest : WithBackgroundScope() {
                 WorkspaceMount(path, "foo")
             ),
             false,
-            "/input"
+            "/input",
+            WorkspaceMode.COPY_FILES
         )
 
         File(fsRoot, "/workspace/${creationResponse.workspaceId}/output/foo/qwe").writeText("Hello!")
@@ -168,7 +192,8 @@ class WorkspaceTest : WithBackgroundScope() {
                 WorkspaceMount(path, "foo")
             ),
             false,
-            "/input"
+            "/input",
+            WorkspaceMode.COPY_FILES
         )
 
         File(fsRoot, "/workspace/${creationResponse.workspaceId}/output/qwe").writeText("Hello!")
@@ -190,7 +215,8 @@ class WorkspaceTest : WithBackgroundScope() {
                 WorkspaceMount(path, "foo", readOnly = false)
             ),
             false,
-            "/input"
+            "/input",
+            WorkspaceMode.COPY_FILES
         )
 
         // We keep permissions in the foo mount but not in the destination dir. The result should be a single file
@@ -218,7 +244,8 @@ class WorkspaceTest : WithBackgroundScope() {
                 WorkspaceMount(path, mountPath, readOnly = false)
             ),
             false,
-            "/input"
+            "/input",
+            WorkspaceMode.COPY_FILES
         )
 
 
@@ -249,7 +276,8 @@ class WorkspaceTest : WithBackgroundScope() {
                 WorkspaceMount(path, mountPath, readOnly = false)
             ),
             false,
-            "/input"
+            "/input",
+            WorkspaceMode.COPY_FILES
         )
 
         // We keep permissions in the foo mount but not in the destination dir. The result should be a single file

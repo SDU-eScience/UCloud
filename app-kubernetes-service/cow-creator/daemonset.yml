@@ -1,0 +1,28 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: cow-deploy
+spec:
+  template:
+    metadata:
+      name: flex-deploy
+      labels:
+        app: flex-deploy
+    spec:
+      containers:
+        - image: registry.cloud.sdu.dk/cow/deploy:0.2.1
+          name: flex-deploy
+          securityContext:
+              privileged: true
+          volumeMounts:
+            - mountPath: /flexmnt
+              name: flexvolume-mount
+          command:
+            - /opt/cow/install.sh
+      volumes:
+        - name: flexvolume-mount
+          hostPath:
+            path: /var/lib/kubelet/volumeplugins
+      imagePullSecrets:
+        - name: esci-docker
+
