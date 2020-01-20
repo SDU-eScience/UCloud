@@ -81,7 +81,7 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
         val source = HashMap<String, Any>()
         source["fromUser"] = fromUser
         source["toUser"] = toUser
-        source["createdAt"] = Date()
+        source["createdAt"] = Date().time
         source["serviceOrigin"] = serviceOrigin
         request.source(source)
 

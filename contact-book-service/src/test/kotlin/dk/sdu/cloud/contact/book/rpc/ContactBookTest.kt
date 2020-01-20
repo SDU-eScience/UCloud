@@ -16,14 +16,28 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
+import io.mockk.every
+import io.mockk.just
+import io.mockk.mockk
+import io.mockk.runs
+import org.apache.lucene.search.TotalHits
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
+import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.common.document.DocumentField
+import org.elasticsearch.common.text.Text
+import org.elasticsearch.search.SearchHit
+import org.elasticsearch.search.SearchHits
+import org.junit.Ignore
 import org.junit.Test
+import java.util.*
 import kotlin.test.assertEquals
 
 class ContactBookTest {
@@ -35,7 +49,14 @@ class ContactBookTest {
         return listOf(ContactBookController(contactBookService))
     }
 
+    private fun KtorApplicationTestSetupContext.configureContactServerServiceGiven(
+        contactBookService: ContactBookService
+    ): List<Controller> {
+        return listOf(ContactBookController(contactBookService))
+    }
+
     //FULL TEST REQUIRE RUNNING ELASTICSEARCH CLUSTER WITH NO CONTACT BOOK INDEX ALSO DELETES INDEX AFTER
+    @Ignore
     @Test
     fun `real test`() {
         withKtorTest(
@@ -161,10 +182,146 @@ class ContactBookTest {
                     assertEquals(0, results.contacts.size)
                 }
 
-
                 client.indices().delete(DeleteIndexRequest("contactbook"), RequestOptions.DEFAULT)
             }
         )
     }
 
+    @Test
+    fun `insert`() {
+        withKtorTest(
+            setup = {
+                val contactBookService = mockk<ContactBookService>()
+                every { contactBookService.insertContact(any(), any(), any()) } just runs
+                configureContactServerServiceGiven(contactBookService)
+            },
+            test = {
+                //Insert
+                val fromUser = "UserName#41"
+                run {
+                    val response = sendJson(
+                        method = HttpMethod.Put,
+                        path = "/api/contactbook",
+                        user = TestUsers.service,
+                        request = InsertRequest(
+                            fromUser,
+                            listOf("toUser#12")
+                        )
+                    )
+                    response.assertSuccess()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `insert bulk`() {
+        withKtorTest(
+            setup = {
+                val contactBookService = mockk<ContactBookService>()
+                every { contactBookService.insertContact(any(), any(), any()) } just runs
+                configureContactServerServiceGiven(contactBookService)
+            },
+            test = {
+                //Insert
+                val fromUser = "UserName#41"
+                run {
+                    val response = sendJson(
+                        method = HttpMethod.Put,
+                        path = "/api/contactbook",
+                        user = TestUsers.service,
+                        request = InsertRequest(
+                            fromUser,
+                            listOf("toUser#12", "toUser#14")
+                        )
+                    )
+                    response.assertSuccess()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `delete test`() {
+        withKtorTest(
+            setup = {
+                val contactBookService = mockk<ContactBookService>()
+                every { contactBookService.deleteContact(any(), any(), any()) } just runs
+                configureContactServerServiceGiven(contactBookService)
+            },
+            test = {
+                //Insert
+                val fromUser = "UserName#41"
+                run {
+                    val response = sendJson(
+                        method = HttpMethod.Delete,
+                        path = "api/contactbook",
+                        user = TestUsers.service,
+                        request = DeleteRequest(
+                            fromUser,
+                            "toUser#44"
+                        )
+                    )
+                    response.assertSuccess()
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `query test`() {
+        withKtorTest(
+            setup = {
+                val contactBookService = mockk<ContactBookService>()
+                every { contactBookService.queryUserContacts(any(), any(), any()) } answers {
+                    listOf("toUser#4")
+                }
+                configureContactServerServiceGiven(contactBookService)
+            },
+            test = {
+                //Insert
+                val fromUser = "UserName#41"
+                run {
+                    val response = sendJson(
+                        method = HttpMethod.Post,
+                        path = "/api/contactbook",
+                        user = TestUsers.service,
+                        request = QueryContactsRequest(
+                            fromUser,
+                            "toUser#4"
+                        )
+                    )
+                    response.assertSuccess()
+                    val results = defaultMapper.readValue<QueryContactsResponse>(response.response.content!!)
+                    assertEquals(1, results.contacts.size)
+                }
+            }
+        )
+    }
+
+    @Test
+    fun `get all test`() {
+        withKtorTest(
+            setup = {
+                val contactBookService = mockk<ContactBookService>()
+                every { contactBookService.listAllContactsForUser(any(), any()) } answers {
+                    listOf("toUser#4")
+                }
+                configureContactServerServiceGiven(contactBookService)
+            },
+            test = {
+                //Insert
+                run {
+                    val response = sendRequest(
+                        method = HttpMethod.Get,
+                        path = "/api/contactbook/all/UserName#41",
+                        user = TestUsers.service
+                    )
+                    response.assertSuccess()
+                    val results = defaultMapper.readValue<AllContactsForUserResponse>(response.response.content!!)
+                    assertEquals(1, results.contacts.size)
+                }
+            }
+        )
+    }
 }

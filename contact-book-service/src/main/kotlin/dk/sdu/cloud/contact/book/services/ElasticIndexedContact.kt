@@ -1,11 +1,9 @@
 package dk.sdu.cloud.contact.book.services
 
-import java.util.*
-
 data class ElasticIndexedContact(
     val fromUser: String,
     val toUser: String,
-    val createdAt: Date,
+    val createdAt: Long,
     val serviceOrigin: String
 ) {
     companion object {
