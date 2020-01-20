@@ -42,7 +42,8 @@ class PasswordTest {
     private fun KtorApplicationTestSetupContext.createPasswordController(): TestContext {
         micro.install(HibernateFeature)
 
-        val userDao = UserHibernateDAO(passwordHashingService)
+        val twoFactorDao = TwoFactorHibernateDAO()
+        val userDao = UserHibernateDAO(passwordHashingService, twoFactorDao)
         val refreshTokenDao = RefreshTokenHibernateDAO()
 
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
@@ -93,7 +94,7 @@ class PasswordTest {
                 with(createPasswordController()) {
                     runBlocking {
                         db.withTransaction {
-                            UserHibernateDAO(passwordHashingService).insert(it, person)
+                            userDao.insert(it, person)
                             ServiceDAO.insert(Service(name = "_service", endpoint = "http://service"))
                         }
 
@@ -120,7 +121,7 @@ class PasswordTest {
                 runBlocking {
                     with(createPasswordController()) {
                         db.withTransaction {
-                            UserHibernateDAO(passwordHashingService).insert(it, person)
+                            userDao.insert(it, person)
                         }
 
                         controllers

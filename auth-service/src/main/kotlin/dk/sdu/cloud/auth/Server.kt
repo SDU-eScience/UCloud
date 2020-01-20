@@ -58,7 +58,8 @@ class Server(
         val streams = micro.eventStreamService
 
         val passwordHashingService = PasswordHashingService()
-        val userDao = UserHibernateDAO(passwordHashingService)
+        val twoFactorDao = TwoFactorHibernateDAO()
+        val userDao = UserHibernateDAO(passwordHashingService, twoFactorDao)
         val refreshTokenDao = RefreshTokenHibernateDAO()
         val usernameGenerator = UniqueUsernameService(db, userDao)
         val personService = PersonService(passwordHashingService, usernameGenerator)
@@ -83,7 +84,6 @@ class Server(
 
         userIterator.start()
 
-        val twoFactorDao = TwoFactorHibernateDAO()
 
         val twoFactorChallengeService = TwoFactorChallengeService(
             db,

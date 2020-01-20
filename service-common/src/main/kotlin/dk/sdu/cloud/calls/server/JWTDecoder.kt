@@ -53,6 +53,7 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
     val role = validatedToken.optionalClaim("role") { Role.valueOf(it.asString()) } ?: Role.UNKNOWN
     val firstNames = validatedToken.optionalClaim("firstNames") { it.asString() } ?: subject
     val lastName = validatedToken.optionalClaim("lastName") { it.asString() } ?: subject
+    val twoFactorAuthentication = validatedToken.optionalClaim("twoFactorAuthentication") { it.asBoolean() } ?: true
 
     val publicSessionReference = validatedToken
         .getClaim("publicSessionReference")
@@ -72,7 +73,8 @@ fun DecodedJWT.toSecurityToken(): SecurityPrincipalToken {
         firstNames,
         lastName,
         validatedToken.getClaim("uid").asLong(),
-        email
+        email,
+        twoFactorAuthentication
     )
 
     val issuedAt = validatedToken.issuedAt.time

@@ -4,7 +4,12 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
@@ -27,7 +32,8 @@ class TwoFactorChallengeServiceTest {
             null,
             null,
             password = ByteArray(64),
-            salt = ByteArray(64)
+            salt = ByteArray(64),
+            twoFactorAuthentication = false
         )
     ): Principal {
         @Suppress("UNCHECKED_CAST")
@@ -172,6 +178,58 @@ class TwoFactorChallengeServiceTest {
                     true
                 })
             }
+        }
+    }
+
+    @Test
+    fun `test 2fa status for password users`() = runBlocking {
+        val micro = initializeMicro()
+        micro.install(HibernateFeature)
+
+        val twoFactorDAO = TwoFactorHibernateDAO()
+        val userDAO = UserHibernateDAO(PasswordHashingService(), twoFactorDAO)
+        val db = micro.hibernateDatabase
+        val service = TwoFactorChallengeService(db, twoFactorDAO, userDAO, WSTOTPService(), ZXingQRService())
+
+        val user = Person.ByPassword(
+            "user",
+            Role.USER,
+            null,
+            "user",
+            "user",
+            null,
+            null,
+            password = ByteArray(64),
+            salt = ByteArray(64),
+            twoFactorAuthentication = false
+        )
+
+        db.withTransaction { session ->
+            userDAO.insert(
+                session, user
+            )
+        }
+
+        assertFalse(user.twoFactorAuthentication)
+
+        db.withTransaction { session ->
+            assertFalse((userDAO.findById(session, user.id) as Person.ByPassword).twoFactorAuthentication)
+        }
+
+        val setup = service.createSetupCredentialsAndChallenge(user.id)
+
+        db.withTransaction { session ->
+            assertFalse((userDAO.findById(session, user.id) as Person.ByPassword).twoFactorAuthentication)
+        }
+
+        val challenge = db.withTransaction { session ->
+            twoFactorDAO.findActiveChallengeOrNull(session, setup.challengeId)
+        }!!
+
+        service.upgradeCredentials(challenge.credentials)
+
+        db.withTransaction { session ->
+            assertTrue((userDAO.findById(session, user.id) as Person.ByPassword).twoFactorAuthentication)
         }
     }
 

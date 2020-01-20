@@ -18,7 +18,8 @@ class PersonService(
         username: String,
         role: Role,
         password: String,
-        email: String? = null
+        email: String? = null,
+        twoFactorAuthentication: Boolean = false
     ): Person.ByPassword {
         val (hashed, salt) = passwordHashingService.hashPassword(password)
         return Person.ByPassword(
@@ -31,7 +32,8 @@ class PersonService(
             orcId = null,
             email = email,
             password = hashed,
-            salt = salt
+            salt = salt,
+            twoFactorAuthentication = twoFactorAuthentication
         )
     }
 

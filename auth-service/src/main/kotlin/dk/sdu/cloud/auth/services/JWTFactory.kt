@@ -40,6 +40,7 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) : TokenGenerationService {
                 if (user.orcId != null) withClaim("orcId", user.orcId)
                 if (user.title != null) withClaim("title", user.title)
                 if (user.email != null) withClaim("email", user.email)
+                withClaim("twoFactorAuthentication", user.twoFactorAuthentication)
             }
 
             is ServicePrincipal -> {

@@ -61,6 +61,14 @@ sealed class Person : Principal() {
     abstract val orcId: String?
     abstract val email: String?
 
+    /**
+     * Indicates if the Person is authenticated with more than one factor.
+     *
+     * A value of true _does not_ mean that TOTP is enabled on the user. Any additional factor provided by the
+     * identity provider may count.
+     */
+    abstract val twoFactorAuthentication: Boolean
+
     override val emailAddresses: List<String> get() = listOfNotNull(email)
     override val preferredEmailAddress: String? get() = email
 
@@ -106,6 +114,11 @@ sealed class Person : Principal() {
         }
 
         override val displayName: String = "$firstNames $lastName"
+
+        // NOTE(Dan): WAYF is supposed to bring in additional factors. This should eliminate the need for us to
+        //  use our own TOTP solution. It does not appear that we can trust the attribute we get from WAYF.
+        //  As a result we have decided to set this to `true` for now.
+        override val twoFactorAuthentication = true
     }
 
     /**
@@ -121,6 +134,7 @@ sealed class Person : Principal() {
         override val orcId: String?,
         override val email: String? = null,
         override val uid: Long = 0,
+        override val twoFactorAuthentication: Boolean,
 
         @JsonIgnore
         val password: ByteArray = ByteArray(0),

@@ -20,7 +20,6 @@ import java.util.*
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 class UserHibernateDAOTest {
     private lateinit var db: DBSessionFactory<HibernateSession>
@@ -40,7 +39,7 @@ class UserHibernateDAOTest {
 
         db = micro.hibernateDatabase
         passwordHashingService = PasswordHashingService()
-        userHibernate = UserHibernateDAO(passwordHashingService)
+        userHibernate = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
         personService = PersonService(passwordHashingService, UniqueUsernameService(db, userHibernate))
 
         person = personService.createUserByPassword(
@@ -63,7 +62,7 @@ class UserHibernateDAOTest {
     @Test
     fun `insert, find and delete`(): Unit = runBlocking {
         db.withTransaction { session ->
-            val userHibernate = UserHibernateDAO(passwordHashingService)
+            val userHibernate = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
             userHibernate.insert(session, person)
             assertEquals(email, userHibernate.findById(session, email).id)
             userHibernate.delete(session, email)
@@ -71,26 +70,10 @@ class UserHibernateDAOTest {
         }
     }
 
-    @Test
-    fun `insert 2 and list all`(): Unit = runBlocking {
-        db.withTransaction { session ->
-            val userHibernate = UserHibernateDAO(passwordHashingService)
-            userHibernate.insert(session, person)
-            userHibernate.insert(session, person2)
-
-            val listOfAll = userHibernate.listAll(session)
-
-            assertEquals(2, listOfAll.size)
-            assertEquals(email, listOfAll[0].id)
-            assertEquals(email2, listOfAll[1].id)
-
-        }
-    }
-
     @Test(expected = NonUniqueObjectException::class)
     fun `insert 2 with same email`(): Unit = runBlocking {
         db.withTransaction { session ->
-            val userHibernate = UserHibernateDAO(passwordHashingService)
+            val userHibernate = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
             userHibernate.insert(session, person)
             userHibernate.insert(session, person)
 
@@ -100,14 +83,14 @@ class UserHibernateDAOTest {
     @Test(expected = UserException.NotFound::class)
     fun `delete non existing user`(): Unit = runBlocking {
         val session = db.openSession()
-        val userHibernate = UserHibernateDAO(passwordHashingService)
+        val userHibernate = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
         userHibernate.delete(session, "test@testmail.com")
     }
 
     @Test
     fun `insert WAYF`(): Unit = runBlocking {
         val auth = mockk<SamlRequestProcessor>()
-        val userDao = UserHibernateDAO(passwordHashingService)
+        val userDao = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
         every { auth.authenticated } returns true
         every { auth.attributes } answers {
             val h = HashMap<String, List<String>>(10)
@@ -132,7 +115,7 @@ class UserHibernateDAOTest {
         assertEquals(date, entity.createdAt)
         assertEquals(date, entity.modifiedAt)
 
-        val principal = entity.toModel()
+        val principal = entity.toModel(false)
         assertEquals(ServicePrincipal("_id", Role.SERVICE), principal)
         val backToEntity = principal.toEntity()
         assertEquals(backToEntity.id, entity.id)
@@ -169,7 +152,7 @@ class UserHibernateDAOTest {
             salt = ByteArray(4)
         )
 
-        assertTrue(person1.equals(person2))
+        assertEquals(person1, person2)
 
         val hashedPerson = person1.hashCode()
         val hashedPerson2 = person2.hashCode()
@@ -192,7 +175,7 @@ class UserHibernateDAOTest {
             orgId = "orgid",
             wayfId = "wayfid"
         )
-        val model = entity.toModel()
+        val model = entity.toModel(false)
         val backToEntity = model.toEntity()
 
         assertEquals(entity.id, backToEntity.id)
