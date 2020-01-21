@@ -6,8 +6,6 @@ minimal requirements to the file system. Some of them are listed below:
 - The FS is mounted as read+write
 - ACLs are supported
 - Extended attributes are supported and can store at least 4K data
-- inode reuse should be rare/not happen
-  - We may want to change this by attaching an ID with extended attributes
 
 ## User Security
 

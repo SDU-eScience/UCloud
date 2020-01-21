@@ -79,7 +79,7 @@ class Applications extends React.Component<ApplicationsProps> {
         );
     }
 
-    private renderPage = (page: Page<FullAppInfo>) => (<ApplicationPage onFavorite={this.onFavorite} page={page} />)
+    private renderPage = (page: Page<FullAppInfo>) => (<ApplicationPage onFavorite={this.onFavorite} page={page} />);
 
     private onFavorite = async (name: string, version: string) => {
         const page = this.props.applicationsPage.content as Page<FullAppInfo>;

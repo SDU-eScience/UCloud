@@ -6,8 +6,11 @@ import io.fabric8.kubernetes.api.model.DoneablePod
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder
 import io.fabric8.kubernetes.api.model.PodSpecBuilder
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
+import io.fabric8.kubernetes.api.model.SecurityContext
 import io.fabric8.kubernetes.api.model.Volume
 import io.fabric8.kubernetes.api.model.VolumeBuilder
+import io.fabric8.kubernetes.api.model.VolumeMount
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder
 import io.fabric8.kubernetes.api.model.batch.DoneableJob
 import io.fabric8.kubernetes.api.model.batch.JobSpecBuilder
 import kotlinx.coroutines.delay
@@ -56,16 +59,26 @@ fun DoneablePod.spec(builder: PodSpecBuilder.() -> Unit): DoneablePod {
     return this
 }
 
-fun PodSpecBuilder.container(builder: ContainerBuilder.() -> Unit): Container {
+fun container(builder: ContainerBuilder.() -> Unit): Container {
     val containerBuilder = ContainerBuilder()
     containerBuilder.builder()
     return containerBuilder.build()
 }
 
-fun PodSpecBuilder.volume(builder: VolumeBuilder.() -> Unit): Volume {
-    val volumeBuilder = VolumeBuilder()
-    volumeBuilder.builder()
-    return volumeBuilder.build()
+fun simpleContainer(builder: Container.() -> Unit): Container {
+    return Container().apply(builder)
+}
+
+fun volume(builder: Volume.() -> Unit): Volume {
+    return Volume().apply(builder)
+}
+
+fun securityContext(builder: SecurityContext.() -> Unit): SecurityContext = SecurityContext().apply(builder)
+
+fun volumeMount(builder: VolumeMount.() -> Unit): VolumeMount {
+    val myBuilder = VolumeMount()
+    myBuilder.apply(builder)
+    return myBuilder
 }
 
 suspend fun await(retries: Int = 50, time: Long = 100, condition: () -> Boolean) {

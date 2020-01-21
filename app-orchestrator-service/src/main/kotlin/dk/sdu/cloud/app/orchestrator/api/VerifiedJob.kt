@@ -153,7 +153,9 @@ data class VerifiedJob(
     @get:JsonProperty("peers")
     val _peers: List<ApplicationPeer>? = null,
 
-    val reservation: MachineReservation = MachineReservation.BURST
+    val reservation: MachineReservation = MachineReservation.BURST,
+
+    val mountMode: MountMode? = null
 ) {
     @get:JsonIgnore
     val mounts: List<ValidatedFileForUpload>

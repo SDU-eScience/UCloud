@@ -11,7 +11,7 @@ import {analyses as analysesPage} from "../mock/Analyses";
 
 describe("Analyses component", () => {
     test("Mount component with non-empty page", () => {
-        const storeCopy = {...store}
+        const storeCopy = {...store};
         storeCopy.getState().analyses.page = analysesPage;
         expect(create(
             <Provider store={storeCopy}>

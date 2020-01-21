@@ -147,7 +147,7 @@ class UserIterationService(
         val it = state.iterator
         while (result.size < PAGE_SIZE && it.next()) {
             val nextRow = it.get(0) as? PrincipalEntity ?: break
-            result.add(nextRow.toModel())
+            result.add(nextRow.toModel(false))
         }
         return result
     }

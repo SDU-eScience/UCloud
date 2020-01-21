@@ -153,7 +153,7 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
             snackbarStore.addFailure("Please fill out text field");
             return;
         } else if (start.getTime() > end.getTime()) {
-            snackbarStore.addFailure("End time cannot be before start.")
+            snackbarStore.addFailure("End time cannot be before start.");
             return;
         }
 

@@ -1,12 +1,10 @@
 package dk.sdu.cloud.app.store.services.acl
 
+import dk.sdu.cloud.app.store.api.ApplicationAccessRight
+
 enum class EntityType {
     USER,
     PROJECT_AND_GROUP
-}
-
-enum class ApplicationAccessRight {
-    LAUNCH
 }
 
 data class UserEntity(

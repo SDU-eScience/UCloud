@@ -7,6 +7,7 @@ export const defaultModalStyle = {
         marginRight: "-50%",
         transform: "translate(-50%, -50%)",
         background: "",
-        minWidth: "500px"
+        minWidth: "500px",
+       maxHeight: "80vh"
     }
 };
