@@ -9,6 +9,7 @@ import {
 import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {emptyPage} from "DefaultObjects";
+import {File, FileType} from "Files";
 import {loadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -21,6 +22,7 @@ import {useEffect, useRef, useState} from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import styled from "styled-components";
 import {AccessRight, AccessRights, Dictionary, Page, singletonToPage} from "Types";
 import {Box, Card, Flex, Icon, SelectableText, SelectableTextWrapper, Text} from "ui-components";
 import Button from "ui-components/Button";
@@ -33,7 +35,7 @@ import {Spacer} from "ui-components/Spacer";
 import {TextSpan} from "ui-components/Text";
 import {colors} from "ui-components/theme";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
-import {fileTablePage, getFilenameFromPath} from "Utilities/FileUtilities";
+import {fileTablePage, getFilenameFromPath, getParentPath, isDirectory, statFileQuery} from "Utilities/FileUtilities";
 import {addStandardDialog, FileIcon} from "UtilityComponents";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
 import {ListProps, ListSharesParams, loadAvatars, Share, SharesByPath, ShareState} from ".";
@@ -224,8 +226,13 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const [isCreatingShare, setIsCreatingShare] = useState(false);
     const [newShareRights, setNewShareRights] = useState(AccessRights.READ_RIGHTS);
     const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
+    const [fileType, setFileType] = useState<FileType>("DIRECTORY");
     const promises = usePromiseKeeper();
     const newShareUsername = useRef<HTMLInputElement>(null);
+
+    React.useEffect(() => {
+        Client.get<File>(statFileQuery(groupedShare.path)).then(({response}) => setFileType(response.fileType));
+    }, []);
 
     const doCreateShare = async (event: React.FormEvent<HTMLFormElement>) => {
         if (!isCreatingShare) {
@@ -272,30 +279,30 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         }
     };
 
-    const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || groupedShare.sharedByMe ?
-        <Link to={fileTablePage(groupedShare.path)}>{getFilenameFromPath(groupedShare.path)}</Link> :
-        <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
+    const {path} = groupedShare;
+    const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || groupedShare.sharedByMe ? (
+        <Link to={fileTablePage(isDirectory({fileType}) ? path : getParentPath(path))}>
+            {getFilenameFromPath(path)}
+        </Link>
+    ) : <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
     return (
         <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} mb={12}>
-            <Flex
+            <BorderedFlex
                 bg="lightGray"
                 color="darkGray"
                 px={3}
                 py={2}
                 alignItems="center"
-                style={{
-                    borderRadius: "6px 6px 0px 0px"
-                }}
             >
                 <Box ml="3px" mr="10px">
-                    <FileIcon fileIcon={iconFromFilePath(groupedShare.path, "DIRECTORY", Client.homeFolder)} />
+                    <FileIcon fileIcon={iconFromFilePath(groupedShare.path, fileType, Client.homeFolder)} />
                 </Box>
                 <Heading.h4> {folderLink} </Heading.h4>
                 <Box ml="auto" />
                 {groupedShare.sharedByMe ?
                     `${groupedShare.shares.length} ${groupedShare.shares.length > 1 ?
                         "collaborators" : "collaborator"}` : sharePermissionsToText(groupedShare.shares[0].rights)}
-            </Flex>
+            </BorderedFlex>
             <Box px={3} pt={3}>
                 {!groupedShare.sharedByMe || props.simple ? null : (
                     <form onSubmit={doCreateShare}>
@@ -361,6 +368,10 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         </Card>
     );
 };
+
+const BorderedFlex = styled(Flex)`
+    borderRadius: 6px 6px 0px 0px;
+`;
 
 function inCancelableState(state: ShareState) {
     return state !== ShareState.UPDATING;

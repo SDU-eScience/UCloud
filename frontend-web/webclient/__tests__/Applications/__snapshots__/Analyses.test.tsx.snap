@@ -804,7 +804,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           cursor="auto"
         >
           <th
-            className="sc-fzXfPg c25"
+            className="sc-fzXfPE c25"
             width="4%"
           >
             <label
@@ -857,25 +857,25 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             </label>
           </th>
           <th
-            className="sc-fzXfPg c29"
+            className="sc-fzXfPE c29"
             onClick={[Function]}
           >
             Name
           </th>
           <th
-            className="sc-fzXfPg c29"
+            className="sc-fzXfPE c29"
             onClick={[Function]}
           >
             State
           </th>
           <th
-            className="sc-fzXfPg c29"
+            className="sc-fzXfPE c29"
             onClick={[Function]}
           >
             Application
           </th>
           <th
-            className="sc-fzXfPg c29"
+            className="sc-fzXfPE c29"
             onClick={[Function]}
           >
             <svg
@@ -896,7 +896,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             Created at
           </th>
           <th
-            className="sc-fzXfPg c29"
+            className="sc-fzXfPE c29"
             onClick={[Function]}
           >
             Expiration
