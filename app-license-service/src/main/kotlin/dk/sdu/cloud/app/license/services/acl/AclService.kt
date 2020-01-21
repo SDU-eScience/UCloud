@@ -87,4 +87,8 @@ class AclService<Session>(
     private fun revokePermissionWithSession(session: Session, serverId: String, entity: UserEntity) {
         dao.revokePermission(session, serverId, entity)
     }
+
+    fun revokeAllServerPermissionsWithSession(session: Session, serverId: String) {
+        dao.revokeAllServerPermissions(session, serverId)
+    };
 }

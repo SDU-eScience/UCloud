@@ -5,12 +5,8 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.LicenseServer
 import dk.sdu.cloud.app.license.api.LicenseServerId
 import dk.sdu.cloud.app.license.api.LicenseServerWithId
-import dk.sdu.cloud.app.license.services.acl.AclService
-import dk.sdu.cloud.app.license.services.acl.PermissionEntry
 import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.service.db.*
-import java.io.Serializable
-import java.util.*
 import javax.persistence.*
 
 @Entity
@@ -134,5 +130,11 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         existing.name = appLicenseServer.name
 
         session.update(existing)
+    }
+
+    override fun delete(session: HibernateSession, serverId: String) {
+        session.deleteCriteria<LicenseServerEntity> {
+            (entity[LicenseServerEntity::id] equal serverId)
+        }.executeUpdate()
     }
 }

@@ -23,6 +23,10 @@ data class UpdateServerRequest(
     val withId: String
 )
 
+data class DeleteServerRequest(
+    val id: String
+)
+
 data class NewServerRequest(
     val name: String,
     val address: String,
@@ -191,6 +195,27 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
                 +boundTo(UpdateServerRequest::address)
                 +boundTo(UpdateServerRequest::license)
                 +boundTo(UpdateServerRequest::withId)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val delete = call<DeleteServerRequest, Unit, CommonErrorMessage>("update") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+            }
+
+            params {
+                +boundTo(DeleteServerRequest::id)
             }
 
             body { bindEntireRequestFromBody() }

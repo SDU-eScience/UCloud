@@ -71,6 +71,15 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             ok(UpdateServerResponse(licenseService.updateLicenseServer(request, entity)))
         }
 
+        implement(AppLicenseDescriptions.delete) {
+            val entity = UserEntity(
+                ctx.securityPrincipal.username,
+                EntityType.USER
+            )
+
+            ok(licenseService.deleteLicenseServer(request, entity))
+        }
+
         implement(AppLicenseDescriptions.new) {
             val entity = UserEntity(
                 ctx.securityPrincipal.username,

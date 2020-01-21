@@ -33,4 +33,9 @@ interface AppLicenseDao<Session> {
         session: Session,
         appLicenseServer: LicenseServerWithId
     )
+
+    fun delete(
+        session: Session,
+        serverId: String
+    )
 }

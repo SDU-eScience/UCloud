@@ -1,23 +1,23 @@
 package dk.sdu.cloud.app.license.services
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.license.api.NewServerRequest
 import dk.sdu.cloud.app.license.api.UpdateServerRequest
 import dk.sdu.cloud.app.license.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.app.license.services.acl.EntityType
 import dk.sdu.cloud.app.license.services.acl.UserEntity
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
-import kotlin.test.assertTrue
 
 class AppLicenseTest {
     private lateinit var micro: Micro
@@ -29,7 +29,13 @@ class AppLicenseTest {
         micro = initializeMicro()
         micro.install(HibernateFeature)
 
-        aclService = AclService(micro.hibernateDatabase, AclHibernateDao())
+        ClientMock.mockCall(UserDescriptions.lookupUsers) {
+            TestCallResult.Ok(
+                LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
+            )
+        }
+
+        aclService = AclService(micro.hibernateDatabase, ClientMock.authenticatedClient, AclHibernateDao())
         appLicenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao())
     }
 

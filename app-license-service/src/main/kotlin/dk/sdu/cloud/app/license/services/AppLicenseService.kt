@@ -102,4 +102,18 @@ class AppLicenseService<Session>(
             throw RPCException("Not authorized to change license server details", HttpStatusCode.Unauthorized)
         }
     }
+
+    fun deleteLicenseServer(request: DeleteServerRequest, entity: UserEntity) {
+        if (aclService.hasPermission(request.id, entity, ServerAccessRight.READ_WRITE)) {
+            db.withTransaction { session ->
+                // Delete Acl entries for the license server
+                aclService.revokeAllServerPermissionsWithSession(session, request.id)
+
+                // Delete license server
+                appLicenseDao.delete(session, request.id)
+            }
+        } else {
+            throw RPCException("Not authorized to delete license server", HttpStatusCode.Unauthorized)
+        }
+    }
 }

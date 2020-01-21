@@ -1,4 +1,4 @@
-import {LicenseServerAccessRight, updateLicenseServerPermission, UserEntityType} from "Applications/api";
+import {deleteLicenseServer, LicenseServerAccessRight, updateLicenseServerPermission, UserEntityType} from "Applications/api";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
@@ -40,8 +40,9 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
         });
     }
 
-    function promptDeleteAclEntry(accessEntry: AclEntry) {
-        addStandardDialog({
+    async function promptDeleteAclEntry(accessEntry: AclEntry) {
+        if (licenseServer === null) return;
+        await addStandardDialog({
             title: `Are you sure?`,
             message: (
                 <Box>
@@ -51,7 +52,6 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                 </Box>
             ),
             onConfirm: async () => {
-                if (licenseServer === null) return;
                 await invokeCommand(updateLicenseServerPermission(
                     {
                         serverId: licenseServer.id,
@@ -64,10 +64,10 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                         ]
                     }
                 ));
-                loadAndSetAccessList(licenseServer.id);
             },
             addToFront: true
-        })
+        });
+        loadAndSetAccessList(licenseServer.id);
     }
 
     async function loadAndSetAccessList(serverId: string) {
@@ -93,7 +93,6 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                 <Flex alignItems={"center"}>
                     <Heading.h3>
                         <TextSpan color="gray">Access control for</TextSpan> {licenseServer?.name}
-
                     </Heading.h3>
                 </Flex>
                 <Box mt={16} mb={30}>
@@ -258,6 +257,7 @@ function LicenseServers(props: LicenseServersOperations) {
     const [portError, setPortError] = React.useState(false);
     const [licenseServers, setLicenseServers] = React.useState<LicenseServer[]>([]);
     const promiseKeeper = usePromiseKeeper();
+    const [commandLoading, invokeCommand] = useAsyncCommand();
 
     React.useEffect(() => {
         props.setActivePage();
@@ -449,19 +449,9 @@ function LicenseServers(props: LicenseServersOperations) {
                                                                 </Box>
                                                             ),
                                                             onConfirm: async () => {
-                                                                /*await invokeCommand(updateLicenseServer(
-                                                                    {
-                                                                        licenseId: licenseServer.id,
-                                                                        changes: [
-                                                                            {
-                                                                                name: licenseServer.name,
-                                                                                address: licenseServer.address,
-                                                                                port: licenseServer.port,
-                                                                                license: licenseServer.license
-                                                                            }
-                                                                        ]
-                                                                    }
-                                                                ));*/
+                                                                await invokeCommand(deleteLicenseServer({
+                                                                    id: licenseServer.id
+                                                                }));
                                                                 loadAndSetLicenseServers()
                                                             }
                                                         })}
