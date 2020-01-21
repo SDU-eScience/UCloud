@@ -90,3 +90,12 @@ export const loadAvatars = ({usernames}: LoadAvatarsParams): APICallParameters<L
     payload: {usernames: Array.from(usernames)},
     parameters: {usernames}
 });
+
+export const searchPreviousSharedUsers = (
+    toUser: string,
+    serviceOrigin: string
+): APICallParameters => ({
+    method: "POST",
+    path: "/contactbook",
+    payload: {toUser, serviceOrigin}
+})

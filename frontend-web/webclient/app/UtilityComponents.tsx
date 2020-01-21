@@ -15,6 +15,9 @@ import Input, {InputLabel} from "ui-components/Input";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
+import {searchPreviousSharedUsers} from "Shares";
+import {useCloudAPI} from "Authentication/DataHook";
+import {setTime} from "Files/Redux/DetailedFileSearchActions";
 
 interface StandardDialog {
     title?: string;
@@ -103,6 +106,17 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
     const [loading, setLoading] = React.useState(false);
     const [shareableLink, setShareableLink] = React.useState("");
     const promises = usePromiseKeeper();
+    const [response, setFetchArgs, ] = useCloudAPI(searchPreviousSharedUsers("", "share"), []);
+
+    let timeout;
+    const onKeyUp = React.useCallback(() => {
+        if (timeout != undefined) {
+            window.clearTimeout(timeout);
+        }
+        timeout = window.setTimeout(() => {
+            setFetchArgs(searchPreviousSharedUsers(username.current!.value, "share"));
+        }, 500);
+    }, [username.current]);
 
     return (
         <SharePromptWrapper>
@@ -119,6 +133,7 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
                                 type="text"
                                 ref={username}
                                 placeholder="Enter username..."
+                                onKeyUp={onKeyUp}
                             />
                             <InputLabel width="160px" rightLabel>
                                 <ClickableDropdown
