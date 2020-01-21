@@ -1,30 +1,28 @@
+import {LicenseServerAccessRight, updateLicenseServerPermission, UserEntityType} from "Applications/api";
+import {useAsyncCommand} from "Authentication/DataHook";
+import {Client} from "Authentication/HttpClientInstance";
+import {dialogStore} from "Dialog/DialogStore";
+import {MainContainer} from "MainContainer/MainContainer";
 import {setActivePage, setLoading, SetStatusLoading} from "Navigation/Redux/StatusActions";
+import {usePromiseKeeper} from "PromiseKeeper";
+import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {SidebarPages} from "ui-components/Sidebar";
-import {MainContainer} from "MainContainer/MainContainer";
-import * as React from "react";
-import {Button, Input, Label, Flex, Box, Text, Icon, Tooltip} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {usePromiseKeeper} from "PromiseKeeper";
-import {Client} from "Authentication/HttpClientInstance";
-import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {defaultErrorHandler} from "UtilityFunctions";
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {addStandardDialog} from "UtilityComponents";
-import * as ReactModal from "react-modal";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
-import {TextSpan} from "ui-components/Text";
-import {InputLabel} from "ui-components/Input";
+import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {UserEntityType, LicenseServerAccessRight, updateLicenseServerPermission} from "Applications/api";
-import {dialogStore} from "Dialog/DialogStore";
+import * as Heading from "ui-components/Heading";
+import {InputLabel} from "ui-components/Input";
+import {SidebarPages} from "ui-components/Sidebar";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
+import {TextSpan} from "ui-components/Text";
+import {addStandardDialog} from "UtilityComponents";
+import {defaultErrorHandler} from "UtilityFunctions";
 
-function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer|null}) {
-    const [accessList, setAccessList] = React.useState<AclEntry[]|null>(null);
+function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}) {
+    const [accessList, setAccessList] = React.useState<AclEntry[] | null>(null);
     const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
     const [commandLoading, invokeCommand] = useAsyncCommand();
 
@@ -59,7 +57,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer|n
                         serverId: licenseServer.id,
                         changes: [
                             {
-                                entity: { id: accessEntry.id, type: UserEntityType.USER },
+                                entity: {id: accessEntry.id, type: UserEntityType.USER},
                                 rights: accessEntry.permission,
                                 revoke: true
                             }
@@ -94,7 +92,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer|n
             <div>
                 <Flex alignItems={"center"}>
                     <Heading.h3>
-                        <TextSpan color="gray">Access control for</TextSpan> { licenseServer?.name }
+                        <TextSpan color="gray">Access control for</TextSpan> {licenseServer?.name}
 
                     </Heading.h3>
                 </Flex>
@@ -116,7 +114,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer|n
                                     serverId: licenseServer.id,
                                     changes: [
                                         {
-                                            entity: { id: permissionUserValue, type: UserEntityType.USER },
+                                            entity: {id: permissionUserValue, type: UserEntityType.USER},
                                             rights: selectedAccess,
                                             revoke: false
                                         }
@@ -155,7 +153,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer|n
                         </Flex>
                     </form>
                 </Box>
-                { (accessList !== null && accessList.length > 0) ? (
+                {(accessList !== null && accessList.length > 0) ? (
                     <Box maxHeight="80vh">
                         <Table width="700px">
                             <LeftAlignedTableHeader>
@@ -187,8 +185,8 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer|n
                         </Table>
                     </Box>
                 ) : (
-                    <Text textAlign="center">No access entries found</Text>
-                )}
+                        <Text textAlign="center">No access entries found</Text>
+                    )}
             </div>
         </Box>
     )
@@ -213,7 +211,7 @@ const permissionLevels = [
 ];
 
 function prettifyAccessRight(p: LicenseServerAccessRight): string {
-    switch(p) {
+    switch (p) {
         case LicenseServerAccessRight.READ: {
             return "Read";
         }
@@ -269,13 +267,9 @@ function LicenseServers(props: LicenseServersOperations) {
         setLicenseServers(await loadLicenseServers());
     }
 
-        
-
     React.useEffect(() => {
         loadAndSetLicenseServers();
     }, []);
-
-    
 
     async function submit(e: React.SyntheticEvent) {
         e.preventDefault();
@@ -316,24 +310,9 @@ function LicenseServers(props: LicenseServersOperations) {
 
     if (!Client.userIsAdmin) return null;
 
-    /*const {
-        nameError,
-        addressError,
-        portError,
-        name,
-        address,
-        port,
-        submitted
-    } = state;*/
-
     const LeftAlignedTableHeader = styled(TableHeader)`
         text-align: left;
     `;
-
-
-
-
-
 
     return (
         <MainContainer
@@ -395,7 +374,7 @@ function LicenseServers(props: LicenseServersOperations) {
                         </form>
 
                         <Box mt={30}>
-                            { (licenseServers.length > 0) ? (
+                            {(licenseServers.length > 0) ? (
                                 <Table>
                                     <LeftAlignedTableHeader>
                                         <TableRow>
@@ -414,7 +393,7 @@ function LicenseServers(props: LicenseServersOperations) {
                                                 <TableCell>{licenseServer.address}</TableCell>
                                                 <TableCell>{licenseServer.port}</TableCell>
                                                 <TableCell>
-                                                    { licenseServer.license !== null ? (
+                                                    {licenseServer.license !== null ? (
                                                         <Tooltip
                                                             tooltipContentWidth="300px"
                                                             wrapperOffsetLeft="0"
@@ -433,11 +412,11 @@ function LicenseServers(props: LicenseServersOperations) {
                                                                 />
                                                             )}
                                                         >
-                                                            { licenseServer.license }
+                                                            {licenseServer.license}
                                                         </Tooltip>
                                                     ) : (
-                                                        <Text></Text>
-                                                    )}
+                                                            <Text></Text>
+                                                        )}
                                                 </TableCell>
                                                 <TableCell textAlign="center">
                                                     <Icon
@@ -448,7 +427,7 @@ function LicenseServers(props: LicenseServersOperations) {
                                                         color="gray"
                                                         color2="midGray"
                                                         name="projects"
-                                                        onClick={() => 
+                                                        onClick={() =>
                                                             openAclDialog(licenseServer)
                                                         }
                                                     />
@@ -458,7 +437,7 @@ function LicenseServers(props: LicenseServersOperations) {
                                                         color={"red"}
                                                         type={"button"}
                                                         paddingLeft={10}
-                                                    paddingRight={10}
+                                                        paddingRight={10}
 
                                                         onClick={() => addStandardDialog({
                                                             title: `Are you sure?`,
@@ -495,8 +474,8 @@ function LicenseServers(props: LicenseServersOperations) {
                                     </tbody>
                                 </Table>
                             ) : (
-                                <Text textAlign="center">No license servers found</Text>
-                            )}
+                                    <Text textAlign="center">No license servers found</Text>
+                                )}
                         </Box>
                     </Box>
                 </>
