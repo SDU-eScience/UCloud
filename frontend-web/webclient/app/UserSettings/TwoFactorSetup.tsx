@@ -8,7 +8,7 @@ import * as Heading from "ui-components/Heading";
 import {TwoFactorSetupState} from ".";
 
 const googlePlay = require("Assets/Images/google-play-badge.png");
-const appStore = require("Assets/Images/app-store-badge.png").default;
+const appStore = require("Assets/Images/app-store-badge.png");
 
 interface TwoFactorSetupProps {
     loading: boolean;
