@@ -57,6 +57,8 @@ class ContactBookTest {
         return listOf(ContactBookController(contactBookService))
     }
 
+    private val fromUser = TestUsers.user.username
+
     //FULL TEST REQUIRE RUNNING ELASTICSEARCH CLUSTER WITH NO CONTACT BOOK INDEX ALSO DELETES INDEX AFTER
     @Ignore
     @Test
@@ -77,6 +79,7 @@ class ContactBookTest {
                         path = "/api/contactbook",
                         user = TestUsers.service,
                         request = InsertRequest(
+                            fromUser,
                             listOf("toUser#12"),
                             ServiceOrigin.SHARE_SERVICE.string
                         )
@@ -106,6 +109,7 @@ class ContactBookTest {
                         path = "/api/contactbook",
                         user = TestUsers.service,
                         request = InsertRequest(
+                            fromUser,
                             listOf("toUser#12", "toUser#92", "toUser#44"),
                             ServiceOrigin.SHARE_SERVICE.string
                         )
@@ -165,6 +169,7 @@ class ContactBookTest {
                         path = "api/contactbook",
                         user = TestUsers.service,
                         request = DeleteRequest(
+                            fromUser,
                             "toUser#44",
                             ServiceOrigin.SHARE_SERVICE.string
                         )
@@ -208,6 +213,7 @@ class ContactBookTest {
                         path = "/api/contactbook",
                         user = TestUsers.service,
                         request = InsertRequest(
+                            fromUser,
                             listOf("toUser#12"),
                             ServiceOrigin.SHARE_SERVICE.string
                         )
@@ -233,6 +239,7 @@ class ContactBookTest {
                         path = "/api/contactbook",
                         user = TestUsers.service,
                         request = InsertRequest(
+                            fromUser,
                             listOf("toUser#12", "toUser#14"),
                             ServiceOrigin.SHARE_SERVICE.string
                         )
@@ -258,6 +265,7 @@ class ContactBookTest {
                         path = "api/contactbook",
                         user = TestUsers.service,
                         request = DeleteRequest(
+                            fromUser,
                             "toUser#44",
                             ServiceOrigin.SHARE_SERVICE.string
                         )

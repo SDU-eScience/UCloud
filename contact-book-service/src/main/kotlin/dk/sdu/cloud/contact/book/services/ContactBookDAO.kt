@@ -22,7 +22,7 @@ interface ContactBookDAO {
 
     fun queryContacts(
         fromUser: String,
-        toUser: String,
+        query: String,
         serviceOrigin: String
     ): SearchHits
 

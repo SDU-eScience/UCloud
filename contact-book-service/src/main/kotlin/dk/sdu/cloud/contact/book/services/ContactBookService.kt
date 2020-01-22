@@ -9,7 +9,6 @@ import io.ktor.http.HttpStatusCode
 class ContactBookService(private val elasticDAO: ContactBookElasticDAO) {
 
     fun insertContact(fromUser: String, toUser: List<String>, serviceOrigin: String) {
-        println("INSERTING IN SERVICE")
         val sanitizedList = toUser.filter { !it.isNullOrBlank() }
         when {
             sanitizedList.isEmpty() -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)

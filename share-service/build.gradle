@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.6.3-contact3'
+version '1.6.4'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.share.MainKt"
@@ -22,7 +22,7 @@ dependencies {
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
     compile 'dk.sdu.cloud:notification-api:1.2.6'
     compile 'dk.sdu.cloud:indexing-api:1.15.4'
-    compile 'dk.sdu.cloud:contact-book-api:0.1.7'
+    compile 'dk.sdu.cloud:contact-book-api:0.1.10'
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 

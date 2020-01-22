@@ -89,14 +89,10 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
     }
 
     override fun insertContact(fromUser: String, toUser: String, serviceOrigin: String) {
-        println("INSERTING IN ELASTICDAO")
         val exists = findSingleContactOrNull(fromUser, toUser, serviceOrigin)
-        println("FINISH FINDING CONTACTS: $exists")
         if (exists == null) {
             val request = createInsertContactRequest(fromUser, toUser, serviceOrigin)
-            println("SENDING REQUEST. $request")
             elasticClient.index(request, RequestOptions.DEFAULT)
-            println("DONE")
         }
     }
 
