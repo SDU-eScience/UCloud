@@ -58,10 +58,6 @@ UCloud offers a vareity of features built on top of the storage, including:
 - [Indexing](./indexing-service/README.md)
 - [Search](./filesearch-service/README.md)
 
-UCloud keeps track and can create accounting reports for storage consumed by
-each user. The [accounting services](./accounting-storage-service/README.md) are
-responsible for accounting in UCloud.
-
 ### Collaboration
 
 Users are able to [share](./share-service/README.md) the files they own with other users.
