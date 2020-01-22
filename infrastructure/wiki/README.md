@@ -168,6 +168,15 @@ The generated support ticket will hold the documentation/comments.
 If the issue involves a user or an SDUCloud project the relevant user/PI will
 be notified.
 
+### Security related issues
+If the messages from the alerting/monitoring services contains 
+alerts/notifications the support team will notify all project leaders and the 
+rest of the support team by the user of the Security Slack Channel. 
+In the case that this is unknown behavior and a potential risk is seen, an issue 
+is created.
+
+![securityflow](securityFlow.png)
+
 ## Internal Audits (sect. 12.2.1)
 
 Each month https://cloud.sdu.dk is scanned and penetration tested by the
