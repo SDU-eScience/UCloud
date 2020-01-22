@@ -21,6 +21,10 @@ import {TextSpan} from "ui-components/Text";
 import {addStandardDialog} from "UtilityComponents";
 import {defaultErrorHandler} from "UtilityFunctions";
 
+const LeftAlignedTableHeader = styled(TableHeader)`
+    text-align: left;
+`;
+
 function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}) {
     const [accessList, setAccessList] = React.useState<AclEntry[]>([]);
     const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
@@ -85,10 +89,6 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     React.useEffect(() => {
         setLoading(commandLoading);
     }, [commandLoading]);
-
-    const LeftAlignedTableHeader = styled(TableHeader)`
-        text-align: left;
-    `;
 
     return (
         <Box>
