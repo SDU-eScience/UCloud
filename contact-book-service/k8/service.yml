@@ -9,7 +9,7 @@ metadata:
       apiVersion: ambassador/v0
       kind: Mapping
       name: contact-book
-      prefix: ^/api/contact/book(/.*)?$
+      prefix: ^/api/contactbook(/.*)?$
       prefix_regex: true
       service: contact-book:8080
       rewrite: ""

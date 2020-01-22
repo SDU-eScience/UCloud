@@ -11,27 +11,27 @@ import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
 data class InsertRequest(
-    val fromUser: String,
-    val toUser: List<String>
+    val toUser: List<String>,
+    val serviceOrigin: String
 )
 typealias InsertResponse = Unit
 
 data class DeleteRequest(
-    val fromUser: String,
-    val toUser: String
+    val toUser: String,
+    val serviceOrigin: String
 )
 typealias DeleteResponse = Unit
 
 data class QueryContactsRequest(
-    val fromUser: String,
-    val query: String
+    val query: String,
+    val serviceOrigin: String
 )
 data class QueryContactsResponse(
     val contacts: List<String>
 )
 
 data class AllContactsForUserRequest(
-    val fromUser: String
+    val serviceOrigin: String
 )
 typealias AllContactsForUserResponse = QueryContactsResponse
 
@@ -82,13 +82,14 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
         }
 
         http {
-            method = HttpMethod.Get
+            method = HttpMethod.Post
 
             path {
                 using(baseContext)
                 +"all"
-                +boundTo(AllContactsForUserRequest::fromUser)
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 

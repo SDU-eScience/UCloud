@@ -1,6 +1,7 @@
 package dk.sdu.cloud.contact.book.rpc
 
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.contact.book.api.AllContactsForUserRequest
 import dk.sdu.cloud.contact.book.api.AllContactsForUserResponse
 import dk.sdu.cloud.contact.book.api.DeleteRequest
 import dk.sdu.cloud.contact.book.api.InsertRequest
@@ -55,6 +56,9 @@ class ContactBookTest {
         return listOf(ContactBookController(contactBookService))
     }
 
+    private val service = "share_service"
+    private val fromUser = "UserName#41"
+
     //FULL TEST REQUIRE RUNNING ELASTICSEARCH CLUSTER WITH NO CONTACT BOOK INDEX ALSO DELETES INDEX AFTER
     @Ignore
     @Test
@@ -68,9 +72,7 @@ class ContactBookTest {
             },
             test = {
                 val client = micro.elasticHighLevelClient
-
                 //Insert
-                val fromUser = "UserName#41"
                 run {
                     val response = sendJson(
                         method = HttpMethod.Put,
@@ -78,7 +80,8 @@ class ContactBookTest {
                         user = TestUsers.service,
                         request = InsertRequest(
                             fromUser,
-                            listOf("toUser#12")
+                            listOf("toUser#12"),
+                            service
                         )
                     )
                     response.assertSuccess()
@@ -87,10 +90,14 @@ class ContactBookTest {
                 Thread.sleep(1000)
                 //Get All
                 run {
-                    val response = sendRequest(
-                        method = HttpMethod.Get,
-                        path = "/api/contactbook/all/UserName#41",
-                        user = TestUsers.service
+                    val response = sendJson(
+                        method = HttpMethod.Post,
+                        path = "/api/contactbook/all",
+                        user = TestUsers.service,
+                        request = AllContactsForUserRequest(
+                            fromUser,
+                            service
+                        )
                     )
                     response.assertSuccess()
                     val results = defaultMapper.readValue<AllContactsForUserResponse>(response.response.content!!)
@@ -104,7 +111,8 @@ class ContactBookTest {
                         user = TestUsers.service,
                         request = InsertRequest(
                             fromUser,
-                            listOf("toUser#12", "toUser#92", "toUser#44")
+                            listOf("toUser#12", "toUser#92", "toUser#44"),
+                            service
                         )
                     )
                     response.assertSuccess()
@@ -113,10 +121,14 @@ class ContactBookTest {
                 Thread.sleep(1000)
                 //Get all
                 run {
-                    val response = sendRequest(
-                        method = HttpMethod.Get,
-                        path = "/api/contactbook/all/$fromUser",
-                        user = TestUsers.service
+                    val response = sendJson(
+                        method = HttpMethod.Post,
+                        path = "/api/contactbook/all",
+                        user = TestUsers.service,
+                        request = AllContactsForUserRequest(
+                            fromUser,
+                            service
+                        )
                     )
                     response.assertSuccess()
                     val results = defaultMapper.readValue<AllContactsForUserResponse>(response.response.content!!)
@@ -130,7 +142,8 @@ class ContactBookTest {
                         user = TestUsers.service,
                         request = QueryContactsRequest(
                             fromUser,
-                            "toUser"
+                            "toUser",
+                            service
                         )
                     )
                     response.assertSuccess()
@@ -145,7 +158,8 @@ class ContactBookTest {
                         user = TestUsers.service,
                         request = QueryContactsRequest(
                             fromUser,
-                            "toUser#4"
+                            "toUser#4",
+                            service
                         )
                     )
                     response.assertSuccess()
@@ -160,7 +174,8 @@ class ContactBookTest {
                         user = TestUsers.service,
                         request = DeleteRequest(
                             fromUser,
-                            "toUser#44"
+                            "toUser#44",
+                            service
                         )
                     )
                 }
@@ -174,7 +189,8 @@ class ContactBookTest {
                         user = TestUsers.service,
                         request = QueryContactsRequest(
                             fromUser,
-                            "toUser#4"
+                            "toUser#4",
+                            service
                         )
                     )
                     response.assertSuccess()
@@ -205,7 +221,8 @@ class ContactBookTest {
                         user = TestUsers.service,
                         request = InsertRequest(
                             fromUser,
-                            listOf("toUser#12")
+                            listOf("toUser#12"),
+                            service
                         )
                     )
                     response.assertSuccess()
@@ -224,7 +241,6 @@ class ContactBookTest {
             },
             test = {
                 //Insert
-                val fromUser = "UserName#41"
                 run {
                     val response = sendJson(
                         method = HttpMethod.Put,
@@ -232,7 +248,8 @@ class ContactBookTest {
                         user = TestUsers.service,
                         request = InsertRequest(
                             fromUser,
-                            listOf("toUser#12", "toUser#14")
+                            listOf("toUser#12", "toUser#14"),
+                            service
                         )
                     )
                     response.assertSuccess()
@@ -251,7 +268,6 @@ class ContactBookTest {
             },
             test = {
                 //Insert
-                val fromUser = "UserName#41"
                 run {
                     val response = sendJson(
                         method = HttpMethod.Delete,
@@ -259,7 +275,8 @@ class ContactBookTest {
                         user = TestUsers.service,
                         request = DeleteRequest(
                             fromUser,
-                            "toUser#44"
+                            "toUser#44",
+                            service
                         )
                     )
                     response.assertSuccess()
@@ -280,7 +297,6 @@ class ContactBookTest {
             },
             test = {
                 //Insert
-                val fromUser = "UserName#41"
                 run {
                     val response = sendJson(
                         method = HttpMethod.Post,
@@ -288,7 +304,8 @@ class ContactBookTest {
                         user = TestUsers.service,
                         request = QueryContactsRequest(
                             fromUser,
-                            "toUser#4"
+                            "toUser#4",
+                            service
                         )
                     )
                     response.assertSuccess()
@@ -312,10 +329,14 @@ class ContactBookTest {
             test = {
                 //Insert
                 run {
-                    val response = sendRequest(
-                        method = HttpMethod.Get,
-                        path = "/api/contactbook/all/UserName#41",
-                        user = TestUsers.service
+                    val response = sendJson(
+                        method = HttpMethod.Post,
+                        path = "/api/contactbook/all",
+                        user = TestUsers.service,
+                        request = AllContactsForUserRequest(
+                            fromUser,
+                            service
+                        )
                     )
                     response.assertSuccess()
                     val results = defaultMapper.readValue<AllContactsForUserResponse>(response.response.content!!)

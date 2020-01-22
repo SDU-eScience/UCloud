@@ -92,10 +92,10 @@ export const loadAvatars = ({usernames}: LoadAvatarsParams): APICallParameters<L
 });
 
 export const searchPreviousSharedUsers = (
-    toUser: string,
+    query: string,
     serviceOrigin: string
 ): APICallParameters => ({
     method: "POST",
     path: "/contactbook",
-    payload: {toUser, serviceOrigin}
-})
+    payload: {query, serviceOrigin}
+});

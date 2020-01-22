@@ -12,24 +12,24 @@ class ContactBookController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ContactBookDescriptions.insert) {
-            contactBookService.insertContact(request.fromUser, request.toUser, ctx.securityPrincipal.username)
+            contactBookService.insertContact(ctx.securityPrincipal.username, request.toUser, request.serviceOrigin)
             ok(Unit)
         }
 
         implement(ContactBookDescriptions.delete) {
-            contactBookService.deleteContact(request.fromUser, request.toUser, ctx.securityPrincipal.username)
+            contactBookService.deleteContact(ctx.securityPrincipal.username, request.toUser, request.serviceOrigin)
             ok(Unit)
         }
 
         implement(ContactBookDescriptions.listAllContactsForUser) {
             ok(QueryContactsResponse(
-                contactBookService.listAllContactsForUser(request.fromUser, ctx.securityPrincipal.username)
+                contactBookService.listAllContactsForUser(ctx.securityPrincipal.username, request.serviceOrigin)
             ))
         }
 
         implement(ContactBookDescriptions.queryUserContacts) {
             ok(QueryContactsResponse(
-                contactBookService.queryUserContacts(request.fromUser, request.query, ctx.securityPrincipal.username)
+                contactBookService.queryUserContacts(ctx.securityPrincipal.username, request.query, request.serviceOrigin)
             ))
         }
 
