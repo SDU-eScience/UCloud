@@ -40,9 +40,8 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
         });
     }
 
-    async function promptDeleteAclEntry(accessEntry: AclEntry) {
-        if (licenseServer === null) return;
-        await addStandardDialog({
+    function promptDeleteAclEntry(accessEntry: AclEntry): Promise<string|null> {
+        return new Promise(resolve => addStandardDialog({
             title: `Are you sure?`,
             message: (
                 <Box>
@@ -52,6 +51,10 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                 </Box>
             ),
             onConfirm: async () => {
+                if (licenseServer === null) {
+                    resolve(null);
+                    return;
+                };
                 await invokeCommand(updateLicenseServerPermission(
                     {
                         serverId: licenseServer.id,
@@ -64,10 +67,10 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                         ]
                     }
                 ));
+                resolve(licenseServer.id);
             },
             addToFront: true
-        });
-        loadAndSetAccessList(licenseServer.id);
+        }));
     }
 
     async function loadAndSetAccessList(serverId: string) {
@@ -173,7 +176,13 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                                 type={"button"}
                                                 paddingLeft={10}
                                                 paddingRight={10}
-                                                onClick={() => promptDeleteAclEntry(accessEntry)}
+                                                onClick={async () => {
+                                                    const licenseServerId = await promptDeleteAclEntry(accessEntry);
+
+                                                    if(licenseServerId !== null) {
+                                                        loadAndSetAccessList(licenseServerId);
+                                                    }
+                                                }}
                                             >
                                                 <Icon size={16} name="trash" />
                                             </Button>
@@ -347,8 +356,12 @@ function LicenseServers(props: LicenseServersOperations) {
                                         Port
                                         <Input
                                             value={port}
+                                            type="number"
+                                            min={0}
+                                            max={65535}
                                             leftLabel
                                             color={portError ? "red" : undefined}
+                                            maxLength={5}
                                             onChange={e => setPort(e.target.value)}
                                             placeholder="Port"
                                         />
