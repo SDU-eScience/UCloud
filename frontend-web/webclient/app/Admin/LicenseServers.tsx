@@ -22,7 +22,7 @@ import {addStandardDialog} from "UtilityComponents";
 import {defaultErrorHandler} from "UtilityFunctions";
 
 function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}) {
-    const [accessList, setAccessList] = React.useState<AclEntry[] | null>(null);
+    const [accessList, setAccessList] = React.useState<AclEntry[]>([]);
     const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
     const [commandLoading, invokeCommand] = useAsyncCommand();
 
@@ -155,7 +155,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                         </Flex>
                     </form>
                 </Box>
-                {(accessList !== null && accessList.length > 0) ? (
+                {accessList.length > 0 ? (
                     <Box maxHeight="80vh">
                         <Table width="700px">
                             <LeftAlignedTableHeader>
@@ -166,7 +166,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                 </TableRow>
                             </LeftAlignedTableHeader>
                             <tbody>
-                                {accessList!.map(accessEntry => (
+                                {accessList.map(accessEntry => (
                                     <TableRow key={accessEntry.id}>
                                         <TableCell>{accessEntry.id}</TableCell>
                                         <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
@@ -218,8 +218,8 @@ const permissionLevels = [
     {text: prettifyAccessRight(LicenseServerAccessRight.READ_WRITE), value: LicenseServerAccessRight.READ_WRITE},
 ];
 
-function prettifyAccessRight(p: LicenseServerAccessRight): string {
-    switch (p) {
+function prettifyAccessRight(accessRight: LicenseServerAccessRight): string {
+    switch (accessRight) {
         case LicenseServerAccessRight.READ: {
             return "Read";
         }
@@ -235,16 +235,13 @@ function prettifyAccessRight(p: LicenseServerAccessRight): string {
 
 async function loadLicenseServers(): Promise<LicenseServer[]> {
     const {response} = await Client.get<LicenseServer[]>(`/app/license/listAll`);
-    return response.map(item => {
-        const entry: LicenseServer = {
-            id: item.id,
-            name: item.name,
-            address: item.address,
-            port: item.port,
-            license: item.license
-        };
-        return entry;
-    });
+    return response.map(item => ({
+        id: item.id,
+        name: item.name,
+        address: item.address,
+        port: item.port,
+        license: item.license
+    }));
 }
 
 
@@ -270,15 +267,12 @@ function LicenseServers(props: LicenseServersOperations) {
 
     React.useEffect(() => {
         props.setActivePage();
+        loadAndSetLicenseServers();
     }, []);
 
     async function loadAndSetLicenseServers() {
         setLicenseServers(await loadLicenseServers());
     }
-
-    React.useEffect(() => {
-        loadAndSetLicenseServers();
-    }, []);
 
     async function submit(e: React.SyntheticEvent) {
         e.preventDefault();
@@ -291,8 +285,8 @@ function LicenseServers(props: LicenseServersOperations) {
         if (!address) hasAddressError = true;
         if (!port) hasPortError = true;
 
-        setNameError(hasNameError)
-        setAddressError(hasAddressError)
+        setNameError(hasNameError);
+        setAddressError(hasAddressError);
         setPortError(hasPortError);
 
         if (!hasNameError && !hasAddressError && !hasPortError) {
@@ -309,7 +303,7 @@ function LicenseServers(props: LicenseServersOperations) {
                 setPort(() => "");
                 setLicense(() => "");
             } catch (e) {
-                const status = defaultErrorHandler(e);
+                defaultErrorHandler(e);
             } finally {
                 props.setLoading(false);
                 loadAndSetLicenseServers()
@@ -335,7 +329,7 @@ function LicenseServers(props: LicenseServersOperations) {
                                 Name
                                 <Input
                                     value={name}
-                                    color={nameError ? "red" : undefined}
+                                    error={nameError}
                                     onChange={e => setName(e.target.value)}
                                     placeholder="Identifiable name for the license server"
                                 />
@@ -347,7 +341,7 @@ function LicenseServers(props: LicenseServersOperations) {
                                         <Input
                                             value={address}
                                             rightLabel
-                                            color={addressError ? "red" : undefined}
+                                            error={addressError}
                                             onChange={e => setAddress(e.target.value)}
                                             placeholder="IP address or URL"
                                         />
@@ -360,7 +354,7 @@ function LicenseServers(props: LicenseServersOperations) {
                                             min={0}
                                             max={65535}
                                             leftLabel
-                                            color={portError ? "red" : undefined}
+                                            error={portError}
                                             maxLength={5}
                                             onChange={e => setPort(e.target.value)}
                                             placeholder="Port"
@@ -372,7 +366,7 @@ function LicenseServers(props: LicenseServersOperations) {
                                 Key
                                 <Input
                                     value={license}
-                                    color={portError ? "red" : undefined}
+                                    error={portError}
                                     onChange={e => setLicense(e.target.value)}
                                     placeholder="License or key (if needed)"
                                 />
@@ -428,7 +422,7 @@ function LicenseServers(props: LicenseServersOperations) {
                                                             {licenseServer.license}
                                                         </Tooltip>
                                                     ) : (
-                                                            <Text></Text>
+                                                            <Text/>
                                                         )}
                                                 </TableCell>
                                                 <TableCell textAlign="center">
