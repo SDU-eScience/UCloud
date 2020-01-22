@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.http
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.HttpCall
@@ -34,12 +35,13 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
     suspend fun withCtx(
         callHandler: CallHandler<*, *, *>,
         user: String = callHandler.ctx.securityPrincipal.username,
+        principalToVerify: SecurityPrincipal = callHandler.ctx.securityPrincipal,
         websockets: Boolean = true,
         http: Boolean = true,
         handler: suspend (Ctx) -> Unit
     ) {
         with(callHandler) {
-            verifyPrincipal()
+            verifyPrincipal(principalToVerify)
 
             if (websockets) {
                 withContext<WSCall> {
@@ -58,10 +60,11 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
     suspend fun <S> withCtxAndTimeout(
         callHandler: CallHandler<*, LongRunningResponse<S>, CommonErrorMessage>,
         user: String = callHandler.ctx.securityPrincipal.username,
+        principalToVerify: SecurityPrincipal = callHandler.ctx.securityPrincipal,
         job: suspend (Ctx) -> CallResult<S, CommonErrorMessage>
     ) {
         with(callHandler) {
-            verifyPrincipal()
+            verifyPrincipal(principalToVerify)
 
             withContext<HttpCall> {
                 val result: Deferred<CallResult<S, CommonErrorMessage>> = GlobalScope.async {
@@ -95,7 +98,7 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
     }
 
     suspend fun createContext(callHandler: CallHandler<*, *, *>, username: String): Ctx {
-        callHandler.verifyPrincipal()
+        callHandler.verifyPrincipal(callHandler.ctx.securityPrincipal)
         return underlyingFactory(username)
     }
 
@@ -108,8 +111,7 @@ class CommandRunnerFactoryForCalls<Ctx : FSUserContext>(
         }
     }
 
-    private fun CallHandler<*, *, *>.verifyPrincipal() {
-        val principal = ctx.securityPrincipal
+    private fun CallHandler<*, *, *>.verifyPrincipal(principal: SecurityPrincipal) {
         if (principal.role == Role.USER && principal.principalType == "password" &&
             !principal.twoFactorAuthentication
         ) {

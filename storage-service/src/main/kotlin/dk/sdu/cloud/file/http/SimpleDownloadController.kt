@@ -74,7 +74,11 @@ class SimpleDownloadController<Ctx : FSUserContext>(
 
                 lateinit var stat: FileRow
                 val sensitivityCache = HashMap<String, SensitivityLevel>()
-                commandRunnerFactory.withCtx(this@implement, principal.subject) { ctx ->
+                commandRunnerFactory.withCtx(
+                    this@implement,
+                    principal.subject,
+                    principalToVerify = principal.toSecurityToken().principal
+                ) { ctx ->
                     val mode = setOf(
                         FileAttribute.PATH,
                         FileAttribute.INODE,
@@ -105,7 +109,11 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                     contentType = ContentType.Application.Zip,
                                     status = HttpStatusCode.OK
                                 ) {
-                                    commandRunnerFactory.withCtx(this@implement, principal.subject) { ctx ->
+                                    commandRunnerFactory.withCtx(
+                                        this@implement,
+                                        principal.subject,
+                                        principalToVerify = principal.toSecurityToken().principal
+                                    ) { ctx ->
                                         ZipOutputStream(toOutputStream()).use { os ->
                                             val tree = fs.tree(
                                                 ctx,
@@ -198,7 +206,11 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                     contentType = contentType,
                                     status = statusCode
                                 ) {
-                                    commandRunnerFactory.withCtx(this@implement, principal.subject) { ctx ->
+                                    commandRunnerFactory.withCtx(
+                                        this@implement,
+                                        principal.subject,
+                                        principalToVerify = principal.toSecurityToken().principal
+                                    ) { ctx ->
                                         val writeChannel = this
                                         fs.read(ctx, request.path, range) {
                                             val stream = this
