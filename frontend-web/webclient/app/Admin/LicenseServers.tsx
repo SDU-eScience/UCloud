@@ -34,14 +34,11 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
 
     async function loadAcl(serverId: string): Promise<AclEntry[]> {
         const {response} = await Client.get(`/app/license/listAcl?serverId=${serverId}`);
-        return response.map(item => {
-            const entry: AclEntry = {
-                id: item.entity.id,
-                type: item.entity.type,
-                permission: item.permission
-            };
-            return entry;
-        });
+        return response.map(item => ({
+            id: item.entity.id,
+            type: item.entity.type,
+            permission: item.permission
+        }));
     }
 
     function promptDeleteAclEntry(accessEntry: AclEntry): Promise<string|null> {
