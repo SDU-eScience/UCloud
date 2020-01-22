@@ -51,8 +51,6 @@ class LicenseServerEntity(
 class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
 
     override fun create(session: HibernateSession, serverId: String, appLicenseServer: LicenseServer) {
-        println("Adding license with key: ${appLicenseServer.license}")
-
         val licenseServer = LicenseServerEntity(
             serverId,
             appLicenseServer.name,
