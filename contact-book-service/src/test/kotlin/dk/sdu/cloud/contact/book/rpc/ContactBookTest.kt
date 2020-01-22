@@ -7,6 +7,7 @@ import dk.sdu.cloud.contact.book.api.DeleteRequest
 import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.QueryContactsRequest
 import dk.sdu.cloud.contact.book.api.QueryContactsResponse
+import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.contact.book.services.ContactBookElasticDAO
 import dk.sdu.cloud.contact.book.services.ContactBookService
 import dk.sdu.cloud.defaultMapper
@@ -56,9 +57,6 @@ class ContactBookTest {
         return listOf(ContactBookController(contactBookService))
     }
 
-    private val service = "share_service"
-    private val fromUser = "UserName#41"
-
     //FULL TEST REQUIRE RUNNING ELASTICSEARCH CLUSTER WITH NO CONTACT BOOK INDEX ALSO DELETES INDEX AFTER
     @Ignore
     @Test
@@ -79,9 +77,8 @@ class ContactBookTest {
                         path = "/api/contactbook",
                         user = TestUsers.service,
                         request = InsertRequest(
-                            fromUser,
                             listOf("toUser#12"),
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -93,10 +90,9 @@ class ContactBookTest {
                     val response = sendJson(
                         method = HttpMethod.Post,
                         path = "/api/contactbook/all",
-                        user = TestUsers.service,
+                        user = TestUsers.user,
                         request = AllContactsForUserRequest(
-                            fromUser,
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -110,9 +106,8 @@ class ContactBookTest {
                         path = "/api/contactbook",
                         user = TestUsers.service,
                         request = InsertRequest(
-                            fromUser,
                             listOf("toUser#12", "toUser#92", "toUser#44"),
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -124,10 +119,9 @@ class ContactBookTest {
                     val response = sendJson(
                         method = HttpMethod.Post,
                         path = "/api/contactbook/all",
-                        user = TestUsers.service,
+                        user = TestUsers.user,
                         request = AllContactsForUserRequest(
-                            fromUser,
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -139,11 +133,10 @@ class ContactBookTest {
                     val response = sendJson(
                         method = HttpMethod.Post,
                         path = "/api/contactbook",
-                        user = TestUsers.service,
+                        user = TestUsers.user,
                         request = QueryContactsRequest(
-                            fromUser,
                             "toUser",
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -155,11 +148,10 @@ class ContactBookTest {
                     val response = sendJson(
                         method = HttpMethod.Post,
                         path = "/api/contactbook",
-                        user = TestUsers.service,
+                        user = TestUsers.user,
                         request = QueryContactsRequest(
-                            fromUser,
                             "toUser#4",
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -173,9 +165,8 @@ class ContactBookTest {
                         path = "api/contactbook",
                         user = TestUsers.service,
                         request = DeleteRequest(
-                            fromUser,
                             "toUser#44",
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                 }
@@ -186,11 +177,10 @@ class ContactBookTest {
                     val response = sendJson(
                         method = HttpMethod.Post,
                         path = "/api/contactbook",
-                        user = TestUsers.service,
+                        user = TestUsers.user,
                         request = QueryContactsRequest(
-                            fromUser,
                             "toUser#4",
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -212,17 +202,14 @@ class ContactBookTest {
                 configureContactServerServiceGiven(contactBookService)
             },
             test = {
-                //Insert
-                val fromUser = "UserName#41"
                 run {
                     val response = sendJson(
                         method = HttpMethod.Put,
                         path = "/api/contactbook",
                         user = TestUsers.service,
                         request = InsertRequest(
-                            fromUser,
                             listOf("toUser#12"),
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -240,16 +227,14 @@ class ContactBookTest {
                 configureContactServerServiceGiven(contactBookService)
             },
             test = {
-                //Insert
                 run {
                     val response = sendJson(
                         method = HttpMethod.Put,
                         path = "/api/contactbook",
                         user = TestUsers.service,
                         request = InsertRequest(
-                            fromUser,
                             listOf("toUser#12", "toUser#14"),
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -267,16 +252,14 @@ class ContactBookTest {
                 configureContactServerServiceGiven(contactBookService)
             },
             test = {
-                //Insert
                 run {
                     val response = sendJson(
                         method = HttpMethod.Delete,
                         path = "api/contactbook",
                         user = TestUsers.service,
                         request = DeleteRequest(
-                            fromUser,
                             "toUser#44",
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -296,16 +279,14 @@ class ContactBookTest {
                 configureContactServerServiceGiven(contactBookService)
             },
             test = {
-                //Insert
                 run {
                     val response = sendJson(
                         method = HttpMethod.Post,
                         path = "/api/contactbook",
-                        user = TestUsers.service,
+                        user = TestUsers.user,
                         request = QueryContactsRequest(
-                            fromUser,
                             "toUser#4",
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -327,15 +308,13 @@ class ContactBookTest {
                 configureContactServerServiceGiven(contactBookService)
             },
             test = {
-                //Insert
                 run {
                     val response = sendJson(
                         method = HttpMethod.Post,
                         path = "/api/contactbook/all",
-                        user = TestUsers.service,
+                        user = TestUsers.user,
                         request = AllContactsForUserRequest(
-                            fromUser,
-                            service
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()

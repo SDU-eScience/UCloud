@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: contact-book
-        image: registry.cloud.sdu.dk/sdu-cloud/contact-book-service:0.1.3
+        image: registry.cloud.sdu.dk/sdu-cloud/contact-book-service:0.1.4
         livenessProbe:
           httpGet:
             port: 8080

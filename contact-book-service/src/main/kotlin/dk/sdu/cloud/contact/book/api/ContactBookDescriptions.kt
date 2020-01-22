@@ -9,29 +9,39 @@ import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
+import java.lang.IllegalArgumentException
+
+enum class ServiceOrigin(val string: String) {
+    SHARE_SERVICE("share_service");
+
+    companion object {
+        private val map = ServiceOrigin.values().associateBy(ServiceOrigin::string)
+        fun fromString(type: String): ServiceOrigin = map[type] ?: throw IllegalArgumentException()
+    }
+}
 
 data class InsertRequest(
     val toUser: List<String>,
-    val serviceOrigin: String
+    val serviceOrigin: ServiceOrigin
 )
 typealias InsertResponse = Unit
 
 data class DeleteRequest(
     val toUser: String,
-    val serviceOrigin: String
+    val serviceOrigin: ServiceOrigin
 )
 typealias DeleteResponse = Unit
 
 data class QueryContactsRequest(
     val query: String,
-    val serviceOrigin: String
+    val serviceOrigin: ServiceOrigin
 )
 data class QueryContactsResponse(
     val contacts: List<String>
 )
 
 data class AllContactsForUserRequest(
-    val serviceOrigin: String
+    val serviceOrigin: ServiceOrigin
 )
 typealias AllContactsForUserResponse = QueryContactsResponse
 
@@ -77,7 +87,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
             AllContactsForUserRequest, AllContactsForUserResponse, CommonErrorMessage
             >("listAllContactsForUser") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
@@ -95,7 +105,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
 
     val queryUserContacts = call<QueryContactsRequest, QueryContactsResponse, CommonErrorMessage>("queryUserContacts") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 

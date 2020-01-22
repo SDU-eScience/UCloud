@@ -1,13 +1,11 @@
 package dk.sdu.cloud.contact.book.services
 
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
-import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
-import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import org.elasticsearch.common.bytes.BytesArray
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
@@ -21,7 +19,7 @@ val searchHitAsBytesArray = BytesArray(
                          "fromUser": "fromUser#1234",
                          "toUser": "toUser#123",
                          "createdAt": ${Date().time},
-                         "serviceOrigin": "shareService"
+                         "serviceOrigin": "${ServiceOrigin.SHARE_SERVICE.string}"
                     }
                     """.trimIndent())
 
@@ -32,7 +30,7 @@ class ContactBookTest {
         val mockDao = mockk<ContactBookElasticDAO>()
         val service = ContactBookService(mockDao)
         every { mockDao.insertContact(any(), any(), any()) } just Runs
-        service.insertContact("fromUser#123", listOf("toUser#1487"), "shareService")
+        service.insertContact("fromUser#123", listOf("toUser#1487"), ServiceOrigin.SHARE_SERVICE)
     }
 
     @Test (expected = RPCException::class)
@@ -40,7 +38,7 @@ class ContactBookTest {
         val mockDao = mockk<ContactBookElasticDAO>()
         val service = ContactBookService(mockDao)
         every { mockDao.insertContact(any(), any(), any()) } just Runs
-        service.insertContact("fromUser#123", listOf("    "), "shareService")
+        service.insertContact("fromUser#123", listOf("    "), ServiceOrigin.SHARE_SERVICE)
     }
 
     @Test (expected = RPCException::class)
@@ -48,7 +46,7 @@ class ContactBookTest {
         val mockDao = mockk<ContactBookElasticDAO>()
         val service = ContactBookService(mockDao)
         every { mockDao.insertContact(any(), any(), any()) } just Runs
-        service.insertContact("fromUser#123", emptyList(), "shareService")
+        service.insertContact("fromUser#123", emptyList(), ServiceOrigin.SHARE_SERVICE)
     }
 
     @Test
@@ -56,7 +54,7 @@ class ContactBookTest {
         val mockDao = mockk<ContactBookElasticDAO>()
         val service = ContactBookService(mockDao)
         every { mockDao.insertContactsBulk(any(), any(), any()) } just Runs
-        service.insertContact("fromUser#123", listOf("toUser#1487", "toUser#4810"), "shareService")
+        service.insertContact("fromUser#123", listOf("toUser#1487", "toUser#4810"), ServiceOrigin.SHARE_SERVICE)
     }
 
     @Test
@@ -64,7 +62,7 @@ class ContactBookTest {
         val mockDao = mockk<ContactBookElasticDAO>()
         val service = ContactBookService(mockDao)
         every { mockDao.deleteContact(any(), any(), any()) } just Runs
-        service.deleteContact("fromUser#123", "toUser#4810", "shareService")
+        service.deleteContact("fromUser#123", "toUser#4810", ServiceOrigin.SHARE_SERVICE)
     }
 
     @Test
@@ -80,7 +78,7 @@ class ContactBookTest {
             }
             hits
         }
-        val results = service.queryUserContacts("fromUser#1234", "toUser#123", "shareService")
+        val results = service.queryUserContacts("fromUser#1234", "toUser#123", ServiceOrigin.SHARE_SERVICE)
         assertEquals("toUser#123", results.first())
     }
 
@@ -97,7 +95,7 @@ class ContactBookTest {
             }
             hits
         }
-        val results = service.listAllContactsForUser("fromUser#1234", "shareService")
+        val results = service.listAllContactsForUser("fromUser#1234", ServiceOrigin.SHARE_SERVICE)
         assertEquals("toUser#123", results.first())
     }
 
