@@ -137,7 +137,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                 <ClickableDropdown
                                     chevron
                                     width="180px"
-                                    onChange={(val: LicenseServerAccessRight.READ | LicenseServerAccessRight.READ_WRITE) => setSelectedAccess(val)}
+                                    onChange={(val: LicenseServerAccessRight) => setSelectedAccess(val)}
                                     trigger={<Box as="span" minWidth="220px">{prettifyAccessRight(selectedAccess)}</Box>}
                                     options={permissionLevels}
                                 />
@@ -295,10 +295,10 @@ function LicenseServers(props: LicenseServersOperations) {
                 snackbarStore.addSnack(
                     {message: `License server '${name}' successfully added`, type: SnackType.Success}
                 );
-                setName(() => "");
-                setAddress(() => "");
-                setPort(() => "");
-                setLicense(() => "");
+                setName("");
+                setAddress("");
+                setPort("");
+                setLicense("");
             } catch (e) {
                 defaultErrorHandler(e);
             } finally {
@@ -309,10 +309,6 @@ function LicenseServers(props: LicenseServersOperations) {
     }
 
     if (!Client.userIsAdmin) return null;
-
-    const LeftAlignedTableHeader = styled(TableHeader)`
-        text-align: left;
-    `;
 
     return (
         <MainContainer
