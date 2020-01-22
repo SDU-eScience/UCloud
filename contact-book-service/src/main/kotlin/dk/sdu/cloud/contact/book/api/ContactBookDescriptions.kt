@@ -21,27 +21,29 @@ enum class ServiceOrigin(val string: String) {
 }
 
 data class InsertRequest(
+    val fromUser: String,
     val toUser: List<String>,
-    val serviceOrigin: ServiceOrigin
+    val serviceOrigin: String
 )
 typealias InsertResponse = Unit
 
 data class DeleteRequest(
+    val fromUser: String,
     val toUser: String,
-    val serviceOrigin: ServiceOrigin
+    val serviceOrigin: String
 )
 typealias DeleteResponse = Unit
 
 data class QueryContactsRequest(
     val query: String,
-    val serviceOrigin: ServiceOrigin
+    val serviceOrigin: String
 )
 data class QueryContactsResponse(
     val contacts: List<String>
 )
 
 data class AllContactsForUserRequest(
-    val serviceOrigin: ServiceOrigin
+    val serviceOrigin: String
 )
 typealias AllContactsForUserResponse = QueryContactsResponse
 

@@ -91,9 +91,13 @@ export const loadAvatars = ({usernames}: LoadAvatarsParams): APICallParameters<L
     parameters: {usernames}
 });
 
+export enum ServiceOrigin {
+    SHARE_SERVICE = "share_service"
+}
+
 export const searchPreviousSharedUsers = (
     query: string,
-    serviceOrigin: string
+    serviceOrigin: ServiceOrigin
 ): APICallParameters => ({
     method: "POST",
     path: "/contactbook",

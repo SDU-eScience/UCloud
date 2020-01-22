@@ -15,7 +15,7 @@ import Input, {InputLabel} from "ui-components/Input";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
-import {searchPreviousSharedUsers} from "Shares";
+import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
 import {useCloudAPI} from "Authentication/DataHook";
 import {search, suggestion, user} from "ui-components/icons";
 import DataList from "ui-components/DataList";
@@ -97,6 +97,7 @@ const SharePromptWrapper = styled(Box)`
 `;
 
 export function SharePrompt({paths, client}: { paths: string[], client: HttpClient }) {
+    const SERVICE = ServiceOrigin.SHARE_SERVICE;
     const readEditOptions = [
         {text: "Can view", value: "read"},
         {text: "Can edit", value: "read_edit"}
@@ -108,14 +109,14 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
     const [shareableLink, setShareableLink] = React.useState("");
     const ref = React.useRef<number>(-1);
     const promises = usePromiseKeeper();
-    const [searchResponse, setFetchArgs,] = useCloudAPI(searchPreviousSharedUsers("", "share"), {contacts: []});
+    const [searchResponse, setFetchArgs,] = useCloudAPI(searchPreviousSharedUsers("", SERVICE), {contacts: []});
 
     const onKeyUp = React.useCallback(() => {
         if (ref.current !== -1) {
             window.clearTimeout(ref.current);
         }
         ref.current = (window.setTimeout(() => {
-            setFetchArgs(searchPreviousSharedUsers(username.current!.value, "share"));
+            setFetchArgs(searchPreviousSharedUsers(username.current!.value, SERVICE));
         }, 500));
 
     }, [username.current, setFetchArgs]);
@@ -123,7 +124,7 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
     return (
         <SharePromptWrapper>
             <Box alignItems="center" width="605px">
-                <form onSubmit={stopPropagationAndPreventDefault}>
+                <form autoComplete={"off"} onSubmit={stopPropagationAndPreventDefault}>
                     <Heading.h3>Share</Heading.h3>
                     <Divider/>
                     Collaborators
@@ -138,7 +139,6 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
                                     ref={username}
                                     placeholder="Enter username..."
                                     onKeyUp={onKeyUp}
-                                    list="searchresults"
                                     autocomplete="off"
                                 />
                                 <InputLabel width="160px" rightLabel>
@@ -155,12 +155,14 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
                             <DropdownContent
                                 hover={false}
                                 visible={searchResponse.data.contacts.length > 0}
+                                width={"418px"}
+                                top={"40px"}
                             >
-                                {searchResponse.data.contacts.map(it => <span
-                                    onClick={() => [
-                                        username.current!.value = it,
-                                        setFetchArgs(searchPreviousSharedUsers("", "share"))
-                                    ] }>{it}</span>)}
+                                {searchResponse.data.contacts.map(it => <Box
+                                    onClick={() => {
+                                        username.current!.value = it
+                                        setFetchArgs(searchPreviousSharedUsers("", SERVICE))
+                                    } }>{it}</Box>)}
                             </DropdownContent>
                         </Dropdown>
                     </Label>

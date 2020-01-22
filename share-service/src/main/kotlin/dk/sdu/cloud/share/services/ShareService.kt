@@ -12,6 +12,9 @@ import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.requiredAuthScope
+import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
+import dk.sdu.cloud.contact.book.api.InsertRequest
+import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.events.EventStreamService
@@ -136,6 +139,10 @@ class ShareService<DBSession>(
 
                 Subscriptions.addSubscription.call(AddSubscriptionRequest(setOf(fileId)), serviceClient).orThrow()
                 aSendCreatedNotification(serviceClient, result, user, share)
+
+                ContactBookDescriptions.insert.call(
+                    InsertRequest(user, listOf(share.sharedWith), ServiceOrigin.SHARE_SERVICE.string), serviceClient
+                ).orThrow()
 
                 result
             } catch (ex: Throwable) {
