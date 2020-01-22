@@ -33,13 +33,20 @@ module.exports = {
             },
             {
                 test: /\.(woff|woff2|svg|ttf|eot)$/,
-                use: "file-loader?limit=10000"
+                use: [{
+                    loader: "file-loader",
+                    options: {
+                        esModule: false
+                    }
+                }]
             }, {
                 test: /\.(png|jpg|gif)$/,
                 use: [{
                     loader: "url-loader",
                     options: {
-                        limit: 10000
+                        fallback: "file-loader",
+                        limit: 10000,
+                        esModule: false
                     }
                 }]
             }

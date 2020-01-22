@@ -2,7 +2,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
 import * as React from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Divider, ExternalLink, Flex, Input} from "ui-components";
+import {Button, Divider, ExternalLink, Flex, Input, theme} from "ui-components";
 import Box from "ui-components/Box";
 import * as Heading from "ui-components/Heading";
 import {TwoFactorSetupState} from ".";
@@ -10,7 +10,12 @@ import {TwoFactorSetupState} from ".";
 const googlePlay = require("Assets/Images/google-play-badge.png");
 const appStore = require("Assets/Images/app-store-badge.png");
 
-export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading: boolean}, TwoFactorSetupState> {
+interface TwoFactorSetupProps {
+    loading: boolean;
+    mustActivate2fa: boolean;
+}
+
+export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactorSetupProps, TwoFactorSetupState> {
     public state = this.initialState();
 
     public componentDidMount() {
@@ -21,6 +26,11 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
         return (
             <React.StrictMode>
                 <Heading.h2>Two Factor Authentication</Heading.h2>
+                {this.props.mustActivate2fa ? (
+                    <Heading.h3 color={theme.colors.red}>
+                        You must activate 2FA for your account before you can continue
+                    </Heading.h3>
+                ) : null}
                 <b>{this.displayConnectedStatus()}</b>
                 <Divider />
                 {!this.state.isConnectedToAccount ? this.setupPage() : undefined}
@@ -34,7 +44,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
             const res = await Client.get("2fa/status", "/auth", true);
             this.setState(() => ({isConnectedToAccount: res.response.connected}));
         } catch (res) {
-            const why = res.response.why ? res.response.why as string : "";
+            const why: string = res.response.why ?? "";
             snackbarStore.addFailure(`Could not fetch 2FA status. ${why}`);
         } finally {
             this.props.setLoading(false);
@@ -70,6 +80,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
 
                 <Flex>
                     <ExternalLink
+                        mr="4px"
                         href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&hl=en_us"
                     >
                         <img height="50px" src={googlePlay} alt={"Get it on Google Play"} />
@@ -166,7 +177,8 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
                 qrCode: res.response.qrCodeB64Data
             }));
 
-        }).catch(() => { /* Do nothing */}).then(() => {
+        }).catch(() => { /* Do nothing */
+        }).then(() => {
             this.props.setLoading(false);
         });
     }
@@ -178,6 +190,8 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & {loading:
                 challengeId: this.state.challengeId,
                 verificationCode: this.state.verificationCode
             }, "/auth", true);
+
+            await Client.invalidateAccessToken();
 
             this.setState(() => ({isConnectedToAccount: true}));
         } catch (res) {

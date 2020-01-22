@@ -10,7 +10,6 @@ import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.list
 import org.hibernate.annotations.NaturalId
 import java.util.*
 import javax.persistence.Column
@@ -59,7 +58,7 @@ sealed class PrincipalEntity {
     )
     abstract var uid: Long
 
-    abstract fun toModel(): Principal
+    abstract fun toModel(totpStatus: Boolean): Principal
 
     companion object : HibernateEntity<PrincipalEntity>, WithId<String>
 }
@@ -72,7 +71,7 @@ data class ServiceEntity(
     override var modifiedAt: Date,
     override var uid: Long = 0
 ) : PrincipalEntity() {
-    override fun toModel(): Principal {
+    override fun toModel(totpStatus: Boolean): Principal {
         return ServicePrincipal(id, role, uid)
     }
 }
@@ -85,7 +84,7 @@ data class ProjectProxyEntity(
     override var modifiedAt: Date,
     override var uid: Long = 0
 ) : PrincipalEntity() {
-    override fun toModel(): Principal {
+    override fun toModel(totpStatus: Boolean): Principal {
         return ProjectProxy(id, role, uid)
     }
 }
@@ -98,6 +97,7 @@ sealed class PersonEntity : PrincipalEntity() {
     abstract var phoneNumber: String?
     abstract var orcId: String?
     abstract var email: String?
+    abstract var serviceLicenseAgreement: Int
 }
 
 @Entity
@@ -113,11 +113,12 @@ data class PersonEntityByPassword(
     override var orcId: String?,
     override var uid: Long = 0,
     override var email: String? = null,
+    override var serviceLicenseAgreement: Int,
 
     var hashedPassword: ByteArray,
     var salt: ByteArray
 ) : PersonEntity() {
-    override fun toModel(): Principal {
+    override fun toModel(totpStatus: Boolean): Principal {
         return Person.ByPassword(
             id,
             role,
@@ -128,6 +129,8 @@ data class PersonEntityByPassword(
             orcId,
             email,
             uid,
+            totpStatus,
+            serviceLicenseAgreement,
             hashedPassword,
             salt
         )
@@ -147,6 +150,7 @@ data class PersonEntityByPassword(
         if (firstNames != other.firstNames) return false
         if (lastName != other.lastName) return false
         if (phoneNumber != other.phoneNumber) return false
+        if (serviceLicenseAgreement != other.serviceLicenseAgreement) return false
         if (orcId != other.orcId) return false
         if (email != other.email) return false
 
@@ -164,6 +168,7 @@ data class PersonEntityByPassword(
         result = 31 * result + (phoneNumber?.hashCode() ?: 0)
         result = 31 * result + (orcId?.hashCode() ?: 0)
         result = 31 * result + (email?.hashCode() ?: 0)
+        result = 31 * result + serviceLicenseAgreement.hashCode()
         return result
     }
 }
@@ -181,10 +186,11 @@ data class PersonEntityByWAYF(
     override var orcId: String?,
     override var uid: Long = 0,
     override var email: String? = null,
+    override var serviceLicenseAgreement: Int,
     var orgId: String,
     var wayfId: String
 ) : PersonEntity() {
-    override fun toModel(): Principal {
+    override fun toModel(totpStatus: Boolean): Principal {
         return Person.ByWAYF(
             id,
             role,
@@ -195,6 +201,7 @@ data class PersonEntityByWAYF(
             orcId,
             email,
             uid,
+            serviceLicenseAgreement,
             orgId,
             wayfId
         )
@@ -202,21 +209,24 @@ data class PersonEntityByWAYF(
 }
 
 class UserHibernateDAO(
-    private val passwordHashingService: PasswordHashingService
+    private val passwordHashingService: PasswordHashingService,
+    private val twoFactorDAO: TwoFactorDAO<HibernateSession>
 ) : UserDAO<HibernateSession> {
     override fun findById(session: HibernateSession, id: String): Principal {
-        return PrincipalEntity[session, id]?.toModel() ?: throw UserException.NotFound()
+        val status = twoFactorDAO.findStatusBatched(session, listOf(id))
+        return PrincipalEntity[session, id]?.toModel(status.getValue(id)) ?: throw UserException.NotFound()
     }
 
     override fun findByIdOrNull(session: HibernateSession, id: String): Principal? {
-        return PrincipalEntity[session, id]?.toModel()
+        return PrincipalEntity[session, id]?.toModel(twoFactorDAO.findStatusBatched(session, listOf(id)).getValue(id))
     }
 
     override fun findAllByIds(session: HibernateSession, ids: List<String>): Map<String, Principal?> {
+        val status = twoFactorDAO.findStatusBatched(session, ids)
         val usersWeFound = session
             .criteria<PrincipalEntity> { entity[PrincipalEntity::id] isInCollection ids }
             .list()
-            .map { it.toModel() }
+            .map { it.toModel(status.getValue(it.id)) }
             .associateBy { it.id }
 
         val usersWeDidntFind = ids.filter { it !in usersWeFound }
@@ -226,10 +236,14 @@ class UserHibernateDAO(
     }
 
     override fun findAllByUIDs(session: HibernateSession, uids: List<Long>): Map<Long, Principal?> {
-        val usersWeFound = session
+        val users = session
             .criteria<PrincipalEntity> { entity[PrincipalEntity::uid] isInCollection uids }
             .list()
-            .map { it.toModel() }
+
+        val twoFactorStatus = twoFactorDAO.findStatusBatched(session, users.map { it.id })
+
+        val usersWeFound = users
+            .map { it.toModel(twoFactorStatus.getValue(it.id)) }
             .associateBy { it.uid }
 
         val usersWeDidntFind = uids.filter { it !in usersWeFound }
@@ -241,14 +255,14 @@ class UserHibernateDAO(
     override fun findByUsernamePrefix(session: HibernateSession, prefix: String): List<Principal> {
         return session.criteria<PrincipalEntity> {
             entity[PrincipalEntity::id] like (builder.concat(prefix, literal("%")))
-        }.list().map { it.toModel() }
+        }.list().map { it.toModel(false) }
     }
 
     override fun findByWayfId(session: HibernateSession, wayfId: String): Person.ByWAYF {
         return (session
             .createQuery("from PrincipalEntity where wayfId = :wayfId")
             .setParameter("wayfId", wayfId).list().firstOrNull() as? PrincipalEntity)
-            ?.toModel() as? Person.ByWAYF ?: throw UserException.NotFound()
+            ?.toModel(false) as? Person.ByWAYF ?: throw UserException.NotFound()
     }
 
     override fun findByWayfIdAndUpdateEmail(session: HibernateSession, wayfId: String, email: String?): Person.ByWAYF {
@@ -261,7 +275,7 @@ class UserHibernateDAO(
             session.save(entity)
         }
 
-        return entity?.toModel() as? Person.ByWAYF ?: throw UserException.NotFound()
+        return entity?.toModel(false) as? Person.ByWAYF ?: throw UserException.NotFound()
     }
 
     override fun insert(session: HibernateSession, principal: Principal) {
@@ -296,8 +310,10 @@ class UserHibernateDAO(
         session.update(entity)
     }
 
-    override fun listAll(session: HibernateSession): List<Principal> {
-        return PrincipalEntity.list(session).map { it.toModel() }
+    override fun setAcceptedSlaVersion(session: HibernateSession, user: String, version: Int) {
+        val entity = PrincipalEntity[session, user] as? PersonEntity ?: throw UserException.NotFound()
+        entity.serviceLicenseAgreement = version
+        session.update(entity)
     }
 }
 
@@ -315,6 +331,7 @@ fun Principal.toEntity(): PrincipalEntity {
             orcId,
             uid,
             email,
+            serviceLicenseAgreement,
             organizationId,
             wayfId
         )
@@ -331,6 +348,7 @@ fun Principal.toEntity(): PrincipalEntity {
             orcId,
             uid,
             email,
+            serviceLicenseAgreement,
             password,
             salt
         )

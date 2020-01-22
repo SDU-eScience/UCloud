@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.server.requiredAuthScope
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileSortBy
+import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
@@ -20,6 +21,7 @@ data class ListAtDirectoryRequest internal constructor(
     override val page: Int?,
     val order: SortOrder?,
     val sortBy: FileSortBy?,
+    val type: FileType?,
 
     override val attributes: String?
 ) : WithPaginationRequest, LoadFileResource
@@ -30,9 +32,10 @@ fun ListAtDirectoryRequest(
     page: Int?,
     order: SortOrder?,
     sortBy: FileSortBy?,
+    type: FileType?,
     load: Set<FileResource>
 ): ListAtDirectoryRequest {
-    return ListAtDirectoryRequest(path, itemsPerPage, page, order, sortBy, fileResourcesToString(load))
+    return ListAtDirectoryRequest(path, itemsPerPage, page, order, sortBy, type, fileResourcesToString(load))
 }
 
 typealias ListAtDirectoryResponse = Page<StorageFileWithMetadata>
@@ -94,6 +97,7 @@ object FileGatewayDescriptions : CallDescriptionContainer("${FileDescriptions.na
                 +boundTo(ListAtDirectoryRequest::page)
                 +boundTo(ListAtDirectoryRequest::order)
                 +boundTo(ListAtDirectoryRequest::sortBy)
+                +boundTo(ListAtDirectoryRequest::type)
 
                 +boundTo(ListAtDirectoryRequest::attributes)
             }

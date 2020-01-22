@@ -1,11 +1,10 @@
-import * as React from "react";
-import {Icon, theme} from "../../app/ui-components"
-import Error from "../../app/ui-components/Error";
-import {create} from "react-test-renderer";
 import {configure, mount} from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
-import "jest-styled-components";
+import * as React from "react";
+import {create} from "react-test-renderer";
 import {ThemeProvider} from "styled-components";
+import {Icon, theme} from "../../app/ui-components";
+import Error from "../../app/ui-components/Error";
 configure({adapter: new Adapter()});
 
 describe("Error component", () => {
@@ -39,4 +38,4 @@ describe("Error component", () => {
         error.find(Icon).first().simulate("click", {stopPropagation: () => undefined});
         expect(fn).toBeCalledTimes(1);
     });
-})
+});

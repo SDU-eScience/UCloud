@@ -5,5 +5,6 @@ namespaces:
   - auth
   - auth.2fa
   - auth.users
+  - sla
 
 dependencies: []

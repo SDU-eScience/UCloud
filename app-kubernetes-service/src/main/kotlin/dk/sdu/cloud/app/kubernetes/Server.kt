@@ -16,6 +16,7 @@ import dk.sdu.cloud.app.kubernetes.services.TunnelManager
 import dk.sdu.cloud.app.kubernetes.services.VerifiedJobCache
 import dk.sdu.cloud.app.kubernetes.services.VncService
 import dk.sdu.cloud.app.kubernetes.services.WebService
+import dk.sdu.cloud.app.kubernetes.services.WorkspaceService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
@@ -67,6 +68,7 @@ class Server(override val micro: Micro, private val configuration: Configuration
         val networkPolicyService = NetworkPolicyService(k8Dependencies)
         val sharedFileSystemMountService = SharedFileSystemMountService()
         val hostAliasesService = HostAliasesService(k8Dependencies)
+        val workspaceService = WorkspaceService()
 
         val logService = K8LogService(k8Dependencies)
         val jobMonitoringService = K8JobMonitoringService(
@@ -83,6 +85,7 @@ class Server(override val micro: Micro, private val configuration: Configuration
             sharedFileSystemMountService,
             broadcastingStream,
             hostAliasesService,
+            workspaceService,
             configuration.toleration
         )
 

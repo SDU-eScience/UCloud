@@ -51,7 +51,7 @@ class TokenTest {
         val db = micro.hibernateDatabase
         val testJwtFactory = JWTFactory(testJwtVerifier.algorithm)
         val passwordHashingService = PasswordHashingService()
-        val userDao = UserHibernateDAO(passwordHashingService)
+        val userDao = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
         val personService = PersonService(passwordHashingService, UniqueUsernameService(db, userDao))
 
         person = personService.createUserByPassword(

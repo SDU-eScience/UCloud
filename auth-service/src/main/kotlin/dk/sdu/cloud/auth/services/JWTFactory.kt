@@ -5,10 +5,14 @@ import com.auth0.jwt.JWTCreator
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ProjectProxy
+import dk.sdu.cloud.auth.api.ServiceAgreementText
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import java.util.*
 
-class JWTFactory(private val jwtAlg: JWTAlgorithm) : TokenGenerationService {
+class JWTFactory(
+    private val jwtAlg: JWTAlgorithm,
+    private val serviceLicenseAgreement: ServiceAgreementText? = null
+) : TokenGenerationService {
     override fun generate(contents: AccessTokenContents): String {
         val iat = Date(contents.createdAt)
         val exp = Date(contents.expiresAt)
@@ -40,6 +44,11 @@ class JWTFactory(private val jwtAlg: JWTAlgorithm) : TokenGenerationService {
                 if (user.orcId != null) withClaim("orcId", user.orcId)
                 if (user.title != null) withClaim("title", user.title)
                 if (user.email != null) withClaim("email", user.email)
+                withClaim("twoFactorAuthentication", user.twoFactorAuthentication)
+                withClaim(
+                    "serviceLicenseAgreement",
+                    serviceLicenseAgreement == null || user.serviceLicenseAgreement == serviceLicenseAgreement.version
+                )
             }
 
             is ServicePrincipal -> {

@@ -4,7 +4,6 @@ import dk.sdu.cloud.auth.api.validateAndClaim
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.services.WithBackgroundScope
 import dk.sdu.cloud.file.services.withBlockingContext
-import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidationJWT
@@ -17,12 +16,12 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.mockk.coEvery
+import io.mockk.mockk
 import io.mockk.mockkStatic
 import org.junit.Test
 import java.util.zip.ZipInputStream
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
-import kotlin.test.*
 
 class DownloadTests : WithBackgroundScope() {
     @Test
@@ -64,7 +63,7 @@ class DownloadTests : WithBackgroundScope() {
             listOf(
                 SimpleDownloadController(
                     it.authenticatedClient,
-                    it.runner,
+                    CommandRunnerFactoryForCalls(it.runner, mockk(relaxed = true)),
                     it.coreFs,
                     tokenValidation,
                     it.lookupService

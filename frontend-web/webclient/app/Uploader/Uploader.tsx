@@ -41,6 +41,7 @@ import {
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {FileIcon, overwriteDialog} from "UtilityComponents";
 import {
+    addTrailingSlash,
     errorMessageOrDefault,
     iconFromFilePath,
     ifPresent,
@@ -110,7 +111,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
 
     private readonly MAX_CONCURRENT_UPLOADS = 5;
 
-    private modalStyle = {
+    private readonly modalStyle = {
         // https://github.com/reactjs/react-modal/issues/62
         content: {
             borderRadius: "4px",
@@ -119,7 +120,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
             left: "50%",
             maxHeight: "80vh",
             padding: "2rem",
-            position: "fixed",
+            position: "fixed" as "fixed", // FIXME: Why is this necessary? Should work with enum instead.
             right: "auto",
             top: "50%",
             transform: "translate(-50%,-50%)",
@@ -131,7 +132,6 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
     };
 
     public render() {
-
         const {uploads} = this.props;
         return (
             <Modal
@@ -396,11 +396,12 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
 
     private closeModal = () => {
         this.props.setUploaderVisible(false);
-        if (finishedUploads(this.props.uploads) !== this.props.uploads.length || this.props.uploads.length === 0)
+        if (finishedUploads(this.props.uploads) !== this.props.uploads.length || this.props.uploads.length === 0) {
             return;
+        }
         const path = getQueryParamOrElse(this.props, "path", "");
-        if ([...this.state.finishedUploadPaths].includes(path)) {
-            if (!!this.props.parentRefresh) this.props.parentRefresh();
+        if ([...this.state.finishedUploadPaths].map(it => addTrailingSlash(it)).includes(addTrailingSlash(path))) {
+            this.props.parentRefresh();
         }
     }
 }
@@ -469,7 +470,7 @@ const UploaderRow = (p: {
                         <Button
                             color="red"
                             onClick={e => ifPresent(p.onDelete, c => c(e))}
-                            data-tag={"removeUpload"}
+                            data-tag="removeUpload"
                         >
                             <Icon name="close" />
                         </Button>

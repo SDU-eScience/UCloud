@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
+import dk.sdu.cloud.app.orchestrator.api.MountMode
 import dk.sdu.cloud.app.orchestrator.api.SubmitFileToComputation
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -315,7 +316,10 @@ class JobFileService(
                 job.owner,
                 mounts,
                 allowFailures = false,
-                createSymbolicLinkAt = "/input"
+                createSymbolicLinkAt = "/input",
+                mode =
+                    if (job.mountMode == MountMode.COPY_ON_WRITE) WorkspaceMode.COPY_ON_WRITE
+                    else WorkspaceMode.COPY_FILES
             ),
             serviceClient
         ).orThrow().workspaceId

@@ -59,7 +59,7 @@ class DowntimeHibernateDaoTest {
     }
 
     @Test
-    fun `List upcoming downtimes`() {
+    fun `List pending downtimes`() {
         val db = initMicroAndGetDb()
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
@@ -68,7 +68,7 @@ class DowntimeHibernateDaoTest {
             }
             dao.add(session, DowntimeWithoutId(Date().time + 500, Date().time + 5000, "Hello"))
             assert(dao.listAll(session, defaultPaginationRequest).itemsInTotal == 101)
-            assert(dao.listUpcoming(session, defaultPaginationRequest).itemsInTotal == 1)
+            assert(dao.listPending(session, defaultPaginationRequest).itemsInTotal == 1)
         }
     }
 

@@ -14,6 +14,7 @@ import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.RefreshTokenAndUser
 import dk.sdu.cloud.auth.services.RefreshTokenHibernateDAO
 import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.services.TwoFactorHibernateDAO
 import dk.sdu.cloud.auth.services.UniqueUsernameService
 import dk.sdu.cloud.auth.services.UserHibernateDAO
 import dk.sdu.cloud.calls.server.toSecurityToken
@@ -76,7 +77,8 @@ class CoreAuthTest {
 
         val passwordHashingService = PasswordHashingService()
         val ottDao = OneTimeTokenHibernateDAO()
-        val userDao = UserHibernateDAO(passwordHashingService)
+        val twoFactorDao = TwoFactorHibernateDAO()
+        val userDao = UserHibernateDAO(passwordHashingService, twoFactorDao)
         val refreshTokenDao = RefreshTokenHibernateDAO()
         val uniqueUsernameService = UniqueUsernameService(micro.hibernateDatabase, userDao)
         val personService = PersonService(passwordHashingService, uniqueUsernameService)

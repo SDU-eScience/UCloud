@@ -19,132 +19,132 @@ exports[`Detailed Result Mount DetailedResult 1`] = `
   width: 24px;
   height: 24px;
   margin: 20px auto;
-  -webkit-animation-name: cIivWO;
-  animation-name: cIivWO;
+  -webkit-animation-name: iCarlF;
+  animation-name: iCarlF;
 }
 
 .c3 > svg path:nth-child(1) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.04s;
   animation-delay: -0.04s;
 }
 
 .c3 > svg path:nth-child(2) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.08s;
   animation-delay: -0.08s;
 }
 
 .c3 > svg path:nth-child(3) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.12s;
   animation-delay: -0.12s;
 }
 
 .c3 > svg path:nth-child(4) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.16s;
   animation-delay: -0.16s;
 }
 
 .c3 > svg path:nth-child(5) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.2s;
   animation-delay: -0.2s;
 }
 
 .c3 > svg path:nth-child(6) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.24s;
   animation-delay: -0.24s;
 }
 
 .c3 > svg path:nth-child(7) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.28s;
   animation-delay: -0.28s;
 }
 
 .c3 > svg path:nth-child(8) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.32s;
   animation-delay: -0.32s;
 }
 
 .c3 > svg path:nth-child(9) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.36s;
   animation-delay: -0.36s;
 }
 
 .c3 > svg path:nth-child(10) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.4s;
   animation-delay: -0.4s;
 }
 
 .c3 > svg path:nth-child(11) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.44s;
   animation-delay: -0.44s;
 }
 
 .c3 > svg path:nth-child(12) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.48s;
   animation-delay: -0.48s;
 }
 
 .c3 > svg path:nth-child(13) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.52s;
   animation-delay: -0.52s;
 }
 
 .c3 > svg path:nth-child(14) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.56s;
   animation-delay: -0.56s;
 }
 
 .c3 > svg path:nth-child(15) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.6s;
   animation-delay: -0.6s;
 }
 
 .c3 > svg path:nth-child(16) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.64s;
   animation-delay: -0.64s;
 }
 
 .c3 > svg path:nth-child(17) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.68s;
   animation-delay: -0.68s;
 }
 
 .c3 > svg path:nth-child(18) {
-  -webkit-animation: cIivWO 0.72s linear infinite;
-  animation: cIivWO 0.72s linear infinite;
+  -webkit-animation: iCarlF 0.72s linear infinite;
+  animation: iCarlF 0.72s linear infinite;
   -webkit-animation-delay: -0.72s;
   animation-delay: -0.72s;
 }
