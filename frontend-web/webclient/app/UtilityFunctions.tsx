@@ -18,14 +18,15 @@ export const setSiteTheme = (isLightTheme: boolean): void => {
 };
 
 /**
- * Returns whether or not the value "light", "dark" or null is stored.
+ * Returns whether the value "light" or "dark" is stored.
+ * If neither are, the OS theme preference is used.
  * @returns {boolean} True if "light" or null is stored, otherwise "dark".
  */
-export const isLightThemeStored = (): boolean => {
+export function isLightThemeStored(): boolean {
     const theme = window.localStorage.getItem("theme");
-    if (theme === "dark") return false;
-    else return true;
-};
+    if (theme == null) return getUserThemePreference() === "light";
+    return theme === "light";
+}
 
 /**
  * Capitalizes the input string
@@ -455,4 +456,10 @@ export function displayErrorMessageOrDefault(e: any, fallback: string) {
 
 export function shouldHideSidebarAndHeader() {
     return ["/app/login", "/app/login/wayf"].includes(window.location.pathname) && window.location.search === "?dav=true";
+}
+
+export function getUserThemePreference(): "light" | "dark" {
+    // options: dark, light and no-preference
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
+    return "light";
 }

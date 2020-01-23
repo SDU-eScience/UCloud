@@ -18,7 +18,7 @@ interface ClickableDropdownProps<T> {
     top?: string | number;
     bottom?: string | number;
     right?: string | number;
-    options?: Array<{text: string; value: T;}>;
+    options?: {text: string; value: T;}[];
     chevron?: boolean;
     overflow?: string;
     colorOnHover?: boolean;
@@ -66,7 +66,7 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
         } else if (props.children) {
             children = props.children;
         }
-        const emptyChildren = React.Children.map(children, it => it).length === 0;
+        const emptyChildren = (React.Children.map(children, it => it) ?? []).length === 0;
         const width = this.props.fullWidth ? "100%" : this.props.width;
         return (
             <Dropdown data-tag="dropdown" ref={this.ref} fullWidth={this.props.fullWidth}>

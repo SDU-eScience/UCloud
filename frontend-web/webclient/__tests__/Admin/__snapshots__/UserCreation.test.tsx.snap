@@ -185,6 +185,7 @@ exports[`UserCreation Mount 1`] = `
       Admins can create new users on this page.
     </p>
     <form
+      autoComplete="off"
       onSubmit={[Function]}
     >
       <label

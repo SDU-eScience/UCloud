@@ -3,21 +3,21 @@ package dk.sdu.cloud.app.license.services
 import dk.sdu.cloud.app.license.api.ACLEntryRequest
 import dk.sdu.cloud.app.license.api.NewServerRequest
 import dk.sdu.cloud.app.license.services.acl.*
+import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.assertThatInstance
-import dk.sdu.cloud.service.test.assertThatPropertyEquals
-import dk.sdu.cloud.service.test.initializeMicro
+import dk.sdu.cloud.service.test.*
 import kotlinx.coroutines.runBlocking
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.Test
+import dk.sdu.cloud.Role
 
 class AclTest {
     private lateinit var micro: Micro
@@ -28,7 +28,14 @@ class AclTest {
     fun initializeTest() {
         micro = initializeMicro()
         micro.install(HibernateFeature)
-        aclService = AclService(micro.hibernateDatabase, AclHibernateDao())
+
+        ClientMock.mockCall(UserDescriptions.lookupUsers) {
+            TestCallResult.Ok(
+                LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
+            )
+        }
+
+        aclService = AclService(micro.hibernateDatabase, ClientMock.authenticatedClient, AclHibernateDao())
         licenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao())
 
         micro.hibernateDatabase.withTransaction {
@@ -59,7 +66,6 @@ class AclTest {
                 "test",
                 "example.com",
                 "1234",
-                null,
                 null
             ),
             user
@@ -87,7 +93,6 @@ class AclTest {
                 "test",
                 "example.com",
                 "1234",
-                null,
                 null
             ),
             userEntity
@@ -127,7 +132,6 @@ class AclTest {
                 "test",
                 "example.com",
                 "1234",
-                null,
                 null
             ),
             user
