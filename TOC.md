@@ -60,6 +60,7 @@
 
 * [Procedures and rules](infrastructure/wiki/README.md)
     * [Continous integration/Delivery](infrastructure/wiki/Jenkins.md)
+    * [UCloud Release Notes](wiki/release-notes.md)
 
 
 
