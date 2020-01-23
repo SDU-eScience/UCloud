@@ -68,13 +68,13 @@ folder with the correct permissions. The owner of the file can also revoke a
 share. When revoking a shared file, the system automatically removes all
 permissions to the receiver and the file will not be accessible anymore.
 
-UCloud provides the possibility to create [projects](./project-service/README.md) for
-research collaborations between users. When a project is created, the system
-creates a shared file system among the specified collaborators. The shared file
-system is separate from the users normal file system. To use the project
-specific file system the user will have to switch context to their project. This
-mechanism enforces a clear division between a users own files and those that
-belong to the project.
+(PLANNED FEATURE NOT YET RELEASED) UCloud provides the possibility to create
+[projects](./project-service/README.md) for research collaborations between
+users. When a project is created, the system creates a shared file system
+among the specified collaborators. The shared file system is separate from the
+users normal file system. To use the project specific file system the user will
+have to switch context to their project. This mechanism enforces a clear
+division between a users own files and those that belong to the project.
 
 ## Applications
 
