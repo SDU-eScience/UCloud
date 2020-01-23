@@ -3,11 +3,8 @@ import {useAsyncCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
-import {setActivePage, setLoading, SetStatusLoading} from "Navigation/Redux/StatusActions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
@@ -15,7 +12,6 @@ import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip} from "ui-component
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import * as Heading from "ui-components/Heading";
 import {InputLabel} from "ui-components/Input";
-import {SidebarPages} from "ui-components/Sidebar";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {TextSpan} from "ui-components/Text";
 import {addStandardDialog} from "UtilityComponents";
@@ -82,10 +78,6 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
         if (licenseServer === null) return;
         loadAndSetAccessList(licenseServer.id);
     }, []);
-
-    React.useEffect(() => {
-        setLoading(commandLoading);
-    }, [commandLoading]);
 
     return (
         <Box>
@@ -241,15 +233,13 @@ async function loadLicenseServers(): Promise<LicenseServer[]> {
     }));
 }
 
-
-
 interface AclEntry {
     id: string;
     type: string;
     permission: LicenseServerAccessRight;
 }
 
-function LicenseServers(props: LicenseServersOperations) {
+export default function LicenseServers() {
     const [submitted, setSubmitted] = React.useState(false);
     const [name, setName] = React.useState("");
     const [address, setAddress] = React.useState("");
@@ -263,7 +253,6 @@ function LicenseServers(props: LicenseServersOperations) {
     const [commandLoading, invokeCommand] = useAsyncCommand();
 
     React.useEffect(() => {
-        props.setActivePage();
         loadAndSetLicenseServers();
     }, []);
 
@@ -288,7 +277,6 @@ function LicenseServers(props: LicenseServersOperations) {
 
         if (!hasNameError && !hasAddressError && !hasPortError) {
             try {
-                props.setLoading(true);
                 await promiseKeeper.makeCancelable(
                     Client.post("/api/app/license/new", {name, address, port, license}, "")
                 ).promise;
@@ -302,7 +290,6 @@ function LicenseServers(props: LicenseServersOperations) {
             } catch (e) {
                 defaultErrorHandler(e);
             } finally {
-                props.setLoading(false);
                 loadAndSetLicenseServers()
             }
         }
@@ -473,14 +460,3 @@ function LicenseServers(props: LicenseServersOperations) {
         />
     );
 }
-
-interface LicenseServersOperations extends SetStatusLoading {
-    setActivePage: () => void;
-}
-
-const mapDispatchToProps = (dispatch: Dispatch): LicenseServersOperations => ({
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Admin)),
-    setLoading: loading => dispatch(setLoading(loading))
-});
-
-export default connect(null, mapDispatchToProps)(LicenseServers);
