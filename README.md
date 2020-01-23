@@ -1,6 +1,6 @@
 # UCloud
 
-<img src="wiki/logo.png" width="25%" align="center">
+<img src="wiki/logo.png" width="25%">
 
 UCloud is a digital research environment. It provides an intuitive user
 interface that improves the usability HPC environments or other computing
@@ -38,7 +38,7 @@ Internal release notes can be found [here](wiki/release-notes.md).
 
 ## Storage
 
-<p align="center"><img src="wiki/storage.png"></p>
+<img src="wiki/storage.png">
 
 UCloud provides storage resources to users in the form of a file system. This
 file system provides familiar operations on data to end-users. The file
@@ -78,8 +78,7 @@ division between a users own files and those that belong to the project.
 
 ## Applications
 
-
-<p align="center"><img src="wiki/compute.png"></p>
+<img src="wiki/compute.png">
 
 UCloud presents a collection of software packages to the users in the "Apps"
 tab of the web app. The apps can be executed in batch (headless) mode or
