@@ -1907,6 +1907,53 @@ Array [
 
 <span>
     <span>
+      key
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 5.959 6.339"
+      width={24}
+    >
+      <g
+        paintOrder="stroke markers fill"
+        transform="translate(-102.276 -65.342)"
+      >
+        <circle
+          cx={106.591}
+          cy={66.986}
+          fill="none"
+          r={1.178}
+          stroke={null}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={0.933}
+        />
+        <path
+          d="M102.276 70.79l3.217-3.217.657.656-3.217 3.218z"
+          fill={null}
+        />
+        <path
+          d="M103.557 70.02l1.006 1.005-.657.657-1.006-1.006zM104.812 69.427l.429.429-.657.657-.43-.43z"
+          fill={null}
+        />
+      </g>
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
       license
     </span>
     : 
