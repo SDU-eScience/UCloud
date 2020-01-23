@@ -45,6 +45,7 @@ export {default as home} from "./components/home";
 export {default as hourglass} from "./components/hourglass";
 export {default as id} from "./components/id";
 export {default as info} from "./components/info";
+export { default as key } from './components/key'
 export {default as license} from "./components/license";
 export {default as link} from "./components/link";
 export {default as logoCloud} from "./components/logoCloud";

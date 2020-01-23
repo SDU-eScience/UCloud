@@ -16,8 +16,12 @@ class DialogStore {
         this.subscribers = this.subscribers.filter(it => it !== subscriber);
     }
 
-    public addDialog = (dialog: JSX.Element, onCancel: () => void): void => {
-        const dialogs = [...this.dialogs, {dialog, onCancel}];
+    public addDialog = (dialog: JSX.Element, onCancel: () => void, addToFront: boolean = false): void => {
+        const dialogs = addToFront ? (
+            [{dialog, onCancel}, ...this.dialogs]
+        ) : (
+            [...this.dialogs, {dialog, onCancel}]
+        );
         this.dialogs = dialogs;
         this.subscribers.forEach(it => it(dialogs.map(el => el.dialog)));
     }
