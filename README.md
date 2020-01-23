@@ -1,6 +1,6 @@
 # UCloud
 
-<p align="center"><img src="wiki/logo.png" width="25%"></p>
+<img src="wiki/logo.png" width="25%" align="center">
 
 UCloud is a digital research environment. It provides an intuitive user
 interface that improves the usability HPC environments or other computing
