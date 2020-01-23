@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.license.services
 
+import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.acl.*
 import dk.sdu.cloud.calls.RPCException
@@ -13,53 +15,68 @@ class AppLicenseService<Session>(
     private val aclService: AclService<Session>,
     private val appLicenseDao: AppLicenseDao<Session>
 ) {
-    fun getLicenseServer(serverId: String, entity: UserEntity): LicenseServerEntity {
-        if (aclService.hasPermission(serverId, entity, ServerAccessRight.READ)) {
-            val licenseServer = db.withTransaction { session ->
-                appLicenseDao.getById(session, serverId)
-            } ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
-
-            return licenseServer
+    fun getLicenseServer(serverId: String, entity: UserEntity): LicenseServerWithId? {
+        if (!aclService.hasPermission(serverId, entity, ServerAccessRight.READ)) {
+            throw RPCException("Unauthorized request to license server", HttpStatusCode.Unauthorized)
         }
-        throw RPCException("Unauthorized request to license server", HttpStatusCode.Unauthorized)
+
+        return db.withTransaction { session ->
+            appLicenseDao.getById(session, serverId)
+        } ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
     }
 
-    fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
+    suspend fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
         aclService.updatePermissions(request.serverId, request.changes, entity)
     }
 
-    fun listServers(application: Application, entity: UserEntity): List<ApplicationLicenseServer> {
+    fun listAcl(request: ListAclRequest, user: SecurityPrincipal) : List<EntityWithPermission> {
+        return if(Roles.PRIVILEDGED.contains(user.role)) {
+            aclService.listAcl(request.serverId)
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not allowed")
+        }
+    }
+
+    fun listServers(names: List<String>, entity: UserEntity): List<LicenseServerId> {
         return db.withTransaction { session ->
             appLicenseDao.list(
                 session,
-                application,
+                names,
                 entity
             )
         } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
     }
 
-    fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
+    fun listAllServers(user: SecurityPrincipal): List<LicenseServerWithId> {
+        return db.withTransaction { session ->
+            appLicenseDao.listAll(
+                session,
+                user
+            )
+        } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
+    }
+
+    suspend fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
+        val license = if (request.license.isNullOrBlank()) { null } else { request.license }
         val serverId = UUID.randomUUID().toString()
+        val port = if (request.port.matches("^[0-9]{2,5}$".toRegex())) { request.port } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Invalid port")
+        }
 
         db.withTransaction { session ->
             appLicenseDao.create(
                 session,
                 serverId,
-                ApplicationLicenseServer(
+                LicenseServer(
                     request.name,
                     request.address,
-                    request.port,
-                    request.license
+                    port,
+                    license
                 )
             )
 
             // Add rw permissions for the creator
             aclService.updatePermissionsWithSession(session, serverId, entity, ServerAccessRight.READ_WRITE)
-
-            request.applications?.forEach { app ->
-                // Add applications to the license server
-                appLicenseDao.addApplicationToServer(session, app, serverId)
-            }
         }
         return serverId
     }
@@ -68,15 +85,15 @@ class AppLicenseService<Session>(
         if (aclService.hasPermission(request.withId, entity, ServerAccessRight.READ_WRITE)) {
             // Save information for existing license server
             db.withTransaction { session ->
-                appLicenseDao.save(
+                appLicenseDao.update(
                     session,
-                    ApplicationLicenseServer(
+                    LicenseServerWithId(
+                        request.withId,
                         request.name,
                         request.address,
                         request.port,
                         request.license
-                    ),
-                    request.withId
+                    )
                 )
             }
 
@@ -86,15 +103,17 @@ class AppLicenseService<Session>(
         }
     }
 
-    fun addApplicationsToServer(request: AddApplicationsToServerRequest, entity: UserEntity) {
-        if (aclService.hasPermission(request.serverId, entity, ServerAccessRight.READ_WRITE)) {
+    fun deleteLicenseServer(request: DeleteServerRequest, entity: UserEntity) {
+        if (aclService.hasPermission(request.id, entity, ServerAccessRight.READ_WRITE)) {
             db.withTransaction { session ->
-                request.applications.forEach { app ->
-                    appLicenseDao.addApplicationToServer(session, app, request.serverId)
-                }
+                // Delete Acl entries for the license server
+                aclService.revokeAllServerPermissionsWithSession(session, request.id)
+
+                // Delete license server
+                appLicenseDao.delete(session, request.id)
             }
         } else {
-            throw RPCException("Not authorized to change license server details", HttpStatusCode.Unauthorized)
+            throw RPCException("Not authorized to delete license server", HttpStatusCode.Unauthorized)
         }
     }
 }

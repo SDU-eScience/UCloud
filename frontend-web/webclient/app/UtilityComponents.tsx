@@ -25,6 +25,7 @@ interface StandardDialog {
     cancelText?: string;
     confirmText?: string;
     validator?: () => boolean;
+    addToFront?: boolean;
 }
 
 export function addStandardDialog({
@@ -34,7 +35,8 @@ export function addStandardDialog({
     onCancel = () => undefined,
     validator = () => true,
     cancelText = "Cancel",
-    confirmText = "Confirm"
+    confirmText = "Confirm",
+    addToFront = false
 }: StandardDialog) {
     const validate = () => {
         if (validator()) onConfirm();
@@ -58,7 +60,7 @@ export function addStandardDialog({
                 </Button>
             </Flex>
         </div>
-    ), onCancel);
+    ), onCancel, addToFront);
 }
 
 export function sensitivityDialog(): Promise<{cancelled: true} | {option: SensitivityLevelMap}> {

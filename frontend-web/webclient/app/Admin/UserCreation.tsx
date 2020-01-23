@@ -22,7 +22,7 @@ const initialState: UserCreationState = {
 };
 
 function UserCreation(props: UserCreationOperations) {
-    // Use reducer instead, or break into smaller ones.
+    // FIXME: Use reducer instead, or break into smaller ones.
     const [state, setState] = React.useState(initialState);
     const [submitted, setSubmitted] = React.useState(false);
     const promiseKeeper = usePromiseKeeper();

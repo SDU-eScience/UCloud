@@ -1,25 +1,23 @@
 package dk.sdu.cloud.app.license.services
 
-import dk.sdu.cloud.app.license.api.AddApplicationsToServerRequest
-import dk.sdu.cloud.app.license.api.Application
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.license.api.NewServerRequest
 import dk.sdu.cloud.app.license.api.UpdateServerRequest
 import dk.sdu.cloud.app.license.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.app.license.services.acl.EntityType
 import dk.sdu.cloud.app.license.services.acl.UserEntity
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
-import kotlin.test.assertTrue
 
 class AppLicenseTest {
     private lateinit var micro: Micro
@@ -31,7 +29,13 @@ class AppLicenseTest {
         micro = initializeMicro()
         micro.install(HibernateFeature)
 
-        aclService = AclService(micro.hibernateDatabase, AclHibernateDao())
+        ClientMock.mockCall(UserDescriptions.lookupUsers) {
+            TestCallResult.Ok(
+                LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
+            )
+        }
+
+        aclService = AclService(micro.hibernateDatabase, ClientMock.authenticatedClient, AclHibernateDao())
         appLicenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao())
     }
 
@@ -44,8 +48,7 @@ class AppLicenseTest {
                 "testName",
                 "example.com",
                 "1234",
-                 null,
-                null
+                 null
             ),
             user
         )
@@ -62,7 +65,6 @@ class AppLicenseTest {
                 "testName",
                 "example.com",
                 "1234",
-                null,
                 null
             ),
             user
@@ -96,7 +98,6 @@ class AppLicenseTest {
                 "testName",
                 "example.com",
                 "1234",
-                null,
                 null
             ),
             user
@@ -120,64 +121,5 @@ class AppLicenseTest {
 
         assertFails { appLicenseService.getLicenseServer(serverId, user2) }
         assertEquals("example.com", appLicenseService.getLicenseServer(serverId, user)?.address)
-    }
-
-    @Test
-    fun `save multiple and list`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
-
-        val appList1 = listOf(
-            Application("app1"),
-            Application("app2"),
-            Application("app3")
-        )
-
-        val appList2 = listOf(
-            Application("app2")
-        )
-
-        val serverId = appLicenseService.createLicenseServer(
-            NewServerRequest(
-                "testName",
-                "example.com",
-                "1234",
-                null,
-                null
-            ),
-            user
-        )
-
-        appLicenseService.createLicenseServer(
-            NewServerRequest(
-                "testName2",
-                "example2.com",
-                "1234",
-                null,
-                appList2
-            ),
-            user
-        )
-
-        appLicenseService.addApplicationsToServer(
-            AddApplicationsToServerRequest(
-                appList1,
-                serverId
-            ),
-            user
-        )
-
-        val serverListApp1 = appLicenseService.listServers(Application("app1"), user)
-        assertEquals(1, serverListApp1.size)
-        assertTrue(serverListApp1.map { it.name }.contains("testName"))
-
-        val serverListApp2 = appLicenseService.listServers(Application("app2"), user)
-        assertEquals(2, serverListApp2?.size)
-        assertTrue(serverListApp2.map { it.name }.contains("testName"))
-        assertTrue(serverListApp2.map { it.name }.contains("testName2"))
-
-        val serverListApp3 = appLicenseService.listServers(Application("app3"), user)
-        assertEquals(1, serverListApp3.size)
-        assertTrue(serverListApp3.map { it.name }.contains("testName"))
-
     }
 }
