@@ -37,11 +37,11 @@ class AppLicenseService<Session>(
         }
     }
 
-    fun listServers(names: List<String>, entity: UserEntity): List<LicenseServerId> {
+    fun listServers(tags: List<String>, entity: UserEntity): List<LicenseServerId> {
         return db.withTransaction { session ->
             appLicenseDao.list(
                 session,
-                names,
+                tags,
                 entity
             )
         } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
@@ -68,7 +68,7 @@ class AppLicenseService<Session>(
                 session,
                 serverId,
                 LicenseServer(
-                    request.name,
+                    request.tag,
                     request.address,
                     port,
                     license
@@ -89,7 +89,7 @@ class AppLicenseService<Session>(
                     session,
                     LicenseServerWithId(
                         request.withId,
-                        request.name,
+                        request.tag,
                         request.address,
                         request.port,
                         request.license

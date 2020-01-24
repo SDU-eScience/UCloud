@@ -27,7 +27,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             ok(
                 LicenseServerWithId(
                     licenseServer.id,
-                    licenseServer.name,
+                    licenseServer.tag,
                     licenseServer.address,
                     licenseServer.port,
                     licenseServer.license
@@ -54,7 +54,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
                 EntityType.USER
             )
 
-            ok(licenseService.listServers(request.names, entity))
+            ok(licenseService.listServers(request.tags, entity))
         }
 
         implement(AppLicenseDescriptions.listAll)  {

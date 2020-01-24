@@ -45,7 +45,7 @@ class AppLicenseTest {
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
-                "testName",
+                "testTag",
                 "example.com",
                 "1234",
                  null
@@ -53,7 +53,7 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
+        assertEquals("testTag", appLicenseService.getLicenseServer(serverId, user)?.tag)
     }
 
     @Test
@@ -62,7 +62,7 @@ class AppLicenseTest {
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
-                "testName",
+                "testTag",
                 "example.com",
                 "1234",
                 null
@@ -70,12 +70,12 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
+        assertEquals("testTag", appLicenseService.getLicenseServer(serverId, user)?.tag)
         val newAddress = "new-address.com"
 
         appLicenseService.updateLicenseServer(
             UpdateServerRequest(
-                "testName",
+                "testTag",
                 newAddress,
                 "1234",
                 null,
@@ -84,7 +84,7 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
+        assertEquals("testTag", appLicenseService.getLicenseServer(serverId, user)?.tag)
         assertEquals(newAddress, appLicenseService.getLicenseServer(serverId, user)?.address)
     }
 
@@ -95,7 +95,7 @@ class AppLicenseTest {
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
-                "testName",
+                "testTag",
                 "example.com",
                 "1234",
                 null
@@ -103,13 +103,13 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
+        assertEquals("testTag", appLicenseService.getLicenseServer(serverId, user)?.tag)
         val newAddress = "new-address.com"
 
         assertFails {
             appLicenseService.updateLicenseServer(
                 UpdateServerRequest(
-                    "testName",
+                    "testTag",
                     newAddress,
                     "1234",
                     null,

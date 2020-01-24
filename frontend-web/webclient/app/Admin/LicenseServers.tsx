@@ -84,7 +84,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
             <div>
                 <Flex alignItems={"center"}>
                     <Heading.h3>
-                        <TextSpan color="gray">Access control for</TextSpan> {licenseServer?.name}
+                        <TextSpan color="gray">Access control for</TextSpan> {licenseServer?.tag}
                     </Heading.h3>
                 </Flex>
                 <Box mt={16} mb={30}>
@@ -191,7 +191,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
 
 interface LicenseServer {
     id: string;
-    name: string;
+    tag: string;
     address: string;
     port: string;
     license: string | null;
@@ -226,7 +226,7 @@ async function loadLicenseServers(): Promise<LicenseServer[]> {
     const {response} = await Client.get<LicenseServer[]>(`/app/license/listAll`);
     return response.map(item => ({
         id: item.id,
-        name: item.name,
+        tag: item.tag,
         address: item.address,
         port: item.port,
         license: item.license
@@ -241,11 +241,11 @@ interface AclEntry {
 
 export default function LicenseServers() {
     const [submitted, setSubmitted] = React.useState(false);
-    const [name, setName] = React.useState("");
+    const [tag, setTag] = React.useState("");
     const [address, setAddress] = React.useState("");
     const [port, setPort] = React.useState("");
     const [license, setLicense] = React.useState("");
-    const [nameError, setNameError] = React.useState(false);
+    const [tagError, setTagError] = React.useState(false);
     const [addressError, setAddressError] = React.useState(false);
     const [portError, setPortError] = React.useState(false);
     const [licenseServers, setLicenseServers] = React.useState<LicenseServer[]>([]);
@@ -263,27 +263,27 @@ export default function LicenseServers() {
     async function submit(e: React.SyntheticEvent) {
         e.preventDefault();
 
-        let hasNameError = false;
+        let hasTagError = false;
         let hasAddressError = false;
         let hasPortError = false;
 
-        if (!name) hasNameError = true;
+        if (!tag) hasTagError = true;
         if (!address) hasAddressError = true;
         if (!port) hasPortError = true;
 
-        setNameError(hasNameError);
+        setTagError(hasTagError);
         setAddressError(hasAddressError);
         setPortError(hasPortError);
 
-        if (!hasNameError && !hasAddressError && !hasPortError) {
+        if (!hasTagError && !hasAddressError && !hasPortError) {
             try {
                 await promiseKeeper.makeCancelable(
-                    Client.post("/api/app/license/new", {name, address, port, license}, "")
+                    Client.post("/api/app/license/new", {tag, address, port, license}, "")
                 ).promise;
                 snackbarStore.addSnack(
-                    {message: `License server '${name}' successfully added`, type: SnackType.Success}
+                    {message: `License server with tag '${tag}' successfully added`, type: SnackType.Success}
                 );
-                setName("");
+                setTag("");
                 setAddress("");
                 setPort("");
                 setLicense("");
@@ -306,12 +306,12 @@ export default function LicenseServers() {
                     <Box maxWidth={800} mt={30} marginLeft="auto" marginRight="auto">
                         <form onSubmit={e => submit(e)}>
                             <Label mb="1em">
-                                Name
+                                Tag
                                 <Input
-                                    value={name}
-                                    error={nameError}
-                                    onChange={e => setName(e.target.value)}
-                                    placeholder="Identifiable name for the license server"
+                                    value={tag}
+                                    error={tagError}
+                                    onChange={e => setTag(e.target.value)}
+                                    placeholder="Identifiable tag for the license server"
                                 />
                             </Label>
                             <Box marginBottom={30}>
@@ -365,7 +365,7 @@ export default function LicenseServers() {
                                 <Table>
                                     <LeftAlignedTableHeader>
                                         <TableRow>
-                                            <TableHeaderCell>Name</TableHeaderCell>
+                                            <TableHeaderCell>Tag</TableHeaderCell>
                                             <TableHeaderCell>Address</TableHeaderCell>
                                             <TableHeaderCell width={70}>Port</TableHeaderCell>
                                             <TableHeaderCell width={50}>Key</TableHeaderCell>
@@ -376,7 +376,7 @@ export default function LicenseServers() {
                                     <tbody>
                                         {licenseServers.map(licenseServer => (
                                             <TableRow key={licenseServer.id}>
-                                                <TableCell>{licenseServer.name}</TableCell>
+                                                <TableCell>{licenseServer.tag}</TableCell>
                                                 <TableCell>{licenseServer.address}</TableCell>
                                                 <TableCell>{licenseServer.port}</TableCell>
                                                 <TableCell>
@@ -431,7 +431,7 @@ export default function LicenseServers() {
                                                             message: (
                                                                 <Box>
                                                                     <Text>
-                                                                        Remove license server {licenseServer.name}?
+                                                                        Remove license server with tag {licenseServer.tag}?
                                                                     </Text>
                                                                 </Box>
                                                             ),
