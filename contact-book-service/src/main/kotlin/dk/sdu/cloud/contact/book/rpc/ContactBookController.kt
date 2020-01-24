@@ -18,7 +18,7 @@ class ContactBookController(
             contactBookService.insertContact(
                 request.fromUser,
                 request.toUser,
-                assertServiceOrigin(request.serviceOrigin)
+                request.serviceOrigin
             )
             ok(Unit)
         }
@@ -27,7 +27,7 @@ class ContactBookController(
             contactBookService.deleteContact(
                 request.fromUser,
                 request.toUser,
-                assertServiceOrigin(request.serviceOrigin)
+                request.serviceOrigin
             )
             ok(Unit)
         }
@@ -36,7 +36,7 @@ class ContactBookController(
             ok(QueryContactsResponse(
                 contactBookService.listAllContactsForUser(
                     ctx.securityPrincipal.username,
-                    assertServiceOrigin(request.serviceOrigin)
+                    request.serviceOrigin
                 )
             ))
         }
@@ -46,7 +46,7 @@ class ContactBookController(
                 contactBookService.queryUserContacts(
                     ctx.securityPrincipal.username,
                     request.query,
-                    assertServiceOrigin(request.serviceOrigin)
+                    request.serviceOrigin
                 )
             ))
         }
@@ -56,13 +56,5 @@ class ContactBookController(
 
     companion object : Loggable {
         override val log = logger()
-    }
-
-    private fun assertServiceOrigin(serviceOrigin: String): String {
-        return try {
-            ServiceOrigin.fromString(serviceOrigin).string
-        } catch (ex: IllegalArgumentException) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Unknown Service Origin")
-        }
     }
 }

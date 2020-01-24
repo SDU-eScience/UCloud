@@ -92,7 +92,7 @@ export const loadAvatars = ({usernames}: LoadAvatarsParams): APICallParameters<L
 });
 
 export enum ServiceOrigin {
-    SHARE_SERVICE = "share_service"
+    SHARE_SERVICE = "SHARE_SERVICE"
 }
 
 export const searchPreviousSharedUsers = (

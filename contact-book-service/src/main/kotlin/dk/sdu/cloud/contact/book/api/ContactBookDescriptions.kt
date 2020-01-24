@@ -11,39 +11,34 @@ import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 import java.lang.IllegalArgumentException
 
-enum class ServiceOrigin(val string: String) {
-    SHARE_SERVICE("share_service");
-
-    companion object {
-        private val map = ServiceOrigin.values().associateBy(ServiceOrigin::string)
-        fun fromString(type: String): ServiceOrigin = map[type] ?: throw IllegalArgumentException()
-    }
+enum class ServiceOrigin {
+    SHARE_SERVICE;
 }
 
 data class InsertRequest(
     val fromUser: String,
     val toUser: List<String>,
-    val serviceOrigin: String
+    val serviceOrigin: ServiceOrigin
 )
 typealias InsertResponse = Unit
 
 data class DeleteRequest(
     val fromUser: String,
     val toUser: String,
-    val serviceOrigin: String
+    val serviceOrigin: ServiceOrigin
 )
 typealias DeleteResponse = Unit
 
 data class QueryContactsRequest(
     val query: String,
-    val serviceOrigin: String
+    val serviceOrigin: ServiceOrigin
 )
 data class QueryContactsResponse(
     val contacts: List<String>
 )
 
 data class AllContactsForUserRequest(
-    val serviceOrigin: String
+    val serviceOrigin: ServiceOrigin
 )
 typealias AllContactsForUserResponse = QueryContactsResponse
 

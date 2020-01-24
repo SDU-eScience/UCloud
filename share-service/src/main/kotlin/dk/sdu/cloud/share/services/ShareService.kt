@@ -141,7 +141,7 @@ class ShareService<DBSession>(
                 aSendCreatedNotification(serviceClient, result, user, share)
 
                 ContactBookDescriptions.insert.call(
-                    InsertRequest(user, listOf(share.sharedWith), ServiceOrigin.SHARE_SERVICE.string), serviceClient
+                    InsertRequest(user, listOf(share.sharedWith), ServiceOrigin.SHARE_SERVICE), serviceClient
                 ).orThrow()
 
                 result
@@ -192,6 +192,11 @@ class ShareService<DBSession>(
     private suspend fun handleReadyToAccept(share: InternalShare, job: ShareJob.ReadyToAccept) {
         try {
             updateFSPermissions(share)
+
+            ContactBookDescriptions.insert.call(
+                InsertRequest(share.sharedWith, listOf(share.owner), ServiceOrigin.SHARE_SERVICE),
+                serviceClient
+            ).orThrow()
 
             db.withTransaction { session ->
                 shareDao.updateShare(

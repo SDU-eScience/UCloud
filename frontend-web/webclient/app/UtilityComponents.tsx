@@ -31,14 +31,14 @@ interface StandardDialog {
 }
 
 export function addStandardDialog({
-                                      title,
-                                      message,
-                                      onConfirm,
-                                      onCancel = () => undefined,
-                                      validator = () => true,
-                                      cancelText = "Cancel",
-                                      confirmText = "Confirm"
-                                  }: StandardDialog) {
+    title,
+    message,
+    onConfirm,
+    onCancel = () => undefined,
+    validator = () => true,
+    cancelText = "Cancel",
+    confirmText = "Confirm"
+}: StandardDialog) {
     const validate = () => {
         if (validator()) onConfirm();
         dialogStore.success();
@@ -286,11 +286,11 @@ interface RewritePolicy {
 type RewritePolicyResult = { policy: string, applyToAll: boolean } | false;
 
 export function rewritePolicyDialog({
-                                        path,
-                                        homeFolder,
-                                        filesRemaining,
-                                        allowOverwrite
-                                    }: RewritePolicy): Promise<RewritePolicyResult> {
+    path,
+    homeFolder,
+    filesRemaining,
+    allowOverwrite
+}: RewritePolicy): Promise<RewritePolicyResult> {
     let policy = "RENAME";
     let applyToAll = false;
     return new Promise(resolve => dialogStore.addDialog((
