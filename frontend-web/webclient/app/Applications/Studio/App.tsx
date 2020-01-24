@@ -372,8 +372,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                 onChange={stopPropagation}
                                                                 onClick={() => {
                                                                     Client.post(`/hpc/apps/setPublic`, {
-                                                                        name,
-                                                                        version: version.version,
+                                                                        appName: name,
+                                                                        appVersion: version.version,
                                                                         public: !version.isPublic
                                                                     });
 
