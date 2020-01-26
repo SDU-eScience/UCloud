@@ -70,13 +70,6 @@ export const DropdownContent = styled.div<DropdownContentProps>`
             background-color: rgba(0, 0, 0, 0.05);
         }` : null};
 
-    & svg {
-        margin-right: 1em;
-    }
-
-    & > svg ~ span {
-        margin-right: 1em;
-    }
 
     ${top} ${left} ${right} ${bottom} ${height};
 `;

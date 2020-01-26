@@ -283,8 +283,6 @@ const SearchInput = styled(Flex)`
     & > ${Dropdown} > ${Text} > input {
         width: 350px;
         height: 36px;
-        padding-right: 10px;
-        padding-left: 30px;
     }
 `;
 
@@ -321,6 +319,7 @@ const _Search = (props: SearchProps) => {
             <SearchInput>
                 <Input
                     pl="30px"
+                    pr="28px"
                     pt="6px"
                     pb="6px"
                     id="search_input"
@@ -347,8 +346,8 @@ const _Search = (props: SearchProps) => {
                     keepOpenOnClick
                     squareTop
                     trigger={(
-                        <Absolute top={-12.5} right={12} bottom={0} left={-28}>
-                            <Icon cursor="pointer" name="chevronDown" size="15px" />
+                        <Absolute top={-12.5} right={12} bottom={0} left={-22}>
+                            <Icon cursor="pointer" name="chevronDown" size="12px" />
                         </Absolute>
                     )}
                 >
