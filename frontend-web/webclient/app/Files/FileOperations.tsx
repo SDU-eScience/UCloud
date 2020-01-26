@@ -139,7 +139,7 @@ export const defaultFileOperations: FileOperation[] = [
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
         disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) || isAnySharedFs(files) ||
             isAnyFixedFolder(files, Client),
-        icon: "verified"
+        icon: "sensitivity"
     },
     {
         text: "Copy",
