@@ -73,7 +73,6 @@ export interface FilePreviewReduxState {
 }
 
 export interface FileInfoReduxObject {
-    file?: File;
     error?: string;
     activity: Page<Activity>;
     loading: boolean;

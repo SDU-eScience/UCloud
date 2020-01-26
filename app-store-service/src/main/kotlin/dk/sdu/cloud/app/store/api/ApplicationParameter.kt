@@ -13,6 +13,7 @@ private const val TYPE_BOOLEAN = "boolean"
 private const val TYPE_FLOATING_POINT = "floating_point"
 private const val TYPE_PEER = "peer"
 private const val TYPE_SHARED_FILE_SYSTEM = "shared_file_system"
+private const val TYPE_LICENSE_SERVER = "license_server"
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -27,7 +28,8 @@ private const val TYPE_SHARED_FILE_SYSTEM = "shared_file_system"
     JsonSubTypes.Type(value = ApplicationParameter.Bool::class, name = TYPE_BOOLEAN),
     JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = TYPE_FLOATING_POINT),
     JsonSubTypes.Type(value = ApplicationParameter.Peer::class, name = TYPE_PEER),
-    JsonSubTypes.Type(value = ApplicationParameter.SharedFileSystem::class, name = TYPE_SHARED_FILE_SYSTEM)
+    JsonSubTypes.Type(value = ApplicationParameter.SharedFileSystem::class, name = TYPE_SHARED_FILE_SYSTEM),
+    JsonSubTypes.Type(value = ApplicationParameter.LicenseServer::class, name = TYPE_LICENSE_SERVER)
 )
 sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: String) {
     abstract var name: String
@@ -216,6 +218,28 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
 
         override fun toInvocationArgument(entry: SharedFileSystemApplicationParameter): String = mountLocation
     }
+
+    data class LicenseServer(
+        override var name: String = "",
+        override var title: String,
+        override val optional: Boolean = false,
+        override val description: String = "",
+        val licenseName: String
+    ) : ApplicationParameter<LicenseServerApplicationParameter>(TYPE_LICENSE_SERVER) {
+        override val defaultValue: LicenseServerApplicationParameter? = null
+
+        override fun internalMap(inputParameter: Any): LicenseServerApplicationParameter {
+            @Suppress("UNCHECKED_CAST")
+            val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad peer value")
+            val licenseServerId =
+                asMap["licenseServerId"] as? String? ?: throw IllegalArgumentException("Missing 'licenseServerId'")
+            return LicenseServerApplicationParameter(licenseServerId)
+        }
+
+        override fun toInvocationArgument(entry: LicenseServerApplicationParameter): String {
+            return licenseName
+        }
+    }
 }
 
 enum class SharedFileSystemType {
@@ -273,4 +297,10 @@ data class SharedFileSystemApplicationParameter(
     val fileSystemId: String
 ) : ParsedApplicationParameter() {
     override val type = TYPE_SHARED_FILE_SYSTEM
+}
+
+data class LicenseServerApplicationParameter(
+    val licenseServerId: String
+) : ParsedApplicationParameter() {
+    override val type = TYPE_LICENSE_SERVER
 }

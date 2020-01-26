@@ -90,6 +90,11 @@ export enum ApplicationAccessRight {
     LAUNCH = "LAUNCH"
 }
 
+export enum LicenseServerAccessRight {
+    READ = "READ",
+    READ_WRITE = "READ_WRITE"
+}
+
 export enum UserEntityType {
     USER = "USER",
     PROJECT_AND_GROUP = "PROJECT_AND_GROUP"
@@ -114,6 +119,41 @@ export interface UpdateApplicationPermissionEntry {
 export interface UpdateApplicationPermissionProps {
     applicationName: string;
     changes: UpdateApplicationPermissionEntry[];
+}
+
+export interface UpdateLicenseServerPermissionEntry {
+    entity: UserEntity;
+    rights: LicenseServerAccessRight;
+    revoke: boolean;
+}
+
+export interface UpdateLicenseServerPermissionProps {
+    serverId: string;
+    changes: UpdateLicenseServerPermissionEntry[];
+}
+
+export interface DeleteLicenseServerProps {
+    id: string;
+}
+
+export function updateLicenseServerPermission(props: UpdateLicenseServerPermissionProps): APICallParameters<UpdateLicenseServerPermissionProps> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/app/license/updateAcl",
+        payload: props,
+        parameters: props
+    };
+}
+
+export function deleteLicenseServer(props: DeleteLicenseServerProps): APICallParameters<DeleteLicenseServerProps> {
+    return {
+        reloadId: Math.random(),
+        method: "DELETE",
+        path: "/app/license",
+        payload: props,
+        parameters: props
+    };
 }
 
 export function updateApplicationPermission(props: UpdateApplicationPermissionProps): APICallParameters<UpdateApplicationPermissionProps> {

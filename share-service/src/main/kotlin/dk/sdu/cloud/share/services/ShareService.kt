@@ -81,6 +81,10 @@ class ShareService<DBSession>(
         log.debug("Creating share for $user $share")
         lateinit var fileId: String
 
+        if(user == share.sharedWith) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Users cannot share with themselves")
+        }
+
         coroutineScope {
             log.debug("Verifying file exists")
             val statJob = async {

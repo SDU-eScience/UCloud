@@ -41,6 +41,11 @@ interface AclDao<Session> {
         entity: UserEntity
     )
 
+    fun revokeAllServerPermissions(
+        session: Session,
+        serverId: String
+    )
+
     fun listAcl(
         session: Session,
         serverId: String

@@ -44,7 +44,7 @@ class ManagementTest {
 
         var bulkRequest = BulkRequest()
         for (i in 0 until numberOfDocuments) {
-            val request = IndexRequest("$index-${pastdate}_small", "doc")
+            val request = IndexRequest("$index-${pastdate}_small")
             val jsonString = """
                 {
                     "user":"kimchy",

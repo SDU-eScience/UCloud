@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.license.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.app.license.services.acl.EntityWithPermission
 import dk.sdu.cloud.app.license.services.acl.ServerAccessRight
 import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.calls.CallDescriptionContainer
@@ -22,22 +23,42 @@ data class UpdateServerRequest(
     val withId: String
 )
 
-data class AddApplicationsToServerRequest(
-    val applications: List<Application>,
-    val serverId: String
+data class DeleteServerRequest(
+    val id: String
 )
 
 data class NewServerRequest(
     val name: String,
     val address: String,
     val port: String,
-    val license: String?,
-    val applications: List<Application>?
+    val license: String?
 )
 
-data class Application(
+data class ListAclRequest(
+    val serverId: String
+)
+
+data class LicenseServerWithId(
+    val id: String,
+    val name: String,
+    val address: String,
+    val port: String,
+    val license: String?
+)
+
+data class LicenseServer(
+    val name: String,
+    val address: String,
+    val port: String,
+    val license: String?
+)
+
+data class LicenseServerId(
+    val id: String,
     val name: String
 )
+
+data class ListLicenseServersRequest(val names: List<String>);
 
 data class UpdateServerResponse(val serverId: String)
 data class NewServerResponse(val serverId: String)
@@ -61,7 +82,7 @@ data class ACLEntryRequest(
 object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
     val baseContext = "/api/app/license"
 
-    val get = call<LicenseServerRequest, ApplicationLicenseServer, CommonErrorMessage>("get") {
+    val get = call<LicenseServerRequest, LicenseServerWithId, CommonErrorMessage>("get") {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -80,7 +101,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
-    val listByApp = call<Application, List<ApplicationLicenseServer>, CommonErrorMessage>("listByApp") {
+    val list = call<ListLicenseServersRequest, List<LicenseServerId>, CommonErrorMessage>("list") {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -91,14 +112,31 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                +"list-by-app"
+                +"list"
             }
 
             params {
-                +boundTo(Application::name)
+                +boundTo(ListLicenseServersRequest::names)
             }
         }
     }
+
+    val listAll = call<Unit, List<LicenseServerWithId>, CommonErrorMessage>("listAll") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listAll"
+            }
+        }
+    }
+
 
     val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         auth {
@@ -111,10 +149,30 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
             path {
                 using(baseContext)
-                +"update-acl"
+                +"updateAcl"
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val listAcl = call<ListAclRequest, List<EntityWithPermission>, CommonErrorMessage>("listAcl") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listAcl"
+            }
+
+            params {
+                +boundTo(ListAclRequest::serverId)
+            }
         }
     }
 
@@ -137,6 +195,27 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
                 +boundTo(UpdateServerRequest::address)
                 +boundTo(UpdateServerRequest::license)
                 +boundTo(UpdateServerRequest::withId)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val delete = call<DeleteServerRequest, Unit, CommonErrorMessage>("update") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+            }
+
+            params {
+                +boundTo(DeleteServerRequest::id)
             }
 
             body { bindEntireRequestFromBody() }
