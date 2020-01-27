@@ -158,6 +158,11 @@ export interface AdditionalPeer {
     jobIdRef: React.RefObject<HTMLInputElement>;
 }
 
+export interface LicenseServerId {
+    id: string;
+    tag: string;
+}
+
 export interface RunAppState {
     promises: PromiseKeeper;
     jobSubmitted: boolean;
@@ -175,6 +180,8 @@ export interface RunAppState {
     unknownParameters: string[];
     reservation: React.RefObject<HTMLInputElement>;
     useCow: boolean;
+    licenseServers: LicenseServerId[];
+    selectedLicenseServer: LicenseServerId|null;
 }
 
 export interface RunOperations extends SetStatusLoading {
@@ -330,6 +337,7 @@ export interface ApplicationInvocationDescription {
     applicationType: ApplicationType;
     shouldAllowAdditionalMounts: boolean;
     shouldAllowAdditionalPeers: boolean;
+    licenseServers: string[];
     allowMultiNode: boolean;
 }
 

@@ -186,6 +186,20 @@ export function machineTypes(): APICallParameters {
     };
 }
 
+export interface listLicenseServersProps {
+    tags: string[]
+}
+
+export function licenseServers(props: listLicenseServersProps): APICallParameters {
+    return {
+        reloadId: Math.random(),
+        method: "GET",
+        path: "/api/app/license/list",
+        payload: props,
+        parameters: props
+    };
+}
+
 export interface MachineReservation {
     name: string;
     cpu: number | null;

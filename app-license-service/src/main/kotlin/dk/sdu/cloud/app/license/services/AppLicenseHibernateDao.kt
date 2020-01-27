@@ -82,14 +82,14 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         return session.createNativeQuery<LicenseServerEntity>(
             """
             SELECT LS.id, LS.tag, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
-            INNER JOIN permissions
-                ON LS.id = permissions.server_id
+            INNER JOIN {h-schema}permissions as P
+                ON LS.id = P.server_id
             WHERE
                 LS.tag in (:tags)
-                AND permissions.entity = :entityId
-                AND permissions.entity_type = :entityType
-                AND (permissions.permission = 'READ_WRITE'
-    		    OR permissions.permission = 'READ')
+                AND P.entity = :entityId
+                AND P.entity_type = :entityType
+                AND (P.permission = 'READ_WRITE'
+    		    OR P.permission = 'READ')
         """.trimIndent(), LicenseServerEntity::class.java
         ).also {
             it.setParameter("tags", tags)

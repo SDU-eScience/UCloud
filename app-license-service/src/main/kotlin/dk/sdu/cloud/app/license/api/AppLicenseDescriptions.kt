@@ -108,16 +108,14 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
 
         http {
-            method = HttpMethod.Get
+            method = HttpMethod.Post
 
             path {
                 using(baseContext)
                 +"list"
             }
 
-            params {
-                +boundTo(ListLicenseServersRequest::tags)
-            }
+            body { bindEntireRequestFromBody() }
         }
     }
 
