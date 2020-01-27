@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.github.jasync.sql.db.util.size
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.SERVICE_USER
@@ -17,6 +18,7 @@ import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.Chown
+import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
 import dk.sdu.cloud.file.services.linuxfs.listAndClose
 import dk.sdu.cloud.file.services.linuxfs.runAndRethrowNIOExceptions
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
@@ -211,10 +213,14 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                 transferSnapshot(manifest.username, upper, realRootPath, transferredFiles)
             } else {
                 if (canWriteToDefault) {
-                    fsRunner.withContext(manifest.username) { rootCtx ->
-                        upper.listAndClose().forEach { file ->
-                            transferToDefault(snapshotRoot, file, defaultDestinationDir, rootCtx, transferredFiles)
-                        }
+                    upper.listAndClose().forEach { file ->
+                        transferToDefault(
+                            snapshotRoot,
+                            file,
+                            defaultDestinationDir,
+                            manifest.username,
+                            transferredFiles
+                        )
                     }
                 }
             }
@@ -223,17 +229,15 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         if (canWriteToDefault) {
             val snapshotNames = cowManifest.snapshots.map { it.directoryName }.toSet()
 
-            fsRunner.withContext(manifest.username) { ctx ->
-                workDirectory
-                    .listAndClose()
-                    .asSequence()
-                    .filter { child ->
-                        matchers.any { it.matches(child.fileName) } && child.fileName.toString() !in snapshotNames
-                    }
-                    .forEach { file ->
-                        transferToDefault(workDirectory, file, defaultDestinationDir, ctx, transferredFiles)
-                    }
-            }
+            workDirectory
+                .listAndClose()
+                .asSequence()
+                .filter { child ->
+                    matchers.any { it.matches(child.fileName) } && child.fileName.toString() !in snapshotNames
+                }
+                .forEach { file ->
+                    transferToDefault(workDirectory, file, defaultDestinationDir, manifest.username, transferredFiles)
+                }
         }
 
         return transferredFiles
@@ -246,7 +250,7 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         rootPath: Path,
         directory: Path,
         defaultDestinationDir: Path,
-        ctx: Ctx,
+        username: String,
         transferredFiles: ArrayList<String>
     ) {
         fsRunner.withContext(SERVICE_USER) { rootCtx ->
@@ -256,6 +260,17 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                 val realPath = defaultDestinationDir.resolve(relativePath)
                 val cloudPath = realPath.toCloudPath()
                 val workspaceCloudPath = path.toCloudPath()
+
+                val pathTooLong = handleLongPaths(
+                    rootCtx,
+                    path,
+                    defaultDestinationDir.resolve(RELOCATED_DIR),
+                    workspaceCloudPath,
+                    transferredFiles,
+                    username
+                )
+
+                if (pathTooLong) return@forEach
 
                 if (Files.isRegularFile(path)) {
                     sanitizeFile(path)
@@ -270,10 +285,12 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                     coreFs.emitUpdateEvent(rootCtx, cloudPath)
                     transferredFiles.add(cloudPath)
                 } else if (Files.isDirectory(path)) {
-                    try {
-                        coreFs.makeDirectory(ctx, cloudPath)
-                    } catch (ex: FSException.AlreadyExists) {
-                        // Ignored
+                    fsRunner.withContext(username) { ctx ->
+                        try {
+                            coreFs.makeDirectory(ctx, cloudPath)
+                        } catch (ex: FSException.AlreadyExists) {
+                            // Ignored
+                        }
                     }
                 }
             }
@@ -288,10 +305,27 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
     ) {
         fsRunner.withContext(SERVICE_USER) { rootCtx ->
             Files.walk(upper).asSequence().forEach seq@{ path ->
-                val relativePath = upper.relativize(path)
-                val realPath = realRootPath.resolve(relativePath)
+                val realPath = run {
+                    val relativePath = upper.relativize(path)
+                    realRootPath.resolve(relativePath)
+                }
+
                 val cloudPath = realPath.toCloudPath()
                 val workspaceCloudPath = path.toCloudPath()
+
+                val realRelocatedDir = realRootPath.resolve(RELOCATED_DIR)
+                val pathTooLong = handleLongPaths(
+                    rootCtx,
+                    path,
+                    realRelocatedDir,
+                    workspaceCloudPath,
+                    transferredFiles,
+                    username
+                )
+
+                if (pathTooLong) {
+                    return@seq
+                }
 
                 if (Files.isSymbolicLink(path)) {
                     Files.deleteIfExists(path)
@@ -369,6 +403,73 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         }
     }
 
+    private suspend fun handleLongPaths(
+        rootCtx: Ctx,
+        realSource: Path,
+        realRelocatedDir: Path,
+        workspaceCloudPath: String,
+        transferredFiles: ArrayList<String>,
+        username: String
+    ): Boolean {
+        try {
+            val relocatedDir = realRelocatedDir.toCloudPath()
+            val cloudPath = realSource.toCloudPath()
+            log.info("Destination is ${cloudPath.size} long!")
+            if (cloudPath.size >= PATH_MAX) {
+                if (Files.isRegularFile(realSource) && !realSource.toFile().name.startsWith(DELETED_PREFIX)) {
+                    val fileNameMaxSize = PATH_MAX - relocatedDir.size - 1
+                    if (relocatedDir.size >= PATH_MAX || fileNameMaxSize <= 0) {
+                        log.warn("Discarding file: $realSource")
+                        return true
+                    }
+
+                    val fileName =
+                        (UUID.randomUUID().toString() + realSource.fileName.toString()).take(fileNameMaxSize)
+
+                    val realDestination = realRelocatedDir.resolve(fileName)
+                    val destination = realDestination.toCloudPath()
+                    if (destination.size >= PATH_MAX) {
+                        log.error("$realSource $realDestination destination.size should not be >= PATH_MAX! This is a bug.")
+                        return true
+                    }
+
+                    runCatching {
+                        fsRunner.withContext(username) { ctx ->
+                            coreFs.makeDirectory(ctx, relocatedDir)
+                        }
+                    }
+
+                    sanitizeFile(realSource)
+                    // File has been updated
+                    coreFs.handlePotentialFileCreation(
+                        rootCtx,
+                        workspaceCloudPath
+                    )
+
+                    Files.move(
+                        realSource,
+                        realDestination,
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING
+                    )
+
+                    log.info("Moving file from $realSource to $realDestination")
+
+                    coreFs.emitUpdateEvent(rootCtx, destination)
+                    transferredFiles.add(destination)
+                }
+                return true
+            }
+        } catch (ex: FileSystemException) {
+            // Some times the file name is simply too long. We cannot even read the file. In this case we have no other
+            // choice but to discard the entire thing.
+            log.info("Caught exception while attempting to move long file!")
+            log.info(ex.stackTraceToString())
+            return true
+        }
+        return false
+    }
+
     private fun sanitizeFile(path: Path) {
         // File sanitization
         Chown.setOwner(path, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
@@ -405,5 +506,6 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         private const val WORK_LAYER = "work"
         private const val SNAPSHOT_LAYER = "snapshots"
         private const val DELETED_PREFIX = ".wh."
+        private const val RELOCATED_DIR = "Relocated"
     }
 }

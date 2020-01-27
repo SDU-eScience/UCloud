@@ -878,7 +878,9 @@ class LinuxFS(
 
     companion object : Loggable {
         override val log = logger()
-        const val PATH_MAX = 4096
+
+        // Setting this to 4096 is too big for us to save files from workspaces. We want to leave a bit of buffer room.
+        const val PATH_MAX = 3700
 
         val DEFAULT_FILE_MODE = setOf(
             PosixFilePermission.OWNER_READ,
