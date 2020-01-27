@@ -168,6 +168,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   vertical-align: middle;
   cursor: pointer;
   color: #8393A7;
+  margin-right: .5em;
 }
 
 .c26 svg[data-name="checked"] {
@@ -408,11 +409,11 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             fillRule="evenodd"
             height=".7em"
             ml=".7em"
-            viewBox="0 0 24 12"
+            viewBox="0 0 24 21"
             width=".7em"
           >
             <path
-              d="M0 0l11.959 12 12-12H0z"
+              d="M12 20.785L0 0h24L12 20.785z"
             />
           </svg>
         </span>
@@ -519,11 +520,11 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               fillRule="evenodd"
               height=".7em"
               ml=".7em"
-              viewBox="0 0 24 12"
+              viewBox="0 0 24 21"
               width=".7em"
             >
               <path
-                d="M0 0l11.959 12 12-12H0z"
+                d="M12 20.785L0 0h24L12 20.785z"
               />
             </svg>
           </span>
@@ -705,11 +706,11 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               fillRule="evenodd"
               height=".7em"
               ml=".7em"
-              viewBox="0 0 24 12"
+              viewBox="0 0 24 21"
               width=".7em"
             >
               <path
-                d="M0 0l11.959 12 12-12H0z"
+                d="M12 20.785L0 0h24L12 20.785z"
               />
             </svg>
           </span>

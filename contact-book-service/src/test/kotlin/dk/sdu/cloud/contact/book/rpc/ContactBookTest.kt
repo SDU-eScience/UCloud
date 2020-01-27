@@ -81,7 +81,7 @@ class ContactBookTest {
                         request = InsertRequest(
                             fromUser,
                             listOf("toUser#12"),
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -95,7 +95,7 @@ class ContactBookTest {
                         path = "/api/contactbook/all",
                         user = TestUsers.user,
                         request = AllContactsForUserRequest(
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -111,7 +111,7 @@ class ContactBookTest {
                         request = InsertRequest(
                             fromUser,
                             listOf("toUser#12", "toUser#92", "toUser#44"),
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -125,7 +125,7 @@ class ContactBookTest {
                         path = "/api/contactbook/all",
                         user = TestUsers.user,
                         request = AllContactsForUserRequest(
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -140,7 +140,7 @@ class ContactBookTest {
                         user = TestUsers.user,
                         request = QueryContactsRequest(
                             "toUser",
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -155,7 +155,7 @@ class ContactBookTest {
                         user = TestUsers.user,
                         request = QueryContactsRequest(
                             "toUser#4",
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -164,14 +164,14 @@ class ContactBookTest {
                 }
                 //Delete
                 run {
-                    val response = sendJson(
+                    sendJson(
                         method = HttpMethod.Delete,
                         path = "api/contactbook",
                         user = TestUsers.service,
                         request = DeleteRequest(
                             fromUser,
                             "toUser#44",
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                 }
@@ -185,7 +185,7 @@ class ContactBookTest {
                         user = TestUsers.user,
                         request = QueryContactsRequest(
                             "toUser#4",
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -215,7 +215,7 @@ class ContactBookTest {
                         request = InsertRequest(
                             fromUser,
                             listOf("toUser#12"),
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -241,7 +241,7 @@ class ContactBookTest {
                         request = InsertRequest(
                             fromUser,
                             listOf("toUser#12", "toUser#14"),
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -267,7 +267,7 @@ class ContactBookTest {
                         request = DeleteRequest(
                             fromUser,
                             "toUser#44",
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -294,7 +294,7 @@ class ContactBookTest {
                         user = TestUsers.user,
                         request = QueryContactsRequest(
                             "toUser#4",
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()
@@ -322,7 +322,7 @@ class ContactBookTest {
                         path = "/api/contactbook/all",
                         user = TestUsers.user,
                         request = AllContactsForUserRequest(
-                            ServiceOrigin.SHARE_SERVICE.string
+                            ServiceOrigin.SHARE_SERVICE
                         )
                     )
                     response.assertSuccess()

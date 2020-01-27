@@ -398,11 +398,11 @@ exports[`Mount Activity Page 1`] = `
               fillRule="evenodd"
               height=".7em"
               ml=".7em"
-              viewBox="0 0 24 12"
+              viewBox="0 0 24 21"
               width=".7em"
             >
               <path
-                d="M0 0l11.959 12 12-12H0z"
+                d="M12 20.785L0 0h24L12 20.785z"
               />
             </svg>
           </span>
@@ -596,11 +596,11 @@ exports[`Mount Activity Page 1`] = `
               fillRule="evenodd"
               height=".7em"
               ml=".7em"
-              viewBox="0 0 24 12"
+              viewBox="0 0 24 21"
               width=".7em"
             >
               <path
-                d="M0 0l11.959 12 12-12H0z"
+                d="M12 20.785L0 0h24L12 20.785z"
               />
             </svg>
           </span>
