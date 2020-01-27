@@ -5,5 +5,5 @@ structure:
   summary: TOC.md
 
 redirects:
-  iso-27001/escience_procedures: iso-27001/wiki/README.md
+  iso-27001/escience_procedures: infrastructure/wiki/README.md
 
