@@ -240,8 +240,8 @@ class JobOrchestratorTest {
         val orchestrator = setup()
 
         //Success
-        runBlocking {
-            val returnedID = run {
+        val returnedID = runBlocking {
+            run {
                 orchestrator.startJob(
                     startJobRequest,
                     TestUsers.user.createToken(),
@@ -249,16 +249,18 @@ class JobOrchestratorTest {
                     client
                 )
             }
+        }
 
-            run {
-                orchestrator.handleJobComplete(
-                    returnedID,
-                    SimpleDuration(1, 0, 0),
-                    true,
-                    TestUsers.user
-                )
-            }
+        runBlocking {
+            orchestrator.handleJobComplete(
+                returnedID,
+                SimpleDuration(1, 0, 0),
+                true,
+                TestUsers.user
+            )
+        }
 
+        runBlocking {
             retrySection {
                 val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
                 assertEquals(JobState.SUCCESS, job.currentState)
@@ -266,8 +268,8 @@ class JobOrchestratorTest {
         }
 
         //failed
-        runBlocking {
-            val returnedID = run {
+        val returnedID1 = runBlocking {
+            run {
                 orchestrator.startJob(
                     startJobRequest,
                     TestUsers.user.createToken(),
@@ -275,16 +277,18 @@ class JobOrchestratorTest {
                     client
                 )
             }
-
+        }
+        runBlocking {
             orchestrator.handleJobComplete(
-                returnedID,
+                returnedID1,
                 SimpleDuration(1, 0, 0),
                 false,
                 TestUsers.user
             )
-
+        }
+        runBlocking {
             retrySection {
-                val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
+                val job = orchestrator.lookupOwnJob(returnedID1, TestUsers.user)
                 assertEquals(JobState.FAILURE, job.currentState)
             }
         }
