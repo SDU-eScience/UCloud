@@ -71,8 +71,8 @@ exports[`UserCreation Mount 1`] = `
 .c6 {
   display: block;
   font-family: inherit;
-  color: inherit;
   background-color: transparent;
+  color: #000;
   margin: 0;
   border-width: 2px;
   border-color: #c9d3df;

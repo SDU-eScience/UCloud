@@ -131,8 +131,8 @@ exports[`Header Mount header 1`] = `
 .c10 {
   display: block;
   font-family: inherit;
-  color: inherit;
   background-color: transparent;
+  color: #000;
   margin: 0;
   border-width: 0px;
   padding-left: 30px;
