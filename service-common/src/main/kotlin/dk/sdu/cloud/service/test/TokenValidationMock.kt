@@ -55,6 +55,8 @@ object TokenValidationMock {
             }
 
             withClaim("uid", securityPrincipal.uid)
+            withClaim("email", securityPrincipal.email)
+            withClaim("twoFactorAuthentication", securityPrincipal.twoFactorAuthentication)
 
             withAudience(*(scopes.map { it.toString() }.toTypedArray()))
 
@@ -114,17 +116,26 @@ fun TokenValidationMock.createTokenForService(
 }
 
 object TestUsers {
-    val user = SecurityPrincipal("user", Role.USER, "user", "user", Random.nextLong().absoluteValue)
-    val user2 = user.copy(username = "user2")
-    val user3 = user.copy(username = "user3")
-    val user4 = user.copy(username = "user4")
-    val user5 = user.copy(username = "user5")
+    val user =
+        SecurityPrincipal("user", Role.USER, "user", "user", Random.nextLong().absoluteValue, "user@example.com", true)
+    val user2 = user.copy(username = "user2", email = "user2@example.com")
+    val user3 = user.copy(username = "user3", email = "user3@example.com")
+    val user4 = user.copy(username = "user4", email = "user4@example.com")
+    val user5 = user.copy(username = "user5", email = "user5@example.com")
 
-    val admin = SecurityPrincipal("admin", Role.ADMIN, "admin", "admin", Random.nextLong().absoluteValue)
-    val admin2 = admin.copy(username = "admin2")
-    val admin3 = admin.copy(username = "admin3")
-    val admin4 = admin.copy(username = "admin4")
-    val admin5 = admin.copy(username = "admin5")
+    val admin = SecurityPrincipal(
+        "admin",
+        Role.ADMIN,
+        "admin",
+        "admin",
+        Random.nextLong().absoluteValue,
+        "admin@example.com",
+        true
+    )
+    val admin2 = admin.copy(username = "admin2", email = "admin2@example.com")
+    val admin3 = admin.copy(username = "admin3", email = "admin3@example.com")
+    val admin4 = admin.copy(username = "admin4", email = "admin4@example.com")
+    val admin5 = admin.copy(username = "admin5", email = "admin5@example.com")
 
     val service = SecurityPrincipal("_service", Role.SERVICE, "service", "service", Random.nextLong().absoluteValue)
     val service2 = service.copy(username = "_service2")

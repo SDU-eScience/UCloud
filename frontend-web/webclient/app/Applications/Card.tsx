@@ -111,7 +111,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
                     unwrapDisallowed
                 />
             </EllipsedText>
-            <div><Icon name="chevronDown" rotation={-90} /></div>
+            <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
         </AppCardBase>
     );
 };

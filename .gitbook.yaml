@@ -3,3 +3,7 @@ root: ./
 structure:
   readme: README.md
   summary: TOC.md
+
+redirects:
+  iso-27001/escience_procedures: infrastructure/wiki/README.md
+

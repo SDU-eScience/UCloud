@@ -83,6 +83,15 @@ class AclHibernateDao : AclDao<HibernateSession> {
         }.executeUpdate()
     }
 
+    override fun revokeAllServerPermissions(
+        session: HibernateSession,
+        serverId: String
+    ) {
+        session.deleteCriteria<PermissionEntry> {
+            (entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal serverId)
+        }.executeUpdate()
+    }
+
     override fun listAcl(
         session: HibernateSession,
         serverId: String

@@ -23,21 +23,21 @@ import {
     expandHomeFolder,
     favoriteFile,
     fileTablePage,
-    getParentPath,
     reclassifyFile,
     sizeToString,
-    isFilePreviewSupported
+    isFilePreviewSupported,
+    isDirectory,
+    statFileQuery
 } from "Utilities/FileUtilities";
-import {capitalized, removeTrailingSlash} from "UtilityFunctions";
+import {capitalized, removeTrailingSlash, errorMessageOrDefault} from "UtilityFunctions";
 import FilePreview from "./FilePreview";
-import {fetchFileActivity, fetchFileStat, receiveFileStat, setLoading} from "./Redux/FileInfoActions";
+import {fetchFileActivity, setLoading} from "./Redux/FileInfoActions";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 interface FileInfoOperations {
     updatePageTitle: () => void;
     setLoading: (loading: boolean) => void;
-    fetchFileStat: (path: string) => void;
     fetchFileActivity: (path: string) => void;
-    receiveFileStat: (file: File) => void;
     setActivePage: () => void;
 }
 
@@ -47,31 +47,20 @@ interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
 }
 
 function FileInfo(props: Readonly<FileInfo>) {
-    const [size, setSize] = React.useState(0);
     const [previewShown, setPreviewShown] = React.useState(false);
+    const [file, setFile] = React.useState<File | undefined>(undefined);
 
     React.useEffect(() => {
         props.setActivePage();
         props.updatePageTitle();
-        const filePath = path();
-        if (!props.file || getParentPath(filePath) !== props.file.path) {
-            props.setLoading(true);
-            props.fetchFileStat(filePath);
-            props.fetchFileActivity(filePath);
-        }
     }, []);
 
     React.useEffect(() => {
-        const fileType = props.file?.fileType;
-        if (fileType === "DIRECTORY") {
-            Client.post<{size: number}>(directorySizeQuery, {paths: [file!.path]})
-                .then(it => setSize(it.response.size));
-        } else {
-            setSize(file?.size ?? 0);
-        }
-    }, [props.file && props.file.size]);
+        fetchFile();
+    }, [path()]);
 
-    const {loading, file, activity} = props;
+    const {loading, activity} = props;
+
     if (loading) return (<LoadingIcon size={18} />);
     if (!file) return null;
     return (
@@ -86,17 +75,10 @@ function FileInfo(props: Readonly<FileInfo>) {
                     <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
                 </>
             )}
+            headerSize={140}
             main={(
                 <>
-                    <FileView
-                        file={{...file, size}}
-                        onFavorite={async () => props.receiveFileStat(await favoriteFile(file, Client))}
-                        onReclassify={async sensitivity => {
-                            props.receiveFileStat(await reclassifyFile({file, sensitivity, client: Client}));
-                            props.fetchFileStat(path());
-                        }}
-                    />
-
+                    <FileView file={file} />
                     <ShowFilePreview />
 
                     {activity.items.length ? (
@@ -131,6 +113,25 @@ function FileInfo(props: Readonly<FileInfo>) {
         const param = queryParams().get("path");
         return param ? removeTrailingSlash(param) : "";
     }
+
+    async function fetchFile() {
+        const filePath = path();
+        props.setLoading(true);
+        props.fetchFileActivity(filePath);
+        try {
+            const {response} = await Client.get<File>(statFileQuery(filePath));
+            setFile(response);
+            const fileType = response.fileType;
+            if (isDirectory({fileType})) {
+                const res = await Client.post<{size: number}>(directorySizeQuery, {paths: [filePath]});
+                setFile({...response!, size: res.response.size});
+            }
+        } catch (e) {
+            errorMessageOrDefault(e, "An error ocurred fetching file info.")
+        } finally {
+            props.setLoading(false);
+        }
+    }
 }
 
 const Attribute: React.FunctionComponent<{name: string, value?: string}> = props => (
@@ -150,20 +151,21 @@ const AttributeBox: React.FunctionComponent = props => (
 
 interface FileViewProps {
     file: File;
-    onFavorite: () => void;
-    onReclassify: (level: SensitivityLevelMap) => void;
 }
 
-const FileView = ({file, onFavorite, onReclassify}: FileViewProps) =>
-    !file ? null : (
+function FileView({file}: FileViewProps) {
+    const [favorite, setFavorite] = React.useState(file.favorited);
+    const [sensitivity, setSensitivity] = React.useState(file.ownSensitivityLevel);
+
+    return !file ? null : (
         <Flex flexDirection="row" justifyContent="center" flexWrap="wrap">
             <AttributeBox>
                 <Attribute name="Created at" value={dateToString(file.createdAt!)} />
                 <Attribute name="Modified at" value={dateToString(file.modifiedAt!)} />
                 <Attribute name="Favorite">
                     <Icon
-                        name={file.favorited ? "starFilled" : "starEmpty"}
-                        onClick={onFavorite}
+                        name={favorite ? "starFilled" : "starEmpty"}
+                        onClick={toggleFavorite}
                         color="blue"
                     />
                 </Attribute>
@@ -173,9 +175,8 @@ const FileView = ({file, onFavorite, onReclassify}: FileViewProps) =>
                 <Attribute name="Sensitivity">
                     <ClickableDropdown
                         chevron
-                        trigger={SensitivityLevel[!!file.ownSensitivityLevel ?
-                            file.ownSensitivityLevel : SensitivityLevelMap.INHERIT]}
-                        onChange={e => onReclassify(e as SensitivityLevelMap)}
+                        trigger={SensitivityLevel[sensitivity ?? SensitivityLevelMap.INHERIT]}
+                        onChange={changeSensitivity}
                         options={
                             Object.keys(SensitivityLevel).map(key => ({
                                 text: SensitivityLevel[key],
@@ -187,13 +188,30 @@ const FileView = ({file, onFavorite, onReclassify}: FileViewProps) =>
                 <Attribute name="Computed sensitivity" value={SensitivityLevel[file.sensitivityLevel!]} />
                 <Attribute name="Size" value={sizeToString(file.size!)} />
             </AttributeBox>
-        </Flex >
+        </Flex>
     );
 
-const mapStateToProps = ({fileInfo}: ReduxObject): FileInfoReduxObject & {favorite: boolean} => ({
+    async function toggleFavorite() {
+        try {
+            await favoriteFile(file, Client)
+            setFavorite(fav => !fav);
+        } catch (e) {
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to toggle favorite status."))
+        }
+    }
+
+    async function changeSensitivity(val: SensitivityLevelMap) {
+        try {
+            await reclassifyFile({file, sensitivity: val, client: Client});
+            setSensitivity(val)
+        } catch (e) {
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to change sensitivity."))
+        }
+    }
+}
+
+const mapStateToProps = ({fileInfo}: ReduxObject): FileInfoReduxObject => ({
     loading: fileInfo.loading,
-    file: fileInfo.file,
-    favorite: !!(fileInfo.file?.favorited),
     activity: fileInfo.activity,
     error: fileInfo.error
 });
@@ -201,9 +219,7 @@ const mapStateToProps = ({fileInfo}: ReduxObject): FileInfoReduxObject & {favori
 const mapDispatchToProps = (dispatch: Dispatch): FileInfoOperations => ({
     updatePageTitle: () => dispatch(updatePageTitle("File Info")),
     setLoading: loading => dispatch(setLoading(loading)),
-    fetchFileStat: async path => dispatch(await fetchFileStat(path)),
     fetchFileActivity: async path => dispatch(await fetchFileActivity(path)),
-    receiveFileStat: file => dispatch(receiveFileStat(file)),
     setActivePage: () => dispatch(setActivePage(SidebarPages.Files))
 });
 

@@ -10,7 +10,7 @@ Activities is allocated to a team an activity has one or more repositories on
 GitHub.
 
 1. [SDUCloud](../../README.md)
-   - This activity has a development system (sect. 12.1.4).
+   - This activity has a development system
 2. Infrastructure - Hardware, Storage setup and configuration.
    - [Infrastructure](https://github.com/SDU-eScience/Infrastructure/blob/master/sdu-pm-cluster/README.md)
    - [Server](https://github.com/SDU-eScience/Infrastructure/blob/master/sdu-pm-cluster/procedures.md)
@@ -29,12 +29,9 @@ The Project Leader and the ISMS admin makes decisions if critical system events
 occurs.  The ISMS admin oversees the creation of this document. Each Project
 Leader have the responsibility for validity of the content.
 
-When appropriate references to ISMS is added (sect x.x.x) which refers to the
-actual section within the ISO 27002/2013 document.
-
 ## The Development Cycle
 
-### Git Repository (sect. 12.1.2)
+### Git Repository
 
 SDUCloud uses a [git repository](https://git-scm.com/) for all SDUCloud
 related code and documentation. The root of the repository contains a
@@ -84,7 +81,7 @@ followed. This allows to act on any security incidents in each library.
 The NPM `update` and `audit` commands are used to fix outdated
 or broken dependencies.
 
-### Testing (sect. 12.1.2)
+### Testing
 
 Creation of automatic unit and integration tests is a part of the development
 cycle. The project leader is ensures that the tests covers relevant
@@ -93,7 +90,7 @@ scenarios.
 Automatic testing is performed by our Continuous Integration (CI) system, 
 [Jenkins](Jenkins.md). The director grants access to the CI system.
 
-### Code Review (sect. 12.1.2)
+### Code Review
 
 The code is reviewed by the Project Leader before being merged into the
 `master` branch. When code is pushed to the `master` branch tests are
@@ -108,7 +105,7 @@ commit will make the necessary changes and resubmit the code for review.  The
 ISMS admin uses the GitHub issues to if improvements is needed within content
 that relates to compliance and security.
 
-### Deployment (sect. 12.1.2)
+### Deployment
 
 Deployment procedures and relevant technologies are listed
 [here](./deployment.md).
@@ -126,7 +123,7 @@ Tickets are initiated through 3 main sources:
    To track requests between projects the tasks are initiated through the help 
    desk system.
 
-## Incident handling / Corrective Actions / Continual improvement (sect. 12.4.1)
+## Incident handling / Corrective Actions / Continual improvement
 
 GitHub holds all issues, external and internal feature requests etc. All issues
 are being classified when it is initialised by a user.
@@ -144,7 +141,7 @@ through email.
 Each Thursday the Project Leaders and ISMS admin meets and evaluates the
 incidents from the previous week and upcoming tasks for the coming week.
 
-## Monitoring and Auditing (sect. 12.1.3)
+## Monitoring and Auditing
 
 All relevant logs are consumed using the ELK stack and presented in real time.
 The output is mainly presented as Kibana and Grafana views using a number of
@@ -168,7 +165,16 @@ The generated support ticket will hold the documentation/comments.
 If the issue involves a user or an SDUCloud project the relevant user/PI will
 be notified.
 
-## Internal Audits (sect. 12.2.1)
+### Security related issues
+If the messages from the alerting/monitoring services contains 
+alerts/notifications the support team will notify all project leaders and the 
+rest of the support team by the user of the Security Slack Channel. 
+In the case that this is unknown behavior and a potential risk is seen, an issue 
+is created.
+
+![securityflow](securityFlow.png)
+
+## Internal Audits
 
 Each month https://cloud.sdu.dk is scanned and penetration tested by the
 security department at SDU.
@@ -259,7 +265,7 @@ https://kubernetes-security.info
 > infrastructure level secrets (password management, key management for e.g.
 > CEPH and SSH, or encryption) are stored within GitHub which have to changed.
 
-### Development (sect. 12.1.2)
+### Development
 
 Members from the development team generally does not have root access to any
 system (dev/prod).

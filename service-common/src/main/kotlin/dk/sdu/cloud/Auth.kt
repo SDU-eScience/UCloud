@@ -55,7 +55,7 @@ enum class Role {
      * If the action is somewhat low-sensitivity it should be fairly safe to assume [USER]/[THIRD_PARTY_APP]
      * privileges. This means no special privileges should be granted to the user.
      *
-     * This will only happen if we are sent a token of a newer version that what we can parse.
+     * This will only happen if we are sent a token of a newer version that what we cannot parse.
      */
     UNKNOWN
 }
@@ -102,7 +102,28 @@ data class SecurityPrincipal(
      */
     val uid: Long,
 
-    val email: String? = null
+    /**
+     * The email of the user
+     */
+    val email: String? = null,
+
+    /**
+     * A boolean flag indicating if the user has 2FA enabled for their user.
+     *
+     * If the token does not contain this information (old tokens generated before field's introduction) then this will
+     * be set to `true`. This is done to avoid breaking extended tokens. This behavior will should change in a
+     * future update.
+     *
+     * All new tokens _should_ contain this information explicitly.
+     */
+    val twoFactorAuthentication: Boolean = true,
+
+    val principalType: String? = null,
+
+    /**
+     * A boolean indicating if the service agreement has been accepted
+     */
+    val serviceAgreementAccepted: Boolean = false
 )
 
 /**

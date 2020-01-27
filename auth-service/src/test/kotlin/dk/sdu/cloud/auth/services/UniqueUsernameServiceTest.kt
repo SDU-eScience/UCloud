@@ -29,7 +29,7 @@ class UniqueUsernameServiceTest {
 
         val passwordHashingService = PasswordHashingService()
         db = micro.hibernateDatabase
-        userDao = UserHibernateDAO(passwordHashingService)
+        userDao = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
         service = UniqueUsernameService(db, userDao)
         personService = PersonService(passwordHashingService, service)
 

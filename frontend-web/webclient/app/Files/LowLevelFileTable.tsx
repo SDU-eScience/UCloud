@@ -69,6 +69,7 @@ import {
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, Arrow, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
+import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -163,7 +164,7 @@ interface InternalFileTableAPI {
     page: Page<File>;
     error: string | undefined;
     pageLoading: boolean;
-    setSorting: ((sortBy: SortBy, order: SortOrder, column?: number) => void);
+    setSorting: ((sortBy: SortBy, order: SortOrder, updateColumn?: boolean) => void);
     sortingIcon: (other: SortBy) => React.ReactNode;
     reload: () => void;
     sortBy: SortBy;
@@ -180,12 +181,10 @@ const initialPageParameters: ListDirectoryRequest = {
     path: "TO_BE_REPLACED"
 };
 
-function apiForComponent(
-    props, /* FIXME: ADD TYPESAFETY */
-    sortByColumns: [SortBy, SortBy],
-    setSortByColumns: (s: [SortBy, SortBy]) => void
+function useApiForComponent(
+    props: LowLevelFileTableProps,
+    setSortByColumns: (s: SortBy) => void
 ): InternalFileTableAPI {
-    let api: InternalFileTableAPI;
     const promises = usePromiseKeeper();
     const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
     const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork();
@@ -218,7 +217,7 @@ function apiForComponent(
     }, [props.path, props.page]);
 
     if (props.page !== undefined) {
-        api = {
+        return {
             page: props.page!,
             pageLoading,
             error: undefined,
@@ -239,16 +238,13 @@ function apiForComponent(
         const error = pageError;
         const loading = pageLoading;
 
-        const setSorting = (sortBy: SortBy, order: SortOrder, column?: 0 | 1) => {
+        const setSorting = (sortBy: SortBy, order: SortOrder, updateColumn?: boolean) => {
             let sortByToUse = sortBy;
             if (sortBy === SortBy.ACL) sortByToUse = pageParameters.sortBy;
 
-            if (column !== undefined) {
-                setSortingColumnAt(sortBy, column);
-
-                const newColumns: [SortBy, SortBy] = [sortByColumns[0], sortByColumns[1]];
-                newColumns[column] = sortBy;
-                setSortByColumns(newColumns);
+            if (updateColumn) {
+                setSortingColumn(sortBy);
+                setSortByColumns(sortBy);
             }
 
             loadManaged({
@@ -270,14 +266,12 @@ function apiForComponent(
             loadManaged({...pageParameters, page: pageNumber, itemsPerPage});
         };
 
-        api = {page, error, pageLoading: loading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged};
+        return {page, error, pageLoading: loading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged};
     }
-    return api;
 }
 
 // tslint:disable-next-line: variable-name
 const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
-    responsive: ResponsiveReduxObject;
     showUploader: (path: string) => void;
     setUploaderCallback: (cb?: () => void) => void;
     appendUpload: (uploads: Upload) => void;
@@ -295,14 +289,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
     // Hooks
     const [checkedFiles, setCheckedFiles] = useState<Set<string>>(new Set());
     const [fileBeingRenamed, setFileBeingRenamed] = useState<string | null>(null);
-    const [sortByColumns, setSortByColumns] = useState<[SortBy, SortBy]>(() => getSortingColumns());
+    const [sortByColumn, setSortByColumn] = useState<SortBy>(getSortingColumn());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, , invokeWork] = useAsyncWork();
     const [applications, setApplications] = useState(new Map<string, QuickLaunchApp[]>());
     const history = useHistory();
 
     const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
-        apiForComponent(props, sortByColumns, setSortByColumns);
+        useApiForComponent(props, setSortByColumn);
 
     // Fetch quick launch applications upon page refresh
     useEffect(() => {
@@ -606,8 +600,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                                 mr="-16px"
                                                 pl="15px"
                                                 onClick={() => setSorting(
-                                                    sortByColumns[0], order === SortOrder.ASCENDING ?
-                                                    SortOrder.DESCENDING : SortOrder.ASCENDING, 0
+                                                    sortByColumn, order === SortOrder.ASCENDING ?
+                                                    SortOrder.DESCENDING : SortOrder.ASCENDING, true
                                                 )}
                                             >
                                                 <>
@@ -617,13 +611,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                                 </>
                                             </Box>
                                             <Divider />
-                                            {Object.values(SortBy).filter(it => it !== sortByColumns[0]).map((sortByValue: SortBy, j) => (
+                                            {Object.values(SortBy).filter(it => it !== sortByColumn).map((sortByValue: SortBy, j) => (
                                                 <Box
                                                     ml="-16px"
                                                     mr="-16px"
                                                     pl="15px"
                                                     key={j}
-                                                    onClick={() => setSorting(sortByValue, SortOrder.ASCENDING, 0)}
+                                                    onClick={() => setSorting(sortByValue, SortOrder.ASCENDING, true)}
                                                 >
                                                     {UF.sortByToPrettierString(sortByValue)}
                                                 </Box>
@@ -656,8 +650,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                         onClick={() => {
                             if (!isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
                         }}
-                        pb={"4px"}
-                        pt={"4px"}
+                        pb="4px"
+                        pt="4px"
                         width="100%"
                         key={f.path}
                     >
@@ -677,29 +671,52 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                 <Flex mt="5px" onClick={UF.stopPropagation}>
                                     {/* Show members as icons */}
                                     {/* {!f.acl ? null : <ACLAvatars members={f.acl.map(it => it.entity)} />} */}
-                                    {!(props.previewEnabled && isFilePreviewSupported(f)) ? null : (
-                                        <Tooltip
-                                            wrapperOffsetLeft="0"
-                                            wrapperOffsetTop="4px"
-                                            right="0"
-                                            top="1"
-                                            mb="50px"
-                                            trigger={(
-                                                <Link to={filePreviewQuery(f.path)}>
-                                                    <Icon
-                                                        cursor="pointer"
-                                                        size="24px"
-                                                        mt="4px"
-                                                        mr="8px"
-                                                        color="gray"
-                                                        name="preview"
-                                                    />
-                                                </Link>
+                                    {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
+                                        f.size != null && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
+                                            <Tooltip
+                                                wrapperOffsetLeft="0"
+                                                wrapperOffsetTop="4px"
+                                                right="0"
+                                                top="1"
+                                                mb="50px"
+                                                trigger={(
+                                                    <Link to={filePreviewQuery(f.path)}>
+                                                        <Icon
+                                                            cursor="pointer"
+                                                            size="24px"
+                                                            mt="4px"
+                                                            mr="8px"
+                                                            color="gray"
+                                                            name="preview"
+                                                        />
+                                                    </Link>
+                                                )}
+                                            >
+                                                Preview available
+                                            </Tooltip>
+                                        ) : (
+                                                <Tooltip
+                                                    wrapperOffsetLeft="0"
+                                                    wrapperOffsetTop="4px"
+                                                    tooltipContentWidth="85px"
+                                                    right="0"
+                                                    top="1"
+                                                    mb="50px"
+                                                    trigger={(
+                                                        <Icon
+                                                            opacity="0.2"
+                                                            cursor="default"
+                                                            size="24px"
+                                                            mt="4px"
+                                                            mr="8px"
+                                                            color="gray"
+                                                            name="preview"
+                                                        />
+                                                    )}
+                                                >
+                                                    {(f.size ?? 0) > 0 ? "File too large for preview" : "File is empty"}
+                                                </Tooltip>
                                             )}
-                                        >
-                                            Preview available
-                                        </Tooltip>
-                                    )}
                                     {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
                                         ((applications.get(f.path) ?? []).length < 1) ? null : (
                                             <ClickableDropdown
@@ -779,11 +796,11 @@ function toWebDav() {
     document.body.removeChild(a);
 }
 
-const mapStateToProps = ({responsive, uploader}: ReduxObject) => {
+const mapStateToProps = ({uploader}: ReduxObject) => {
     const activeUploadCount = uploader.uploads.filter(it =>
         (it.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
         (it.uploadXHR?.readyState ?? -1 < XMLHttpRequest.DONE)).length;
-    return {responsive, activeUploadCount};
+    return {activeUploadCount};
 };
 
 const mapDispatchToProps = (dispatch: Dispatch) => ({
@@ -867,17 +884,13 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
         />
     ) : (
-            <Truncate
-                width={[170, 250, 300, 250, 500, "100%"]}
-                mb="-4px"
-                fontSize={20}
-            >
+            <Truncate width={1} mb="-4px" fontSize={20}>
                 {getFilenameFromPath(props.file.path)}
             </Truncate>
         );
 
     return (
-        <Flex>
+        <Flex maxWidth="calc(100% - 210px)">
             <Box mx="10px" mt="9px">
                 {isAnyMockFile([props.file]) || isAnySharedFs([props.file]) ? <Box width="24px" /> : (
                     <Icon
@@ -913,14 +926,15 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                     >
                         {fileName}
                     </BaseLink>
-                ) : props.previewEnabled && isFilePreviewSupported(props.file) ?
+                ) : props.previewEnabled && isFilePreviewSupported(props.file) && !beingRenamed &&
+                    UF.inRange({status: props.file.size ?? 0, min: 1, max: PREVIEW_MAX_SIZE}) ?
                         <Link to={filePreviewQuery(props.file.path)}>{fileName}</Link> :
                         fileName
                 }
 
                 <Hide sm xs>
                     <Flex>
-                        {!props.file.size ? null : (
+                        {!props.file.size || isDirectory(props.file) ? null : (
                             <Text fontSize={0} title="Size" mr="12px" color="gray">
                                 {sizeToString(props.file.size)}
                             </Text>
@@ -1091,23 +1105,15 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
 };
 
 
-function getSortingColumnAt(columnIndex: 0 | 1): SortBy {
-    const sortingColumn = window.localStorage.getItem(`filesSorting${columnIndex}`);
-    if (sortingColumn && Object.values(SortBy).includes(sortingColumn as SortBy)) return sortingColumn as SortBy;
-    switch (columnIndex) {
-        case 0:
-            window.localStorage.setItem("filesSorting0", SortBy.MODIFIED_AT);
-            return SortBy.MODIFIED_AT;
-        case 1:
-            window.localStorage.setItem("filesSorting1", SortBy.SIZE);
-            return SortBy.SIZE;
+function getSortingColumn(): SortBy {
+    const sortingColumn = window.localStorage.getItem("filesSorting");
+    if (sortingColumn && Object.values(SortBy).includes(sortingColumn as SortBy)) {
+        return sortingColumn as SortBy;
     }
+    window.localStorage.setItem("filesSorting", SortBy.PATH);
+    return SortBy.PATH;
 }
 
-function getSortingColumns(): [SortBy, SortBy] {
-    return [getSortingColumnAt(0), getSortingColumnAt(1)];
-}
-
-function setSortingColumnAt(column: SortBy, columnIndex: 0 | 1) {
-    window.localStorage.setItem(`filesSorting${columnIndex}`, column);
+function setSortingColumn(column: SortBy) {
+    window.localStorage.setItem("filesSorting", column);
 }

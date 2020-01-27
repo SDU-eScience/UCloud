@@ -1,7 +1,6 @@
-import {configure, shallow} from "enzyme";
+import {configure} from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
 import {createMemoryHistory} from "history";
-import "jest-styled-components";
 import * as React from "react";
 import {Provider} from "react-redux";
 import {create} from "react-test-renderer";

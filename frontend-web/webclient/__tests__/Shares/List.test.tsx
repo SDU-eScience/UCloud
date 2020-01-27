@@ -1,14 +1,13 @@
-import * as React from "react";
-import List from "../../app/Shares/List";
-import {create} from "react-test-renderer";
-import {MemoryRouter} from "react-router";
-import {configure} from "enzyme"
+import {configure} from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
-import theme from "../../app/ui-components/theme";
-import {ThemeProvider} from "styled-components";
-import "jest-styled-components";
-import {store} from "../../app/Utilities/ReduxUtilities";
+import * as React from "react";
 import {Provider} from "react-redux";
+import {MemoryRouter} from "react-router";
+import {create} from "react-test-renderer";
+import {ThemeProvider} from "styled-components";
+import List from "../../app/Shares/List";
+import theme from "../../app/ui-components/theme";
+import {store} from "../../app/Utilities/ReduxUtilities";
 
 configure({adapter: new Adapter()});
 

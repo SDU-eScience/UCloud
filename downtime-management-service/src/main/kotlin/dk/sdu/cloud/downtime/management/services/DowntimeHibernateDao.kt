@@ -50,13 +50,13 @@ class DowntimeHibernateDao : DowntimeDAO<HibernateSession> {
         }
 
 
-    override fun listUpcoming(session: HibernateSession, paging: NormalizedPaginationRequest): Page<Downtime> {
+    override fun listPending(session: HibernateSession, paging: NormalizedPaginationRequest): Page<Downtime> {
         val now = Date()
         return session.paginatedCriteria<DowntimeEntity>(
             paging,
             orderBy = { listOf(ascending(entity[DowntimeEntity::start]))}
         ) {
-            entity[DowntimeEntity::start] greaterThan now
+            entity[DowntimeEntity::end] greaterThan now
         }.mapItems {
             Downtime(it.id!!, it.start.time, it.end.time, it.text)
         }

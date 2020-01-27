@@ -28,6 +28,7 @@ const CheckBoxWrapper = styled(Box) <CheckBoxWrapper>`
   vertical-align: middle;
   cursor: pointer;
   color: ${props => props.disabled ? props.theme.colors.borderGray : props.theme.colors.gray};
+  margin-right: .5em;
   svg[data-name="checked"] {
     display: none;
   }

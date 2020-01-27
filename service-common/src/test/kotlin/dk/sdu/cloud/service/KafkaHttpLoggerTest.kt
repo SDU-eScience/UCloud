@@ -124,7 +124,7 @@ class KafkaHttpLoggerTest {
 
                 val token = auditMessage.http.token
                 assertNotNull(token)
-                assertThatPropertyEquals(token, { it.principal }, TestUsers.user)
+                assertThatPropertyEquals(token, { it.principal.username }, TestUsers.user.username)
             }
         )
     }
@@ -156,7 +156,7 @@ class KafkaHttpLoggerTest {
 
                 val auditedToken = auditMessage.http.token
                 assertNotNull(auditedToken)
-                assertThatPropertyEquals(auditedToken, { it.principal }, user)
+                assertThatPropertyEquals(auditedToken, { it.principal.username }, user.username)
             }
         )
     }

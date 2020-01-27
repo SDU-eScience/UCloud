@@ -174,6 +174,7 @@ export interface RunAppState {
     previousRuns: Page<File>;
     unknownParameters: string[];
     reservation: React.RefObject<HTMLInputElement>;
+    useCow: boolean;
 }
 
 export interface RunOperations extends SetStatusLoading {
@@ -298,6 +299,7 @@ export interface DetailedApplicationOperations {
     addTag: (tag: string) => void;
     removeTag: (tag: string) => void;
     clearTags: () => void;
+    setSearch: (search: string) => void;
     setShowAllVersions: () => void;
     // tslint:disable-next-line:ban-types
     fetchApplications: (b: AdvancedSearchRequest, c?: Function) => void;

@@ -6,14 +6,17 @@ import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as Heading from "ui-components/Heading";
 import {errorMessageOrDefault} from "UtilityFunctions";
+import {PRODUCT_NAME, SITE_DOCUMENTATION_URL} from "../../site.config.json";
 import Box from "./Box";
 import Button from "./Button";
 import ClickableDropdown from "./ClickableDropdown";
+import ExternalLink from "./ExternalLink";
 import Flex from "./Flex";
 import Icon from "./Icon";
 import Label from "./Label";
 import Radio from "./Radio";
-import {TextSpan} from "./Text";
+import {Spacer} from "./Spacer";
+import {TextDiv, TextSpan} from "./Text";
 import TextArea from "./TextArea";
 
 const enum SupportType {
@@ -75,13 +78,19 @@ export default function Support() {
                 </Flex>
             )}
             width="650px"
-            height="350px"
             right="10px"
             top="37px"
         >
             <Box color="text">
-                <Heading.h3>Support Form</Heading.h3>
-                <Flex mt="3px">
+                <Spacer alignItems="center"
+                    left={<Heading.h3>Support Form</Heading.h3>}
+                    right={!SITE_DOCUMENTATION_URL ? null : (
+                        <ExternalLink href={SITE_DOCUMENTATION_URL}>
+                            <Icon name="docs" mr=".5em"/>Documentation
+                        </ExternalLink>
+                    )}
+                />
+                <Flex mt="8px">
                     <Label>
                         <Radio
                             checked={type === SupportType.SUGGESTION}
@@ -99,8 +108,12 @@ export default function Support() {
                         <Icon name="bug" size="1.5em" ml=".5em" />
                     </Label>
                 </Flex>
-                {type === SupportType.SUGGESTION ? <p>Describe your suggestion and we will look into it.</p> :
-                    <p>Describe your problem below and we will investigate it.</p>}
+                <TextDiv mt={"10px"}>
+                {type === SupportType.BUG ? "Describe your problem below and we will investigate it.":
+                    "Describe your suggestion and we will look into it."
+                }
+                </TextDiv>
+
                 <form onSubmit={onSubmit}>
                     <TextArea width="100%" ref={textArea} rows={6} />
                     <Button
@@ -114,7 +127,7 @@ export default function Support() {
                     </Button>
                 </form>
             </Box>
-        </ClickableDropdown>
+        </ClickableDropdown >
     );
 
     function setBug() {

@@ -27,7 +27,7 @@ class ExtractController<Ctx : FSUserContext>(
     private val serviceCloud: AuthenticatedClient,
     private val coreFs: CoreFileSystemService<Ctx>,
     private val fileLookupService: FileLookupService<Ctx>,
-    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val backgroundScope: BackgroundScope
 ) : Controller {
@@ -35,7 +35,7 @@ class ExtractController<Ctx : FSUserContext>(
         implement(FileDescriptions.extract) {
             audit(SingleFileAudit(null, request))
             val user = ctx.securityPrincipal.username
-            commandRunnerFactory.withContext(user) { ctx ->
+            commandRunnerFactory.withCtx(this, user) { ctx ->
                 val fileId = fileLookupService.stat(ctx, request.path).fileId
                 audit(SingleFileAudit(fileId, request))
             }
@@ -50,14 +50,14 @@ class ExtractController<Ctx : FSUserContext>(
             )
 
             backgroundScope.launch {
-                commandRunnerFactory.withContext(user) { readContext ->
+                commandRunnerFactory.withCtx(this@implement, user) { readContext ->
                     coreFs.read(readContext, request.path) {
                         val fileInputStream = this
 
                         extractor.upload(
                             serviceCloud,
                             coreFs,
-                            { commandRunnerFactory(user) },
+                            { commandRunnerFactory.createContext(this@implement, user) },
                             request.path.parent(),
                             WriteConflictPolicy.RENAME,
                             fileInputStream,

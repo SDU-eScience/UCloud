@@ -6,7 +6,7 @@ metadata:
   labels:
     app: app-kubernetes
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: app-kubernetes
@@ -30,7 +30,7 @@ spec:
           name: envoy
 
       - name: app-kubernetes
-        image: registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.12.7
+        image: registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.13.0-COW.13
         livenessProbe:
           httpGet:
             port: 8080

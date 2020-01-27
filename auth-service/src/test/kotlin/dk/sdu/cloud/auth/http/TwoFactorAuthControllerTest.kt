@@ -65,7 +65,9 @@ class TwoFactorAuthControllerTest {
             null,
             null,
             password = ByteArray(64),
-            salt = ByteArray(64)
+            salt = ByteArray(64),
+            twoFactorAuthentication = false,
+            serviceLicenseAgreement = 0
         )
     ): Principal {
         db.withTransaction { userDAO.insert(it, principal) }
@@ -74,11 +76,11 @@ class TwoFactorAuthControllerTest {
 
     // TODO Refactor this code.
     private fun runTest(
-        userDAO: UserDAO<HibernateSession> = UserHibernateDAO(
-            passwordHashingService
-        ),
-
         twoFactorDAO: TwoFactorDAO<HibernateSession> = TwoFactorHibernateDAO(),
+        userDAO: UserDAO<HibernateSession> = UserHibernateDAO(
+            passwordHashingService,
+            twoFactorDAO
+        ),
         totpService: TOTPService = WSTOTPService(),
         qrService: QRService = ZXingQRService(),
 

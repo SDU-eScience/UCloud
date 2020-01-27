@@ -37,6 +37,7 @@ class FileController(
                     page = request.page,
                     order = request.order,
                     sortBy = request.sortBy,
+                    type = request.type,
                     attributes = storageAttributes
                 ),
                 userCloud

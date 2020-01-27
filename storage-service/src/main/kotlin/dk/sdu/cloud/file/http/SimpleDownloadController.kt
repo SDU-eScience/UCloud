@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.http
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.auth.api.validateAndClaim
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
@@ -18,12 +19,10 @@ import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileRow
-import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -44,7 +43,7 @@ import java.util.zip.ZipOutputStream
 
 class SimpleDownloadController<Ctx : FSUserContext>(
     private val cloud: AuthenticatedClient,
-    private val commandRunnerFactory: FSCommandRunnerFactory<Ctx>,
+    private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
     private val tokenValidation: TokenValidation<DecodedJWT>,
     private val fileLookupService: FileLookupService<Ctx>
@@ -75,7 +74,11 @@ class SimpleDownloadController<Ctx : FSUserContext>(
 
                 lateinit var stat: FileRow
                 val sensitivityCache = HashMap<String, SensitivityLevel>()
-                commandRunnerFactory.withContext(principal.subject) { ctx ->
+                commandRunnerFactory.withCtx(
+                    this@implement,
+                    principal.subject,
+                    principalToVerify = principal.toSecurityToken().principal
+                ) { ctx ->
                     val mode = setOf(
                         FileAttribute.PATH,
                         FileAttribute.INODE,
@@ -89,10 +92,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                     // Check file sensitivity
                     val sensitivity = fileLookupService.lookupInheritedSensitivity(ctx, request.path, sensitivityCache)
                     if (sensitivity == SensitivityLevel.SENSITIVE) {
-                        return@implement error(
-                            CommonErrorMessage("Forbidden"),
-                            HttpStatusCode.Forbidden
-                        )
+                        throw RPCException("Forbidden", HttpStatusCode.Forbidden)
                     }
                 }
 
@@ -109,7 +109,11 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                     contentType = ContentType.Application.Zip,
                                     status = HttpStatusCode.OK
                                 ) {
-                                    commandRunnerFactory.withContext(principal.subject) { ctx ->
+                                    commandRunnerFactory.withCtx(
+                                        this@implement,
+                                        principal.subject,
+                                        principalToVerify = principal.toSecurityToken().principal
+                                    ) { ctx ->
                                         ZipOutputStream(toOutputStream()).use { os ->
                                             val tree = fs.tree(
                                                 ctx,
@@ -202,7 +206,11 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                     contentType = contentType,
                                     status = statusCode
                                 ) {
-                                    commandRunnerFactory.withContext(principal.subject) { ctx ->
+                                    commandRunnerFactory.withCtx(
+                                        this@implement,
+                                        principal.subject,
+                                        principalToVerify = principal.toSecurityToken().principal
+                                    ) { ctx ->
                                         val writeChannel = this
                                         fs.read(ctx, request.path, range) {
                                             val stream = this

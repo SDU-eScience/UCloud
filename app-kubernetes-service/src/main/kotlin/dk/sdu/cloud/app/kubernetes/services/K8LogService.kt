@@ -21,7 +21,7 @@ class K8LogService(
         return try {
             // This is a stupid implementation that works with the current API. We should be using websockets.
             val pod = k8.nameAllocator.listPods(requestId).firstOrNull() ?: return Pair("", 0)
-            val completeLog = k8.nameAllocator.findPodByName(pod.metadata.name).log.lines()
+            val completeLog = k8.nameAllocator.findPodByName(pod.metadata.name).inContainer(USER_CONTAINER).log.lines()
             val lines = completeLog.drop(startLine).take(maxLines)
             val nextLine = startLine + lines.size
             Pair(lines.joinToString("\n"), nextLine)
@@ -38,7 +38,7 @@ class K8LogService(
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
         return k8.scope.launch {
-            val res = k8.nameAllocator.findPodByName(pod.metadata.name).watchLog()
+            val res = k8.nameAllocator.findPodByName(pod.metadata.name).inContainer(USER_CONTAINER).watchLog()
 
             block(res, res.output)
         }
@@ -48,7 +48,7 @@ class K8LogService(
         try {
             log.debug("Downloading log")
             val logFile = Files.createTempFile("log", ".txt").toFile()
-            k8.nameAllocator.findPodByName(podName).logReader.use { ins ->
+            k8.nameAllocator.findPodByName(podName).inContainer(USER_CONTAINER).logReader.use { ins ->
                 logFile.writer().use { out ->
                     ins.copyTo(out)
                 }

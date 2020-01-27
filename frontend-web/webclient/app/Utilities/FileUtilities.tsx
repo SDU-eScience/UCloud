@@ -43,7 +43,10 @@ export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], t
                 filesRemaining: files.length - i,
                 allowOverwrite
             });
-            if (result !== false) {
+            if ("cancelled" in result) {
+                if (result.applyToAll) return;
+                continue;
+            } else {
                 allowRewrite = !!result.policy;
                 policy = result.policy as UploadPolicy;
                 if (files.length - i > 1) applyToAll = result.applyToAll;

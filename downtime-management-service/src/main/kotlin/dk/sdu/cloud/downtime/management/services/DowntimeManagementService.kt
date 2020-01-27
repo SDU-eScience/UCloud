@@ -1,6 +1,5 @@
 package dk.sdu.cloud.downtime.management.services
 
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
@@ -37,9 +36,9 @@ class DowntimeManagementService<Session>(
         }
     }
 
-    fun listUpcoming(paging: NormalizedPaginationRequest): Page<Downtime> {
+    fun listPending(paging: NormalizedPaginationRequest): Page<Downtime> {
         return db.withTransaction { session ->
-            downtimeDAO.listUpcoming(session, paging)
+            downtimeDAO.listPending(session, paging)
         }
     }
 

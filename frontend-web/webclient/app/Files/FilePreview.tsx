@@ -15,6 +15,7 @@ import Error from "ui-components/Error";
 import {Spacer} from "ui-components/Spacer";
 import {downloadFiles, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
 import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
+import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
 interface FilePreviewStateProps {
@@ -52,7 +53,7 @@ const FilePreview = (props: FilePreviewProps) => {
                 snackbarStore.addFailure("Directories cannot be previewed.");
                 setError("Preview for folders not supported");
                 setDownloadButton(true);
-            } else if (stat.size! > 5_000_000) {
+            } else if (stat.size! > PREVIEW_MAX_SIZE) {
                 snackbarStore.addFailure("File size too large. Download instead.");
                 setError("File size too large to preview.");
                 setDownloadButton(true);
@@ -133,7 +134,7 @@ const FilePreview = (props: FilePreviewProps) => {
         return (
             <Spacer
                 left={<div />}
-                right={<ExpandingIcon name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
+                right={<ExpandingIcon mt="-60px" name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
             />
         );
     }

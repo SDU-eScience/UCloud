@@ -30,7 +30,7 @@ class RefreshTokenAndUserTest {
                         Role.ADMIN,
                         "ThisIsMyPassword"
                     )
-                    UserHibernateDAO(passwordHashingService).insert(session, person)
+                    UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO()).insert(session, person)
                     val refreshTAU = RefreshTokenAndUser(email, token, "")
                     val refreshHibernateTAU = RefreshTokenHibernateDAO()
 

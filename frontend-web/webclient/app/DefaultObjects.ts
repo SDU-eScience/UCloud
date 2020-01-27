@@ -73,7 +73,6 @@ export interface FilePreviewReduxState {
 }
 
 export interface FileInfoReduxObject {
-    file?: File;
     error?: string;
     activity: Page<Activity>;
     loading: boolean;
@@ -269,7 +268,6 @@ export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
     hidden: true,
     allowFolders: true,
     allowFiles: true,
-    fileName: "",
     extensions: new Set(),
     tags: new Set(),
     sensitivities: new Set(),

@@ -163,7 +163,7 @@ exports[`UserCreation Mount 1`] = `
   className="c0"
 >
   <div
-    className="c1"
+    className="sc-AykKG c1"
     height={64}
     width={1}
   >
@@ -185,6 +185,7 @@ exports[`UserCreation Mount 1`] = `
       Admins can create new users on this page.
     </p>
     <form
+      autoComplete="off"
       onSubmit={[Function]}
     >
       <label

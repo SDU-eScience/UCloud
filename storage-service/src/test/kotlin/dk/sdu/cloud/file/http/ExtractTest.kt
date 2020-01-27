@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
 import dk.sdu.cloud.micro.BackgroundScope
 import io.ktor.http.HttpStatusCode
+import io.mockk.mockk
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
@@ -50,7 +51,7 @@ class ExtractTest : WithBackgroundScope() {
                         it.authenticatedClient,
                         it.coreFs,
                         it.lookupService,
-                        it.runner,
+                        CommandRunnerFactoryForCalls(it.runner, mockk(relaxed = true)),
                         FileSensitivityService(it.fs, it.eventProducer),
                         backgroundScope
                     )

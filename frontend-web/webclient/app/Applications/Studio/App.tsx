@@ -1,15 +1,15 @@
 import {WithAllAppTags, WithAppMetadata} from "Applications";
 import {
+    ApplicationAccessRight,
+    ApplicationPermissionEntry,
     clearLogo,
     createApplicationTag,
     deleteApplicationTag,
     listByName,
-    uploadLogo,
     updateApplicationPermission,
-    ApplicationAccessRight,
-    UserEntityType,
-    ApplicationPermissionEntry,
-    UserEntity
+    uploadLogo,
+    UserEntity,
+    UserEntityType
 } from "Applications/api";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import * as Actions from "Applications/Redux/BrowseActions";
@@ -29,19 +29,19 @@ import {connect} from "react-redux";
 import {RouteComponentProps} from "react-router";
 import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import styled from "styled-components";
 import {Page} from "Types";
-import {Button, Flex, VerticalButtonGroup, Checkbox, Label, Text, Icon} from "ui-components";
+import {Button, Checkbox, Flex, Icon, Label, Text, VerticalButtonGroup} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import * as Heading from "ui-components/Heading";
+import {cloudTryingItsBest} from "ui-components/icons";
 import Input, {HiddenInputField, InputLabel} from "ui-components/Input";
 import {SidebarPages} from "ui-components/Sidebar";
-import Table, {TableRow, TableHeaderCell, TableCell, TableHeader} from "ui-components/Table";
-import styled from "styled-components";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {stopPropagation} from "UtilityFunctions";
-import {cloudTryingItsBest} from "ui-components/icons";
 import {addStandardDialog} from "UtilityComponents";
+import {stopPropagation} from "UtilityFunctions";
 
 interface AppOperations {
     onInit: () => void;
@@ -358,7 +358,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     </TableRow>
                                 </LeftAlignedTableHeader>
                                 <tbody>
-                                    {versions.map(version => ( 
+                                    {versions.map(version => (
                                         <TableRow key={version.version}>
                                             <TableCell>
                                                 <Heading.h3>{version.version}</Heading.h3>
@@ -372,11 +372,11 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                 onChange={stopPropagation}
                                                                 onClick={() => {
                                                                     Client.post(`/hpc/apps/setPublic`, {
-                                                                        name: name,
+                                                                        name,
                                                                         version: version.version,
                                                                         public: !version.isPublic
                                                                     });
-                                                            
+
                                                                     setVersions(versions.map( v =>
                                                                         (v.version === version.version) ?
                                                                         {
@@ -410,7 +410,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                             </Box>
                                                         ),
                                                         onConfirm: async () => {
-                                                            await Client.delete("/hpc/apps", { name: name, version: version.version })
+                                                            await Client.delete("/hpc/apps", { name, version: version.version });
                                                             setAppParameters(listByName({...appParameters.parameters}));
                                                         },
                                                         confirmText: "Delete"

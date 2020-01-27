@@ -43,9 +43,25 @@ class TwoFactorHibernateDAO : TwoFactorDAO<HibernateSession> {
         session.save(entity)
     }
 
+    override fun findStatusBatched(session: HibernateSession, ids: Collection<String>): Map<String, Boolean> {
+        val result = HashMap<String, Boolean>()
+        ids.forEach { result[it] = false }
+
+        session
+            .criteria<TwoFactorCredentialsEntity> {
+                allOf(
+                    entity[TwoFactorCredentialsEntity::enforced] equal true,
+                    entity[TwoFactorCredentialsEntity::principal][PrincipalEntity::id] isInCollection ids
+                )
+            }
+            .list()
+            .forEach { result[it.principal.id] = true }
+
+        return result
+    }
+
     private fun hasCredentials(session: HibernateSession, username: String): Boolean =
         findEnforcedCredentialsOrNull(session, username) != null
-
 }
 
 /**
@@ -128,7 +144,8 @@ data class TwoFactorCredentialsEntity(
     var id: Long? = null
 ) {
     fun toModel(): TwoFactorCredentials = TwoFactorCredentials(
-        principal.toModel(),
+        // TODO This is actually not true in case there are multiple credentials (setup and enforced)
+        principal.toModel(enforced),
         sharedSecret,
         enforced,
         id

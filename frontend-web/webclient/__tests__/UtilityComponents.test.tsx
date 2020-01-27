@@ -1,13 +1,10 @@
 import {configure, shallow} from "enzyme";
 import * as Adapter from "enzyme-adapter-react-16";
-import "jest-styled-components";
 import * as React from "react";
 import {Provider} from "react-redux";
 import {create} from "react-test-renderer";
 import {ThemeProvider} from "styled-components";
 import {Client} from "../app/Authentication/HttpClientInstance";
-import dashboard from "../app/Dashboard/Redux/DashboardReducer";
-import {initDashboard} from "../app/DefaultObjects";
 import {dialogStore} from "../app/Dialog/DialogStore";
 import {SortBy, SortOrder} from "../app/Files";
 import {theme} from "../app/ui-components";

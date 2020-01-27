@@ -64,35 +64,51 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
         setTaskInFocus(null);
     }, []);
 
-    let speedSum = 0;
-    let uploadedSize = 0;
-    let targetUploadSize = 0;
+    const [uploadInterval, setUploadInterval] = React.useState(-1);
+    const [uploadTask, setUploadTask] = React.useState<TaskComponentProps>(calculateUploadTask());
 
-    props.uploads.forEach(upload => {
-        if (upload.isUploading) {
-            speedSum += calculateUploadSpeed(upload);
-            targetUploadSize += upload.uploadSize;
-            if (upload.uploadEvents.length > 0) {
-                uploadedSize += upload.uploadEvents[upload.uploadEvents.length - 1].progressInBytes;
+    useEffect(() => {
+        if (props.activeUploads > 0 && uploadInterval === -1) {
+            setUploadInterval(setInterval(() => setUploadTask(calculateUploadTask()), 500));
+        } else if (props.activeUploads === 0 && uploadInterval !== -1) {
+            clearInterval(uploadInterval);
+            setUploadInterval(-1);
+        }
+    }, [props.activeUploads]);
+
+    function calculateUploadTask(): TaskComponentProps {
+        let speedSum = 0;
+        let uploadedSize = 0;
+        let targetUploadSize = 0;
+
+        props.uploads.forEach(upload => {
+            if (upload.isUploading) {
+                speedSum += calculateUploadSpeed(upload);
+                targetUploadSize += upload.uploadSize;
+                if (upload.uploadEvents.length > 0) {
+                    uploadedSize += upload.uploadEvents[upload.uploadEvents.length - 1].progressInBytes;
+                }
             }
-        }
-    });
+        });
 
-    const humanReadable = sizeToHumanReadableWithUnit(speedSum);
-    const uploadTask: TaskComponentProps = {
-        title: "File uploads",
-        progress: {
-            title: "Bytes uploaded",
-            maximum: targetUploadSize,
-            current: uploadedSize
-        },
-        speed: {
-            title: "Transfer speed",
-            speed: humanReadable.size,
-            unit: humanReadable.unit + "/s",
-            asText: `${humanReadable.size} ${humanReadable.unit}/s`
-        }
-    };
+        const humanReadable = sizeToHumanReadableWithUnit(speedSum);
+
+        return {
+            title: "File uploads",
+            progress: {
+                title: "Bytes uploaded",
+                maximum: targetUploadSize,
+                current: uploadedSize
+            },
+            jobId: "upload-task",
+            speed: {
+                title: "Transfer speed",
+                speed: humanReadable.size,
+                unit: humanReadable.unit + "/s",
+                asText: `${(humanReadable.size).toFixed(2)} ${humanReadable.unit}/s`
+            }
+        };
+    }
 
     if (props.activeUploads <= 0 && (props.tasks === undefined || (Object.keys(props.tasks).length === 0))) {
         return null;
@@ -107,20 +123,18 @@ const BackgroundTasks = (props: BackgroundTaskProps) => {
                 top="37px"
                 trigger={<TasksIcon />}
             >
-                {props.activeUploads <= 0 ? null : <TaskComponent {...uploadTask} />}
+                {props.activeUploads <= 0 ? null : <TaskComponent onClick={props.showUploader} {...uploadTask} />}
                 {!props.tasks ? null :
-                    Object.values(props.tasks).map(update => {
-                        return (
-                            <TaskComponent
-                                key={update.jobId}
-                                jobId={update.jobId}
-                                onClick={setTaskInFocus}
-                                title={update.newTitle ?? ""}
-                                speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
-                                progress={update.progress ? update.progress : undefined}
-                            />
-                        );
-                    })
+                    Object.values(props.tasks).map(update => (
+                        <TaskComponent
+                            key={update.jobId}
+                            jobId={update.jobId}
+                            onClick={setTaskInFocus}
+                            title={update.newTitle ?? ""}
+                            speed={!!update.speeds ? update.speeds[update.speeds.length - 1] : undefined}
+                            progress={update.progress ? update.progress : undefined}
+                        />
+                    ))
                 }
             </ClickableDropdown>
 

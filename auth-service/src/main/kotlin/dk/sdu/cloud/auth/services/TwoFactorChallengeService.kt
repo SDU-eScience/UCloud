@@ -176,6 +176,13 @@ interface TwoFactorDAO<Session> {
      * This requires [TwoFactorCredentials.id] to be non-null.
      */
     fun createChallenge(session: Session, challenge: TwoFactorChallenge)
+
+    /**
+     * Finds 2FA status for a collection of [ids]
+     *
+     * Returns a mapping of all [ids] to their status.
+     */
+    fun findStatusBatched(session: Session, ids: Collection<String>): Map<String, Boolean>
 }
 
 /**

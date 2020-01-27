@@ -2,11 +2,8 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
-import dk.sdu.cloud.auth.services.saml.AttributeURIs
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.HttpStatusCode
 
 class PersonService(
     private val passwordHashingService: PasswordHashingService,
@@ -18,7 +15,8 @@ class PersonService(
         username: String,
         role: Role,
         password: String,
-        email: String? = null
+        email: String? = null,
+        twoFactorAuthentication: Boolean = false
     ): Person.ByPassword {
         val (hashed, salt) = passwordHashingService.hashPassword(password)
         return Person.ByPassword(
@@ -31,7 +29,9 @@ class PersonService(
             orcId = null,
             email = email,
             password = hashed,
-            salt = salt
+            salt = salt,
+            twoFactorAuthentication = twoFactorAuthentication,
+            serviceLicenseAgreement = 0
         )
     }
 
@@ -62,7 +62,8 @@ class PersonService(
             phoneNumber = null,
             orcId = null,
             email = email,
-            organizationId = organization
+            organizationId = organization,
+            serviceLicenseAgreement = 0
         )
     }
 

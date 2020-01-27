@@ -18,14 +18,15 @@ export const setSiteTheme = (isLightTheme: boolean): void => {
 };
 
 /**
- * Returns whether or not the value "light", "dark" or null is stored.
+ * Returns whether the value "light" or "dark" is stored.
+ * If neither are, the OS theme preference is used.
  * @returns {boolean} True if "light" or null is stored, otherwise "dark".
  */
-export const isLightThemeStored = (): boolean => {
+export function isLightThemeStored(): boolean {
     const theme = window.localStorage.getItem("theme");
-    if (theme === "dark") return false;
-    else return true;
-};
+    if (theme == null) return getUserThemePreference() === "light";
+    return theme === "light";
+}
 
 /**
  * Capitalizes the input string
@@ -300,10 +301,10 @@ export function ifPresent<T>(f: T | undefined, handler: (f: T) => void) {
 export const downloadAllowed = (files: File[]) => files.every(f => f.sensitivityLevel !== "SENSITIVE");
 
 /**
- * Capizalises the input string and replaces _ (underscores) with whitespace.
+ * Capitalizes the input string and replaces _ (underscores) with whitespace.
  * @param str
  */
-export const prettierString = (str: string) => capitalized(str).replace(/_/g, " ");
+export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
 
 export function defaultErrorHandler(
     error: {request: XMLHttpRequest, response: any}
@@ -392,7 +393,7 @@ interface CopyToClipboard {
     message: string;
 }
 
-export function copyToClipboard({value, message}: CopyToClipboard) {
+export function copyToClipboard({value, message}: CopyToClipboard): void {
     const input = document.createElement("input");
     input.value = value ?? "";
     document.body.appendChild(input);
@@ -436,19 +437,29 @@ export const generateId = ((): (target: string) => string => {
     };
 })();
 
-export function stopPropagation<T extends {stopPropagation(): void}>(e: T) {
+export function stopPropagation(e: {stopPropagation(): void}) {
     e.stopPropagation();
 }
 
-export function preventDefault<T extends {preventDefault(): void}>(e: T) {
+export function preventDefault(e: {preventDefault(): void}) {
     e.preventDefault();
 }
 
-export function stopPropagationAndPreventDefault<T extends {preventDefault(): void; stopPropagation(): void}>(e: T) {
+export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}) {
     preventDefault(e);
     stopPropagation(e);
 }
 
 export function displayErrorMessageOrDefault(e: any, fallback: string) {
     snackbarStore.addFailure(errorMessageOrDefault(e, fallback));
+}
+
+export function shouldHideSidebarAndHeader() {
+    return ["/app/login", "/app/login/wayf"].includes(window.location.pathname) && window.location.search === "?dav=true";
+}
+
+export function getUserThemePreference(): "light" | "dark" {
+    // options: dark, light and no-preference
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
+    return "light";
 }

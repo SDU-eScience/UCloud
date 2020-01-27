@@ -5,7 +5,6 @@ import {ThemeProvider} from "styled-components";
 import Activity from "../../app/Activity/Page";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
-import "jest-styled-components";
 
 test("Mount Activity Page", () => expect(create(
     <Provider store={store}>

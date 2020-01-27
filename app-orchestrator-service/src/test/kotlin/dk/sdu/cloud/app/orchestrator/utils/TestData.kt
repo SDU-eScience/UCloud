@@ -15,7 +15,8 @@ val normAppDesc = Application(
         listOf("Authors"),
         "title",
         "app description",
-        null
+        null,
+        isPublic = true
     ),
     ApplicationInvocationDescription(
         ToolReference("tool", "1.0.0", null),

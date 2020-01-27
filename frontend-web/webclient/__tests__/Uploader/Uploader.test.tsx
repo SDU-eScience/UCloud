@@ -1,14 +1,12 @@
-import "jest-styled-components";
 import * as React from "react";
 import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";
 import {create} from "react-test-renderer";
 import {AnyAction} from "redux";
-import {initUploads, SensitivityLevelMap} from "../../app/DefaultObjects";
+import {SensitivityLevelMap} from "../../app/DefaultObjects";
 import {Uploader} from "../../app/Uploader";
 import {UploadPolicy} from "../../app/Uploader/api";
 import * as UploaderActions from "../../app/Uploader/Redux/UploaderActions";
-import uploader from "../../app/Uploader/Redux/UploaderReducer";
 import {store} from "../../app/Utilities/ReduxUtilities";
 
 
