@@ -414,9 +414,9 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         try {
             val relocatedDir = realRelocatedDir.toCloudPath()
             val cloudPath = realSource.toCloudPath()
-            log.info("Destination is ${cloudPath.size} long!")
             if (cloudPath.size >= PATH_MAX) {
                 if (Files.isRegularFile(realSource) && !realSource.toFile().name.startsWith(DELETED_PREFIX)) {
+
                     val fileNameMaxSize = PATH_MAX - relocatedDir.size - 1
                     if (relocatedDir.size >= PATH_MAX || fileNameMaxSize <= 0) {
                         log.warn("Discarding file: $realSource")
@@ -453,7 +453,6 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                         StandardCopyOption.REPLACE_EXISTING
                     )
 
-                    log.info("Moving file from $realSource to $realDestination")
 
                     coreFs.emitUpdateEvent(rootCtx, destination)
                     transferredFiles.add(destination)
