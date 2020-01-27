@@ -148,7 +148,8 @@ exports[`FileIcon FileIcon, shared 1`] = `
   z-index: 47;
   text-align: left;
   cursor: pointer;
-  visibility: hidden opacity:0;
+  visibility: hidden;
+  opacity: 0;
   pointer-events: none;
 }
 
@@ -375,7 +376,7 @@ exports[`Share prompt 1`] = `
   margin-bottom: 8px;
 }
 
-.c15 {
+.c14 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -387,15 +388,15 @@ exports[`Share prompt 1`] = `
   width: 605px;
 }
 
-.c16 {
+.c15 {
   margin-right: auto;
 }
 
-.c18 {
+.c17 {
   margin-left: auto;
 }
 
-.c13 {
+.c12 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -428,21 +429,21 @@ exports[`Share prompt 1`] = `
   margin-left: 5px;
 }
 
-.c13:disabled {
+.c12:disabled {
   opacity: 0.25;
 }
 
-.c13:focus {
+.c12:focus {
   outline: none;
 }
 
-.c13:hover {
+.c12:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c17 {
+.c16 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -474,15 +475,15 @@ exports[`Share prompt 1`] = `
   padding: 9.5px 18px;
 }
 
-.c17:disabled {
+.c16:disabled {
   opacity: 0.25;
 }
 
-.c17:focus {
+.c16:focus {
   outline: none;
 }
 
-.c17:hover {
+.c16:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
@@ -605,7 +606,7 @@ exports[`Share prompt 1`] = `
   display: block;
 }
 
-.c14 {
+.c13 {
   overflow-y: auto;
   overflow-x: hidden;
   border-bottom-left-radius: 5px;
@@ -622,13 +623,10 @@ exports[`Share prompt 1`] = `
   z-index: 47;
   text-align: left;
   cursor: pointer;
-  visibility: hidden opacity:0;
+  visibility: hidden;
+  opacity: 0;
   pointer-events: none;
   top: 40px;
-}
-
-.c14 > *:hover:not(.c12) {
-  background-color: rgba(0,0,0,0.05);
 }
 
 .c0 {
@@ -716,7 +714,7 @@ exports[`Share prompt 1`] = `
               </div>
             </div>
             <button
-              className="c12 c13"
+              className="c12"
               color="blue"
               onClick={[Function]}
             >
@@ -724,7 +722,7 @@ exports[`Share prompt 1`] = `
             </button>
           </div>
           <div
-            className="c14"
+            className="c13"
             color="black"
             cursor="pointer"
             disabled={false}
@@ -740,13 +738,13 @@ exports[`Share prompt 1`] = `
       </div>
     </form>
     <div
-      className="c15"
+      className="c14"
     >
       <div
-        className="c16"
+        className="c15"
       />
       <button
-        className="c12 c17"
+        className="c16"
         color="blue"
         onClick={[Function]}
         type="button"
@@ -754,7 +752,7 @@ exports[`Share prompt 1`] = `
         Close
       </button>
       <div
-        className="c18"
+        className="c17"
       />
     </div>
   </div>
