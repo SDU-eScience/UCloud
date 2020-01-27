@@ -38,7 +38,7 @@ class Server(
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())
                 alertService.createAlert(
-                    Alert("WARNING: Alert on cluster health caught exception: ${ex.stackTraceToString()}.")
+                    Alert("WARNING: Alert on shard docs  caught exception: ${ex.stackTraceToString()}.")
                 )
                 exitProcess(1)
             }
