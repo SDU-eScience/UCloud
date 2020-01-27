@@ -21,6 +21,7 @@ import dk.sdu.cloud.file.services.FSResult
 import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
+import dk.sdu.cloud.file.services.WorkspaceService
 import dk.sdu.cloud.file.services.XATTR_BIRTH
 import dk.sdu.cloud.file.services.XATTR_ID
 import dk.sdu.cloud.file.services.acl.AclService
@@ -759,7 +760,7 @@ class LinuxFS(
 
         FSResult(
             0,
-            getExtendedAttributeInternal(File(translateAndCheckFile(ctx,path)), attribute)
+            getExtendedAttributeInternal(File(translateAndCheckFile(ctx, path)), attribute)
         )
     }
 
@@ -878,7 +879,9 @@ class LinuxFS(
 
     companion object : Loggable {
         override val log = logger()
-        const val PATH_MAX = 4096
+
+        // Setting this to 4096 is too big for us to save files from workspaces. We want to leave a bit of buffer room.
+        const val PATH_MAX = 3700
 
         val DEFAULT_FILE_MODE = setOf(
             PosixFilePermission.OWNER_READ,
@@ -930,7 +933,13 @@ fun translateAndCheckFile(
     }
 
     if (path.contains("\n")) throw FSException.BadRequest("Path cannot contain new-lines")
-    if (path.length >= PATH_MAX) throw FSException.BadRequest("Path is too long ${path.length} '$path'")
+
+    // Service users are exempt to allow relocation of workspace items
+    if (path.length >= PATH_MAX &&
+        (!isServiceUser && internalPath.normalize().components().firstOrNull() == WorkspaceService.WORKSPACE_PATH)
+    ) {
+        throw FSException.BadRequest("Path is too long ${path.length} '$path'")
+    }
 
     return path
 }
