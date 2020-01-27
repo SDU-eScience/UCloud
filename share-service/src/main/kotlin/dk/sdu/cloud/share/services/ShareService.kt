@@ -12,6 +12,9 @@ import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.requiredAuthScope
+import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
+import dk.sdu.cloud.contact.book.api.InsertRequest
+import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamContainer
 import dk.sdu.cloud.events.EventStreamService
@@ -141,6 +144,10 @@ class ShareService<DBSession>(
                 Subscriptions.addSubscription.call(AddSubscriptionRequest(setOf(fileId)), serviceClient).orThrow()
                 aSendCreatedNotification(serviceClient, result, user, share)
 
+                ContactBookDescriptions.insert.call(
+                    InsertRequest(user, listOf(share.sharedWith), ServiceOrigin.SHARE_SERVICE), serviceClient
+                ).orThrow()
+
                 result
             } catch (ex: Throwable) {
                 revokeToken(serviceClient, ownerToken)
@@ -189,6 +196,11 @@ class ShareService<DBSession>(
     private suspend fun handleReadyToAccept(share: InternalShare, job: ShareJob.ReadyToAccept) {
         try {
             updateFSPermissions(share)
+
+            ContactBookDescriptions.insert.call(
+                InsertRequest(share.sharedWith, listOf(share.owner), ServiceOrigin.SHARE_SERVICE),
+                serviceClient
+            ).orThrow()
 
             db.withTransaction { session ->
                 shareDao.updateShare(

@@ -1,0 +1,7 @@
+---
+name: contact-book
+
+namespaces:
+- contact.book
+
+dependencies: []
