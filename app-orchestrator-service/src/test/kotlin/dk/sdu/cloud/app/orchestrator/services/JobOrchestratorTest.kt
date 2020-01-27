@@ -68,7 +68,6 @@ class JobOrchestratorTest {
         micro.install(HibernateFeature)
         micro.install(BackgroundScopeFeature)
         val db = micro.hibernateDatabase
-        val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
         ClientMock.mockCallSuccess(
             FileDescriptions.stat,
@@ -251,6 +250,8 @@ class JobOrchestratorTest {
             }
         }
 
+        Thread.sleep(500)
+
         runBlocking {
             orchestrator.handleJobComplete(
                 returnedID,
@@ -259,6 +260,7 @@ class JobOrchestratorTest {
                 TestUsers.user
             )
         }
+        Thread.sleep(500)
 
         runBlocking {
             retrySection {
@@ -278,6 +280,9 @@ class JobOrchestratorTest {
                 )
             }
         }
+
+        Thread.sleep(500)
+
         runBlocking {
             orchestrator.handleJobComplete(
                 returnedID1,
@@ -286,6 +291,9 @@ class JobOrchestratorTest {
                 TestUsers.user
             )
         }
+
+        Thread.sleep(500)
+
         runBlocking {
             retrySection {
                 val job = orchestrator.lookupOwnJob(returnedID1, TestUsers.user)
