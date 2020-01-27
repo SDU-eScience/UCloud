@@ -87,7 +87,7 @@ export function sensitivityDialog(): Promise<{ cancelled: true } | { option: Sen
 
 export function shareDialog(paths: string[], client: HttpClient) {
     // FIXME: Less than dry, however, this needed to be wrapped; in a form. Can be make standard dialog do similar?
-    dialogStore.addDialog(<SharePrompt client={client} paths={paths}/>, () => undefined);
+    dialogStore.addDialog(<SharePrompt client={client} paths={paths} />, () => undefined);
 }
 
 const SharePromptWrapper = styled(Box)`
@@ -110,8 +110,10 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
     const [shareableLink, setShareableLink] = React.useState("");
     const ref = React.useRef<number>(-1);
     const promises = usePromiseKeeper();
-    const [searchResponse, setFetchArgs,] = useCloudAPI(searchPreviousSharedUsers("", SERVICE), {contacts: []});
-
+    const [searchResponse, setFetchArgs,] = useCloudAPI<{contacts: string[]}>(
+        searchPreviousSharedUsers("", SERVICE),
+        {contacts: []}
+    );
     const onKeyUp = React.useCallback(() => {
         if (ref.current !== -1) {
             window.clearTimeout(ref.current);
@@ -127,7 +129,7 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
             <Box alignItems="center" width="605px">
                 <form autoComplete={"off"} onSubmit={stopPropagationAndPreventDefault}>
                     <Heading.h3>Share</Heading.h3>
-                    <Divider/>
+                    <Divider />
                     Collaborators
                     <Label>
 
@@ -155,23 +157,30 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
                             </Flex>
                             <DropdownContent
                                 hover={false}
+                                colorOnHover={false}
                                 visible={searchResponse.data.contacts.length > 0}
                                 width={"418px"}
                                 top={"40px"}
                             >
-                                {searchResponse.data.contacts.map(it => <Box
-                                    onClick={() => {
-                                        username.current!.value = it
-                                        setFetchArgs(searchPreviousSharedUsers("", SERVICE))
-                                    } }>{it}</Box>)}
+                                {searchResponse.data.contacts.map(it =>(
+                                    <div
+                                        key={it}
+                                        onClick={() => {
+                                            username.current!.value = it
+                                            setFetchArgs(searchPreviousSharedUsers("", SERVICE))
+                                        }}
+                                    >
+                                        {it}
+                                    </div>
+                                ))}
                             </DropdownContent>
                         </Dropdown>
                     </Label>
-                    {loading ? null : paths.map(path => (<List innerComponent key={path} simple byPath={path}/>))}
+                    {loading ? null : paths.map(path => (<List innerComponent key={path} simple byPath={path} />))}
                 </form>
                 {!inDevEnvironment() || paths.length !== 1 ? null : (
                     <>
-                        <Divider/>
+                        <Divider />
                         <Flex>
                             <Heading.h3 mb="4px">Shareable links</Heading.h3>
                             {!shareableLink ? null : (
@@ -191,7 +200,7 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
                         <Flex mb="10px">
                             {!shareableLink ? (
                                 <>
-                                    <Box mr="auto"/>
+                                    <Box mr="auto" />
                                     <Button onClick={() => setShareableLink("https://example.com")}>
                                         Generate Shareable Link
                                     </Button>
@@ -203,11 +212,11 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
                                             options={readEditOptions}
                                         />
                                     </Box>
-                                    <Box ml="auto"/>
+                                    <Box ml="auto" />
                                 </>
                             ) : (
                                 <>
-                                    <Input readOnly value={shareableLink} rightLabel/>
+                                    <Input readOnly value={shareableLink} rightLabel />
                                     <InputLabel
                                         rightLabel
                                         onClick={() => copyToClipboard({
@@ -222,12 +231,13 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
                                 </>
                             )}
                         </Flex>
-                        <Divider/>
+                        <Divider />
                     </>
                 )}
-                <Flex mt="15px"><Box mr="auto"/>
+                <Flex mt="15px"><Box mr="auto" />
                     <Button type="button" onClick={() => dialogStore.success()}>Close</Button>
-                    <Box ml="auto"/></Flex>
+                    <Box ml="auto" />
+                </Flex>
             </Box>
         </SharePromptWrapper>
     );
@@ -298,7 +308,7 @@ export function rewritePolicyDialog({
         <div>
             <div>
                 <Heading.h3>File exists</Heading.h3>
-                <Divider/>
+                <Divider />
                 {replaceHomeFolder(path, homeFolder)} already
                 exists. {allowOverwrite ? "How would you like to proceed?" :
                     "Do you wish to continue? Folders cannot be overwritten."}
@@ -356,17 +366,17 @@ interface FileIconProps {
 export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps) =>
     shared ? (
         <RelativeFlex>
-            <FtIcon size={size} fileIcon={fileIcon}/>
+            <FtIcon size={size} fileIcon={fileIcon} />
             <Absolute bottom={"-6px"} right={"-2px"}>
                 <Dropdown>
-                    <Icon size="15px" name="link" color2="white"/>
+                    <Icon size="15px" name="link" color2="white" />
                     <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
                         <Text fontSize={1}>{shared ? "This file is shared" : "This is a link to a file"}</Text>
                     </DropdownContent>
                 </Dropdown>
             </Absolute>
         </RelativeFlex>
-    ) : <FtIcon size={size} fileIcon={fileIcon}/>;
+    ) : <FtIcon size={size} fileIcon={fileIcon} />;
 
 const RelativeFlex = styled(Flex)`
     position: relative;
@@ -381,8 +391,8 @@ interface Arrow<T> {
 export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>) {
     if (sortBy !== activeSortBy) return null;
     if (order === SortOrder.ASCENDING)
-        return (<Icon cursor="pointer" name="arrowDown" rotation={180} size=".7em" mr=".4em"/>);
-    return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em"/>);
+        return (<Icon cursor="pointer" name="arrowDown" rotation={180} size=".7em" mr=".4em" />);
+    return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em" />);
 }
 
 export function PP(props: {visible: boolean}) {

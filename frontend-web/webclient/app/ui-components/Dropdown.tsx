@@ -61,7 +61,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     z-index: 47;
     text-align: left;
     cursor: ${props => props.cursor};
-    visibility: ${props => props.visible ? "visible" : "hidden"}
+    visibility: ${props => props.visible ? "visible" : "hidden"};
     opacity: ${props => props.visible ? 1 : 0};
     pointer-events: ${props => props.visible ? "auto" : "none"};
 
