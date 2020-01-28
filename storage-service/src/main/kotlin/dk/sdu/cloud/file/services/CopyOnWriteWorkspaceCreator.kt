@@ -31,6 +31,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.PathMatcher
 import java.nio.file.StandardCopyOption
+import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 import kotlin.streams.asSequence
@@ -327,12 +328,11 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                     return@seq
                 }
 
-                if (Files.isSymbolicLink(path)) {
+                val attributes = Files.readAttributes(path, BasicFileAttributes::class.java)
+                if (attributes.isSymbolicLink) {
                     Files.deleteIfExists(path)
                     return@seq
-                }
-
-                if (Files.isRegularFile(path)) {
+                } else if (attributes.isRegularFile) {
                     val fileName = path.toFile().name
                     if (fileName.startsWith(DELETED_PREFIX)) {
                         fsRunner.withContext(username) { ctx ->
@@ -389,12 +389,27 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                         coreFs.emitUpdateEvent(rootCtx, cloudPath)
                         transferredFiles.add(cloudPath)
                     }
-                } else if (Files.isDirectory(path)) {
+                } else if (attributes.isDirectory) {
                     fsRunner.withContext(username) { ctx ->
                         try {
                             coreFs.makeDirectory(ctx, cloudPath)
                             transferredFiles.add(cloudPath)
                         } catch (ex: FSException.AlreadyExists) {
+                            // Ignored
+                        }
+                    }
+                } else {
+                    // Assume this to be a whiteout device
+                    // This usually indicates a move but we will handle it by deleting the file (similar to how we
+                    // handle file whiteout)
+                    val fileName = path.toFile().name
+                    fsRunner.withContext(username) { ctx ->
+                        try {
+                            coreFs.delete(
+                                ctx,
+                                realPath.resolveSibling(fileName.removePrefix(DELETED_PREFIX)).toCloudPath()
+                            )
+                        } catch (ex: FSException.NotFound) {
                             // Ignored
                         }
                     }
