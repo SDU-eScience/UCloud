@@ -38,4 +38,22 @@ interface AppLicenseDao<Session> {
         session: Session,
         serverId: String
     )
+
+    fun addTag(
+        session: Session,
+        name: String,
+        serverId: String
+    )
+
+    fun listTags(
+        session: Session,
+        serverId: String
+    ): List<String>
+
+    fun deleteTag(
+        session: Session,
+        name: String,
+        serverId: String
+    )
 }
+

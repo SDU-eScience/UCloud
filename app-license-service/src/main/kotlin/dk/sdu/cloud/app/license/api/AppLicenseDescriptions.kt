@@ -38,10 +38,6 @@ data class ListAclRequest(
     val serverId: String
 )
 
-data class ListTagsRequest(
-    val serverId: String
-)
-
 data class LicenseServerWithId(
     val id: String,
     val name: String,

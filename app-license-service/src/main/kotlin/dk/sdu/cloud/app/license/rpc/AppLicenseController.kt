@@ -14,6 +14,7 @@ import org.hibernate.Session
 
 class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Controller {
     private val licenseService = appLicenseService
+
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppLicenseDescriptions.get) {
             val entity = UserEntity(
@@ -87,6 +88,18 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             )
 
             ok(NewServerResponse(licenseService.createLicenseServer(request, entity)))
+        }
+
+        implement(TagDescriptions.add) {
+            ok(licenseService.addTag(request.name, request.serverId))
+        }
+
+        implement(TagDescriptions.delete) {
+            ok(licenseService.deleteTag(request.name, request.serverId))
+        }
+
+        implement(TagDescriptions.list) {
+            ok(ListTagsResponse(licenseService.listTags(request.serverId)))
         }
     }
 

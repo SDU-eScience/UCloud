@@ -116,4 +116,22 @@ class AppLicenseService<Session>(
             throw RPCException("Not authorized to delete license server", HttpStatusCode.Unauthorized)
         }
     }
+
+    fun addTag(name: String, serverId: String) {
+        db.withTransaction { session ->
+            appLicenseDao.addTag(session, name, serverId)
+        }
+    }
+
+    fun listTags(serverId: String): List<String> {
+        return db.withTransaction { session ->
+            appLicenseDao.listTags(session, serverId)
+        }
+    }
+
+    fun deleteTag(name: String, serverId: String) {
+        db.withTransaction { session ->
+            appLicenseDao.deleteTag(session, name, serverId)
+        }
+    }
 }
