@@ -100,7 +100,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
             INNER JOIN {h-schema}permissions as P
                 ON LS.id = P.server_id
             WHERE LS.id IN
-                (SELECT T.license_server {h-schema}tags where T.name IN :tags)
+                (SELECT T.license_server FROM {h-schema}tags AS T where T.name IN :tags)
                 AND P.entity = :entityId
                 AND P.entity_type = :entityType
                 AND (P.permission = 'READ_WRITE'

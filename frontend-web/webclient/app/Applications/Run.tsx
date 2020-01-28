@@ -443,11 +443,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                         if (s !== undefined) {
                                                             this.setState(() => ({selectedLicenseServer: s}));
                                                         }
-                                                        console.log(this.state.selectedLicenseServer);
                                                     }}
                                                     trigger={this.state.selectedLicenseServer !== null ? (
                                                             <Box as="span" minWidth="500px">
-                                                                {this.state.selectedLicenseServer.id}
+                                                                {this.state.selectedLicenseServer.name}
                                                             </Box>
                                                         ) : (
                                                             <Box as="span" minWidth="500px">
@@ -456,7 +455,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                         )
                                                     }
                                                     options={this.state.licenseServers.map(server => (
-                                                        {text: server.tag, value: server.id}
+                                                        {text: server.name, value: server.id}
                                                     ))}
                                                 />
                                             </InputLabel>

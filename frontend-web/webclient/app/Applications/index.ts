@@ -160,7 +160,7 @@ export interface AdditionalPeer {
 
 export interface LicenseServerId {
     id: string;
-    tag: string;
+    name: string;
 }
 
 export interface RunAppState {
