@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WorkspaceMode
+import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.ExtractController
@@ -136,6 +137,21 @@ class Server(
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
 
         log.info("Core services constructed!")
+
+        if (micro.commandLineArguments.contains("--scan")) {
+            val index = micro.commandLineArguments.indexOf("--scan")
+            if (micro.commandLineArguments.size > index+1) {
+                val path = micro.commandLineArguments[index + 1]
+                if (!path.startsWith("/")){
+                    log.info("Must give path as argument after --scan")
+                    exitProcess(1)
+                }
+                fileScanner.scanFilesCreatedExternally(path)
+                exitProcess(0)
+            }
+            log.info("Missing argument after --scan")
+            exitProcess(1)
+        }
 
         UserProcessor(
             streams,
