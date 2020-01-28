@@ -27,7 +27,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             ok(
                 LicenseServerWithId(
                     licenseServer.id,
-                    licenseServer.tag,
+                    licenseServer.name,
                     licenseServer.address,
                     licenseServer.port,
                     licenseServer.license

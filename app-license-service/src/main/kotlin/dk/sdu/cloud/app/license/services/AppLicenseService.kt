@@ -68,7 +68,7 @@ class AppLicenseService<Session>(
                 session,
                 serverId,
                 LicenseServer(
-                    request.tag,
+                    request.name,
                     request.address,
                     port,
                     license
@@ -89,7 +89,7 @@ class AppLicenseService<Session>(
                     session,
                     LicenseServerWithId(
                         request.withId,
-                        request.tag,
+                        request.name,
                         request.address,
                         request.port,
                         request.license

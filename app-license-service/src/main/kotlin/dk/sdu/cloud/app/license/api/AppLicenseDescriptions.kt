@@ -16,7 +16,7 @@ import io.ktor.http.HttpMethod
 data class LicenseServerRequest(val serverId: String)
 
 data class UpdateServerRequest(
-    val tag: String,
+    val name: String,
     val address: String,
     val port: String,
     val license: String?,
@@ -28,7 +28,7 @@ data class DeleteServerRequest(
 )
 
 data class NewServerRequest(
-    val tag: String,
+    val name: String,
     val address: String,
     val port: String,
     val license: String?
@@ -38,16 +38,20 @@ data class ListAclRequest(
     val serverId: String
 )
 
+data class ListTagsRequest(
+    val serverId: String
+)
+
 data class LicenseServerWithId(
     val id: String,
-    val tag: String,
+    val name: String,
     val address: String,
     val port: String,
     val license: String?
 )
 
 data class LicenseServer(
-    val tag: String,
+    val name: String,
     val address: String,
     val port: String,
     val license: String?
@@ -55,11 +59,10 @@ data class LicenseServer(
 
 data class LicenseServerId(
     val id: String,
-    val tag: String
+    val name: String
 )
 
 data class ListLicenseServersRequest(val tags: List<String>);
-
 data class UpdateServerResponse(val serverId: String)
 data class NewServerResponse(val serverId: String)
 
@@ -189,7 +192,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
             }
 
             params {
-                +boundTo(UpdateServerRequest::tag)
+                +boundTo(UpdateServerRequest::name)
                 +boundTo(UpdateServerRequest::address)
                 +boundTo(UpdateServerRequest::license)
                 +boundTo(UpdateServerRequest::withId)

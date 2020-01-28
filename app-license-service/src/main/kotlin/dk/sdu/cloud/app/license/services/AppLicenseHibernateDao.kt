@@ -16,8 +16,8 @@ class LicenseServerEntity(
     @Column(name = "id", unique = true, nullable = false)
     var id: String,
 
-    @get:Column(name = "tag", unique = false, nullable = false)
-    var tag: String,
+    @get:Column(name = "name", unique = false, nullable = false)
+    var name: String,
 
     @Column(name = "address", unique = false, nullable = false)
     var address: String,
@@ -31,7 +31,7 @@ class LicenseServerEntity(
     fun toModel(): LicenseServerWithId {
         return LicenseServerWithId(
             id = id,
-            tag = tag,
+            name = name,
             address = address,
             port = port,
             license = if (license.isNullOrBlank()) { null } else { license }
@@ -41,7 +41,7 @@ class LicenseServerEntity(
     fun toIdentifiable(): LicenseServerId {
         return LicenseServerId(
             id = id,
-            tag = tag
+            name = name
         )
     }
 
@@ -53,7 +53,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
     override fun create(session: HibernateSession, serverId: String, appLicenseServer: LicenseServer) {
         val licenseServer = LicenseServerEntity(
             serverId,
-            appLicenseServer.tag,
+            appLicenseServer.name,
             appLicenseServer.address,
             appLicenseServer.port,
             appLicenseServer.license
@@ -81,11 +81,11 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
 
         return session.createNativeQuery<LicenseServerEntity>(
             """
-            SELECT LS.id, LS.tag, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
+            SELECT LS.id, LS.name, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
             INNER JOIN {h-schema}permissions as P
                 ON LS.id = P.server_id
-            WHERE
-                LS.tag in (:tags)
+            WHERE LS.id IN
+                (SELECT T.license_server {h-schema}tags where T.name IN :tags)
                 AND P.entity = :entityId
                 AND P.entity_type = :entityType
                 AND (P.permission = 'READ_WRITE'
@@ -106,7 +106,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
     ): List<LicenseServerWithId>? {
         return session.createNativeQuery<LicenseServerEntity>(
             """
-            SELECT LS.id, LS.tag, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
+            SELECT LS.id, LS.name, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
             WHERE :role in (:privileged) 
         """.trimIndent(), LicenseServerEntity::class.java
         ).also {
@@ -125,7 +125,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         existing.address = appLicenseServer.address
         existing.port = appLicenseServer.port
         existing.license = appLicenseServer.license
-        existing.tag = appLicenseServer.tag
+        existing.name = appLicenseServer.name
 
         session.update(existing)
     }

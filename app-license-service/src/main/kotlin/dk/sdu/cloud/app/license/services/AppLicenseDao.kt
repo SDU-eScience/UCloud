@@ -20,7 +20,7 @@ interface AppLicenseDao<Session> {
 
     fun list(
         session: Session,
-        names: List<String>,
+        tags: List<String>,
         entity: UserEntity
     ): List<LicenseServerId>?
 
