@@ -2,6 +2,7 @@ package dk.sdu.cloud.elastic.management
 
 import dk.sdu.cloud.elastic.management.services.AutoSettingsService
 import dk.sdu.cloud.elastic.management.services.BackupService
+import dk.sdu.cloud.elastic.management.services.CustomScripts
 import dk.sdu.cloud.elastic.management.services.ExpiredEntriesDeleteService
 import dk.sdu.cloud.elastic.management.services.ReindexService
 import dk.sdu.cloud.elastic.management.services.ShrinkService
@@ -30,6 +31,8 @@ class Server(
 
         startServices(wait = false)
 
+        CustomScripts(elasticHighLevelClient).deleteSpecificLogsFromOverfullIndices("Orphaned pod", 1500000000, "log")
+/*
         if (micro.commandLineArguments.contains("--setup")) {
             @Suppress("TooGenericExceptionCaught")
             try {
@@ -129,6 +132,6 @@ class Server(
                 log.warn(ex.stackTraceToString())
                 exitProcess(1)
             }
-        }
+        }*/
     }
 }
