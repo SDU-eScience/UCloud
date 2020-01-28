@@ -17,12 +17,12 @@ data class ListTagsRequest(
 
 data class AddTagRequest(
     val serverId: String,
-    val name: String
+    val tag: String
 )
 
 data class DeleteTagRequest(
     val serverId: String,
-    val name: String
+    val tag: String
 )
 
 data class ListTagsResponse(
@@ -42,7 +42,7 @@ object TagDescriptions : CallDescriptionContainer("app.license.tag") {
             method = HttpMethod.Post
 
             path {
-                using(AppLicenseDescriptions.baseContext)
+                using(baseContext)
                 +"add"
             }
 
@@ -60,7 +60,7 @@ object TagDescriptions : CallDescriptionContainer("app.license.tag") {
             method = HttpMethod.Post
 
             path {
-                using(AppLicenseDescriptions.baseContext)
+                using(baseContext)
                 +"delete"
             }
 
@@ -68,7 +68,7 @@ object TagDescriptions : CallDescriptionContainer("app.license.tag") {
         }
     }
 
-    val list = call<ListTagsRequest, ListTagsResponse, CommonErrorMessage>("delete") {
+    val list = call<ListTagsRequest, ListTagsResponse, CommonErrorMessage>("list") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ
@@ -78,11 +78,13 @@ object TagDescriptions : CallDescriptionContainer("app.license.tag") {
             method = HttpMethod.Get
 
             path {
-                using(AppLicenseDescriptions.baseContext)
+                using(baseContext)
                 +"list"
             }
 
-            body { bindEntireRequestFromBody() }
+            params {
+                +boundTo(ListTagsRequest::serverId)
+            }
         }
     }
 }

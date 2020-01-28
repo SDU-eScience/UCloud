@@ -136,16 +136,26 @@ export interface DeleteLicenseServerProps {
     id: string;
 }
 
-export interface AddLicenseServerTagProps {
+export interface LicenseServerTagProps {
     serverId: string;
     tag: string;
 }
 
-export function addLicenseServerTag(props: AddLicenseServerTagProps): APICallParameters<AddLicenseServerTagProps> {
+export function addLicenseServerTag(props: LicenseServerTagProps): APICallParameters<LicenseServerTagProps> {
     return {
         reloadId: Math.random(),
         method: "POST",
-        path: "/app/license/addTag",
+        path: "/app/license/tag/add",
+        payload: props,
+        parameters: props
+    };
+}
+
+export function deleteLicenseServerTag(props: LicenseServerTagProps): APICallParameters<LicenseServerTagProps> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/app/license/tag/delete",
         payload: props,
         parameters: props
     };

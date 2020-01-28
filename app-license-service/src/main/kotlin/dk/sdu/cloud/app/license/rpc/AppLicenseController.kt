@@ -91,11 +91,11 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
         }
 
         implement(TagDescriptions.add) {
-            ok(licenseService.addTag(request.name, request.serverId))
+            ok(licenseService.addTag(request.tag, request.serverId))
         }
 
         implement(TagDescriptions.delete) {
-            ok(licenseService.deleteTag(request.name, request.serverId))
+            ok(licenseService.deleteTag(request.tag, request.serverId))
         }
 
         implement(TagDescriptions.list) {

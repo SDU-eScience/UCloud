@@ -1,4 +1,4 @@
-import {deleteLicenseServer, LicenseServerAccessRight, updateLicenseServerPermission, UserEntityType, addLicenseServerTag} from "Applications/api";
+import {deleteLicenseServer, LicenseServerAccessRight, updateLicenseServerPermission, UserEntityType, addLicenseServerTag, deleteLicenseServerTag} from "Applications/api";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
@@ -27,9 +27,9 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
     const newTagField = React.useRef<HTMLInputElement>(null);
 
     async function loadTags(serverId: string): Promise<TagEntry[]> {
-        const {response} = await Client.get(`/app/license/listTags?serverId=${serverId}`);
-        return response.map(item => ({
-            name: item.name
+        const {response} = await Client.get(`/app/license/tag/list?serverId=${serverId}`);
+        return response.tags.map(item => ({
+            name: item
         }));
     }
 
@@ -48,7 +48,7 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
                     resolve(null);
                     return;
                 };
-                await invokeCommand(addLicenseServerTag(
+                await invokeCommand(deleteLicenseServerTag(
                     {
                         serverId: licenseServer.id,
                         tag: tag.name
@@ -121,7 +121,7 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
                 </Box>
                 {tagList.length > 0 ? (
                     <Box maxHeight="80vh">
-                        <Table width="700px">
+                        <Table width="500px">
                             <LeftAlignedTableHeader>
                                 <TableRow>
                                     <TableHeaderCell>Tag</TableHeaderCell>
