@@ -26,7 +26,7 @@ mv build/service/bin/${name} build/service/bin/service
 
 docker build \
     -t "${name}:${version}" \
-    -f Dockerfile.local \
+    -f Dockerfile \
     .
 
 if hash docker-publish; then
