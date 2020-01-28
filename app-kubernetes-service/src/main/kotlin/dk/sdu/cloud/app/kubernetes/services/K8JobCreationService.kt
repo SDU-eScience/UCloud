@@ -2,12 +2,8 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.TolerationKeyAndValue
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
-import dk.sdu.cloud.app.store.api.BooleanFlagParameter
 import dk.sdu.cloud.app.store.api.ContainerDescription
-import dk.sdu.cloud.app.store.api.EnvironmentVariableParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.app.store.api.VariableInvocationParameter
-import dk.sdu.cloud.app.store.api.WordInvocationParameter
 import dk.sdu.cloud.app.store.api.buildEnvironmentValue
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.BroadcastingStream
@@ -22,6 +18,7 @@ import io.fabric8.kubernetes.api.model.PodSecurityContext
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
 import io.fabric8.kubernetes.api.model.Quantity
 import io.fabric8.kubernetes.api.model.ResourceRequirements
+import io.fabric8.kubernetes.api.model.SecurityContext
 import io.fabric8.kubernetes.api.model.Toleration
 import io.fabric8.kubernetes.api.model.VolumeMount
 import io.fabric8.kubernetes.client.KubernetesClientException
@@ -94,6 +91,7 @@ class K8JobCreationService(
         networkPolicyService.createPolicy(verifiedJob.id, verifiedJob.peers.map { it.jobId })
         val hostAliases = hostAliasesService.findAliasesForPeers(verifiedJob.peers)
         val preparedWorkspace = workspaceService.prepare(verifiedJob)
+        val containerConfig = verifiedJob.application.invocation.container ?: ContainerDescription()
 
         // Create a kubernetes job for each node in our job
         repeat(verifiedJob.nodes) { rank ->
@@ -102,6 +100,7 @@ class K8JobCreationService(
                 .metadata {
                     withName(podName)
                     withNamespace(k8.nameAllocator.namespace)
+
 
                     withLabels(
                         mapOf(
@@ -112,7 +111,6 @@ class K8JobCreationService(
                     )
                 }
                 .spec {
-                    val containerConfig = verifiedJob.application.invocation.container ?: ContainerDescription()
 
                     val reservation = verifiedJob.reservation
                     val resourceRequirements =
@@ -150,6 +148,14 @@ class K8JobCreationService(
                                         K8NameAllocator.JOB_ID_LABEL to verifiedJob.id
                                     )
                                 )
+
+                                if (containerConfig.runAsRoot) {
+                                    withAnnotations(
+                                        mapOf(
+                                            "io.kubernetes.cri.untrusted-workload" to "true"
+                                        )
+                                    )
+                                }
                             }
 
                             spec {
@@ -190,11 +196,24 @@ class K8JobCreationService(
                                     )
                                 }
 
+                                val uid = LINUX_FS_USER_UID.toLong()
+                                withSecurityContext(
+                                    PodSecurityContext(
+                                        uid,
+                                        uid,
+                                        !containerConfig.runAsRoot,
+                                        uid,
+                                        null,
+                                        emptyList(),
+                                        emptyList(),
+                                        null
+                                    )
+                                )
+
                                 val allContainers = ArrayList<Container>()
 
                                 allContainers.add(
-                                    container {
-                                        val uid = LINUX_FS_USER_UID.toLong()
+                                    container container@{
                                         val app = verifiedJob.application.invocation
                                         val tool = verifiedJob.application.invocation.tool.tool!!.description
                                         val givenParameters =
@@ -250,33 +269,12 @@ class K8JobCreationService(
                                             withWorkingDir(WORKING_DIRECTORY)
                                         }
 
-                                        if (containerConfig.runAsRoot) {
-                                            withSecurityContext(
-                                                PodSecurityContext(
-                                                    0,
-                                                    0,
-                                                    false,
-                                                    0,
-                                                    null,
-                                                    emptyList(),
-                                                    emptyList(),
-                                                    null
-                                                )
-                                            )
-                                        } else if (containerConfig.runAsRealUser) {
-                                            withSecurityContext(
-                                                PodSecurityContext(
-                                                    uid,
-                                                    uid,
-                                                    false,
-                                                    uid,
-                                                    null,
-                                                    emptyList(),
-                                                    emptyList(),
-                                                    null
-                                                )
-                                            )
-                                        }
+                                        this@container.withSecurityContext(
+                                            SecurityContext().apply {
+                                                runAsNonRoot = !containerConfig.runAsRoot
+                                                allowPrivilegeEscalation = containerConfig.runAsRoot
+                                            }
+                                        )
 
                                         withVolumeMounts(
                                             VolumeMount(
