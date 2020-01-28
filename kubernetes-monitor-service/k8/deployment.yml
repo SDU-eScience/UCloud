@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: kubernetes-monitor
-        image: registry.cloud.sdu.dk/sdu-cloud/kubernetes-monitor-service:0.1.0
+        image: registry.cloud.sdu.dk/sdu-cloud/kubernetes-monitor-service:0.1.1
         command:
         - /opt/service/bin/service
         - --config-dir
