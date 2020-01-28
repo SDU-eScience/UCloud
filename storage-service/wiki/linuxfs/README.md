@@ -17,5 +17,5 @@ it will need to switch fsuid/fsgid.
 
 ## File Sharing and Permissions
 
-All files are owned by the SDUCloud user (UID and GID = 11042). All permissions are enforced by SDUCloud. The default
+All files are owned by the UCloud user (UID and GID = 11042). All permissions are enforced by UCloud. The default
 file permissions are `rwxrwx--x`.

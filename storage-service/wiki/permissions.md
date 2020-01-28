@@ -1,6 +1,6 @@
 # Permissions
 
-All files in SDUCloud are in a home folder. The files of normal users are in
+All files in UCloud are in a home folder. The files of normal users are in
 `/home/`. Projects store files in `/projects/`.
 
 A user owns all the files placed in their home directory. If Alice shares the

@@ -2,11 +2,11 @@
 
 A [compute backend](../app-orchestrator-service) using Kubernetes for scheduling jobs.
 
-Kubernetes is the scheduler/orchestrator already used for all SDUCloud
+Kubernetes is the scheduler/orchestrator already used for all UCloud
 services. `app-kuberneteres` works by running user jobs as 
 [Kubernetes Jobs](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/).
 This means that one of the biggest challenges of this service is to map an
-SDUCloud job to the corresponding Kubernetes job.
+UCloud job to the corresponding Kubernetes job.
 
 ## Connecting to Kubernetes Cluster
 
@@ -15,7 +15,7 @@ or auto detects a mounted account service token. When running inside
 kubernetes it is important that its service account is given the appropriate
 permissions.
 
-## Mapping from SDUCloud Jobs to K8 Jobs
+## Mapping from UCloud Jobs to K8 Jobs
 
 In this section we will briefly describe the overall mapping between the two.
 <!-- For all the details we refer directly to the source code available
@@ -24,7 +24,7 @@ In this section we will briefly describe the overall mapping between the two.
 The microservice is configured to place all jobs in a specific namespace.
 This makes it easier to control the [security model](#security-model). The
 metadata section of the job contains a job name which has a one-to-one
-mapping with SDUCloud job names. Additionally we label SDUCloud jobs with
+mapping with UCloud job names. Additionally we label UCloud jobs with
 their own label.
 
 The job's container specification maps almost directly to the input from the
@@ -49,7 +49,7 @@ the internal settings of the mount to a separate PV which can be used in the
 namespace dedicated for running applications.
 
 The [workspace](../storage-service/wiki/workspaces.md) feature is used for
-storing input files for applications in the same FS as SDUCloud. Special care
+storing input files for applications in the same FS as UCloud. Special care
 is taken to make sure the volume is mounted correctly. For example, all
 read-only mounts (as defined by workspaces) are mounted as read-only in the
 jobs. Additionally, we only mount the workspace not the entire volume. It is
@@ -59,7 +59,7 @@ to the entire file system.
 ## Security Model
 
 All jobs are run in their own separate namespace. This allows for better
-isolation and makes it easier to create policies which apply to SDUCloud
+isolation and makes it easier to create policies which apply to UCloud
 applications.
 
 The service account token is not mounted as it is not needed. The default
@@ -73,7 +73,7 @@ cannot change settings which would affect the physical host.
 We don't put any special restrictions on the UID a user's container can run
 as. We do support the UID changing behavior as specified in
 [app-service](../app-store-service/wiki/apps.md). As a result we can force a
-container to run as root or run as the real SDUCloud UID.
+container to run as root or run as the real UCloud UID.
 
 This means that we must assume that all jobs can run as root within the
 container. This is okay since containers are meant to be a secure sandbox.

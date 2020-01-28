@@ -1,6 +1,6 @@
 # share-service
 
-This service implements the share functionality for the SDUCloud file system. It
+This service implements the share functionality for the UCloud file system. It
 gives the user the ability to share files and directories with other users of
 the file system. 
 

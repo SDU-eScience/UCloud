@@ -9,7 +9,7 @@ then split into activities.
 Activities is allocated to a team an activity has one or more repositories on
 GitHub.
 
-1. [SDUCloud](../../README.md)
+1. [UCloud](../../README.md)
    - This activity has a development system
 2. Infrastructure - Hardware, Storage setup and configuration.
    - [Infrastructure](https://github.com/SDU-eScience/Infrastructure/blob/master/sdu-pm-cluster/README.md)
@@ -33,7 +33,7 @@ Leader have the responsibility for validity of the content.
 
 ### Git Repository
 
-SDUCloud uses a [git repository](https://git-scm.com/) for all SDUCloud
+UCloud uses a [git repository](https://git-scm.com/) for all UCloud
 related code and documentation. The root of the repository contains a
 directory for every software module.
 
@@ -70,7 +70,7 @@ Details of this is discussed [here](./deployment.md).
 
 ### External Libraries
 
-SDUCloud depends on various external libraries. [Gradle](https://gradle.org) is
+UCloud depends on various external libraries. [Gradle](https://gradle.org) is
 used for the backend system. [NPM](https://npmjs.com) is used for frontend
 dependencies.
 
@@ -162,7 +162,7 @@ If undesired system behavior is observed - the Project Leader will be notified
 by an automatically generated ticket and decide what action must be taken.
 The generated support ticket will hold the documentation/comments.
  
-If the issue involves a user or an SDUCloud project the relevant user/PI will
+If the issue involves a user or an UCloud project the relevant user/PI will
 be notified.
 
 ### Security related issues

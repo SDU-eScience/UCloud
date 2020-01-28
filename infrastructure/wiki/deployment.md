@@ -1,6 +1,6 @@
 # Deployment
 
-This section only covers deployment of the SDUCloud software. This does not
+This section only covers deployment of the UCloud software. This does not
 take into account the lower layers including infrastructure deployment.
 
 ## Archiva
@@ -57,7 +57,7 @@ testing and development purposes.
 
 All deployment goes through Kubernetes. Each service stores its Kubernetes
 files in its `k8/` folder. These are kept in sync with the development version.
-These files include everything needed to deploy SDUCloud.
+These files include everything needed to deploy UCloud.
 
 When a service has gone through sufficient testing we deploy the ready
 services to Kubernetes. Before deployment the following checklist is used for

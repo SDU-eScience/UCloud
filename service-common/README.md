@@ -1,7 +1,7 @@
 # service-common
 
 Utility library designed to make it easier to create services that fit into
-SDUCloud.
+UCloud.
 
 ## Features
 

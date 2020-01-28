@@ -242,9 +242,9 @@ arguments will be passed to the invocation.
 
 #### `type: input_file`
 
-Represents an input file from SDUCloud. When passed to an invocation it will
+Represents an input file from UCloud. When passed to an invocation it will
 be converted into the absolute path to the file. The input file will be mounted
-at the working directory with the same name as in SDUCloud.
+at the working directory with the same name as in UCloud.
 
 `defaultValue` for this type is not supported.
 
@@ -263,9 +263,9 @@ parameters:
 
 #### `type: input_directory`
 
-Represents an input directory from SDUCloud. When passed to an invocation it
+Represents an input directory from UCloud. When passed to an invocation it
 will be converted into the absolute path to the file. The input file will be
-mounted at the working directory with the same name as in SDUCloud.
+mounted at the working directory with the same name as in UCloud.
 
 `defaultValue` for this type is not supported.
 
@@ -583,7 +583,7 @@ This can be passed for any application type. The following fields are defined:
   By default we will respect the containers configuration. Default value is
   `false`.
 - `runAsRealUser`: Should this container be forcefully be changed to run as the
-  UID matches the SDUCloud UID? By default we will respect the containers 
+  UID matches the UCloud UID? By default we will respect the containers 
   configuration. Default value is `false`.
 
 #### Examples
@@ -653,7 +653,7 @@ container. The VNC server running inside of the container is required to
 support VNC via websockets. Additionally the server should run with no
 password or a pre-configured password which should be passed in this block.
 
-Note: All authentication is done by SDUCloud, hence we do not need to rely on
+Note: All authentication is done by UCloud, hence we do not need to rely on
 the security of VNC.
 
 The following fields are supported in this block:
@@ -680,9 +680,9 @@ Used with `applicationType: WEB`.
 This block configures how to access the web server running inside of the
 container. Just like with `applicationType: VNC` authentication should
 generally be disabled for the web application. Authentication will
-automatically be done by SDUCloud.
+automatically be done by UCloud.
 
-SDUCloud will proxy traffic as HTTP to the webserver running inside of the
+UCloud will proxy traffic as HTTP to the webserver running inside of the
 container.
 
 The following fields are supported in this block:

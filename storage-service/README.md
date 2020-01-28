@@ -1,11 +1,11 @@
-# The SDUCloud File System (`storage-service`)
+# The UCloud File System (`storage-service`)
 
-This service implements the underlying file system of SDUCloud. All access to
+This service implements the underlying file system of UCloud. All access to
 the real data _must_ go through this service. This means that any other
 micro-service which need to consume FS services will go through this service.
 This file system provides operations which an end-user might be familiar with
 from other file systems. The file system allows for users to read and write
-folders and files. You can read more about files in SDUCloud
+folders and files. You can read more about files in UCloud
 [here](./wiki/files.md).
 
 ![Storage Architecture](wiki/storage_arch.png)

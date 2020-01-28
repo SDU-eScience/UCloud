@@ -1,8 +1,8 @@
 # Workspaces
 
 Workspaces are an internal feature for storing unmanaged data on the same
-file system as SDUCloud. Workspaces are allowed to import and export data
-efficiently to the managed portion of SDUCloud.
+file system as UCloud. Workspaces are allowed to import and export data
+efficiently to the managed portion of UCloud.
 
 This feature is in particular useful for implementing
 [applications](../../app-service) which need to efficiently transfer data back
@@ -27,10 +27,10 @@ __It is important that read-only mounts are mounted as read-only by the
 service.__
 
 Once a service is done using a workspace files are transferred back into the
-managed part of SDUCloud. Before we do this we sanitize all data. The
+managed part of UCloud. Before we do this we sanitize all data. The
 sanitization step normalizes all permissions, ACLs and UIDs. We also remove
 all symbolic links found within the workspace. [Events](./events.md) are
 emitted when the workspace is closed.
 
 It should be noted that the changes a service makes in a workspace is not
-visible inside of SDUCloud _before_ the workspace is closed.
+visible inside of UCloud _before_ the workspace is closed.
