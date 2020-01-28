@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+script=`kscript src/main/kotlin/Launcher.kt "$@"`
+kscript "$script"
