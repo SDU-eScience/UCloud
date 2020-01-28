@@ -11,13 +11,7 @@ import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.BulkFileAudit
-import dk.sdu.cloud.file.api.DOWNLOAD_FILE_SCOPE
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileAttribute
@@ -115,6 +109,10 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                         principalToVerify = principal.toSecurityToken().principal
                                     ) { ctx ->
                                         ZipOutputStream(toOutputStream()).use { os ->
+                                            val rootFileName = stat.path.fileName()
+                                            os.putNextEntry(ZipEntry("$rootFileName/"))
+                                            os.closeEntry()
+
                                             val tree = fs.tree(
                                                 ctx,
                                                 stat.path,
@@ -122,7 +120,10 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                             )
 
                                             for (item in tree) {
-                                                val filePath = item.path.substringAfter(stat.path).removePrefix("/")
+                                                val filePath = joinPath(
+                                                    rootFileName,
+                                                    item.path.substringAfter(stat.path).removePrefix("/")
+                                                )
 
                                                 val sensitivity = fileLookupService.lookupInheritedSensitivity(
                                                     ctx,
