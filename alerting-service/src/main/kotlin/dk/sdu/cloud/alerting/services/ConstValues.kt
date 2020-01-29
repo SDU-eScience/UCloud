@@ -10,5 +10,5 @@ internal const val ONE_HOUR = 60 * ONE_MINUTE
 internal const val HALF_DAY = 12 * ONE_HOUR
 internal const val ONE_DAY = 24 * ONE_HOUR
 
-internal const val DOC_LOW_LIMIT = 1500000000
-internal const val DOC_HIGH_LIMIT = 1800000000
+internal const val DOC_LOW_LIMIT = 1800000000
+internal const val DOC_HIGH_LIMIT = 2000000000
