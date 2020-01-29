@@ -25,9 +25,9 @@ bundle {
                 command = listOf(
                     "sh", "-c",
                     """
-                    while [ ! -f /mnt/shared/envoy/config.yaml ]; do sleep 0.5; done;
-                    envoy -c /mnt/shared/envoy/config.yaml
-                """.trimIndent()
+                        while [ ! -f /mnt/shared/envoy/config.yaml ]; do sleep 0.5; done;
+                        envoy -c /mnt/shared/envoy/config.yaml
+                    """.trimIndent()
                 )
 
                 val workingDirectory = "/mnt/shared/envoy"
