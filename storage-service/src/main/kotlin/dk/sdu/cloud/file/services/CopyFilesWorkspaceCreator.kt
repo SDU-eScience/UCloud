@@ -58,6 +58,8 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
         val inputWorkspace = workspace.resolve("input").also { Files.createDirectories(it) }
         val outputWorkspace = workspace.resolve("output").also { Files.createDirectories(it) }
         val symLinkPath = createSymbolicLinkAt.let { File(it).absoluteFile.toPath() }
+        Chown.setOwner(inputWorkspace, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+        Chown.setOwner(outputWorkspace, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
 
         val manifest = WorkspaceManifest(user, mounts, createSymbolicLinkAt, mode = WorkspaceMode.COPY_FILES)
         manifest.write(workspace)
