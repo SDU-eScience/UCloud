@@ -31,8 +31,6 @@ class Server(
 
         startServices(wait = false)
 
-        CustomScripts(elasticHighLevelClient).deleteSpecificLogsFromOverfullIndices("Orphaned pod", 1500000000, "log")
-/*
         if (micro.commandLineArguments.contains("--setup")) {
             @Suppress("TooGenericExceptionCaught")
             try {
@@ -132,6 +130,6 @@ class Server(
                 log.warn(ex.stackTraceToString())
                 exitProcess(1)
             }
-        }*/
+        }
     }
 }

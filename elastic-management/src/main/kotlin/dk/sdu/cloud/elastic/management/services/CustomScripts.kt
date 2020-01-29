@@ -14,10 +14,13 @@ class CustomScripts(val client: RestHighLevelClient) {
 
     fun deleteSpecificLogsFromOverfullIndices(query: String, docLimit: Int, field: String) {
         locateIndicesAboveXDocs(docLimit).forEach { index ->
-            val response = findEntriesContaining("$query*", index, field)
-            println("hits = ${response.hits.totalHits?.value}")
-            val ids = response.hits.hits.map { it.id }
-            deleteInBulk(index, ids)
+            println("Deleting from $index")
+            do {
+                val response = findEntriesContaining("$query*", index, field)
+                println("hits = ${response.hits.totalHits?.value}")
+                val ids = response.hits.map { it.id }
+                deleteInBulk(index, ids)
+            } while (response.hits.totalHits?.value?.toInt() == 10000)
         }
 
     }
@@ -41,14 +44,15 @@ class CustomScripts(val client: RestHighLevelClient) {
             QueryBuilders.matchQuery(
                 field, query
             )
-        )
+        ).size(250)
         request.source(query)
 
         return client.search(request, RequestOptions.DEFAULT)
     }
 
     fun deleteInBulk(index: String, ids: List<String>) {
-        val request = BulkRequest()
+        val request = BulkRequest(index)
+        println("size of ids: ${ids.size}")
 
         ids.forEach { id ->
             val deleteRequest = DeleteRequest(index, id)

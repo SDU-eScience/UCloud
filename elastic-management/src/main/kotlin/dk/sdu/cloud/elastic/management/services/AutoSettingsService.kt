@@ -23,15 +23,15 @@ class AutoSettingsService(
         val settings = Settings.builder()
             //low = prevents ElasticSearch from allocation shards if less
             // than the specified amount of space is available
-            .put("cluster.routing.allocation.disk.watermark.low", "50GB")
+            .put("cluster.routing.allocation.disk.watermark.low", "100GB")
             //high = Elasticsearch tries to relocate shards away from a node
             // if it has less than the specified amount of fee space available
-            .put("cluster.routing.allocation.disk.watermark.high", "25GB")
+            .put("cluster.routing.allocation.disk.watermark.high", "50GB")
             //flood_stage = Elasticsearch will shutdown all indices that have shards located
             // on nodes with less than the specified amount of free space available
             // Sets the indicies to read/delete only. Should be manually changed using the
             // "removeFloodLimitation" function below.
-            .put("cluster.routing.allocation.disk.watermark.flood_stage", "10GB")
+            .put("cluster.routing.allocation.disk.watermark.flood_stage", "25GB")
 
         watermarkUpdateRequest.persistentSettings(settings)
         elastic.cluster().putSettings(watermarkUpdateRequest, RequestOptions.DEFAULT)
@@ -53,8 +53,8 @@ class AutoSettingsService(
         productionTemplateRequest.patterns(listOf("kubernetes-production*"))
 
         productionTemplateRequest.settings(Settings.builder()
-            .put("index.number_of_shards", 1)
-            .put("index.number_of_replicas", 2)
+            .put("index.number_of_shards", 3)
+            .put("index.number_of_replicas", 1)
             .put("index.refresh_interval", "30s")
         )
 
@@ -65,10 +65,21 @@ class AutoSettingsService(
 
         httpTemplateRequest.settings(Settings.builder()
             .put("index.number_of_shards", 2)
-            .put("index.number_of_replicas", 2)
+            .put("index.number_of_replicas", 1)
         )
 
         elastic.indices().putTemplate(httpTemplateRequest, RequestOptions.DEFAULT)
+
+        val filebeatTemplate = PutIndexTemplateRequest("filebeat-template")
+        filebeatTemplate.patterns(listOf("filebeat*"))
+
+        filebeatTemplate.settings(Settings.builder()
+            .put("index.number_of_shards", 3)
+            .put("index.number_of_replicas", 1)
+            .put("index.refresh_interval", "30s")
+        )
+
+        elastic.indices().putTemplate(filebeatTemplate, RequestOptions.DEFAULT)
     }
 
     fun removeFloodLimitationOnAll() {
