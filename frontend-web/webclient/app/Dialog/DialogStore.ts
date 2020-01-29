@@ -1,36 +1,34 @@
 type DialogStoreSubscriber = (dialogs: JSX.Element[]) => void;
 
 class DialogStore {
-    private dialogs: Array<{dialog: JSX.Element, onCancel: () => void}>;
+    private dialogs: {dialog: JSX.Element; onCancel: () => void}[];
     private subscribers: DialogStoreSubscriber[] = [];
 
     constructor() {
         this.dialogs = [];
     }
 
-    public subscribe(subscriber: DialogStoreSubscriber) {
+    public subscribe(subscriber: DialogStoreSubscriber): void {
         this.subscribers.push(subscriber);
     }
 
-    public unsubscribe(subscriber: DialogStoreSubscriber) {
+    public unsubscribe(subscriber: DialogStoreSubscriber): void {
         this.subscribers = this.subscribers.filter(it => it !== subscriber);
     }
 
-    public addDialog = (dialog: JSX.Element, onCancel: () => void, addToFront: boolean = false): void => {
-        const dialogs = addToFront ? (
-            [{dialog, onCancel}, ...this.dialogs]
-        ) : (
-            [...this.dialogs, {dialog, onCancel}]
-        );
+    public addDialog = (dialog: JSX.Element, onCancel: () => void, addToFront = false): void => {
+        const dialogs = addToFront ?
+            [{dialog, onCancel}, ...this.dialogs] :
+            [...this.dialogs, {dialog, onCancel}];
         this.dialogs = dialogs;
         this.subscribers.forEach(it => it(dialogs.map(el => el.dialog)));
     }
 
-    public success() {
+    public success(): void {
         this.popDialog();
     }
 
-    public failure = () => {
+    public failure = (): void => {
         const [first] = this.dialogs;
         if (!!first) first.onCancel();
         this.popDialog();

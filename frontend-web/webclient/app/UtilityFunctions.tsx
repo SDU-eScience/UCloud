@@ -140,7 +140,6 @@ export const extensionType = (ext: string): ExtensionType => {
         case "ogg":
         case "aac":
         case "pcm":
-        case "aac":
             return "audio";
         case "mpg":
         case "mp4":
@@ -216,7 +215,6 @@ export const isExtPreviewSupported = (ext: string): boolean => {
         case "ogg":
         case "aac":
         case "pcm":
-        case "aac":
         case "mpg":
         case "mp4":
         case "avi":
@@ -291,14 +289,14 @@ export const addTrailingSlash = (path: string) => {
 };
 
 export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
-export const is5xxStatusCode = (status: number) => inRange({status, min: 500, max: 599});
+export const is5xxStatusCode = (status: number): boolean => inRange({status, min: 500, max: 599});
 export const blankOrUndefined = (value?: string): boolean => value == null || value.length === 0 || /^\s*$/.test(value);
 
-export function ifPresent<T>(f: T | undefined, handler: (f: T) => void) {
+export function ifPresent<T>(f: T | undefined, handler: (f: T) => void): void {
     if (f) handler(f);
 }
 
-export const downloadAllowed = (files: File[]) => files.every(f => f.sensitivityLevel !== "SENSITIVE");
+export const downloadAllowed = (files: File[]): boolean => files.every(f => f.sensitivityLevel !== "SENSITIVE");
 
 /**
  * Capitalizes the input string and replaces _ (underscores) with whitespace.
@@ -358,9 +356,9 @@ export function sortByToPrettierString(sortBy: SortBy): string {
     }
 }
 
-export function requestFullScreen(el: Element, onFailure: () => void) {
-    // @ts-ignore - Safari compatibility
-    if (el.webkitRequestFullScreen) el.webkitRequestFullscreen();
+export function requestFullScreen(el: Element, onFailure: () => void): void {
+    // @ts-ignore
+    if (el.webkitRequestFullScreen) el.webkitRequestFullScreen();
     else if (el.requestFullscreen) el.requestFullscreen();
     else onFailure();
 }
@@ -376,9 +374,9 @@ export function timestampUnixMs(): number {
 
 export function humanReadableNumber(
     value: number,
-    sectionDelim: string = ",",
-    decimalDelim: string = ".",
-    numDecimals: number = 2
+    sectionDelim = ",",
+    decimalDelim = ".",
+    numDecimals = 2
 ): string {
     const regex = new RegExp("\\d(?=(\\d{3})+" + (numDecimals > 0 ? "\\D" : "$") + ")", "g");
     const fixedNumber = value.toFixed(numDecimals);
@@ -404,7 +402,7 @@ export function copyToClipboard({value, message}: CopyToClipboard): void {
 }
 
 export function errorMessageOrDefault(
-    err: {request: XMLHttpRequest, response: any} | {status: number, response: string} | string,
+    err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | string,
     defaultMessage: string
 ): string {
     try {
@@ -426,36 +424,37 @@ export function delay(ms: number): Promise<void> {
     });
 }
 
-export const inDevEnvironment = () => process.env.NODE_ENV === "development";
+export const inDevEnvironment = (): boolean => process.env.NODE_ENV === "development";
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
-    return (target = "default-target") => {
+    return (target = "default-target"): string => {
         const idCount = (store.get(target) ?? 0) + 1;
         store.set(target, idCount);
         return `${target}${idCount}`;
     };
 })();
 
-export function stopPropagation(e: {stopPropagation(): void}) {
+export function stopPropagation(e: {stopPropagation(): void}): void {
     e.stopPropagation();
 }
 
-export function preventDefault(e: {preventDefault(): void}) {
+export function preventDefault(e: {preventDefault(): void}): void {
     e.preventDefault();
 }
 
-export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}) {
+export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}): void {
     preventDefault(e);
     stopPropagation(e);
 }
 
-export function displayErrorMessageOrDefault(e: any, fallback: string) {
+export function displayErrorMessageOrDefault(e: any, fallback: string): void {
     snackbarStore.addFailure(errorMessageOrDefault(e, fallback));
 }
 
-export function shouldHideSidebarAndHeader() {
-    return ["/app/login", "/app/login/wayf"].includes(window.location.pathname) && window.location.search === "?dav=true";
+export function shouldHideSidebarAndHeader(): boolean {
+    return ["/app/login", "/app/login/wayf"]
+        .includes(window.location.pathname) && window.location.search === "?dav=true";
 }
 
 export function getUserThemePreference(): "light" | "dark" {
