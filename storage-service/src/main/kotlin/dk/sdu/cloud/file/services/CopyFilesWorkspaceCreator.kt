@@ -123,8 +123,12 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
             else outputRoot.resolve(relativePath)
 
         if (Files.isDirectory(file)) {
-            if (readOnly) Files.createDirectories(inputDestinationPath)
+            if (readOnly) {
+                Files.createDirectories(inputDestinationPath)
+                Chown.setOwner(inputDestinationPath, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+            }
             Files.createDirectories(outputDestinationPath)
+            Chown.setOwner(outputDestinationPath, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
 
             file.listAndClose().forEach {
                 transferFileToWorkspaceNoAccessCheck(
@@ -147,6 +151,7 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
                 Files.createSymbolicLink(outputDestinationPath, symlinkRoot.resolve(relativePath))
             } else {
                 Files.copy(resolvedFile, outputDestinationPath, StandardCopyOption.COPY_ATTRIBUTES)
+                Chown.setOwner(outputDestinationPath, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
             }
         }
     }
