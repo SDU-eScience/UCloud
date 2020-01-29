@@ -18,7 +18,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import styled, {ServerStyleSheet} from "styled-components";
+import styled from "styled-components";
 import {AccessRight, Page} from "Types";
 import {
     Box,
@@ -28,7 +28,6 @@ import {
     Flex,
     Label,
     OutlineButton,
-    Text,
     theme,
     VerticalButtonGroup
 } from "ui-components";
@@ -36,7 +35,7 @@ import BaseLink from "ui-components/BaseLink";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
-import Input, {HiddenInputField, InputLabel} from "ui-components/Input";
+import Input, {HiddenInputField} from "ui-components/Input";
 import Link from "ui-components/Link";
 import {TextSpan} from "ui-components/Text";
 import {
@@ -70,8 +69,7 @@ import {
     RunAppState,
     RunOperations,
     WithAppInvocation,
-    WithAppMetadata,
-    LicenseServerId,
+    WithAppMetadata
 } from ".";
 import {PRODUCT_NAME} from "../../site.config.json";
 import {AppHeader} from "./View";
@@ -111,9 +109,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             reservation: React.createRef(),
             unknownParameters: [],
             sharedFileSystems: {mounts: []},
-            useCow: true,
-            licenseServers: [],
-            selectedLicenseServer: null
+            useCow: true
         };
     }
 
@@ -136,19 +132,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         if (prevState.application !== this.state.application && this.state.application !== undefined) {
             this.fetchPreviousRuns();
-            this.fetchAvailableLicenseServers(this.state.application.invocation.licenseServers);
         }
     }
 
     public toggleCow = () => {
         this.setState(state => ({useCow: !state.useCow}));
-    }
-
-    public async fetchAvailableLicenseServers(tags: string[]) {
-        const {response} = await Client.post<LicenseServerId[]>(`/app/license/list`, {tags: tags});
-        this.setState(() => (
-            {licenseServers: response}
-        ));
     }
 
     public render() {
@@ -426,44 +414,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         ))}
                                     </RunSection>
                                 )}
-
-                            {!application.invocation.licenseServers ? null : (
-                                <RunSection>
-                                    <Label>License server</Label>
-                                    <Box>
-                                        {!this.state.licenseServers ? (
-                                            <Text>Connect to other jobs</Text>
-                                        ) : (
-                                            <InputLabel width="100%" independent>
-                                                <ClickableDropdown
-                                                    chevron
-                                                    minWidth="500px"
-                                                    onChange={server => {
-                                                        const s = this.state.licenseServers.find(obj => obj.id == server);
-                                                        if (s !== undefined) {
-                                                            this.setState(() => ({selectedLicenseServer: s}));
-                                                        }
-                                                    }}
-                                                    trigger={this.state.selectedLicenseServer !== null ? (
-                                                            <Box as="span" minWidth="500px">
-                                                                {this.state.selectedLicenseServer.name}
-                                                            </Box>
-                                                        ) : (
-                                                            <Box as="span" minWidth="500px">
-                                                                No license server selected
-                                                            </Box>
-                                                        )
-                                                    }
-                                                    options={this.state.licenseServers.map(server => (
-                                                        {text: server.name, value: server.id}
-                                                    ))}
-                                                />
-                                            </InputLabel>
-                                        )}
-                                    </Box>
-                                </RunSection>
-                            )}
-
+                     
                             {!application.invocation.shouldAllowAdditionalPeers ? null : (
                                 <RunSection>
                                     <Flex>

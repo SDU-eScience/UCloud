@@ -180,8 +180,6 @@ export interface RunAppState {
     unknownParameters: string[];
     reservation: React.RefObject<HTMLInputElement>;
     useCow: boolean;
-    licenseServers: LicenseServerId[];
-    selectedLicenseServer: LicenseServerId|null;
 }
 
 export interface RunOperations extends SetStatusLoading {
@@ -243,6 +241,11 @@ export interface SharedFileSystemParameter extends BaseParameter {
     type: ParameterTypes.SharedFileSystem;
 }
 
+export interface LicenseServerParameter extends BaseParameter {
+    type: ParameterTypes.LicenseServer;
+    tagged: string[];
+}
+
 interface BaseParameter {
     name: string;
     optional: boolean;
@@ -261,7 +264,8 @@ export type ApplicationParameter =
     TextParameter |
     RangeParameter |
     PeerParameter |
-    SharedFileSystemParameter;
+    SharedFileSystemParameter |
+    LicenseServerParameter;
 
 type Invocation = WordInvocation | VarInvocation;
 
@@ -289,7 +293,8 @@ export enum ParameterTypes {
     Boolean = "boolean",
     Range = "range",
     Peer = "peer",
-    SharedFileSystem = "shared_file_system"
+    SharedFileSystem = "shared_file_system",
+    LicenseServer = "license_server"
 }
 
 export interface DetailedApplicationSearchReduxState {
