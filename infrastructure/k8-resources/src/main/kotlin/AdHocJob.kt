@@ -66,7 +66,7 @@ open class AdHocJob(
         client.batch().jobs().inNamespace(namespace).withName("$name-$nameSuffix").delete()
     }
 
-    override fun toString(): String = "AdHocJob($name, $version)"
+    override fun toString(): String = "AdHocJob($name, $version, $nameSuffix)"
 }
 
 fun MutableBundle.withAdHocJob(

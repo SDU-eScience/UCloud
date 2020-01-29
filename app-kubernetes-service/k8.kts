@@ -103,7 +103,7 @@ bundle {
         }
     }
 
-    withServiceAccount {
+    withClusterServiceAccount {
         addRule(
             apiGroups = listOf(""),
             resources = listOf("pods", "pods/log", "pods/portforward", "pods/exec"),

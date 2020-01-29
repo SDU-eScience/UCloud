@@ -5,12 +5,12 @@ import io.fabric8.kubernetes.api.model.SecretVolumeSource
 import io.fabric8.kubernetes.api.model.Volume
 import io.fabric8.kubernetes.api.model.VolumeMount
 
-fun DeploymentResource.injectConfiguration(name: String) {
+fun DeploymentResource.injectConfiguration(name: String, configDir: String = "/etc/$name") {
     serviceContainer.command.add("--config-dir")
-    serviceContainer.command.add("/etc/$name")
+    serviceContainer.command.add(configDir)
 
     serviceContainer.volumeMounts.add(VolumeMount().apply {
-        mountPath = "/etc/$name"
+        mountPath = configDir
         this.name = name
     })
 
@@ -22,12 +22,12 @@ fun DeploymentResource.injectConfiguration(name: String) {
     })
 }
 
-fun DeploymentResource.injectSecret(name: String) {
+fun DeploymentResource.injectSecret(name: String, configDir: String = "/etc/$name") {
     serviceContainer.command.add("--config-dir")
-    serviceContainer.command.add("/etc/$name")
+    serviceContainer.command.add(configDir)
 
     serviceContainer.volumeMounts.add(VolumeMount().apply {
-        mountPath = "/etc/$name"
+        mountPath = configDir
         this.name = name
     })
 

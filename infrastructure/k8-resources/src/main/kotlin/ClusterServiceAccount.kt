@@ -3,22 +3,21 @@ package dk.sdu.cloud.k8
 import io.fabric8.kubernetes.api.model.ObjectMeta
 import io.fabric8.kubernetes.api.model.ServiceAccount
 import io.fabric8.kubernetes.api.model.rbac.*
-import io.fabric8.kubernetes.client.KubernetesClient
 
-class ServiceAccountResource(
+class ClusterServiceAccountResource(
     val name: String,
     val version: String
 ) : KubernetesResource {
     val serviceAccount = ServiceAccount().apply {
         metadata = ObjectMeta().apply {
-            this.name = this@ServiceAccountResource.name
+            this.name = this@ClusterServiceAccountResource.name
             annotations = mapOf(UCLOUD_VERSION_ANNOTATION to version)
         }
     }
 
     val clusterRole = ClusterRole().apply {
         metadata = ObjectMeta().apply {
-            this.name = this@ServiceAccountResource.name
+            this.name = this@ClusterServiceAccountResource.name
             annotations = mapOf(UCLOUD_VERSION_ANNOTATION to version)
         }
 
@@ -27,21 +26,21 @@ class ServiceAccountResource(
 
     val roleBinding = RoleBinding().apply {
         metadata = ObjectMeta().apply {
-            this.name = this@ServiceAccountResource.name
+            this.name = this@ClusterServiceAccountResource.name
             annotations = mapOf(UCLOUD_VERSION_ANNOTATION to version)
         }
 
         subjects = arrayListOf(
             Subject().apply {
                 kind = "ServiceAccount"
-                name = this@ServiceAccountResource.name
+                name = this@ClusterServiceAccountResource.name
                 apiGroup = ""
             }
         )
 
         roleRef = RoleRef().apply {
             kind = "ClusterRole"
-            name = this@ServiceAccountResource.name
+            name = this@ClusterServiceAccountResource.name
             apiGroup = ""
         }
     }
@@ -76,7 +75,7 @@ class ServiceAccountResource(
     override fun toString(): String = "ServiceAccount($name, $version)"
 }
 
-fun ServiceAccountResource.addRule(apiGroups: List<String>, resources: List<String>, verbs: List<String>) {
+fun ClusterServiceAccountResource.addRule(apiGroups: List<String>, resources: List<String>, verbs: List<String>) {
     clusterRole.rules.add(PolicyRule().apply {
         this.apiGroups = apiGroups
         this.resources = resources
@@ -84,10 +83,10 @@ fun ServiceAccountResource.addRule(apiGroups: List<String>, resources: List<Stri
     })
 }
 
-fun MutableBundle.withServiceAccount(
+fun MutableBundle.withClusterServiceAccount(
     name: String = this.name,
     version: String = this.version,
-    init: ServiceAccountResource.() -> Unit
-): ServiceAccountResource {
-   return ServiceAccountResource(name, version).apply(init).also { resources.add(it) }
+    init: ClusterServiceAccountResource.() -> Unit
+): ClusterServiceAccountResource {
+   return ClusterServiceAccountResource(name, version).apply(init).also { resources.add(it) }
 }

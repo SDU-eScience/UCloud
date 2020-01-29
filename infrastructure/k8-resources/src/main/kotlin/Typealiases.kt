@@ -10,3 +10,4 @@ typealias NetworkPolicyEgressRule = io.fabric8.kubernetes.api.model.networking.N
 typealias NetworkPolicyPort = io.fabric8.kubernetes.api.model.networking.NetworkPolicyPort
 typealias LabelSelector = io.fabric8.kubernetes.api.model.LabelSelector
 typealias IntOrString = io.fabric8.kubernetes.api.model.IntOrString
+typealias PersistentVolumeClaimVolumeSource = io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
