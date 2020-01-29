@@ -1,28 +1,24 @@
 package dk.sdu.cloud.k8
 
-import java.io.BufferedOutputStream
-import java.io.File
-import java.io.FileOutputStream
-import java.io.PrintWriter
-import java.nio.file.Files
+import java.io.*
+import javax.script.ScriptEngineManager
 
 enum class LauncherCommand(val cmd: String) {
     UP_TO_DATE("status"),
     MIGRATE("migrate"),
-    DEPLOY("deploy")
+    DEPLOY("deploy"),
+    AD_HOC_JOB("job")
 }
 
 fun main(args: Array<String>) {
     var directory = "."
     val freeformArgs = ArrayList<String>()
     val additionalFiles = ArrayList<String>()
-    val outputScriptFile = Files.createTempFile("k8", ".kts").toFile()
-    val outputScript = PrintWriter(BufferedOutputStream(FileOutputStream(outputScriptFile)))
+    val outputScript = StringBuilder()
 
-    outputScript.println("package dk.sdu.cloud.k8")
-    // TODO We need to add a requirement for running this with custom maven repository
-    // Credentials can be read via environment variables (bootstrap using gradle properties)
-    outputScript.println("//DEPS dk.sdu.cloud:k8-resources:0.1.0 org.slf4j:slf4j-simple:1.7.25")
+    val engine = ScriptEngineManager().getEngineByExtension("kts")!!
+
+    outputScript.appendln("package dk.sdu.cloud.k8")
 
     run {
         var i = 0
@@ -59,48 +55,32 @@ fun main(args: Array<String>) {
 
     allBundles.forEach { file ->
         if (!file.exists()) {
-            System.err.println("Could not find: ${file.absolutePath}")
-        }
+            System.err.println("Could not find: $file")
+        } else {
+            file.useLines { lines ->
+                lines.forEach { line ->
+                    when {
+                        line.startsWith("package") ||
+                                line.startsWith("//DEPS dk.sdu.cloud:k8-resources") -> {
+                            // Do nothing
+                        }
 
-        file.useLines { lines ->
-            lines.forEach { line ->
-                when {
-                    line.startsWith("package") ||
-                    line.startsWith("//DEPS dk.sdu.cloud:k8-resources") -> {
-                        // Do nothing
-                    }
-
-                    else -> {
-                        outputScript.println(line)
+                        else -> {
+                            outputScript.appendln(line)
+                        }
                     }
                 }
             }
         }
     }
 
-    var command = "status"
-    var serviceArg = ""
-    when (freeformArgs.size) {
-        2 -> {
-            command = freeformArgs[0]
-            serviceArg = freeformArgs[1]
-        }
-
-        1 -> {
-            command = freeformArgs[0]
-        }
-    }
+    val command = freeformArgs.firstOrNull() ?: "status"
+    val remainingArgs = freeformArgs.subList(1, freeformArgs.size)
 
     val launcherCommand = LauncherCommand.values().find { it.cmd == command }
-
     require(launcherCommand != null) { "No such command '$command'" }
-    require(!serviceArg.contains("\n"))
-    require(!serviceArg.contains("\""))
-    require(!command.contains("\n"))
-    require(!command.contains("\""))
 
-    outputScript.println("runLauncher(LauncherCommand.${launcherCommand.name}, \"$serviceArg\")")
-    outputScript.close()
-
-    println(outputScriptFile.absolutePath)
+    System.err.println("Dynamic scripts are being compiled...")
+    engine.eval(outputScript.toString())
+    runLauncher(launcherCommand, remainingArgs)
 }

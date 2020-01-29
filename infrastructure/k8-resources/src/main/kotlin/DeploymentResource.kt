@@ -86,15 +86,15 @@ class DeploymentResource(
     val containers: MutableList<Container>
         get() = deployment.spec.template.spec.containers
 
-    override fun create(client: KubernetesClient, namespace: String) {
+    override fun DeploymentContext.create() {
         client.apps().deployments().inNamespace(namespace).withName(name).createOrReplace(deployment)
     }
 
-    override fun delete(client: KubernetesClient, namespace: String) {
+    override fun DeploymentContext.delete() {
         client.apps().deployments().inNamespace(namespace).withName(name).delete()
     }
 
-    override fun isUpToDate(client: KubernetesClient, namespace: String): Boolean {
+    override fun DeploymentContext.isUpToDate(): Boolean {
         val existingDeployment = client.apps().deployments().inNamespace(namespace).withName(name).get()
             ?: return false
         val k8Version = existingDeployment.metadata.annotations[UCLOUD_VERSION_ANNOTATION]

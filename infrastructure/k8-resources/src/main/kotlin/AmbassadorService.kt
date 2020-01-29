@@ -32,13 +32,13 @@ class AmbassadorService(
         )
     }
 
-    override fun isUpToDate(client: KubernetesClient, namespace: String): Boolean {
+    override fun DeploymentContext.isUpToDate(): Boolean {
         val service = client.services().inNamespace(namespace).withName(name).get() ?: return false
         val k8Version = service.metadata.annotations[UCLOUD_VERSION_ANNOTATION] ?: return false
         return k8Version == version
     }
 
-    override fun create(client: KubernetesClient, namespace: String) {
+    override fun DeploymentContext.create() {
         val service = Service().apply {
             metadata = ObjectMeta().apply {
                 val ambassadorConfig = services.joinToString("\n") { svc ->
@@ -71,7 +71,7 @@ class AmbassadorService(
         client.services().inNamespace(namespace).withName(name).createOrReplace(service)
     }
 
-    override fun delete(client: KubernetesClient, namespace: String) {
+    override fun DeploymentContext.delete() {
         client.services().inNamespace(namespace).withName(name).delete()
     }
 

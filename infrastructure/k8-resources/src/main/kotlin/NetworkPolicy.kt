@@ -3,6 +3,7 @@ package dk.sdu.cloud.k8
 import io.fabric8.kubernetes.api.model.ObjectMeta
 import io.fabric8.kubernetes.api.model.networking.IPBlock
 import io.fabric8.kubernetes.api.model.networking.NetworkPolicy
+import io.fabric8.kubernetes.api.model.networking.NetworkPolicyIngressRule
 import io.fabric8.kubernetes.api.model.networking.NetworkPolicyPeer
 import io.fabric8.kubernetes.client.KubernetesClient
 
@@ -14,20 +15,22 @@ class NetworkPolicyResource(val name: String, val version: String) : KubernetesR
         }
     }
 
-    override fun isUpToDate(client: KubernetesClient, namespace: String): Boolean {
+    override fun DeploymentContext.isUpToDate(): Boolean {
         val existingJob =
             client.network().networkPolicies().inNamespace(namespace).withName(name).get() ?: return false
         val k8Version = existingJob.metadata.annotations[UCLOUD_VERSION_ANNOTATION]
         return k8Version == version
     }
 
-    override fun create(client: KubernetesClient, namespace: String) {
+    override fun DeploymentContext.create() {
         client.network().networkPolicies().inNamespace(namespace).withName(name).createOrReplace(policy)
     }
 
-    override fun delete(client: KubernetesClient, namespace: String) {
+    override fun DeploymentContext.delete() {
         client.network().networkPolicies().inNamespace(namespace).withName(name).delete()
     }
+
+    override fun toString(): String = "NetworkPolicy($name, $version)"
 }
 
 fun MutableBundle.withNetworkPolicy(
@@ -66,5 +69,24 @@ fun allowEgressTo(toPolicies: List<EgressToPolicy>): NetworkPolicyEgressRule {
                 ipBlock = IPBlock(it.ipCidr, it.exceptionCidrs)
             }
         }
+    }
+}
+
+fun allowFromPods(
+    labelSelector: Map<String, String>,
+    namespaceSelector: Map<String, String>?
+): NetworkPolicyIngressRule {
+    return NetworkPolicyIngressRule().apply {
+        from = listOf(NetworkPolicyPeer().apply {
+            podSelector = LabelSelector().apply {
+                matchLabels = labelSelector
+            }
+
+            this.namespaceSelector = LabelSelector().apply {
+                if (namespaceSelector != null) {
+                    this.matchLabels = namespaceSelector
+                }
+            }
+        })
     }
 }

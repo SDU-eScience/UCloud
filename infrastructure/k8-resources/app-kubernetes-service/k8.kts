@@ -3,10 +3,12 @@ package dk.sdu.cloud.k8
 //DEPS dk.sdu.cloud:k8-resources:0.1.0
 
 bundle {
-    name = "avatar"
-    version = "1.3.3"
+    name = "app-kubernetes"
+    version = "0.14.0-iss.1208.2"
 
-    withAmbassador {}
+    withAmbassador(pathPrefix = null) {
+        addSimpleMapping("/api/app/compute/kubernetes")
+    }
 
     val deployment = withDeployment {
         deployment.spec.replicas = 2
@@ -40,21 +42,22 @@ bundle {
 
             serviceContainer.workingDir = "/mnt/shared"
             serviceContainer.volumeMounts.add(VolumeMount().apply {
-                mountPath = serviceContainer.workingDir
+                mountPath = "/mnt/shared/envoy"
                 name = envoySharedVolume
             })
         }
 
         // Service account is needed for this service to schedule user jobs
-        deployment.spec.template.spec.serviceAccountName = "app-kubernetes"
+        deployment.spec.template.spec.serviceAccountName = this@bundle.name
     }
 
     withPostgresMigration(deployment)
 
+    val networkPolicyPodSelector = mapOf("role" to "sducloud-app")
     withNetworkPolicy("app-policy") {
         policy.spec = NetworkPolicySpec().apply {
             podSelector = LabelSelector().apply {
-                matchLabels = mapOf("role" to "sducloud-app")
+                matchLabels = networkPolicyPodSelector
             }
 
             ingress = emptyList()
@@ -89,6 +92,34 @@ bundle {
     }
 
     withNetworkPolicy("app-allow-proxy") {
-        TODO()
+        policy.spec = NetworkPolicySpec().apply {
+            podSelector = LabelSelector().apply {
+                matchLabels = networkPolicyPodSelector
+            }
+
+            ingress = listOf(
+                allowFromPods(mapOf("app" to "app-kubernetes"), null)
+            )
+        }
+    }
+
+    withServiceAccount {
+        addRule(
+            apiGroups = listOf(""),
+            resources = listOf("pods", "pods/log", "pods/portforward", "pods/exec"),
+            verbs = listOf("*")
+        )
+
+        addRule(
+            apiGroups = listOf("batch", "extensions"),
+            resources = listOf("jobs", "networkpolicies"),
+            verbs = listOf("*")
+        )
+
+        addRule(
+            apiGroups = listOf("networking.k8s.io"),
+            resources = listOf("networkpolicies"),
+            verbs = listOf("*")
+        )
     }
 }
