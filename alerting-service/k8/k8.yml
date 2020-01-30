@@ -18,7 +18,7 @@ spec:
       serviceAccountName: alerting
       containers:
       - name: alerting
-        image: registry.cloud.sdu.dk/sdu-cloud/alerting-service:1.1.19
+        image: registry.cloud.sdu.dk/sdu-cloud/alerting-service:1.1.20
         livenessProbe:
           httpGet:
             port: 8080
