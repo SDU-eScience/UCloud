@@ -1,6 +1,6 @@
 import * as Accounting from "Accounting";
 import {fetchUsage} from "Accounting/Redux/AccountingActions";
-import {JobState, JobWithStatus} from "Applications";
+import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatDistanceToNow} from "date-fns/esm";
 import {ReduxObject} from "DefaultObjects";
@@ -43,7 +43,7 @@ import {
 import {JobStateIcon} from "Applications/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
 
-const DashboardCard: React.FunctionComponent<{title: string, isLoading: boolean}> = ({title, isLoading, children}) => (
+const DashboardCard: React.FunctionComponent<{title: string; isLoading: boolean}> = ({title, isLoading, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
         <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center">
             <Heading.h4>{title}</Heading.h4>
@@ -56,7 +56,7 @@ const DashboardCard: React.FunctionComponent<{title: string, isLoading: boolean}
     </Card>
 );
 
-function Dashboard(props: DashboardProps & {history: History}) {
+function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     React.useEffect(() => {
         props.onInit();
@@ -65,7 +65,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
         return () => props.setRefresh();
     }, []);
 
-    function reload(loading: boolean) {
+    function reload(loading: boolean): void {
         props.setAllLoading(loading);
         props.fetchFavorites();
         props.fetchRecentFiles();
@@ -73,7 +73,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
         props.fetchUsage();
     }
 
-    const onNotificationAction = (notification: Notification) => {
+    const onNotificationAction = (notification: Notification): void => {
         // FIXME: Not DRY, reused
         switch (notification.type) {
             case "APP_COMPLETE":
@@ -85,7 +85,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
         }
     };
 
-    const favoriteOrUnfavorite = (file: File) => {
+    const favoriteOrUnfavorite = (file: File): void => {
         favoriteFile(file, Client);
         props.receiveFavorites(favoriteFiles.filter(f => f.fileId !== file.fileId));
     };
@@ -102,6 +102,7 @@ function Dashboard(props: DashboardProps & {history: History}) {
         recentFilesError,
         recentJobsError
     } = props;
+
     const main = (
         <>
             <GridCardGroup minmax={315}>
@@ -154,7 +155,7 @@ const DashboardFavoriteFiles = ({
     isLoading,
     favorite,
     error
-}: {files: File[], isLoading: boolean, favorite: (file: File) => void, error?: string}) => (
+}: {files: File[]; isLoading: boolean; favorite: (file: File) => void; error?: string}): JSX.Element => (
         <DashboardCard title="Favorite Files" isLoading={isLoading}>
             {files.length || error ? null : (
                 <NoEntries
@@ -188,14 +189,14 @@ interface NoEntriesProps {
     buttonText: string;
 }
 
-const NoEntries = (props: NoEntriesProps) => (
+const NoEntries = (props: NoEntriesProps): JSX.Element => (
     <Box textAlign="center">
         <Text fontSize="16px" my="8px">{props.text}</Text>
         <Link to={props.to}><Button>{props.buttonText}</Button></Link>
     </Box>
 );
 
-const ListFileContent = ({file, pixelsWide}: {file: File, pixelsWide: number}) => {
+const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): JSX.Element => {
     const iconType = UF.iconFromFilePath(file.path, file.fileType, Client.homeFolder);
     return (
         <Flex alignItems="center">
@@ -213,7 +214,7 @@ const DashboardRecentFiles = ({
     files,
     isLoading,
     error,
-}: {files: File[], isLoading: boolean, error?: string}) => (
+}: {files: File[]; isLoading: boolean; error?: string}): JSX.Element => (
         <DashboardCard title="Recently Used Files" isLoading={isLoading}>
             {files.length || error ? null : (
                 <NoEntries
@@ -241,7 +242,7 @@ const DashboardAnalyses = ({
     analyses,
     isLoading,
     error,
-}: {analyses: JobWithStatus[], isLoading: boolean, error?: string}) => (
+}: {analyses: JobWithStatus[]; isLoading: boolean; error?: string}): JSX.Element => (
         <DashboardCard title="Recent Jobs" isLoading={isLoading}>
             {analyses.length || error ? null : (
                 <NoEntries
@@ -259,7 +260,7 @@ const DashboardAnalyses = ({
                             pr="0.3em"
                             state={analysis.state}
                             isExpired={isRunExpired(analysis)}
-                            mr={"8px"}
+                            mr="8px"
                         />
                         <Link to={`/applications/results/${analysis.jobId}`}>
                             <EllipsedText width={130} fontSize={2}>
@@ -282,7 +283,7 @@ interface DashboardNotificationProps {
     readAll: () => void;
 }
 
-const DashboardNotifications = ({notifications, readAll, onNotificationAction}: DashboardNotificationProps) => (
+const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element => (
     <Card height="auto" width={1} overflow="hidden" boxShadow="sm" borderWidth={1} borderRadius={6}>
         <Flex bg="lightGray" color="darkGray" px={3} py={2}>
             <Heading.h4>Recent Notifications</Heading.h4>
@@ -293,38 +294,19 @@ const DashboardNotifications = ({notifications, readAll, onNotificationAction}: 
                 color="iconColor"
                 color2="iconColor2"
                 title="Mark all as read"
-                onClick={readAll}
+                onClick={props.readAll}
             />
         </Flex>
-        {notifications.length === 0 ? <Heading.h6 pl="16px" pt="10px">No notifications</Heading.h6> : null}
+        {props.notifications.length === 0 ? <Heading.h6 pl="16px" pt="10px">No notifications</Heading.h6> : null}
         <List>
-            {notifications.slice(0, 7).map((n, i) => (
+            {props.notifications.slice(0, 7).map((n, i) => (
                 <Flex key={i}>
-                    <NotificationEntry notification={n} onAction={onNotificationAction} />
+                    <NotificationEntry notification={n} onAction={props.onNotificationAction} />
                 </Flex>
             ))}
         </List>
     </Card>
 );
-
-const statusToIconName = (status: JobState) => {
-    switch (status) {
-        case JobState.SUCCESS:
-            return "check";
-        case JobState.FAILURE:
-            return "close";
-        case JobState.SCHEDULED:
-            return "calendar";
-        case JobState.RUNNING:
-            return "chrono";
-        case JobState.VALIDATED:
-            return "checkDouble";
-        default:
-            return "ellipsis";
-    }
-};
-
-const statusToColor = (status: JobState) => status === JobState.FAILURE ? "red" : "green";
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     onInit: () => {

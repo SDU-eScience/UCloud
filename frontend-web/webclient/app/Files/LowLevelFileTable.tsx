@@ -2,7 +2,7 @@ import {AppToolLogo} from "Applications/AppToolLogo";
 import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
-import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
+import {emptyPage, KeyCode, ReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
 import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
@@ -221,7 +221,7 @@ function useApiForComponent(
             page: props.page!,
             pageLoading,
             error: undefined,
-            setSorting: (): number => 0,
+            setSorting: () => 0,
             sortingIcon: () => undefined,
             sortBy: SortBy.PATH,
             order: SortOrder.ASCENDING,
@@ -258,13 +258,12 @@ function useApiForComponent(
         const sortingIcon = (other: SortBy): React.ReactNode =>
             <Arrow sortBy={pageParameters.sortBy} activeSortBy={other} order={pageParameters.order} />;
 
-        const reload = () => loadManaged(pageParameters);
+        const reload = (): void => loadManaged(pageParameters);
         const sortBy = pageParameters.sortBy;
         const order = pageParameters.order;
 
-        const onPageChanged = (pageNumber: number, itemsPerPage: number) => {
+        const onPageChanged = (pageNumber: number, itemsPerPage: number): void =>
             loadManaged({...pageParameters, page: pageNumber, itemsPerPage});
-        };
 
         return {page, error, pageLoading: loading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged};
     }
@@ -340,7 +339,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
             const {pageNumber, itemsPerPage} = page;
             props.setUploaderCallback(() => onPageChanged(pageNumber, itemsPerPage));
         }
-    });
+    }, [page.pageNumber, page.itemsPerPage]);
 
     useEffect(() => {
         return () => props.setUploaderCallback();
@@ -645,7 +644,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
         }
     }
 
-    function pageRenderer({items}: Page<File>) {
+    function pageRenderer({items}: Page<File>): React.ReactNode {
         return (
             <List>
                 {items.map(f => (
@@ -792,7 +791,7 @@ const StickyBox = styled(Box)`
     z-index: 50;
 `;
 
-function toWebDav() {
+function toWebDav(): void {
     const a = document.createElement("a");
     a.href = "/app/login?dav=true";
     document.body.appendChild(a);
@@ -800,7 +799,7 @@ function toWebDav() {
     document.body.removeChild(a);
 }
 
-const mapStateToProps = ({uploader}: ReduxObject) => {
+const mapStateToProps = ({uploader}: ReduxObject): {activeUploadCount: number} => {
     const activeUploadCount = uploader.uploads.filter(it =>
         (it.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
         (it.uploadXHR?.readyState ?? -1 < XMLHttpRequest.DONE)).length;

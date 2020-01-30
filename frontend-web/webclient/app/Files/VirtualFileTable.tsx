@@ -32,23 +32,23 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
 
         mergedProperties.page = loadedFakeFolder;
 
-        mergedProperties.onPageChanged = (page, itemsPerPage) => {
+        mergedProperties.onPageChanged = (page, itemsPerPage): void => {
             if (fakeFolderToUse !== undefined) {
                 const capturedFolder = fakeFolderToUse;
                 submitPageLoaderJob(async () => {
-                    setLoadedFakeFolder(await props.loadFolder!(capturedFolder, page, itemsPerPage));
+                    setLoadedFakeFolder(await props.loadFolder?.(capturedFolder, page, itemsPerPage));
                 });
             } else if (props.onPageChanged !== undefined) {
                 props.onPageChanged(page, itemsPerPage);
             }
         };
 
-        mergedProperties.onReloadRequested = () => {
+        mergedProperties.onReloadRequested = (): void => {
             if (fakeFolderToUse !== undefined && loadedFakeFolder !== undefined) {
                 const capturedFolder = fakeFolderToUse;
                 submitPageLoaderJob(async () => {
                     setLoadedFakeFolder(
-                        await props.loadFolder!(capturedFolder, loadedFakeFolder.pageNumber,
+                        await props.loadFolder?.(capturedFolder, loadedFakeFolder.pageNumber,
                             loadedFakeFolder.itemsPerPage)
                     );
                 });
@@ -62,7 +62,7 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
         if (fakeFolderToUse !== undefined && props.loadFolder !== undefined) {
             const capturedFolder = fakeFolderToUse;
             submitPageLoaderJob(async () => {
-                setLoadedFakeFolder(await props.loadFolder!(capturedFolder, 0, 25));
+                setLoadedFakeFolder(await props.loadFolder?.(capturedFolder, 0, 25));
             });
         } else {
             setLoadedFakeFolder(undefined);
@@ -98,7 +98,7 @@ export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
         Client.homeFolder + APP_FS_FOLDER
     ],
 
-    loadFolder: async (folder, page, itemsPerPage) => {
+    loadFolder: async (folder, page, itemsPerPage): Promise<Page<File>> => {
         if (folder === Client.homeFolder + FAVORITES_FOLDER) {
             return (await Client.get<Page<File>>(favoritesQuery(page, itemsPerPage))).response;
         } else if (folder === Client.homeFolder + SHARES_FOLDER) {

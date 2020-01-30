@@ -33,10 +33,8 @@ import {setLoading, setUploaderError, setUploaderVisible, setUploads} from "Uplo
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {
     archiveExtensions, getParentPath,
-    isArchiveExtension,
-    replaceHomeFolder, resolvePath,
-    sizeToString,
-    statFileQuery
+    isArchiveExtension, replaceHomeFolder,
+    resolvePath, sizeToString, statFileQuery
 } from "Utilities/FileUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
 import {FileIcon, overwriteDialog} from "UtilityComponents";
@@ -71,7 +69,7 @@ export const newUpload = (file: File, path: string): Upload => ({
     uploadSize: 1
 });
 
-const addProgressEvent = (upload: Upload, e: ProgressEvent) => {
+const addProgressEvent = (upload: Upload, e: ProgressEvent): void => {
     const now = timestampUnixMs();
     upload.uploadEvents = upload.uploadEvents.filter(evt => now - evt.timestamp < 10_000);
     upload.uploadEvents.push({timestamp: now, progressInBytes: e.loaded});
@@ -120,7 +118,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
             left: "50%",
             maxHeight: "80vh",
             padding: "2rem",
-            position: "fixed" as "fixed", // FIXME: Why is this necessary? Should work with enum instead.
+            position: "fixed" as const,
             right: "auto",
             top: "50%",
             transform: "translate(-50%,-50%)",
@@ -131,7 +129,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         }
     };
 
-    public render() {
+    public render(): JSX.Element {
         const {uploads} = this.props;
         return (
             <Modal
@@ -245,7 +243,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         if (filteredFiles.length === 0) return;
 
         this.props.setLoading(true);
-        type PromiseType = ({request: XMLHttpRequest, response: CloudFile} | {status: number, response: string});
+        type PromiseType = ({request: XMLHttpRequest; response: CloudFile} | {status: number; response: string});
         const promises: PromiseType[] = await Promise.all(filteredFiles.map(file =>
             Client
                 .get<CloudFile>(statFileQuery(`${this.props.path}/${file.file.name}`))
@@ -265,9 +263,9 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
             this.props.setUploads([filteredFiles[0]]);
         }
         this.props.setLoading(false);
-    }
+    };
 
-    private beforeUnload(e: {returnValue: string}) {
+    private beforeUnload(e: {returnValue: string}): {returnValue: string} {
         e.returnValue = "foo";
         const finished = finishedUploads(this.props.uploads);
         const total = this.props.uploads.length;
@@ -278,7 +276,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         return e;
     }
 
-    private startPending() {
+    private startPending(): void {
         const remainingAllowedUploads = this.MAX_CONCURRENT_UPLOADS - this.props.activeUploads.length;
         for (let i = 0; i < remainingAllowedUploads; i++) {
             const index = this.props.uploads.findIndex(it => it.isPending);
@@ -286,7 +284,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         }
     }
 
-    private onUploadFinished(upload: Upload, xhr: XMLHttpRequest) {
+    private onUploadFinished(upload: Upload, xhr: XMLHttpRequest): void {
         xhr.onloadend = () => {
             if (uploadsFinished(this.props.uploads))
                 window.removeEventListener("beforeunload", this.boundBeforeUnload);
@@ -298,7 +296,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         this.props.setUploads(this.props.uploads);
     }
 
-    private startUpload(index: number) {
+    private startUpload(index: number): void {
         const upload = this.props.uploads[index];
         if (this.props.activeUploads.length === this.MAX_CONCURRENT_UPLOADS) {
             upload.isPending = true;
@@ -310,7 +308,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
 
         window.addEventListener("beforeunload", this.boundBeforeUnload);
 
-        const setError = (err?: string) => {
+        const setError = (err?: string): void => {
             this.props.uploads[index].error = err;
             this.props.setUploads(this.props.uploads);
         };
@@ -341,24 +339,24 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         }
     }
 
-    private startAllUploads = (event: {preventDefault: () => void}) => {
+    private startAllUploads = (event: {preventDefault: () => void}): void => {
         event.preventDefault();
         this.props.uploads.forEach(it => {
             if (!it.uploadXHR) it.isPending = true;
         });
         this.startPending();
-    }
+    };
 
-    private removeUpload = (index: number) => {
+    private removeUpload = (index: number): void => {
         const files = this.props.uploads.slice();
         if (index < files.length) {
             const remainderFiles = removeEntry(files, index);
             this.props.setUploads(remainderFiles);
             this.startPending();
         }
-    }
+    };
 
-    private async abort(index: number) {
+    private async abort(index: number): Promise<void> {
         const upload = this.props.uploads[index];
         if (!!upload.uploadXHR && upload.uploadXHR.readyState !== XMLHttpRequest.DONE) {
             if (upload.resolution === UploadPolicy.OVERWRITE) {
@@ -371,30 +369,30 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         }
     }
 
-    private onExtractChange(index: number, value: boolean) {
+    private onExtractChange(index: number, value: boolean): void {
         this.props.uploads[index].extractArchive = value;
         this.props.setUploads(this.props.uploads);
     }
 
-    private updateSensitivity(index: number, sensitivity: Sensitivity) {
+    private updateSensitivity(index: number, sensitivity: Sensitivity): void {
         this.props.uploads[index].sensitivity = sensitivity;
         this.props.setUploads(this.props.uploads);
     }
 
-    private clearUpload(index: number) {
+    private clearUpload(index: number): void {
         this.props.setUploads(removeEntry(this.props.uploads, index));
     }
 
-    private clearFinishedUploads = () => {
+    private clearFinishedUploads = (): void => {
         this.props.setUploads(this.props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)));
     }
 
-    private setRewritePolicy(index: number, policy: UploadPolicy) {
+    private setRewritePolicy(index: number, policy: UploadPolicy): void {
         this.props.uploads[index].resolution = policy;
         this.props.setUploads(this.props.uploads);
     }
 
-    private closeModal = () => {
+    private closeModal = (): void => {
         this.props.setUploaderVisible(false);
         if (finishedUploads(this.props.uploads) !== this.props.uploads.length || this.props.uploads.length === 0) {
             return;
@@ -403,7 +401,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         if ([...this.state.finishedUploadPaths].map(it => addTrailingSlash(it)).includes(addTrailingSlash(path))) {
             this.props.parentRefresh();
         }
-    }
+    };
 }
 
 const DropZoneBox = styled(Box)`
@@ -428,17 +426,17 @@ const privacyOptions: Array<{text: string, value: Sensitivity}> = [
 ];
 
 const UploaderRow = (p: {
-    upload: Upload,
-    location: string,
-    setSensitivity: (key: Sensitivity) => void,
-    onExtractChange?: (value: boolean) => void,
-    onUpload?: (e: React.MouseEvent<any>) => void,
-    onDelete?: (e: React.MouseEvent<any>) => void,
-    onAbort?: (e: React.MouseEvent<any>) => void
-    onClear?: (e: React.MouseEvent<any>) => void
-    setRewritePolicy?: (policy: UploadPolicy) => void
-    onCheck?: (checked: boolean) => void
-}) => {
+    upload: Upload;
+    location: string;
+    setSensitivity: (key: Sensitivity) => void;
+    onExtractChange?: (value: boolean) => void;
+    onUpload?: (e: React.MouseEvent<any>) => void;
+    onDelete?: (e: React.MouseEvent<any>) => void;
+    onAbort?: (e: React.MouseEvent<any>) => void;
+    onClear?: (e: React.MouseEvent<any>) => void;
+    setRewritePolicy?: (policy: UploadPolicy) => void;
+    onCheck?: (checked: boolean) => void;
+}): JSX.Element => {
     const fileInfo = resolvePath(p.location) === resolvePath(getParentPath(p.upload.path)) ? null : (
         <Dropdown>
             <Icon cursor="pointer" ml="10px" name="info" color="white" color2="black" />
@@ -575,7 +573,7 @@ const UploaderRow = (p: {
     );
 };
 
-const ProgressBar = ({upload}: {upload: Upload}) => (
+const ProgressBar = ({upload}: {upload: Upload}): JSX.Element => (
     <Box width={0.45} ml="0.5em" mr="0.5em" pl="0.5" pr="0.5">
         <Progress
             active={upload.progressPercentage !== 100}
@@ -590,7 +588,7 @@ interface PolicySelect {
     setRewritePolicy: (policy: UploadPolicy) => void;
 }
 
-const PolicySelect = ({setRewritePolicy}: PolicySelect) => (
+const PolicySelect = ({setRewritePolicy}: PolicySelect): JSX.Element => (
     <Flex mt="-12px" width="200px" mr="0.5em">
         <Select
             width="200px"
@@ -607,8 +605,8 @@ interface ConflictFile {
     file?: CloudFile;
 }
 
-const ConflictFile = ({file}: ConflictFile) => !!file ?
-    <div>File already exists in folder, {sizeToString(file.size!)}</div> : null;
+const ConflictFile = ({file}: ConflictFile): JSX.Element | null => !file ? null :
+    <div>File already exists in folder, {sizeToString(file.size!)}</div>;
 
 const mapStateToProps = ({uploader}: ReduxObject): UploaderStateProps => ({
     activeUploads: uploader.uploads.filter(it => it.uploadXHR && it.uploadXHR.readyState !== XMLHttpRequest.DONE),

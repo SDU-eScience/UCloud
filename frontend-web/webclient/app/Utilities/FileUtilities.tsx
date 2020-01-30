@@ -20,7 +20,11 @@ export enum CopyOrMove {
     Copy
 }
 
-export async function copyOrMoveFilesNew(operation: CopyOrMove, files: File[], targetPathFolder: string) {
+export async function copyOrMoveFilesNew(
+    operation: CopyOrMove,
+    files: File[],
+    targetPathFolder: string
+): Promise<void> {
     const copyOrMoveQuery = operation === CopyOrMove.Copy ? copyFileQuery : moveFileQuery;
     let successes = 0;
     let failures = 0;
@@ -83,13 +87,17 @@ interface MoveCopySetup {
     client: HttpClient;
 }
 
-async function moveCopySetup({targetPath, path}: MoveCopySetup) {
+async function moveCopySetup({targetPath, path}: MoveCopySetup): Promise<{
+    exists: boolean;
+    newPathForFile: string;
+    allowOverwrite: boolean;
+}> {
     const newPathForFile = getNewPath(targetPath, path);
     const stat = await statFileOrNull(newPathForFile);
     return {exists: stat !== null, newPathForFile, allowOverwrite: stat ? stat.fileType !== "DIRECTORY" : true};
 }
 
-function onOnlySuccess({operation, fileCount}: {operation: string, fileCount: number}): void {
+function onOnlySuccess({operation, fileCount}: {operation: string; fileCount: number}): void {
     snackbarStore.addSnack({message: `${operation} ${fileCount} files`, type: SnackType.Success});
 }
 
@@ -113,7 +121,7 @@ export const checkIfFileExists = async (path: string, client: HttpClient): Promi
 
 export type AccessRight = "READ" | "WRITE";
 
-function hasAccess(accessRight: AccessRight, file: File) {
+function hasAccess(accessRight: AccessRight, file: File): boolean {
     const username = Client.activeUsername;
     if (file.ownerName === username) return true;
     if (file.acl === null) return true; // If ACL is null, we are still fetching the ACL
@@ -122,10 +130,14 @@ function hasAccess(accessRight: AccessRight, file: File) {
     return relevantEntries.some(entry => entry.rights.includes(accessRight));
 }
 
-export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]) =>
+export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]): boolean =>
     files.every(f => hasAccess(accessRight, f));
 
-export function mergeFilePages(basePage: Page<File>, additionalPage: Page<File>, attributesToCopy: FileResource[]) {
+export function mergeFilePages(
+    basePage: Page<File>,
+    additionalPage: Page<File>,
+    attributesToCopy: FileResource[]
+): Page<File> {
     const items = basePage.items.map(base => {
         const additionalFile = additionalPage.items.find(it => it.fileId === base.fileId);
         if (additionalFile !== undefined) {
@@ -187,7 +199,7 @@ export function mergeFile(base: File, additional: File, attributesToCopy: FileRe
  * Used for resolving paths, which contain either "." or "..", and returning the resolved path.
  * @param path The current input path, which can include relative paths
  */
-export function resolvePath(path: string) {
+export function resolvePath(path: string): string {
     const components = path.split("/");
     const result: string[] = [];
     components.forEach(it => {
@@ -204,7 +216,7 @@ export function resolvePath(path: string) {
     return "/" + result.join("/");
 }
 
-const toAttributesString = (attrs: FileResource[]) =>
+const toAttributesString = (attrs: FileResource[]): string =>
     attrs.length > 0 ? `&attributes=${encodeURIComponent(attrs.join(","))}` : "";
 
 export const filepathQuery = (
@@ -226,7 +238,7 @@ export const fileLookupQuery = (
 ): string =>
     `files/lookup?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${toAttributesString(attrs)}`;
 
-export const filePreviewQuery = (path: string) =>
+export const filePreviewQuery = (path: string): string =>
     `files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 
 export const advancedFileSearch = "/file-search/advanced";
@@ -253,7 +265,7 @@ export const MOCK_RENAME_TAG = "rename";
 export const MOCK_VIRTUAL = "virtual";
 export const MOCK_RELATIVE = "relative";
 
-export function mockFile(props: {path: string, type: FileType, fileId?: string, tag?: string}): File {
+export function mockFile(props: {path: string; type: FileType; fileId?: string; tag?: string}): File {
     const username = Client.activeUsername ? Client.activeUsername : "";
     return {
         fileType: props.type,
@@ -329,7 +341,7 @@ export const favoriteFile = async (file: File, client: HttpClient): Promise<File
     return file;
 };
 
-const favoriteFileQuery = (path: string) => `/files/favorite?path=${encodeURIComponent(path)}`;
+const favoriteFileQuery = (path: string): string => `/files/favorite?path=${encodeURIComponent(path)}`;
 
 interface ReclassifyFile {
     file: File;
@@ -369,7 +381,7 @@ interface ExtractArchive {
     onFinished: () => void;
 }
 
-export const extractArchive = async ({files, client, onFinished}: ExtractArchive) => {
+export const extractArchive = async ({files, client, onFinished}: ExtractArchive): Promise<void> => {
     for (const f of files) {
         try {
             await client.post(extractFilesQuery, {path: f.path});
@@ -381,7 +393,7 @@ export const extractArchive = async ({files, client, onFinished}: ExtractArchive
     onFinished();
 };
 
-export const clearTrash = ({client, callback}: {client: HttpClient, callback: () => void}) =>
+export const clearTrash = ({client, callback}: {client: HttpClient; callback: () => void}): void =>
     clearTrashDialog({
         onConfirm: async () => {
             await client.post("/files/trash/clear", {});
@@ -423,7 +435,7 @@ export function getFilenameFromPath(path: string): string {
     return fileName;
 }
 
-export function downloadFiles(files: Array<{path: string}>, client: HttpClient) {
+export function downloadFiles(files: Array<{path: string}>, client: HttpClient): void {
     files.map(f => f.path).forEach(p =>
         client.createOneTimeTokenWithPermission("files.download:read").then((token: string) => {
             const element = document.createElement("a");
@@ -446,7 +458,7 @@ interface UpdateSensitivity {
     onSensitivityChange?: () => void;
 }
 
-export async function updateSensitivity({files, client, onSensitivityChange}: UpdateSensitivity) {
+export async function updateSensitivity({files, client, onSensitivityChange}: UpdateSensitivity): Promise<void> {
     const input = await sensitivityDialog();
     if ("cancelled" in input) return;
     try {
@@ -466,7 +478,7 @@ export const fetchFileContent = async (path: string, client: HttpClient): Promis
     );
 };
 
-function isInt(value: number) {
+function isInt(value: number): boolean {
     if (isNaN(value)) {
         return false;
     }
@@ -485,7 +497,7 @@ export const sizeToString = (bytes: number | null): string => {
     }
 };
 
-export function sizeToHumanReadableWithUnit(bytes: number): {size: number, unit: string} {
+export function sizeToHumanReadableWithUnit(bytes: number): {size: number; unit: string} {
     if (bytes < 1000) {
         return {size: bytes, unit: "B"};
     } else if (bytes < 1000 ** 2) {
@@ -511,11 +523,11 @@ interface ShareFiles {
     client: HttpClient;
 }
 
-export const shareFiles = async ({files, client}: ShareFiles) => {
+export const shareFiles = async ({files, client}: ShareFiles): Promise<void> => {
     shareDialog(files.map(it => it.path), client);
 };
 
-const moveToTrashDialog = ({filePaths, onConfirm}: {onConfirm: () => void, filePaths: string[]}): void => {
+const moveToTrashDialog = ({filePaths, onConfirm}: {onConfirm: () => void; filePaths: string[]}): void => {
     const withEllipsis = getFilenameFromPath(filePaths[0]).length > 35;
     const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
         `Move file ${getFilenameFromPath(filePaths[0]).slice(0, 35)}${withEllipsis ? "..." : ""} to trash?`;
@@ -538,33 +550,6 @@ export function clearTrashDialog({onConfirm}: {onConfirm: () => void}): void {
     });
 }
 
-interface ResultToNotification {
-    failures: string[];
-    paths: string[];
-    homeFolder: string;
-}
-
-function resultToNotification({failures, paths, homeFolder}: ResultToNotification) {
-    const successMessage = successResponse(paths, homeFolder);
-    if (failures.length === 0) {
-        snackbarStore.addSnack({message: successMessage, type: SnackType.Success});
-    } else if (failures.length === paths.length) {
-        snackbarStore.addFailure("Failed moving all files, please try again later");
-    } else {
-        snackbarStore.addSnack({
-            message: `${successMessage}\n Failed to move files: ${failures.join(", ")}`,
-            type: SnackType.Information
-        });
-    }
-}
-
-function successResponse(paths: string[], homeFolder: string): string {
-    const withEllipsis = replaceHomeFolder(paths[0], homeFolder).length > 25;
-    return paths.length > 1 ?
-        `${paths.length} files moved to trash.` :
-        `${replaceHomeFolder(paths[0], homeFolder).slice(0, 25)}${withEllipsis ? "..." : ""} moved to trash`;
-}
-
 interface MoveToTrash {
     files: File[];
     client: HttpClient;
@@ -572,7 +557,7 @@ interface MoveToTrash {
     callback: () => void;
 }
 
-export const moveToTrash = ({files, client, setLoading, callback}: MoveToTrash) => {
+export const moveToTrash = ({files, client, setLoading, callback}: MoveToTrash): void => {
     const paths = files.map(f => f.path);
     moveToTrashDialog({
         filePaths: paths, onConfirm: async () => {

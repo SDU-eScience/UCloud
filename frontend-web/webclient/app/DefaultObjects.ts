@@ -216,7 +216,7 @@ export function initObject(): ReduxObject {
 }
 
 
-export const initFilePreview = () => ({
+export const initFilePreview = (): FilePreviewReduxState => ({
     file: undefined,
     error: undefined
 });

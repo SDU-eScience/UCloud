@@ -39,8 +39,8 @@ export function addStandardDialog({
     cancelText = "Cancel",
     confirmText = "Confirm",
     addToFront = false
-}: StandardDialog) {
-    const validate = () => {
+}: StandardDialog): void {
+    const validate = (): void => {
         if (validator()) onConfirm();
         dialogStore.success();
     };
@@ -85,8 +85,8 @@ export function sensitivityDialog(): Promise<{ cancelled: true } | { option: Sen
     }));
 }
 
-export function shareDialog(paths: string[], client: HttpClient) {
-    // FIXME: Less than dry, however, this needed to be wrapped; in a form. Can be make standard dialog do similar?
+export function shareDialog(paths: string[], client: HttpClient): void {
+    // FIXME: Less than dry, however, this needed to be wrapped in a form. Can be make standard dialog do similar?
     dialogStore.addDialog(<SharePrompt client={client} paths={paths} />, () => undefined);
 }
 
@@ -97,7 +97,7 @@ const SharePromptWrapper = styled(Box)`
     width: 620px;
 `;
 
-export function SharePrompt({paths, client}: { paths: string[], client: HttpClient }) {
+export function SharePrompt({paths, client}: { paths: string[]; client: HttpClient }): JSX.Element {
     const SERVICE = ServiceOrigin.SHARE_SERVICE;
     const readEditOptions = [
         {text: "Can view", value: "read"},
@@ -166,8 +166,8 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
                                     <div
                                         key={it}
                                         onClick={() => {
-                                            username.current!.value = it
-                                            setFetchArgs(searchPreviousSharedUsers("", SERVICE))
+                                            username.current!.value = it;
+                                            setFetchArgs(searchPreviousSharedUsers("", SERVICE));
                                         }}
                                     >
                                         {it}
@@ -242,7 +242,7 @@ export function SharePrompt({paths, client}: { paths: string[], client: HttpClie
         </SharePromptWrapper>
     );
 
-    function submit() {
+    function submit(): void {
         if (username.current == null || !username.current.value) return;
         const value = username.current.value;
         const rights: string[] = [];
@@ -363,11 +363,11 @@ interface FileIconProps {
     size?: string | number;
 }
 
-export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps) =>
+export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps): JSX.Element =>
     shared ? (
         <RelativeFlex>
             <FtIcon size={size} fileIcon={fileIcon} />
-            <Absolute bottom={"-6px"} right={"-2px"}>
+            <Absolute bottom="-6px" right="-2px">
                 <Dropdown>
                     <Icon size="15px" name="link" color2="white" />
                     <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
@@ -388,14 +388,14 @@ interface Arrow<T> {
     order: SortOrder;
 }
 
-export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>) {
+export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>): JSX.Element | null {
     if (sortBy !== activeSortBy) return null;
     if (order === SortOrder.ASCENDING)
         return (<Icon cursor="pointer" name="arrowDown" rotation={180} size=".7em" mr=".4em" />);
     return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em" />);
 }
 
-export function PP(props: {visible: boolean}) {
+export function PP(props: {visible: boolean}): JSX.Element | null {
     const [duration, setDuration] = React.useState(500);
 
     if (!props.visible) return null;
@@ -407,9 +407,9 @@ export function PP(props: {visible: boolean}) {
                 y="0px"
                 viewBox="0 0 128 128"
                 stroke="#000"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
             >
                 <path id="body">
                     <animate
@@ -526,8 +526,9 @@ interface MasterCheckbox {
     checked: boolean;
 }
 
-export function MasterCheckbox({onClick, checked}: MasterCheckbox) {
-    function onChange(e: React.ChangeEvent<HTMLInputElement>) {
+export function MasterCheckbox({onClick, checked}: MasterCheckbox): JSX.Element {
+
+    function onChange(e: React.ChangeEvent<HTMLInputElement>): void {
         e.stopPropagation();
         onClick(e.target.checked);
     }
