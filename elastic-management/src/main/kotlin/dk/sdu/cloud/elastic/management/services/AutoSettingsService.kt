@@ -39,45 +39,45 @@ class AutoSettingsService(
 
     private fun createLoggingTemplates() {
         //create template for development_default and http_logs
-        val developmentTemplateRequest = PutIndexTemplateRequest("development-template")
-        developmentTemplateRequest.patterns(listOf("development_default*"))
-
-        developmentTemplateRequest.settings(Settings.builder()
-            .put("index.number_of_shards", 1)
-            .put("index.number_of_replicas", 1)
-        )
+        val developmentTemplateRequest =
+            PutIndexTemplateRequest("development-template")
+                .patterns(listOf("development_default*"))
+                .settings(Settings.builder()
+                    .put("index.number_of_shards", 1)
+                    .put("index.number_of_replicas", 1)
+                )
 
         elastic.indices().putTemplate(developmentTemplateRequest, RequestOptions.DEFAULT)
 
-        val productionTemplateRequest = PutIndexTemplateRequest("production-template")
-        productionTemplateRequest.patterns(listOf("kubernetes-production*"))
-
-        productionTemplateRequest.settings(Settings.builder()
-            .put("index.number_of_shards", 3)
-            .put("index.number_of_replicas", 1)
-            .put("index.refresh_interval", "30s")
-        )
+        val productionTemplateRequest =
+            PutIndexTemplateRequest("production-template")
+                .patterns(listOf("kubernetes-production*"))
+                .settings(Settings.builder()
+                    .put("index.number_of_shards", 1)
+                    .put("index.number_of_replicas", 2)
+                    .put("index.refresh_interval", "30s")
+                )
 
         elastic.indices().putTemplate(productionTemplateRequest, RequestOptions.DEFAULT)
 
-        val httpTemplateRequest = PutIndexTemplateRequest("httplogs-template")
-        httpTemplateRequest.patterns(listOf("http_logs_*"))
-
-        httpTemplateRequest.settings(Settings.builder()
-            .put("index.number_of_shards", 2)
-            .put("index.number_of_replicas", 1)
-        )
+        val httpTemplateRequest =
+            PutIndexTemplateRequest("httplogs-template")
+                .patterns(listOf("http_logs_*"))
+                .settings(Settings.builder()
+                    .put("index.number_of_shards", 2)
+                    .put("index.number_of_replicas", 2)
+                )
 
         elastic.indices().putTemplate(httpTemplateRequest, RequestOptions.DEFAULT)
 
-        val filebeatTemplate = PutIndexTemplateRequest("filebeat-template")
-        filebeatTemplate.patterns(listOf("filebeat*"))
-
-        filebeatTemplate.settings(Settings.builder()
-            .put("index.number_of_shards", 3)
-            .put("index.number_of_replicas", 1)
-            .put("index.refresh_interval", "30s")
-        )
+        val filebeatTemplate =
+            PutIndexTemplateRequest("filebeat-template")
+                .patterns(listOf("filebeat*"))
+                .settings(Settings.builder()
+                    .put("index.number_of_shards", 3)
+                    .put("index.number_of_replicas", 1)
+                    .put("index.refresh_interval", "30s")
+                )
 
         elastic.indices().putTemplate(filebeatTemplate, RequestOptions.DEFAULT)
     }
