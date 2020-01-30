@@ -28,7 +28,7 @@ const GlobalStyle = createGlobalStyle`
 
 Client.initializeStore(store);
 
-function App({children}: React.PropsWithChildren<{}>) {
+function App({children}: React.PropsWithChildren<{}>): JSX.Element {
     const [isLightTheme, setTheme] = React.useState(isLightThemeStored());
     const setAndStoreTheme = (isLight: boolean): void => (setSiteTheme(isLight), setTheme(isLight));
 

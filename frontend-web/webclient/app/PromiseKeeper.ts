@@ -39,11 +39,11 @@ export default class PromiseKeeper {
         this.canceledKeeper = true;
         this.promises.forEach(it => it.cancel());
         this.promises = [];
-    }
+    };
 
     private cleanup = (): void => {
         this.promises = this.promises.filter(it => !it.isComplete);
-    }
+    };
 }
 
 interface CancelablePromise<T> {
@@ -53,7 +53,7 @@ interface CancelablePromise<T> {
     hasCanceled_: boolean;
 }
 
-export function usePromiseKeeper() {
+export function usePromiseKeeper(): PromiseKeeper {
     const [promises] = useState(new PromiseKeeper());
     useEffect(() => {
         return () => promises.cancelPromises();

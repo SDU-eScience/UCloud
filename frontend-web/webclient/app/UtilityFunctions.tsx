@@ -71,7 +71,7 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
     }
 }
 
-export const extensionTypeFromPath = (path: string) => extensionType(extensionFromPath(path));
+export const extensionTypeFromPath = (path: string): ExtensionType => extensionType(extensionFromPath(path));
 export const extensionFromPath = (path: string): string => {
     const splitString = path.split(".");
     return splitString[splitString.length - 1];
@@ -279,11 +279,11 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
  *
  * @param params: { status, min, max } (both inclusive)
  */
-export const inRange = ({status, min, max}: {status: number, min: number, max: number}): boolean =>
+export const inRange = ({status, min, max}: {status: number; min: number; max: number}): boolean =>
     status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange({status, min: 200, max: 299});
-export const removeTrailingSlash = (path: string) => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
-export const addTrailingSlash = (path: string) => {
+export const removeTrailingSlash = (path: string): string => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
+export const addTrailingSlash = (path: string): string => {
     if (!path) return path;
     else return path.endsWith("/") ? path : `${path}/`;
 };
@@ -305,7 +305,7 @@ export const downloadAllowed = (files: File[]): boolean => files.every(f => f.se
 export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
 
 export function defaultErrorHandler(
-    error: {request: XMLHttpRequest, response: any}
+    error: {request: XMLHttpRequest; response: any}
 ): number {
     const request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly

@@ -113,16 +113,16 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         };
     }
 
-    public componentDidMount() {
+    public componentDidMount(): void {
         this.props.updatePageTitle();
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
         this.state.promises.makeCancelable(this.retrieveApplication(name, version));
     }
 
-    public componentWillUnmount = () => this.state.promises.cancelPromises();
+    public componentWillUnmount = (): void => this.state.promises.cancelPromises();
 
-    public componentDidUpdate(prevProps: Readonly<RunAppProps>, prevState: Readonly<RunAppState>) {
+    public componentDidUpdate(prevProps: Readonly<RunAppProps>, prevState: Readonly<RunAppState>): void {
         if (prevProps.match.params.appName !== this.props.match.params.appName ||
             prevProps.match.params.appVersion !== this.props.match.params.appVersion) {
             this.state.promises.makeCancelable(
@@ -135,11 +135,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
     }
 
-    public toggleCow = () => {
+    public toggleCow = (): void => {
         this.setState(state => ({useCow: !state.useCow}));
-    }
+    };
 
-    public render() {
+    public render(): JSX.Element {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
         if (!application) return <MainContainer main={<LoadingIcon size={18} />} />;
 
@@ -151,7 +151,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const optional = parameters.filter(parameter =>
             parameter.optional && parameter.visible !== true && parameterValues.get(parameter.name)?.current == null);
 
-        const onParameterChange = (parameter: ApplicationParameter, isVisible: boolean) => {
+        const onParameterChange = (parameter: ApplicationParameter, isVisible: boolean): void => {
             parameter.visible = isVisible;
             if (!isVisible) {
                 parameterValues.set(parameter.name, React.createRef<HTMLSelectElement | HTMLInputElement>());
@@ -159,10 +159,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             this.setState(() => ({application: this.state.application}));
         };
 
-        const mapParamToComponent = (parameter: ApplicationParameter) => {
+        const mapParamToComponent = (parameter: ApplicationParameter): JSX.Element => {
             const ref = parameterValues.get(parameter.name)!;
 
-            function handleParamChange() {
+            function handleParamChange(): void {
                 onParameterChange(parameter, false);
             }
 
@@ -339,30 +339,30 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     at the end of the job.
                                                 </>
                                             ) : (
-                                                <>
-                                                    If you need to use your {" "}
-                                                    <Link
-                                                        to={fileTablePage(Client.homeFolder)}
-                                                        target="_blank"
-                                                    >
-                                                        files
+                                                    <>
+                                                        If you need to use your {" "}
+                                                        <Link
+                                                            to={fileTablePage(Client.homeFolder)}
+                                                            target="_blank"
+                                                        >
+                                                            files
                                                     </Link>
-                                                    {" "}
-                                                    in this job then click {" "}
-                                                    <BaseLink
-                                                        href="#"
-                                                        onClick={e => {
-                                                            e.preventDefault();
-                                                            this.addFolder();
-                                                        }}
-                                                    >
-                                                        "Add folder"
+                                                        {" "}
+                                                        in this job then click {" "}
+                                                        <BaseLink
+                                                            href="#"
+                                                            onClick={e => {
+                                                                e.preventDefault();
+                                                                this.addFolder();
+                                                            }}
+                                                        >
+                                                            "Add folder"
                                                     </BaseLink>
-                                                    {" "}
-                                                    to select the relevant
-                                                    files.
+                                                        {" "}
+                                                        to select the relevant
+                                                        files.
                                                 </>
-                                            )}
+                                                )}
                                         </Box>
 
                                         {this.state.useCow || this.state.mountedFolders.every(it => it.readOnly) ? "" :
@@ -484,7 +484,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         );
     }
 
-    private async fetchPreviousRuns() {
+    private async fetchPreviousRuns(): Promise<void> {
         if (this.state.application === undefined) return;
         try {
             const previousRuns = await callAPI<Page<CloudFile>>(listDirectory({
@@ -495,13 +495,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 order: SortOrder.DESCENDING,
                 sortBy: SortBy.CREATED_AT
             }));
-            this.setState(s => ({previousRuns}));
+            this.setState(() => ({previousRuns}));
         } catch {
             // Do nothing
         }
     }
 
-    private onJobSchedulingParamsChange = (field: string | number, value: number, timeField: string) => {
+    private onJobSchedulingParamsChange = (field: string | number, value: number, timeField: string): void => {
         const {schedulingOptions} = this.state;
         if (timeField) {
             schedulingOptions[field][timeField] = !isNaN(value) ? value : null;
@@ -509,9 +509,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             schedulingOptions[field] = value;
         }
         this.setState(() => ({schedulingOptions}));
-    }
+    };
 
-    private onSubmit = async (event: React.FormEvent) => {
+    private onSubmit = async (): Promise<void> => {
         if (!this.state.application) return;
         if (this.state.jobSubmitted) return;
         const {invocation} = this.state.application;
@@ -561,7 +561,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             }
         }
 
-        const peers = [] as Array<{ name: string, jobId: string }>;
+        const peers = [] as Array<{name: string; jobId: string}>;
         {
             // Validate additional mounts
             for (const peer of this.state.additionalPeers) {
@@ -613,7 +613,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             peers,
             reservation,
             type: "start",
-            name: !!jobName ? jobName : null,
+            name: jobName ?? null,
             mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES"
         };
 
@@ -628,9 +628,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         } finally {
             this.props.setLoading(false);
         }
-    }
+    };
 
-    private async toggleFavorite() {
+    private async toggleFavorite(): Promise<void> {
         if (!this.state.application) return;
         const {name, version} = this.state.application.metadata;
         this.setState(() => ({favoriteLoading: true}));
@@ -681,12 +681,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
     }
 
-    private importParameters(file: File) {
+    private importParameters(file: File): void {
         const thisApp = this.state.application;
         if (!thisApp) return;
 
         const fileReader = new FileReader();
-        fileReader.onload = async () => {
+        fileReader.onload = async (): Promise<void> => {
             const rawInputFile = fileReader.result as string;
             try {
                 const {
@@ -800,7 +800,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.readAsText(file);
     }
 
-    private onImportFileSelected(file: { path: string }) {
+    private onImportFileSelected(file: {path: string}): void {
         if (!file.path.endsWith(".json")) {
             addStandardDialog({
                 title: "Continue?",
@@ -813,7 +813,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.fetchAndImportParameters(file);
     }
 
-    private fetchAndImportParameters = async (file: { path: string }) => {
+    private fetchAndImportParameters = async (file: {path: string}): Promise<void> => {
         const fileStat = await Client.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed not allowed.");
@@ -821,9 +821,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
         const response = await fetchFileContent(file.path, Client);
         if (response.ok) this.importParameters(new File([await response.blob()], "params"));
-    }
+    };
 
-    private addFolder() {
+    private addFolder(): void {
         this.setState(s => ({
             mountedFolders: s.mountedFolders.concat([
                 {
@@ -834,7 +834,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }));
     }
 
-    private connectToJob() {
+    private connectToJob(): void {
         this.setState(s => ({
             additionalPeers: s.additionalPeers.concat([{
                 jobIdRef: React.createRef(),
@@ -974,7 +974,7 @@ const mapDispatchToProps = (dispatch: Dispatch): RunOperations => ({
 
 export default connect(null, mapDispatchToProps)(Run);
 
-export function importParameterDialog(importParameters: (file: File) => void, showFileSelector: () => void) {
+export function importParameterDialog(importParameters: (file: File) => void, showFileSelector: () => void): void {
     dialogStore.addDialog((
         <div>
             <div>
