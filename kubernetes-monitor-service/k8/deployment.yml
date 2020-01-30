@@ -2,21 +2,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kubernetes-monitor
+  name: kubernetes-monitor-service
   labels:
-    app: kubernetes-monitor
+    app: kubernetes-monitor-service
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: kubernetes-monitor
+      app: kubernetes-monitor-service
   template:
     metadata:
       labels:
-        app: kubernetes-monitor
+        app: kubernetes-monitor-service
     spec:
+      serviceAccountName: kubernetes-monitor
       containers:
-      - name: kubernetes-monitor
+      - name: kubernetes-monitor-service
         image: registry.cloud.sdu.dk/sdu-cloud/kubernetes-monitor-service:0.1.1
         command:
         - /opt/service/bin/service
@@ -26,13 +27,17 @@ spec:
         - /etc/token-validation
         - --config-dir
         - /etc/psql
+        - --config-dir
+        - /etc/alerting
         volumeMounts:
         - mountPath: /etc/refresh-token
           name: refresh-token
         - mountPath: /etc/token-validation
           name: token-validation
         - mountPath: /etc/psql
-          name: kubernetes-monitor-psql
+          name: kubernetes-monitor-service-psql
+        - mountPath: /etc/alerting
+          name: alerting
         env:
         - name: POD_IP
           valueFrom:
@@ -43,14 +48,18 @@ spec:
       - name: refresh-token
         secret:
           optional: false
-          secretName: kubernetes-monitor-refresh-token
+          secretName: kubernetes-monitor-service-refresh-token
       - name: token-validation
         configMap:
           name: token-validation
-      - name: kubernetes-monitor-psql
+      - name: kubernetes-monitor-service-psql
         secret:
           optional: false
-          secretName: kubernetes-monitor-psql
+          secretName: kubernetes-monitor-service-psql
+      - name: alerting
+        secret:
+          optional: false
+          secretName: alerting-tokens
 
       imagePullSecrets:
         - name: esci-docker

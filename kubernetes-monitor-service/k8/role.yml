@@ -1,25 +1,24 @@
 ---
-kind: Role
+kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: default
   name: kubernetes-monitor-role
 rules:
   - apiGroups: [""] # "" indicates the core API group
-    resources: ["pods"]
+    resources: ["pods", "pods/log"]
     verbs: ["get", "watch", "list", "delete", "patch", "create", "update"]
 
 ---
-kind: RoleBinding
+kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: kubernetes-monitor-rb
-  namespace: default
 subjects:
   - kind: ServiceAccount
     name: kubernetes-monitor
+    namespace: default
     apiGroup: ""
 roleRef:
-  kind: Role
+  kind: ClusterRole
   name: kubernetes-monitor-role
   apiGroup: ""
