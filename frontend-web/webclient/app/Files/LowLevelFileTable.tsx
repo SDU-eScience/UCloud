@@ -966,7 +966,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     );
 };
 
-const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): React.ReactElement => {
+const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): JSX.Element => {
     interface IconDef {
         color: string;
         text: string;
@@ -1024,13 +1024,13 @@ interface FileOperations extends SpaceProps {
     inDropdown?: boolean;
 }
 
-const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
+const FileOperations = ({files, fileOperations, ...props}: FileOperations): JSX.Element | null => {
     if (fileOperations.length === 0) return null;
 
     const buttons: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode === true);
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
-    const Operation = ({fileOp}: {fileOp: FileOperation}) => {
+    const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
         if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
@@ -1082,8 +1082,8 @@ interface QuickLaunchApps extends SpaceProps {
     history: History<any>;
 }
 
-const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
-    if (typeof applications === "undefined") return null;
+const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.Element | null => {
+    if (applications === undefined) return null;
     if (applications.length < 1) return null;
 
     const Operation = ({quickLaunchApp}: {quickLaunchApp: QuickLaunchApp}): React.ReactElement => {

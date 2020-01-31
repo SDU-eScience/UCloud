@@ -1,7 +1,7 @@
 import * as React from "react";
 import {PRODUCT_NAME, VERSION_TEXT} from "../../site.config.json";
 
-export function BG1() {
+export function BG1(): JSX.Element {
     return (
         <svg
             viewBox="0 0 2296 1749"
