@@ -224,20 +224,27 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         override var title: String,
         override val optional: Boolean = false,
         override val description: String = "",
-        val licenseName: String
+        val tagged: List<String>
     ) : ApplicationParameter<LicenseServerApplicationParameter>(TYPE_LICENSE_SERVER) {
         override val defaultValue: LicenseServerApplicationParameter? = null
 
         override fun internalMap(inputParameter: Any): LicenseServerApplicationParameter {
             @Suppress("UNCHECKED_CAST")
-            val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad peer value")
+            val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad license server")
             val licenseServerId =
                 asMap["licenseServerId"] as? String? ?: throw IllegalArgumentException("Missing 'licenseServerId'")
-            return LicenseServerApplicationParameter(licenseServerId)
+            val licenseServerAddress = asMap["licenseServerAddress"] as? String? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerAddress'")
+            val licenseServerPort = asMap["licenseServerPort"] as? String? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerPort'")
+            val licenseServerKey = asMap["licenseServerKey"] as? String?  // Allowed to be null
+            return LicenseServerApplicationParameter(licenseServerId, licenseServerAddress, licenseServerPort, licenseServerKey)
         }
 
         override fun toInvocationArgument(entry: LicenseServerApplicationParameter): String {
-            return licenseName
+            return if (entry.licenseServerKey != null) {
+                entry.licenseServerAddress + ":" + entry.licenseServerPort + "/" + entry.licenseServerKey
+            } else {
+                entry.licenseServerAddress + ":" + entry.licenseServerPort
+            }
         }
     }
 }
@@ -300,7 +307,10 @@ data class SharedFileSystemApplicationParameter(
 }
 
 data class LicenseServerApplicationParameter(
-    val licenseServerId: String
+    val licenseServerId: String,
+    val licenseServerAddress: String,
+    val licenseServerPort: String,
+    val licenseServerKey: String?
 ) : ParsedApplicationParameter() {
     override val type = TYPE_LICENSE_SERVER
 }

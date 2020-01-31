@@ -17,6 +17,10 @@ import dk.sdu.cloud.app.store.api.FileTransferDescription
 import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
+import dk.sdu.cloud.app.license.api.LicenseServerRequest
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StatRequest
@@ -28,6 +32,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.net.URI
 import java.util.*
@@ -67,7 +72,7 @@ class JobVerificationService<Session>(
             if (unverifiedJob.request.reservation == null) MachineReservation.BURST
             else (machines.find { it.name == unverifiedJob.request.reservation }
                 ?: throw JobException.VerificationError("Bad machine reservation"))
-        val verifiedParameters = verifyParameters(application, unverifiedJob)
+        val verifiedParameters = verifyParameters(application, unverifiedJob, userClient)
         val workDir = URI("/$jobId")
         val files = collectFiles(application, verifiedParameters, workDir, userClient).map {
             it.copy(
@@ -194,11 +199,43 @@ class JobVerificationService<Session>(
         return result.copy(invocation = result.invocation.copy(tool = ToolReference(toolName, toolVersion, loadedTool)))
     }
 
-    private fun verifyParameters(app: Application, job: UnverifiedJob): VerifiedJobInput {
-        val userParameters = job.request.parameters
+    private suspend fun verifyParameters(
+        app: Application,
+        job: UnverifiedJob,
+        authenticatedClient: AuthenticatedClient
+    ): VerifiedJobInput {
+        val userParameters = job.request.parameters.toMutableMap()
         return VerifiedJobInput(
             app.invocation.parameters
                 .asSequence()
+                .map { appParameter ->
+                    if (appParameter is ApplicationParameter.LicenseServer) {
+                        // Change userParameters[appParameter.name] (IF EXISTS)
+                        val userInput = userParameters[appParameter.name]
+                        if (userInput != null && userInput is Map<*, *>) {
+                            @Suppress("UNCHECKED_CAST")
+                            userInput as Map<String, Any?>
+
+                            val licenseServer = userInput["license_server"]
+                            if (licenseServer != null) {
+                                // Transform license server
+                                val lookupLicenseServer = runBlocking {
+                                    AppLicenseDescriptions.get.call(
+                                        LicenseServerRequest(licenseServer.toString()),
+                                        authenticatedClient
+                                    )
+                                }.orThrow()
+
+                                userParameters[appParameter.name] = mapOf(
+                                    "address" to lookupLicenseServer.address,
+                                    "port" to lookupLicenseServer.port,
+                                    "license" to lookupLicenseServer.license
+                                )
+                            }
+                        }
+                    }
+                    appParameter
+                }
                 .map { appParameter ->
                     try {
                         appParameter to appParameter.map(userParameters[appParameter.name])
