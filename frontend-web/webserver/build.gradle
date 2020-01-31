@@ -9,6 +9,6 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 dependencies {
     compile group: 'io.ktor', name: 'ktor-freemarker', version: "$ktor_version"
 
-    compile 'dk.sdu.cloud:service-common:1.10.5'
-    testCompile 'dk.sdu.cloud:service-common-test:1.10.5'
+    compile 'dk.sdu.cloud:service-common:1.12.0'
+    testCompile 'dk.sdu.cloud:service-common-test:1.12.0'
 }
