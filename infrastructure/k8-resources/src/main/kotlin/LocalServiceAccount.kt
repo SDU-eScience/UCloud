@@ -4,6 +4,9 @@ import io.fabric8.kubernetes.api.model.ObjectMeta
 import io.fabric8.kubernetes.api.model.ServiceAccount
 import io.fabric8.kubernetes.api.model.rbac.*
 
+/**
+ * A resource for creating a service account with a bound role (local to namespace)
+ */
 class LocalServiceAccountResource(
     val name: String,
     val version: String

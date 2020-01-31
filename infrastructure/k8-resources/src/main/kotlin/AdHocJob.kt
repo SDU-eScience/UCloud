@@ -4,11 +4,19 @@ import io.fabric8.kubernetes.api.model.Container
 import io.fabric8.kubernetes.api.model.ObjectMeta
 import io.fabric8.kubernetes.api.model.PodSpec
 import io.fabric8.kubernetes.api.model.PodTemplateSpec
-import io.fabric8.kubernetes.api.model.apps.Deployment
 import io.fabric8.kubernetes.api.model.batch.Job
 import io.fabric8.kubernetes.api.model.batch.JobSpec
-import io.fabric8.kubernetes.client.KubernetesClient
 
+/**
+ * An ad hob job which can be run on demand.
+ *
+ * This type of resource is useful for running small jobs on demand. Additional arguments can be passed via the CLI.
+ *
+ * Common example of ad hoc jobs:
+ *
+ * - Run a scan-type job now
+ * - Gather one-time statistics
+ */
 open class AdHocJob(
     deployment: DeploymentResource,
     private val additionalArgs: DeploymentContext.() -> List<String>,
@@ -55,6 +63,7 @@ open class AdHocJob(
     }
 
     override fun DeploymentContext.create() {
+        delete()
         val command = job.spec.template.spec.containers.first().command.toMutableList()
         job.spec.template.spec.containers.first().command = command
         command.addAll(additionalArgs())

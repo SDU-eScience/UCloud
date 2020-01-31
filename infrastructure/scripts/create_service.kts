@@ -9,6 +9,7 @@ object Versions {
     val GradleBootstrap = "v0.2.24"
     val AuthAPI = "1.27.0"
     val ServiceCommon = "1.12.0"
+    val K8Resources = "0.1.0"
 }
 
 if (args.size != 1) {
@@ -76,6 +77,7 @@ run {
                     initWithDefaultFeatures(${titleServiceName}ServiceDescription, args)
                     install(HibernateFeature)
                     install(RefreshingJWTCloudFeature)
+                    install(HealthCheckFeature)
                 }
 
                 if (micro.runScriptHandler()) return
@@ -304,170 +306,24 @@ run {
 }
 
 run {
-    println("Generating k8s resources")
-    val dir = File(serviceDirectory, "k8")
-    dir.mkdir()
+    println("Generating k8.kts")
+    File(serviceDirectory, "k8.kts").writeText(
+        """
+            //DEPS dk.sdu.cloud:k8-resources:${Versions.K8Resources}
+            package dk.sdu.cloud.k8
 
-    run {
-        println("Generating deployment.yml")
-        File(dir, "deployment.yml").writeText(
-            //language=yml
-            """
-                ---
-                apiVersion: apps/v1
-                kind: Deployment
-                metadata:
-                  name: $serviceName
-                  labels:
-                    app: $serviceName
-                spec:
-                  replicas: 1
-                  selector:
-                    matchLabels:
-                      app: $serviceName
-                  template:
-                    metadata:
-                      labels:
-                        app: $serviceName
-                    spec:
-                      containers:
-                      - name: $serviceName
-                        image: registry.cloud.sdu.dk/sdu-cloud/$serviceName-service:0.1.0
-                        command:
-                        - /opt/service/bin/service
-                        - --config-dir
-                        - /etc/refresh-token
-                        - --config-dir
-                        - /etc/token-validation
-                        - --config-dir
-                        - /etc/psql
-                        volumeMounts:
-                        - mountPath: /etc/refresh-token
-                          name: refresh-token
-                        - mountPath: /etc/token-validation
-                          name: token-validation
-                        - mountPath: /etc/psql
-                          name: $serviceName-psql
-                        env:
-                        - name: POD_IP
-                          valueFrom:
-                            fieldRef:
-                              fieldPath: status.podIP
+            bundle {
+                name = "$serviceName"
+                version = "0.1.0"
 
-                      volumes:
-                      - name: refresh-token
-                        secret:
-                          optional: false
-                          secretName: $serviceName-refresh-token
-                      - name: token-validation
-                        configMap:
-                          name: token-validation
-                      - name: $serviceName-psql
-                        secret:
-                          optional: false
-                          secretName: $serviceName-psql
+                withAmbassador {}
 
-                      imagePullSecrets:
-                        - name: esci-docker
+                val deployment = withDeployment {
+                    deployment.spec.replicas = 2
+                }
 
-            """.trimIndent()
-        )
-    }
-
-    run {
-        println("Generating service.yml")
-        File(dir, "service.yml").writeText(
-            //language=yaml
-            """
-                ---
-                apiVersion: v1
-                kind: Service
-                metadata:
-                  name: $serviceName
-                  annotations:
-                    getambassador.io/config: |
-                      ---
-                      apiVersion: ambassador/v0
-                      kind: Mapping
-                      name: $serviceName
-                      prefix: ^/api/${serviceNameWords.joinToString("/")}(/.*)?${'$'}
-                      prefix_regex: true
-                      service: $serviceName:8080
-                      rewrite: ""
-
-                spec:
-                  clusterIP: None
-                  type: ClusterIP
-                  ports:
-                  - name: web
-                    port: 8080
-                    protocol: TCP
-                    targetPort: 8080
-                  selector:
-                    app: $serviceName
-
-            """.trimIndent()
-        )
-    }
-
-    run {
-        println("Generating job-migrate-db.yml")
-        File(dir, "job-migrate-db.yml").writeText(
-            //language=yaml
-            """
-                ---
-                apiVersion: batch/v1
-                kind: Job
-
-                metadata:
-                  name: $serviceName-migration
-
-                spec:
-                  template:
-                    metadata:
-                      name: $serviceName-migration
-
-                    spec:
-                      containers:
-                        - name: $serviceName-service
-                          image: registry.cloud.sdu.dk/sdu-cloud/$serviceName-service:0.1.0
-                          args:
-                          - /opt/service/bin/service
-                          - --config-dir
-                          - /etc/refresh-token
-                          - --config-dir
-                          - /etc/token-validation
-                          - --config-dir
-                          - /etc/psql
-                          - --run-script
-                          - migrate-db
-                          volumeMounts:
-                          - mountPath: /etc/refresh-token
-                            name: refresh-token
-                          - mountPath: /etc/token-validation
-                            name: token-validation
-                          - mountPath: /etc/psql
-                            name: $serviceName-psql
-
-                      volumes:
-                      - name: refresh-token
-                        secret:
-                          optional: false
-                          secretName: $serviceName-refresh-token
-                      - name: token-validation
-                        configMap:
-                          name: token-validation
-                          defaultMode: 420
-                      - name: $serviceName-psql
-                        secret:
-                          optional: false
-                          secretName: $serviceName-psql
-
-                      restartPolicy: Never
-                      imagePullSecrets:
-                      - name: esci-docker
-
-            """.trimIndent()
-        )
-    }
+                withPostgresMigration(deployment)
+            }
+        """.trimIndent()
+    )
 }

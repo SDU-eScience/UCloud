@@ -1,3 +1,5 @@
+import java.net.URI
+
 plugins {
     kotlin("jvm") version "1.3.61"
     `maven-publish`
@@ -34,6 +36,24 @@ task<JavaExec>("runApp") {
 }
 
 publishing {
+    val username = (System.getenv("ESCIENCE_MVN_USER") ?: properties["eScienceCloudUser"]).toString()
+    val password = (System.getenv("ESCIENCE_MVN_PASSWORD") ?: properties["eScienceCloudPassword"]).toString()
+
+    repositories {
+        maven {
+            var resolvedUrl = "https://archiva.dev.cloud.sdu.dk/repository/"
+            resolvedUrl +=
+                if (project.version.toString().endsWith("-SNAPSHOT")) "snapshots"
+                else "internal"
+
+            url = URI(resolvedUrl)
+            credentials {
+                this.username = username
+                this.password =password
+            }
+        }
+    }
+
     publications {
         create<MavenPublication>("lib") {
             from(components["java"])

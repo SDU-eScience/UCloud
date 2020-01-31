@@ -3,6 +3,9 @@ package dk.sdu.cloud.k8
 import io.fabric8.kubernetes.api.model.ObjectMeta
 import io.fabric8.kubernetes.api.model.extensions.*
 
+/**
+ * A resource for Kubernetes ingresses. For most ingress configuration see [AmbassadorService].
+ */
 class IngressResource(val name: String, val version: String) : KubernetesResource {
     val resource = Ingress().apply {
         metadata = ObjectMeta().apply {

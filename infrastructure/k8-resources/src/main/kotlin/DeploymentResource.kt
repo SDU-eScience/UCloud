@@ -5,6 +5,11 @@ import io.fabric8.kubernetes.api.model.apps.Deployment
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpec
 import io.fabric8.kubernetes.client.KubernetesClient
 
+/**
+ * A resource for creating a deployment
+ *
+ * The deployment by default uses the defaults of service-common.
+ */
 class DeploymentResource(
     val name: String,
     val version: String,

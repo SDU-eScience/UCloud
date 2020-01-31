@@ -50,10 +50,15 @@ fun main(args: Array<String>) {
 
     val allBundles = ArrayList<File>()
     File(directory).list()
-        ?.filter { it.endsWith("-service") || it == "frontend-web" }
+        ?.filter { it.endsWith("-service") || it == "frontend-web" || it == "k8.kts" }
         ?.forEach { folder ->
-            val k8 = File(File(directory, folder), "k8.kts")
-            allBundles.add(k8)
+            val thisFile = File(directory, folder)
+            if (folder == "k8.kts" && thisFile.isFile) {
+                allBundles.add(thisFile)
+            } else {
+                val k8 = File(thisFile, "k8.kts")
+                allBundles.add(k8)
+            }
         }
 
     additionalFiles.forEach { allBundles.add(File(it)) }
@@ -85,7 +90,7 @@ fun main(args: Array<String>) {
     val launcherCommand = LauncherCommand.values().find { it.cmd == command }
     require(launcherCommand != null) { "No such command '$command'" }
 
-    System.err.println("Dynamic scripts are being compiled...")
+    System.err.println("k8.kts files are being compiled now...")
     engine.eval(outputScript.toString())
     runLauncher(launcherCommand, remainingArgs, skipUpToDateCheck)
 }

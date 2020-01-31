@@ -6,6 +6,9 @@ import io.fabric8.kubernetes.api.model.PodSpec
 import io.fabric8.kubernetes.api.model.PodTemplateSpec
 import io.fabric8.kubernetes.api.model.batch.*
 
+/**
+ * A resource for creating a cron job
+ */
 class CronJobResource(
     deployment: DeploymentResource,
     schedule: String,

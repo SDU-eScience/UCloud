@@ -4,6 +4,9 @@ import io.fabric8.kubernetes.api.model.ObjectMeta
 import io.fabric8.kubernetes.api.model.ServiceAccount
 import io.fabric8.kubernetes.api.model.rbac.*
 
+/**
+ * A resource for creating a service account with a bound cluster role
+ */
 class ClusterServiceAccountResource(
     val name: String,
     val version: String

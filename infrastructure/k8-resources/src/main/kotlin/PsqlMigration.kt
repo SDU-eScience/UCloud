@@ -1,5 +1,8 @@
 package dk.sdu.cloud.k8
 
+/**
+ * A migration style job for service-common's database migration (`--run-script migrate-db`)
+ */
 class PsqlMigration(
     deployment: DeploymentResource,
     name: String = deployment.name,

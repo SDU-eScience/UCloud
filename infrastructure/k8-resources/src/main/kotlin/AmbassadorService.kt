@@ -6,6 +6,9 @@ import java.util.concurrent.atomic.AtomicInteger
 
 data class AmbassadorMapping(val yamlDocument: String)
 
+/**
+ * A resource for creating Ambassador services
+ */
 class AmbassadorService(
     var name: String,
     var version: String,
@@ -79,12 +82,12 @@ class AmbassadorService(
 }
 
 fun MutableBundle.withAmbassador(
-    pathPrefix: String? = "/api/${name}",
+    pathPrefix: String? = "/api/${name.replace('-', '/')}",
     init: AmbassadorService.() -> Unit = {}
 ): AmbassadorService {
     val resource = AmbassadorService(name, version).apply {
         if (pathPrefix != null) {
-            addSimpleMapping(pathPrefix)
+            addSimpleMapping(pathPrefix.removeSuffix("/"))
         }
 
         init()

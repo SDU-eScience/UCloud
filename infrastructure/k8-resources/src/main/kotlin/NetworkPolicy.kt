@@ -7,6 +7,9 @@ import io.fabric8.kubernetes.api.model.networking.NetworkPolicyIngressRule
 import io.fabric8.kubernetes.api.model.networking.NetworkPolicyPeer
 import io.fabric8.kubernetes.client.KubernetesClient
 
+/**
+ * A resource for creating network policies
+ */
 class NetworkPolicyResource(val name: String, val version: String) : KubernetesResource {
     val policy = NetworkPolicy().apply {
         metadata = ObjectMeta().apply {
