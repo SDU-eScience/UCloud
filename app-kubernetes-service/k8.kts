@@ -49,6 +49,8 @@ bundle {
 
         // Service account is needed for this service to schedule user jobs
         deployment.spec.template.spec.serviceAccountName = this@bundle.name
+
+        injectConfiguration("app-kubernetes")
     }
 
     withPostgresMigration(deployment)

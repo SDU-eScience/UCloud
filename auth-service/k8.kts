@@ -14,6 +14,7 @@ bundle {
         injectSecret("auth-certs")
         injectSecret("auth-wayf", "/etc/wayf-certs")
         injectSecret("auth-wayf-config")
+        injectConfiguration("auth-config")
     }
 
     withPostgresMigration(deployment)

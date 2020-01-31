@@ -11,7 +11,7 @@ private fun findServiceBundles(serviceArg: String): Collection<ResourceBundle> {
     return listOf(bundle)
 }
 
-fun runLauncher(command: LauncherCommand, args: List<String>) {
+fun runLauncher(command: LauncherCommand, args: List<String>, skipUpToDateCheck: Boolean) {
     try {
         val scanner = Scanner(System.`in`)
         val serviceArg = args.firstOrNull() ?: ""
@@ -34,7 +34,7 @@ fun runLauncher(command: LauncherCommand, args: List<String>) {
             }
         }
 
-        val checkmark = "✔️  "
+        val checkmark = "✅  "
         val question = "❓  "
         val cross = "❌  "
 
@@ -55,7 +55,7 @@ fun runLauncher(command: LauncherCommand, args: List<String>) {
                 findServiceBundles(serviceArg).forEach { bundle ->
                     bundle.resources.forEach { resource ->
                         if (resource.phase == DeploymentPhase.MIGRATE) {
-                            val isUpToDate = with(resource) { ctx.isUpToDate() }
+                            val isUpToDate = !skipUpToDateCheck && with(resource) { ctx.isUpToDate() }
                             if (isUpToDate) {
                                 println("$checkmark️ $resource: Already up-to-date.")
                             } else {
@@ -72,7 +72,7 @@ fun runLauncher(command: LauncherCommand, args: List<String>) {
                 findServiceBundles(serviceArg).forEach { bundle ->
                     bundle.resources.forEach { resource ->
                         if (resource.phase == DeploymentPhase.DEPLOY) {
-                            val isUpToDate = with(resource) { ctx.isUpToDate() }
+                            val isUpToDate = !skipUpToDateCheck && with(resource) { ctx.isUpToDate() }
                             if (isUpToDate) {
                                 println("$checkmark $resource: Already up-to-date.")
                             } else {

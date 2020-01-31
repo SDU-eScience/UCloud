@@ -17,6 +17,7 @@ fun main(args: Array<String>) {
     val outputScript = StringBuilder()
 
     val engine = ScriptEngineManager().getEngineByExtension("kts")!!
+    var skipUpToDateCheck = false
 
     outputScript.appendln("package dk.sdu.cloud.k8")
 
@@ -32,6 +33,10 @@ fun main(args: Array<String>) {
                 "--file" -> {
                     val file = args.getOrNull(i + 1)
                     if (file != null) additionalFiles.add(file)
+                }
+
+                "--force" -> {
+                    skipUpToDateCheck = true
                 }
 
                 else -> {
@@ -82,5 +87,5 @@ fun main(args: Array<String>) {
 
     System.err.println("Dynamic scripts are being compiled...")
     engine.eval(outputScript.toString())
-    runLauncher(launcherCommand, remainingArgs)
+    runLauncher(launcherCommand, remainingArgs, skipUpToDateCheck)
 }

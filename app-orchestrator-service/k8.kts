@@ -12,6 +12,7 @@ bundle {
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1
+        injectConfiguration("app-config")
     }
 
     withPostgresMigration(deployment)

@@ -22,7 +22,13 @@ bundle {
                     headers:
                       x-no-load: true
                     precedence: 10
-
+                    
+                """.trimIndent()
+            )
+        )
+        services.add(
+            AmbassadorMapping(
+                """
                     ---
                     apiVersion: ambassador/v1
                     kind: Mapping
@@ -32,7 +38,14 @@ bundle {
                     prefix: /api/files/
                     service: storage:8080
                     use_websocket: true
+                    
+                """.trimIndent()
+            )
+        )
 
+        services.add(
+            AmbassadorMapping(
+                """
                     ---
                     apiVersion: ambassador/v1
                     kind: Mapping
@@ -43,7 +56,14 @@ bundle {
                     prefix_regex: true
                     service: storage:8080
                     method: DELETE
+                    
+                """.trimIndent()
+            )
+        )
 
+        services.add(
+            AmbassadorMapping(
+                """
                     ---
                     apiVersion: ambassador/v1
                     kind: Mapping
@@ -54,6 +74,7 @@ bundle {
                     prefix_regex: true
                     service: storage:8080
                     use_websocket: true                
+                    
                 """.trimIndent()
             )
         )
@@ -61,6 +82,21 @@ bundle {
 
     val deployment = withDeployment {
         deployment.spec.replicas = 2
+
+        injectConfiguration("storage-config")
+
+        val cephfsVolume = "cephfs"
+        serviceContainer.volumeMounts.add(VolumeMount().apply {
+            name = cephfsVolume
+            mountPath = "/mnt/cephfs"
+        })
+
+        volumes.add(Volume().apply {
+            name = cephfsVolume
+            persistentVolumeClaim = PersistentVolumeClaimVolumeSource().apply {
+                claimName = cephfsVolume
+            }
+        })
     }
 
     withPostgresMigration(deployment)

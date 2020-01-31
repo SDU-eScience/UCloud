@@ -48,7 +48,7 @@ class LocalServiceAccountResource(
     override fun DeploymentContext.isUpToDate(): Boolean {
         return checkVersion(
             version,
-            client.rbac().clusterRoles().inNamespace(namespace).withName(name).get()?.metadata
+            client.rbac().roles().inNamespace(namespace).withName(name).get()?.metadata
         ) && checkVersion(
             version,
             client.rbac().roleBindings().inNamespace(namespace).withName(name).get()?.metadata

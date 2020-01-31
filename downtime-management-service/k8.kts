@@ -2,14 +2,13 @@
 package dk.sdu.cloud.k8
 
 bundle {
-    name = "app-kubernetes-watcher"
-    version = "0.1.4"
+    name = "downtime-management"
+    version = "0.1.2"
 
-    withAmbassador("/api/app/kubernetes/watcher") {}
+    withAmbassador("/api/downtime") {}
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1
-        deployment.spec.template.spec.serviceAccountName = "app-kubernetes"
     }
 
     withPostgresMigration(deployment)

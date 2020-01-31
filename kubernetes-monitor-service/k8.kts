@@ -2,25 +2,23 @@
 package dk.sdu.cloud.k8
 
 bundle {
-    name = "alerting"
-    version = "1.1.19"
+    name = "kubernetes-monitor"
+    version = "0.1.1"
 
-    withAmbassador {}
+    withAmbassador("/api/kubernetes/monitor") {}
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 1
-        injectSecret("elasticsearch-logging-cluster-credentials")
-        injectSecret("alerting-tokens")
+        deployment.spec.replicas = 2
         deployment.spec.template.spec.serviceAccountName = this@bundle.name
     }
 
     withPostgresMigration(deployment)
 
-    withLocalServiceAccount {
+    withClusterServiceAccount {
         addRule(
             apiGroups = listOf(""),
             resources = listOf("pods"),
-            verbs = listOf("get", "watch", "list")
+            verbs = listOf("get", "watch", "list", "delete", "pods", "create", "update")
         )
     }
 }

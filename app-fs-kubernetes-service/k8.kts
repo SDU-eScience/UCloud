@@ -13,7 +13,7 @@ bundle {
         val storageVolume = "app-fs-k8s"
         serviceContainer.volumeMounts.add(VolumeMount().apply {
             name = storageVolume
-            mountPath = "/mnt/cephfs/app-file-systems"
+            mountPath = "/mnt/cephfs/app-filesystems"
             subPath = "app-filesystems"
         })
 
