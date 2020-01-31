@@ -13,7 +13,7 @@ class CronJobResource(
     val name: String = deployment.name,
     val version: String = deployment.version
 ) : KubernetesResource {
-    override val phase: DeploymentPhase = DeploymentPhase.AD_HOC_JOB
+    override val phase: DeploymentPhase = DeploymentPhase.DEPLOY
 
     val job = CronJob().apply {
         metadata = ObjectMeta().apply {

@@ -50,7 +50,7 @@ fun main(args: Array<String>) {
 
     val allBundles = ArrayList<File>()
     File(directory).list()
-        ?.filter { it.endsWith("-service") }
+        ?.filter { it.endsWith("-service") || it == "frontend-web" }
         ?.forEach { folder ->
             val k8 = File(File(directory, folder), "k8.kts")
             allBundles.add(k8)

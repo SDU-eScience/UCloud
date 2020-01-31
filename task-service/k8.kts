@@ -2,13 +2,13 @@
 package dk.sdu.cloud.k8
 
 bundle {
-    name = "downtime-management"
-    version = "0.1.3"
+    name = "task"
+    version = "0.2.3"
 
-    withAmbassador("/api/downtime") {}
+    withAmbassador("/api/tasks") {}
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 1
+        deployment.spec.replicas = 2
     }
 
     withPostgresMigration(deployment)

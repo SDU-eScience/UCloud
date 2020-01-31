@@ -5,7 +5,26 @@ bundle {
     name = "filesearch"
     version = "1.1.9"
 
-    withAmbassador("/api/file-search") {}
+    withAmbassador(null) {
+        services.add(
+            AmbassadorMapping(
+                """
+                ---
+                apiVersion: ambassador/v1
+                kind: Mapping
+                name: filesearch
+                prefix: ^/api/file-search(/.*)?${'$'}
+                prefix_regex: true
+                service: filesearch:8080
+                rewrite: ""
+                precedence: 10
+                headers:
+                  x-no-load: true
+                  
+                """.trimIndent()
+            )
+        )
+    }
 
     val deployment = withDeployment {
         deployment.spec.replicas = 2
