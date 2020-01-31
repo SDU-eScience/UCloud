@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.util.*
 
@@ -23,7 +24,7 @@ class DowntimeHibernateDaoTest {
     }
 
     @Test
-    fun `Create downtime`() {
+    fun `Create downtime`() = runBlocking {
         val db = initMicroAndGetDb()
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
@@ -33,7 +34,7 @@ class DowntimeHibernateDaoTest {
     }
 
     @Test
-    fun `Remove downtime`() {
+    fun `Remove downtime`() = runBlocking {
         val db = initMicroAndGetDb()
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
@@ -47,7 +48,7 @@ class DowntimeHibernateDaoTest {
 
     // Is this necessary? We do test the function DowntimeManagementDescriptions#listAll in almost every other test.
     @Test
-    fun `List all downtimes`() {
+    fun `List all downtimes`() = runBlocking {
         val db = initMicroAndGetDb()
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
@@ -59,7 +60,7 @@ class DowntimeHibernateDaoTest {
     }
 
     @Test
-    fun `List pending downtimes`() {
+    fun `List pending downtimes`() = runBlocking {
         val db = initMicroAndGetDb()
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
@@ -73,7 +74,7 @@ class DowntimeHibernateDaoTest {
     }
 
     @Test
-    fun `Remove expired downtimes`() {
+    fun `Remove expired downtimes`() = runBlocking {
         val db = initMicroAndGetDb()
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
@@ -88,7 +89,7 @@ class DowntimeHibernateDaoTest {
     }
 
     @Test
-    fun `Get downtime by id`() {
+    fun `Get downtime by id`() = runBlocking {
         val db = initMicroAndGetDb()
         val dao = DowntimeHibernateDao()
         db.withTransaction { session ->
