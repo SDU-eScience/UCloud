@@ -241,9 +241,9 @@ exports[`PP Visible PP-Component 1`] = `
 >
   <svg
     stroke="#000"
-    stroke-linecap="round"
-    stroke-linejoin="round"
-    stroke-width="3"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="3"
     viewBox="0 0 128 128"
     x="0px"
     y="0px"
