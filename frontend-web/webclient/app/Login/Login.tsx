@@ -4,7 +4,7 @@ import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Box, Button, Flex, Icon, Image, Input, Relative, Text, theme} from "ui-components";
+import {Box, Button, Flex, Icon, Image, Input, Text, theme, ExternalLink} from "ui-components";
 import Absolute from "ui-components/Absolute";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent} from "ui-components/Dropdown";
@@ -12,7 +12,7 @@ import {TextSpan} from "ui-components/Text";
 import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
-import {PRODUCT_NAME} from "../../site.config.json";
+import {PRODUCT_NAME, SITE_DOCUMENTATION_URL} from "../../site.config.json";
 import {BG1} from "./BG1";
 
 const bg2 = require("Assets/Images/bg2.svg");
@@ -28,7 +28,7 @@ const inDevEnvironment = process.env.NODE_ENV === "development";
 const enabledWayf = true;
 const wayfService = inDevEnvironment ? "dev-web" : "web";
 
-export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => {
+export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
     const [webDavInstructionToken, setWebDavToken] = useState<string | null>(null);
     const verificationInput = useRef<HTMLInputElement>(null);
@@ -56,7 +56,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         return <div />;
     }
 
-    async function attemptLogin() {
+    async function attemptLogin(): Promise<void> {
         if (!(usernameInput.current?.value) || !(passwordInput.current?.value)) {
             snackbarStore.addFailure("Invalid username or password");
             return;
@@ -93,7 +93,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         }
     }
 
-    function handleCompleteLogin(result: any) {
+    function handleCompleteLogin(result: any): void {
         if (isWebDav) {
             setWebDavToken(result.refreshToken);
         } else {
@@ -102,7 +102,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         }
     }
 
-    function handleAuthState(result: any) {
+    function handleAuthState(result: any): void {
         if ("2fa" in result) {
             setChallengeID(result["2fa"]);
         } else {
@@ -110,7 +110,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         }
     }
 
-    async function submit2FA() {
+    async function submit2FA(): Promise<void> {
         const verificationCode = verificationInput.current && verificationInput.current.value || "";
         if (!verificationCode) return;
         try {
@@ -143,6 +143,13 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
     return (
         <ThemeProvider theme={theme}>
             <>
+                {!SITE_DOCUMENTATION_URL ? null : (
+                    <Absolute right="10px" top="5px">
+                        <ExternalLink href={SITE_DOCUMENTATION_URL}>
+                            <Icon name="docs" /> {PRODUCT_NAME} Documentation
+                        </ExternalLink>
+                    </Absolute>
+                )}
                 <Absolute top="-3vw" left="8vw">
                     <Box width="20vw">
                         <Icon color="white" name="logoSdu" size="20vw" />
@@ -215,7 +222,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                                             overflow={"visible"}
                                             squareTop={false}
                                             cursor="pointer"
-                                            width={"315px"}
+                                            width="315px"
                                             hover={false}
                                             visible={true}
                                         >
