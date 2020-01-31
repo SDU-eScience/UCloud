@@ -143,18 +143,32 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
     return (
         <ThemeProvider theme={theme}>
             <>
-                <Absolute right="10px" top="5px">
+                <Absolute right="1em" top=".5em">
                     <div>
+                        {!SUPPORT_EMAIL ? null : (
+                            <ClickableDropdown
+                                width="224px"
+                                top="36px"
+                                right="5px"
+                                colorOnHover={false}
+                                trigger={<Icon mr={"1em"} color="white" name="suggestion" />}
+                            >
+                                <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
+                                    Need help?
+                                    {" "}<b>{SUPPORT_EMAIL}</b>
+                                </ExternalLink>
+                            </ClickableDropdown>
+                        )}
                         {!SITE_DOCUMENTATION_URL ? null : (
-                            <ExternalLink href={SITE_DOCUMENTATION_URL}>
-                                <Icon name="docs" /> {PRODUCT_NAME} Documentation
+                            <ExternalLink href={SITE_DOCUMENTATION_URL} color={"white"}>
+                                <Icon name="docs" /> Docs
                             </ExternalLink>
                         )}
                     </div>
                 </Absolute>
-                <Absolute top="-3vw" left="8vw">
-                    <Box width="20vw">
-                        <Icon color="white" name="logoSdu" size="20vw" />
+                <Absolute top="4vw" left="8vw">
+                    <Box width={"calc(96px + 10vw)"}>
+                        <Icon color="white" name="logoSdu" size="100%" />
                     </Box>
                 </Absolute>
 
@@ -180,8 +194,6 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                 </a>
                             ) : null}
                             {!challengeId ? (
-                                <Spacer
-                                    left={
                                         <ClickableDropdown
                                             colorOnHover={false}
                                             keepOpenOnClick
@@ -217,23 +229,6 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                                 </form>
                                             </Box>
                                         </ClickableDropdown>
-                                    }
-                                    right={
-                                        !SUPPORT_EMAIL ? null : (
-                                            <ClickableDropdown
-                                                width="224px"
-                                                top="36px"
-                                                right="5px"
-                                                colorOnHover={false}
-                                                trigger={<Icon mt="8px" mr="8px" color="white" color2="black" name="chat" />}
-                                            >
-                                                <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
-                                                    Need help?
-                                                    {" "}<b>{SUPPORT_EMAIL}</b>
-                                                </ExternalLink>
-                                            </ClickableDropdown>
-                                        )}
-                                />
                             ) : (
                                     <>
                                         <Text fontSize={1} color="white" mt="5px">
