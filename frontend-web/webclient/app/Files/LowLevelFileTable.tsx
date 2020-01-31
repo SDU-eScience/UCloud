@@ -2,7 +2,7 @@ import {AppToolLogo} from "Applications/AppToolLogo";
 import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
-import {emptyPage, KeyCode, ReduxObject, ResponsiveReduxObject, SensitivityLevelMap} from "DefaultObjects";
+import {emptyPage, KeyCode, ReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
 import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
@@ -138,7 +138,7 @@ const twoPhaseLoadFiles = async (
     callback: (page: Page<File>) => void,
     request: ListDirectoryRequest,
     promises: PromiseKeeper
-) => {
+): Promise<void> => {
     const promise = callAPI<Page<File>>(listDirectory({
         ...request,
         attrs: [FileResource.FILE_ID, FileResource.PATH, FileResource.FILE_TYPE]
@@ -194,7 +194,7 @@ function useApiForComponent(
         path: Client.homeFolder
     });
 
-    const loadManaged = (request: ListDirectoryRequest) => {
+    const loadManaged = (request: ListDirectoryRequest): void => {
         setPageParameters(request);
         submitPageLoaderJob(async () => {
             await twoPhaseLoadFiles(
@@ -225,10 +225,10 @@ function useApiForComponent(
             sortingIcon: () => undefined,
             sortBy: SortBy.PATH,
             order: SortOrder.ASCENDING,
-            reload: () => {
+            reload: (): void => {
                 if (props.onReloadRequested) props.onReloadRequested();
             },
-            onPageChanged: (pageNumber: number, itemsPerPage: number) => {
+            onPageChanged: (pageNumber: number, itemsPerPage: number): void => {
                 if (props.onPageChanged) props.onPageChanged(pageNumber, itemsPerPage);
             }
         };
@@ -258,19 +258,19 @@ function useApiForComponent(
         const sortingIcon = (other: SortBy): React.ReactNode =>
             <Arrow sortBy={pageParameters.sortBy} activeSortBy={other} order={pageParameters.order} />;
 
-        const reload = () => loadManaged(pageParameters);
+        const reload = (): void => loadManaged(pageParameters);
         const sortBy = pageParameters.sortBy;
         const order = pageParameters.order;
 
-        const onPageChanged = (pageNumber: number, itemsPerPage: number) => {
+        const onPageChanged = (pageNumber: number, itemsPerPage: number): void =>
             loadManaged({...pageParameters, page: pageNumber, itemsPerPage});
-        };
 
         return {page, error, pageLoading: loading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged};
     }
 }
 
-// tslint:disable-next-line: variable-name
+
+// eslint-disable-next-line no-underscore-dangle
 const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
     showUploader: (path: string) => void;
     setUploaderCallback: (cb?: () => void) => void;
@@ -339,7 +339,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
             const {pageNumber, itemsPerPage} = page;
             props.setUploaderCallback(() => onPageChanged(pageNumber, itemsPerPage));
         }
-    });
+    }, [page.pageNumber, page.itemsPerPage]);
 
     useEffect(() => {
         return () => props.setUploaderCallback();
@@ -394,7 +394,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
     }
 
     useEffect(() => {
-        return () => {
+        return (): void => {
             if (props.refreshHook) props.refreshHook(false);
         };
     }, [props.refreshHook]);
@@ -414,7 +414,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
     const isAnyLoading = workLoading || pageLoading;
     const checkedFilesWithInfo = allFiles
         .filter(f => f.fileId && checkedFiles.has(f.fileId) && f.mockTag === undefined);
-    const onFileNavigation = (path: string) => {
+    const onFileNavigation = (path: string): void => {
         setCheckedFiles(new Set());
         setFileBeingRenamed(null);
         setInjectedViaState([]);
@@ -424,55 +424,6 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
 
     // Loading state
     if (props.onLoadingState) props.onLoadingState(isAnyLoading);
-
-    // Private utility functions
-    const setChecked = (updatedFiles: File[], checkStatus?: boolean) => {
-        const checked = new Set(checkedFiles);
-        if (checkStatus === false) {
-            checked.clear();
-        } else {
-            updatedFiles.forEach(file => {
-                const fileId = file.fileId!;
-                if (checkStatus === true) {
-                    checked.add(fileId);
-                } else {
-                    if (checked.has(fileId)) checked.delete(fileId);
-                    else checked.add(fileId);
-                }
-            });
-        }
-
-        setCheckedFiles(checked);
-    };
-
-    const onRenameFile = (key: number, name: string) => {
-        if (key === KeyCode.ESC) {
-            setInjectedViaState([]);
-            setFileBeingRenamed(null);
-        } else if (key === KeyCode.ENTER) {
-            const file = allFiles.find(f => f.fileId === fileBeingRenamed);
-            if (file === undefined) return;
-            const fileNames = allFiles.map(f => getFilenameFromPath(f.path));
-            if (isInvalidPathName({path: name, filePaths: fileNames})) return;
-
-            const fullPath = `${UF.addTrailingSlash(getParentPath(file.path))}${name}`;
-            if (file.mockTag === MOCK_RENAME_TAG) {
-                createFolder({
-                    path: fullPath,
-                    client: Client,
-                    onSuccess: () => callbacks.requestReload()
-                });
-            } else {
-                moveFile({
-                    oldPath: file.path,
-                    newPath: fullPath,
-                    client: Client,
-                    setLoading: () => 42, // TODO
-                    onSuccess: () => callbacks.requestReload()
-                });
-            }
-        }
-    };
 
     return (
         <Shell
@@ -501,7 +452,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                 <Pagination.EntriesPerPageSelector
                                     content="Files per page"
                                     entriesPerPage={page.itemsPerPage}
-                                    onChange={amount => onPageChanged(0, amount)}
+                                    onChange={(amount): void => onPageChanged(0, amount)}
                                 />
                             )}
                         </>
@@ -532,7 +483,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                             {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
 
                             <OutlineButton
-                                onClick={() => props.activeUploadCount ? addStandardDialog({
+                                onClick={(): void => props.activeUploadCount ? addStandardDialog({
                                     title: "Continue",
                                     message: (
                                         <Box>
@@ -567,7 +518,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                             <Checkbox
                                                 size={27}
                                                 data-tag="masterCheckbox"
-                                                onClick={() => setChecked(
+                                                onClick={(): void => setChecked(
                                                     allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked
                                                 )}
                                                 checked={isMasterChecked}
@@ -599,7 +550,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                                 ml="-16px"
                                                 mr="-16px"
                                                 pl="15px"
-                                                onClick={() => setSorting(
+                                                onClick={(): void => setSorting(
                                                     sortByColumn, order === SortOrder.ASCENDING ?
                                                     SortOrder.DESCENDING : SortOrder.ASCENDING, true
                                                 )}
@@ -611,17 +562,20 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                                 </>
                                             </Box>
                                             <Divider />
-                                            {Object.values(SortBy).filter(it => it !== sortByColumn).map((sortByValue: SortBy, j) => (
-                                                <Box
-                                                    ml="-16px"
-                                                    mr="-16px"
-                                                    pl="15px"
-                                                    key={j}
-                                                    onClick={() => setSorting(sortByValue, SortOrder.ASCENDING, true)}
-                                                >
-                                                    {UF.sortByToPrettierString(sortByValue)}
-                                                </Box>
-                                            ))}
+                                            {Object.values(SortBy)
+                                                .filter(it => it !== sortByColumn)
+                                                .map((sortByValue: SortBy, j) => (
+                                                    <Box
+                                                        ml="-16px"
+                                                        mr="-16px"
+                                                        pl="15px"
+                                                        key={j}
+                                                        onClick={(): void =>
+                                                            setSorting(sortByValue, SortOrder.ASCENDING, true)}
+                                                    >
+                                                        {UF.sortByToPrettierString(sortByValue)}
+                                                    </Box>
+                                                ))}
                                         </ClickableDropdown>
                                     </>
                                 )}
@@ -641,7 +595,56 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
         />
     );
 
-    function pageRenderer({items}: Page<File>) {
+    // Private utility functions
+    function setChecked(updatedFiles: File[], checkStatus?: boolean): void {
+        const checked = new Set(checkedFiles);
+        if (checkStatus === false) {
+            checked.clear();
+        } else {
+            updatedFiles.forEach(file => {
+                const fileId = file.fileId!;
+                if (checkStatus === true) {
+                    checked.add(fileId);
+                } else {
+                    if (checked.has(fileId)) checked.delete(fileId);
+                    else checked.add(fileId);
+                }
+            });
+        }
+
+        setCheckedFiles(checked);
+    }
+
+    function onRenameFile(key: number, name: string): void {
+        if (key === KeyCode.ESC) {
+            setInjectedViaState([]);
+            setFileBeingRenamed(null);
+        } else if (key === KeyCode.ENTER) {
+            const file = allFiles.find(f => f.fileId === fileBeingRenamed);
+            if (file === undefined) return;
+            const fileNames = allFiles.map(f => getFilenameFromPath(f.path));
+            if (isInvalidPathName({path: name, filePaths: fileNames})) return;
+
+            const fullPath = `${UF.addTrailingSlash(getParentPath(file.path))}${name}`;
+            if (file.mockTag === MOCK_RENAME_TAG) {
+                createFolder({
+                    path: fullPath,
+                    client: Client,
+                    onSuccess: () => callbacks.requestReload()
+                });
+            } else {
+                moveFile({
+                    oldPath: file.path,
+                    newPath: fullPath,
+                    client: Client,
+                    setLoading: () => 42, // TODO
+                    onSuccess: () => callbacks.requestReload()
+                });
+            }
+        }
+    }
+
+    function pageRenderer({items}: Page<File>): React.ReactNode {
         return (
             <List>
                 {items.map(f => (
@@ -788,7 +791,7 @@ const StickyBox = styled(Box)`
     z-index: 50;
 `;
 
-function toWebDav() {
+function toWebDav(): void {
     const a = document.createElement("a");
     a.href = "/app/login?dav=true";
     document.body.appendChild(a);
@@ -796,7 +799,7 @@ function toWebDav() {
     document.body.removeChild(a);
 }
 
-const mapStateToProps = ({uploader}: ReduxObject) => {
+const mapStateToProps = ({uploader}: ReduxObject): {activeUploadCount: number} => {
     const activeUploadCount = uploader.uploads.filter(it =>
         (it.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
         (it.uploadXHR?.readyState ?? -1 < XMLHttpRequest.DONE)).length;
@@ -898,8 +901,8 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         size="24"
                         name={favorite ? "starFilled" : "starEmpty"}
                         color={favorite ? "blue" : "gray"}
-                        onClick={e => {
-                            e.stopPropagation();
+                        onClick={(event): void => {
+                            event.stopPropagation();
                             props.callbacks.invokeAsyncWork(async () => {
                                 const initialValue = favorite;
                                 setFavorite(!initialValue);
@@ -918,7 +921,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             <Box width="100%" mt="2px">
                 {canNavigate && !beingRenamed ? (
                     <BaseLink
-                        onClick={e => {
+                        onClick={(e): void => {
                             e.preventDefault();
                             e.stopPropagation();
                             props.onNavigate(resolvePath(props.file.path));
@@ -963,7 +966,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     );
 };
 
-const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}) => {
+const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): React.ReactElement => {
     interface IconDef {
         color: string;
         text: string;
@@ -1009,7 +1012,7 @@ const SensitivityBadge = styled.div<{bg: string}>`
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 0.2em solid ${props => props.bg};
+    border: 0.2em solid ${(props): string => props.bg};
     border-radius: 100%;
 `;
 
@@ -1054,7 +1057,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
                 cursor="pointer"
                 color={fileOp.color}
                 alignItems="center"
-                onClick={() => fileOp.onClick(filesInCallback, props.callback)}
+                onClick={(): void => fileOp.onClick(filesInCallback, props.callback)}
                 {...props}
             >
                 {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName} /> : null}
@@ -1083,7 +1086,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
     if (typeof applications === "undefined") return null;
     if (applications.length < 1) return null;
 
-    const Operation = ({quickLaunchApp}: {quickLaunchApp: QuickLaunchApp}) => {
+    const Operation = ({quickLaunchApp}: {quickLaunchApp: QuickLaunchApp}): React.ReactElement => {
         return (
             <Flex
                 cursor="pointer"
@@ -1114,6 +1117,6 @@ function getSortingColumn(): SortBy {
     return SortBy.PATH;
 }
 
-function setSortingColumn(column: SortBy) {
+function setSortingColumn(column: SortBy): void {
     window.localStorage.setItem("filesSorting", column);
 }

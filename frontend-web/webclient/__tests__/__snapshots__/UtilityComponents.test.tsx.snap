@@ -148,16 +148,9 @@ exports[`FileIcon FileIcon, shared 1`] = `
   z-index: 47;
   text-align: left;
   cursor: pointer;
+  visibility: hidden;
   opacity: 0;
   pointer-events: none;
-}
-
-.c5 svg {
-  margin-right: 1em;
-}
-
-.c5 > svg ~ span {
-  margin-right: 1em;
 }
 
 .c0 {
@@ -375,7 +368,7 @@ exports[`PP Visible PP-Component 1`] = `
 `;
 
 exports[`Share prompt 1`] = `
-.c5 {
+.c6 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -383,7 +376,7 @@ exports[`Share prompt 1`] = `
   margin-bottom: 8px;
 }
 
-.c12 {
+.c14 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -395,15 +388,15 @@ exports[`Share prompt 1`] = `
   width: 605px;
 }
 
-.c13 {
+.c15 {
   margin-right: auto;
 }
 
-.c15 {
+.c17 {
   margin-left: auto;
 }
 
-.c11 {
+.c12 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -436,21 +429,21 @@ exports[`Share prompt 1`] = `
   margin-left: 5px;
 }
 
-.c11:disabled {
+.c12:disabled {
   opacity: 0.25;
 }
 
-.c11:focus {
+.c12:focus {
   outline: none;
 }
 
-.c11:hover {
+.c12:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c14 {
+.c16 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -482,21 +475,21 @@ exports[`Share prompt 1`] = `
   padding: 9.5px 18px;
 }
 
-.c14:disabled {
+.c16:disabled {
   opacity: 0.25;
 }
 
-.c14:focus {
+.c16:focus {
   outline: none;
 }
 
-.c14:hover {
+.c16:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c10 {
+.c11 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -521,15 +514,15 @@ exports[`Share prompt 1`] = `
   font-weight: 400;
 }
 
-.c9 {
+.c10 {
   cursor: pointer;
 }
 
-.c6 {
+.c7 {
   display: block;
   font-family: inherit;
-  color: inherit;
   background-color: transparent;
+  color: #000;
   margin: 0;
   border-width: 2px;
   border-color: #c9d3df;
@@ -544,33 +537,33 @@ exports[`Share prompt 1`] = `
   border-bottom-right-radius: 0;
 }
 
-.c6::-webkit-input-placeholder {
+.c7::-webkit-input-placeholder {
   color: #8393A7;
 }
 
-.c6::-moz-placeholder {
+.c7::-moz-placeholder {
   color: #8393A7;
 }
 
-.c6:-ms-input-placeholder {
+.c7:-ms-input-placeholder {
   color: #8393A7;
 }
 
-.c6::placeholder {
+.c7::placeholder {
   color: #8393A7;
 }
 
-.c6:focus {
+.c7:focus {
   outline: none;
   background-color: transparent;
 }
 
-.c6:focus {
+.c7:focus {
   outline: 0;
   border-color: #006aff;
 }
 
-.c7 {
+.c8 {
   cursor: inherit;
   width: 160px;
   border: #c9d3df solid 2px;
@@ -598,13 +591,42 @@ exports[`Share prompt 1`] = `
   width: 100%;
 }
 
-.c8 {
+.c5 {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.c9 {
   position: relative;
   display: inline-block;
 }
 
-.c8:hover > div {
+.c9:hover > div {
   display: block;
+}
+
+.c13 {
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-bottom-left-radius: 5px;
+  border-bottom-right-radius: 5px;
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+  box-shadow: 0px 3px 5px -1px rgba(0,0,0,0.2),0px 6px 10px 0px rgba(0,0,0,.14),0px 1px 18px 0px rgba(0,0,0,.12);
+  position: absolute;
+  background-color: #fff;
+  color: #000;
+  width: 418px;
+  min-width: 138pxpx;
+  padding: 12px 16px;
+  z-index: 47;
+  text-align: left;
+  cursor: pointer;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  top: 40px;
 }
 
 .c0 {
@@ -622,6 +644,7 @@ exports[`Share prompt 1`] = `
     width="605px"
   >
     <form
+      autoComplete="off"
       onSubmit={[Function]}
     >
       <h3
@@ -645,54 +668,67 @@ exports[`Share prompt 1`] = `
         <div
           className="c5"
         >
-          <input
-            className="c6"
-            id="default"
-            placeholder="Enter username..."
-            required={true}
-            type="text"
-            width="100%"
-          />
           <div
-            className="c7"
-            cursor="inherit"
-            width="160px"
+            className="c6"
           >
+            <input
+              className="c7"
+              id="default"
+              onKeyUp={[Function]}
+              placeholder="Enter username..."
+              required={true}
+              type="text"
+              width="100%"
+            />
             <div
               className="c8"
-              data-tag="dropdown"
+              cursor="inherit"
+              width="160px"
             >
-              <span
+              <div
                 className="c9"
-                cursor="pointer"
-                onClick={[Function]}
+                data-tag="dropdown"
               >
-                Can view
-                <svg
+                <span
                   className="c10"
-                  clipRule="evenodd"
-                  cursor="inherit"
-                  fill="currentcolor"
-                  fillRule="evenodd"
-                  height=".7em"
-                  ml=".7em"
-                  viewBox="0 0 24 12"
-                  width=".7em"
+                  cursor="pointer"
+                  onClick={[Function]}
                 >
-                  <path
-                    d="M0 0l11.959 12 12-12H0z"
-                  />
-                </svg>
-              </span>
+                  Can view
+                  <svg
+                    className="c11"
+                    clipRule="evenodd"
+                    cursor="inherit"
+                    fill="currentcolor"
+                    fillRule="evenodd"
+                    height=".7em"
+                    ml=".7em"
+                    viewBox="0 0 24 20"
+                    width=".7em"
+                  >
+                    <path
+                      d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+                      fillRule="nonzero"
+                    />
+                  </svg>
+                </span>
+              </div>
             </div>
+            <button
+              className="c12"
+              color="blue"
+              onClick={[Function]}
+            >
+              Add
+            </button>
           </div>
-          <button
-            className="c11"
-            color="blue"
-            onClick={[Function]}
-          >
-            Add
-          </button>
+          <div
+            className="c13"
+            color="black"
+            cursor="pointer"
+            disabled={false}
+            width="418px"
+          />
         </div>
       </label>
       <div>
@@ -703,13 +739,13 @@ exports[`Share prompt 1`] = `
       </div>
     </form>
     <div
-      className="c12"
+      className="c14"
     >
       <div
-        className="c13"
+        className="c15"
       />
       <button
-        className="c14"
+        className="c16"
         color="blue"
         onClick={[Function]}
         type="button"
@@ -717,7 +753,7 @@ exports[`Share prompt 1`] = `
         Close
       </button>
       <div
-        className="c15"
+        className="c17"
       />
     </div>
   </div>

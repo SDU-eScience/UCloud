@@ -2,7 +2,6 @@ import HttpClient from "Authentication/lib";
 import {SensitivityLevelMap} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
-import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import List from "Shares/List";
 import {SnackType} from "Snackbar/Snackbars";
@@ -16,6 +15,9 @@ import Input, {InputLabel} from "ui-components/Input";
 import {UploadPolicy} from "Uploader/api";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {usePromiseKeeper} from "PromiseKeeper";
+import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
+import {useCloudAPI} from "Authentication/DataHook";
 
 interface StandardDialog {
     title?: string;
@@ -37,8 +39,8 @@ export function addStandardDialog({
     cancelText = "Cancel",
     confirmText = "Confirm",
     addToFront = false
-}: StandardDialog) {
-    const validate = () => {
+}: StandardDialog): void {
+    const validate = (): void => {
         if (validator()) onConfirm();
         dialogStore.success();
     };
@@ -47,7 +49,7 @@ export function addStandardDialog({
         <div>
             <div>
                 <Heading.h3>{title}</Heading.h3>
-                {!!title ? <Divider /> : null}
+                {!!title ? <Divider/> : null}
                 <div>{message}</div>
             </div>
             <Flex mt="20px">
@@ -63,7 +65,7 @@ export function addStandardDialog({
     ), onCancel, addToFront);
 }
 
-export function sensitivityDialog(): Promise<{cancelled: true} | {option: SensitivityLevelMap}> {
+export function sensitivityDialog(): Promise<{ cancelled: true } | { option: SensitivityLevelMap }> {
     let option = "INHERIT" as SensitivityLevelMap;
     return new Promise(resolve => addStandardDialog({
         title: "Change sensitivity",
@@ -83,8 +85,8 @@ export function sensitivityDialog(): Promise<{cancelled: true} | {option: Sensit
     }));
 }
 
-export function shareDialog(paths: string[], client: HttpClient) {
-    // FIXME: Less than dry, however, this needed to be wrapped; in a form. Can be make standard dialog do similar?
+export function shareDialog(paths: string[], client: HttpClient): void {
+    // FIXME: Less than dry, however, this needed to be wrapped in a form. Can be make standard dialog do similar?
     dialogStore.addDialog(<SharePrompt client={client} paths={paths} />, () => undefined);
 }
 
@@ -95,7 +97,8 @@ const SharePromptWrapper = styled(Box)`
     width: 620px;
 `;
 
-export function SharePrompt({paths, client}: {paths: string[], client: HttpClient}) {
+export function SharePrompt({paths, client}: { paths: string[]; client: HttpClient }): JSX.Element {
+    const SERVICE = ServiceOrigin.SHARE_SERVICE;
     const readEditOptions = [
         {text: "Can view", value: "read"},
         {text: "Can edit", value: "read_edit"}
@@ -105,35 +108,73 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
     const [linkAccess, setLinkAccess] = React.useState<"read" | "read_edit">("read");
     const [loading, setLoading] = React.useState(false);
     const [shareableLink, setShareableLink] = React.useState("");
+    const ref = React.useRef<number>(-1);
     const promises = usePromiseKeeper();
+    const [searchResponse, setFetchArgs,] = useCloudAPI<{contacts: string[]}>(
+        searchPreviousSharedUsers("", SERVICE),
+        {contacts: []}
+    );
+    const onKeyUp = React.useCallback(() => {
+        if (ref.current !== -1) {
+            window.clearTimeout(ref.current);
+        }
+        ref.current = (window.setTimeout(() => {
+            setFetchArgs(searchPreviousSharedUsers(username.current!.value, SERVICE));
+        }, 500));
+
+    }, [username.current, setFetchArgs]);
 
     return (
         <SharePromptWrapper>
             <Box alignItems="center" width="605px">
-                <form onSubmit={stopPropagationAndPreventDefault}>
+                <form autoComplete={"off"} onSubmit={stopPropagationAndPreventDefault}>
                     <Heading.h3>Share</Heading.h3>
                     <Divider />
                     Collaborators
                     <Label>
-                        <Flex mb="8px">
-                            <Input
-                                rightLabel
-                                required
-                                type="text"
-                                ref={username}
-                                placeholder="Enter username..."
-                            />
-                            <InputLabel width="160px" rightLabel>
-                                <ClickableDropdown
-                                    chevron
-                                    width="180px"
-                                    onChange={(val: "read" | "read_edit") => setAccess(val)}
-                                    trigger={access === "read" ? "Can view" : "Can Edit"}
-                                    options={readEditOptions}
+
+                        <Dropdown fullWidth hover={false}>
+                            <Flex mb="8px">
+                                <Input
+                                    rightLabel
+                                    required
+                                    type="text"
+                                    ref={username}
+                                    placeholder="Enter username..."
+                                    onKeyUp={onKeyUp}
+                                    autocomplete="off"
                                 />
-                            </InputLabel>
-                            <Button onClick={submit} ml="5px">Add</Button>
-                        </Flex>
+                                <InputLabel width="160px" rightLabel>
+                                    <ClickableDropdown
+                                        chevron
+                                        width="180px"
+                                        onChange={(val: "read" | "read_edit") => setAccess(val)}
+                                        trigger={access === "read" ? "Can view" : "Can Edit"}
+                                        options={readEditOptions}
+                                    />
+                                </InputLabel>
+                                <Button onClick={submit} ml="5px">Add</Button>
+                            </Flex>
+                            <DropdownContent
+                                hover={false}
+                                colorOnHover={false}
+                                visible={searchResponse.data.contacts.length > 0}
+                                width={"418px"}
+                                top={"40px"}
+                            >
+                                {searchResponse.data.contacts.map(it =>(
+                                    <div
+                                        key={it}
+                                        onClick={() => {
+                                            username.current!.value = it;
+                                            setFetchArgs(searchPreviousSharedUsers("", SERVICE));
+                                        }}
+                                    >
+                                        {it}
+                                    </div>
+                                ))}
+                            </DropdownContent>
+                        </Dropdown>
                     </Label>
                     {loading ? null : paths.map(path => (<List innerComponent key={path} simple byPath={path} />))}
                 </form>
@@ -174,33 +215,34 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
                                     <Box ml="auto" />
                                 </>
                             ) : (
-                                    <>
-                                        <Input readOnly value={shareableLink} rightLabel />
-                                        <InputLabel
-                                            rightLabel
-                                            onClick={() => copyToClipboard({
-                                                value: shareableLink,
-                                                message: "Link copied to clipboard"
-                                            })}
-                                            backgroundColor="blue"
-                                            cursor="pointer"
-                                        >
-                                            Copy
-                                        </InputLabel>
-                                    </>
-                                )}
+                                <>
+                                    <Input readOnly value={shareableLink} rightLabel />
+                                    <InputLabel
+                                        rightLabel
+                                        onClick={() => copyToClipboard({
+                                            value: shareableLink,
+                                            message: "Link copied to clipboard"
+                                        })}
+                                        backgroundColor="blue"
+                                        cursor="pointer"
+                                    >
+                                        Copy
+                                    </InputLabel>
+                                </>
+                            )}
                         </Flex>
                         <Divider />
                     </>
                 )}
                 <Flex mt="15px"><Box mr="auto" />
                     <Button type="button" onClick={() => dialogStore.success()}>Close</Button>
-                    <Box ml="auto" /></Flex>
+                    <Box ml="auto" />
+                </Flex>
             </Box>
         </SharePromptWrapper>
     );
 
-    function submit() {
+    function submit(): void {
         if (username.current == null || !username.current.value) return;
         const value = username.current.value;
         const rights: string[] = [];
@@ -228,13 +270,13 @@ export function SharePrompt({paths, client}: {paths: string[], client: HttpClien
                     if (!(paths.length > 1 && "why" in e.response && e.response.why !== "Already exists"))
                         snackbarStore.addFailure(e.response.why);
                 }).finally(() => {
-                    if (!promises.canceledKeeper && failures + successes === paths.length) setLoading(false);
-                });
+                if (!promises.canceledKeeper && failures + successes === paths.length) setLoading(false);
+            });
         });
     }
 }
 
-export function overwriteDialog(): Promise<{cancelled?: boolean}> {
+export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
     return new Promise(resolve => addStandardDialog({
         title: "Warning",
         message: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
@@ -321,11 +363,11 @@ interface FileIconProps {
     size?: string | number;
 }
 
-export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps) =>
+export const FileIcon = ({shared = false, fileIcon, size = 30}: FileIconProps): JSX.Element =>
     shared ? (
         <RelativeFlex>
             <FtIcon size={size} fileIcon={fileIcon} />
-            <Absolute bottom={"-6px"} right={"-2px"}>
+            <Absolute bottom="-6px" right="-2px">
                 <Dropdown>
                     <Icon size="15px" name="link" color2="white" />
                     <DropdownContent width={"160px"} color={"text"} colorOnHover={false} backgroundColor={"lightGray"}>
@@ -346,14 +388,14 @@ interface Arrow<T> {
     order: SortOrder;
 }
 
-export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>) {
+export function Arrow<T>({sortBy, activeSortBy, order}: Arrow<T>): JSX.Element | null {
     if (sortBy !== activeSortBy) return null;
     if (order === SortOrder.ASCENDING)
         return (<Icon cursor="pointer" name="arrowDown" rotation={180} size=".7em" mr=".4em" />);
     return (<Icon cursor="pointer" name="arrowDown" size=".7em" mr=".4em" />);
 }
 
-export function PP(props: {visible: boolean}) {
+export function PP(props: {visible: boolean}): JSX.Element | null {
     const [duration, setDuration] = React.useState(500);
 
     if (!props.visible) return null;
@@ -365,9 +407,9 @@ export function PP(props: {visible: boolean}) {
                 y="0px"
                 viewBox="0 0 128 128"
                 stroke="#000"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-linejoin="round"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
             >
                 <path id="body">
                     <animate
@@ -484,8 +526,9 @@ interface MasterCheckbox {
     checked: boolean;
 }
 
-export function MasterCheckbox({onClick, checked}: MasterCheckbox) {
-    function onChange(e: React.ChangeEvent<HTMLInputElement>) {
+export function MasterCheckbox({onClick, checked}: MasterCheckbox): JSX.Element {
+
+    function onChange(e: React.ChangeEvent<HTMLInputElement>): void {
         e.stopPropagation();
         onClick(e.target.checked);
     }

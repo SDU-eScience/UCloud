@@ -11,7 +11,7 @@ be certain that we don't miss pushes, we also have Jenkins check each 5 min
 for changes to the master branch. If there have been pushed new code to the
 repository it triggers our "Build and Test" job. For this job we make use of
 [scripted Jenkinsfiles](https://jenkins.io/doc/book/pipeline/jenkinsfile/).
-In the base folder of the SDUCloud project you will find a `Jenkinsfile` that
+In the base folder of the UCloud project you will find a `Jenkinsfile` that
 bootstraps the job. Each service also have a `Jenkinsfile` in their base
 folder. When the bootstrapping `Jenkinsfile` is run, it finds all services
 belonging to the project and loads (and executes) the `Jenkinsfile` for each

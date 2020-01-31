@@ -139,7 +139,7 @@ export const defaultFileOperations: FileOperation[] = [
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
         disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) || isAnySharedFs(files) ||
             isAnyFixedFolder(files, Client),
-        icon: "verified"
+        icon: "sensitivity"
     },
     {
         text: "Copy",
@@ -200,7 +200,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files) => !UF.isExtPreviewSupported(UF.extensionFromPath(files[0].path)) ||
             !UF.inRange({status: files[0].size ?? 0, min: 1, max: PREVIEW_MAX_SIZE}) || (!UF.downloadAllowed(files) ||
                 !allFilesHasAccessRight("READ", files) || isAnyMockFile(files) || isAnySharedFs(files)),
-        icon: "search"
+        icon: "preview"
     },
     {
         text: "Properties",

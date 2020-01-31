@@ -26,11 +26,10 @@ npm run build
 cd ../
 
 docker build \
-    --target production \
     --build-arg GRADLE_PROPS="`cat ~/.gradle/esci.properties`" \
     --build-arg SERVICE_NAME="${name}" \
     -t "${name}:${version}" \
-    -f Dockerfile.local \
+    -f Dockerfile \
     .
 
 docker-publish "${name}:${version}"

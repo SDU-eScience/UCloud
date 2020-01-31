@@ -12,9 +12,9 @@ import {ThemeColor} from "ui-components/theme";
 
 const linkInfo: LinkInfo[] = [
     {to: "/admin/userCreation", text: "User Creation", icon: "user", color: "black", color2: "white"},
-    {to: "/applications/studio", text: "Application Studio", icon: undefined, color: "white"},
-    {to: "/admin/licenseServers", text: "License Servers", icon: undefined, color: "white"},
-    {to: "/admin/downtime", text: "Downtime Status", icon: undefined, color: "white"}
+    {to: "/applications/studio", text: "Application Studio", icon: "appStore", color: "white", color2: "black"},
+    {to: "/admin/licenseServers", text: "License Servers", icon: "license", color: "white", color2: "white"},
+    {to: "/admin/downtime", text: "Downtime Status", icon: "warning", color: "white", color2: "black"}
 ];
 
 interface LinkInfo {
@@ -43,7 +43,7 @@ function AdminOverview(props: {setActivePage: () => void}) {
                                 <Link key={it.to} to={it.to}>
                                     <Button color="black" mb="10px" mx="10px" width="200px">
                                         {it.text}
-                                        {!it.icon ? null : <Icon ml="6px" name={it.icon} color={it.color} color2={it.color2} />}
+                                        {!it.icon ? null : <Icon ml=".5em" name={it.icon} size={"1.5em"} color={it.color} color2={it.color2} />}
                                     </Button>
                                 </Link>
                             ))}

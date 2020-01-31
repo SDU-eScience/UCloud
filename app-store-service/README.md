@@ -1,6 +1,6 @@
 ## Application Store
 
-The application store manages the core abstractions of SDUCloud applications
+The application store manages the core abstractions of UCloud applications
 as well as providing an API for browsing applications. The store has two core
 abstractions which power all applications: __tools__ and __applications__.
 

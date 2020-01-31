@@ -11,7 +11,7 @@ const Radio = (props: RadioWrapProps & {onChange: (e: React.ChangeEvent<HTMLInpu
   return (
     <RadioWrap checked={checked} disabled={disabled}>
       <RadioInput type="radio" {...props} />
-      <RadioIcon name={radioIconName} size={24} />
+      <RadioIcon name={radioIconName} size={24} mr={".5em"}/>
     </RadioWrap>
   );
 };

@@ -1,7 +1,7 @@
-# Files in SDUCloud
+# Files in UCloud
 
 We model file system's structure after a typical unix-like file system. In
-this document we describe what files are in the context of SDUCloud.
+this document we describe what files are in the context of UCloud.
 
 The system only supports **files**, **directories**. There is no support for links.
 

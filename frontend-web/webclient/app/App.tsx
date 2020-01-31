@@ -13,11 +13,11 @@ import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {store} from "Utilities/ReduxUtilities";
 import {isLightThemeStored, setSiteTheme} from "UtilityFunctions";
 
-export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH) {
+export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
     store.dispatch({type});
 }
 
-export async function onLogin() {
+export async function onLogin(): Promise<void> {
     const action = await findAvatar();
     if (action !== null) store.dispatch(action);
 }
@@ -28,11 +28,11 @@ const GlobalStyle = createGlobalStyle`
 
 Client.initializeStore(store);
 
-function App({children}: React.PropsWithChildren<{}>)  {
+function App({children}: React.PropsWithChildren<{}>): JSX.Element {
     const [isLightTheme, setTheme] = React.useState(isLightThemeStored());
-    const setAndStoreTheme = (isLight: boolean) => (setSiteTheme(isLight), setTheme(isLight));
+    const setAndStoreTheme = (isLight: boolean): void => (setSiteTheme(isLight), setTheme(isLight));
 
-    function toggle() {
+    function toggle(): void {
         setAndStoreTheme(!isLightTheme);
     }
 

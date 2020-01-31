@@ -265,7 +265,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             )}
             {!SITE_DOCUMENTATION_URL ? null : (
                 <ExternalLink href={SITE_DOCUMENTATION_URL}>
-                    <SidebarTextLabel height="25px" icon="favIcon" iconSize="1em" textSize={1} space=".5em">
+                    <SidebarTextLabel height="25px" icon="docs" iconSize="1em" textSize={1} space=".5em">
                         {`${PRODUCT_NAME} Docs`}
                     </SidebarTextLabel>
                 </ExternalLink>

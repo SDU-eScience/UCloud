@@ -73,7 +73,6 @@ export interface FilePreviewReduxState {
 }
 
 export interface FileInfoReduxObject {
-    file?: File;
     error?: string;
     activity: Page<Activity>;
     loading: boolean;
@@ -217,7 +216,7 @@ export function initObject(): ReduxObject {
 }
 
 
-export const initFilePreview = () => ({
+export const initFilePreview = (): FilePreviewReduxState => ({
     file: undefined,
     error: undefined
 });

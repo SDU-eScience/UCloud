@@ -68,7 +68,6 @@ class JobOrchestratorTest {
         micro.install(HibernateFeature)
         micro.install(BackgroundScopeFeature)
         val db = micro.hibernateDatabase
-        val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
         ClientMock.mockCallSuccess(
             FileDescriptions.stat,
@@ -203,6 +202,7 @@ class JobOrchestratorTest {
                 TestUsers.user
             )
         }
+
         runBlocking {
             orchestrator.handleProposedStateChange(
                 JobStateChange(returnedID, JobState.FAILURE),
@@ -214,12 +214,15 @@ class JobOrchestratorTest {
                 val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
                 assertEquals("newFAILStatus", job.status)
             }
+        }
 
+        runBlocking {
             orchestrator.handleAddStatus(returnedID, "Status Is FAIL", TestUsers.user)
 
-            val jobAfterStatusChange = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
-            assertEquals("Status Is FAIL", jobAfterStatusChange.status)
-
+            retrySection {
+                val jobAfterStatusChange = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
+                assertEquals("Status Is FAIL", jobAfterStatusChange.status)
+            }
             // Checking bad transition - Prepared -> Validated not legal
             try {
                 orchestrator.handleProposedStateChange(
@@ -240,8 +243,8 @@ class JobOrchestratorTest {
         val orchestrator = setup()
 
         //Success
-        runBlocking {
-            val returnedID = run {
+        val returnedID = runBlocking {
+            run {
                 orchestrator.startJob(
                     startJobRequest,
                     TestUsers.user.createToken(),
@@ -249,16 +252,21 @@ class JobOrchestratorTest {
                     client
                 )
             }
+        }
 
-            run {
-                orchestrator.handleJobComplete(
-                    returnedID,
-                    SimpleDuration(1, 0, 0),
-                    true,
-                    TestUsers.user
-                )
-            }
+        Thread.sleep(500)
 
+        runBlocking {
+            orchestrator.handleJobComplete(
+                returnedID,
+                SimpleDuration(1, 0, 0),
+                true,
+                TestUsers.user
+            )
+        }
+        Thread.sleep(500)
+
+        runBlocking {
             retrySection {
                 val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
                 assertEquals(JobState.SUCCESS, job.currentState)
@@ -266,8 +274,8 @@ class JobOrchestratorTest {
         }
 
         //failed
-        runBlocking {
-            val returnedID = run {
+        val returnedID1 = runBlocking {
+            run {
                 orchestrator.startJob(
                     startJobRequest,
                     TestUsers.user.createToken(),
@@ -275,16 +283,24 @@ class JobOrchestratorTest {
                     client
                 )
             }
+        }
 
+        Thread.sleep(500)
+
+        runBlocking {
             orchestrator.handleJobComplete(
-                returnedID,
+                returnedID1,
                 SimpleDuration(1, 0, 0),
                 false,
                 TestUsers.user
             )
+        }
 
+        Thread.sleep(500)
+
+        runBlocking {
             retrySection {
-                val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
+                val job = orchestrator.lookupOwnJob(returnedID1, TestUsers.user)
                 assertEquals(JobState.FAILURE, job.currentState)
             }
         }
@@ -378,33 +394,44 @@ class JobOrchestratorTest {
     }
 
     @Test
-    fun `Handle cancel of successful job test`() = runBlocking {
+    fun `Handle cancel of successful job test`() {
 
 
         val orchestrator = setup()
-        val returnedID = orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+        val returnedID =
+            runBlocking {
+                orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+            }
 
-        retrySection {
-            assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+        runBlocking {
+            retrySection {
+                assertEquals(JobState.PREPARED, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+            }
         }
 
-        orchestrator.handleProposedStateChange(
-            JobStateChange(returnedID, JobState.SUCCESS),
-            null,
-            TestUsers.user
-        )
+        runBlocking {
+            orchestrator.handleProposedStateChange(
+                JobStateChange(returnedID, JobState.SUCCESS),
+                null,
+                TestUsers.user
+            )
 
-        retrySection {
-            assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+            retrySection {
+                assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+            }
         }
 
-        orchestrator.handleProposedStateChange(
-            JobStateChange(returnedID, JobState.CANCELING),
-            null,
-            TestUsers.user
-        )
+        runBlocking {
+            orchestrator.handleProposedStateChange(
+                JobStateChange(returnedID, JobState.CANCELING),
+                null,
+                TestUsers.user
+            )
 
-        assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+            retrySection {
+                assertEquals(JobState.SUCCESS, orchestrator.lookupOwnJob(returnedID, TestUsers.user).currentState)
+            }
+        }
     }
 
     @Test
@@ -448,14 +475,15 @@ class JobOrchestratorTest {
     @Test
     fun `handle proposed state change - cancel to Failure`() {
         var systemID = ""
-        runBlocking {
-            systemID = orchestrator.startJob(
+        systemID = runBlocking {
+            orchestrator.startJob(
                 startJobRequest.copy(backend = "backend"),
                 TestUsers.user.createToken(),
                 "refresh",
                 client
             )
-
+        }
+        runBlocking {
             orchestrator.handleProposedStateChange(
                 JobStateChange(systemID, JobState.CANCELING), null, TestUsers.user
             )
@@ -470,9 +498,10 @@ class JobOrchestratorTest {
 
     @Test
     fun `handle job complete - null wallduration - startedAt null`() {
+        val systemID = runBlocking {
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "refresh", client)
+        }
         runBlocking {
-            val systemID = orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "refresh", client)
-
             orchestrator.handleJobComplete(
                 systemID, null, true, TestUsers.user
             )

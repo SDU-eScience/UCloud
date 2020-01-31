@@ -7,7 +7,7 @@ service should generally not be exposed directly to end-users.
 
 ## Services Provided
 
-The indexing services stores a complete view of the SDUCloud's file system
+The indexing services stores a complete view of the UCloud's file system
 structure. This view (the index) provides other services with a fast
 interface to query various aspects of the file system.
 

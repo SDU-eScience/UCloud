@@ -55,7 +55,7 @@ class AuditProcessor(
 
                     batch
                         .map { (_, doc) ->
-                            IndexRequest(indexName, "doc").apply {
+                            IndexRequest(indexName).apply {
                                 source(doc.toByteArray(Charsets.UTF_8), XContentType.JSON)
                             }
                         }

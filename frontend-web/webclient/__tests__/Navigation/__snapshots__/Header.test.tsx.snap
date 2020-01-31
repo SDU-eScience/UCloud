@@ -70,7 +70,7 @@ exports[`Header Mount header 1`] = `
   position: absolute;
   top: -12.5px;
   bottom: 0;
-  left: -28px;
+  left: -22px;
   right: 12px;
 }
 
@@ -131,14 +131,14 @@ exports[`Header Mount header 1`] = `
 .c10 {
   display: block;
   font-family: inherit;
-  color: inherit;
   background-color: transparent;
+  color: #000;
   margin: 0;
   border-width: 0px;
   padding-left: 30px;
+  padding-right: 28px;
   padding-top: 6px;
   padding-bottom: 6px;
-  padding-right: 12px;
   border-radius: 5px;
   width: 100%;
 }
@@ -277,8 +277,6 @@ exports[`Header Mount header 1`] = `
 .c9 > .c13 > .c4 > input {
   width: 350px;
   height: 36px;
-  padding-right: 10px;
-  padding-left: 30px;
 }
 
 @media screen and (max-width:511px) {
@@ -751,12 +749,13 @@ exports[`Header Mount header 1`] = `
                 cursor="pointer"
                 fill="currentcolor"
                 fillRule="evenodd"
-                height="15px"
-                viewBox="0 0 24 12"
-                width="15px"
+                height="12px"
+                viewBox="0 0 24 20"
+                width="12px"
               >
                 <path
-                  d="M0 0l11.959 12 12-12H0z"
+                  d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+                  fillRule="nonzero"
                 />
               </svg>
             </div>

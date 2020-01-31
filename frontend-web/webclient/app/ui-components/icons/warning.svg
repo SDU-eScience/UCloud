@@ -1,10 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 21.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 24 24" style="enable-background:new 0 0 24 24;" xml:space="preserve">
-<style type="text/css">
-	.st0{fill:#001833;}
-</style>
-<path id="path-1_1_" class="st0" d="M12,2C6.5,2,2,6.5,2,12s4.5,10,10,10s10-4.5,10-10S17.5,2,12,2z M13,13h-2V7h2V13z M13,17h-2v-2
-	h2V17z"/>
-</svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="100%" height="100%" viewBox="0 0 24 24" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g id="warning"><path d="M23.615,14.93l-2.148,-1.922c-0.621,-0.556 -0.621,-1.468 0,-2.024l2.148,-1.924c0.622,-0.556 0.456,-1.073 -0.368,-1.154l-2.848,-0.272c-0.823,-0.077 -1.268,-0.791 -0.983,-1.582l1.511,-4.229c0.283,-0.793 -0.064,-1.081 -0.77,-0.642l-3.358,2.087c-0.707,0.443 -1.621,0.2 -2.028,-0.532l-1.217,-2.183c-0.409,-0.735 -1.084,-0.737 -1.5,-0.01l-1.131,1.975c-0.419,0.732 -1.377,1.042 -2.129,0.695l-2.328,-1.372c-0.756,-0.35 -1.358,0.204 -1.314,1.047l0.47,2.321c0.046,0.843 -0.574,1.709 -1.373,1.927l-1.921,0.517c-0.798,0.218 -0.945,0.85 -0.323,1.406l2.147,1.924c0.622,0.556 0.565,1.238 -0.056,1.795l-3.719,2.882c-0.621,0.556 -0.457,1.096 0.365,1.196l4.232,-0.412c0.822,0.1 1.279,0.837 1.017,1.638l-0.64,3.167c-0.263,0.801 0.112,1.111 0.83,0.693l2.368,-0.876c0.718,-0.417 1.686,-0.187 2.149,0.51l1.271,1.924c0.463,0.698 1.158,0.661 1.542,-0.085l1.118,-2.166c0.385,-0.748 1.308,-1.053 2.049,-0.679l3.14,1.738c0.743,0.371 1.153,0.474 1.109,-0.366l-0.932,-3.162c-0.043,-0.843 0.573,-1.706 1.375,-1.924l1.919,-0.52c0.801,-0.217 0.948,-0.85 0.326,-1.406Zm-9.562,2.07l-2.487,0l0,-2.5l2.487,0l0,2.5Zm0,-3.75l-2.487,0l0,-6.249l2.487,0l0,6.249Z" style="fill:#53657d;fill-rule:nonzero;"/></g></svg>

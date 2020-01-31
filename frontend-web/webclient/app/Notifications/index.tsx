@@ -174,7 +174,7 @@ export function NotificationEntry(props: NotificationEntryProps) {
             flexDirection="row"
             onClick={handleAction}
         >
-            <Box mr="0.4em" width="10%"><Icon name={resolveEventIcon(notification.type)} /></Box>
+            <Box mr="0.4em" width="10%"><Icon name={resolveEventIcon(notification.type)} color2={"black"} color={"white"} /></Box>
             <Flex width="90%" flexDirection="column">
                 <TextSpan color="grey" fontSize={1}>
                     {formatDistance(notification.ts, new Date(), {addSuffix: true})}
@@ -200,7 +200,7 @@ export function NotificationEntry(props: NotificationEntryProps) {
             case "SHARE_REQUEST":
                 return "share";
             default:
-                return "warning";
+                return "info";
         }
     }
 }

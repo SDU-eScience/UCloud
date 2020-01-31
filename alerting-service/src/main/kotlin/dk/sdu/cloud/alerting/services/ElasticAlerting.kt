@@ -238,26 +238,32 @@ class ElasticAlerting(
                 if (line.isNullOrBlank()) return@forEach
                 val segments = line.split(" ")
                 val index = segments.first()
-                val docCount = segments.last().toInt()
-                if (docCount > DOC_HIGH_LIMIT) {
-                    log.warn("docCount of index: $index is above High limit: $docCount")
-                    alertService.createAlert(
-                        Alert("Alert: Doc count of index: $index is to high. Reindex or delete entires. " +
-                                "Doc Count: $docCount out of ${Integer.MAX_VALUE} possible")
-                    )
-                    if (testMode) {
-                        return
-                    }
-                }
-                else if (docCount > DOC_LOW_LIMIT) {
-                    log.warn("docCount of index: $index is above low limit: $docCount")
-                    alertService.createAlert(
-                        Alert("Alert: Doc count of index: $index has reached low limit. " +
-                                "Be aware of potential need for reindexing index. " +
-                                "Doc Count: $docCount out of ${Integer.MAX_VALUE} possible")
-                    )
-                    if (testMode) {
-                        return
+                val docCountString = segments.last()
+                if (!docCountString.isNullOrBlank()) {
+                    val docCount = docCountString.toInt()
+                    if (docCount > DOC_HIGH_LIMIT) {
+                        log.warn("docCount of index: $index is above High limit: $docCount")
+                        alertService.createAlert(
+                            Alert(
+                                "Alert: Doc count of index: $index is to high. Reindex or delete entires. " +
+                                        "Doc Count: $docCount out of ${Integer.MAX_VALUE} possible"
+                            )
+                        )
+                        if (testMode) {
+                            return
+                        }
+                    } else if (docCount > DOC_LOW_LIMIT) {
+                        log.warn("docCount of index: $index is above low limit: $docCount")
+                        alertService.createAlert(
+                            Alert(
+                                "Alert: Doc count of index: $index has reached low limit. " +
+                                        "Be aware of potential need for reindexing index. " +
+                                        "Doc Count: $docCount out of ${Integer.MAX_VALUE} possible"
+                            )
+                        )
+                        if (testMode) {
+                            return
+                        }
                     }
                 }
             }

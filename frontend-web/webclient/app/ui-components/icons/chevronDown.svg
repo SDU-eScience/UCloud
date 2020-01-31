@@ -1,9 +1,1 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
-<svg width="100%" height="100%" viewBox="0 0 24 12" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
-    <g transform="matrix(1,0,0,1,-872.041,-494.019)">
-        <g transform="matrix(1,0,0,1,0,-1.9805)">
-            <path d="M872.041,496L884,508L896,496L872.041,496Z" style="fill:rgb(83,101,125);"/>
-        </g>
-    </g>
-</svg>
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="100%" height="100%" viewBox="0 0 24 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;"><g id="chevronDown"><path d="M11.998,19.999c-0.598,0 -1.028,-0.61 -1.028,-0.61l-10.605,-17.121c-0.818,-1.248 -0.212,-2.268 1.338,-2.268l20.593,0c1.554,0 2.156,1.02 1.34,2.27l-10.61,17.121c0,-0.002 -0.43,0.608 -1.028,0.608Z" style="fill:#53657d;fill-rule:nonzero;"/></g></svg>

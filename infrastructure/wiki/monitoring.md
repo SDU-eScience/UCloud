@@ -9,7 +9,7 @@ This policy describes how we will monitor the use of our computer systems.
 This policy applies to users of the following eScience Center systems:
 
  - Networks
- - SDUCloud
+ - UCloud
 
 ## Policy
 

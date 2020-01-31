@@ -1,8 +1,8 @@
-# Authentication and Authorization in SDUCloud
+# Authentication and Authorization in UCloud
 
-## Authenticating with SDUCloud
+## Authenticating with UCloud
 
-SDUCloud provides various backends for authentication. These are all
+UCloud provides various backends for authentication. These are all
 implemented in the authentication service. As of 09/05/19 the following
 backends are supported:
 
@@ -22,7 +22,7 @@ WAYF is considered the primary authentication backend.
 
 Users can login with a simple username/password combination. Only
 administrators of the system can create new users. These are created in the
-"Admin" panel of the SDUCloud web interface.
+"Admin" panel of the UCloud web interface.
 
 We allow users to change their password through the web interface (by going
 to "Settings" in the user menu). Users are required to provide their current
@@ -52,7 +52,7 @@ Password hashing is provided via OpenJDK8. Specifically we use
 for research and infrastructure. WAYF provides authentication via the local
 organization (e.g. SDU). At a technical level this is implemented with SAML.
 
-SDUCloud implements the SAML integration by using Onelogin's library for SAML
+UCloud implements the SAML integration by using Onelogin's library for SAML
 (`com.onelogin:java-saml-core`, see the `build.gradle` of `auth-service` for
 the specific version). Minor modifications to the library were made to
 support a different webserver (ktor). These changes are implemented in
@@ -62,14 +62,14 @@ The SAML library is configured according to [WAYF's own recommendations](https:/
 
 ## Two Factor Authentication (2FA)
 
-SDUCloud, for the most part, relies on the user's organization to enforce
-best practices. SDUCloud can be configured to require additional factors of
-authentication via WAYF. On top of this SDUCloud allows you to optionally add
+UCloud, for the most part, relies on the user's organization to enforce
+best practices. UCloud can be configured to require additional factors of
+authentication via WAYF. On top of this UCloud allows you to optionally add
 TOTP based two-factor authentication.
 
 ## Sessions and Tokens
 
-Once a user has been successfully authenticated with SDUCloud a number of
+Once a user has been successfully authenticated with UCloud a number of
 tokens are issued for the user. These tokens are used during the
 authentication workflow.
 
@@ -85,7 +85,7 @@ interface is being used.
 The `accessToken` is used to authenticate all API calls. It is passed as a
 bearer token in the `Authorization` header. The token contains a JSON web
 token. These are tokens which contain a JSON encoded payload and are signed
-by the authority issuing them. The JWTs in SDUCloud are signed with the
+by the authority issuing them. The JWTs in UCloud are signed with the
 `SHA256withRSA` algorithm. Each microservice can verify a JWT (without
 contacting a central server) by using the authentication's service public
 certificate and additionally verifying that the issuer is set to
@@ -161,7 +161,7 @@ These properties are about the token itself and are used as part of the verifica
 | -------- | ---------------------------------------------------------------------------------------------- |
 | `iat`    | Unix timestamp indicating when the token was issued at                                         |
 | `exp`    | Unix timestamp indicating when the token will expire                                           |
-| `iss`    | The issuer of this token. For SDUCloud this should always be `cloud.sdu.dk`                    |
+| `iss`    | The issuer of this token. For UCloud this should always be `cloud.sdu.dk`                    |
 | `jti`    | A unique ID of this token. If this field is present then this JWT is used as a one-time token. |
 
 #### One-Time Tokens
@@ -173,15 +173,15 @@ specific security scope and this scope must be covered by the JWT requesting
 it. The JWT created will only last for thirty seconds.
 
 These tokens are useful in situations where we need to pass tokens that
-otherwise could be dangerous. In SDUCloud this is, for example, used for
+otherwise could be dangerous. In UCloud this is, for example, used for
 handling downloads. Restrictions in how browsers work, mean that we cannot
 pass the token through the header and we must pass in through either cookies
 or the URL. In this instance we chose to pass it in the URL but using a
 one-time token to mitigate the dangers of doing this.
 
-### Authorization in SDUCloud
+### Authorization in UCloud
 
-These properties are related to the authorization mechanisms of SDUCloud.
+These properties are related to the authorization mechanisms of UCloud.
 This is tightly related to how the RPC layer is defined. This is described
 further in [Auditing](../service-common/wiki/auditing.md) and [Writing Service
 Interface](../service-common/wiki/writing_service_interfaces.md).
@@ -193,12 +193,12 @@ Interface](../service-common/wiki/writing_service_interfaces.md).
 
 #### Roles
 
-SDUCloud contains a few basic roles used for global authorization. These
+UCloud contains a few basic roles used for global authorization. These
 attributes only refer to the global authorization, more fine-grained
 authorization is done at the service level. A microservice can declare that a
 single API endpoint should only be accessible to users with a given role.
 
-The table below shows the global roles in SDUCloud:
+The table below shows the global roles in UCloud:
 
 | Role      | Description                                                           |
 | --------- | --------------------------------------------------------------------- |
@@ -208,10 +208,10 @@ The table below shows the global roles in SDUCloud:
 
 #### Security Scopes
 
-A security scope in SDUCloud puts a limit on which calls a JWT can be used
-for. In order to understand security scopes in SDUCloud we must first
+A security scope in UCloud puts a limit on which calls a JWT can be used
+for. In order to understand security scopes in UCloud we must first
 understand some of the metadata associated with API endspoints. All API
-endpoints in SDUCloud have metadata associated with them, the table below
+endpoints in UCloud have metadata associated with them, the table below
 summarizes the important metadata:
 
 | Property      | Description                                                                                                                                           |

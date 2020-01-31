@@ -495,7 +495,6 @@ export default function LicenseServers() {
                                 Key
                                 <Input
                                     value={license}
-                                    error={portError}
                                     onChange={e => setLicense(e.target.value)}
                                     placeholder="License or key (if needed)"
                                 />

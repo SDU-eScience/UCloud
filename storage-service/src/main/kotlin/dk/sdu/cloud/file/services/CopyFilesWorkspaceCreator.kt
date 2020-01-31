@@ -58,6 +58,8 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
         val inputWorkspace = workspace.resolve("input").also { Files.createDirectories(it) }
         val outputWorkspace = workspace.resolve("output").also { Files.createDirectories(it) }
         val symLinkPath = createSymbolicLinkAt.let { File(it).absoluteFile.toPath() }
+        Chown.setOwner(inputWorkspace, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+        Chown.setOwner(outputWorkspace, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
 
         val manifest = WorkspaceManifest(user, mounts, createSymbolicLinkAt, mode = WorkspaceMode.COPY_FILES)
         manifest.write(workspace)
@@ -123,8 +125,12 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
             else outputRoot.resolve(relativePath)
 
         if (Files.isDirectory(file)) {
-            if (readOnly) Files.createDirectories(inputDestinationPath)
+            if (readOnly) {
+                Files.createDirectories(inputDestinationPath)
+                Chown.setOwner(inputDestinationPath, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+            }
             Files.createDirectories(outputDestinationPath)
+            Chown.setOwner(outputDestinationPath, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
 
             file.listAndClose().forEach {
                 transferFileToWorkspaceNoAccessCheck(
@@ -147,6 +153,7 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
                 Files.createSymbolicLink(outputDestinationPath, symlinkRoot.resolve(relativePath))
             } else {
                 Files.copy(resolvedFile, outputDestinationPath, StandardCopyOption.COPY_ATTRIBUTES)
+                Chown.setOwner(outputDestinationPath, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
             }
         }
     }

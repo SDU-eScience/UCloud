@@ -10,7 +10,7 @@ any chat/mail service that supports webhooks.
 ![Support service flow](./wiki/SupportFlow.png)
 ## Support ticket format
 - User information
-  - SDUCloud username
+  - UCloud username
   - Security role
   - Real name
 - Technical info

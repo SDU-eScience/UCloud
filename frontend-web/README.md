@@ -1,8 +1,8 @@
-# SDUCloud Frontend
+# UCloud Frontend
 
-SDUCloud uses a web application as frontend for its users.
+UCloud uses a web application as frontend for its users.
 
-This repository contains the frontend components used in SDUCloud, logic for contacting backend services and a test suite.
+This repository contains the frontend components used in UCloud, logic for contacting backend services and a test suite.
 
 ## Code Structure
 
@@ -51,7 +51,7 @@ The test files is located in the [tests](./webclient/__tests__/) folder.
 
 Logging in to the site is done through Wayf on the production version, or with username/password combination on the development version, both as described in [auth-service](../auth-service#authenticating-with-sducloud).
 
-The [SDUCloud object](#sducloud-object) will validate the every new JWT-token received from the backend when refreshing. This is done throught the structure of the JWT, not the actual contents of the JWT.
+The [Cloud object](#ucloud-object) will validate the every new JWT-token received from the backend when refreshing. This is done throught the structure of the JWT, not the actual contents of the JWT.
 
 On invalid token, the site will redirect to the login screen.
 
@@ -63,11 +63,11 @@ A logged in user can either be a `USER` or an `ADMIN`. The `USER` role only has 
 
 ## Notable custom code
 
-### SDUCloud object
+### UCloud object
 
 The project utilizes JSON Web Tokens, which contain information regarding the (if any) currently logged in user.
 
-To abstract away from this when contacting the backend, the codebase includes the `SDUCloud`-object, that has an instance exported for use, which contains the relevant HTTP operations (e.g. GET, PUT, POST, DELETE).
+To abstract away from this when contacting the backend, the codebase includes the `UCloud`-object, that has an instance exported for use, which contains the relevant HTTP operations (e.g. GET, PUT, POST, DELETE).
 
 This means contacting a Files-service with a `get`-operation would be done as shown below:
 

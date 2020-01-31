@@ -55,16 +55,16 @@ const JobResultsHeaderCell = styled(TableHeaderCell) <{pointer?: boolean}>`
     position: sticky;
 `;
 
-function JobResults(props: AnalysesProps & {history: History}) {
+function JobResults(props: AnalysesProps & {history: History}): React.ReactElement {
 
     React.useEffect(() => {
         props.onInit();
         fetchJobs();
         props.setRefresh(() => fetchJobs());
-        return () => props.setRefresh();
+        return (): void => props.setRefresh();
     }, []);
 
-    function fetchJobs(options?: FetchJobsOptions) {
+    function fetchJobs(options?: FetchJobsOptions): void {
         const opts = options ?? {};
         const {page, setLoading} = props;
         const itemsPerPage = opts.itemsPerPage != null ? opts.itemsPerPage : page.itemsPerPage;
@@ -166,7 +166,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
     const startOfYesterday = getStartOfDay(new Date(startOfToday.getTime() - dayInMillis));
     const startOfWeek = getStartOfWeek(new Date()).getTime();
 
-    function updateFilterAndFetchJobs(value: string) {
+    function updateFilterAndFetchJobs(value: string): void {
         setFilter({text: prettierString(value), value});
         fetchJobs({
             itemsPerPage,
@@ -176,6 +176,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
             filter: value === "Don't filter" ? undefined : value as JobState
         });
     }
+
     const sidebar = (
         <Box pt={48}>
             <Heading.h3>
@@ -219,7 +220,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                         startDate={firstDate}
                         endDate={secondDate}
                         selected={firstDate}
-                        onChange={date => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
+                        onChange={(date): void => (setFirstDate(date), fetchJobsInRange(date, secondDate)())}
                         timeFormat="HH:mm"
                         dateFormat="dd/MM/yy HH:mm"
                     />
@@ -236,7 +237,7 @@ function JobResults(props: AnalysesProps & {history: History}) {
                         startDate={firstDate}
                         endDate={secondDate}
                         selected={secondDate}
-                        onChange={date => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
+                        onChange={(date): void => (setSecondDate(date), fetchJobsInRange(firstDate, date)())}
                         onSelect={d => fetchJobsInRange(firstDate, d)}
                         timeFormat="HH:mm"
                         dateFormat="dd/MM/yy HH:mm"

@@ -2,6 +2,7 @@ package dk.sdu.cloud.elastic.management
 
 import dk.sdu.cloud.elastic.management.services.AutoSettingsService
 import dk.sdu.cloud.elastic.management.services.BackupService
+import dk.sdu.cloud.elastic.management.services.CustomScripts
 import dk.sdu.cloud.elastic.management.services.ExpiredEntriesDeleteService
 import dk.sdu.cloud.elastic.management.services.ReindexService
 import dk.sdu.cloud.elastic.management.services.ShrinkService
