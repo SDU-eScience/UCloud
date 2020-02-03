@@ -61,6 +61,7 @@ interface RefreshTokenDAO<Session> {
     fun insert(session: Session, tokenAndUser: RefreshTokenAndUser)
     fun updateCsrf(session: Session, token: String, newCsrf: String)
     fun delete(session: Session, token: String): Boolean
+    fun deleteExpired(session: Session)
 
     /**
      * Finds and lists all user sessions for a user.
@@ -181,6 +182,18 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
     override fun delete(session: HibernateSession, token: String): Boolean {
         session.delete(RefreshTokenEntity[session, token] ?: return false)
         return true
+    }
+
+    override fun deleteExpired(session: HibernateSession) {
+        session.deleteCriteria<RefreshTokenEntity> {
+            anyOf(
+                entity[RefreshTokenEntity::refreshTokenExpiry] equal nullLiteral(),
+                builder.lessThan<Long>(
+                    entity[RefreshTokenEntity::refreshTokenExpiry],
+                    System.currentTimeMillis()
+                )
+            )
+        }
     }
 
     override fun findUserSessions(
