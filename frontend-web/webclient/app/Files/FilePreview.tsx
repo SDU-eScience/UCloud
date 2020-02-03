@@ -14,7 +14,13 @@ import {Box, Button, Icon} from "ui-components";
 import Error from "ui-components/Error";
 import {Spacer} from "ui-components/Spacer";
 import {downloadFiles, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
-import {extensionFromPath, extensionTypeFromPath, isExtPreviewSupported, removeTrailingSlash, requestFullScreen} from "UtilityFunctions";
+import {
+    extensionFromPath,
+    extensionTypeFromPath,
+    isExtPreviewSupported,
+    removeTrailingSlash,
+    requestFullScreen
+} from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
@@ -30,7 +36,7 @@ interface FilePreviewOperations {
 
 type FilePreviewProps = FilePreviewOperations & FilePreviewStateProps;
 
-const FilePreview = (props: FilePreviewProps) => {
+const FilePreview = (props: FilePreviewProps): JSX.Element => {
     const location = useLocation();
     const [fileContent, setFileContent] = React.useState("");
     const [error, setError] = React.useState("");
@@ -101,7 +107,7 @@ const FilePreview = (props: FilePreviewProps) => {
         return new URLSearchParams(location.search);
     }
 
-    function showContent() {
+    function showContent(): JSX.Element | null {
         if (showDownloadButton) {
             return (
                 <Button mt="10px" onClick={() => downloadFiles([{path: filepath()}], Client)}>
@@ -128,7 +134,7 @@ const FilePreview = (props: FilePreviewProps) => {
         }
     }
 
-    function FullScreenIcon() {
+    function FullScreenIcon(): JSX.Element | null {
         if (!fileContent) return null;
         if (!["pdf", "text", "code", "image"].includes(fileType as string)) return null;
         return (
@@ -139,11 +145,14 @@ const FilePreview = (props: FilePreviewProps) => {
         );
     }
 
-    function onTryFullScreen() {
-        requestFullScreen(document.getElementsByClassName("fullscreen")[0]!, () => snackbarStore.addFailure("Failed to enter fullscreen."));
+    function onTryFullScreen(): void {
+        requestFullScreen(
+            document.getElementsByClassName("fullscreen")[0]!,
+            () => snackbarStore.addFailure("Failed to enter fullscreen.")
+        );
     }
 
-    function filepath() {
+    function filepath(): string {
         const param = queryParams().get("path");
         return param ? removeTrailingSlash(param) : "";
     }

@@ -16,7 +16,7 @@ interface UserAvatar extends SpaceProps {
     width?: string;
 }
 
-export const UserAvatar = ({avatar, width = "60px"}: UserAvatar) => (
+export const UserAvatar = ({avatar, width = "60px"}: UserAvatar): JSX.Element => (
     <ClippedBox mx="8px" width={width} alignItems="center" height="48px">
         <AvatarImage avatar={avatar} />
     </ClippedBox>
@@ -54,7 +54,7 @@ function AvatarList(props: {avatars: AvatarType[]}): JSX.Element {
     );
 }
 
-const AvatarImage = ({avatar}) => (
+const AvatarImage = ({avatar}): JSX.Element => (
     <Avatar
         avatarStyle="Circle"
         topType={avatar.top}

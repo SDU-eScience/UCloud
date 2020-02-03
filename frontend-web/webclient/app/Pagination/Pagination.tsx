@@ -11,13 +11,13 @@ const EntriesPerPageSelectorOptions = [
     {key: 4, text: "100", value: 100}
 ];
 
-const handleBoundaries = (page: number, maxPage: number) =>
+const handleBoundaries = (page: number, maxPage: number): number =>
     Math.max(Math.min(page, maxPage - 1), 0);
 
-interface PaginationButtons {totalPages: number; currentPage: number; toPage: (p: number) => void;}
-export function PaginationButtons({totalPages, currentPage, toPage}: PaginationButtons) {
-    if (totalPages <= 1) return null;
+interface PaginationButtons {totalPages: number; currentPage: number; toPage: (p: number) => void}
+export function PaginationButtons({totalPages, currentPage, toPage}: PaginationButtons): JSX.Element | null {
     const ref = React.useRef<HTMLInputElement>(null);
+    if (totalPages <= 1) return null;
     const inputField = (
         <Flex ml="15px" width="75px">
             {totalPages > 20 ? (
@@ -98,7 +98,7 @@ const PaginationButtonBase = styled(Button) <{unclickable?: boolean}>`
 `;
 
 
-const PaginationButton = ({onClick, ...props}) => (
+const PaginationButton = ({onClick, ...props}): JSX.Element => (
     props.unclickable ? <PaginationButtonBase {...props} /> : <PaginationButtonBase onClick={onClick} {...props} />
 );
 

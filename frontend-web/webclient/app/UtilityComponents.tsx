@@ -49,7 +49,7 @@ export function addStandardDialog({
         <div>
             <div>
                 <Heading.h3>{title}</Heading.h3>
-                {!!title ? <Divider/> : null}
+                {title ? <Divider/> : null}
                 <div>{message}</div>
             </div>
             <Flex mt="20px">

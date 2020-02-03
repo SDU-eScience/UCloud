@@ -230,7 +230,7 @@ export const defaultFileOperations: FileOperation[] = [
                 confirmText: "Delete files",
                 onConfirm: () => {
                     cb.invokeAsyncWork(async () => {
-                        const promises: Array<{status?: number, response?: string}> =
+                        const promises: Array<{status?: number; response?: string}> =
                             await Promise.all(paths.map(path => Client.delete("/files", {path})))
                                 .then(it => it).catch(it => it);
                         const failures = promises.filter(it => it.status).length;
@@ -260,7 +260,7 @@ export const defaultFileOperations: FileOperation[] = [
 
                 onConfirm: () => {
                     cb.invokeAsyncWork(async () => {
-                        const promises: Array<{status?: number, response?: string}> =
+                        const promises: Array<{status?: number; response?: string}> =
                             await Promise
                                 .all(files.map(it => Client.delete(`/app/fs/${it.fileId}`, {})))
                                 .then(it => it)

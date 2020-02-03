@@ -33,7 +33,7 @@ export const GridCardGroup = ({
     minmax = 400,
     gridGap = 10,
     ...props
-}) => (
+}): JSX.Element => (
     <Grid
         mt="2px"
         width="100%"

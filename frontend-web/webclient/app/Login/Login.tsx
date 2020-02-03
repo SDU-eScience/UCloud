@@ -5,7 +5,6 @@ import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
 import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, theme, ExternalLink} from "ui-components";
-import {Spacer} from "ui-components/Spacer";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent} from "ui-components/Dropdown";
 import {TextSpan} from "ui-components/Text";
@@ -194,41 +193,41 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                 </a>
                             ) : null}
                             {!challengeId ? (
-                                        <ClickableDropdown
-                                            colorOnHover={false}
-                                            keepOpenOnClick
-                                            top="30px"
-                                            width="315px"
-                                            left="0px"
-                                            trigger={(
-                                                <Text
-                                                    fontSize={1}
-                                                    color="white"
-                                                    mt="5px"
-                                                >
-                                                    More login options
-                                        </Text>
-                                            )}
+                                <ClickableDropdown
+                                    colorOnHover={false}
+                                    keepOpenOnClick
+                                    top="30px"
+                                    width="315px"
+                                    left="0px"
+                                    trigger={(
+                                        <Text
+                                            fontSize={1}
+                                            color="white"
+                                            mt="5px"
                                         >
-                                            <Box width="100%">
-                                                <form onSubmit={preventDefault}>
-                                                    <Login
-                                                        enabled2fa={!!challengeId}
-                                                        usernameRef={usernameInput}
-                                                        passwordRef={passwordInput}
-                                                    />
-                                                    <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                                            More login options
+                                        </Text>
+                                    )}
+                                >
+                                    <Box width="100%">
+                                        <form onSubmit={preventDefault}>
+                                            <Login
+                                                enabled2fa={!!challengeId}
+                                                usernameRef={usernameInput}
+                                                passwordRef={passwordInput}
+                                            />
+                                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
 
-                                                    <Button
-                                                        fullWidth
-                                                        disabled={loading}
-                                                        onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                                    >
-                                                        Login
+                                            <Button
+                                                fullWidth
+                                                disabled={loading}
+                                                onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                                            >
+                                                Login
                                                     </Button>
-                                                </form>
-                                            </Box>
-                                        </ClickableDropdown>
+                                        </form>
+                                    </Box>
+                                </ClickableDropdown>
                             ) : (
                                     <>
                                         <Text fontSize={1} color="white" mt="5px">

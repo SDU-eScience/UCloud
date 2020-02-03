@@ -2,7 +2,7 @@ import styled from "styled-components";
 import Box, {BoxProps} from "./Box";
 import {Theme} from "./theme";
 
-const getMaxWidth = (px: string) => (parseInt(px, 10) - 1) + "px";
+const getMaxWidth = (px: string): string => (parseInt(px, 10) - 1) + "px";
 
 
 // TODO: cleanup the media selectors below (maybe put in theme.tsx ?)

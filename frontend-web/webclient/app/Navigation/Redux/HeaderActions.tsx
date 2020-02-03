@@ -16,17 +16,17 @@ export const setRefreshFunction = (refresh?: () => void): SetRefreshFunction => 
     payload: {refresh}
 });
 
-interface UserLogOut {type: typeof USER_LOGOUT;}
+interface UserLogOut {type: typeof USER_LOGOUT}
 export const logout = (): UserLogOut => ({
     type: USER_LOGOUT
 });
 
-interface UserLogIn {type: typeof USER_LOGIN;}
+interface UserLogIn {type: typeof USER_LOGIN}
 export const login = (): UserLogIn => ({
     type: USER_LOGIN
 });
 
-interface ContextSwitch {type: typeof CONTEXT_SWITCH;}
+interface ContextSwitch {type: typeof CONTEXT_SWITCH}
 export const contextSwitch = (): ContextSwitch => ({
     type: CONTEXT_SWITCH
 });

@@ -1,4 +1,9 @@
-import {deleteLicenseServer, LicenseServerAccessRight, updateLicenseServerPermission, UserEntityType} from "Applications/api";
+import {
+    deleteLicenseServer,
+    LicenseServerAccessRight,
+    updateLicenseServerPermission,
+    UserEntityType
+} from "Applications/api";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
@@ -21,15 +26,18 @@ const LeftAlignedTableHeader = styled(TableHeader)`
     text-align: left;
 `;
 
-function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}) {
+function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element {
     const [accessList, setAccessList] = React.useState<AclEntry[]>([]);
     const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
-    const [commandLoading, invokeCommand] = useAsyncCommand();
+    const [, invokeCommand] = useAsyncCommand();
 
     const newPermissionEntityField = React.useRef<HTMLInputElement>(null);
 
     async function loadAcl(serverId: string): Promise<AclEntry[]> {
-        const {response} = await Client.get(`/app/license/listAcl?serverId=${serverId}`);
+        const {response} = await Client.get<{
+            entity: {id: string; type: string};
+            permission: LicenseServerAccessRight;
+        }[]>(`/app/license/listAcl?serverId=${serverId}`);
         return response.map(item => ({
             id: item.entity.id,
             type: item.entity.type,
@@ -37,7 +45,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
         }));
     }
 
-    function promptDeleteAclEntry(accessEntry: AclEntry): Promise<string|null> {
+    function promptDeleteAclEntry(accessEntry: AclEntry): Promise<string | null> {
         return new Promise(resolve => addStandardDialog({
             title: `Are you sure?`,
             message: (
@@ -51,7 +59,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                 if (licenseServer === null) {
                     resolve(null);
                     return;
-                };
+                }
                 await invokeCommand(updateLicenseServerPermission(
                     {
                         serverId: licenseServer.id,
@@ -70,7 +78,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
         }));
     }
 
-    async function loadAndSetAccessList(serverId: string) {
+    async function loadAndSetAccessList(serverId: string): Promise<void> {
         setAccessList(await loadAcl(serverId));
     }
 
@@ -82,7 +90,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     return (
         <Box>
             <div>
-                <Flex alignItems={"center"}>
+                <Flex alignItems="center">
                     <Heading.h3>
                         <TextSpan color="gray">Access control for</TextSpan> {licenseServer?.name}
                     </Heading.h3>
@@ -130,7 +138,9 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                     chevron
                                     width="180px"
                                     onChange={(val: LicenseServerAccessRight) => setSelectedAccess(val)}
-                                    trigger={<Box as="span" minWidth="220px">{prettifyAccessRight(selectedAccess)}</Box>}
+                                    trigger={
+                                        <Box as="span" minWidth="220px">{prettifyAccessRight(selectedAccess)}</Box>
+                                    }
                                     options={permissionLevels}
                                 />
                             </InputLabel>
@@ -161,14 +171,14 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                         <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
                                         <TableCell textAlign="right">
                                             <Button
-                                                color={"red"}
-                                                type={"button"}
+                                                color="red"
+                                                type="button"
                                                 paddingLeft={10}
                                                 paddingRight={10}
                                                 onClick={async () => {
                                                     const licenseServerId = await promptDeleteAclEntry(accessEntry);
 
-                                                    if(licenseServerId !== null) {
+                                                    if (licenseServerId !== null) {
                                                         loadAndSetAccessList(licenseServerId);
                                                     }
                                                 }}
@@ -181,12 +191,10 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                             </tbody>
                         </Table>
                     </Box>
-                ) : (
-                        <Text textAlign="center">No access entries found</Text>
-                    )}
+                ) : <Text textAlign="center">No access entries found</Text>}
             </div>
         </Box>
-    )
+    );
 }
 
 interface LicenseServer {
@@ -197,8 +205,8 @@ interface LicenseServer {
     license: string | null;
 }
 
-function openAclDialog(licenseServer: LicenseServer) {
-    dialogStore.addDialog(<LicenseServerAclPrompt licenseServer={licenseServer} />, () => undefined)
+function openAclDialog(licenseServer: LicenseServer): void {
+    dialogStore.addDialog(<LicenseServerAclPrompt licenseServer={licenseServer} />, () => undefined);
 }
 
 
@@ -239,7 +247,7 @@ interface AclEntry {
     permission: LicenseServerAccessRight;
 }
 
-export default function LicenseServers() {
+export default function LicenseServers(): JSX.Element | null {
     const [submitted, setSubmitted] = React.useState(false);
     const [name, setName] = React.useState("");
     const [address, setAddress] = React.useState("");
@@ -250,17 +258,17 @@ export default function LicenseServers() {
     const [portError, setPortError] = React.useState(false);
     const [licenseServers, setLicenseServers] = React.useState<LicenseServer[]>([]);
     const promiseKeeper = usePromiseKeeper();
-    const [commandLoading, invokeCommand] = useAsyncCommand();
+    const [, invokeCommand] = useAsyncCommand();
 
     React.useEffect(() => {
         loadAndSetLicenseServers();
     }, []);
 
-    async function loadAndSetLicenseServers() {
+    async function loadAndSetLicenseServers(): Promise<void> {
         setLicenseServers(await loadLicenseServers());
     }
 
-    async function submit(e: React.SyntheticEvent) {
+    async function submit(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
 
         let hasNameError = false;
@@ -277,6 +285,7 @@ export default function LicenseServers() {
 
         if (!hasNameError && !hasAddressError && !hasPortError) {
             try {
+                setSubmitted(true);
                 await promiseKeeper.makeCancelable(
                     Client.post("/api/app/license/new", {name, address, port, license}, "")
                 ).promise;
@@ -287,10 +296,11 @@ export default function LicenseServers() {
                 setAddress("");
                 setPort("");
                 setLicense("");
-            } catch (e) {
-                defaultErrorHandler(e);
+            } catch (err) {
+                defaultErrorHandler(err);
             } finally {
-                loadAndSetLicenseServers()
+                setSubmitted(false);
+                loadAndSetLicenseServers();
             }
         }
     }
@@ -400,9 +410,7 @@ export default function LicenseServers() {
                                                         >
                                                             {licenseServer.license}
                                                         </Tooltip>
-                                                    ) : (
-                                                            <Text/>
-                                                        )}
+                                                    ) : <Text />}
                                                 </TableCell>
                                                 <TableCell textAlign="center">
                                                     <Icon
@@ -438,7 +446,7 @@ export default function LicenseServers() {
                                                                 await invokeCommand(deleteLicenseServer({
                                                                     id: licenseServer.id
                                                                 }));
-                                                                loadAndSetLicenseServers()
+                                                                loadAndSetLicenseServers();
                                                             }
                                                         })}
                                                     >
@@ -449,9 +457,7 @@ export default function LicenseServers() {
                                         ))}
                                     </tbody>
                                 </Table>
-                            ) : (
-                                    <Text textAlign="center">No license servers found</Text>
-                                )}
+                            ) : <Text textAlign="center">No license servers found</Text>}
                         </Box>
                     </Box>
                 </>

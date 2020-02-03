@@ -21,7 +21,13 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
-import {searchApplications, searchFiles, setApplicationsLoading, setFilesLoading, setSearch} from "Search/Redux/SearchActions";
+import {
+    searchApplications,
+    searchFiles,
+    setApplicationsLoading,
+    setFilesLoading,
+    setSearch
+} from "Search/Redux/SearchActions";
 import {applicationSearchBody, fileSearchBody} from "Search/Search";
 import styled from "styled-components";
 import {Page} from "Types";
@@ -66,10 +72,10 @@ interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
 }
 
-const DevelopmentBadge = () => window.location.host === DEV_SITE || inDevEnvironment() ?
+const DevelopmentBadge = (): JSX.Element | null => window.location.host === DEV_SITE || inDevEnvironment() ?
     <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
 
-function Header(props: HeaderProps) {
+function Header(props: HeaderProps): JSX.Element | null {
     const [upcomingDowntime, setUpcomingDowntime] = React.useState(-1);
     const [intervalId, setIntervalId] = React.useState(-1);
     const history = useHistory();
@@ -90,7 +96,7 @@ function Header(props: HeaderProps) {
 
     if (!Client.isLoggedIn) return null;
 
-    function toSearch() {
+    function toSearch(): void {
         history.push("/search/files");
     }
 
@@ -184,12 +190,12 @@ function Header(props: HeaderProps) {
         </HeaderContainer>
     );
 
-    function onToggleTheme(e: React.SyntheticEvent<HTMLDivElement, Event>) {
+    function onToggleTheme(e: React.SyntheticEvent<HTMLDivElement, Event>): void {
         stopPropagationAndPreventDefault(e);
         props.toggleTheme();
     }
 
-    async function fetchDowntimes() {
+    async function fetchDowntimes(): Promise<void> {
         try {
             if (!Client.isLoggedIn) return;
             const result = await promises.makeCancelable(Client.get<Page<Downtime>>("/downtime/listPending")).promise;
@@ -204,7 +210,7 @@ export const Refresh = ({
     onClick,
     spin,
     headerLoading
-}: {onClick?: () => void, spin: boolean, headerLoading?: boolean}) => !!onClick || headerLoading ? (
+}: {onClick?: () => void; spin: boolean; headerLoading?: boolean}): JSX.Element => !!onClick || headerLoading ? (
     <RefreshIcon
         data-tag="refreshButton"
         name="refresh"
@@ -232,7 +238,7 @@ const LogoText = styled(Text)`
     font-weight: 700;
 `;
 
-const Logo = () => (
+const Logo = (): JSX.Element => (
     <Link to="/">
         <Flex alignItems="center" ml="15px">
             <Icon name="logoEsc" size="38px" />
@@ -251,7 +257,7 @@ const Logo = () => (
     </Link>
 );
 
-const Login = () => (
+const Login = (): JSX.Element => (
     <Icon name="user" />
 );
 
@@ -305,8 +311,9 @@ interface SearchOperations {
 
 type SearchProps = SearchOperations & SearchStateProps;
 
-// tslint:disable-next-line: variable-name
-const _Search = (props: SearchProps) => {
+
+// eslint-disable-next-line no-underscore-dangle
+const _Search = (props: SearchProps): JSX.Element => {
     const history = useHistory();
     const location = useLocation();
     React.useEffect(() => {
@@ -376,7 +383,7 @@ const _Search = (props: SearchProps) => {
         </Relative>
     );
 
-    function fetchAll(itemsPerPage?: number) {
+    function fetchAll(itemsPerPage?: number): void {
         props.searchFiles({
             ...fileSearchBody(
                 props.fileSearch,

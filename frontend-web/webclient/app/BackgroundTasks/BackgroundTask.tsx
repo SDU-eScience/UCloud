@@ -34,7 +34,7 @@ interface BackgroundTaskProps {
     loadInitialTasks: () => void;
 }
 
-const BackgroundTasks = (props: BackgroundTaskProps) => {
+const BackgroundTasks = (props: BackgroundTaskProps): JSX.Element | null => {
     const [taskInFocus, setTaskInFocus] = useState<string | null>(null);
 
     useEffect(() => {
