@@ -193,7 +193,7 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
                     System.currentTimeMillis()
                 )
             )
-        }
+        }.executeUpdate()
     }
 
     override fun findUserSessions(
