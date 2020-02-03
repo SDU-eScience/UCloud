@@ -522,7 +522,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                 disabled={isMasterDisabled}
                                                 onChange={UF.stopPropagation}
                                             />
-                                            <Box as={"span"} ml={"4px"}>Select all</Box>
+                                            <Box as={"span"}>Select all</Box>
                                         </Label>
                                     </Box>
                                 )}
@@ -650,14 +650,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                         onClick={() => {
                             if (!isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
                         }}
-                        pb="4px"
-                        pt="4px"
+                        py="5px"
                         width="100%"
+                        alignItems={"center"}
                         key={f.path}
                     >
-                        <Spacer
-                            width="100%"
-                            left={(
+
+                            {(
                                 <NameBox
                                     file={f}
                                     onRenameFile={onRenameFile}
@@ -667,8 +666,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                     previewEnabled={props.previewEnabled}
                                 />
                             )}
-                            right={(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
-                                <Flex mt="5px" onClick={UF.stopPropagation}>
+                            <Box ml="auto" />
+                            {(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
+                                <Flex alignItems="center" onClick={UF.stopPropagation}>
                                     {/* Show members as icons */}
                                     {/* {!f.acl ? null : <ACLAvatars members={f.acl.map(it => it.entity)} />} */}
                                     {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
@@ -685,9 +685,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                             <Icon
                                                                 cursor="pointer"
                                                                 size="24px"
-                                                                mt="4px"
                                                                 mr="8px"
-                                                                color="gray"
+                                                                color="midGray"
+                                                                hoverColor="gray"
                                                                 name="preview"
                                                             />
                                                         </Link>
@@ -705,12 +705,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                     mb="50px"
                                                     trigger={(
                                                         <Icon
-                                                            opacity="0.2"
+                                                            opacity="0.5"
                                                             cursor="default"
                                                             size="24px"
-                                                            mt="4px"
                                                             mr="8px"
-                                                            color="gray"
+                                                            color="midGray"
                                                             name="preview"
                                                         />
                                                     )}
@@ -723,7 +722,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                             <ClickableDropdown
                                                 width="175px"
                                                 left="-160px"
-                                                trigger={<Icon mr="8px" mt="2px" name="play" size="1em" />}
+                                                trigger={<Icon mr="8px" name="play" size="1em" color="midGray" hoverColor="gray" style={{display:"block"}}/>}
                                             >
                                                 <QuickLaunchApps
                                                     file={f}
@@ -738,7 +737,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                     }
                                     <SensitivityIcon sensitivity={f.sensitivityLevel} />
                                     {checkedFiles.size !== 0 ? <Box width="38px" /> : fileOperations.length > 1 ? (
-                                        <Box mt="2px">
+                                        <Box>
                                             <ClickableDropdown
                                                 width="175px"
                                                 left="-160px"
@@ -775,7 +774,6 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                         )}
                                 </Flex>
                             )}
-                        />
                     </Flex>
                 ))}
             </List>
@@ -862,13 +860,13 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const canNavigate = isDirectory({fileType: props.file.fileType});
 
     const icon = (
-        <Box mr="10px" mt="4px" mb="4px" cursor="inherit">
+        <Flex mr="10px" alignItems="center" cursor="inherit">
             <FileIcon
                 fileIcon={UF.iconFromFilePath(props.file.path, props.file.fileType, Client.homeFolder)}
-                size={38}
+                size={42}
                 shared={(props.file.acl != null ? props.file.acl.length : 0) > 0}
             />
-        </Box>
+        </Flex>
     );
 
     const beingRenamed = props.file.fileId !== null && props.file.fileId === props.fileBeingRenamed;
@@ -899,13 +897,13 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
     return (
         <Flex maxWidth="calc(100% - 210px)">
-            <Box mx="10px" mt="9px">
+            <Flex mx="10px" alignItems="center" >
                 {isAnyMockFile([props.file]) || isAnySharedFs([props.file]) ? <Box width="24px" /> : (
                     <Icon
                         cursor="pointer"
                         size="24"
                         name={favorite ? "starFilled" : "starEmpty"}
-                        color={favorite ? "blue" : "gray"}
+                        color={favorite ? "blue" : "midGray"}
                         onClick={(event): void => {
                             event.stopPropagation();
                             props.callbacks.invokeAsyncWork(async () => {
@@ -921,9 +919,9 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         hoverColor="blue"
                     />
                 )}
-            </Box>
+            </Flex>
             {icon}
-            <Box width="100%" mt="2px">
+            <Box width="100%">
                 {canNavigate && !beingRenamed ? (
                     <BaseLink
                         onClick={(e): void => {
@@ -941,7 +939,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 }
 
                 <Hide sm xs>
-                    <Flex>
+                    <Flex mt="4px">
                         {!props.file.size || isDirectory(props.file) ? null : (
                             <Text fontSize={0} title="Size" mr="12px" color="gray">
                                 {sizeToString(props.file.size)}

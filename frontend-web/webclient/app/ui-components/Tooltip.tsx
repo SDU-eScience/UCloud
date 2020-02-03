@@ -56,7 +56,8 @@ interface TooltipContentProps extends BoxProps, SpaceProps {
 const sm = "sm";
 
 const TooltipContent = styled(Box) <TooltipContentProps>`
-  display: none;
+  opacity: 0;
+  pointer-events: none;
   box-shadow: ${theme.shadows[sm]};
   font-size: ${theme.fontSizes[0]}px;
   position: absolute;
@@ -122,7 +123,8 @@ const Tooltip = ({
 
 const VisibleOnHover = styled(Box)`
   & > ${Flex}:hover + ${Relative} > ${TooltipContent} {
-    display: block;
+    opacity: 1;
+    transition: opacity  0s linear 1s;
   }
 `;
 
