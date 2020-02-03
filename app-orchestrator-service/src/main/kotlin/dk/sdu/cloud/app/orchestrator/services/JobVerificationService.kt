@@ -58,6 +58,7 @@ class JobVerificationService<Session>(
     private val sharedMountVerificationService: SharedMountVerificationService,
     private val db: DBSessionFactory<Session>,
     private val dao: JobDao<Session>,
+    private val authenticatedClient: AuthenticatedClient,
     private val machines: List<MachineReservation> = listOf(MachineReservation.BURST)
 ) {
     suspend fun verifyOrThrow(
@@ -72,7 +73,7 @@ class JobVerificationService<Session>(
             if (unverifiedJob.request.reservation == null) MachineReservation.BURST
             else (machines.find { it.name == unverifiedJob.request.reservation }
                 ?: throw JobException.VerificationError("Bad machine reservation"))
-        val verifiedParameters = verifyParameters(application, unverifiedJob, userClient)
+        val verifiedParameters = verifyParameters(application, unverifiedJob)
         val workDir = URI("/$jobId")
         val files = collectFiles(application, verifiedParameters, workDir, userClient).map {
             it.copy(
@@ -157,6 +158,8 @@ class JobVerificationService<Session>(
             allMounts
         }
 
+        println("done verifying job")
+
         return VerifiedJobWithAccessToken(
             VerifiedJob(
                 application = application,
@@ -201,8 +204,7 @@ class JobVerificationService<Session>(
 
     private suspend fun verifyParameters(
         app: Application,
-        job: UnverifiedJob,
-        authenticatedClient: AuthenticatedClient
+        job: UnverifiedJob
     ): VerifiedJobInput {
         val userParameters = job.request.parameters.toMutableMap()
         return VerifiedJobInput(
@@ -210,30 +212,30 @@ class JobVerificationService<Session>(
                 .asSequence()
                 .map { appParameter ->
                     if (appParameter is ApplicationParameter.LicenseServer) {
-                        // Change userParameters[appParameter.name] (IF EXISTS)
-                        val userInput = userParameters[appParameter.name]
-                        if (userInput != null && userInput is Map<*, *>) {
-                            @Suppress("UNCHECKED_CAST")
-                            userInput as Map<String, Any?>
-
-                            val licenseServer = userInput["license_server"]
-                            if (licenseServer != null) {
-                                // Transform license server
-                                val lookupLicenseServer = runBlocking {
-                                    AppLicenseDescriptions.get.call(
-                                        LicenseServerRequest(licenseServer.toString()),
-                                        authenticatedClient
-                                    )
-                                }.orThrow()
-
-                                userParameters[appParameter.name] = mapOf(
-                                    "address" to lookupLicenseServer.address,
-                                    "port" to lookupLicenseServer.port,
-                                    "license" to lookupLicenseServer.license
+                        println("appParameter is ${appParameter}")
+                        val licenseServerId = userParameters[appParameter.name]
+                        println("LicenseServerId: ${licenseServerId}")
+                        if (licenseServerId != null) {
+                            // Transform license server
+                            println("Looking up info")
+                            val lookupLicenseServer = runBlocking {
+                                AppLicenseDescriptions.get.call(
+                                    LicenseServerRequest(licenseServerId.toString()),
+                                    authenticatedClient
                                 )
-                            }
+                            }.orThrow()
+
+                            println(lookupLicenseServer.toString())
+
+                            userParameters[appParameter.name] = mapOf(
+                                "id" to licenseServerId,
+                                "address" to lookupLicenseServer.address,
+                                "port" to lookupLicenseServer.port,
+                                "license" to lookupLicenseServer.license
+                            )
                         }
                     }
+                    println(userParameters.toString())
                     appParameter
                 }
                 .map { appParameter ->
