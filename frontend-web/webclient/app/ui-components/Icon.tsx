@@ -48,7 +48,7 @@ export interface IconBaseProps extends SpaceProps, React.SVGAttributes<HTMLDivEl
     title?: string;
 }
 
-const spin = (props: {spin?: boolean}) => props.spin ? `
+const spin = (props: {spin?: boolean}): string | null => props.spin ? `
   animation: spin 1s linear infinite;
   @keyframes spin {
     0% { transform: rotate(0deg); }
@@ -67,7 +67,6 @@ const Icon = styled(IconBase) <IconBaseProps>`
   &:hover {
     ${hoverColor};
   }
-
 `;
 
 Icon.displayName = "Icon";
@@ -81,7 +80,7 @@ Icon.defaultProps = {
 };
 
 // Use to see every available icon in debugging.
-export const EveryIcon = () => (
+export const EveryIcon = (): JSX.Element => (
     <>
         {Object.keys(icons).map((it: IconName, i: number) =>
             (<span key={i}><span>{it}</span>: <Icon name={it} key={i} />, </span>)

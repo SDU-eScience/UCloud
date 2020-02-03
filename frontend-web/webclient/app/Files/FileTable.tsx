@@ -26,7 +26,7 @@ export const FileTable: React.FunctionComponent<VirtualFileTableProps> = props =
 
     const modifiedProps = {...props, requestFileSelector};
 
-    function handleFileSelect(f: {path: string} | null) {
+    function handleFileSelect(f: {path: string} | null): void {
         setIsVisible(false);
         resolve.resolve(f ? f.path : null);
     }

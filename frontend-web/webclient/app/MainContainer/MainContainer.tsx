@@ -20,7 +20,8 @@ export interface MainContainerProps extends MainContainerStateProps {
     headerSize?: number;
 }
 
-// tslint:disable-next-line: variable-name
+
+// eslint-disable-next-line no-underscore-dangle
 export const _MainContainer = ({
     sidebar,
     main,
@@ -29,7 +30,7 @@ export const _MainContainer = ({
     sidebarSize = 240,
     headerSize = 96,
     responsiveState
-}: MainContainerProps) => {
+}: MainContainerProps): JSX.Element => {
     const leftSidebarSize = responsiveState!.greaterThan.xl ? 190 : 68; // main website sidebar H size
     const topMenuSize = 48; // main website top menu V size
     const pad = 14; // padding unit

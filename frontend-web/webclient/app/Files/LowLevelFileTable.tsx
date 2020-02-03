@@ -238,7 +238,7 @@ function useApiForComponent(
         const error = pageError;
         const loading = pageLoading;
 
-        const setSorting = (sortBy: SortBy, order: SortOrder, updateColumn?: boolean) => {
+        const setSorting = (sortBy: SortBy, order: SortOrder, updateColumn?: boolean): void => {
             let sortByToUse = sortBy;
             if (sortBy === SortBy.ACL) sortByToUse = pageParameters.sortBy;
 
@@ -271,10 +271,7 @@ function useApiForComponent(
 
 
 // eslint-disable-next-line no-underscore-dangle
-const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
-    showUploader: (path: string) => void;
-    setUploaderCallback: (cb?: () => void) => void;
-    appendUpload: (uploads: Upload) => void;
+const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLevelFileTableOperations & {
     activeUploadCount: number;
 }> = props => {
     // Validation
@@ -675,29 +672,30 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & {
                                     {/* Show members as icons */}
                                     {/* {!f.acl ? null : <ACLAvatars members={f.acl.map(it => it.entity)} />} */}
                                     {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
-                                        f.size != null && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
-                                            <Tooltip
-                                                wrapperOffsetLeft="0"
-                                                wrapperOffsetTop="4px"
-                                                right="0"
-                                                top="1"
-                                                mb="50px"
-                                                trigger={(
-                                                    <Link to={filePreviewQuery(f.path)}>
-                                                        <Icon
-                                                            cursor="pointer"
-                                                            size="24px"
-                                                            mt="4px"
-                                                            mr="8px"
-                                                            color="gray"
-                                                            name="preview"
-                                                        />
-                                                    </Link>
-                                                )}
-                                            >
-                                                Preview available
+                                        f.size != null
+                                            && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
+                                                <Tooltip
+                                                    wrapperOffsetLeft="0"
+                                                    wrapperOffsetTop="4px"
+                                                    right="0"
+                                                    top="1"
+                                                    mb="50px"
+                                                    trigger={(
+                                                        <Link to={filePreviewQuery(f.path)}>
+                                                            <Icon
+                                                                cursor="pointer"
+                                                                size="24px"
+                                                                mt="4px"
+                                                                mr="8px"
+                                                                color="gray"
+                                                                name="preview"
+                                                            />
+                                                        </Link>
+                                                    )}
+                                                >
+                                                    Preview available
                                             </Tooltip>
-                                        ) : (
+                                            ) : (
                                                 <Tooltip
                                                     wrapperOffsetLeft="0"
                                                     wrapperOffsetTop="4px"
@@ -806,10 +804,17 @@ const mapStateToProps = ({uploader}: ReduxObject): {activeUploadCount: number} =
     return {activeUploadCount};
 };
 
-const mapDispatchToProps = (dispatch: Dispatch) => ({
-    showUploader: (path: string) => dispatch(setUploaderVisible(true, path)),
-    setUploaderCallback: (cb?: () => void) => dispatch(setUploaderCallback(cb)),
-    appendUpload: (upload: Upload) => dispatch(appendUpload(upload)),
+
+interface LowLevelFileTableOperations {
+    showUploader(path: string): void;
+    setUploaderCallback(cb?: () => void): void;
+    appendUpload(upload: Upload): void;
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): LowLevelFileTableOperations => ({
+    showUploader: path => dispatch(setUploaderVisible(true, path)),
+    setUploaderCallback: cb => dispatch(setUploaderCallback(cb)),
+    appendUpload: upload => dispatch(appendUpload(upload))
 });
 
 export const LowLevelFileTable = connect(mapStateToProps, mapDispatchToProps)(LowLevelFileTable_);
@@ -966,7 +971,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     );
 };
 
-const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): React.ReactElement => {
+const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): JSX.Element => {
     interface IconDef {
         color: string;
         text: string;
@@ -1024,13 +1029,13 @@ interface FileOperations extends SpaceProps {
     inDropdown?: boolean;
 }
 
-const FileOperations = ({files, fileOperations, ...props}: FileOperations) => {
+const FileOperations = ({files, fileOperations, ...props}: FileOperations): JSX.Element | null => {
     if (fileOperations.length === 0) return null;
 
     const buttons: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode === true);
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
-    const Operation = ({fileOp}: {fileOp: FileOperation}) => {
+    const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
         if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
@@ -1082,8 +1087,8 @@ interface QuickLaunchApps extends SpaceProps {
     history: History<any>;
 }
 
-const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps) => {
-    if (typeof applications === "undefined") return null;
+const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.Element | null => {
+    if (applications === undefined) return null;
     if (applications.length < 1) return null;
 
     const Operation = ({quickLaunchApp}: {quickLaunchApp: QuickLaunchApp}): React.ReactElement => {

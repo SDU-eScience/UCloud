@@ -4,15 +4,14 @@ import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Box, Button, Flex, Icon, Image, Input, Relative, Text, theme} from "ui-components";
-import Absolute from "ui-components/Absolute";
+import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, theme, ExternalLink} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent} from "ui-components/Dropdown";
 import {TextSpan} from "ui-components/Text";
 import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
-import {PRODUCT_NAME} from "../../site.config.json";
+import {PRODUCT_NAME, SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
 
 const bg2 = require("Assets/Images/bg2.svg");
@@ -28,7 +27,7 @@ const inDevEnvironment = process.env.NODE_ENV === "development";
 const enabledWayf = true;
 const wayfService = inDevEnvironment ? "dev-web" : "web";
 
-export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => {
+export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
     const [webDavInstructionToken, setWebDavToken] = useState<string | null>(null);
     const verificationInput = useRef<HTMLInputElement>(null);
@@ -56,7 +55,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         return <div />;
     }
 
-    async function attemptLogin() {
+    async function attemptLogin(): Promise<void> {
         if (!(usernameInput.current?.value) || !(passwordInput.current?.value)) {
             snackbarStore.addFailure("Invalid username or password");
             return;
@@ -93,7 +92,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         }
     }
 
-    function handleCompleteLogin(result: any) {
+    function handleCompleteLogin(result: any): void {
         if (isWebDav) {
             setWebDavToken(result.refreshToken);
         } else {
@@ -102,7 +101,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         }
     }
 
-    function handleAuthState(result: any) {
+    function handleAuthState(result: any): void {
         if ("2fa" in result) {
             setChallengeID(result["2fa"]);
         } else {
@@ -110,7 +109,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
         }
     }
 
-    async function submit2FA() {
+    async function submit2FA(): Promise<void> {
         const verificationCode = verificationInput.current && verificationInput.current.value || "";
         if (!verificationCode) return;
         try {
@@ -143,9 +142,32 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
     return (
         <ThemeProvider theme={theme}>
             <>
-                <Absolute top="-3vw" left="8vw">
-                    <Box width="20vw">
-                        <Icon color="white" name="logoSdu" size="20vw" />
+                <Absolute right="1em" top=".5em">
+                    <div>
+                        {!SUPPORT_EMAIL ? null : (
+                            <ClickableDropdown
+                                width="224px"
+                                top="36px"
+                                right="5px"
+                                colorOnHover={false}
+                                trigger={<Icon mr={"1em"} color="white" name="suggestion" />}
+                            >
+                                <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
+                                    Need help?
+                                    {" "}<b>{SUPPORT_EMAIL}</b>
+                                </ExternalLink>
+                            </ClickableDropdown>
+                        )}
+                        {!SITE_DOCUMENTATION_URL ? null : (
+                            <ExternalLink href={SITE_DOCUMENTATION_URL} color={"white"}>
+                                <Icon name="docs" /> Docs
+                            </ExternalLink>
+                        )}
+                    </div>
+                </Absolute>
+                <Absolute top="4vw" left="8vw">
+                    <Box width={"calc(96px + 10vw)"}>
+                        <Icon color="white" name="logoSdu" size="100%" />
                     </Box>
                 </Absolute>
 
@@ -202,7 +224,7 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                                                 onClick={() => challengeId ? submit2FA() : attemptLogin()}
                                             >
                                                 Login
-                                            </Button>
+                                                    </Button>
                                         </form>
                                     </Box>
                                 </ClickableDropdown>
@@ -212,12 +234,12 @@ export const LoginPage = (props: RouterLocationProps & {initialState?: any}) => 
                                             Enter 2-factor authentication code
                                         </Text>
                                         <DropdownContent
-                                            overflow={"visible"}
+                                            overflow="visible"
                                             squareTop={false}
                                             cursor="pointer"
-                                            width={"315px"}
+                                            width="315px"
                                             hover={false}
-                                            visible={true}
+                                            visible
                                         >
                                             <Box width="100%">
                                                 <form onSubmit={preventDefault}>
@@ -267,7 +289,7 @@ interface LoginProps {
     passwordRef: React.RefObject<HTMLInputElement>;
 }
 
-const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps) => !enabled2fa ? (
+const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element | null => !enabled2fa ? (
     <>
         <Input type="hidden" value="web-csrf" name="service" />
         <Input

@@ -64,6 +64,6 @@ export interface AvatarComponentProps {
   viewBox?: string;
 }
 
-export default function AvatarComponent(props: AvatarComponentProps) {
+export default function AvatarComponent(props: AvatarComponentProps): JSX.Element {
   return <Avatar {...props} />;
 }

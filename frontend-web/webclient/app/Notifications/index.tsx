@@ -12,7 +12,7 @@ import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "ui-co
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {IconName} from "ui-components/Icon";
 import {TextSpan} from "ui-components/Text";
-import theme, {Theme} from "ui-components/theme";
+import theme, {Theme, ThemeColor} from "ui-components/theme";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {replaceHomeFolder} from "Utilities/FileUtilities";
 import {
@@ -32,7 +32,7 @@ interface NotificationProps {
 
 type Notifications = NotificationProps & NotificationsOperations;
 
-function Notifications(props: Notifications) {
+function Notifications(props: Notifications): JSX.Element {
 
     const history = useHistory();
 
@@ -52,8 +52,8 @@ function Notifications(props: Notifications) {
                 });
             }
         });
-        const subscriber = (snack?: Snack) => {
-            if (!!snack)
+        const subscriber = (snack?: Snack): void => {
+            if (snack)
                 props.receiveNotification({
                     id: -new Date().getTime(),
                     message: snack.message,
@@ -68,11 +68,11 @@ function Notifications(props: Notifications) {
         return () => conn.close();
     }, []);
 
-    function reload() {
+    function reload(): void {
         props.fetchNotifications();
     }
 
-    function onNotificationAction(notification: Notification) {
+    function onNotificationAction(notification: Notification): void {
         switch (notification.type) {
             case "APP_COMPLETE":
                 // TODO This is buggy! Doesn't update if already present on analyses page
@@ -148,7 +148,7 @@ const ContentWrapper = styled(Box)`
     padding: 5px;
 `;
 
-const NoNotifications = () => <TextSpan>No notifications</TextSpan>;
+const NoNotifications = (): JSX.Element => <TextSpan>No notifications</TextSpan>;
 
 export interface Notification {
     type: string;
@@ -165,7 +165,7 @@ interface NotificationEntryProps {
     onAction?: (notification: Notification) => void;
 }
 
-export function NotificationEntry(props: NotificationEntryProps) {
+export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
     const {notification} = props;
     return (
         <NotificationWrapper
@@ -174,7 +174,9 @@ export function NotificationEntry(props: NotificationEntryProps) {
             flexDirection="row"
             onClick={handleAction}
         >
-            <Box mr="0.4em" width="10%"><Icon name={resolveEventIcon(notification.type)} color2={"black"} color={"white"} /></Box>
+            <Box mr="0.4em" width="10%">
+                <Icon name={resolveEventIcon(notification.type)} color2={"black"} color="white" />
+            </Box>
             <Flex width="90%" flexDirection="column">
                 <TextSpan color="grey" fontSize={1}>
                     {formatDistance(notification.ts, new Date(), {addSuffix: true})}
@@ -184,11 +186,11 @@ export function NotificationEntry(props: NotificationEntryProps) {
         </NotificationWrapper>
     );
 
-    function handleRead() {
+    function handleRead(): void {
         if (props.onMarkAsRead) props.onMarkAsRead(props.notification);
     }
 
-    function handleAction() {
+    function handleAction(): void {
         handleRead();
         if (props.onAction) props.onAction(props.notification);
     }
@@ -205,8 +207,8 @@ export function NotificationEntry(props: NotificationEntryProps) {
     }
 }
 
-const read = (p: {read: boolean, theme: Theme}) => p.read ?
-    {backgroundColor: p.theme.colors.white} : {backgroundColor: p.theme.colors.lightGray};
+const read = (p: {read: boolean; theme: Theme}): {backgroundColor: ThemeColor} => p.read ?
+    {backgroundColor: p.theme.colors.white as ThemeColor} : {backgroundColor: p.theme.colors.lightGray as ThemeColor};
 
 const NotificationWrapper = styled(Flex) <{read: boolean}>`
     ${read};
@@ -237,5 +239,4 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
 });
 const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;
 
-export default connect<NotificationsReduxObject, NotificationsOperations>(mapStateToProps, mapDispatchToProps)
-    (Notifications);
+export default connect(mapStateToProps, mapDispatchToProps)(Notifications);

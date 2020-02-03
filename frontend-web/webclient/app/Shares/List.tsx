@@ -77,7 +77,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
 
     props.setGlobalLoading(page.loading);
 
-    const refresh = () => setFetchParams({...params, reloadId: Math.random()});
+    const refresh = (): void => setFetchParams({...params, reloadId: Math.random()});
 
     useEffect(() => {
         if (!props.innerComponent) {
@@ -105,36 +105,36 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
         }
     }, [page]);
 
-    const AvatarComponent = (props: {username: string}) => {
-        const avatar = avatars.data?.avatars?.[props.username] ?? defaultAvatar;
+    const AvatarComponent = (p: {username: string}): JSX.Element => {
+        const avatar = avatars.data?.avatars?.[p.username] ?? defaultAvatar;
         return <UserAvatar avatar={avatar} mr="10px" />;
     };
 
-    const GroupedShareCardWrapper = (props: {shareByPath: SharesByPath; simple: boolean;}) => {
-        const [page, setPage] = useState(0);
+    const GroupedShareCardWrapper = (p: {shareByPath: SharesByPath; simple: boolean}): JSX.Element => {
+        const [pageNumber, setPage] = useState(0);
         const pageSize = 5;
         return (
             <GroupedShareCard
-                simple={props.simple}
+                simple={p.simple}
                 onUpdate={refresh}
-                groupedShare={props.shareByPath}
-                key={props.shareByPath.path}
+                groupedShare={p.shareByPath}
+                key={p.shareByPath.path}
             >
-                {props.shareByPath.shares.slice(pageSize * page, pageSize * page + pageSize).map(share => (
+                {p.shareByPath.shares.slice(pageSize * pageNumber, pageSize * pageNumber + pageSize).map(share => (
                     <ShareRow
-                        simple={props.simple}
+                        simple={p.simple}
                         key={share.id}
-                        sharedBy={props.shareByPath.sharedBy}
+                        sharedBy={p.shareByPath.sharedBy}
                         onUpdate={refresh}
                         share={share}
                         sharedByMe={sharedByMe}
                     >
-                        <AvatarComponent username={sharedByMe ? share.sharedWith : props.shareByPath.sharedBy} />
+                        <AvatarComponent username={sharedByMe ? share.sharedWith : p.shareByPath.sharedBy} />
                     </ShareRow>
                 ))}
                 <PaginationButtons
-                    totalPages={Math.floor(props.shareByPath.shares.length / pageSize)}
-                    currentPage={page}
+                    totalPages={Math.floor(p.shareByPath.shares.length / pageSize)}
+                    currentPage={pageNumber}
                     toPage={setPage}
                 />
             </GroupedShareCard>
@@ -202,7 +202,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
     );
 };
 
-const NoShares = ({sharedByMe}: {sharedByMe: boolean}) => (
+const NoShares = ({sharedByMe}: {sharedByMe: boolean}): JSX.Element => (
     <Heading.h3 textAlign="center">
         No shares
         <br />

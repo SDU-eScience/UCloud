@@ -42,11 +42,11 @@ interface FileInfoOperations {
 }
 
 interface FileInfo extends FileInfoReduxObject, FileInfoOperations {
-    location: {pathname: string, search: string;};
+    location: {pathname: string; search: string};
     history: History;
 }
 
-function FileInfo(props: Readonly<FileInfo>) {
+function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
     const [previewShown, setPreviewShown] = React.useState(false);
     const [file, setFile] = React.useState<File | undefined>(undefined);
 
@@ -99,7 +99,7 @@ function FileInfo(props: Readonly<FileInfo>) {
         return new URLSearchParams(props.location.search);
     }
 
-    function ShowFilePreview() {
+    function ShowFilePreview(): JSX.Element | null {
         if (file == null || !isFilePreviewSupported(file)) return null;
         if (previewShown) return <FilePreview isEmbedded />;
         return (
@@ -114,7 +114,7 @@ function FileInfo(props: Readonly<FileInfo>) {
         return param ? removeTrailingSlash(param) : "";
     }
 
-    async function fetchFile() {
+    async function fetchFile(): Promise<void> {
         const filePath = path();
         props.setLoading(true);
         props.fetchFileActivity(filePath);
@@ -127,14 +127,14 @@ function FileInfo(props: Readonly<FileInfo>) {
                 setFile({...response!, size: res.response.size});
             }
         } catch (e) {
-            errorMessageOrDefault(e, "An error ocurred fetching file info.")
+            errorMessageOrDefault(e, "An error ocurred fetching file info.");
         } finally {
             props.setLoading(false);
         }
     }
 }
 
-const Attribute: React.FunctionComponent<{name: string, value?: string}> = props => (
+const Attribute: React.FunctionComponent<{name: string; value?: string}> = props => (
     <Flex>
         <Box flexGrow={1}>{props.name}</Box>
         {props.value}{props.children}
@@ -153,7 +153,7 @@ interface FileViewProps {
     file: File;
 }
 
-function FileView({file}: FileViewProps) {
+function FileView({file}: FileViewProps): JSX.Element | null {
     const [favorite, setFavorite] = React.useState(file.favorited);
     const [sensitivity, setSensitivity] = React.useState(file.ownSensitivityLevel);
 
@@ -191,21 +191,21 @@ function FileView({file}: FileViewProps) {
         </Flex>
     );
 
-    async function toggleFavorite() {
+    async function toggleFavorite(): Promise<void> {
         try {
-            await favoriteFile(file, Client)
+            await favoriteFile(file, Client);
             setFavorite(fav => !fav);
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to toggle favorite status."))
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to toggle favorite status."));
         }
     }
 
-    async function changeSensitivity(val: SensitivityLevelMap) {
+    async function changeSensitivity(val: SensitivityLevelMap): Promise<void> {
         try {
             await reclassifyFile({file, sensitivity: val, client: Client});
-            setSensitivity(val)
+            setSensitivity(val);
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to change sensitivity."))
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to change sensitivity."));
         }
     }
 }

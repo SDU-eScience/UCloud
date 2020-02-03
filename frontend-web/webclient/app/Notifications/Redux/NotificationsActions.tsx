@@ -98,7 +98,7 @@ export const readAllNotifications = async (): Promise<ReadAllAction | SetNotific
 
 };
 
-interface SetRedirectToAction extends PayloadAction<typeof SET_REDIRECT, {redirectTo: string}> {}
+type SetRedirectToAction = PayloadAction<typeof SET_REDIRECT, {redirectTo: string}>;
 /**
  * Sets the redirectTo to be used in the Notifications component
  * @param {string} redirectTo the path to be redirected to

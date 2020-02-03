@@ -15,41 +15,41 @@ class DowntimeManagementService<Session>(
     private val db: DBSessionFactory<Session>,
     private val downtimeDAO: DowntimeDAO<Session>
 ) {
-    fun add(user: SecurityPrincipal, downtime: DowntimeWithoutId) {
+    suspend fun add(user: SecurityPrincipal, downtime: DowntimeWithoutId) {
         verifyUserIsPrivileged(user)
         db.withTransaction { session ->
             downtimeDAO.add(session, downtime)
         }
     }
 
-    fun remove(user: SecurityPrincipal, id: Long) {
+    suspend fun remove(user: SecurityPrincipal, id: Long) {
         verifyUserIsPrivileged(user)
         db.withTransaction { session ->
             downtimeDAO.remove(session, id)
         }
     }
 
-    fun removeExpired(user: SecurityPrincipal) {
+    suspend fun removeExpired(user: SecurityPrincipal) {
         verifyUserIsPrivileged(user)
         db.withTransaction { session ->
             downtimeDAO.removeExpired(session, user)
         }
     }
 
-    fun listPending(paging: NormalizedPaginationRequest): Page<Downtime> {
+    suspend fun listPending(paging: NormalizedPaginationRequest): Page<Downtime> {
         return db.withTransaction { session ->
             downtimeDAO.listPending(session, paging)
         }
     }
 
-    fun listAll(user: SecurityPrincipal, paging: NormalizedPaginationRequest): Page<Downtime> {
+    suspend fun listAll(user: SecurityPrincipal, paging: NormalizedPaginationRequest): Page<Downtime> {
         verifyUserIsPrivileged(user)
         return db.withTransaction { session ->
             downtimeDAO.listAll(session, paging)
         }
     }
 
-    fun getById(id: Long): Downtime {
+    suspend fun getById(id: Long): Downtime {
         return db.withTransaction { session ->
             downtimeDAO.getById(session, id)
         }

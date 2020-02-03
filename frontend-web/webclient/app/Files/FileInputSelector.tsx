@@ -27,8 +27,10 @@ interface FileInputSelectorProps {
 export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> = props => {
     const [visible, setVisible] = useState(false);
     const path = props.path ? props.path : "";
-    const onUpload = () => {
+    /* FIXME: What even is this? */
+    const onUpload = (): void => {
         if (!props.allowUpload) return;
+        else return;
     };
     const uploadButton = props.allowUpload ? (<UploadButton onClick={onUpload} />) : null;
     const removeButton = props.remove ? (<RemoveButton onClick={() => props.remove!()} />) : null;
@@ -87,9 +89,9 @@ interface FileSelectorButton {
     onClick: () => void;
 }
 
-const UploadButton = ({onClick}: FileSelectorButton) => (
-    <Button ml="5px" height={"35px"} type="button" onClick={onClick}>Upload File</Button>);
+const UploadButton = ({onClick}: FileSelectorButton): JSX.Element => (
+    <Button ml="5px" height="35px" type="button" onClick={onClick}>Upload File</Button>);
 
-const RemoveButton = ({onClick}: FileSelectorButton) => (
-    <Button color={"red"} ml={"8px"} onClick={onClick}><Icon name="close" size="1em" /></Button>
+const RemoveButton = ({onClick}: FileSelectorButton): JSX.Element => (
+    <Button color="red" ml="8px" onClick={onClick}><Icon name="close" size="1em" /></Button>
 );

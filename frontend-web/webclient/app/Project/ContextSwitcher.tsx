@@ -7,7 +7,7 @@ import {SidebarTextLabel} from "ui-components/Sidebar";
 import {EllipsedText} from "ui-components/Text";
 import {inDevEnvironment} from "UtilityFunctions";
 
-// tslint:disable-next-line: variable-name
+// eslint-disable-next-line no-underscore-dangle
 const _ContextSwitcher: React.FunctionComponent<{maxSize: number} & ContextSwitcherReduxProps> = props => {
     if (!inDevEnvironment()) return null;
 
@@ -35,6 +35,6 @@ interface ContextSwitcherReduxProps {
     activeProject?: string;
 }
 
-const mapStateToProps = (state: ReduxObject) => ({activeProject: state.project.project});
+const mapStateToProps = (state: ReduxObject): {activeProject?: string} => ({activeProject: state.project.project});
 
 export const ContextSwitcher = connect(mapStateToProps)(_ContextSwitcher);

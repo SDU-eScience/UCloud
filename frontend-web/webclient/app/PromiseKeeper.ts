@@ -17,15 +17,18 @@ export default class PromiseKeeper {
                     val => {
                         cancelablePromise.isComplete = true;
                         this.cleanup();
+                        // eslint-disable-next-line no-underscore-dangle
                         cancelablePromise.hasCanceled_ ? reject({isCanceled: true}) : resolve(val);
                     },
                     error => {
                         cancelablePromise.isComplete = true;
                         this.cleanup();
+                        // eslint-disable-next-line no-underscore-dangle
                         cancelablePromise.hasCanceled_ ? reject({isCanceled: true}) : reject(error);
                     }
                 );
             }),
+            // eslint-disable-next-line no-underscore-dangle
             cancel: () => cancelablePromise.hasCanceled_ = true,
         };
         this.promises.push(cancelablePromise);

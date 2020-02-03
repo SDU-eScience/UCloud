@@ -21,7 +21,7 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
     const mergedProperties = {...props};
     const asyncWorker = props.asyncWorker ? props.asyncWorker : useAsyncWork();
     mergedProperties.asyncWorker = asyncWorker;
-    const [,, submitPageLoaderJob] = asyncWorker;
+    const [, , submitPageLoaderJob] = asyncWorker;
 
     let fakeFolderToUse: string | undefined;
     if (props.fakeFolders !== undefined && props.loadFolder !== undefined) {
@@ -102,8 +102,10 @@ export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
         if (folder === Client.homeFolder + FAVORITES_FOLDER) {
             return (await Client.get<Page<File>>(favoritesQuery(page, itemsPerPage))).response;
         } else if (folder === Client.homeFolder + SHARES_FOLDER) {
-            return (await Client.get<Page<File>>(buildQueryString("/shares/list-files", {page, itemsPerPage}))).response;
-        }  else if (folder === Client.homeFolder + APP_FS_FOLDER) {
+            return (await Client.get<Page<File>>(
+                buildQueryString("/shares/list-files", {page, itemsPerPage}))
+            ).response;
+        } else if (folder === Client.homeFolder + APP_FS_FOLDER) {
             return (await Client.get<Page<File>>(buildQueryString("/app/fs/fs-compat", {page, itemsPerPage}))).response;
         } else {
             return emptyPage;

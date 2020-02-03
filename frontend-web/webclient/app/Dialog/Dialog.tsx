@@ -7,7 +7,7 @@ const Dialog: React.FunctionComponent = () => {
     const [dialogs, setDialogs] = useState<JSX.Element[]>([]);
 
     useEffect(() => {
-        const subscription = (dialogs: JSX.Element[]) => setDialogs(dialogs);
+        const subscription = (dialogs: JSX.Element[]): void => setDialogs(dialogs);
 
         dialogStore.subscribe(subscription);
         return () => dialogStore.unsubscribe(subscription);

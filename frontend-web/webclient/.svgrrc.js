@@ -1,11 +1,11 @@
 module.exports = {
     // Template for Icon Components
     template(
-        { template },
+        {template},
         opts,
-        { imports, componentName, props, jsx, exports }
+        {imports, componentName, props, jsx, exports}
     ) {
-        const typeScriptTpl = template.smart({ plugins: ['typescript'] })
+        const typeScriptTpl = template.smart({plugins: ['typescript']})
         return typeScriptTpl.ast`
     import * as React from 'react';
     const ${componentName} = (props: any) => ${jsx};
@@ -26,10 +26,10 @@ module.exports = {
             ],
         },
     },
-// Set default color
+    // Set default color
     svgProps: {
         fill: "currentcolor",
-//        viewBox: "0 0 24 24",
+        //        viewBox: "0 0 24 24",
     },
     // replace icon colors with props.color && props.color2
     replaceAttrValues: {
@@ -37,6 +37,6 @@ module.exports = {
         "#53657d": "{undefined}",
         "#8393a7": "{props.color2 ? props.color2 : null }"
     },
-// do not write width and height in svg
+    // do not write width and height in svg
     dimensions: false,
 }

@@ -70,7 +70,7 @@ interface RFB {
     clipboardPasteFrom: (text: string) => void;
 }
 
-function NoVNCClient(props: RouterLocationProps) {
+function NoVNCClient(props: RouterLocationProps): JSX.Element {
     const [isConnected, setConnected] = React.useState(false);
     const [isCancelled, setCancelled] = React.useState(false);
     const [rfb, setRFB] = React.useState<RFB | undefined>(undefined);
@@ -91,7 +91,7 @@ function NoVNCClient(props: RouterLocationProps) {
         };
     }, []);
 
-    function onConnect() {
+    function onConnect(): void {
         try {
             const protocol = window.location.protocol === "http:" ? "ws:" : "wss:";
             const rfbClient = new RFB(document.getElementsByClassName("noVNC")[0], `${protocol}//${window.location.host}${path}`, {
@@ -108,19 +108,19 @@ function NoVNCClient(props: RouterLocationProps) {
         }
     }
 
-    function disconnect() {
+    function disconnect(): void {
         rfb?.disconnect();
         setConnected(false);
     }
 
-    function toFullScreen() {
+    function toFullScreen(): void {
         requestFullScreen(
             document.getElementsByClassName("noVNC")[0]!,
             () => snackbarStore.addFailure("Fullscreen is not supported for this browser.")
         );
     }
 
-    function cancelJob() {
+    function cancelJob(): void {
         if (!jobId) return;
         cancelJobDialog({
             jobId,

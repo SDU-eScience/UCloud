@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+pushd () {
+    command pushd "$@" > /dev/null
+}
+
+popd () {
+    command popd "$@" > /dev/null
+}
+
+working_dir=$(pwd)
+script_dir="$(dirname "$0")"
+pushd $script_dir/../k8-resources
+
+if [ $# -eq 0 ]
+  then
+    echo "Usage: k8-manager <command> [<service>] [<args>]"
+    echo ""
+    echo "Command is run for all services if no service is supplied"
+    echo ""
+    echo "Commands:"
+    echo "  status: List status of all K8 resources"
+    echo "  migrate: Apply migration resources"
+    echo "  deploy: Apply deployment resources"
+    echo "  job: Apply ad hoc job resources"
+    echo ""
+else
+    ./gradlew :runApp --console plain -Pcwd="${working_dir}" -q --args "$*"
+fi
+popd

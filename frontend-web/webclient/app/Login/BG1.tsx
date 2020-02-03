@@ -1,10 +1,10 @@
 import * as React from "react";
 import {PRODUCT_NAME, VERSION_TEXT} from "../../site.config.json";
 
-export function BG1() {
+export function BG1(): JSX.Element {
     return (
         <svg
-            viewBox="0 0 2296 1749"
+            viewBox="0 0 2296 2500"
             fillRule="evenodd"
             clipRule="evenodd"
             strokeLinecap="round"
@@ -48,7 +48,7 @@ export function BG1() {
                     <circle cx="454.152" cy="182" r="12.756" fill="#fcfcfc" stroke="#fff" strokeOpacity={0.568627} strokeWidth="5px" />
                 </g>
             </g>
-            <path d="M368.231,274.126l171.842,99.213l171.841,-99.213l1583.39,0l0,1474.02l-2295.31,0l0,-1474.02l368.231,0Z" fill="url(#_Linear11)" />
+            <path d="M368.231,274.126l171.842,99.213l171.841,-99.213l1583.39,0l0,2300l-2295.31,0l0,-2300l368.231,0Z" fill="url(#_Linear11)" />
             <text pointerEvents="none" x="722.462px" y="247.713px" fontFamily="'IBMPlexSans', 'IBM Plex Sans', sans-serif" fontSize="200px" fill="#fff">
                 {PRODUCT_NAME}
             </text>

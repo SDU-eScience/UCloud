@@ -272,8 +272,8 @@ export interface AdvancedSearchRequest {
     fileName?: string;
     extensions?: string[];
     fileTypes: [FileType?, FileType?];
-    createdAt?: {after?: number, before?: number};
-    modifiedAt?: {after?: number, before?: number};
+    createdAt?: {after?: number; before?: number};
+    modifiedAt?: {after?: number; before?: number};
     sensitivity?: SensitivityLevel[];
     includeShares?: boolean;
     itemsPerPage?: number;
