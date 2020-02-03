@@ -18,7 +18,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppLicenseDescriptions.get) {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
@@ -38,7 +38,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.updateAcl) {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
@@ -51,7 +51,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.list)  {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
@@ -65,7 +65,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.update) {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
@@ -74,7 +74,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.delete) {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
@@ -83,7 +83,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.new) {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 

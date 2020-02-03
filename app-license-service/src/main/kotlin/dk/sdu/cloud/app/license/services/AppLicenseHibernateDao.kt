@@ -108,7 +108,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         """.trimIndent(), LicenseServerEntity::class.java
         ).also {
             it.setParameter("tags", tags)
-            it.setParameter("entityId", userEntity.id)
+            it.setParameter("entityId", userEntity.principal.username)
             it.setParameter("entityType", userEntity.type.toString())
         }.list().map { entity ->
             entity.toIdentifiable()

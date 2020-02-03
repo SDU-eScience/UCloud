@@ -83,7 +83,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val get = call<LicenseServerRequest, LicenseServerWithId, CommonErrorMessage>("get") {
         auth {
-            roles = Roles.AUTHENTICATED
+            roles = Roles.PRIVILEDGED
             access = AccessRight.READ
         }
 
