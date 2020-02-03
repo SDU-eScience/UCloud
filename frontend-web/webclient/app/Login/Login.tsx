@@ -196,6 +196,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                 <ClickableDropdown
                                     colorOnHover={false}
                                     keepOpenOnClick
+                                    keepOpenOnOutsideClick
                                     top="30px"
                                     width="315px"
                                     left="0px"

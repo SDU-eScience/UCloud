@@ -507,7 +507,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             main={(
                 <>
                     {!sortingSupported ? <div /> : (
-                        <StickyBox>
+                        <StickyBox backgroundColor={"white"}>
                             <Spacer
                                 left={isMasterDisabled ? null : (
                                     <Box mr="18px">
@@ -785,7 +785,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
 const StickyBox = styled(Box)`
     position: sticky;
-    top: 120px;
+    top: 144px;
     z-index: 50;
 `;
 
