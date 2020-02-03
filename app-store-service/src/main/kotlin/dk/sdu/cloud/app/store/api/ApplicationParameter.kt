@@ -267,7 +267,8 @@ enum class SharedFileSystemType {
     JsonSubTypes.Type(value = DoubleApplicationParameter::class, name = TYPE_FLOATING_POINT),
     JsonSubTypes.Type(value = StringApplicationParameter::class, name = TYPE_TEXT),
     JsonSubTypes.Type(value = PeerApplicationParameter::class, name = TYPE_PEER),
-    JsonSubTypes.Type(value = SharedFileSystemApplicationParameter::class, name = TYPE_SHARED_FILE_SYSTEM)
+    JsonSubTypes.Type(value = SharedFileSystemApplicationParameter::class, name = TYPE_SHARED_FILE_SYSTEM),
+    JsonSubTypes.Type(value = LicenseServerApplicationParameter::class, name = TYPE_LICENSE_SERVER)
 )
 sealed class ParsedApplicationParameter {
     abstract val type: String // This is not ideal, but it fixes the serialization issue
