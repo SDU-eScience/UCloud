@@ -372,8 +372,8 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                 onChange={stopPropagation}
                                                                 onClick={() => {
                                                                     Client.post(`/hpc/apps/setPublic`, {
-                                                                        name,
-                                                                        version: version.version,
+                                                                        appName: name,
+                                                                        appVersion: version.version,
                                                                         public: !version.isPublic
                                                                     });
 
@@ -410,7 +410,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                             </Box>
                                                         ),
                                                         onConfirm: async () => {
-                                                            await Client.delete("/hpc/apps", { name, version: version.version });
+                                                            await Client.delete("/hpc/apps", { appName: name, appVersion: version.version });
                                                             setAppParameters(listByName({...appParameters.parameters}));
                                                         },
                                                         confirmText: "Delete"

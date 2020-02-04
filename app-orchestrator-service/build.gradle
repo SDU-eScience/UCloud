@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.1.1'
+version '1.1.1-LS-TEST-13'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
@@ -9,7 +9,8 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 buildscript {
     ext.serviceCommonVersion = "1.12.0"
     ext.authApiVersion = "1.27.0"
-    ext.appStoreApiVersion = "0.10.6"
+    ext.appStoreApiVersion = "0.10.7-LS-TEST-5"
+    ext.appLicenseApiVersion = "0.1.4-LS-TEST-1"
     ext.fileApiVersion = "3.1.0"
     ext.appFsVersion = "0.2.5"
 }
@@ -22,6 +23,7 @@ dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:$authApiVersion"
     compile "dk.sdu.cloud:app-store-api:$appStoreApiVersion"
+    compile "dk.sdu.cloud:app-license-api:$appLicenseApiVersion"
     compile "dk.sdu.cloud:file-api:${fileApiVersion}"
     compile "dk.sdu.cloud:app-fs-api:$appFsVersion"
     compile "dk.sdu.cloud:indexing-api:1.15.4"

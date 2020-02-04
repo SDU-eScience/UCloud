@@ -58,8 +58,7 @@ data class LicenseServerId(
     val name: String
 )
 
-data class ListLicenseServersRequest(val names: List<String>);
-
+data class ListLicenseServersRequest(val tags: List<String>);
 data class UpdateServerResponse(val serverId: String)
 data class NewServerResponse(val serverId: String)
 
@@ -84,7 +83,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val get = call<LicenseServerRequest, LicenseServerWithId, CommonErrorMessage>("get") {
         auth {
-            roles = Roles.AUTHENTICATED
+            roles = Roles.PRIVILEDGED
             access = AccessRight.READ
         }
 
@@ -108,16 +107,14 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
 
         http {
-            method = HttpMethod.Get
+            method = HttpMethod.Post
 
             path {
                 using(baseContext)
                 +"list"
             }
 
-            params {
-                +boundTo(ListLicenseServersRequest::names)
-            }
+            body { bindEntireRequestFromBody() }
         }
     }
 

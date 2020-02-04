@@ -140,6 +140,7 @@ class JobOrchestrator<DBSession>(
         log.debug("Verifying job")
         val unverifiedJob = UnverifiedJob(req, decodedToken, refreshToken)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
+        println("Validated")
         val initialState = JobStateChange(jobWithToken.job.id, JobState.VALIDATED)
         log.debug("Notifying compute")
         backend.jobVerified.call(jobWithToken.job, serviceClient).orThrow()
