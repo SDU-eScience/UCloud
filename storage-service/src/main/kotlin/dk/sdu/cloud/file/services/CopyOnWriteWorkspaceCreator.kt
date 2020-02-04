@@ -185,7 +185,7 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
             }
         )
 
-        CreatedWorkspace(workspaceId, failures)
+        CreatedWorkspace(workspaceId, failures, WorkspaceMode.COPY_FILES, CowWorkspace(snaps))
     }
 
     override suspend fun transfer(
@@ -467,7 +467,6 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                         StandardCopyOption.ATOMIC_MOVE,
                         StandardCopyOption.REPLACE_EXISTING
                     )
-
 
                     coreFs.emitUpdateEvent(rootCtx, destination)
                     transferredFiles.add(destination)

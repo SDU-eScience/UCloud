@@ -19,7 +19,8 @@ class WorkspaceController(
                 request.createSymbolicLinkAt,
                 request.mode ?: WorkspaceMode.COPY_FILES
             )
-            ok(Workspaces.Create.Response(response.workspaceId, response.failures))
+
+            ok(response)
         }
 
         implement(WorkspaceDescriptions.delete) {

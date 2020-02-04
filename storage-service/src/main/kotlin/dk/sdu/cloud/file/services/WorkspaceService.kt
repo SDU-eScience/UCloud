@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.WorkspaceMode
 import dk.sdu.cloud.file.api.WorkspaceMount
+import dk.sdu.cloud.file.api.Workspaces
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
@@ -13,7 +14,7 @@ import java.nio.file.FileSystems
 import java.nio.file.Files
 import java.nio.file.Path
 
-data class CreatedWorkspace(val workspaceId: String, val failures: List<WorkspaceMount>)
+typealias CreatedWorkspace = Workspaces.Create.Response
 
 data class WorkspaceManifest(
     val username: String,
