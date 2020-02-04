@@ -28,7 +28,7 @@ class ActivityController<DBSession>(
                 val page = activityService.findEventsForPath(
                     request.normalize(),
                     request.path,
-                    call.request.bearer!!,
+                    ctx.bearer!!,
                     ctx.securityPrincipal.username,
                     ctx.jobId
                 )

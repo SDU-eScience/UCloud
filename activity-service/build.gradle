@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.4.10'
+version '1.4.11'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.activity.MainKt"
@@ -7,14 +7,14 @@ mainClassName = "dk.sdu.cloud.activity.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.11.7"
-    ext.authApiVersion = "1.26.4"
+    ext.serviceCommonVersion = "1.12.0"
+    ext.authApiVersion = "1.27.0"
 }
 
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
-    compile "dk.sdu.cloud:file-api:3.0.7"
+    compile "dk.sdu.cloud:file-api:3.1.0"
     compile "dk.sdu.cloud:indexing-api:1.15.4"
     compile "dk.sdu.cloud:file-favorite-api:1.4.2"
 

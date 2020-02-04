@@ -1,7 +1,12 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.withDatabase
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
