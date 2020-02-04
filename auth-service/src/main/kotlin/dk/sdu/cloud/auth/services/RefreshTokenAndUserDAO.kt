@@ -61,7 +61,6 @@ interface RefreshTokenDAO<Session> {
     fun insert(session: Session, tokenAndUser: RefreshTokenAndUser)
     fun updateCsrf(session: Session, token: String, newCsrf: String)
     fun delete(session: Session, token: String): Boolean
-    fun deleteExpired(session: Session)
 
     /**
      * Finds and lists all user sessions for a user.
