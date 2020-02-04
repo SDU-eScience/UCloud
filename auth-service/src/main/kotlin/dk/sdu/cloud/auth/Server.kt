@@ -121,16 +121,6 @@ class Server(
 
         log.info("Core services constructed!")
 
-        if (micro.commandLineArguments.contains("--tokenScan")) {
-            log.info("Scanning for expired refresh tokens.")
-            runBlocking {
-                db.withTransaction { session ->
-                    refreshTokenDao.deleteExpired(session)
-                }
-            }
-            exitProcess(0)
-        }
-
         if (micro.developmentModeEnabled) {
             runBlocking {
                 log.info("In development mode. Checking if we need to create a dummy account.")

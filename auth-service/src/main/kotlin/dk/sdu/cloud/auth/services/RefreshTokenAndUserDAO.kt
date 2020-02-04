@@ -184,18 +184,6 @@ class RefreshTokenHibernateDAO : RefreshTokenDAO<HibernateSession> {
         return true
     }
 
-    override fun deleteExpired(session: HibernateSession) {
-        session.deleteCriteria<RefreshTokenEntity> {
-            anyOf(
-                entity[RefreshTokenEntity::refreshTokenExpiry] equal nullLiteral(),
-                builder.lessThan<Long>(
-                    entity[RefreshTokenEntity::refreshTokenExpiry],
-                    System.currentTimeMillis()
-                )
-            )
-        }.executeUpdate()
-    }
-
     override fun findUserSessions(
         session: HibernateSession,
         username: String,
