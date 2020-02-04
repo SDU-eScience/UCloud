@@ -15,6 +15,8 @@ import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
+import kotlinx.coroutines.runBlocking
+import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro
@@ -30,6 +32,14 @@ class Server(
         val fileLookupService = FileLookupService(client)
         val activityService = ActivityService(db, activityEventDao, fileLookupService)
         log.info("Core services constructed")
+
+        if (micro.commandLineArguments.contains("--deleteOldActivity")) {
+            val numberOfDays = 180L
+            runBlocking {
+                activityService.deleteOldActivity(numberOfDays)
+            }
+            exitProcess(0)
+        }
 
         log.info("Creating stream processors")
         StorageAuditProcessor(micro.eventStreamService, activityService).init()

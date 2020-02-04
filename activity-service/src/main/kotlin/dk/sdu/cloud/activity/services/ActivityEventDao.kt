@@ -49,4 +49,9 @@ interface ActivityEventDao<Session> {
         session: Session,
         event: ActivityEvent
     )
+
+    fun deleteOldActivity(
+        session: Session,
+        numberOfDaysInPast: Long
+    )
 }
