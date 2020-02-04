@@ -13,6 +13,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -26,16 +27,11 @@ class AppLicenseTest {
     private lateinit var micro: Micro
     private lateinit var aclService: AclService<HibernateSession>
     private lateinit var appLicenseService: AppLicenseService<HibernateSession>
-    private lateinit var principal: SecurityPrincipal
-    private lateinit var principal2: SecurityPrincipal
 
     @BeforeTest
     fun initializeTest() {
         micro = initializeMicro()
         micro.install(HibernateFeature)
-
-        principal = SecurityPrincipal("user", Role.ADMIN, "user", "user", Random.nextLong().absoluteValue, "user@example.com")
-        principal2 = SecurityPrincipal("user2", Role.USER, "user2", "user2", Random.nextLong().absoluteValue, "user2@example.com")
 
         ClientMock.mockCall(UserDescriptions.lookupUsers) {
             TestCallResult.Ok(
@@ -49,7 +45,7 @@ class AppLicenseTest {
 
     @Test
     fun `save new license server and fetch`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
@@ -66,7 +62,7 @@ class AppLicenseTest {
 
     @Test
     fun `save new license and update`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
@@ -98,8 +94,8 @@ class AppLicenseTest {
 
     @Test
     fun `save and update license - fail if unauthorized`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
-        val user2 = UserEntity(principal2, EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
+        val user2 = UserEntity(TestUsers.user, EntityType.USER)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
