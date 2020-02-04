@@ -296,9 +296,10 @@ exports[`Mount Files component 1`] = `
 }
 
 .c24 {
+  background-color: #fff;
   position: -webkit-sticky;
   position: sticky;
-  top: 120px;
+  top: 144px;
   z-index: 50;
 }
 
