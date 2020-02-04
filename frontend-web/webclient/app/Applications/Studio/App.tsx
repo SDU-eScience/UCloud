@@ -361,7 +361,9 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     {versions.map(version => (
                                         <TableRow key={version.version}>
                                             <TableCell>
-                                                <Heading.h3>{version.version}</Heading.h3>
+                                                <Box style={{wordBreak: "break-word"}} width="100%">
+                                                    {version.version}
+                                                </Box>
                                             </TableCell>
                                             <TableCell>
                                                 <Box mb={26} mt={16}>
