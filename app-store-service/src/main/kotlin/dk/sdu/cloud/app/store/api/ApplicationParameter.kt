@@ -229,7 +229,6 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         override val defaultValue: LicenseServerApplicationParameter? = null
 
         override fun internalMap(inputParameter: Any): LicenseServerApplicationParameter {
-            println("internalMap called: $inputParameter")
             @Suppress("UNCHECKED_CAST")
             val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad license server")
             val licenseServerId = asMap["id"] as? String? ?: throw IllegalArgumentException("Missing 'licenseServerId'")
@@ -240,7 +239,6 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         }
 
         override fun toInvocationArgument(entry: LicenseServerApplicationParameter): String {
-            println("toInvocationArgument called: $entry")
             return if (entry.license != null) {
                 entry.address + ":" + entry.port + "/" + entry.license
             } else {
