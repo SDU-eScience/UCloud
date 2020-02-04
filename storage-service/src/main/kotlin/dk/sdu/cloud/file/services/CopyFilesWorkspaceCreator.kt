@@ -36,7 +36,7 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
     private val aclService: AclService<*>,
     private val coreFileSystem: CoreFileSystemService<Ctx>,
     private val processRunner: FSCommandRunnerFactory<Ctx>
-) : WorkspaceCreator{
+) : WorkspaceCreator {
     override suspend fun create(
         user: String,
         mounts: List<WorkspaceMount>,
@@ -96,7 +96,7 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
             throw RPCException("Workspace creation had failures: $failures", HttpStatusCode.BadRequest)
         }
 
-        CreatedWorkspace(workspaceId, failures)
+        CreatedWorkspace(workspaceId, failures, WorkspaceMode.COPY_FILES, null)
     }
 
     private fun transferFileToWorkspaceNoAccessCheck(

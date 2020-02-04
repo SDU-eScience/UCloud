@@ -53,7 +53,12 @@ object Workspaces : CallDescriptionContainer("files.workspace") {
             val mode: WorkspaceMode? = null
         )
 
-        data class Response(val workspaceId: String, val failures: List<WorkspaceMount>)
+        data class Response(
+            val workspaceId: String,
+            val failures: List<WorkspaceMount>,
+            val mode: WorkspaceMode,
+            val cow: CowWorkspace?
+        )
     }
 
     val create = call<Create.Request, Create.Response, CommonErrorMessage>("create") {
