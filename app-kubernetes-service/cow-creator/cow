@@ -3,9 +3,14 @@
 # Manages the PV type cow.
 #
 # Dependencies:
-# - fuse-overlayfs
+# - overlayfs kernel driver (patched with support for CephFS)
 # - cephfs kernel driver
 # - jq
+
+# The overlay fs driver in the kernel has troubles supporting CephFS. This happens during the copy_up procedure when
+# copying extended attribtues. The internal `ceph.*` attributes are not meant to be copied. As a result Ceph will
+# return not supported for all copies of internal attributes. This causes OverlayFS to fail entirely. We have added a
+# patch in our kernel which skips all internal ceph attributes.
 
 log() {
     echo -ne $* >&1
@@ -16,7 +21,7 @@ cephfs_mount=/mnt/cephfs
 
 ismounted() {
     query=$1
-    mount=`findmnt -n "${query}" 2>/dev/null | cut -d' ' -f1`
+    mount=$(findmnt -n "${query}" 2>/dev/null | cut -d' ' -f1)
     if [ "${mount}" == "${query}" ]; then
         echo "1"
     else
@@ -30,25 +35,36 @@ mountcephfs() {
         user=$(echo $1 | jq -r '."kubernetes.io/secret/cephUser"' | base64 -d)
         key=$(echo $1 | jq -r '."kubernetes.io/secret/cephKey"' | base64 -d)
 
-        mkdir -p "${cephfs_mount}" &> /dev/null
-        mount -t ceph "${mons}:/" "${cephfs_mount}" -o "name=${user},secret=${key}"
+        mkdir -p "${cephfs_mount}" &>/dev/null
+        mount -t ceph "${mons}:/" "${cephfs_mount}" -o "name=${user},secret=${key}" &>/dev/null
     fi
 }
 
 domount() {
+    # Prepare input
     mntpath=$1
-    mountcephfs $2
+    request=$2
+    workspace=$(echo $request | jq -r .workspace)
+    directory_name=$(echo $request | jq -r .directoryName)
+    snapshot_path=$(echo $request | jq -r .snapshotPath)
+    real_path=$(echo $request | jq -r .realPath)
 
-    workspace=$(echo $2 | jq -r .workspace)
-    snaps_txt="${cephfs_mount}/workspace/${workspace}/snaps.txt"
-    snaps_json="${cephfs_mount}/workspace/${workspace}/snaps.json"
-    mkdir -p /tmp/snaps &> /dev/null
-    cp "${snaps_json}" "/tmp/snaps/$(echo $mntpath | md5sum | awk '{ print $1 }')"
+    # Mount lower directory
+    mountcephfs $request
 
-    mount --bind "${cephfs_mount}/workspace/${workspace}/work" "${mntpath}"
+    # Allocate upper and work directories
+    tmp_work="/mnt/ofs/${workspace}_${directory_name}"
+    mkdir -p "${tmp_work}/upper"
+    mkdir -p "${tmp_work}/work"
 
-    xargs -d '\n' --no-run-if-empty -a "${snaps_txt}" -n 3 \
-        cowmount "${workspace}" "${mntpath}"
+    # Save metadata for later use
+    mkdir -p /tmp/snaps &>/dev/null
+    metadata_file="/tmp/snaps/$(echo $mntpath | md5sum | awk '{ print $1 }')"
+    echo "$request" >$metadata_file
+
+    # Mount overlay
+    mount -t overlay overlay -o "lowerdir=${cephfs_mount}/${snapshot_path},upperdir=${tmp_work}/upper,workdir=${tmp_work}/work" "${mntpath}"
+    chown 11042:11042 "${mntpath}"
 
     log '{"status":"Success"}'
     exit 0
@@ -57,39 +73,50 @@ domount() {
 unmount() {
     mntpath=$1
 
-    snaps_file="/tmp/snaps/$(echo $mntpath | md5sum | awk '{ print $1 }')"
-    all_dirs=$(cat ${snaps_file} | jq -r '.snapshots[] | .directoryName')
+    # Locate metadata file
+    metadata_file="/tmp/snaps/$(echo $mntpath | md5sum | awk '{ print $1 }')"
+    request=$(cat $metadata_file)
+    rm ${metadata_file} &>/dev/null
 
-    echo $all_dirs | xargs -d '\n' -I {} umount "${mntpath}/{}"
-    echo $all_dirs | xargs -d '\n' -I {} rmdir "${mntpath}/{}"
+    # Read input
+    workspace=$(echo $request | jq -r .workspace)
+    directory_name=$(echo $request | jq -r .directoryName)
+    snapshot_path=$(echo $request | jq -r .snapshotPath)
+    real_path=$(echo $request | jq -r .realPath)
 
-    umount $mntpath
+    # Move data to CephFS workspace upper
+    tmp_work="/mnt/ofs/${workspace}_${directory_name}" &>/dev/null
 
-    rm ${snaps_file}
+    rm -rf "${cephfs_mount}/workspace/${workspace}/snapshots/${directory_name}/upper" &>/dev/null
+    mv "${tmp_work}/upper/" "${cephfs_mount}/workspace/${workspace}/snapshots/${directory_name}/upper/" &>/dev/null
+    rm -rf "${tmp_work}" &>/dev/null
+    touch "${cephfs_mount}/workspace/${workspace}/snapshots/${directory_name}/upper/.ucloud-ready"
+
+    # Do the actual unmount
+    umount $mntpath &>/dev/null
 
     log '{"status":"Success"}'
     exit 0
 }
 
 op=$1
-
 shift
 
 case "$op" in
-    init)
-        log '{"status":"Success","capabilities":{"attach":false}}'
-        exit 0
-        ;;
-    mount)
-        domount $*
-        ;;
-    unmount)
-        unmount $*
-        ;;
-    *)
-        log '{"status":"Not supported"}'
-        exit 0
+init)
+    log '{"status":"Success","capabilities":{"attach":false}}'
+    exit 0
+    ;;
+mount)
+    domount $*
+    ;;
+unmount)
+    unmount $*
+    ;;
+*)
+    log '{"status":"Not supported"}'
+    exit 0
+    ;;
 esac
 
 exit 1
-

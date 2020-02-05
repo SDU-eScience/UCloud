@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.file.api.CowWorkspace
 import kotlin.math.max
 
 data class VerifiedJob(
@@ -155,7 +156,9 @@ data class VerifiedJob(
 
     val reservation: MachineReservation = MachineReservation.BURST,
 
-    val mountMode: MountMode? = null
+    val mountMode: MountMode? = null,
+
+    val cow: CowWorkspace? = null
 ) {
     @get:JsonIgnore
     val mounts: List<ValidatedFileForUpload>

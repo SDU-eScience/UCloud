@@ -24,6 +24,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.events.EventProducer
+import dk.sdu.cloud.file.api.CowWorkspace
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -295,26 +296,29 @@ class JobOrchestrator<DBSession>(
             when (event.newState) {
                 JobState.VALIDATED -> {
                     var workspace: String? = null
+                    var cow: CowWorkspace? = null
 
                     db.withTransaction(autoFlush = true) {
                         jobDao.updateStateAndStatus(
                             it,
                             event.systemId,
                             JobState.VALIDATED,
-                            "Transferring files from SDUCloud to your application. This could take a while."
+                            "Transferring files from UCloud to your application. This could take a while."
                         )
                     }
 
                     if (!backendConfig.useWorkspaces) {
                         jobFileService.transferFilesToBackend(jobWithToken, backend)
                     } else {
-                        workspace = jobFileService.createWorkspace(jobWithToken)
+                        val (workspacePath, cowWorkspace) = jobFileService.createWorkspace(jobWithToken)
+                        workspace = workspacePath
+                        cow = cowWorkspace
                         db.withTransaction(autoFlush = true) {
-                            jobDao.updateWorkspace(it, event.systemId, workspace)
+                            jobDao.updateWorkspace(it, event.systemId, workspace, cow)
                         }
                     }
 
-                    val jobWithNewState = job.copy(currentState = JobState.PREPARED, workspace = workspace)
+                    val jobWithNewState = job.copy(currentState = JobState.PREPARED, workspace = workspace, cow = cow)
                     val jobWithTokenAndNewState = jobWithToken.copy(job = jobWithNewState)
 
                     handleStateChange(
