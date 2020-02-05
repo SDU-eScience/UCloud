@@ -7,7 +7,6 @@ import styled from "styled-components";
 import {Box, Flex, Text} from "ui-components";
 import Icon, {IconName} from "ui-components/Icon";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {colors} from "ui-components/theme";
 import {fileInfoPage, getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
 
 export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTableSectionElement>}> = props => {
@@ -84,7 +83,7 @@ const OperationText: React.FunctionComponent<{event: Module.Activity}> = props =
     }
 };
 
-export const ActivityFeedSpacer = (props: {height: number}) => (
+export const ActivityFeedSpacer = (props: {height: number}): JSX.Element => (
     <tr style={{height: `${props.height}px`}} />
 );
 
@@ -93,11 +92,11 @@ interface ActivityFeedProps {
 }
 
 export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
-    public shouldComponentUpdate(nextProps: ActivityFeedProps) {
+    public shouldComponentUpdate(nextProps: ActivityFeedProps): boolean {
         return this.props.activity.newestTimestamp !== nextProps.activity.newestTimestamp;
     }
 
-    public render() {
+    public render(): JSX.Element {
         const {activity} = this.props;
         return (
             <TFRow>
@@ -210,11 +209,11 @@ const TFRow = styled(TableRow)`
     vertical-align: top;
 
     & a {
-        color: ${colors.text}
+        color: var(--text, #f00);
     }
 
     & a:hover {
-        color: ${colors.textHighlight}
+        color: var(--text, #f00);
     }
 
     & div.ellipsis {

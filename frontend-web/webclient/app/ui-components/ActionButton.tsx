@@ -5,7 +5,7 @@ import Text from "ui-components/Text";
 import {ButtonProps} from "./Button";
 
 export const ActionButton: React.FunctionComponent<{
-    loadable: LoadableContent
+    loadable: LoadableContent;
 } & ButtonProps & React.ButtonHTMLAttributes<HTMLButtonElement>> = props => {
     return (
         <div>

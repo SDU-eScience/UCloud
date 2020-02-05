@@ -13,8 +13,8 @@ interface DataListProps {
     clearOnSelect?: boolean;
 }
 export class DataList extends React.PureComponent<DataListProps, {
-    text: string,
-    fuse: Fuse<ContentValuePair, Fuse.FuseOptions<ContentValuePair>>
+    text: string;
+    fuse: Fuse<ContentValuePair, Fuse.FuseOptions<ContentValuePair>>;
 }> {
     private readonly totalShown = 8;
 
@@ -40,7 +40,7 @@ export class DataList extends React.PureComponent<DataListProps, {
         };
     }
 
-    public render() {
+    public render(): JSX.Element {
         const results = this.state.text ?
             this.state.fuse.search(this.state.text) : this.props.options.slice(0, this.totalShown);
         return (
@@ -72,7 +72,7 @@ export class DataList extends React.PureComponent<DataListProps, {
         );
     }
 
-    private onSelect(content: string, value: string) {
+    private onSelect(content: string, value: string): void {
         this.props.onSelect(value);
         if (this.state.text && this.props.clearOnSelect) this.setState(() => ({text: ""}));
         else this.setState(() => ({text: content}));

@@ -157,7 +157,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   flex: 1 1 auto;
 }
 
-.c17 .sc-fzXfLU {
+.c17 .sc-fzokOt {
   border: 0;
   box-shadow: none;
 }
@@ -177,7 +177,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 
 .c26 > input:checked ~ svg[data-name="checked"] {
   display: inline-block;
-  color: #006aff;
+  color: var(--blue,#f00);
 }
 
 .c26 > input:checked ~ svg[data-name="empty"] {
@@ -234,7 +234,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   border-radius: 5px;
   border-width: 0px;
   border-style: solid;
-  border-color: #c9d3df;
+  border-color: var(--borderGray,#f00);
   padding-top: 14px;
   padding-bottom: 14px;
   padding-left: 12px;
@@ -243,19 +243,19 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 }
 
 .c18::-webkit-input-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c18::-moz-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c18:-ms-input-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c18::placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c18::-ms-clear {
@@ -306,7 +306,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 }
 
 .c23 {
-  background-color: #fff;
+  background-color: var(--white,#f00);
   padding-top: 11px;
   padding-bottom: 11px;
 }
@@ -316,7 +316,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   border: 0px;
   text-align: center;
   width: 4%;
-  background-color: #fff;
+  background-color: var(--white,#f00);
   top: 96px;
   z-index: 10;
   position: -webkit-sticky;
@@ -327,7 +327,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   border-spacing: 0;
   border: 0px;
   text-align: left;
-  background-color: #fff;
+  background-color: var(--white,#f00);
   cursor: pointer;
   top: 96px;
   z-index: 10;
@@ -375,7 +375,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   className="c0 c1"
 >
   <div
-    className="c0 sc-AykKD c2"
+    className="c0 sc-AxiKw c2"
     height={48}
     width={1}
   >
@@ -425,7 +425,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
     className="c0 c9"
   >
     <div
-      className="c0 sc-AykKD c10"
+      className="c0 sc-AxiKw c10"
       height="100%"
       width={340}
     >
@@ -808,7 +808,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           cursor="auto"
         >
           <th
-            className="sc-fzXfPE c25"
+            className="sc-fzoMdx c25"
             width="4%"
           >
             <label
@@ -861,25 +861,25 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             </label>
           </th>
           <th
-            className="sc-fzXfPE c29"
+            className="sc-fzoMdx c29"
             onClick={[Function]}
           >
             Name
           </th>
           <th
-            className="sc-fzXfPE c29"
+            className="sc-fzoMdx c29"
             onClick={[Function]}
           >
             State
           </th>
           <th
-            className="sc-fzXfPE c29"
+            className="sc-fzoMdx c29"
             onClick={[Function]}
           >
             Application
           </th>
           <th
-            className="sc-fzXfPE c29"
+            className="sc-fzoMdx c29"
             onClick={[Function]}
           >
             <svg
@@ -900,7 +900,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             Created at
           </th>
           <th
-            className="sc-fzXfPE c29"
+            className="sc-fzoMdx c29"
             onClick={[Function]}
           >
             Expiration

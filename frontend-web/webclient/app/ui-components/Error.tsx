@@ -6,11 +6,11 @@ import Flex from "ui-components/Flex";
 import Icon from "ui-components/Icon";
 import Text from "ui-components/Text";
 
-interface ErrorProps {clearError?: () => void; error?: string; width?: string | number;}
-function Error(props: ErrorProps) {
+interface ErrorProps {clearError?: () => void; error?: string; width?: string | number}
+function Error(props: ErrorProps): JSX.Element | null {
     if (!props.error) return null;
 
-    function onClearError(e: React.MouseEvent<HTMLElement, MouseEvent>) {
+    function onClearError(e: React.MouseEvent<HTMLElement, MouseEvent>): void {
         props.clearError!();
         e.stopPropagation();
     }

@@ -48,7 +48,7 @@ interface FetchJobsOptions {
 
 /* FIXME: Almost identical to similar one in FilesTable.tsx */
 const JobResultsHeaderCell = styled(TableHeaderCell) <{pointer?: boolean}>`
-    background-color: ${({theme}) => theme.colors.white};
+    background-color: var(--white, #f00);
     ${({pointer}) => pointer ? "cursor: pointer;" : null}
     top: 96px; //topmenu + header size
     z-index: 10;
