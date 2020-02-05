@@ -361,7 +361,9 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     {versions.map(version => (
                                         <TableRow key={version.version}>
                                             <TableCell>
-                                                <Heading.h3>{version.version}</Heading.h3>
+                                                <WordBreakBox>
+                                                    {version.version}
+                                                </WordBreakBox>
                                             </TableCell>
                                             <TableCell>
                                                 <Box mb={26} mt={16}>
@@ -430,6 +432,13 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
         />
     );
 };
+
+const WordBreakBox = styled(Box)`
+    word-break: break-word;
+    width: 100%;
+`;
+
+
 
 const mapDispatchToProps = (
     dispatch: Dispatch<Actions.Type | HeaderActions | StatusActions | LoadingAction>
