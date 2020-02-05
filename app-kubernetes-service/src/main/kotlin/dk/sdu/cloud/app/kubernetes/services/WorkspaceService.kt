@@ -71,29 +71,58 @@ class WorkspaceService {
 
     private fun prepareCopyOnWrite(job: VerifiedJob): PreparedWorkspace {
         // We are just interested in keeping the workspace ID
-        val workspace = job.workspace?.removePrefix("/")?.removePrefix("workspace")?.removeSuffix("/")
-            ?: throw RPCException("No workspace found", HttpStatusCode.BadRequest)
+        val workspace = job.workspace ?: throw RPCException("No workspace found", HttpStatusCode.BadRequest)
+        val workspaceId = workspace.removePrefix("/").removePrefix("workspace").removeSuffix("/")
 
-        val volumes = listOf(
-            volume {
-                name = DATA_STORAGE
-                flexVolume = FlexVolumeSource().apply {
-                    driver = "ucloud/cow"
-                    fsType = "ext4"
-                    secretRef = LocalObjectReference().apply { name = "cow-lower" }
-                    options = mapOf(
-                        "workspace" to workspace
-                    )
+        val cow =
+            job.cow ?: throw RPCException("No CoW workspace description found", HttpStatusCode.InternalServerError)
+
+        val volumes = mutableListOf<Volume>()
+        val userMounts = mutableListOf<VolumeMount>()
+
+        run {
+            // Add snapshot volumes + mounts
+            volumes += cow.snapshots.mapIndexed { idx, snapshot ->
+                volume {
+                    name = "$DATA_STORAGE-$idx"
+                    flexVolume = FlexVolumeSource().apply {
+                        driver = "ucloud/cow"
+                        fsType = "ext4"
+                        secretRef = LocalObjectReference().apply { name = "cow-lower" }
+                        options = mapOf(
+                            "workspace" to workspaceId,
+                            "directoryName" to snapshot.directoryName,
+                            "snapshotPath" to snapshot.snapshotPath,
+                            "realPath" to snapshot.realPath
+                        )
+                    }
                 }
             }
-        )
 
-        val userMounts = listOf(
-            volumeMount {
+            userMounts += cow.snapshots.mapIndexed { idx, snapshot ->
+                volumeMount {
+                    name = "$DATA_STORAGE-$idx"
+                    mountPath = "$WORKING_DIRECTORY/${snapshot.directoryName}"
+                }
+            }
+        }
+
+        run {
+            // Add general /work volume + mount
+            volumes += volume {
+                name = DATA_STORAGE
+                persistentVolumeClaim = PersistentVolumeClaimVolumeSource(
+                    "cephfs",
+                    false
+                )
+            }
+
+            userMounts += volumeMount {
                 name = DATA_STORAGE
                 mountPath = WORKING_DIRECTORY
+                subPath = workspace.removePrefix("/").removeSuffix("/").let { "$it/work" }
             }
-       )
+        }
 
         return PreparedWorkspace(
             PreparedWorkspace.UserContainer(userMounts),

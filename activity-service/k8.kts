@@ -12,4 +12,5 @@ bundle {
     }
 
     withPostgresMigration(deployment)
+    withCronJob(deployment, "* 1 * * 1", listof("--deleteOldActivity")) {}
 }

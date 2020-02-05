@@ -11,9 +11,12 @@ import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.createCriteriaBuilder
 import dk.sdu.cloud.service.db.createQuery
 import dk.sdu.cloud.service.db.criteria
+import dk.sdu.cloud.service.db.deleteCriteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
+import java.time.LocalDate
+import java.time.LocalDateTime
 import java.util.*
 import javax.persistence.Column
 import javax.persistence.Entity
@@ -219,6 +222,16 @@ class HibernateActivityEventDao : ActivityEventDao<HibernateSession> {
         return listOf(
             descending(entity[ActivityEventEntity::timestamp])
         )
+    }
+
+    override fun deleteOldActivity(session: HibernateSession, numberOfDaysInPast: Long) {
+        val dateInMills = System.currentTimeMillis() - (numberOfDaysInPast * 24 * 60 * 60 * 1000L)
+        val date = Date(dateInMills)
+        session.deleteCriteria<ActivityEventEntity> {
+            anyOf(
+                entity[ActivityEventEntity::timestamp].lessThan(date)
+            )
+        }.executeUpdate()
     }
 
     private fun CriteriaBuilderContext<*, ActivityEventEntity>.applyFilter(

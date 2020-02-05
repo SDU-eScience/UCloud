@@ -14,6 +14,7 @@ import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolReference
+import dk.sdu.cloud.file.api.CowWorkspace
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -24,6 +25,7 @@ import dk.sdu.cloud.service.db.JSONB_LIST_TYPE
 import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_KEY_TYPE
 import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
 import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
+import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.service.db.criteria
@@ -173,7 +175,10 @@ data class JobInformationEntity(
 
     var reservedCpus: Int?,
 
-    var reservedMemoryInGigs: Int?
+    var reservedMemoryInGigs: Int?,
+
+    @Type(type = JSONB_TYPE)
+    var cow: CowWorkspace?
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -216,7 +221,8 @@ class JobHibernateDao(
             peers = job.peers,
             refreshToken = refreshToken,
             reservedCpus = job.reservation.cpu,
-            reservedMemoryInGigs = job.reservation.memoryInGigs
+            reservedMemoryInGigs = job.reservation.memoryInGigs,
+            cow = job.cow
         )
 
         session.save(entity)
@@ -256,11 +262,12 @@ class JobHibernateDao(
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
 
-    override fun updateWorkspace(session: HibernateSession, systemId: String, workspace: String) {
+    override fun updateWorkspace(session: HibernateSession, systemId: String, workspace: String, cow: CowWorkspace?) {
         session.updateCriteria<JobInformationEntity>(
             where = { entity[JobInformationEntity::systemId] equal systemId },
             setProperties = {
                 criteria.set(entity[JobInformationEntity::workspace], workspace)
+                criteria.set(entity[JobInformationEntity::cow], cow)
             }
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
@@ -436,7 +443,8 @@ class JobHibernateDao(
                 _sharedFileSystemMounts = sharedFileSystemMounts,
                 _peers = peers,
                 reservation = MachineReservation("Machine", reservedCpus, reservedMemoryInGigs),
-                folderId = folderId
+                folderId = folderId,
+                cow = cow
             ),
             accessToken,
             refreshToken

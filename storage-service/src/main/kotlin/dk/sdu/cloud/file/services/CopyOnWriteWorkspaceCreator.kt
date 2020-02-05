@@ -26,6 +26,7 @@ import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.delay
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -110,7 +111,9 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         val manifest = WorkspaceManifest(user, mounts, "", mode = WorkspaceMode.COPY_ON_WRITE)
         manifest.write(workspace)
 
-        Files.createDirectory(workspace.resolve(GENERAL_WORK))
+        val generalWork = workspace.resolve(GENERAL_WORK)
+        Files.createDirectory(generalWork)
+        Chown.setOwner(generalWork, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
 
         val snaps = ArrayList<CowSnapshot>()
         val failures = ArrayList<WorkspaceMount>()
@@ -185,7 +188,7 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
             }
         )
 
-        CreatedWorkspace(workspaceId, failures)
+        CreatedWorkspace(workspaceId, failures, WorkspaceMode.COPY_FILES, CowWorkspace(snaps))
     }
 
     override suspend fun transfer(
@@ -208,6 +211,29 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
             val snapshotRoot = snapshotsDirectory.resolve(snapshot.directoryName)
             val upper = snapshotRoot.resolve(UPPER_LAYER)
             val realRootPath = File(translateAndCheckFile(fsRoot, snapshot.realPath)).toPath()
+
+            run {
+                // Await a flag from the CoW system to indicate that the transfer is complete.
+                // Kubernetes will tell us that everything is done before the volume has been completely unmounted.
+                val deadline = System.currentTimeMillis() + (1000L * 60 * 60 * 10)
+                val readyFlag = upper.resolve(".ucloud-ready")
+                while (System.currentTimeMillis() < deadline) {
+                    if (Files.exists(readyFlag)) {
+                        log.debug("Found flag!")
+                        break
+                    }
+
+                    delay(100)
+                }
+                Files.deleteIfExists(readyFlag)
+                if (System.currentTimeMillis() >= deadline) {
+                    log.warn("Deadline expired while waiting for snapshot to transfer!")
+                    log.warn(
+                        "Snapshot: $snapshot. Workspace ID: $id. Destination: $destination. " +
+                                "DefaultDestination: $defaultDestinationDir"
+                    )
+                }
+            }
 
             val hasWriteAccess = aclService.hasPermission(snapshot.realPath, manifest.username, AccessRight.WRITE)
             if (hasWriteAccess) {
@@ -467,7 +493,6 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                         StandardCopyOption.ATOMIC_MOVE,
                         StandardCopyOption.REPLACE_EXISTING
                     )
-
 
                     coreFs.emitUpdateEvent(rootCtx, destination)
                     transferredFiles.add(destination)

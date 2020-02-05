@@ -22,7 +22,6 @@ import kotlin.test.assertEquals
 class FileLookupTest {
     @Test
     fun `test file lookup`() {
-        val mirco = initializeMicro()
         val cloud = ClientMock.authenticatedClient
         val fileLookUp = FileLookupService(cloud)
 
@@ -40,7 +39,7 @@ class FileLookupTest {
                 12345678,
                 "user",
                 1234,
-                listOf(AccessEntry("entity", setOf(AccessRight.EXECUTE))),
+                listOf(AccessEntry("entity", emptySet())),
                 SensitivityLevel.PRIVATE,
                 fileId = "1"
             )
@@ -60,7 +59,6 @@ class FileLookupTest {
 
     @Test (expected = RPCException::class)
     fun `test file verify Failed`() {
-        val mirco = initializeMicro()
         val cloud = ClientMock.authenticatedClient
         val fileLookUp = FileLookupService(cloud)
 

@@ -25,6 +25,12 @@ class ActivityService<DBSession>(
         }
     }
 
+    suspend fun deleteOldActivity(numberOfDaysInPast: Long) {
+        db.withTransaction { session ->
+            activityDao.deleteOldActivity(session, numberOfDaysInPast)
+        }
+    }
+
     suspend fun findEventsForPath(
         pagination: NormalizedPaginationRequest,
         path: String,

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "auth"
-    version = "1.27.1"
+    version = "1.27.2"
 
     withAmbassador("/auth") {
         addSimpleMapping("/api/sla")
@@ -18,4 +18,5 @@ bundle {
     }
 
     withPostgresMigration(deployment)
+    withCronJob(deployment, "0 2 * * 1", listOf("--tokenScan")) {}
 }

@@ -39,6 +39,7 @@ import org.slf4j.Logger
 import java.io.File
 import java.security.SecureRandom
 import java.util.*
+import kotlin.system.exitProcess
 
 private const val ONE_YEAR_IN_MILLS = 1000 * 60 * 60 * 24 * 365L
 private const val PASSWORD_BYTES = 64
@@ -119,6 +120,16 @@ class Server(
         val slaService = SLAService(config.serviceLicenseAgreement ?: ServiceAgreementText(0, ""), db, userDao)
 
         log.info("Core services constructed!")
+
+        if (micro.commandLineArguments.contains("--tokenScan")) {
+            log.info("Scanning for expired refresh tokens.")
+            runBlocking {
+                db.withTransaction { session ->
+                    refreshTokenDao.deleteExpired(session)
+                }
+            }
+            exitProcess(0)
+        }
 
         if (micro.developmentModeEnabled) {
             runBlocking {

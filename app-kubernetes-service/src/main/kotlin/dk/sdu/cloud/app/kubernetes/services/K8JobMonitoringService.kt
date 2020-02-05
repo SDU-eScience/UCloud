@@ -19,6 +19,7 @@ import dk.sdu.cloud.service.DistributedState
 import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.create
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.withLock
 import io.ktor.http.HttpStatusCode
 import io.ktor.util.cio.readChannel
@@ -75,7 +76,7 @@ class K8JobMonitoringService(
             for (pod in allPods) {
                 log.debug(
                     "Pod container status: " +
-                        pod.status.containerStatuses.joinToString(", ") { "${it.name} ${it.state.terminated}" }
+                            pod.status.containerStatuses.joinToString(", ") { "${it.name} ${it.state.terminated}" }
                 )
 
                 val userContainer = pod.status.containerStatuses.find { it.name == USER_CONTAINER } ?: return@Immediate
@@ -184,7 +185,6 @@ class K8JobMonitoringService(
                 val state = getCompletionState(verifiedJob.id)
                 if (state.get() != true) {
                     transferLogAndMarkAsCompleted(verifiedJob.id, pod.metadata.name, null, true)
-
                     k8.nameAllocator.findJobs(verifiedJob.id).delete()
                     state.set(true)
                 }
@@ -201,15 +201,19 @@ class K8JobMonitoringService(
         if (podName != null) {
             val logFile = logService.downloadLog(podName)
             if (logFile != null) {
-                ComputationCallbackDescriptions.submitFile.call(
-                    SubmitComputationResult(
-                        jobId,
-                        "stdout.txt",
-                        false,
-                        BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
-                    ),
-                    k8.serviceClient
-                ).orThrow()
+                try {
+                    ComputationCallbackDescriptions.submitFile.call(
+                        SubmitComputationResult(
+                            jobId,
+                            "stdout.txt",
+                            false,
+                            BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
+                        ),
+                        k8.serviceClient
+                    ).orThrow()
+                } catch (ex: Throwable) {
+                    log.warn("Caught exception while attempting to submit log file! ${ex.stackTraceToString()}")
+                }
             }
         }
 
