@@ -514,7 +514,7 @@ parameters:
     tagged: [figlet-server]
 ```
 
-The user will be prompted to select any license server with the tag `figlet-server`. which the user has access to according to each license server ACL.
+The user will be prompted to select any license server with the tag `figlet-server`, which the user has access to according to each license server ACL.
 
 The details of the license server is hidden from the user. When the job is started, the details of the selected server will be fetched and passed as an invocation parameter.
 
