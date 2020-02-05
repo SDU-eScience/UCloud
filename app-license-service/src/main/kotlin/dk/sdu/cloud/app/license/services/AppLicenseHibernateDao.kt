@@ -7,7 +7,23 @@ import dk.sdu.cloud.app.license.api.LicenseServerId
 import dk.sdu.cloud.app.license.api.LicenseServerWithId
 import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.service.db.*
+import java.io.Serializable
 import javax.persistence.*
+
+@Entity
+@Table(name = "tags")
+class TagEntity(
+    @get:EmbeddedId
+    var key: Key
+) {
+    companion object : HibernateEntity<TagEntity>, WithId<Key>
+
+    @Embeddable
+    data class Key(
+        @get:Column(name = "name") var name: String,
+        @get:Column(name = "license_server") var serverId: String
+    ) : Serializable
+}
 
 @Entity
 @Table(name = "license_servers")
@@ -16,7 +32,7 @@ class LicenseServerEntity(
     @Column(name = "id", unique = true, nullable = false)
     var id: String,
 
-    @get:Column(name = "name", unique = false, nullable = false)
+    @Column(name = "name", unique = false, nullable = false)
     var name: String,
 
     @Column(name = "address", unique = false, nullable = false)
@@ -75,25 +91,24 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
 
     override fun list(
         session: HibernateSession,
-        names: List<String>,
+        tags: List<String>,
         userEntity: UserEntity
     ): List<LicenseServerId>? {
-
         return session.createNativeQuery<LicenseServerEntity>(
             """
             SELECT LS.id, LS.name, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
-            INNER JOIN permissions
-                ON LS.id = permissions.server_id
-            WHERE
-                LS.name in (:names)
-                AND permissions.entity = :entityId
-                AND permissions.entity_type = :entityType
-                AND (permissions.permission = 'READ_WRITE'
-    		    OR permissions.permission = 'READ')
+            INNER JOIN {h-schema}permissions as P
+                ON LS.id = P.server_id
+            WHERE LS.id IN
+                (SELECT T.license_server FROM {h-schema}tags AS T where T.name IN :tags)
+                AND P.entity = :entityId
+                AND P.entity_type = :entityType
+                AND (P.permission = 'READ_WRITE'
+    		    OR P.permission = 'READ')
         """.trimIndent(), LicenseServerEntity::class.java
         ).also {
-            it.setParameter("names", names)
-            it.setParameter("entityId", userEntity.id)
+            it.setParameter("tags", tags)
+            it.setParameter("entityId", userEntity.principal.username)
             it.setParameter("entityType", userEntity.type.toString())
         }.list().map { entity ->
             entity.toIdentifiable()
@@ -133,6 +148,28 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
     override fun delete(session: HibernateSession, serverId: String) {
         session.deleteCriteria<LicenseServerEntity> {
             (entity[LicenseServerEntity::id] equal serverId)
+        }.executeUpdate()
+    }
+
+    override fun addTag(session: HibernateSession, name: String, serverId: String) {
+        val tag = TagEntity(
+            TagEntity.Key(name, serverId)
+        )
+        session.save(tag)
+    }
+
+    override fun listTags(session: HibernateSession, serverId: String): List<String> {
+        return session.criteria<TagEntity> {
+            entity[TagEntity::key][TagEntity.Key::serverId] equal serverId
+        }.list().map { it.key.name }
+    }
+
+    override fun deleteTag(session: HibernateSession, name: String, serverId: String) {
+        session.deleteCriteria<TagEntity> {
+            allOf(
+                (entity[TagEntity::key][TagEntity.Key::serverId] equal serverId),
+                (entity[TagEntity::key][TagEntity.Key::name] equal name)
+            )
         }.executeUpdate()
     }
 }

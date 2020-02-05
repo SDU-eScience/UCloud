@@ -18,16 +18,24 @@ import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.Test
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
+import kotlin.math.absoluteValue
+import kotlin.random.Random
 
 class AclTest {
     private lateinit var micro: Micro
     private lateinit var aclService: AclService<HibernateSession>
     private lateinit var licenseService: AppLicenseService<HibernateSession>
+    private lateinit var principal: SecurityPrincipal
+    private lateinit var principal2: SecurityPrincipal
 
     @BeforeTest
     fun initializeTest() {
         micro = initializeMicro()
         micro.install(HibernateFeature)
+
+        principal = SecurityPrincipal("user", Role.ADMIN, "user", "user", Random.nextLong().absoluteValue, "user@example.com")
+        principal2 = SecurityPrincipal("user2", Role.ADMIN, "user2", "user2", Random.nextLong().absoluteValue, "user2@example.com")
 
         ClientMock.mockCall(UserDescriptions.lookupUsers) {
             TestCallResult.Ok(
@@ -46,7 +54,7 @@ class AclTest {
 
     @Test
     fun `empty acls`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
+        val user = UserEntity(principal, EntityType.USER)
         val serverId = "1234"
 
         val instance = aclService.listAcl(serverId)
@@ -58,8 +66,8 @@ class AclTest {
 
     @Test
     fun `revoke permission`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
-        val user2 = UserEntity("user2", EntityType.USER)
+        val user = UserEntity(principal, EntityType.USER)
+        val user2 = UserEntity(principal2, EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
@@ -70,7 +78,6 @@ class AclTest {
             ),
             user
         )
-
 
         val changes = listOf(ACLEntryRequest(user2, ServerAccessRight.READ))
 
@@ -85,8 +92,8 @@ class AclTest {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
 
-        val userEntity = UserEntity("user", EntityType.USER)
-        val userEntity2 = UserEntity("user2", EntityType.USER)
+        val userEntity = UserEntity(principal, EntityType.USER)
+        val userEntity2 = UserEntity(principal2, EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
@@ -109,23 +116,9 @@ class AclTest {
     }
 
     @Test
-    fun `test root permissions`() = runBlocking {
-        val entity = UserEntity("user", EntityType.USER)
-
-        assertFalse(aclService.hasPermission("/", entity, ServerAccessRight.READ))
-        assertFalse(aclService.hasPermission("/", entity, ServerAccessRight.READ_WRITE))
-
-        assertFalse(aclService.hasPermission("/home", entity, ServerAccessRight.READ))
-        assertFalse(aclService.hasPermission("/home", entity, ServerAccessRight.READ_WRITE))
-
-        assertFalse(aclService.hasPermission("/workspaces", entity, ServerAccessRight.READ))
-        assertFalse(aclService.hasPermission("/workspaces", entity, ServerAccessRight.READ_WRITE))
-    }
-
-    @Test
     fun `add user to acl several times`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
-        val user2 = UserEntity("user2", EntityType.USER)
+        val user = UserEntity(principal, EntityType.USER)
+        val user2 = UserEntity(principal2, EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
@@ -146,7 +139,7 @@ class AclTest {
         val list = aclService.listAcl(serverId)
         assertThatPropertyEquals(list, { it.size }, 2)
 
-        assertTrue(EntityWithPermission(UserEntity("user", EntityType.USER), ServerAccessRight.READ_WRITE) in list)
-        assertTrue(EntityWithPermission(UserEntity("user2", EntityType.USER), ServerAccessRight.READ) in list)
+        assertTrue(EntityWithPermission(principal.username, EntityType.USER, ServerAccessRight.READ_WRITE) in list)
+        assertTrue(EntityWithPermission(principal2.username, EntityType.USER, ServerAccessRight.READ) in list)
     }
 }

@@ -11,9 +11,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.withoutAuthentication
-import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.backgroundScope
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
@@ -23,10 +21,7 @@ import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
-import io.ktor.routing.routing
 
 class Server(override val micro: Micro, val config: Configuration) : CommonServer {
     override val log = logger()
@@ -73,6 +68,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             sharedMountVerificationService,
             db,
             jobHibernateDao,
+            serviceClient,
             config.machines
         )
 

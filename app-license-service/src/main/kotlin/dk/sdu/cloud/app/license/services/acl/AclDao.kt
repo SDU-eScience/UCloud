@@ -1,4 +1,5 @@
 package dk.sdu.cloud.app.license.services.acl
+import dk.sdu.cloud.SecurityPrincipal
 
 enum class EntityType {
     USER,
@@ -11,12 +12,13 @@ enum class ServerAccessRight {
 }
 
 data class UserEntity(
-    val id: String,
+    val principal: SecurityPrincipal,
     val type: EntityType
 )
 
 data class EntityWithPermission(
-    val entity: UserEntity,
+    val entity_name: String,
+    val entity_type: EntityType,
     val permission: ServerAccessRight
 )
 

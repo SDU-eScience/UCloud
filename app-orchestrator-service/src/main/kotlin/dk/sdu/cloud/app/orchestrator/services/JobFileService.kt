@@ -305,13 +305,13 @@ class JobFileService(
         }
     }
 
-    suspend fun createWorkspace(jobWithToken: VerifiedJobWithAccessToken): String {
+    suspend fun createWorkspace(jobWithToken: VerifiedJobWithAccessToken): Pair<String, CowWorkspace?> {
         val (job) = jobWithToken
         val mounts = (job.files + job.mounts).map { file ->
             WorkspaceMount(file.sourcePath, file.destinationPath, readOnly = file.readOnly)
         }
 
-        return WORKSPACE_PATH + WorkspaceDescriptions.create.call(
+        val workspaceResponse = WorkspaceDescriptions.create.call(
             Workspaces.Create.Request(
                 job.owner,
                 mounts,
@@ -322,7 +322,9 @@ class JobFileService(
                     else WorkspaceMode.COPY_FILES
             ),
             serviceClient
-        ).orThrow().workspaceId
+        ).orThrow()
+
+        return Pair(WORKSPACE_PATH + workspaceResponse.workspaceId, workspaceResponse.cow)
     }
 
     suspend fun transferWorkspace(

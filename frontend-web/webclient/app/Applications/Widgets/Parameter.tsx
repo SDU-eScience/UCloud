@@ -7,6 +7,7 @@ import {SharedFileSystemParameter} from "Applications/Widgets/SharedFileSystemPa
 import {TextParameter} from "Applications/Widgets/TextParameter";
 import * as React from "react";
 import * as Types from "../index";
+import {LicenseServerParameter} from "./LicenseServerParameter";
 // import RangeParameter, {RangeRef} from "./RangeParameters";
 
 export const Parameter = (props: ParameterProps) => {
@@ -86,6 +87,15 @@ export const Parameter = (props: ParameterProps) => {
                 />
             );
             break;
+        case Types.ParameterTypes.LicenseServer:
+            component = (
+                <LicenseServerParameter
+                    parameter={props.parameter}
+                    initialSubmit={props.initialSubmit}
+                    parameterRef={props.parameterRef as React.RefObject<HTMLSelectElement>}
+                    application={props.application}
+                />
+            );
         /* case Types.ParameterTypes.Range: {
             component = <RangeParameter
                 parameter={props.parameter}

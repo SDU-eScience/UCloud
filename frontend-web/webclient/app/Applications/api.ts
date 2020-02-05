@@ -136,6 +136,31 @@ export interface DeleteLicenseServerProps {
     id: string;
 }
 
+export interface LicenseServerTagProps {
+    serverId: string;
+    tag: string;
+}
+
+export function addLicenseServerTag(props: LicenseServerTagProps): APICallParameters<LicenseServerTagProps> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/app/license/tag/add",
+        payload: props,
+        parameters: props
+    };
+}
+
+export function deleteLicenseServerTag(props: LicenseServerTagProps): APICallParameters<LicenseServerTagProps> {
+    return {
+        reloadId: Math.random(),
+        method: "POST",
+        path: "/app/license/tag/delete",
+        payload: props,
+        parameters: props
+    };
+}
+
 export function updateLicenseServerPermission(props: UpdateLicenseServerPermissionProps): APICallParameters<UpdateLicenseServerPermissionProps> {
     return {
         reloadId: Math.random(),
@@ -183,6 +208,20 @@ export function machineTypes(): APICallParameters {
         reloadId: Math.random(),
         method: "GET",
         path: "/hpc/jobs/machine-types"
+    };
+}
+
+export interface listLicenseServersProps {
+    tags: string[]
+}
+
+export function licenseServers(props: listLicenseServersProps): APICallParameters {
+    return {
+        reloadId: Math.random(),
+        method: "GET",
+        path: "/api/app/license/list",
+        payload: props,
+        parameters: props
     };
 }
 

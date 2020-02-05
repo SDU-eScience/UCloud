@@ -2,7 +2,9 @@ import {
     deleteLicenseServer,
     LicenseServerAccessRight,
     updateLicenseServerPermission,
-    UserEntityType
+    UserEntityType,
+    addLicenseServerTag,
+    deleteLicenseServerTag
 } from "Applications/api";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
@@ -13,7 +15,7 @@ import * as React from "react";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip} from "ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip, Card} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import * as Heading from "ui-components/Heading";
 import {InputLabel} from "ui-components/Input";
@@ -21,10 +23,151 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-compo
 import {TextSpan} from "ui-components/Text";
 import {addStandardDialog} from "UtilityComponents";
 import {defaultErrorHandler} from "UtilityFunctions";
-
 const LeftAlignedTableHeader = styled(TableHeader)`
     text-align: left;
 `;
+
+function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element {
+    const [tagList, setTagList] = React.useState<TagEntry[]>([]);
+    const [, invokeCommand] = useAsyncCommand();
+
+    const newTagField = React.useRef<HTMLInputElement>(null);
+
+    async function loadTags(serverId: string): Promise<TagEntry[]> {
+        const {response} = await Client.get(`/app/license/tag/list?serverId=${serverId}`);
+        return response.tags.map(item => ({
+            name: item
+        }));
+    }
+
+    function promptDeleteTag(tag: TagEntry): Promise<string|null> {
+        return new Promise(resolve => addStandardDialog({
+            title: `Are you sure?`,
+            message: (
+                <Box>
+                    <Text>
+                        Delete tag {tag.name}?
+                    </Text>
+                </Box>
+            ),
+            onConfirm: async () => {
+                if (licenseServer === null) {
+                    resolve(null);
+                    return;
+                };
+                await invokeCommand(deleteLicenseServerTag(
+                    {
+                        serverId: licenseServer.id,
+                        tag: tag.name
+                    }
+                ));
+                resolve(licenseServer.id);
+            },
+            addToFront: true
+        }));
+    }
+
+    async function loadAndSetTagList(serverId: string) {
+        setTagList(await loadTags(serverId));
+    }
+
+    React.useEffect(() => {
+        if (licenseServer === null) return;
+        loadAndSetTagList(licenseServer.id);
+    }, []);
+
+    return (
+        <Box>
+            <div>
+                <Flex alignItems={"center"}>
+                    <Heading.h3>
+                        <TextSpan color="gray">Tags for</TextSpan> {licenseServer?.name}
+                    </Heading.h3>
+                </Flex>
+                <Box mt={16} mb={30}>
+                    <form
+                        onSubmit={async e => {
+                            e.preventDefault();
+
+                            const tagField = newTagField.current;
+                            if (tagField === null) return;
+
+                            const tagValue = tagField.value;
+
+                            if (tagValue === "") return;
+
+                            if (licenseServer === null) return;
+                            await invokeCommand(addLicenseServerTag(
+                                {
+                                    serverId: licenseServer.id,
+                                    tag: tagValue
+                                }
+                            ));
+
+                            await loadAndSetTagList(licenseServer.id);
+                            tagField.value = "";
+                        }}
+                    >
+                        <Flex height={45}>
+                            <Input
+                                rightLabel
+                                required
+                                type="text"
+                                ref={newTagField}
+                                placeholder="Name of tag"
+                            />
+                            <Button
+                                attached
+                                width="200px"
+                                type={"submit"}
+                            >
+                                Add tag
+                            </Button>
+                        </Flex>
+                    </form>
+                </Box>
+                {tagList.length > 0 ? (
+                    <Box maxHeight="80vh">
+                        <Table width="500px">
+                            <LeftAlignedTableHeader>
+                                <TableRow>
+                                    <TableHeaderCell>Tag</TableHeaderCell>
+                                    <TableHeaderCell width={50}>Delete</TableHeaderCell>
+                                </TableRow>
+                            </LeftAlignedTableHeader>
+                            <tbody>
+                                {tagList.map(tagEntry => (
+                                    <TableRow key={tagEntry.name}>
+                                        <TableCell>{tagEntry.name}</TableCell>
+                                        <TableCell textAlign="right">
+                                            <Button
+                                                color={"red"}
+                                                type={"button"}
+                                                paddingLeft={10}
+                                                paddingRight={10}
+                                                onClick={async () => {
+                                                    const licenseServerId = await promptDeleteTag(tagEntry);
+
+                                                    if(licenseServerId !== null) {
+                                                        loadAndSetTagList(licenseServerId);
+                                                    }
+                                                }}
+                                            >
+                                                <Icon size={16} name="trash" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </Box>
+                ) : (
+                        <Text textAlign="center">No tags found</Text>
+                    )}
+            </div>
+        </Box>
+    )
+}
 
 function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element {
     const [accessList, setAccessList] = React.useState<AclEntry[]>([]);
@@ -209,6 +352,10 @@ function openAclDialog(licenseServer: LicenseServer): void {
     dialogStore.addDialog(<LicenseServerAclPrompt licenseServer={licenseServer} />, () => undefined);
 }
 
+function openTagsDialog(licenseServer: LicenseServer) {
+    dialogStore.addDialog(<LicenseServerTagsPrompt licenseServer={licenseServer} />, () => undefined)
+}
+
 
 const permissionLevels = [
     {text: prettifyAccessRight(LicenseServerAccessRight.READ), value: LicenseServerAccessRight.READ},
@@ -245,6 +392,10 @@ interface AclEntry {
     id: string;
     type: string;
     permission: LicenseServerAccessRight;
+}
+
+interface TagEntry {
+    name: string;
 }
 
 export default function LicenseServers(): JSX.Element | null {
@@ -316,7 +467,7 @@ export default function LicenseServers(): JSX.Element | null {
                     <Box maxWidth={800} mt={30} marginLeft="auto" marginRight="auto">
                         <form onSubmit={e => submit(e)}>
                             <Label mb="1em">
-                                Name
+                                Name 
                                 <Input
                                     value={name}
                                     error={nameError}
@@ -371,24 +522,15 @@ export default function LicenseServers(): JSX.Element | null {
 
                         <Box mt={30}>
                             {(licenseServers.length > 0) ? (
-                                <Table>
-                                    <LeftAlignedTableHeader>
-                                        <TableRow>
-                                            <TableHeaderCell>Name</TableHeaderCell>
-                                            <TableHeaderCell>Address</TableHeaderCell>
-                                            <TableHeaderCell width={70}>Port</TableHeaderCell>
-                                            <TableHeaderCell width={50}>Key</TableHeaderCell>
-                                            <TableHeaderCell width={70}>Access</TableHeaderCell>
-                                            <TableHeaderCell width={50}>Delete</TableHeaderCell>
-                                        </TableRow>
-                                    </LeftAlignedTableHeader>
-                                    <tbody>
-                                        {licenseServers.map(licenseServer => (
-                                            <TableRow key={licenseServer.id}>
-                                                <TableCell>{licenseServer.name}</TableCell>
-                                                <TableCell>{licenseServer.address}</TableCell>
-                                                <TableCell>{licenseServer.port}</TableCell>
-                                                <TableCell>
+                                licenseServers.map(licenseServer => (
+                                    <Card key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
+                                        <Flex justifyContent="space-between">
+                                            <Box>
+                                                <Heading.h4>{licenseServer.name}</Heading.h4>
+                                                <Box>{licenseServer.address}:{licenseServer.port}</Box>
+                                            </Box>
+                                            <Flex>
+                                                <Box>
                                                     {licenseServer.license !== null ? (
                                                         <Tooltip
                                                             tooltipContentWidth="300px"
@@ -400,7 +542,7 @@ export default function LicenseServers(): JSX.Element | null {
                                                             trigger={(
                                                                 <Icon
                                                                     size="20px"
-                                                                    mt="4px"
+                                                                    mt="8px"
                                                                     mr="8px"
                                                                     color="gray"
                                                                     name="key"
@@ -411,12 +553,26 @@ export default function LicenseServers(): JSX.Element | null {
                                                             {licenseServer.license}
                                                         </Tooltip>
                                                     ) : <Text />}
-                                                </TableCell>
-                                                <TableCell textAlign="center">
+                                                </Box>
+                                                <Box>
                                                     <Icon
                                                         cursor="pointer"
                                                         size="20px"
-                                                        mt="4px"
+                                                        mt="6px"
+                                                        mr="8px"
+                                                        color="gray"
+                                                        color2="midGray"
+                                                        name="tags"
+                                                        onClick={() =>
+                                                            openTagsDialog(licenseServer)
+                                                        }
+                                                    />
+                                                </Box>
+                                                <Box>
+                                                    <Icon
+                                                        cursor="pointer"
+                                                        size="20px"
+                                                        mt="6px"
                                                         mr="8px"
                                                         color="gray"
                                                         color2="midGray"
@@ -425,8 +581,9 @@ export default function LicenseServers(): JSX.Element | null {
                                                             openAclDialog(licenseServer)
                                                         }
                                                     />
-                                                </TableCell>
-                                                <TableCell textAlign="right">
+                                                </Box>
+
+                                                <Box>
                                                     <Button
                                                         color={"red"}
                                                         type={"button"}
@@ -452,11 +609,11 @@ export default function LicenseServers(): JSX.Element | null {
                                                     >
                                                         <Icon size={16} name="trash" />
                                                     </Button>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </tbody>
-                                </Table>
+                                                </Box>
+                                            </Flex>
+                                        </Flex>
+                                    </Card>
+                                ))
                             ) : <Text textAlign="center">No license servers found</Text>}
                         </Box>
                     </Box>

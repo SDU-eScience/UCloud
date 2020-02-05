@@ -69,7 +69,7 @@ import {
     RunAppState,
     RunOperations,
     WithAppInvocation,
-    WithAppMetadata,
+    WithAppMetadata
 } from ".";
 import {PRODUCT_NAME} from "../../site.config.json";
 import {AppHeader} from "./View";
@@ -414,7 +414,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         ))}
                                     </RunSection>
                                 )}
-
+                     
                             {!application.invocation.shouldAllowAdditionalPeers ? null : (
                                 <RunSection>
                                     <Flex>

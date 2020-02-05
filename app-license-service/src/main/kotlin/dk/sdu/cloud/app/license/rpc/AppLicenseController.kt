@@ -14,10 +14,11 @@ import org.hibernate.Session
 
 class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Controller {
     private val licenseService = appLicenseService
+
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppLicenseDescriptions.get) {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
@@ -37,7 +38,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.updateAcl) {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
@@ -50,11 +51,11 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.list)  {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
-            ok(licenseService.listServers(request.names, entity))
+            ok(licenseService.listServers(request.tags, entity))
         }
 
         implement(AppLicenseDescriptions.listAll)  {
@@ -64,7 +65,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.update) {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
@@ -73,7 +74,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.delete) {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
@@ -82,11 +83,23 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.new) {
             val entity = UserEntity(
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal,
                 EntityType.USER
             )
 
             ok(NewServerResponse(licenseService.createLicenseServer(request, entity)))
+        }
+
+        implement(TagDescriptions.add) {
+            ok(licenseService.addTag(request.tag, request.serverId))
+        }
+
+        implement(TagDescriptions.delete) {
+            ok(licenseService.deleteTag(request.tag, request.serverId))
+        }
+
+        implement(TagDescriptions.list) {
+            ok(ListTagsResponse(licenseService.listTags(request.serverId)))
         }
     }
 

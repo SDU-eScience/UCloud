@@ -85,14 +85,19 @@ const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ?
     css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px; margin-left: 0;` : null;
 const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ?
     css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
+const independent = ({independent}: {independent?: boolean}) => independent ?
+    css`border-radius: 5px; height: 42px;` : null;
+
 
 export interface InputLabelProps extends WidthProps {
-    leftLabel?: boolean;
-    rightLabel?: boolean;
+  leftLabel?: boolean;
+  rightLabel?: boolean;
+  independent?: boolean;
 }
 
 export const InputLabel = styled(Text) <InputLabelProps>`
   border: ${({theme}) => theme.colors.borderGray} solid ${theme.borderWidth};
+  ${independent}
   ${leftLabel}
   ${rightLabel}
   ${width}

@@ -179,9 +179,9 @@ const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes):
             return typeof parameter === "string" || "source" in (parameter as any);
         case ParameterTypes.Text:
         case ParameterTypes.SharedFileSystem:
+        case ParameterTypes.LicenseServer:
         case ParameterTypes.Peer:
             return typeof parameter === "string";
-
     }
 };
 
@@ -245,6 +245,8 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                 case ParameterTypes.Peer:
                     extracted[key] = {jobId: r.current.value};
                     return;
+                case ParameterTypes.LicenseServer:
+                    extracted[key] = r.current.value
             }
         } else {
             switch (parameter.type) {
