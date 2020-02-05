@@ -1,30 +1,30 @@
 import styled from "styled-components";
 import {
-  BorderColorProps,
-  BorderProps,
-  borderRadius,
-  BorderRadiusProps,
-  boxShadow,
-  BoxShadowProps,
-  height,
-  HeightProps
+    BorderColorProps,
+    BorderProps,
+    borderRadius,
+    BorderRadiusProps,
+    boxShadow,
+    BoxShadowProps,
+    height,
+    HeightProps
 } from "styled-system";
 import Box, {BoxProps} from "./Box";
 import Icon from "./Icon";
 import {Theme} from "./theme";
 
-const boxBorder = (props: {theme: Theme, borderWidth: number | string, borderColor: string}) => ({
-  border: `${props.borderWidth}px solid ${props.theme.colors[props.borderColor]}`
+const boxBorder = (props: {theme: Theme; borderWidth: number | string; borderColor: string}): {border: string} => ({
+    border: `${props.borderWidth}px solid ${props.theme.colors[props.borderColor]}`
 });
 
 export interface CardProps extends
-  HeightProps,
-  BoxProps,
-  BorderColorProps,
-  BoxShadowProps,
-  BorderProps,
-  BorderRadiusProps {
-  borderWidth?: number | string;
+    HeightProps,
+    BoxProps,
+    BorderColorProps,
+    BoxShadowProps,
+    BorderProps,
+    BorderRadiusProps {
+    borderWidth?: number | string;
 }
 
 export const Card = styled(Box) <CardProps>`
@@ -32,9 +32,9 @@ export const Card = styled(Box) <CardProps>`
 `;
 
 Card.defaultProps = {
-  borderColor: "borderGray",
-  borderRadius: 1,
-  borderWidth: 1
+    borderColor: "borderGray",
+    borderRadius: 1,
+    borderWidth: 1
 };
 
 export const PlayIconBase = styled(Icon)`

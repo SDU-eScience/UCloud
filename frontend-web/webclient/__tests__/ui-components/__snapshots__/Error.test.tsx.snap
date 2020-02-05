@@ -52,7 +52,7 @@ exports[`Error component Error with error and dismiss button 1`] = `
   >
     <div>
       <div
-        className="sc-fzXfLS c2"
+        className="sc-fznyAO c2"
         color="red"
         cursor="inherit"
         fontSize={1}
@@ -115,7 +115,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
 }
 
 <div
-  className="sc-AykKC c0"
+  className="sc-AxjAm c0"
   color="black"
   height="auto"
 >
@@ -124,7 +124,7 @@ exports[`Error component Error with error and no dismiss button 1`] = `
   >
     <div>
       <div
-        className="sc-fzXfLS c2"
+        className="sc-fznyAO c2"
         color="red"
         cursor="inherit"
         fontSize={1}

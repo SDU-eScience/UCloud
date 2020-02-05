@@ -14,7 +14,7 @@ interface ProgressBaseProps {
 
 const ProgressBase = styled(Box) <ProgressBaseProps>`
     border-radius: 5px;
-    background-color: ${props => props.theme.colors[props.color!]};
+    background-color: var(--${p => p.color}, #f00);
     height: ${props => props.height};
 
     /* From semantic-ui-css */
@@ -45,7 +45,7 @@ interface Progress {
     label: string;
 }
 
-const Progress = ({color, percent, active, label}: Progress) => (
+const Progress = ({color, percent, active, label}: Progress): JSX.Element => (
     <>
         <ProgressBase height="30px" width="100%" color="lightGray">
             <ProgressBase height="30px" color={color} width={`${percent}%`}>

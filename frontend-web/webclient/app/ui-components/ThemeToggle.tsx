@@ -31,9 +31,9 @@ interface ThemeToggleProps {
 export function ThemeToggler({
     isLightTheme,
     onClick
-}: {isLightTheme: boolean, onClick: (e: React.SyntheticEvent<HTMLDivElement>) => void}) {
+}: {isLightTheme: boolean; onClick: (e: React.SyntheticEvent<HTMLDivElement>) => void}): JSX.Element {
 
-    function toggleActive() {
+    function toggleActive(): void {
         setActive(!active);
     }
 

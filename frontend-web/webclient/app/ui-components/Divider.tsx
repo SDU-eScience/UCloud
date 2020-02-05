@@ -1,6 +1,5 @@
 import styled from "styled-components";
 import {borderColor, BorderColorProps, space, SpaceProps, width, WidthProps} from "styled-system";
-import theme from "./theme";
 
 export type DividerProps = SpaceProps & WidthProps & BorderColorProps;
 

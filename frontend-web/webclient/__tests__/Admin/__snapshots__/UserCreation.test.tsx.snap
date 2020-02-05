@@ -37,8 +37,8 @@ exports[`UserCreation Mount 1`] = `
   line-height: 1.5;
   cursor: pointer;
   border-radius: 5px;
-  background-color: #00C05A;
-  color: #fff;
+  background-color: var(--green,#f00);
+  color: var(--white,#f00);
   border-width: 0;
   border-style: solid;
   -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
@@ -72,7 +72,7 @@ exports[`UserCreation Mount 1`] = `
   display: block;
   font-family: inherit;
   background-color: transparent;
-  color: #000;
+  color: var(--black,#f00);
   margin: 0;
   border-width: 2px;
   border-color: #c9d3df;
@@ -86,19 +86,19 @@ exports[`UserCreation Mount 1`] = `
 }
 
 .c6::-webkit-input-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c6::-moz-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c6:-ms-input-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c6::placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c6:focus {
@@ -163,7 +163,7 @@ exports[`UserCreation Mount 1`] = `
   className="c0"
 >
   <div
-    className="sc-AykKG c1"
+    className="sc-AxhUy c1"
     height={64}
     width={1}
   >

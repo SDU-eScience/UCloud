@@ -40,7 +40,7 @@ const AppCardBase = styled(Link)`
     }
 
     & > ${EllipsedText} {
-        color: ${p => p.theme.colors.gray};
+        color: var(--gray, #f00);
         flex-grow: 1;
     }
 
@@ -56,13 +56,13 @@ export const ApplicationCardContainer = styled.div`
     flex-direction: column;
 
     & > ${AppCardBase}:first-child {
-        border: 1px solid ${props => props.theme.colors.borderGray};
+        border: 1px solid var(--borderGray, #f00);
         border-top-left-radius: 5px;
         border-top-right-radius: 5px;
     }
 
     & > ${AppCardBase} {
-        border: 1px solid ${props => props.theme.colors.borderGray};
+        border: 1px solid var(--borderGray, #f00);
         border-top: 0;
     }
 
@@ -149,7 +149,7 @@ export const AppCard = styled(Link)`
         top: 0;
         left: 0;
         z-index: -1;
-        background-color: ${props => props.theme.colors.appCard};
+        background-color: var(--appCard, #f00);
         background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
     }
 
@@ -161,7 +161,7 @@ export const AppCard = styled(Link)`
         top: 0;
         left: 0;
         z-index: 1;
-        border: 2px solid ${props => props.theme.colors.textHighlight};
+        border: 2px solid var(--textHighlight, #f00);
         opacity: 0;
         border-radius: ${theme.radius};
         pointer-events: none; //needed for star-badge
@@ -173,7 +173,7 @@ export const AppCard = styled(Link)`
     }
 `;
 
-export const Tag = ({label}: {label: string}) => (
+export const Tag = ({label}: {label: string}): JSX.Element => (
     <RatingBadge mr="3px" bg="darkGray"><Heading.h6>{label}</Heading.h6></RatingBadge>
 );
 
@@ -183,8 +183,8 @@ const nColors = appColors.length;
 
 const bgGradients = appColors.map(x => ({color1: x[0], color2: x[2]}));
 
-// tslint:disable-next-line: variable-name
-const AppBg_triangle = ({color1, color2}: {color1: string, color2: string}) => (
+// eslint-disable-next-line @typescript-eslint/camelcase
+const AppBg_triangle = ({color1, color2}: {color1: string, color2: string}): JSX.Element => (
     <svg height="128px" viewBox="0 0 72 128">
         <path d="M0,128h72v-72z" fill={`url(#appbg_svg___${color1}_${color2}`} />
         <defs>
@@ -211,7 +211,7 @@ interface AppLogoRawProps {
     size: string;
 }
 
-export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLogoRawProps) => {
+export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLogoRawProps): JSX.Element => {
     const c1 = [color1Offset % 3, (color1Offset + 1) % 3, (color1Offset + 2) % 3];
     const c2 = [color2Offset % 3, (color2Offset + 1) % 3, (color2Offset + 2) % 3];
     const centerC = nColors - 1;
@@ -356,7 +356,7 @@ export const CardToolContainer = styled(Box)`
     width: 100%;
 `;
 
-export const SmallCard = styled(Link) <{color1: string, color2: string, color3: string}>`
+export const SmallCard = styled(Link) <{color1: string; color2: string; color3: string}>`
     display: flex;
     padding: 10px;
     width: 150px;
@@ -377,7 +377,7 @@ export const SmallCard = styled(Link) <{color1: string, color2: string, color3: 
     &:hover {
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
         box-shadow: ${theme.shadows.md};
-        color: ${p => p.theme.colors.white};
+        color: var(--white, #f00);
     }
 `;
 

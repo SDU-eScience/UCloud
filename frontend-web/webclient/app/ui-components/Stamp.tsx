@@ -5,63 +5,63 @@ import {Icon, Text} from ".";
 import {IconName} from "./Icon";
 import theme, {Theme, ThemeColor} from "./theme";
 
-const useFullWidth = ({fullWidth}: {fullWidth?: boolean}) => fullWidth ? {width: "100%"} : null;
+const useFullWidth = ({fullWidth}: {fullWidth?: boolean}): {width: string} | null => fullWidth ? {width: "100%"} : null;
 
-export const colorScheme = (props: {theme: Theme, color: ThemeColor}) => {
-  const badgeColors = {
-    white: {
-      backgroundColor: props.theme.colors.black,
-      borderColor: props.theme.colors.black,
-      color: props.theme.colors.black
-    },
-    blue: {
-      backgroundColor: props.theme.colors.blue,
-      borderColor: props.theme.colors.blue,
-      color: props.theme.colors.white
-    },
-    lightBlue: {
-      backgroundColor: props.theme.colors.lightBlue,
-      borderColor: props.theme.colors.lightBlue,
-      color: props.theme.colors.darkBlue
-    },
-    green: {
-      backgroundColor: props.theme.colors.green,
-      borderColor: props.theme.colors.green,
-      color: props.theme.colors.white
-    },
-    lightGreen: {
-      backgroundColor: props.theme.colors.lightGreen,
-      borderColor: props.theme.colors.lightGreen,
-      color: props.theme.colors.darkGreen
-    },
-    red: {
-      backgroundColor: props.theme.colors.red,
-      borderColor: props.theme.colors.red,
-      color: props.theme.colors.white
-    },
-    lightRed: {
-      backgroundColor: props.theme.colors.lightRed,
-      borderColor: props.theme.colors.lightRed,
-      color: props.theme.colors.darkRed
-    },
-    orange: {
-      backgroundColor: props.theme.colors.orange,
-      borderColor: props.theme.colors.orange,
-      color: props.theme.colors.text
-    },
-    gray: {
-      backgroundColor: props.theme.colors.gray,
-      borderColor: props.theme.colors.gray,
-      color: props.theme.colors.white
-    },
-    lightGray: {
-      backgroundColor: props.theme.colors.lightGray,
-      borderColor: props.theme.colors.lightGray,
-      color: props.theme.colors.text
-    }
-  };
-  const color = badgeColors[props.color];
-  return color || badgeColors.white;
+export const colorScheme = (props: {theme: Theme; color: ThemeColor}) => {
+    const badgeColors = {
+        white: {
+            backgroundColor: props.theme.colors.black,
+            borderColor: props.theme.colors.black,
+            color: props.theme.colors.black
+        },
+        blue: {
+            backgroundColor: props.theme.colors.blue,
+            borderColor: props.theme.colors.blue,
+            color: props.theme.colors.white
+        },
+        lightBlue: {
+            backgroundColor: props.theme.colors.lightBlue,
+            borderColor: props.theme.colors.lightBlue,
+            color: props.theme.colors.darkBlue
+        },
+        green: {
+            backgroundColor: props.theme.colors.green,
+            borderColor: props.theme.colors.green,
+            color: props.theme.colors.white
+        },
+        lightGreen: {
+            backgroundColor: props.theme.colors.lightGreen,
+            borderColor: props.theme.colors.lightGreen,
+            color: props.theme.colors.darkGreen
+        },
+        red: {
+            backgroundColor: props.theme.colors.red,
+            borderColor: props.theme.colors.red,
+            color: props.theme.colors.white
+        },
+        lightRed: {
+            backgroundColor: props.theme.colors.lightRed,
+            borderColor: props.theme.colors.lightRed,
+            color: props.theme.colors.darkRed
+        },
+        orange: {
+            backgroundColor: props.theme.colors.orange,
+            borderColor: props.theme.colors.orange,
+            color: props.theme.colors.text
+        },
+        gray: {
+            backgroundColor: props.theme.colors.gray,
+            borderColor: props.theme.colors.gray,
+            color: props.theme.colors.white
+        },
+        lightGray: {
+            backgroundColor: props.theme.colors.lightGray,
+            borderColor: props.theme.colors.lightGray,
+            color: props.theme.colors.text
+        }
+    };
+    const color = badgeColors[props.color];
+    return color || badgeColors.white;
 };
 
 const StampBase = styled.div<StampProps>`
@@ -82,27 +82,27 @@ const StampBase = styled.div<StampProps>`
 StampBase.displayName = "Stamp";
 
 interface StampProps extends SpaceProps {
-  color?: ThemeColor;
-  theme?: Theme;
-  fontSize?: number | string;
-  fullWidth?: boolean;
+    color?: ThemeColor;
+    theme?: Theme;
+    fontSize?: number | string;
+    fullWidth?: boolean;
 }
 
 StampBase.defaultProps = {
-  px: 1,
-  py: 0,
-  mr: "4px",
-  color: "gray",
-  fontSize: 0,
-  fullWidth: false
+    px: 1,
+    py: 0,
+    mr: "4px",
+    color: "gray",
+    fontSize: 0,
+    fullWidth: false
 };
 
-const Stamp = (props: StampProps & {icon?: IconName, onClick?: () => void, text: string}) => (
-  <StampBase {...props}>
-    {props.icon ? <Icon name={props.icon} size={12} /> : null}
-    <Text ml="4px" mr="6px">{props.text}</Text>
-    {props.onClick ? <Icon name={"close"} size={12} onClick={props.onClick} /> : null}
-  </StampBase>
+const Stamp = (props: StampProps & {icon?: IconName; onClick?: () => void; text: string}): JSX.Element => (
+    <StampBase {...props}>
+        {props.icon ? <Icon name={props.icon} size={12} /> : null}
+        <Text ml="4px" mr="6px">{props.text}</Text>
+        {props.onClick ? <Icon name={"close"} size={12} onClick={props.onClick} /> : null}
+    </StampBase>
 );
 
 export default Stamp;

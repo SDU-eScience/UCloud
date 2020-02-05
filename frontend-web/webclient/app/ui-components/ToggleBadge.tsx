@@ -1,6 +1,6 @@
 import styled from "styled-components";
 import {BackgroundColorProps, ColorProps, fontSize, FontSizeProps, space, SpaceProps} from "styled-system";
-import theme, {ThemeColor} from "./theme";
+import {ThemeColor} from "./theme";
 
 const ToggleBadge = styled.button<ToggleBadge>`
   border-radius: ${props => props.theme.radius};

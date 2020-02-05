@@ -385,7 +385,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
 
     private clearFinishedUploads = (): void => {
         this.props.setUploads(this.props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)));
-    }
+    };
 
     private setRewritePolicy(index: number, policy: UploadPolicy): void {
         this.props.uploads[index].resolution = policy;
@@ -418,7 +418,7 @@ const DropZoneBox = styled(Box)`
     }
 `;
 
-const privacyOptions: Array<{text: string, value: Sensitivity}> = [
+const privacyOptions: Array<{text: string; value: Sensitivity}> = [
     {text: "Inherit", value: "INHERIT"},
     {text: "Private", value: "PRIVATE"},
     {text: "Confidential", value: "CONFIDENTIAL"},

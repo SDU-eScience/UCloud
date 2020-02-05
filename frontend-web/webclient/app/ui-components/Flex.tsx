@@ -24,7 +24,7 @@ export type FlexCProps =
     FlexDirectionProps &
     FlexProps &
     ZIndexProps &
-    {cursor?: Cursor;};
+    {cursor?: Cursor};
 
 
 const Flex = styled.div<FlexCProps>`

@@ -18,7 +18,7 @@ interface ClickableDropdownProps<T> {
     top?: string | number;
     bottom?: string | number;
     right?: string | number;
-    options?: {text: string; value: T;}[];
+    options?: {text: string; value: T}[];
     chevron?: boolean;
     overflow?: string;
     colorOnHover?: boolean;
@@ -41,12 +41,12 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
         document.addEventListener("keydown", this.handleEscPress);
     }
 
-    public componentWillUnmount = () => {
+    public componentWillUnmount = (): void => {
         document.removeEventListener("mousedown", this.handleClickOutside);
         document.removeEventListener("keydown", this.handleEscPress);
-    }
+    };
 
-    public render() {
+    public render(): JSX.Element {
         const {keepOpenOnClick, onChange, ...props} = this.props;
         let children: React.ReactNode[] = [];
         if (props.options !== undefined && onChange) {
@@ -78,7 +78,7 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
                         overflow={"visible"}
                         squareTop={this.props.squareTop}
                         cursor="pointer"
-                        {...props}
+                        {...props }
                         width={width}
                         hover={false}
                         visible={this.state.open}
@@ -97,11 +97,11 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
         if (this.ref.current && !this.ref.current.contains(event.target) && this.state.open) {
             this.setState(() => ({open: false}));
         }
-    }
+    };
 
-    private handleEscPress = (event: {keyCode: KeyCode;}) => {
+    private handleEscPress = (event: {keyCode: KeyCode}): void => {
         if (event.keyCode === KeyCode.ESC && this.state.open) this.setState(() => ({open: false}));
-    }
+    };
 }
 
 export default ClickableDropdown;

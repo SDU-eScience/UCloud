@@ -221,7 +221,7 @@ const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<FullApp
 );
 
 export const TagStyle = styled(Link)`
-    background-color: ${({theme}) => theme.colors.darkGray};
+    background-color: var(--darkGray, #f00);
     color: #ebeff3;
     &:hover { color: #ebeff3;}
     text-decoration: none;

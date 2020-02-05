@@ -23,7 +23,7 @@ interface AvataaarModificationOperations {
     setActivePage: () => void;
 }
 
-function Modification(props: AvataaarModificationOperations) {
+function Modification(props: AvataaarModificationOperations): JSX.Element {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
     const [loading, setLoading] = React.useState(true);
 
@@ -195,7 +195,13 @@ interface AvatarSelect<T1, T2> {
     disabled: boolean;
 }
 
-function AvatarSelect<T1 extends string, T2>({update, options, title, disabled, defaultValue}: AvatarSelect<T1, T2>) {
+function AvatarSelect<T1 extends string, T2>({
+    update,
+    options,
+    title,
+    disabled,
+    defaultValue
+}: AvatarSelect<T1, T2>): JSX.Element | null {
     if (disabled) return null;
     return (
         <Label mt="0.8em">{title}

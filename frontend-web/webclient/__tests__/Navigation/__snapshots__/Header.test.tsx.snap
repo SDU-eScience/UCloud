@@ -132,7 +132,7 @@ exports[`Header Mount header 1`] = `
   display: block;
   font-family: inherit;
   background-color: transparent;
-  color: #000;
+  color: var(--black,#f00);
   margin: 0;
   border-width: 0px;
   padding-left: 30px;
@@ -144,19 +144,19 @@ exports[`Header Mount header 1`] = `
 }
 
 .c10::-webkit-input-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c10::-moz-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c10:-ms-input-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c10::placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c10:focus {

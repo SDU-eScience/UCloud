@@ -65,7 +65,7 @@ const SvgFtLabel = ({hasExt, ext, type}: {hasExt: boolean, ext: string, type: st
 };
 
 // Decoration for file type icons
-const SvgFtType = ({type}: {type: string}) => {
+const SvgFtType = ({type}: {type: string}): JSX.Element | null => {
   switch (type) {
     case "image":
       return (
