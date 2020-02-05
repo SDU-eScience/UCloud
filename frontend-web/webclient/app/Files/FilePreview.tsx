@@ -90,16 +90,16 @@ const FilePreview = (props: FilePreviewProps): JSX.Element => {
                     }).catch(it => {
                         /* Must be solveable more elegantly */
                         if (!it.isCanceled)
-                            typeof it === "string" ? setError(it) : setError("An error occurred fetching file content");
+                            setError(typeof it === "string" ? it : "An error occurred fetching file content");
                     });
                 }).catch(it => {
                     if (!it.isCanceled)
-                        typeof it === "string" ? setError(it) : setError("An error occurred fetching permission");
+                        setError(typeof it === "string" ? it : "An error occurred fetching permission");
                 });
             }
         }).catch(it => {
             if (!it.isCanceled)
-                typeof it === "string" ? setError(it) : setError("An error occurred fetching info");
+                setError(typeof it === "string" ? it : "An error occurred fetching info");
         });
     }, []);
 

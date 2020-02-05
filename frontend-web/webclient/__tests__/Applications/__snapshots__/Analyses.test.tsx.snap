@@ -157,7 +157,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   flex: 1 1 auto;
 }
 
-.c17 .sc-fznZeY {
+.c17 .sc-fzokOt {
   border: 0;
   box-shadow: none;
 }
@@ -375,7 +375,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   className="c0 c1"
 >
   <div
-    className="c0 sc-AxirZ c2"
+    className="c0 sc-AxiKw c2"
     height={48}
     width={1}
   >
@@ -425,7 +425,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
     className="c0 c9"
   >
     <div
-      className="c0 sc-AxirZ c10"
+      className="c0 sc-AxiKw c10"
       height="100%"
       width={340}
     >
@@ -808,7 +808,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           cursor="auto"
         >
           <th
-            className="sc-fzoxnE c25"
+            className="sc-fzoMdx c25"
             width="4%"
           >
             <label
@@ -861,25 +861,25 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             </label>
           </th>
           <th
-            className="sc-fzoxnE c29"
+            className="sc-fzoMdx c29"
             onClick={[Function]}
           >
             Name
           </th>
           <th
-            className="sc-fzoxnE c29"
+            className="sc-fzoMdx c29"
             onClick={[Function]}
           >
             State
           </th>
           <th
-            className="sc-fzoxnE c29"
+            className="sc-fzoMdx c29"
             onClick={[Function]}
           >
             Application
           </th>
           <th
-            className="sc-fzoxnE c29"
+            className="sc-fzoMdx c29"
             onClick={[Function]}
           >
             <svg
@@ -900,7 +900,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
             Created at
           </th>
           <th
-            className="sc-fzoxnE c29"
+            className="sc-fzoMdx c29"
             onClick={[Function]}
           >
             Expiration

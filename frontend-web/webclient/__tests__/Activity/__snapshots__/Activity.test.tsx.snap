@@ -159,7 +159,7 @@ exports[`Mount Activity Page 1`] = `
   flex: 1 1 auto;
 }
 
-.c13 .sc-fznZeY {
+.c13 .sc-fzokOt {
   border: 0;
   box-shadow: none;
 }
@@ -274,7 +274,7 @@ exports[`Mount Activity Page 1`] = `
   className="c0 c1"
 >
   <div
-    className="c0 sc-AxirZ c2"
+    className="c0 sc-AxiKw c2"
     height={96}
     width={1}
   >
@@ -290,7 +290,7 @@ exports[`Mount Activity Page 1`] = `
     className="c0 c4"
   >
     <div
-      className="c0 sc-AxirZ c5"
+      className="c0 sc-AxiKw c5"
       height="100%"
       width={340}
     >
