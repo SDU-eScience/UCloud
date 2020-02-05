@@ -1,13 +1,9 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {FilePreviewReduxState, ReduxObject} from "DefaultObjects";
-import {File} from "Files";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
 import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
-import {connect} from "react-redux";
 import {useLocation} from "react-router";
-import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Box, Button, Icon} from "ui-components";
@@ -22,21 +18,12 @@ import {
     requestFullScreen
 } from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
-import {fetchPreviewFile, setFilePreviewError} from "./Redux/FilePreviewAction";
 
 interface FilePreviewStateProps {
-    file: File;
     isEmbedded?: boolean;
 }
 
-interface FilePreviewOperations {
-    fetchFile: (p: string) => void;
-    setError: (error?: string) => void;
-}
-
-type FilePreviewProps = FilePreviewOperations & FilePreviewStateProps;
-
-const FilePreview = (props: FilePreviewProps): JSX.Element => {
+const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
     const location = useLocation();
     const [fileContent, setFileContent] = React.useState("");
     const [error, setError] = React.useState("");
@@ -199,15 +186,6 @@ const ExpandingIcon = styled(Icon)`
     }
 `;
 
-const mapStateToProps = ({filePreview}: ReduxObject): FilePreviewReduxState => ({
-    file: filePreview.file
-});
-
-const mapDispatchToProps = (dispatch: Dispatch): FilePreviewOperations => ({
-    fetchFile: async path => dispatch(await fetchPreviewFile(path)),
-    setError: error => dispatch(setFilePreviewError(error))
-});
-
 const Code = styled.code`
     max-height: 90vh;
     maxWidth: 90vw;
@@ -230,4 +208,5 @@ const Img = styled.img`
     max-width: 90vw;
 `;
 
-export default connect(mapStateToProps, mapDispatchToProps)(FilePreview);
+export default FilePreview;
+
