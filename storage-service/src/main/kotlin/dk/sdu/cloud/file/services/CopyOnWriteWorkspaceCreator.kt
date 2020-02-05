@@ -283,7 +283,6 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         fsRunner.withContext(SERVICE_USER) { rootCtx ->
             Files.walk(directory).asSequence().forEach { path ->
                 val relativePath = rootPath.relativize(path)
-                log.debug("transferToDefault: The relative path is $relativePath")
                 val realPath = defaultDestinationDir.resolve(relativePath)
                 val cloudPath = realPath.toCloudPath()
                 val workspaceCloudPath = path.toCloudPath()
@@ -331,36 +330,106 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         transferredFiles: ArrayList<String>
     ) {
         fsRunner.withContext(SERVICE_USER) { rootCtx ->
-            Files.walk(upper).asSequence().forEach seq@{ path ->
-                val realPath = run {
-                    val relativePath = upper.relativize(path)
-                    realRootPath.resolve(relativePath)
-                }
+            Files.walk(upper).asSequence().drop(1).forEach seq@{ path ->
+                try {
+                    val realPath = run {
+                        val relativePath = upper.relativize(path)
+                        realRootPath.resolve(relativePath)
+                    }
 
-                val cloudPath = realPath.toCloudPath()
-                val workspaceCloudPath = path.toCloudPath()
+                    val cloudPath = realPath.toCloudPath()
+                    val workspaceCloudPath = path.toCloudPath()
 
-                val realRelocatedDir = realRootPath.resolve(RELOCATED_DIR)
-                val pathTooLong = handleLongPaths(
-                    rootCtx,
-                    path,
-                    realRelocatedDir,
-                    workspaceCloudPath,
-                    transferredFiles,
-                    username
-                )
+                    val realRelocatedDir = realRootPath.resolve(RELOCATED_DIR)
+                    val pathTooLong = handleLongPaths(
+                        rootCtx,
+                        path,
+                        realRelocatedDir,
+                        workspaceCloudPath,
+                        transferredFiles,
+                        username
+                    )
 
-                if (pathTooLong) {
-                    return@seq
-                }
+                    if (pathTooLong) {
+                        log.debug("File too long")
+                        return@seq
+                    }
 
-                val attributes = Files.readAttributes(path, BasicFileAttributes::class.java)
-                if (attributes.isSymbolicLink) {
-                    Files.deleteIfExists(path)
-                    return@seq
-                } else if (attributes.isRegularFile) {
-                    val fileName = path.toFile().name
-                    if (fileName.startsWith(DELETED_PREFIX)) {
+                    val attributes = Files.readAttributes(path, BasicFileAttributes::class.java)
+                    if (attributes.isSymbolicLink) {
+                        Files.deleteIfExists(path)
+                        return@seq
+                    } else if (attributes.isRegularFile) {
+                        val fileName = path.toFile().name
+                        if (fileName.startsWith(DELETED_PREFIX)) {
+                            fsRunner.withContext(username) { ctx ->
+                                try {
+                                    coreFs.delete(
+                                        ctx,
+                                        realPath.resolveSibling(fileName.removePrefix(DELETED_PREFIX)).toCloudPath()
+                                    )
+                                } catch (ex: FSException.NotFound) {
+                                    // Ignored
+                                }
+                            }
+                        } else {
+                            sanitizeFile(path)
+
+                            val existingFile =
+                                coreFs.statOrNull(
+                                    rootCtx,
+                                    cloudPath,
+                                    setOf(FileAttribute.INODE, FileAttribute.FILE_TYPE, FileAttribute.TIMESTAMPS)
+                                )
+
+                            val fileIdToReuse = if (existingFile?.fileType != FileType.FILE) {
+                                null
+                            } else {
+                                existingFile.inode
+                            }
+
+                            val existingCreation = existingFile?.timestamps?.created
+
+                            if (existingFile != null && existingFile.fileType != FileType.FILE) {
+                                fsRunner.withContext(username) { ctx ->
+                                    // Type mismatch. We should delete the existing entry before creating a new one
+                                    // (with a new ID)
+                                    coreFs.delete(ctx, cloudPath)
+                                }
+                            }
+
+                            // File has been updated
+                            coreFs.handlePotentialFileCreation(
+                                rootCtx,
+                                workspaceCloudPath,
+                                preAllocatedCreation = existingCreation,
+                                preAllocatedFileId = fileIdToReuse
+                            )
+
+                            Files.move(
+                                path,
+                                realPath,
+                                StandardCopyOption.ATOMIC_MOVE,
+                                StandardCopyOption.REPLACE_EXISTING
+                            )
+
+                            coreFs.emitUpdateEvent(rootCtx, cloudPath)
+                            transferredFiles.add(cloudPath)
+                        }
+                    } else if (attributes.isDirectory) {
+                        fsRunner.withContext(username) { ctx ->
+                            try {
+                                coreFs.makeDirectory(ctx, cloudPath)
+                                transferredFiles.add(cloudPath)
+                            } catch (ex: FSException.AlreadyExists) {
+                                // Ignored
+                            }
+                        }
+                    } else {
+                        // Assume this to be a whiteout device
+                        // This usually indicates a move but we will handle it by deleting the file (similar to how we
+                        // handle file whiteout)
+                        val fileName = path.toFile().name
                         fsRunner.withContext(username) { ctx ->
                             try {
                                 coreFs.delete(
@@ -371,74 +440,9 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                                 // Ignored
                             }
                         }
-                    } else {
-                        sanitizeFile(path)
-
-                        val existingFile =
-                            coreFs.statOrNull(
-                                rootCtx,
-                                cloudPath,
-                                setOf(FileAttribute.INODE, FileAttribute.FILE_TYPE, FileAttribute.TIMESTAMPS)
-                            )
-
-                        val fileIdToReuse = if (existingFile?.fileType != FileType.FILE) {
-                            null
-                        } else {
-                            existingFile.inode
-                        }
-
-                        val existingCreation = existingFile?.timestamps?.created
-
-                        if (existingFile != null && existingFile.fileType != FileType.FILE) {
-                            fsRunner.withContext(username) { ctx ->
-                                // Type mismatch. We should delete the existing entry before creating a new one
-                                // (with a new ID)
-                                coreFs.delete(ctx, cloudPath)
-                            }
-                        }
-
-                        // File has been updated
-                        coreFs.handlePotentialFileCreation(
-                            rootCtx,
-                            workspaceCloudPath,
-                            preAllocatedCreation = existingCreation,
-                            preAllocatedFileId = fileIdToReuse
-                        )
-
-                        Files.move(
-                            path,
-                            realPath,
-                            StandardCopyOption.ATOMIC_MOVE,
-                            StandardCopyOption.REPLACE_EXISTING
-                        )
-
-                        coreFs.emitUpdateEvent(rootCtx, cloudPath)
-                        transferredFiles.add(cloudPath)
                     }
-                } else if (attributes.isDirectory) {
-                    fsRunner.withContext(username) { ctx ->
-                        try {
-                            coreFs.makeDirectory(ctx, cloudPath)
-                            transferredFiles.add(cloudPath)
-                        } catch (ex: FSException.AlreadyExists) {
-                            // Ignored
-                        }
-                    }
-                } else {
-                    // Assume this to be a whiteout device
-                    // This usually indicates a move but we will handle it by deleting the file (similar to how we
-                    // handle file whiteout)
-                    val fileName = path.toFile().name
-                    fsRunner.withContext(username) { ctx ->
-                        try {
-                            coreFs.delete(
-                                ctx,
-                                realPath.resolveSibling(fileName.removePrefix(DELETED_PREFIX)).toCloudPath()
-                            )
-                        } catch (ex: FSException.NotFound) {
-                            // Ignored
-                        }
-                    }
+                } catch (ex: Throwable) {
+                    log.warn("Caught exception while walking upper directory: " + ex.stackTraceToString())
                 }
             }
         }
