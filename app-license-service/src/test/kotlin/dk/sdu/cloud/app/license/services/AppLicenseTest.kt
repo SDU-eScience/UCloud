@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.NewServerRequest
 import dk.sdu.cloud.app.license.api.UpdateServerRequest
 import dk.sdu.cloud.app.license.services.acl.AclHibernateDao
@@ -17,8 +16,6 @@ import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
-import kotlin.math.absoluteValue
-import kotlin.random.Random
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -51,7 +48,7 @@ class AppLicenseTest {
             NewServerRequest(
                 "testName",
                 "example.com",
-                "1234",
+                1234,
                  null
             ),
             user
@@ -68,7 +65,7 @@ class AppLicenseTest {
             NewServerRequest(
                 "testName",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
@@ -81,7 +78,7 @@ class AppLicenseTest {
             UpdateServerRequest(
                 "testName",
                 newAddress,
-                "1234",
+                1234,
                 null,
                 serverId
             ),
@@ -101,7 +98,7 @@ class AppLicenseTest {
             NewServerRequest(
                 "testName",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
@@ -115,7 +112,7 @@ class AppLicenseTest {
                 UpdateServerRequest(
                     "testName",
                     newAddress,
-                    "1234",
+                    1234,
                     null,
                     serverId
                 ),

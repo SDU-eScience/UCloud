@@ -68,7 +68,7 @@ class AclTest {
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
@@ -94,7 +94,7 @@ class AclTest {
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             userEntity
@@ -119,7 +119,7 @@ class AclTest {
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
