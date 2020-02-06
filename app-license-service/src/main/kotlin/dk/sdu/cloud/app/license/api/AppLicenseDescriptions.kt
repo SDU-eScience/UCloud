@@ -18,7 +18,7 @@ data class LicenseServerRequest(val serverId: String)
 data class UpdateServerRequest(
     val name: String,
     val address: String,
-    val port: String,
+    val port: Int,
     val license: String?,
     val withId: String
 )
@@ -30,7 +30,7 @@ data class DeleteServerRequest(
 data class NewServerRequest(
     val name: String,
     val address: String,
-    val port: String,
+    val port: Int,
     val license: String?
 )
 
@@ -42,14 +42,14 @@ data class LicenseServerWithId(
     val id: String,
     val name: String,
     val address: String,
-    val port: String,
+    val port: Int,
     val license: String?
 )
 
 data class LicenseServer(
     val name: String,
     val address: String,
-    val port: String,
+    val port: Int,
     val license: String?
 )
 

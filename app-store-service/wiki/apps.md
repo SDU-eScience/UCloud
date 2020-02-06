@@ -495,6 +495,31 @@ parameters:
     exportToPeers: false
 ```
 
+#### `type: license_server`
+
+License servers are for internal authorization by an application. License servers can be administered using the Admin page, and tagged with optional keywords. The `license_server` parameter can then be used to make license servers available for selection by keywords.
+
+An Access Control List exists for every license server. Permissions for a license server needs to be explicitly set for each user.
+
+##### Examples
+
+```yaml
+invocation:
+- type: var
+  vars: my_license_server
+parameters:
+  my_license_server:
+    title: "A license server is required, pick one"
+    type: license_server
+    tagged: [figlet-server]
+```
+
+The user will be prompted to select any license server with the tag `figlet-server`, which the user has access to according to each license server ACL.
+
+The details of the license server is hidden from the user. When the job is started, the details of the selected server will be fetched and passed as an invocation parameter.
+
+Ultimately it is up to each application to handle the license server information while the job is running (that is, authorization etc.).
+
 ### `fileExtensions`
 
 A list of file extensions supported by this application.

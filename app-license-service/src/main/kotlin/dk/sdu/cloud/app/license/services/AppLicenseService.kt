@@ -66,10 +66,8 @@ class AppLicenseService<Session>(
             request.license
         }
         val serverId = UUID.randomUUID().toString()
-        val port = if (request.port.matches("^[0-9]{2,5}$".toRegex())) {
-            request.port
-        } else {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Invalid port")
+        if (0 > request.port || 65535 < request.port) {
+            throw RPCException("Invalid port number", HttpStatusCode.BadRequest)
         }
 
         db.withTransaction { session ->
@@ -79,7 +77,7 @@ class AppLicenseService<Session>(
                 LicenseServer(
                     request.name,
                     request.address,
-                    port,
+                    request.port,
                     license
                 )
             )

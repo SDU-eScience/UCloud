@@ -6,7 +6,7 @@ create table license_servers
     name           varchar(255) not null,
     version        varchar(255) not null,
     address        varchar(255) not null,
-    port           varchar(5) not null,
+    port           integer not null check (port >= 0 and port <= 65535),
     license        varchar(255),
     primary key (id)
 );

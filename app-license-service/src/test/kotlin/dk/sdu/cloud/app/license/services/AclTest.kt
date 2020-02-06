@@ -26,16 +26,11 @@ class AclTest {
     private lateinit var micro: Micro
     private lateinit var aclService: AclService<HibernateSession>
     private lateinit var licenseService: AppLicenseService<HibernateSession>
-    private lateinit var principal: SecurityPrincipal
-    private lateinit var principal2: SecurityPrincipal
 
     @BeforeTest
     fun initializeTest() {
         micro = initializeMicro()
         micro.install(HibernateFeature)
-
-        principal = SecurityPrincipal("user", Role.ADMIN, "user", "user", Random.nextLong().absoluteValue, "user@example.com")
-        principal2 = SecurityPrincipal("user2", Role.ADMIN, "user2", "user2", Random.nextLong().absoluteValue, "user2@example.com")
 
         ClientMock.mockCall(UserDescriptions.lookupUsers) {
             TestCallResult.Ok(
@@ -54,7 +49,7 @@ class AclTest {
 
     @Test
     fun `empty acls`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
         val serverId = "1234"
 
         val instance = aclService.listAcl(serverId)
@@ -66,14 +61,14 @@ class AclTest {
 
     @Test
     fun `revoke permission`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
-        val user2 = UserEntity(principal2, EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
+        val user2 = UserEntity(TestUsers.admin2, EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
@@ -92,14 +87,14 @@ class AclTest {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
 
-        val userEntity = UserEntity(principal, EntityType.USER)
-        val userEntity2 = UserEntity(principal2, EntityType.USER)
+        val userEntity = UserEntity(TestUsers.admin, EntityType.USER)
+        val userEntity2 = UserEntity(TestUsers.admin2, EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             userEntity
@@ -117,14 +112,14 @@ class AclTest {
 
     @Test
     fun `add user to acl several times`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
-        val user2 = UserEntity(principal2, EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
+        val user2 = UserEntity(TestUsers.admin2, EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
@@ -139,7 +134,7 @@ class AclTest {
         val list = aclService.listAcl(serverId)
         assertThatPropertyEquals(list, { it.size }, 2)
 
-        assertTrue(EntityWithPermission(principal.username, EntityType.USER, ServerAccessRight.READ_WRITE) in list)
-        assertTrue(EntityWithPermission(principal2.username, EntityType.USER, ServerAccessRight.READ) in list)
+        assertTrue(EntityWithPermission(TestUsers.admin.username, EntityType.USER, ServerAccessRight.READ_WRITE) in list)
+        assertTrue(EntityWithPermission(TestUsers.admin2.username, EntityType.USER, ServerAccessRight.READ) in list)
     }
 }

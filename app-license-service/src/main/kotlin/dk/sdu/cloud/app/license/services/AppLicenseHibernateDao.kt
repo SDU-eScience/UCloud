@@ -39,7 +39,7 @@ class LicenseServerEntity(
     var address: String,
 
     @Column(name = "port", unique = false, nullable = false)
-    var port: String,
+    var port: Int,
 
     @Column(name = "license", unique = false, nullable = true)
     var license: String?
