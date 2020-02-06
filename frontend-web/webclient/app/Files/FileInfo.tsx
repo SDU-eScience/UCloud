@@ -169,7 +169,6 @@ function FileView({file}: FileViewProps): JSX.Element | null {
                         color="blue"
                     />
                 </Attribute>
-                <Attribute name="Shared with" value={`${file.acl !== null ? file.acl.length : 0} people`} />
             </AttributeBox>
             <AttributeBox>
                 <Attribute name="Sensitivity">

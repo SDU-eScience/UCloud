@@ -132,7 +132,7 @@ export const EntriesPerPageSelector = ({
     entriesPerPage,
     onChange,
     content
-}: EntriesPerPageSelector) => (
+}: EntriesPerPageSelector): JSX.Element => (
         <ClickableDropdown
             left="85px"
             minWidth="80px"

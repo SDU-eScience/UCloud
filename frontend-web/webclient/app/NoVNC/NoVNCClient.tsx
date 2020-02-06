@@ -12,8 +12,8 @@ import {cancelJobDialog, cancelJobQuery} from "Utilities/ApplicationUtilities";
 import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, requestFullScreen} from "UtilityFunctions";
 
-interface RFB {
-    constructor: () => RFB;
+declare class RFB {
+    constructor(el: Element, address: string, {credentials: {password: string}});
 
     // Properties
     viewOnly: boolean;
@@ -68,6 +68,11 @@ interface RFB {
      * Send clipboard contents to server.
      */
     clipboardPasteFrom: (text: string) => void;
+    /**
+     * Adds event listener for specific event. As we don't use anythin other than "disconnect",
+     * that's currently the only thing allowed.
+     */
+    addEventListener: (event: "disconnect", action: () => void) => void
 }
 
 function NoVNCClient(props: RouterLocationProps): JSX.Element {
@@ -144,22 +149,18 @@ function NoVNCClient(props: RouterLocationProps): JSX.Element {
     const main = (
         <>
             <Heading mb="5px">
-                {isConnected ? (
-                    <OutlineButton ml="15px" mr="10px" onClick={disconnect}>
-                        Disconnect
-                    </OutlineButton>
-                ) : (
-                        <div>
-                            <Button disabled={isCancelled} ml="15px" onClick={onConnect}>
-                                Connect
+                {isConnected ? <OutlineButton ml="15px" mr="10px" onClick={disconnect}>Disconnect</OutlineButton> : (
+                    <div>
+                        <Button disabled={isCancelled} ml="15px" onClick={onConnect}>
+                            Connect
                             </Button>
-                            {isCancelled ? null : (
-                                <Button ml="8px" color="red" onClick={cancelJob}>
-                                    Cancel Job
+                        {isCancelled ? null : (
+                            <Button ml="8px" color="red" onClick={cancelJob}>
+                                Cancel Job
                                 </Button>
-                            )}
-                        </div>
-                    )}
+                        )}
+                    </div>
+                )}
                 {isConnected ? <ExpandingIcon name="fullscreen" onClick={toFullScreen} /> : null}
             </Heading>
             {mountNode}
