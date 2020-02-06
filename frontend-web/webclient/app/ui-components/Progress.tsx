@@ -8,7 +8,6 @@ import {ThemeColor} from "./theme";
 interface ProgressBaseProps {
     height?: number | string;
     value?: number | string;
-    active?: boolean;
     label?: string;
 }
 
@@ -16,9 +15,14 @@ const ProgressBase = styled(Box) <ProgressBaseProps>`
     border-radius: 5px;
     background-color: var(--${p => p.color}, #f00);
     height: ${props => props.height};
+`;
 
+const ProgressPulse = styled(ProgressBase) <{active: boolean}>`
+    ${p => p.active ? "" : "display: none;"}
+    height: 100%;
     /* From semantic-ui-css */
-    ${props => props.active ? `animation: progress-active 2s ease infinite;` : null}
+    animation: progress-active 2s ease infinite;
+    color: black;
 
     @keyframes progress-active {
         0% {
@@ -35,7 +39,6 @@ const ProgressBase = styled(Box) <ProgressBaseProps>`
 ProgressBase.defaultProps = {
     color: "green",
     height: "30px",
-    active: false
 };
 
 interface Progress {
@@ -49,7 +52,7 @@ const Progress = ({color, percent, active, label}: Progress): JSX.Element => (
     <>
         <ProgressBase height="30px" width="100%" color="lightGray">
             <ProgressBase height="30px" color={color} width={`${percent}%`}>
-                {active ? <ProgressBase height="30px" active width="100%" color="black" /> : null}
+                <ProgressPulse active={active} width="100%" />
             </ProgressBase>
         </ProgressBase>
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
