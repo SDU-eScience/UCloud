@@ -43,19 +43,7 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
                         <Avataaar
                             style={{height: "150px"}}
                             avatarStyle="circle"
-                            topType={avatar.top}
-                            hatColor={avatar.hatColor}
-                            accessoriesType={avatar.topAccessory}
-                            hairColor={avatar.hairColor}
-                            facialHairType={avatar.facialHair}
-                            facialHairColor={avatar.facialHairColor}
-                            clotheType={avatar.clothes}
-                            clotheColor={avatar.colorFabric}
-                            graphicType={avatar.clothesGraphic}
-                            eyeType={avatar.eyes}
-                            eyebrowType={avatar.eyebrows}
-                            mouthType={avatar.mouthTypes}
-                            skinColor={avatar.skinColors}
+                            {...avatar}
                         />
                         <Box mr="auto" />
                     </Flex>

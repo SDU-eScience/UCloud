@@ -26,44 +26,44 @@
 
 import * as React from "react";
 import {
-  Clothes,
-  ClothesGraphic,
-  ColorFabric,
-  Eyebrows,
-  Eyes,
-  FacialHair,
-  FacialHairColor,
-  HairColor,
-  HatColor,
-  MouthTypes,
-  SkinColors,
-  Top,
-  TopAccessory
+    Clothes,
+    ClothesGraphic,
+    ColorFabric,
+    Eyebrows,
+    Eyes,
+    FacialHair,
+    FacialHairColor,
+    HairColor,
+    HatColor,
+    MouthTypes,
+    SkinColors,
+    Top,
+    TopAccessory
 } from "UserSettings/AvatarOptions";
 import Avatar from "./avatar";
 export {default as Avatar, AvatarStyle} from "./avatar";
 
 export interface AvatarComponentProps {
-  avatarStyle: string;
-  style?: React.CSSProperties;
-  topType: Top;
-  accessoriesType: TopAccessory;
-  hairColor: HairColor;
-  facialHairType: FacialHair;
-  facialHairColor: FacialHairColor;
-  clotheType: Clothes;
-  hatColor: HatColor;
-  clotheColor: ColorFabric;
-  graphicType: ClothesGraphic;
-  eyeType: Eyes;
-  eyebrowType: Eyebrows;
-  mouthType: MouthTypes;
-  skinColor: SkinColors;
-  pieceType?: string;
-  pieceSize?: string;
-  viewBox?: string;
+    avatarStyle: string;
+    style?: React.CSSProperties;
+    top: Top;
+    topAccessory: TopAccessory;
+    hairColor: HairColor;
+    facialHair: FacialHair;
+    facialHairColor: FacialHairColor;
+    clothes: Clothes;
+    colorFabric: ColorFabric;
+    eyes: Eyes;
+    eyebrows: Eyebrows;
+    mouthTypes: MouthTypes;
+    skinColors: SkinColors;
+    clothesGraphic: ClothesGraphic;
+    hatColor: HatColor;
+    pieceType?: string;
+    pieceSize?: string;
+    viewBox?: string;
 }
 
 export default function AvatarComponent(props: AvatarComponentProps): JSX.Element {
-  return <Avatar {...props} />;
+    return <Avatar {...props} />;
 }

@@ -24,20 +24,20 @@ describe("Avatar", () => {
     test("Avatar component", () => {
         expect(create(
             <Avatar
-                accessoriesType={TopAccessory.Blank}
                 avatarStyle="circle"
-                clotheColor={ColorFabric.Black}
-                eyeType={Eyes.Close}
-                clotheType={Clothes.BlazerShirt}
-                eyebrowType={Eyebrows.Angry}
+                topAccessory={TopAccessory.Blank}
+                colorFabric={ColorFabric.Black}
+                eyes={Eyes.Close}
+                clothes={Clothes.BlazerShirt}
+                eyebrows={Eyebrows.Angry}
                 facialHairColor={FacialHairColor.Black}
-                facialHairType={FacialHair.BeardLight}
-                graphicType={ClothesGraphic.Bat}
+                facialHair={FacialHair.BeardLight}
+                clothesGraphic={ClothesGraphic.Bat}
                 hairColor={HairColor.Black}
                 hatColor={HatColor.Black}
-                mouthType={MouthTypes.Concerned}
-                skinColor={SkinColors.Black}
-                topType={Top.Eyepatch}
+                mouthTypes={MouthTypes.Concerned}
+                skinColors={SkinColors.Black}
+                top={Top.Eyepatch}
             />
         )).toMatchSnapshot();
     });
