@@ -21,19 +21,14 @@ class JobComparator {
         }
 
         //Check mountMode
-        if (storedJob.mountMode != null && newJob.mountMode != null) {
-            if (storedJob.mountMode.name != newJob.mountMode.name) {
-                println("mount Mode  (${storedJob.mountMode.name}, ${newJob.mountMode.name} )not the same")
+        if (storedJob.mountMode != null || newJob.mountMode != null) {
+            if (storedJob.mountMode?.name != newJob.mountMode?.name) {
+                println("mount Mode  (${storedJob.mountMode?.name}, ${newJob.mountMode?.name} )not the same")
                 return false
             }
         }
         //Check reservation
-        if (storedJob.reservation.cpu != newJob.reservation.cpu) {
-            println("reservation cpu not the same")
-            return false
-        }
-        if (storedJob.reservation.memoryInGigs != newJob.reservation.memoryInGigs) {
-            println("reservation mem not the same")
+        if (storedJob.reservation != newJob.reservation) {
             return false
         }
         // Check workspace and project
