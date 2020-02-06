@@ -245,26 +245,26 @@ exports[`Header Mount header 1`] = `
   border-radius: 5px;
 }
 
-.c9 input::-webkit-input-placeholder,
+.c9 > input::-webkit-input-placeholder,
 .c9 input::-moz-placeholder,
 .c9 input::-ms-input-placeholder,
 .c9 input:-moz-placeholder {
   color: white;
 }
 
-.c9 input:focus::-webkit-input-placeholder,
+.c9 > input:focus::-webkit-input-placeholder,
 .c9 input:focus::-moz-placeholder,
 .c9 input:focus::-ms-input-placeholder,
 .c9 input:focus::-moz-placeholder {
   color: black;
 }
 
-.c9 input:focus ~ div > span > div > svg,
+.c9 > input:focus ~ div > span > div > svg,
 .c9 input:focus + div > label > svg {
   color: black;
 }
 
-.c9 input ~ div > span > div > svg,
+.c9 > input ~ div > span > div > svg,
 .c9 input + div > label > svg {
   color: white;
 }
@@ -272,6 +272,10 @@ exports[`Header Mount header 1`] = `
 .c9 > input:focus {
   color: black;
   background-color: white;
+}
+
+.c9 > input {
+  color: white;
 }
 
 .c9 > .c13 > .c4 > input {

@@ -257,10 +257,6 @@ const Logo = (): JSX.Element => (
     </Link>
 );
 
-const Login = (): JSX.Element => (
-    <Icon name="user" />
-);
-
 const SearchInput = styled(Flex)`
     min-width: 250px;
     width: 425px;
@@ -270,21 +266,25 @@ const SearchInput = styled(Flex)`
     color: white;
     background-color: rgba(236, 239, 244, 0.25);
     border-radius: 5px;
-    input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input:-moz-placeholder {
+    
+    & > input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input:-moz-placeholder {
         color: white;
     }
-    input:focus::-webkit-input-placeholder, input:focus::-moz-placeholder, input:focus::-ms-input-placeholder, input:focus::-moz-placeholder {
+    & > input:focus::-webkit-input-placeholder, input:focus::-moz-placeholder, input:focus::-ms-input-placeholder, input:focus::-moz-placeholder {
         color: black;
     }
-    input:focus ~ div > span > div > svg, input:focus + div > label > svg {
+    & > input:focus ~ div > span > div > svg, input:focus + div > label > svg {
         color: black;
     }
-    input ~ div > span > div > svg, input + div > label > svg {
+    & > input ~ div > span > div > svg, input + div > label > svg {
         color: white;
     }
     & > input:focus {
         color: black;
         background-color: white;
+    }
+    & > input {
+        color: white;
     }
     & > ${Dropdown} > ${Text} > input {
         width: 350px;
@@ -378,7 +378,6 @@ const _Search = (props: SearchProps): JSX.Element => {
                         <DetailedApplicationSearch defaultAppQuery={props.search} />
                     ) : null}
                 </ClickableDropdown>
-                {!Client.isLoggedIn ? <Login /> : null}
             </SearchInput>
         </Relative>
     );
