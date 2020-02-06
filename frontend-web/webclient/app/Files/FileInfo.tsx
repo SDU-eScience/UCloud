@@ -66,14 +66,16 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
     return (
         <MainContainer
             header={(
-                <>
-                    <Heading.h2><BreadCrumbs
-                        currentPath={file.path}
-                        navigate={p => props.history.push(fileTablePage(expandHomeFolder(p, Client.homeFolder)))}
-                        homeFolder={Client.homeFolder}
-                    /></Heading.h2>
+                <Box>
+                    <Flex>
+                        <BreadCrumbs
+                            currentPath={file.path}
+                            navigate={p => props.history.push(fileTablePage(expandHomeFolder(p, Client.homeFolder)))}
+                            homeFolder={Client.homeFolder}
+                        />
+                    </Flex>
                     <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
-                </>
+                </Box>
             )}
             headerSize={140}
             main={(
@@ -83,7 +85,7 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
 
                     {activity.items.length ? (
                         <Flex flexDirection="row" justifyContent="center">
-                            <Card mt="1em" maxWidth={"75%"} mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
+                            <Card mt="1em" maxWidth="75%" mb="1em" p="1em 1em 1em 1em" width="100%" height="auto">
                                 <ActivityFeed activity={activity.items} />
                             </Card>
                         </Flex>

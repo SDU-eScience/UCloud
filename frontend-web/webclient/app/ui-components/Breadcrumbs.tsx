@@ -72,7 +72,7 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
                             Go to home
                         </Text>
                     </Box>
-                    <Text ml="8px" mr="8px" fontSize="25px">|</Text>
+                    <Text ml="6px" mr="6px" fontSize="24px">|</Text>
                 </>
             ) : null}
             <BreadCrumbsBase>

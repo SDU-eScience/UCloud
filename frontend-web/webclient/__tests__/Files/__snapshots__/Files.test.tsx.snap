@@ -185,9 +185,9 @@ exports[`Mount Files component 1`] = `
 
 .c6 {
   cursor: inherit;
-  font-size: 25px;
-  margin-left: 8px;
-  margin-right: 8px;
+  font-size: 24px;
+  margin-left: 6px;
+  margin-right: 6px;
 }
 
 .c10 {
@@ -381,7 +381,7 @@ exports[`Mount Files component 1`] = `
       <div
         className="c6"
         cursor="inherit"
-        fontSize="25px"
+        fontSize="24px"
       >
         |
       </div>
