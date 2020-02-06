@@ -229,6 +229,7 @@ export interface MachineReservation {
     name: string;
     cpu: number | null;
     memoryInGigs: number | null;
+    gpu: number | null;
 }
 
 export type AppOrTool = "APPLICATION" | "TOOL";

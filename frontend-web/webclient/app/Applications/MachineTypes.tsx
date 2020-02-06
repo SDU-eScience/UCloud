@@ -14,10 +14,11 @@ export const MachineTypes: React.FunctionComponent<{inputRef: React.RefObject<HT
     const [selected, setSelected] = useState<string>("");
 
     const selectedMachineFromList = machines.data.find(it => it.name === selected);
-    const selectedMachine = selectedMachineFromList ? selectedMachineFromList : {
+    const selectedMachine: MachineReservation = selectedMachineFromList ? selectedMachineFromList : {
         name: "Default",
         memoryInGigs: null,
-        cpu: null
+        cpu: null,
+        gpu: null
     };
 
     useEffect(() => {
@@ -64,6 +65,12 @@ const MachineBox: React.FunctionComponent<{machine: MachineReservation}> = ({mac
                 <>
                     CPU: {machine.cpu}<br />
                     Memory: {machine.memoryInGigs} GB memory
+                </>
+            ) : null}
+            {machine.gpu ? (
+                <>
+                    <br />
+                    GPU: {machine.gpu}
                 </>
             ) : null}
         </p>

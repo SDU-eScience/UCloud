@@ -4,7 +4,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-kubernetes"
-    version = "0.15.0-LS-TEST-1"
+    version = "0.16.0-iss.1233.0"
 
     withAmbassador(pathPrefix = null) {
         addSimpleMapping("/api/app/compute/kubernetes")
