@@ -26,6 +26,7 @@ import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
@@ -140,6 +141,9 @@ class JobOrchestrator<DBSession>(
         log.debug("Verifying job")
         val unverifiedJob = UnverifiedJob(req, decodedToken, refreshToken)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
+        if (checkForDuplicateJob(decodedToken, jobWithToken)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "Job with same parameters already running")
+        }
         val initialState = JobStateChange(jobWithToken.job.id, JobState.VALIDATED)
         log.debug("Notifying compute")
         backend.jobVerified.call(jobWithToken.job, serviceClient).orThrow()
@@ -157,6 +161,37 @@ class JobOrchestrator<DBSession>(
         handleStateChange(jobWithToken, initialState)
 
         return initialState.systemId
+    }
+
+    private fun checkForDuplicateJob(
+        securityPrincipalToken: SecurityPrincipalToken,
+        jobWithToken: VerifiedJobWithAccessToken
+    ): Boolean {
+        val jobComparator = JobComparator()
+        val jobs = runBlocking {
+            findLast10JobsForUser(
+                securityPrincipalToken,
+                jobWithToken.job.application.metadata.name,
+                jobWithToken.job.application.metadata.version
+            )
+        }
+
+        //Ignore jobs that are done or older than 5 min.
+        val ignoreIfJobInStates = listOf(JobState.CANCELING, JobState.FAILURE, JobState.SUCCESS, JobState.TRANSFER_SUCCESS)
+        val minutesInPast = System.currentTimeMillis() - (5 * 60 * 1000L)
+        println(jobs.size)
+        jobs.forEach { storedJob ->
+            println(storedJob.job.currentState)
+            if (ignoreIfJobInStates.contains(storedJob.job.currentState) || storedJob.job.createdAt < minutesInPast) {
+                println("ignoring job")
+                return@forEach
+            }
+            if (jobComparator.jobsEqual(storedJob.job, jobWithToken.job)) {
+                return true
+            }
+        }
+        return false
+
     }
 
     suspend fun handleProposedStateChange(
@@ -397,6 +432,24 @@ class JobOrchestrator<DBSession>(
         val jobWithToken = findJobForId(jobId)
         computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
         return jobWithToken.job
+    }
+
+    suspend fun findLast10JobsForUser(
+        securityPrincipalToken: SecurityPrincipalToken,
+        application: String,
+        version: String
+    ): List<VerifiedJobWithAccessToken> {
+        return db.withTransaction { session ->
+            jobDao.list(
+                session,
+                securityPrincipalToken,
+                NormalizedPaginationRequest(10, 0),
+                application = application,
+                version = version
+            )
+        }.items
+
+
     }
 
     suspend fun removeExpiredJobs() {
