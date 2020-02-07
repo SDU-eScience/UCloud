@@ -141,8 +141,10 @@ class JobOrchestrator<DBSession>(
         log.debug("Verifying job")
         val unverifiedJob = UnverifiedJob(req, decodedToken, refreshToken)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
-        if (checkForDuplicateJob(decodedToken, jobWithToken)) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "Job with same parameters already running")
+        if (!req.acceptSameDataRetry) {
+            if (checkForDuplicateJob(decodedToken, jobWithToken)) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "Job with same parameters already running")
+            }
         }
         val initialState = JobStateChange(jobWithToken.job.id, JobState.VALIDATED)
         log.debug("Notifying compute")

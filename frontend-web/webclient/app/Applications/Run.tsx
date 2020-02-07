@@ -614,7 +614,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             reservation,
             type: "start",
             name: jobName ?? null,
-            mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES"
+            mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES",
+            acceptSameDataRetry: false
         };
 
         try {
@@ -623,8 +624,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Client.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));
-            this.setState(() => ({jobSubmitted: false}));
+            if (err.value == 409) {
+                snackbarStore.addFailure(errorMessageOrDefault(err, "blablabalbalbal"));
+            }
+            else {
+                snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));
+                this.setState(() => ({jobSubmitted: false}));
+            }
         } finally {
             this.props.setLoading(false);
         }
