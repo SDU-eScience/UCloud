@@ -15,7 +15,7 @@ class AppLicenseService<Session>(
     private val aclService: AclService<Session>,
     private val appLicenseDao: AppLicenseDao<Session>
 ) {
-    fun getLicenseServer(serverId: String, entity: UserEntity): LicenseServerWithId? {
+    suspend fun getLicenseServer(serverId: String, entity: UserEntity): LicenseServerWithId? {
         if (
             !aclService.hasPermission(serverId, entity, ServerAccessRight.READ) &&
             !Roles.PRIVILEDGED.contains(entity.principal.role)
@@ -32,7 +32,7 @@ class AppLicenseService<Session>(
         aclService.updatePermissions(request.serverId, request.changes, entity)
     }
 
-    fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<EntityWithPermission> {
+    suspend fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<EntityWithPermission> {
         return if (Roles.PRIVILEDGED.contains(user.role)) {
             aclService.listAcl(request.serverId)
         } else {
@@ -40,7 +40,7 @@ class AppLicenseService<Session>(
         }
     }
 
-    fun listServers(tags: List<String>, entity: UserEntity): List<LicenseServerId> {
+    suspend fun listServers(tags: List<String>, entity: UserEntity): List<LicenseServerId> {
         return db.withTransaction { session ->
             appLicenseDao.list(
                 session,
@@ -50,7 +50,7 @@ class AppLicenseService<Session>(
         } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
     }
 
-    fun listAllServers(user: SecurityPrincipal): List<LicenseServerWithId> {
+    suspend fun listAllServers(user: SecurityPrincipal): List<LicenseServerWithId> {
         return db.withTransaction { session ->
             appLicenseDao.listAll(
                 session,
@@ -88,7 +88,7 @@ class AppLicenseService<Session>(
         return serverId
     }
 
-    fun updateLicenseServer(request: UpdateServerRequest, entity: UserEntity): String {
+    suspend fun updateLicenseServer(request: UpdateServerRequest, entity: UserEntity): String {
         if (
             aclService.hasPermission(request.withId, entity, ServerAccessRight.READ_WRITE) ||
             Roles.PRIVILEDGED.contains(entity.principal.role)
@@ -113,7 +113,7 @@ class AppLicenseService<Session>(
         }
     }
 
-    fun deleteLicenseServer(request: DeleteServerRequest, entity: UserEntity) {
+    suspend fun deleteLicenseServer(request: DeleteServerRequest, entity: UserEntity) {
         if (
             aclService.hasPermission(request.id, entity, ServerAccessRight.READ_WRITE) ||
             Roles.PRIVILEDGED.contains(entity.principal.role)
@@ -130,19 +130,19 @@ class AppLicenseService<Session>(
         }
     }
 
-    fun addTag(name: String, serverId: String) {
+    suspend fun addTag(name: String, serverId: String) {
         db.withTransaction { session ->
             appLicenseDao.addTag(session, name, serverId)
         }
     }
 
-    fun listTags(serverId: String): List<String> {
+    suspend fun listTags(serverId: String): List<String> {
         return db.withTransaction { session ->
             appLicenseDao.listTags(session, serverId)
         }
     }
 
-    fun deleteTag(name: String, serverId: String) {
+    suspend fun deleteTag(name: String, serverId: String) {
         db.withTransaction { session ->
             appLicenseDao.deleteTag(session, name, serverId)
         }

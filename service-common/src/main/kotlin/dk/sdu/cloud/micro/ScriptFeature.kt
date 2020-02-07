@@ -2,6 +2,7 @@ package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.service.Loggable
+import kotlin.system.exitProcess
 
 typealias ScriptHandler = () -> ScriptHandlerResult
 
@@ -46,7 +47,7 @@ class ScriptFeature : MicroFeature {
                     ScriptHandlerResult.CONTINUE -> continue@handlerLoop
                     ScriptHandlerResult.STOP -> {
                         log.debug("Breaking in '$scriptName'")
-                        break@handlerLoop
+                        exitProcess(0)
                     }
                 }
             }

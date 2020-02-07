@@ -150,20 +150,24 @@ class StorageAccountingServiceTest {
 
     @Test
     fun `List all Test`() {
-        val storageAccountingService = setupService()
-        val returnedList = storageAccountingService.listEvents(context, TestUsers.user.username)
-        assertTrue(returnedList.isEmpty())
+        runBlocking {
+            val storageAccountingService = setupService()
+            val returnedList = storageAccountingService.listEvents(context, TestUsers.user.username)
+            assertTrue(returnedList.isEmpty())
+        }
     }
 
     @Test
     fun `List all Page Test`() {
-        val storageAccountingService = setupService()
-        assertTrue(
-            storageAccountingService.listEventsPage(
-                NormalizedPaginationRequest(10, 0),
-                context,
-                TestUsers.user.username
-            ).items.isEmpty()
-        )
+        runBlocking {
+            val storageAccountingService = setupService()
+            assertTrue(
+                storageAccountingService.listEventsPage(
+                    NormalizedPaginationRequest(10, 0),
+                    context,
+                    TestUsers.user.username
+                ).items.isEmpty()
+            )
+        }
     }
 }

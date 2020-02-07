@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "kubernetes-monitor"
-    version = "0.1.1"
+    version = "0.1.2"
 
     withAmbassador("/api/kubernetes/monitor") {}
 

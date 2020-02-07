@@ -54,13 +54,13 @@ class TaskService<Session>(
         subscriptionService.onTaskUpdate(task.owner, update)
     }
 
-    fun list(user: SecurityPrincipal, pagination: NormalizedPaginationRequest): Page<Task> {
+    suspend fun list(user: SecurityPrincipal, pagination: NormalizedPaginationRequest): Page<Task> {
         return db.withTransaction { session ->
             dao.list(session, pagination, user)
         }
     }
 
-    fun find(user: SecurityPrincipal, id: String): Task {
+    suspend fun find(user: SecurityPrincipal, id: String): Task {
         return db.withTransaction { session ->
             dao.findOrNull(session, id, user.username)
         } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)

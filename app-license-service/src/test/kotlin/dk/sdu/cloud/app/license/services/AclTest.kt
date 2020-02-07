@@ -41,9 +41,11 @@ class AclTest {
         aclService = AclService(micro.hibernateDatabase, ClientMock.authenticatedClient, AclHibernateDao())
         licenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao())
 
-        micro.hibernateDatabase.withTransaction {
-            it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;")
-                .executeUpdate()
+        runBlocking {
+            micro.hibernateDatabase.withTransaction {
+                it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;")
+                    .executeUpdate()
+            }
         }
     }
 

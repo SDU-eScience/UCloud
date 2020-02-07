@@ -30,6 +30,7 @@ import dk.sdu.cloud.service.test.withDatabase
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
@@ -46,15 +47,17 @@ private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
     )
 
     withDatabase { db ->
-        db.withTransaction { session ->
-            for (i in 0..50) {
-                session.save(
-                    StorageForUserEntity(
-                        TestUsers.user.username,
-                        Date(),
-                        12345
+        runBlocking {
+            db.withTransaction { session ->
+                for (i in 0..50) {
+                    session.save(
+                        StorageForUserEntity(
+                            TestUsers.user.username,
+                            Date(),
+                            12345
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -220,21 +223,23 @@ class StorageUsedTest {
             test = {
                 with(engine) {
                     withDatabase { db ->
-                        db.withTransaction { session ->
-                            session.save(
-                                StorageForUserEntity(
-                                    TestUsers.user.username,
-                                    Date(946800671000), //2000-01-02
-                                    11
+                        runBlocking {
+                            db.withTransaction { session ->
+                                session.save(
+                                    StorageForUserEntity(
+                                        TestUsers.user.username,
+                                        Date(946800671000), //2000-01-02
+                                        11
+                                    )
                                 )
-                            )
-                            session.save(
-                                StorageForUserEntity(
-                                    TestUsers.user.username,
-                                    Date(978423071000), //2001-01-02
-                                    1
+                                session.save(
+                                    StorageForUserEntity(
+                                        TestUsers.user.username,
+                                        Date(978423071000), //2001-01-02
+                                        1
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
 
@@ -294,21 +299,23 @@ class StorageUsedTest {
             test = {
                 with(engine) {
                     withDatabase { db ->
-                        db.withTransaction { session ->
-                            session.save(
-                                StorageForUserEntity(
-                                    TestUsers.user.username,
-                                    Date(946800671000), //2000-01-02
-                                    11
+                        runBlocking {
+                            db.withTransaction { session ->
+                                session.save(
+                                    StorageForUserEntity(
+                                        TestUsers.user.username,
+                                        Date(946800671000), //2000-01-02
+                                        11
+                                    )
                                 )
-                            )
-                            session.save(
-                                StorageForUserEntity(
-                                    TestUsers.user.username,
-                                    Date(978423071000), //2001-01-02
-                                    1
+                                session.save(
+                                    StorageForUserEntity(
+                                        TestUsers.user.username,
+                                        Date(978423071000), //2001-01-02
+                                        1
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
 
