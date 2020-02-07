@@ -1,0 +1,7 @@
+---
+name: mail
+
+namespaces:
+- mail
+
+dependencies: []
