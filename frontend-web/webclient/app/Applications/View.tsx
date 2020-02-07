@@ -49,7 +49,7 @@ interface OwnProps {
 
 type ViewProps = OperationProps & StateProps & OwnProps;
 
-function View(props: ViewProps) {
+function View(props: ViewProps): JSX.Element {
 
     React.useEffect(() => {
         fetchApp();
@@ -65,7 +65,7 @@ function View(props: ViewProps) {
         }
     });
 
-    function fetchApp() {
+    function fetchApp(): void {
         const {params} = props.match;
         props.fetchApp(params.appName, params.appVersion);
     }
@@ -237,7 +237,7 @@ const TagBase = styled.div`
     flex-direction: row;
 `;
 
-function Tags({tags}: {tags: string[]}) {
+function Tags({tags}: {tags: string[]}): JSX.Element | null {
     if (!tags) return null;
 
     return (
@@ -254,10 +254,10 @@ function Tags({tags}: {tags: string[]}) {
 }
 
 function InfoAttribute(props: {
-    name: string,
-    value?: string,
-    children?: JSX.Element
-}) {
+    name: string;
+    value?: string;
+    children?: JSX.Element;
+}): JSX.Element {
     return (
         <Box mb={8} mr={32}>
             <Heading.h5>{props.name}</Heading.h5>
@@ -267,7 +267,7 @@ function InfoAttribute(props: {
     );
 }
 
-export const pad = (value: string | number, length: number) =>
+export const pad = (value: string | number, length: number): string | number =>
     (value.toString().length < length) ? pad("0" + value, length) : value;
 
 const InfoAttributes = styled.div`
@@ -275,7 +275,7 @@ const InfoAttributes = styled.div`
     flex-direction: row;
 `;
 
-function Information({application}: {application: WithAppMetadata & WithAppInvocation}) {
+function Information({application}: {application: WithAppMetadata & WithAppInvocation}): JSX.Element {
     const time = application.invocation.tool.tool.description.defaultTimeAllocation;
     const timeString = time ? `${pad(time.hours, 2)}:${pad(time.minutes, 2)}:${pad(time.seconds, 2)}` : "";
     const backend = application.invocation.tool.tool.description.backend;
@@ -318,12 +318,12 @@ const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | UpdatePageTitleAct
     fetchApp: async (name: string, version: string) => {
         dispatch(updatePageTitle(`${name} v${version}`));
 
-        const loadApplications = async () => {
+        const loadApplications = async (): Promise<void> => {
             dispatch({type: Actions.Tag.RECEIVE_APP, payload: loadingEvent(true)});
             dispatch(await Actions.fetchApplication(name, version));
         };
 
-        const loadPrevious = async () => {
+        const loadPrevious = async (): Promise<void> => {
             dispatch({type: Actions.Tag.RECEIVE_PREVIOUS, payload: loadingEvent(true)});
             dispatch(await Actions.fetchPreviousVersions(name));
         };

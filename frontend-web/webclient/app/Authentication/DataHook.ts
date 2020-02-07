@@ -132,7 +132,7 @@ export function useCloudAPI<T, Parameters = any>(
         };
     }, [params]);
 
-    function doFetch(params: APICallParameters) {
+    function doFetch(params: APICallParameters): void {
         setParams(params);
     }
 
@@ -143,7 +143,7 @@ export function useCloudAPI<T, Parameters = any>(
 export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {
     const [isLoading, setIsLoading] = useState(false);
     let didCancel = false;
-    const sendCommand = <T>(call: APICallParameters) => {
+    const sendCommand = <T>(call: APICallParameters): Promise<T | null> => {
         return new Promise<T | null>(async (resolve, reject) => {
             if (didCancel) return;
 

@@ -212,7 +212,7 @@ export function machineTypes(): APICallParameters {
 }
 
 export interface listLicenseServersProps {
-    tags: string[]
+    tags: string[];
 }
 
 export function licenseServers(props: listLicenseServersProps): APICallParameters {

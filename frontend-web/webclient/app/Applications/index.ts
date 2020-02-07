@@ -344,6 +344,11 @@ export interface ApplicationInvocationDescription {
     shouldAllowAdditionalPeers: boolean;
     licenseServers: string[];
     allowMultiNode: boolean;
+    container: null | {
+        changeWorkingDirectory: boolean;
+        runAsRoot: boolean;
+        runAsRealUser: boolean;
+    };
 }
 
 export interface Tool {
