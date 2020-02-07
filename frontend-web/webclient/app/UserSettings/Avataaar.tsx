@@ -92,7 +92,7 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
                             update={hairColor => setAvatar({...avatar, hairColor})}
                             options={Options.HairColor}
                             title="Hair color"
-                            disabled={!avatar.top.includes("Hair") || avatar.top === "LongHairFrida"}
+                            disabled={!avatar.top.includes("Hair") || ["LongHairFrida", "LongHairShavedSides"].includes(avatar.top)}
                         />
                         <AvatarSelect
                             defaultValue={avatar.facialHair}
