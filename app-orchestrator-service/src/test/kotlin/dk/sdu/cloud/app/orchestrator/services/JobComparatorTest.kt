@@ -1,14 +1,19 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.app.fs.api.SharedFileSystem
+import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
 import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.app.orchestrator.api.MountMode
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.SharedFileSystemMount
+import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
 import dk.sdu.cloud.app.orchestrator.utils.validatedFileForUpload
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJob
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobForTestGenerator
+import dk.sdu.cloud.app.store.api.BooleanApplicationParameter
+import dk.sdu.cloud.app.store.api.SharedFileSystemType
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.app.store.api.StringApplicationParameter
 import org.junit.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -85,9 +90,149 @@ class JobComparatorTest {
         }
 
         //Test compare with different mounts
+        run {
+            val newJobMounts = verifiedJobForTestGenerator(mounts = listOf(validatedFileForUpload))
+            val newJobMounts2 = verifiedJobForTestGenerator(mounts = listOf(validatedFileForUpload.copy("id")))
+            val newJobDoubleMount = verifiedJobForTestGenerator(
+                mounts = listOf(
+                    validatedFileForUpload,
+                    validatedFileForUpload.copy("id")
+                )
+            )
+
+            assertTrue(jc.jobsEqual(newJobMounts, newJobMounts))
+            assertFalse(jc.jobsEqual(newJobMounts, newJobMounts2))
+            assertFalse(jc.jobsEqual(newJobMounts2, newJobDoubleMount))
+            assertTrue(jc.jobsEqual(newJobDoubleMount, newJobDoubleMount))
+        }
         //Test compare with different peers
+        run {
+            val newJobPeers = verifiedJobForTestGenerator(peers = listOf(ApplicationPeer("name", "jobid")))
+            val newJobPeers2 = verifiedJobForTestGenerator(peers = listOf(ApplicationPeer("name2", "jobid")))
+            val newJobDoublePeers = verifiedJobForTestGenerator(
+                peers = listOf(
+                    ApplicationPeer("name", "jobid"),
+                    ApplicationPeer("name2", "jobid")
+                )
+            )
+
+            assertTrue(jc.jobsEqual(newJobPeers, newJobPeers))
+            assertFalse(jc.jobsEqual(newJobPeers, newJobPeers2))
+            assertFalse(jc.jobsEqual(newJobPeers2, newJobDoublePeers))
+            assertTrue(jc.jobsEqual(newJobDoublePeers, newJobDoublePeers))
+        }
+
         //Test compare with different system mounts
+        run {
+            val newJobMounts = verifiedJobForTestGenerator(
+                sharedFileSystemMounts = listOf(SharedFileSystemMount(
+                    SharedFileSystem(
+                        "systemId",
+                        "owner",
+                        "backend",
+                        "title",
+                        1234567
+                    ),
+                    "mounted/at/path",
+                    SharedFileSystemType.EPHEMERAL,
+                    false
+                ))
+            )
+            val newJobMounts2 = verifiedJobForTestGenerator(
+                sharedFileSystemMounts = listOf(SharedFileSystemMount(
+                    SharedFileSystem(
+                        "systemId2",
+                        "owner",
+                        "backend",
+                        "title",
+                        1234567
+                    ),
+                    "mounted/at/path",
+                    SharedFileSystemType.EPHEMERAL,
+                    false
+                ))
+            )
+            val newJobDoubleMount = verifiedJobForTestGenerator(
+                sharedFileSystemMounts = listOf(SharedFileSystemMount(
+                    SharedFileSystem(
+                        "systemId",
+                        "owner",
+                        "backend",
+                        "title",
+                        1234567
+                    ),
+                    "mounted/at/path",
+                    SharedFileSystemType.EPHEMERAL,
+                    false
+                ),
+                SharedFileSystemMount(
+                    SharedFileSystem(
+                        "systemId2",
+                        "owner",
+                        "backend",
+                        "title",
+                        1234567
+                    ),
+                    "mounted/at/path",
+                    SharedFileSystemType.EPHEMERAL,
+                    false
+                ))
+            )
+
+            assertTrue(jc.jobsEqual(newJobMounts, newJobMounts))
+            assertFalse(jc.jobsEqual(newJobMounts, newJobMounts2))
+            assertFalse(jc.jobsEqual(newJobMounts2, newJobDoubleMount))
+            assertTrue(jc.jobsEqual(newJobDoubleMount, newJobDoubleMount))
+        }
+
         //Test compare with different job input
+        run {
+            val newJobInput = verifiedJobForTestGenerator(
+                jobInput = VerifiedJobInput(
+                    mapOf(
+                        "Text" to StringApplicationParameter("hello")
+                    )
+                )
+            )
+            val newJobInput2 = verifiedJobForTestGenerator(
+                jobInput = VerifiedJobInput(
+                    mapOf(
+                        "Text" to StringApplicationParameter("mojn")
+                    )
+                )
+            )
+            val newJobInput3 = verifiedJobForTestGenerator(
+                jobInput = VerifiedJobInput(
+                    mapOf(
+                        "Text" to StringApplicationParameter("hello"),
+                        "Boolean" to BooleanApplicationParameter(false)
+                    )
+                )
+            )
+            val newJobInput4 = verifiedJobForTestGenerator(
+                jobInput = VerifiedJobInput(
+                    mapOf(
+                        "Boolean" to BooleanApplicationParameter(false),
+                        "Text" to StringApplicationParameter("hello")
+                    )
+                )
+            )
+            val newJobInput5 = verifiedJobForTestGenerator(
+                jobInput = VerifiedJobInput(
+                    mapOf(
+                        "Boolean" to BooleanApplicationParameter(false)
+                    )
+                )
+            )
+
+            assertTrue(jc.jobsEqual(newJobInput, newJobInput))
+            assertTrue(jc.jobsEqual(newJobInput3, newJobInput3))
+            assertFalse(jc.jobsEqual(newJobInput, newJobInput2))
+            assertFalse(jc.jobsEqual(newJobInput2, newJobInput3))
+            assertTrue(jc.jobsEqual(newJobInput3, newJobInput4))
+            assertFalse(jc.jobsEqual(newJobInput, newJobInput5))
+
+        }
     }
 
 }
