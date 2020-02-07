@@ -95,7 +95,7 @@ class StorageAccountingService<DBSession>(
         }
     }
 
-    fun listEventsPage(
+    suspend fun listEventsPage(
         paging: NormalizedPaginationRequest,
         context: ContextQuery,
         user: String
@@ -105,7 +105,7 @@ class StorageAccountingService<DBSession>(
         }
     }
 
-    fun listEvents(
+    suspend fun listEvents(
         context: ContextQuery,
         user: String
     ): List<StorageUsedEvent> {

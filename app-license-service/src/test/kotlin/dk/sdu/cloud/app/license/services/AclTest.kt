@@ -18,6 +18,9 @@ import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.Test
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
+import kotlin.math.absoluteValue
+import kotlin.random.Random
 
 class AclTest {
     private lateinit var micro: Micro
@@ -38,15 +41,17 @@ class AclTest {
         aclService = AclService(micro.hibernateDatabase, ClientMock.authenticatedClient, AclHibernateDao())
         licenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao())
 
-        micro.hibernateDatabase.withTransaction {
-            it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;")
-                .executeUpdate()
+        runBlocking {
+            micro.hibernateDatabase.withTransaction {
+                it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;")
+                    .executeUpdate()
+            }
         }
     }
 
     @Test
     fun `empty acls`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
         val serverId = "1234"
 
         val instance = aclService.listAcl(serverId)
@@ -58,19 +63,18 @@ class AclTest {
 
     @Test
     fun `revoke permission`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
-        val user2 = UserEntity("user2", EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
+        val user2 = UserEntity(TestUsers.admin2, EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
         )
-
 
         val changes = listOf(ACLEntryRequest(user2, ServerAccessRight.READ))
 
@@ -85,14 +89,14 @@ class AclTest {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
 
-        val userEntity = UserEntity("user", EntityType.USER)
-        val userEntity2 = UserEntity("user2", EntityType.USER)
+        val userEntity = UserEntity(TestUsers.admin, EntityType.USER)
+        val userEntity2 = UserEntity(TestUsers.admin2, EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             userEntity
@@ -109,29 +113,15 @@ class AclTest {
     }
 
     @Test
-    fun `test root permissions`() = runBlocking {
-        val entity = UserEntity("user", EntityType.USER)
-
-        assertFalse(aclService.hasPermission("/", entity, ServerAccessRight.READ))
-        assertFalse(aclService.hasPermission("/", entity, ServerAccessRight.READ_WRITE))
-
-        assertFalse(aclService.hasPermission("/home", entity, ServerAccessRight.READ))
-        assertFalse(aclService.hasPermission("/home", entity, ServerAccessRight.READ_WRITE))
-
-        assertFalse(aclService.hasPermission("/workspaces", entity, ServerAccessRight.READ))
-        assertFalse(aclService.hasPermission("/workspaces", entity, ServerAccessRight.READ_WRITE))
-    }
-
-    @Test
     fun `add user to acl several times`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
-        val user2 = UserEntity("user2", EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
+        val user2 = UserEntity(TestUsers.admin2, EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
@@ -146,7 +136,7 @@ class AclTest {
         val list = aclService.listAcl(serverId)
         assertThatPropertyEquals(list, { it.size }, 2)
 
-        assertTrue(EntityWithPermission(UserEntity("user", EntityType.USER), ServerAccessRight.READ_WRITE) in list)
-        assertTrue(EntityWithPermission(UserEntity("user2", EntityType.USER), ServerAccessRight.READ) in list)
+        assertTrue(EntityWithPermission(TestUsers.admin.username, EntityType.USER, ServerAccessRight.READ_WRITE) in list)
+        assertTrue(EntityWithPermission(TestUsers.admin2.username, EntityType.USER, ServerAccessRight.READ) in list)
     }
 }

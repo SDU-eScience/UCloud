@@ -52,7 +52,7 @@ exports[`Main container Main container with header 1`] = `
   className="c0"
 >
   <div
-    className="sc-AykKD c1"
+    className="sc-AxiKw c1"
     height={96}
     width={1}
   >
@@ -141,7 +141,7 @@ exports[`Main container Main container with sidebar 1`] = `
     className="c1"
   >
     <div
-      className="sc-AykKD c2"
+      className="sc-AxiKw c2"
       height="100%"
       width={240}
     >

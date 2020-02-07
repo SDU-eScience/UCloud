@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.license.services.acl
 
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.service.db.*
 import java.io.Serializable
 import javax.persistence.*
@@ -33,7 +34,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             ServerAccessRight.READ -> {
                 session.criteria<PermissionEntry> {
                     allOf(
-                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id) and
+                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.principal.username) and
                                 (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
                                 ((entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ) or
                                         (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE))
@@ -43,7 +44,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             ServerAccessRight.READ_WRITE -> {
                 session.criteria<PermissionEntry> {
                     allOf(
-                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id),
+                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.principal.username),
                         (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type),
                         (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
                     )
@@ -61,7 +62,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ) {
         val permissionEntry = PermissionEntry(
             PermissionEntry.Key(
-                userEntity.id,
+                userEntity.principal.username,
                 userEntity.type,
                 serverId,
                 permissions
@@ -78,7 +79,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ) {
         session.deleteCriteria<PermissionEntry> {
             (entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal serverId) and
-                    (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal userEntity.id) and
+                    (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal userEntity.principal.username) and
                     (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal userEntity.type)
         }.executeUpdate()
     }
@@ -102,7 +103,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             }
             .list()
             .map {
-                EntityWithPermission(UserEntity(it.key.userEntity, it.key.entityType), it.key.permission)
+                EntityWithPermission(it.key.userEntity, it.key.entityType, it.key.permission)
             }
     }
 }

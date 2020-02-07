@@ -12,6 +12,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
@@ -41,13 +42,13 @@ class AppLicenseTest {
 
     @Test
     fun `save new license server and fetch`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
                 "example.com",
-                "1234",
+                1234,
                  null
             ),
             user
@@ -58,13 +59,13 @@ class AppLicenseTest {
 
     @Test
     fun `save new license and update`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
@@ -77,7 +78,7 @@ class AppLicenseTest {
             UpdateServerRequest(
                 "testName",
                 newAddress,
-                "1234",
+                1234,
                 null,
                 serverId
             ),
@@ -90,14 +91,14 @@ class AppLicenseTest {
 
     @Test
     fun `save and update license - fail if unauthorized`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
-        val user2 = UserEntity("user2", EntityType.USER)
+        val user = UserEntity(TestUsers.admin, EntityType.USER)
+        val user2 = UserEntity(TestUsers.user, EntityType.USER)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
                 "testName",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
@@ -111,7 +112,7 @@ class AppLicenseTest {
                 UpdateServerRequest(
                     "testName",
                     newAddress,
-                    "1234",
+                    1234,
                     null,
                     serverId
                 ),

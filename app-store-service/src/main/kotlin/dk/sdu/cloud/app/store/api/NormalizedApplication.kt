@@ -49,7 +49,8 @@ data class ApplicationInvocationDescription(
     private val allowAdditionalMounts: Boolean? = null,
     private val allowAdditionalPeers: Boolean? = null,
     val allowMultiNode: Boolean = false,
-    val fileExtensions: List<String> = emptyList()
+    val fileExtensions: List<String> = emptyList(),
+    val licenseServers: List<String> = emptyList()
 ) {
     val shouldAllowAdditionalMounts: Boolean
         get() {
@@ -104,8 +105,6 @@ data class ApplicationWithFavoriteAndTags(
 ) : WithAppMetadata, WithAppInvocation, WithAppFavorite, WithAllAppTags {
     fun withoutInvocation(): ApplicationSummaryWithFavorite = ApplicationSummaryWithFavorite(metadata, favorite, tags)
 }
-
-
 
 data class ApplicationSummaryWithFavorite(
     override val metadata: ApplicationMetadata,

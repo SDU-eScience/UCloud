@@ -17,6 +17,10 @@ import dk.sdu.cloud.app.store.api.FileTransferDescription
 import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
+import dk.sdu.cloud.app.license.api.LicenseServerRequest
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StatRequest
@@ -28,6 +32,7 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.net.URI
 import java.util.*
@@ -53,6 +58,7 @@ class JobVerificationService<Session>(
     private val sharedMountVerificationService: SharedMountVerificationService,
     private val db: DBSessionFactory<Session>,
     private val dao: JobDao<Session>,
+    private val authenticatedClient: AuthenticatedClient,
     private val machines: List<MachineReservation> = listOf(MachineReservation.BURST)
 ) {
     suspend fun verifyOrThrow(
@@ -194,11 +200,36 @@ class JobVerificationService<Session>(
         return result.copy(invocation = result.invocation.copy(tool = ToolReference(toolName, toolVersion, loadedTool)))
     }
 
-    private fun verifyParameters(app: Application, job: UnverifiedJob): VerifiedJobInput {
-        val userParameters = job.request.parameters
+    private suspend fun verifyParameters(
+        app: Application,
+        job: UnverifiedJob
+    ): VerifiedJobInput {
+        val userParameters = job.request.parameters.toMutableMap()
         return VerifiedJobInput(
             app.invocation.parameters
                 .asSequence()
+                .map { appParameter ->
+                    if (appParameter is ApplicationParameter.LicenseServer) {
+                        val licenseServerId = userParameters[appParameter.name]
+                        if (licenseServerId != null) {
+                            // Transform license server
+                            val lookupLicenseServer = runBlocking {
+                                AppLicenseDescriptions.get.call(
+                                    LicenseServerRequest(licenseServerId.toString()),
+                                    authenticatedClient
+                                )
+                            }.orThrow()
+
+                            userParameters[appParameter.name] = mapOf(
+                                "id" to licenseServerId,
+                                "address" to lookupLicenseServer.address,
+                                "port" to lookupLicenseServer.port,
+                                "license" to lookupLicenseServer.license
+                            )
+                        }
+                    }
+                    appParameter
+                }
                 .map { appParameter ->
                     try {
                         appParameter to appParameter.map(userParameters[appParameter.name])

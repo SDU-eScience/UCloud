@@ -9,7 +9,6 @@ import dashboard from "Dashboard/Redux/DashboardReducer";
 import {initObject, ReduxObject} from "DefaultObjects";
 import detailedFileSearch from "Files/Redux/DetailedFileSearchReducer";
 import fileInfo from "Files/Redux/FileInfoReducer";
-import filePreview from "Files/Redux/FilePreviewReducer";
 import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "Navigation/Redux/HeaderReducer";
 import sidebar from "Navigation/Redux/SidebarReducer";
 import status from "Navigation/Redux/StatusReducer";
@@ -57,7 +56,6 @@ export const store = configureStore(initObject(), {
     detailedFileSearch,
     detailedApplicationSearch,
     fileInfo,
-    filePreview,
     ...AppRedux.reducers,
     ...AccountingRedux.reducers,
     avatar,

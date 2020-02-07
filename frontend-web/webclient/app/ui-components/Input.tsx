@@ -33,24 +33,26 @@ export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, 
     autocomplete?: "on" | "off";
 }
 
-const left = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
-const right = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
+const left = ({leftLabel}: {leftLabel?: boolean}): string =>
+    leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
+const right = ({rightLabel}: {rightLabel?: boolean}): string =>
+    rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
 const Input = styled.input<InputProps>`
     display: block;
     font-family: inherit;
     background-color: ${props => props.error ? props.theme.colors.lightRed : "transparent"};
     ${fontSize}
-    color: ${props => props.theme.colors.black};
+    color: var(--black, #f00);
 
     margin: 0;
 
     ${({showError, theme}) => showError ? `&:invalid {
-        border-color: ${theme.colors.red};
+        border-color: var(--red, #f00);
     }` : null};
 
     ::placeholder {
-        color: ${({theme}) => theme.colors.gray};
+        color: var(--gray, #f00);
     }
 
     &:focus {
@@ -85,14 +87,19 @@ const rightLabel = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ?
     css`border-top-right-radius: 5px; border-bottom-right-radius: 5px; border-left: 0px; margin-left: 0;` : null;
 const leftLabel = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ?
     css`border-top-left-radius: 5px; border-bottom-left-radius: 5px; border-right: 0px; margin-right: 0;` : null;
+const independent = ({independent}: {independent?: boolean}) => independent ?
+    css`border-radius: 5px; height: 42px;` : null;
+
 
 export interface InputLabelProps extends WidthProps {
-    leftLabel?: boolean;
-    rightLabel?: boolean;
+  leftLabel?: boolean;
+  rightLabel?: boolean;
+  independent?: boolean;
 }
 
 export const InputLabel = styled(Text) <InputLabelProps>`
   border: ${({theme}) => theme.colors.borderGray} solid ${theme.borderWidth};
+  ${independent}
   ${leftLabel}
   ${rightLabel}
   ${width}

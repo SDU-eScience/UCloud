@@ -7,13 +7,45 @@ import {dateToString} from "Utilities/DateUtilities";
 import {getFilenameFromPath, isDirectory, replaceHomeFolder, sizeToString} from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 
+export function toggleCssColors(light: boolean): void {
+    if (light) {
+        setCSSVariable("--white", "#fff");
+        setCSSVariable("--tableRowHighlight", "var(--lightBlue, #f00)");
+        setCSSVariable("--black", "#000");
+        setCSSVariable("--text", "#1e252e");
+        setCSSVariable("--lightGray", "#f5f7f9");
+        setCSSVariable("--lightBlue", "#f0f6ff");
+        setCSSVariable("--midGray", "#c9d3df");
+        setCSSVariable("--paginationDisabled", "var(--lightGray, #f00)");
+        setCSSVariable("--paginationHoverColor", "var(--lightBlue, #f00)");
+        setCSSVariable("--appCard", "#ebeff3");
+        setCSSVariable("--borderGray", "var(--midGray, #f00)");
+    } else {
+        setCSSVariable("--white", "#282c35");
+        setCSSVariable("--tableRowHighlight", "#000");
+        setCSSVariable("--black", "#a4a5a9");
+        setCSSVariable("--text", "#e5e5e6");
+        setCSSVariable("--lightGray", "#111");
+        setCSSVariable("--lightBlue", "#000");
+        setCSSVariable("--midGray", "#555");
+        setCSSVariable("--paginationDisabled", "#111");
+        setCSSVariable("--paginationHoverColor", "#444");
+        setCSSVariable("--appCard", "#060707");
+        setCSSVariable("--borderGray", "#111");
+    }
+}
+
+function setCSSVariable(varName: string, value: string): void {
+    document.documentElement.style.setProperty(varName, value);
+}
+
 /**
  * Sets theme based in input. Either "light" or "dark".
  * @param {boolean} isLightTheme Signifies if the currently selected theme is "light".
  */
-
 export const setSiteTheme = (isLightTheme: boolean): void => {
     const lightTheme = isLightTheme ? "light" : "dark";
+    toggleCssColors(lightTheme === "light");
     window.localStorage.setItem("theme", lightTheme);
 };
 

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "activity"
-    version = "1.4.10"
+    version = "1.4.12"
 
     withAmbassador {}
 
@@ -12,5 +12,5 @@ bundle {
     }
 
     withPostgresMigration(deployment)
-    withCronJob(deployment, "* 1 * * 1", listof("--deleteOldActivity")) {}
+    withCronJob(deployment, "* 1 * * 1", listOf("--deleteOldActivity")) {}
 }

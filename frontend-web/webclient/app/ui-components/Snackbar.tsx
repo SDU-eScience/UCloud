@@ -20,8 +20,8 @@ const fadeIn = keyframes`
 export const /* Admiral */ Snackbar = styled(Box) <{visible: boolean}>`
     min-width: 250px;
     width: auto;
-    background-color: ${props => props.theme.colors.black};
-    color: ${props => props.theme.colors.white};
+    background-color: var(--black, #f00);
+    color: var(--white, #f00);
     text-align: center;
     border-radius: 2px;
     padding: 16px;

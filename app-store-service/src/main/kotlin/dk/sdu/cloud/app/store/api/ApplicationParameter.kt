@@ -224,20 +224,26 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         override var title: String,
         override val optional: Boolean = false,
         override val description: String = "",
-        val licenseName: String
+        val tagged: List<String>
     ) : ApplicationParameter<LicenseServerApplicationParameter>(TYPE_LICENSE_SERVER) {
         override val defaultValue: LicenseServerApplicationParameter? = null
 
         override fun internalMap(inputParameter: Any): LicenseServerApplicationParameter {
             @Suppress("UNCHECKED_CAST")
-            val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad peer value")
-            val licenseServerId =
-                asMap["licenseServerId"] as? String? ?: throw IllegalArgumentException("Missing 'licenseServerId'")
-            return LicenseServerApplicationParameter(licenseServerId)
+            val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad license server")
+            val licenseServerId = asMap["id"] as? String? ?: throw IllegalArgumentException("Missing 'licenseServerId'")
+            val licenseServerAddress = asMap["address"] as? String? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerAddress'")
+            val licenseServerPort = asMap["port"] as? Int? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerPort'")
+            val licenseServerKey = asMap["license"] as? String?  // Allowed to be null
+            return LicenseServerApplicationParameter(licenseServerId, licenseServerAddress, licenseServerPort, licenseServerKey)
         }
 
         override fun toInvocationArgument(entry: LicenseServerApplicationParameter): String {
-            return licenseName
+            return if (entry.license != null) {
+                "${entry.address}:${entry.port}/${entry.license}"
+            } else {
+                "${entry.address}:${entry.port}"
+            }
         }
     }
 }
@@ -259,7 +265,8 @@ enum class SharedFileSystemType {
     JsonSubTypes.Type(value = DoubleApplicationParameter::class, name = TYPE_FLOATING_POINT),
     JsonSubTypes.Type(value = StringApplicationParameter::class, name = TYPE_TEXT),
     JsonSubTypes.Type(value = PeerApplicationParameter::class, name = TYPE_PEER),
-    JsonSubTypes.Type(value = SharedFileSystemApplicationParameter::class, name = TYPE_SHARED_FILE_SYSTEM)
+    JsonSubTypes.Type(value = SharedFileSystemApplicationParameter::class, name = TYPE_SHARED_FILE_SYSTEM),
+    JsonSubTypes.Type(value = LicenseServerApplicationParameter::class, name = TYPE_LICENSE_SERVER)
 )
 sealed class ParsedApplicationParameter {
     abstract val type: String // This is not ideal, but it fixes the serialization issue
@@ -300,7 +307,10 @@ data class SharedFileSystemApplicationParameter(
 }
 
 data class LicenseServerApplicationParameter(
-    val licenseServerId: String
+    val id: String,
+    val address: String,
+    val port: Int,
+    val license: String?
 ) : ParsedApplicationParameter() {
     override val type = TYPE_LICENSE_SERVER
 }

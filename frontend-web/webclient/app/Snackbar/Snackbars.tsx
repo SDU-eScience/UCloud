@@ -35,7 +35,7 @@ const Snackbars: React.FunctionComponent = () => {
     const [activeSnack, setActiveSnack] = useState<Snack | undefined>(undefined);
 
     useEffect(() => {
-        const subscriber = (snack: Snack) => setActiveSnack(snack);
+        const subscriber = (snack: Snack): void => setActiveSnack(snack);
         snackbarStore.subscribe(subscriber);
         return () => snackbarStore.unsubscribe(subscriber);
     }, []);
@@ -49,7 +49,7 @@ const Snackbars: React.FunctionComponent = () => {
 
     return <Snackbar onClick={onCancellation} visible={true}>{snackElement}</Snackbar>;
 
-    function onCancellation() {
+    function onCancellation(): void {
         snackbarStore.requestCancellation();
     }
 };

@@ -5,7 +5,6 @@ import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.store.api.ContainerDescription
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.buildEnvironmentValue
-import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
@@ -14,7 +13,6 @@ import io.fabric8.kubernetes.api.model.DoneablePod
 import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
 import io.fabric8.kubernetes.api.model.EnvVar
 import io.fabric8.kubernetes.api.model.Pod
-import io.fabric8.kubernetes.api.model.PodSecurityContext
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
 import io.fabric8.kubernetes.api.model.Quantity
 import io.fabric8.kubernetes.api.model.ResourceRequirements
@@ -27,7 +25,7 @@ import kotlinx.coroutines.launch
 
 const val INPUT_DIRECTORY = "/input"
 const val WORKING_DIRECTORY = "/work"
-const val MULTI_NODE_DIRECTORY = "/etc/sducloud"
+const val MULTI_NODE_DIRECTORY = "/etc/ucloud"
 const val DATA_STORAGE = "workspace-storage"
 const val MULTI_NODE_STORAGE = "multi-node-config"
 const val MULTI_NODE_CONTAINER = "init"
@@ -111,23 +109,27 @@ class K8JobCreationService(
                     )
                 }
                 .spec {
+                    val resourceRequirements = run {
+                        val reservation = verifiedJob.reservation
+                        val limits = HashMap<String, Quantity>()
+                        if (reservation.cpu != null) {
+                            limits += "cpu" to Quantity("${reservation.cpu!! * 1000}m")
+                        }
 
-                    val reservation = verifiedJob.reservation
-                    val resourceRequirements =
-                        if (reservation.cpu != null && reservation.memoryInGigs != null) {
-                            ResourceRequirements(
-                                mapOf(
-                                    "memory" to Quantity("${reservation.memoryInGigs}Gi"),
-                                    "cpu" to Quantity("${reservation.cpu!! * 1000}m")
-                                ),
-                                mapOf(
-                                    "memory" to Quantity("${reservation.memoryInGigs}Gi"),
-                                    "cpu" to Quantity("${reservation.cpu!! * 1000}m")
-                                )
-                            )
+                        if (reservation.memoryInGigs != null) {
+                            limits += "memory" to Quantity("${reservation.memoryInGigs}Gi")
+                        }
+
+                        if (reservation.gpu != null) {
+                            limits += "nvidia.com/gpu" to Quantity("${reservation.gpu}")
+                        }
+
+                        if (limits.isNotEmpty()) {
+                            ResourceRequirements(limits, limits)
                         } else {
                             null
                         }
+                    }
 
                     val deadline = verifiedJob.maxTime.toSeconds()
                     withActiveDeadlineSeconds(deadline)
@@ -164,7 +166,7 @@ class K8JobCreationService(
                                     //
                                     // Each pod creates a single shared volume between the init container and the
                                     // work container. This shared volume can use `emptyDir`. This directory will be
-                                    // mounted at `/etc/sducloud` and will contain metadata about the other nodes.
+                                    // mounted at `/etc/ucloud` and will contain metadata about the other nodes.
 
                                     withInitContainers(
                                         container {
@@ -195,20 +197,6 @@ class K8JobCreationService(
                                         }
                                     )
                                 }
-
-                                val uid = LINUX_FS_USER_UID.toLong()
-                                withSecurityContext(
-                                    PodSecurityContext(
-                                        uid,
-                                        uid,
-                                        !containerConfig.runAsRoot,
-                                        uid,
-                                        null,
-                                        emptyList(),
-                                        emptyList(),
-                                        null
-                                    )
-                                )
 
                                 val allContainers = ArrayList<Container>()
 
@@ -244,21 +232,10 @@ class K8JobCreationService(
 
                                         run {
                                             val envVars = ArrayList<EnvVar>()
-
-                                            val builtInVars = mapOf(
-                                                "CLOUD_UID" to uid.toString()
-                                            )
-
-                                            builtInVars.forEach { (t, u) ->
-                                                envVars.add(EnvVar(t, u, null))
-                                            }
-
                                             verifiedJob.application.invocation.environment?.forEach { (name, value) ->
-                                                if (name !in builtInVars) {
-                                                    val resolvedValue = value.buildEnvironmentValue(givenParameters)
-                                                    if (resolvedValue != null) {
-                                                        envVars.add(EnvVar(name, resolvedValue, null))
-                                                    }
+                                                val resolvedValue = value.buildEnvironmentValue(givenParameters)
+                                                if (resolvedValue != null) {
+                                                    envVars.add(EnvVar(name, resolvedValue, null))
                                                 }
                                             }
 
@@ -275,6 +252,14 @@ class K8JobCreationService(
                                                 allowPrivilegeEscalation = containerConfig.runAsRoot
                                             }
                                         )
+
+                                        // NOTE(Dan): We don't force set the UID to 11042 for the container.
+                                        //  This caused problems with the CoW since Kubernetes/Docker will traverse
+                                        //  all files changing ownership and setting killsuid/killsgid. The result
+                                        //  is a complete copy_up for all files. This defeated the entire purpose of
+                                        //  the CoW. We solve the security purely with `runAsNonRoot` and
+                                        //  `!allowPrivilegeEscalation`. This requires containers to use a numeric
+                                        //  `USER 11042`
 
                                         withVolumeMounts(
                                             VolumeMount(

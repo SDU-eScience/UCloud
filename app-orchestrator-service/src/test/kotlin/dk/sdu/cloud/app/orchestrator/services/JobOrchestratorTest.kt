@@ -1,13 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import com.auth0.jwt.interfaces.DecodedJWT
-import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
-import dk.sdu.cloud.app.orchestrator.api.ApplicationBackend
-import dk.sdu.cloud.app.orchestrator.api.CancelInternalResponse
-import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsRequest
-import dk.sdu.cloud.app.orchestrator.api.InternalStdStreamsResponse
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobStateChange
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.utils.jobStateChangeCancelling
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.normTool
@@ -121,7 +115,7 @@ class JobOrchestratorTest {
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
-            JobVerificationService(appDao, toolDao, backendName, SharedMountVerificationService(), db, jobDao),
+            JobVerificationService(appDao, toolDao, backendName, SharedMountVerificationService(), db, jobDao, client),
             compBackend,
             jobFileService,
             jobDao,

@@ -46,13 +46,13 @@ const formElements = [Input, Select];
 const isFormElement = (element) => formElements.includes(element);
 
 class FormField extends React.Component<{
-  onChange: (e: React.SyntheticEvent) => void
-  label?: string
-  icon?: IconName
-  id?: string
-  placeholder?: string
-  size?: number
-  alwaysShowLabel?: boolean
+  onChange: (e: React.SyntheticEvent) => void;
+  label?: string;
+  icon?: IconName;
+  id?: string;
+  placeholder?: string;
+  size?: number;
+  alwaysShowLabel?: boolean;
 }> {
 
   private fieldRef: any;
@@ -69,7 +69,7 @@ class FormField extends React.Component<{
     this.props.onChange(e);
     if (typeof onChange !== "function") return;
     onChange(e);
-  }
+  };
 
   hasValue = () => {
     const {children} = this.props;

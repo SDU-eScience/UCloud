@@ -9,7 +9,7 @@ export default class BeardLight extends React.Component<{facialHairColor: Facial
   private mask1 = uniqueId("react-mask-");
   private path1 = uniqueId("react-path-");
 
-  public render() {
+  public render(): JSX.Element {
     const { mask1, path1 } = this;
     return (
       <g

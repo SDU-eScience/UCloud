@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-orchestrator"
-    version = "1.1.1-Test-Duplicate"
+    version = "1.3.1"
 
     withAmbassador(null) {
         addSimpleMapping("/api/hpc/jobs")

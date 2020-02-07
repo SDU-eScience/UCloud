@@ -158,6 +158,11 @@ export interface AdditionalPeer {
     jobIdRef: React.RefObject<HTMLInputElement>;
 }
 
+export interface LicenseServerId {
+    id: string;
+    name: string;
+}
+
 export interface RunAppState {
     promises: PromiseKeeper;
     jobSubmitted: boolean;
@@ -236,6 +241,11 @@ export interface SharedFileSystemParameter extends BaseParameter {
     type: ParameterTypes.SharedFileSystem;
 }
 
+export interface LicenseServerParameter extends BaseParameter {
+    type: ParameterTypes.LicenseServer;
+    tagged: string[];
+}
+
 interface BaseParameter {
     name: string;
     optional: boolean;
@@ -254,7 +264,8 @@ export type ApplicationParameter =
     TextParameter |
     RangeParameter |
     PeerParameter |
-    SharedFileSystemParameter;
+    SharedFileSystemParameter |
+    LicenseServerParameter;
 
 type Invocation = WordInvocation | VarInvocation;
 
@@ -282,7 +293,8 @@ export enum ParameterTypes {
     Boolean = "boolean",
     Range = "range",
     Peer = "peer",
-    SharedFileSystem = "shared_file_system"
+    SharedFileSystem = "shared_file_system",
+    LicenseServer = "license_server"
 }
 
 export interface DetailedApplicationSearchReduxState {
@@ -330,7 +342,13 @@ export interface ApplicationInvocationDescription {
     applicationType: ApplicationType;
     shouldAllowAdditionalMounts: boolean;
     shouldAllowAdditionalPeers: boolean;
+    licenseServers: string[];
     allowMultiNode: boolean;
+    container: null | {
+        changeWorkingDirectory: boolean;
+        runAsRoot: boolean;
+        runAsRealUser: boolean;
+    };
 }
 
 export interface Tool {
