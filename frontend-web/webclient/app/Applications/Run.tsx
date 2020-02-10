@@ -624,9 +624,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Client.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            console.log("error cought: " + err.request.status);
             if (err.request.status == 409) {
-                console.log("its 409");
                 addStandardDialog({
                     title: "Job with same parameteres already running",
                     message: "You might be trying to run a duplicate job. Would you like to proceed?",
