@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
 import dk.sdu.cloud.app.orchestrator.api.JobSortBy
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.MachineReservation
+import dk.sdu.cloud.app.orchestrator.api.MountMode
 import dk.sdu.cloud.app.orchestrator.api.SharedFileSystemMount
 import dk.sdu.cloud.app.orchestrator.api.SortOrder
 import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
@@ -173,12 +174,19 @@ data class JobInformationEntity(
     @Column(length = 1024)
     var refreshToken: String?,
 
+    var reservationType: String,
+
     var reservedCpus: Int?,
 
     var reservedMemoryInGigs: Int?,
 
+    var reservedGpus: Int?,
+
     @Type(type = JSONB_TYPE)
-    var cow: CowWorkspace?
+    var cow: CowWorkspace?,
+
+    @Enumerated(EnumType.STRING)
+    var mountMode: MountMode?
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -220,9 +228,12 @@ class JobHibernateDao(
             sharedFileSystemMounts = job.sharedFileSystemMounts,
             peers = job.peers,
             refreshToken = refreshToken,
+            reservationType = job.reservation.name,
             reservedCpus = job.reservation.cpu,
             reservedMemoryInGigs = job.reservation.memoryInGigs,
-            cow = job.cow
+            reservedGpus = job.reservation.gpu,
+            cow = job.cow,
+            mountMode = job.mountMode
         )
 
         session.save(entity)
@@ -442,9 +453,10 @@ class JobHibernateDao(
                 project = project,
                 _sharedFileSystemMounts = sharedFileSystemMounts,
                 _peers = peers,
-                reservation = MachineReservation("Machine", reservedCpus, reservedMemoryInGigs),
+                reservation = MachineReservation(reservationType, reservedCpus, reservedMemoryInGigs),
                 folderId = folderId,
-                cow = cow
+                cow = cow,
+                mountMode = mountMode
             ),
             accessToken,
             refreshToken

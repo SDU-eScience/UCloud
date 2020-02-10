@@ -184,6 +184,7 @@ class JobOrchestrator<DBSession>(
         val minutesInPast = System.currentTimeMillis() - (5 * 60 * 1000L)
         println(jobs.size)
         jobs.forEach { storedJob ->
+            println(storedJob.job.mountMode)
             println(storedJob.job.currentState)
             if (ignoreIfJobInStates.contains(storedJob.job.currentState) || storedJob.job.createdAt < minutesInPast) {
                 println("ignoring job")

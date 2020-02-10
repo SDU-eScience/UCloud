@@ -219,7 +219,7 @@ class JobFileService(
                 while (folderNameLength < job.id.length) {
                     shortJobId = job.id.take(folderNameLength)
 
-                    folderName = if (job.name == null) {
+                    folderName = if (job.name.isNullOrBlank()) {
                         shortJobId
                     } else {
                         job.name + "-" + shortJobId

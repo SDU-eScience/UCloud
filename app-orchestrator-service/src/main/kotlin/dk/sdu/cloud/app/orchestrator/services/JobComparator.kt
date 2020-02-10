@@ -29,13 +29,11 @@ class JobComparator {
         }
         //Check reservation
         if (storedJob.reservation != newJob.reservation) {
+            println("reservation not the same")
             return false
         }
-        // Check workspace and project
-        if (storedJob.workspace != newJob.workspace) {
-            println("workspace not the same")
-            return false
-        }
+        // Check project
+
         if (storedJob.project != newJob.project) {
             println("project not the same")
             return false
@@ -49,11 +47,13 @@ class JobComparator {
                 val newJobFilesId = newJob.files.map { it.id }
                 storedJobFilesId.forEach { id ->
                     if (!newJobFilesId.contains(id)) {
+                        println("file id not found")
                         return false
                     }
                 }
             }
             else {
+                println("files length not the same")
                 return false
             }
         }
@@ -67,10 +67,12 @@ class JobComparator {
                 val newJobMountsId = newJob.mounts.map { it.id }
                 storedJobMountsId.forEach { id ->
                     if (!newJobMountsId.contains(id)) {
+                        println("mount id not found")
                         return false
                     }
                 }
             } else {
+                println("mount size not same")
                 return false
             }
         }
@@ -82,10 +84,13 @@ class JobComparator {
                 println("_peers same")
                 storedJob.peers.forEach { applicationPeer ->
                     if (!newJob.peers.contains(applicationPeer)) {
+                        println("peers not same")
                         return false
                     }
                 }
             } else {
+                println("peers size not same")
+
                 return false
             }
         }
@@ -99,10 +104,12 @@ class JobComparator {
                 val newJobSharedFileSystemID = newJob.sharedFileSystemMounts.map { it.sharedFileSystem.id }
                 storedJobSharedFileSystemID.forEach { id ->
                     if (!newJobSharedFileSystemID.contains(id)) {
+                        println("shared file system id not found")
                         return false
                     }
                 }
             } else {
+                println("shared file system not same size")
                 return false
             }
         }
@@ -110,6 +117,7 @@ class JobComparator {
         //Checking jobInput
         println("Checking backingData")
         if (storedJob.jobInput.backingData != newJob.jobInput.backingData) {
+            println("jobInput not same")
             return false
         }
         return true
