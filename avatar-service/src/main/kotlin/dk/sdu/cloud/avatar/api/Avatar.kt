@@ -251,7 +251,7 @@ enum class SkinColors(val string: String) {
     PALE("Pale"),
     LIGHT("Light"),
     BROWN("Brown"),
-    DARK_BROWN("Dark_Brown"),
+    DARK_BROWN("DarkBrown"),
     BLACK("Black");
 
     companion object {
