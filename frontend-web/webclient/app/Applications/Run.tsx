@@ -613,7 +613,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             peers,
             reservation,
             type: "start",
-            name: jobName ?? null,
+            name: jobName !== "" ? jobName : null,
             mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES",
             acceptSameDataRetry: false
         };
@@ -624,8 +624,35 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Client.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            if (err.value == 409) {
-                snackbarStore.addFailure(errorMessageOrDefault(err, "blablabalbalbal"));
+            console.log("error cought: " + err.request.status);
+            if (err.request.status == 409) {
+                console.log("its 409");
+                addStandardDialog({
+                        title: "Job with same parameteres already running",
+                        message: "You might be trying to run a duplicate job. Would you like to proceed?",
+                        onConfirm: async () => {
+                            const rerunJob = {
+                                application: {
+                                    name: this.state.application!.metadata.name,
+                                    version: this.state.application!.metadata.version
+                                },
+                                parameters,
+                                numberOfNodes: this.state.schedulingOptions.numberOfNodes,
+                                tasksPerNode: this.state.schedulingOptions.tasksPerNode,
+                                maxTime,
+                                mounts,
+                                peers,
+                                reservation,
+                                type: "start",
+                                name: jobName !== "" ? jobName : null,
+                                mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES",
+                                acceptSameDataRetry: true
+                            };
+                            const req2 = await Client.post(hpcJobQueryPost, rerunJob)
+                            this.props.history.push(`/applications/results/${req2.response.jobId}`);
+                        }
+                    });
+//                snackbarStore.addFailure(errorMessageOrDefault(err, "blablabalbalbal"));
             }
             else {
                 snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));
