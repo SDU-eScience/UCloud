@@ -187,7 +187,6 @@ class JobOrchestrator<DBSession>(
             println(storedJob.job.mountMode)
             println(storedJob.job.currentState)
             if (ignoreIfJobInStates.contains(storedJob.job.currentState) || storedJob.job.createdAt < minutesInPast) {
-                println("ignoring job")
                 return@forEach
             }
             if (jobComparator.jobsEqual(storedJob.job, jobWithToken.job)) {
