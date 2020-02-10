@@ -613,7 +613,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             peers,
             reservation,
             type: "start",
-            name: jobName ?? null,
+            name: jobName !== "" ? jobName : null,
             mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES"
         };
 
