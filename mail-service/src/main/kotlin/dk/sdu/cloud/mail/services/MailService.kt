@@ -9,20 +9,16 @@ import javax.mail.internet.MimeMessage
 
 class MailService {
     fun send(recipients: List<MailRecipient>, subject: String, text: String) {
-        val from = "escience@sdu.dk"
+        val from = "support@escience.sdu.dk"
 
-        // Fetch email address of each recipient
         val recipientAddresses = recipients.map{
-            // TODO perform lookup
-            InternetAddress(it.id)
+            InternetAddress(it.email)
         }
 
-        // Get system properties
-        val properties = System.getProperties()
-
         // Setup mail server
+        val properties = System.getProperties()
         properties.setProperty("mail.smtp.host", "localhost")
-        properties.setProperty("mail.smtp.port", "465")
+        properties.setProperty("mail.smtp.port", "25")
 
         val session = Session.getInstance(properties)
 
@@ -32,16 +28,15 @@ class MailService {
             message.setFrom(InternetAddress(from))
 
             recipientAddresses.forEach {
-                message.addRecipient(Message.RecipientType.TO, it)
+                message.addRecipient(Message.RecipientType.BCC, it)
             }
 
             message.subject = subject
             message.setText(text)
 
-            // Send message
             Transport.send(message);
         } catch (e: Throwable) {
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to send email")
         }
     }
 }

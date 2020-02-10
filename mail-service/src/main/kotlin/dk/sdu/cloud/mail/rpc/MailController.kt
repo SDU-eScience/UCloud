@@ -13,9 +13,6 @@ class MailController(private val mailService: MailService) : Controller {
         implement(MailDescriptions.send) {
             ok(mailService.send(request.recipients, request.subject, request.message))
         }
-        implement(MailDescriptions.sendToAll) {
-            ok(mailService.sendToAll(request.subject, request.message))
-        }
         return@configure
     }
 

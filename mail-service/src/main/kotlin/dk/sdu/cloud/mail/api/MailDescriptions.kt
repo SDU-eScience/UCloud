@@ -10,14 +10,8 @@ import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
-enum class MailRecipientType {
-    USER,
-    GROUP
-}
-
 data class MailRecipient(
-    val id: String,
-    val type: MailRecipientType
+    val email: String
 )
 
 data class SendRequest(
@@ -25,12 +19,6 @@ data class SendRequest(
     val subject: String,
     val message: String
 )
-
-data class SendToAllRequest(
-    val subject: String,
-    val message: String
-)
-
 
 object MailDescriptions : CallDescriptionContainer("mail") {
     val baseContext = "/api/mail"
@@ -46,24 +34,6 @@ object MailDescriptions : CallDescriptionContainer("mail") {
 
             path {
                 using(baseContext)
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val sendToAll = call<SendToAllRequest, Unit, CommonErrorMessage>("sendToAll") {
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                + "all"
             }
 
             body { bindEntireRequestFromBody() }
