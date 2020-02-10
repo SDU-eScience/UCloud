@@ -20,7 +20,8 @@ import {
     OutlineButton,
     Progress,
     Select,
-    Text
+    Text,
+    Truncate
 } from "ui-components";
 import {Box, Flex} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -198,7 +199,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
                             uploads.filter(it => !it.conflictFile).length ? (
                                 <Button fullWidth color="green" onClick={this.startAllUploads}>
                                     <Icon name={"upload"} />{" "}Start all!
-                            </Button>
+                                </Button>
                             ) : null}
                         <Dropzone onDrop={this.onFilesAdded}>
                             {({getRootProps, getInputProps}) => (
@@ -449,7 +450,11 @@ const UploaderRow = (p: {
 
     const fileTitle = (
         <span>
-            <b>{p.upload.file.name} </b>
+            <Box width="100%">
+                <Truncate width={1} mb="-4px" fontSize={20}>
+                    {p.upload.file.name}
+                </Truncate>
+            </Box>
             ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile} />
         </span>
     );
@@ -510,12 +515,13 @@ const UploaderRow = (p: {
                                 <Icon name="upload" />Upload
                             </Button>
                         )}
-                        <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag={"removeUpload"}>
+                        <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag="removeUpload">
                             <Icon name="close" />
                         </Button>
                     </ButtonGroup>
-                    <Flex justifyContent="center" pt="0.3em">
-                        <ClickableDropdown
+                    <Flex justifyContent="center">
+                        Sensitivity: <ClickableDropdown
+                            width="150px"
                             chevron
                             trigger={prettierString(p.upload.sensitivity)}
                             onChange={p.setSensitivity}
@@ -589,7 +595,7 @@ interface PolicySelect {
 }
 
 const PolicySelect = ({setRewritePolicy}: PolicySelect): JSX.Element => (
-    <Flex mt="-12px" width="200px" mr="0.5em">
+    <Flex mt="-38px" width="150px" mr="0.5em">
         <Select
             width="200px"
             defaultValue="Rename"
