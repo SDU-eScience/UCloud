@@ -1,9 +1,6 @@
 package dk.sdu.cloud.mail.services
 
-import com.github.jasync.sql.db.util.length
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.EmailExistsRequest
-import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
