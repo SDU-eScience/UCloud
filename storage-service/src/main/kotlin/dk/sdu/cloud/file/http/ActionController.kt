@@ -1,13 +1,16 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
@@ -93,9 +96,11 @@ class ActionController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.copy) {
             audit(SingleFileAudit(null, request))
-
             commandRunnerFactory.withCtxAndTimeout(this) {
                 val stat = fileLookupService.stat(it, request.path)
+                if (stat.fileType == FileType.DIRECTORY && request.newPath.startsWith(request.path)) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                }
                 coreFs.copy(
                     it,
                     request.path,
