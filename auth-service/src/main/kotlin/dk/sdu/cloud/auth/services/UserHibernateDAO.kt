@@ -1,5 +1,6 @@
 package dk.sdu.cloud.auth.services
 
+import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
@@ -238,7 +239,7 @@ class UserHibernateDAO(
     override fun emailExists(session: HibernateSession, email: String): Boolean {
         return session
             .criteria<PersonEntity> { entity[PersonEntity::email] equal email }
-            .fetchSize > 0
+            .list().length > 0
     }
 
     override fun findAllByUIDs(session: HibernateSession, uids: List<Long>): Map<Long, Principal?> {

@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
 import io.ktor.http.HttpStatusCode
 import javax.mail.*
 import javax.mail.internet.InternetAddress
@@ -16,10 +17,10 @@ class MailService(private val authenticatedClient: AuthenticatedClient) {
 
     suspend fun send(recipient: String, subject: String, text: String) {
 
-        val emailCheck = UserDescriptions.emailExists.call(EmailExistsRequest(recipient)
-        , authenticatedClient).orRethrowAs {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "User with given email address does not exist")
-        }
+        val emailCheck = UserDescriptions.emailExists.call(
+            EmailExistsRequest(recipient),
+            authenticatedClient
+        ).orThrow()
 
         val recipientAddress = if (emailCheck.exists) {
             InternetAddress(recipient)
@@ -44,7 +45,7 @@ class MailService(private val authenticatedClient: AuthenticatedClient) {
             message.subject = subject
             message.setText(text)
 
-            Transport.send(message);
+            Transport.send(message)
         } catch (e: Throwable) {
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to send email")
         }
