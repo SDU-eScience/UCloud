@@ -235,6 +235,12 @@ class UserHibernateDAO(
         return usersWeFound + nullEntries
     }
 
+    override fun emailExists(session: HibernateSession, email: String): Boolean {
+        return session
+            .criteria<PersonEntity> { entity[PersonEntity::email] equal email }
+            .fetchSize > 0
+    }
+
     override fun findAllByUIDs(session: HibernateSession, uids: List<Long>): Map<Long, Principal?> {
         val users = session
             .criteria<PrincipalEntity> { entity[PrincipalEntity::uid] isInCollection uids }

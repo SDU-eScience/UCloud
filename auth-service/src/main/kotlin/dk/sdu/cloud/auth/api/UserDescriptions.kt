@@ -14,8 +14,10 @@ import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
 data class LookupUsersRequest(val users: List<String>)
+data class EmailExistsRequest(val email: String)
 data class UserLookup(val subject: String, val uid: Long, val role: Role)
 data class LookupUsersResponse(val results: Map<String, UserLookup?>)
+data class EmailExistsResponse(val exists: Boolean)
 
 typealias CreateUserAudit = List<CreateSingleUserAudit>
 
@@ -91,6 +93,24 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
             path {
                 using(baseContext)
                 +"lookup"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val emailExists = call<EmailExistsRequest, EmailExistsResponse, CommonErrorMessage>("emailLookup") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"lookup"
+                +"email"
             }
 
             body { bindEntireRequestFromBody() }

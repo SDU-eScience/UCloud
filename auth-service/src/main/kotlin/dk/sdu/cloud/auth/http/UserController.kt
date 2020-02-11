@@ -3,15 +3,7 @@ package dk.sdu.cloud.auth.http
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.auth.api.ChangePasswordAudit
-import dk.sdu.cloud.auth.api.CreateSingleUserAudit
-import dk.sdu.cloud.auth.api.LookupUIDResponse
-import dk.sdu.cloud.auth.api.LookupUsersResponse
-import dk.sdu.cloud.auth.api.Principal
-import dk.sdu.cloud.auth.api.ProjectProxy
-import dk.sdu.cloud.auth.api.ServicePrincipal
-import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.auth.api.UserLookup
+import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserCreationService
@@ -99,6 +91,16 @@ class UserController<DBSession>(
                         userDAO.findAllByIds(session, request.users).mapValues { (_, principal) ->
                             principal?.let { UserLookup(it.id, it.uid, it.role) }
                         }
+                    }
+                )
+            )
+        }
+
+        implement(UserDescriptions.emailExists)  {
+            ok(
+                EmailExistsResponse(
+                    db.withTransaction { session ->
+                        userDAO.emailExists(session, request.email)
                     }
                 )
             )
