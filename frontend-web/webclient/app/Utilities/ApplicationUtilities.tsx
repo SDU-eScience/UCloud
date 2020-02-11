@@ -234,6 +234,11 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                         default:
                             return;
                     }
+                case ParameterTypes.Enumeration:
+                    if (parameter.options.map(it => it.value).includes(r.current.value)) {
+                        extracted[key] = r.current.value;
+                    }
+                    return;
                 case ParameterTypes.Integer:
                     extracted[key] = parseInt(r.current.value, 10);
                     return;
@@ -250,7 +255,8 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                     extracted[key] = {jobId: r.current.value};
                     return;
                 case ParameterTypes.LicenseServer:
-                    extracted[key] = r.current.value
+                    extracted[key] = r.current.value;
+                    return;
             }
         } else {
             switch (parameter.type) {
@@ -264,12 +270,12 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
     return extracted;
 }
 
-export const inCancelableState = (state: JobState) =>
+/* FIXME: Shouldn't [JobState.Validated, JobState.Prepared, JobState.Scheduled, JobState.Running].includes(state) work? */
+export const inCancelableState = (state: JobState): boolean =>
     state === JobState.VALIDATED ||
     state === JobState.PREPARED ||
     state === JobState.SCHEDULED ||
     state === JobState.RUNNING;
-
 
 export function validateOptionalFields(
     invocation: ApplicationInvocationDescription,
@@ -283,6 +289,9 @@ export function validateOptionalFields(
         const {current} = parameters.get(it.name)!;
         if (current == null || !("checkValidity" in current)) return;
         if (("checkValidity" in current! && !current!.checkValidity())) optionalErrors.push(it.title);
+
+        /* FIXME/ERROR/TODO */
+        // Do we need to do anything for enumeration?
     });
 
     if (optionalErrors.length > 0) {
@@ -293,7 +302,6 @@ export function validateOptionalFields(
         );
         return false;
     }
-
     return true;
 }
 
@@ -307,7 +315,7 @@ export function checkForMissingParameters(
     requiredParams.forEach(rParam => {
         const parameterValue = parameters[rParam.name];
         if (parameterValue == null) missingParameters.push(rParam.title);
-        else if ([PT.Boolean, PT.FloatingPoint, PT.Integer, PT.Text].includes[rParam.type] &&
+        else if ([PT.Boolean, PT.FloatingPoint, PT.Integer, PT.Text, PT.Enumeration].includes[rParam.type] &&
             !["number", "string", "boolean"].includes(typeof parameterValue)) {
             missingParameters.push(rParam.title);
         } else if (rParam.type === ParameterTypes.InputDirectory || rParam.type === ParameterTypes.InputFile) {
