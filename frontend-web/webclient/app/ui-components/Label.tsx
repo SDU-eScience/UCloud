@@ -26,7 +26,7 @@ const accessiblyHide = (props: {hidden?: boolean}): accessiblyHide =>
 
 export type LabelProps =
   SpaceProps & FontSizeProps & FontStyleProps & ColorProps & FontWeightProps & WidthProps
-  & {nowrap?: boolean, hidden?: boolean};
+  & {nowrap?: boolean; hidden?: boolean};
 
 const Label = styled.label <LabelProps>`
   font-size: 10px;

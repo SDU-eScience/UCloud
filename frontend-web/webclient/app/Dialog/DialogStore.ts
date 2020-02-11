@@ -22,7 +22,7 @@ class DialogStore {
             [...this.dialogs, {dialog, onCancel}];
         this.dialogs = dialogs;
         this.subscribers.forEach(it => it(dialogs.map(el => el.dialog)));
-    }
+    };
 
     public success(): void {
         this.popDialog();
@@ -32,7 +32,7 @@ class DialogStore {
         const [first] = this.dialogs;
         if (!!first) first.onCancel();
         this.popDialog();
-    }
+    };
 
     private popDialog(): void {
         const dialogs = this.dialogs.slice(1);

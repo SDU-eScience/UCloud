@@ -344,7 +344,7 @@ interface LicenseServer {
     id: string;
     name: string;
     address: string;
-    port: string;
+    port: number;
     license: string | null;
 }
 
@@ -402,7 +402,7 @@ export default function LicenseServers(): JSX.Element | null {
     const [submitted, setSubmitted] = React.useState(false);
     const [name, setName] = React.useState("");
     const [address, setAddress] = React.useState("");
-    const [port, setPort] = React.useState("");
+    const [port, setPort] = React.useState(0);
     const [license, setLicense] = React.useState("");
     const [nameError, setNameError] = React.useState(false);
     const [addressError, setAddressError] = React.useState(false);
@@ -445,7 +445,7 @@ export default function LicenseServers(): JSX.Element | null {
                 );
                 setName("");
                 setAddress("");
-                setPort("");
+                setPort(0);
                 setLicense("");
             } catch (err) {
                 defaultErrorHandler(err);
@@ -490,14 +490,14 @@ export default function LicenseServers(): JSX.Element | null {
                                     <Label mb="1em" width="30%">
                                         Port
                                         <Input
-                                            value={port}
+                                            value={port != 0 ? port : ""}
                                             type="number"
                                             min={0}
                                             max={65535}
                                             leftLabel
                                             error={portError}
                                             maxLength={5}
-                                            onChange={e => setPort(e.target.value)}
+                                            onChange={e => setPort(parseInt(e.target.value, 10))}
                                             placeholder="Port"
                                         />
                                     </Label>

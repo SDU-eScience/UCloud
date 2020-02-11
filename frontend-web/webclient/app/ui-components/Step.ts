@@ -10,10 +10,10 @@ export interface StepProps {
 }
 
 const numbered = (props: {
-    numbered?: boolean,
-    numberSize?: number,
-    size?: number,
-    pad?: number
+    numbered?: boolean;
+    numberSize?: number;
+    size?: number;
+    pad?: number;
 }) => props.numbered ? css`
     &::before {
         content: counter(stepcounter);
@@ -27,9 +27,9 @@ const numbered = (props: {
         top: 0;
         left: ${(props.size! / 2) + props.pad!}px;
         font-weight: bold;
-        color: ${({theme}) => theme.colors.blue}
-        background: ${({theme}) => theme.colors.white};
-        box-shadow: 0 0 0 2px ${({theme}) => theme.colors.blue};
+        color: var(--blue, #f00);
+        background: var(--white, #f00);
+        box-shadow: 0 0 0 2px var(--blue, #f00);
     }
 
     &:first-child::before {
@@ -73,9 +73,9 @@ export const Step = styled(Flex) <StepProps>`
         transform: scale(0.707) rotate(45deg);
         z-index: 1;
         border-radius: 0 5px 0 ${({size}) => size}px;
-        background: ${({active, theme}) => active ? theme.colors.blue : theme.colors.white};
+        background: var(--${p => p.active ? "blue" : "white"}, #f00);
         transition: background 0.5s;
-        box-shadow: 2px -2px 0 2px ${({theme}) => theme.colors.lightBlue2};
+        box-shadow: 2px -2px 0 2px var(--lightBlue2, #f00);
     }
 
     ${numbered}

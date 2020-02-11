@@ -20,7 +20,8 @@ import {
     OutlineButton,
     Progress,
     Select,
-    Text
+    Text,
+    Truncate
 } from "ui-components";
 import {Box, Flex} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -122,8 +123,8 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
             right: "auto",
             top: "50%",
             transform: "translate(-50%,-50%)",
-            minWidth: "20rem",
-            width: "80%",
+            minWidth: "730px",
+            width: "80vw",
             maxWidth: "60rem",
             background: ""
         }
@@ -198,7 +199,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
                             uploads.filter(it => !it.conflictFile).length ? (
                                 <Button fullWidth color="green" onClick={this.startAllUploads}>
                                     <Icon name={"upload"} />{" "}Start all!
-                            </Button>
+                                </Button>
                             ) : null}
                         <Dropzone onDrop={this.onFilesAdded}>
                             {({getRootProps, getInputProps}) => (
@@ -385,7 +386,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
 
     private clearFinishedUploads = (): void => {
         this.props.setUploads(this.props.uploads.filter(it => !isFinishedUploading(it.uploadXHR)));
-    }
+    };
 
     private setRewritePolicy(index: number, policy: UploadPolicy): void {
         this.props.uploads[index].resolution = policy;
@@ -418,7 +419,7 @@ const DropZoneBox = styled(Box)`
     }
 `;
 
-const privacyOptions: Array<{text: string, value: Sensitivity}> = [
+const privacyOptions: Array<{text: string; value: Sensitivity}> = [
     {text: "Inherit", value: "INHERIT"},
     {text: "Private", value: "PRIVATE"},
     {text: "Confidential", value: "CONFIDENTIAL"},
@@ -448,16 +449,23 @@ const UploaderRow = (p: {
     );
 
     const fileTitle = (
-        <span>
-            <b>{p.upload.file.name} </b>
+        <Box>
+            <Truncate
+                title={p.upload.file.name}
+                width={["320px", "320px", "320px", "320px", "440px", "560px"]}
+                mb="-4px"
+                fontSize={20}
+            >
+                {p.upload.file.name}
+            </Truncate>
             ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile} />
-        </span>
+        </Box>
     );
     let body: React.ReactNode;
-    if (!!p.upload.error) {
+    if (p.upload.error) {
         body = (
             <>
-                <Box width={0.5}>
+                <Box width={"50%"}>
                     {fileTitle}
                 </Box>
                 <Spacer
@@ -479,7 +487,7 @@ const UploaderRow = (p: {
     } else if (!p.upload.isUploading) {
         body = (
             <>
-                <Box width={0.7}>
+                <Box width="80%">
                     <Spacer
                         left={fileTitle}
                         right={p.upload.conflictFile ? <PolicySelect setRewritePolicy={p.setRewritePolicy!} /> : null}
@@ -498,26 +506,26 @@ const UploaderRow = (p: {
                     )}
                 </Box>
                 <Error error={p.upload.error} />
-                <Box width={0.3}>
-                    <ButtonGroup width="100%">
+                <Box width="165px">
+                    <UploaderButtonGroup width="165px">
                         {p.upload.isPending ? <Button color="blue" disabled>Pending</Button> : (
                             <Button
-                                data-tag={"startUpload"}
+                                data-tag="startUpload"
                                 color="green"
                                 disabled={!!p.upload.error}
                                 onClick={e => ifPresent(p.onUpload, c => c(e))}
                             >
                                 <Icon name="upload" />Upload
-                            </Button>
-                        )}
-                        <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag={"removeUpload"}>
+                            </Button>)}
+                        <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag="removeUpload">
                             <Icon name="close" />
                         </Button>
-                    </ButtonGroup>
-                    <Flex justifyContent="center" pt="0.3em">
+                    </UploaderButtonGroup>
+                    <Flex justifyContent="center">
                         <ClickableDropdown
+                            width="150px"
                             chevron
-                            trigger={prettierString(p.upload.sensitivity)}
+                            trigger={`Sensitivity: ${prettierString(p.upload.sensitivity)}`}
                             onChange={p.setSensitivity}
                             options={privacyOptions}
                         />
@@ -528,7 +536,7 @@ const UploaderRow = (p: {
     } else { // Uploading
         body = (
             <>
-                <Box width={0.25}>
+                <Box width="100%">
                     {fileTitle}
                     <br />
                     {isArchiveExtension(p.upload.file.name) ?
@@ -568,10 +576,20 @@ const UploaderRow = (p: {
             <Box width={0.04} textAlign="center">
                 <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Client.homeFolder)} />
             </Box>
-            <Flex width={0.96}>{body}</Flex>
+            <Flex width="100%">{body}</Flex>
         </Flex>
     );
 };
+
+const UploaderButtonGroup = styled(ButtonGroup)`
+    & > ${Button}:last-child, .last {
+        width: 40px;
+    }
+
+    & > ${Button}:first-child, .first {
+        width: 115px;
+    }
+`;
 
 const ProgressBar = ({upload}: {upload: Upload}): JSX.Element => (
     <Box width={0.45} ml="0.5em" mr="0.5em" pl="0.5" pr="0.5">
@@ -589,7 +607,7 @@ interface PolicySelect {
 }
 
 const PolicySelect = ({setRewritePolicy}: PolicySelect): JSX.Element => (
-    <Flex mt="-12px" width="200px" mr="0.5em">
+    <Flex mt="-38px" width="150px" mr="0.5em">
         <Select
             width="200px"
             defaultValue="Rename"

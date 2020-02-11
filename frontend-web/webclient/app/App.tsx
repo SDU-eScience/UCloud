@@ -11,7 +11,7 @@ import {theme, UIGlobalStyle} from "ui-components";
 import {invertedColors} from "ui-components/theme";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {store} from "Utilities/ReduxUtilities";
-import {isLightThemeStored, setSiteTheme} from "UtilityFunctions";
+import {isLightThemeStored, setSiteTheme, toggleCssColors} from "UtilityFunctions";
 
 export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
     store.dispatch({type});
@@ -29,10 +29,15 @@ const GlobalStyle = createGlobalStyle`
 Client.initializeStore(store);
 
 function App({children}: React.PropsWithChildren<{}>): JSX.Element {
-    const [isLightTheme, setTheme] = React.useState(isLightThemeStored());
+    const [isLightTheme, setTheme] = React.useState(() => {
+        const isLight = isLightThemeStored();
+        if (!isLight) toggleCssColors(isLight);
+        return isLight;
+    });
     const setAndStoreTheme = (isLight: boolean): void => (setSiteTheme(isLight), setTheme(isLight));
 
     function toggle(): void {
+        toggleCssColors(isLightTheme);
         setAndStoreTheme(!isLightTheme);
     }
 

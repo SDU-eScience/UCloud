@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "audit-ingestion"
-    version = "0.1.12"
+    version = "0.1.13"
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1

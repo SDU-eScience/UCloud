@@ -87,7 +87,7 @@ open class JsonbType : UserType, DynamicParameterizedType {
             val rawValue = rs.getObject(names[0]) as? PGobject ?: return null
             return mapper.readValue(rawValue.value, createType())
         } else {
-            val rawValue = rs.getString(names[0])
+            val rawValue = rs.getString(names[0]) ?: return null
             return mapper.readValue(rawValue, createType())
         }
     }

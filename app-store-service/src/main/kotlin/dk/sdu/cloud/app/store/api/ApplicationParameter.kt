@@ -229,22 +229,20 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         override val defaultValue: LicenseServerApplicationParameter? = null
 
         override fun internalMap(inputParameter: Any): LicenseServerApplicationParameter {
-            println("internalMap called: $inputParameter")
             @Suppress("UNCHECKED_CAST")
             val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad license server")
             val licenseServerId = asMap["id"] as? String? ?: throw IllegalArgumentException("Missing 'licenseServerId'")
             val licenseServerAddress = asMap["address"] as? String? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerAddress'")
-            val licenseServerPort = asMap["port"] as? String? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerPort'")
+            val licenseServerPort = asMap["port"] as? Int? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerPort'")
             val licenseServerKey = asMap["license"] as? String?  // Allowed to be null
             return LicenseServerApplicationParameter(licenseServerId, licenseServerAddress, licenseServerPort, licenseServerKey)
         }
 
         override fun toInvocationArgument(entry: LicenseServerApplicationParameter): String {
-            println("toInvocationArgument called: $entry")
             return if (entry.license != null) {
-                entry.address + ":" + entry.port + "/" + entry.license
+                "${entry.address}:${entry.port}/${entry.license}"
             } else {
-                entry.address + ":" + entry.port
+                "${entry.address}:${entry.port}"
             }
         }
     }
@@ -311,7 +309,7 @@ data class SharedFileSystemApplicationParameter(
 data class LicenseServerApplicationParameter(
     val id: String,
     val address: String,
-    val port: String,
+    val port: Int,
     val license: String?
 ) : ParsedApplicationParameter() {
     override val type = TYPE_LICENSE_SERVER

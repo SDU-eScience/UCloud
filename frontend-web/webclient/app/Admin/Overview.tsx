@@ -25,7 +25,7 @@ interface LinkInfo {
     color2?: ThemeColor;
 }
 
-function AdminOverview(props: {setActivePage: () => void}) {
+function AdminOverview(props: {setActivePage: () => void}): JSX.Element | null {
 
     React.useEffect(() => {
         props.setActivePage();

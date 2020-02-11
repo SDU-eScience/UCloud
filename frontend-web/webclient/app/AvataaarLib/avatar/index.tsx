@@ -11,7 +11,7 @@ export enum AvatarStyle {
     Transparent = "Transparent"
 }
 
-export default function Avatar(props: AvatarComponentProps) {
+export default function Avatar(props: AvatarComponentProps): JSX.Element {
     const {avatarStyle} = props;
     const circle = avatarStyle === AvatarStyle.Circle;
     return (
@@ -89,7 +89,7 @@ export default function Avatar(props: AvatarComponentProps) {
                                     <use xlinkHref="#path-5" />
                                 </mask>
                                 <use fill="#D0C6AC" xlinkHref="#path-5" />
-                                <Skin optionValue={props.skinColor} maskID="mask-6" />
+                                <Skin optionValue={props.skinColors} maskID="mask-6" />
                                 <path
                                     d="M156,79 L156,102 C156,132.927946 130.927946,158 100,158 C69.072054,158 44,132.927946 44,102 L44,79 L44,94 C44,124.927946 69.072054,150 100,150 C130.927946,150 156,124.927946 156,94 L156,79 Z"
                                     id="Neck-Shadow"
@@ -99,13 +99,13 @@ export default function Avatar(props: AvatarComponentProps) {
                                 />
                             </g>
                             <Clothe
-                                optionValue={props.clotheType}
-                                color={props.clotheColor}
-                                graphic={props.graphicType}
+                                optionValue={props.clothes}
+                                color={props.colorFabric}
+                                graphic={props.clothesGraphic}
                             />
-                            <Face eyebrow={props.eyebrowType} eyes={props.eyeType} mouth={props.mouthType} />
-                            <Top optionValue={props.topType} facialHair={props.facialHairType} {...props}>
-                                <Accessories optionValue={props.accessoriesType} />
+                            <Face eyebrow={props.eyebrows} eyes={props.eyes} mouth={props.mouthTypes} />
+                            <Top optionValue={props.top} facialHair={props.facialHair} {...props}>
+                                <Accessories optionValue={props.topAccessory} />
                             </Top>
                         </g>
                     </g>

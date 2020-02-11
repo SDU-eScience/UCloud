@@ -414,7 +414,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         ))}
                                     </RunSection>
                                 )}
-                     
+
                             {!application.invocation.shouldAllowAdditionalPeers ? null : (
                                 <RunSection>
                                     <Flex>
@@ -436,21 +436,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                 File systems used by the <b>job</b> are automatically added to this job.
                                             </>
                                         ) : (
-                                            <>
-                                                If you need to use the services of another job click{" "}
-                                                <BaseLink
-                                                    href="#"
-                                                    onClick={e => {
-                                                        e.preventDefault();
-                                                        this.connectToJob();
-                                                    }}
-                                                >
-                                                    "Connect to job".
+                                                <>
+                                                    If you need to use the services of another job click{" "}
+                                                    <BaseLink
+                                                        href="#"
+                                                        onClick={e => {
+                                                            e.preventDefault();
+                                                            this.connectToJob();
+                                                        }}
+                                                    >
+                                                        "Connect to job".
                                                 </BaseLink>
-                                                {" "}
-                                                These services include networking and shared application file systems.
+                                                    {" "}
+                                                    These services include networking and shared application file systems.
                                             </>
-                                        )}
+                                            )}
                                     </Box>
 
                                     {
@@ -613,7 +613,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             peers,
             reservation,
             type: "start",
-            name: jobName ?? null,
+            name: jobName !== "" ? jobName : null,
             mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES"
         };
 
@@ -880,6 +880,7 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
 );
 
 interface JobSchedulingOptionsProps {
+    /* FIXME: add typesafety */
     onChange: (a, b, c) => void;
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
@@ -889,7 +890,6 @@ interface JobSchedulingOptionsProps {
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
     if (!props.app) return null;
     const {maxTime, numberOfNodes, tasksPerNode, name} = props.options;
-
     return (
         <>
             <Flex mb="4px" mt="4px">
@@ -945,7 +945,10 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
 
             <div>
                 <Label>Machine type</Label>
-                <MachineTypes inputRef={props.reservationRef} />
+                <MachineTypes
+                    runAsRoot={props.app.invocation.container?.runAsRoot ?? false}
+                    inputRef={props.reservationRef}
+                />
             </div>
         </>
     );

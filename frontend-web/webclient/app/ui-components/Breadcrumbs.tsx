@@ -20,18 +20,18 @@ const BreadCrumbsBase = styled.ul`
 
     & li + li:before {
         padding: 8px;
-        color: ${p => p.theme.colors.text};
+        color: var(--text, #f00);
         content: "/";
     }
 
     & li span {
-        color: ${p => p.theme.colors.text};
+        color: var(--text, #f00);
         text-decoration: none;
     }
 
     & li span:hover {
         cursor: pointer;
-        color: ${p => p.theme.colors.blue};
+        color: var(--blue, #f00);
         text-decoration: none;
     }
 `;
@@ -47,7 +47,7 @@ export interface BreadCrumbMapping {
     local: string;
 }
 
-export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList) => {
+export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList): JSX.Element | null => {
     if (!currentPath) return null;
     const pathsMapping = buildBreadCrumbs(currentPath, homeFolder);
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
@@ -72,7 +72,7 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
                             Go to home
                         </Text>
                     </Box>
-                    <Text ml="8px" mr="8px" fontSize="25px">|</Text>
+                    <Text ml="6px" mr="6px" fontSize="24px">|</Text>
                 </>
             ) : null}
             <BreadCrumbsBase>
@@ -84,7 +84,7 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
         </>
     );
 
-    function toHome() {
+    function toHome(): void {
         navigate(homeFolder);
     }
 };

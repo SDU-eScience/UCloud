@@ -212,7 +212,7 @@ export function machineTypes(): APICallParameters {
 }
 
 export interface listLicenseServersProps {
-    tags: string[]
+    tags: string[];
 }
 
 export function licenseServers(props: listLicenseServersProps): APICallParameters {
@@ -229,6 +229,7 @@ export interface MachineReservation {
     name: string;
     cpu: number | null;
     memoryInGigs: number | null;
+    gpu: number | null;
 }
 
 export type AppOrTool = "APPLICATION" | "TOOL";

@@ -9,15 +9,14 @@ class AvatarService<DBSession>(
     private val db: DBSessionFactory<DBSession>,
     private val dao: AvatarDAO<DBSession>
 ) {
-
-    fun upsert(user: String, avatar: Avatar) {
+    suspend fun upsert(user: String, avatar: Avatar) {
         db.withTransaction { dao.upsert(it, user, avatar) }
     }
 
-    fun findByUser(user: String): Avatar =
+    suspend fun findByUser(user: String): Avatar =
         db.withTransaction { dao.findByUser(it, user) }
 
-    fun bulkFind(users: List<String>): Map<String, SerializedAvatar> =
+    suspend fun bulkFind(users: List<String>): Map<String, SerializedAvatar> =
         db.withTransaction { dao.bulkFind(it, users)}
 }
 

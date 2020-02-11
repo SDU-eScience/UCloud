@@ -81,9 +81,9 @@ export function PaginationButtons({totalPages, currentPage, toPage}: PaginationB
 
 
 const PaginationButtonBase = styled(Button) <{unclickable?: boolean}>`
-    color: ${props => props.theme.colors.text};
+    color: var(--text, #f00);
     background-color: ${props => props.unclickable ? props.theme.colors.paginationDisabled : "transparent"};
-    border-color: ${props => props.theme.colors.borderGray};
+    border-color: var(--borderGray, #f00);
     border-width: 1px;
     &:disabled {
         opacity: 1;
@@ -132,7 +132,7 @@ export const EntriesPerPageSelector = ({
     entriesPerPage,
     onChange,
     content
-}: EntriesPerPageSelector) => (
+}: EntriesPerPageSelector): JSX.Element => (
         <ClickableDropdown
             left="85px"
             minWidth="80px"

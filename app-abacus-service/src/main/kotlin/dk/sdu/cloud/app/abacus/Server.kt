@@ -9,7 +9,6 @@ import dk.sdu.cloud.app.abacus.services.SlurmJobTracker
 import dk.sdu.cloud.app.abacus.services.SlurmPollAgent
 import dk.sdu.cloud.app.abacus.services.SlurmScheduler
 import dk.sdu.cloud.app.abacus.services.ssh.SSHConnectionPool
-import dk.sdu.cloud.app.api.ComputationDescriptions
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro

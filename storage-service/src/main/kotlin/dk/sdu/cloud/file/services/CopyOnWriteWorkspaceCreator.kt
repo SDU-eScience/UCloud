@@ -242,7 +242,7 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                 if (canWriteToDefault) {
                     upper.listAndClose().forEach { file ->
                         transferToDefault(
-                            snapshotRoot,
+                            upper,
                             file,
                             defaultDestinationDir,
                             manifest.username,

@@ -7,7 +7,7 @@ interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
   disabled?: boolean;
 }
 
-function Checkbox(props: CheckboxProps) {
+function Checkbox(props: CheckboxProps): JSX.Element {
   const {disabled, size} = props;
   return (
     <CheckBoxWrapper disabled={!!disabled}>
@@ -35,9 +35,9 @@ const CheckBoxWrapper = styled(Box) <CheckBoxWrapper>`
   > input:checked {
     & ~ svg[data-name="checked"] {
       display: inline-block;
-      color: ${props => props.disabled
-    ? props.theme.colors.borderGray
-    : props.theme.colors.blue};
+      color: var(--${props => props.disabled
+    ? "borderGray"
+    : "blue"}, #f00);
     }
     & ~ svg[data-name="empty"] {
       display: none;

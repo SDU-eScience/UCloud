@@ -43,11 +43,17 @@ mountcephfs() {
 domount() {
     # Prepare input
     mntpath=$1
-    request=$2
+    shift
+    request=$*
     workspace=$(echo $request | jq -r .workspace)
     directory_name=$(echo $request | jq -r .directoryName)
     snapshot_path=$(echo $request | jq -r .snapshotPath)
     real_path=$(echo $request | jq -r .realPath)
+
+    if [ ! "$workspace" ]
+    then
+        exit 1
+    fi
 
     # Mount lower directory
     mountcephfs $request

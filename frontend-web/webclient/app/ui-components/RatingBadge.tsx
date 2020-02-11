@@ -6,7 +6,6 @@ import {
   FontWeightProps
 } from "styled-system";
 import Box, {BoxProps} from "./Box";
-import theme from "./theme";
 
 export type RatingBadgeProps = BoxProps & FontWeightProps & BorderRadiusProps;
 

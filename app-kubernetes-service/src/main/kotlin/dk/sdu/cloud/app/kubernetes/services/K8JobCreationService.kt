@@ -109,23 +109,27 @@ class K8JobCreationService(
                     )
                 }
                 .spec {
+                    val resourceRequirements = run {
+                        val reservation = verifiedJob.reservation
+                        val limits = HashMap<String, Quantity>()
+                        if (reservation.cpu != null) {
+                            limits += "cpu" to Quantity("${reservation.cpu!! * 1000}m")
+                        }
 
-                    val reservation = verifiedJob.reservation
-                    val resourceRequirements =
-                        if (reservation.cpu != null && reservation.memoryInGigs != null) {
-                            ResourceRequirements(
-                                mapOf(
-                                    "memory" to Quantity("${reservation.memoryInGigs}Gi"),
-                                    "cpu" to Quantity("${reservation.cpu!! * 1000}m")
-                                ),
-                                mapOf(
-                                    "memory" to Quantity("${reservation.memoryInGigs}Gi"),
-                                    "cpu" to Quantity("${reservation.cpu!! * 1000}m")
-                                )
-                            )
+                        if (reservation.memoryInGigs != null) {
+                            limits += "memory" to Quantity("${reservation.memoryInGigs}Gi")
+                        }
+
+                        if (reservation.gpu != null) {
+                            limits += "nvidia.com/gpu" to Quantity("${reservation.gpu}")
+                        }
+
+                        if (limits.isNotEmpty()) {
+                            ResourceRequirements(limits, limits)
                         } else {
                             null
                         }
+                    }
 
                     val deadline = verifiedJob.maxTime.toSeconds()
                     withActiveDeadlineSeconds(deadline)

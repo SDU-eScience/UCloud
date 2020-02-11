@@ -127,7 +127,7 @@ class OptionalParameter extends React.Component<OptionalParameterProps, {open: b
         }
 
         & > ${EllipsedText} {
-            color: ${props => props.theme.colors.gray};
+            color: var(--gray, #f00);
             flex-grow: 1;
         }
 
@@ -146,7 +146,7 @@ class OptionalParameter extends React.Component<OptionalParameterProps, {open: b
 
     public state = {open: false};
 
-    public render() {
+    public render(): JSX.Element {
         const {parameter, onUse} = this.props;
         const {open} = this.state;
 

@@ -8,7 +8,7 @@ export interface Props {
 
 function makeColor(name: string, color: string) {
   class ColorComponent extends React.Component<Props> {
-    public render() {
+    public render(): JSX.Element {
       return (
         <g
           id="Color/Palette/Gray-01"
@@ -42,7 +42,7 @@ const Pink = makeColor("Pink", "#FF488E");
 const Red = makeColor("Red", "#FF5C5C");
 const White = makeColor("White", "#FFFFFF");
 
-export default function Colors(props: Props) {
+export default function Colors(props: Props): JSX.Element {
   switch (props.color) {
     case ColorFabric.Black:
       return <Black maskID={props.maskID} />;
