@@ -626,7 +626,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         } catch (err) {
             if (err.request.status == 409) {
                 addStandardDialog({
-                    title: "Job with same parameteres already running",
+                    title: "Job with same parameters already running",
                     message: "You might be trying to run a duplicate job. Would you like to proceed?",
                     cancelText: "No",
                     confirmText: "Yes",
