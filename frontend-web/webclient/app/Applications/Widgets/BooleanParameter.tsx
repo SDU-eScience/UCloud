@@ -9,7 +9,7 @@ interface BooleanParameter extends ParameterProps {
     parameterRef: React.RefObject<HTMLSelectElement>;
 }
 
-export const BooleanParameter = (props: BooleanParameter) => {
+export const BooleanParameter = (props: BooleanParameter): JSX.Element => {
     const defaultValue: boolean | null = props.parameter.defaultValue ? props.parameter.defaultValue.value : null;
     const hasUnitName = !!props.parameter.unitName;
 

@@ -156,7 +156,8 @@ export const findKnownParameterValues = ({
     return extractedParameters;
 };
 
-export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
+export const isFileOrDirectoryParam = ({type}: {type: string}): boolean =>
+    type === "input_file" || type === "input_directory";
 
 
 type ParameterValueTypes = string | [number, number] | boolean | {source: string};
@@ -164,16 +165,19 @@ const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes):
     switch (type) {
         case ParameterTypes.Boolean:
             return parameter === "Yes" ||
-                    parameter === "No" ||
-                      parameter === "" ||
-                    parameter === true ||
-                     parameter === false;
+                parameter === "No" ||
+                parameter === "" ||
+                parameter === true ||
+                parameter === false;
         case ParameterTypes.Integer:
             return parseInt(parameter as string, 10) % 1 === 0;
         case ParameterTypes.FloatingPoint:
             return typeof parseFloat(parameter as string) === "number";
         case ParameterTypes.Range:
             return typeof parameter === "object" && "size" in parameter;
+        case ParameterTypes.Enumeration:
+            /* FIXME: Need we do more? */
+            return typeof parameter === "string";
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
             return typeof parameter === "string" || "source" in (parameter as any);
@@ -187,8 +191,8 @@ const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes):
 
 interface ExtractedParameters {
     [key: string]: string | number | boolean |
-    {source: string, destination: string;} |
-    {min: number, max: number} |
+    {source: string; destination: string} |
+    {min: number; max: number} |
     {fileSystemId: string} |
     {jobId: string};
 }
