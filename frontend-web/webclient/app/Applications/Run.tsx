@@ -632,24 +632,17 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     confirmText: "Yes",
                     onConfirm: async () => {
                         const rerunJob = {
-                            application: {
-                                name: this.state.application!.metadata.name,
-                                version: this.state.application!.metadata.version
-                            },
-                            parameters,
-                            numberOfNodes: this.state.schedulingOptions.numberOfNodes,
-                            tasksPerNode: this.state.schedulingOptions.tasksPerNode,
-                            maxTime,
-                            mounts,
-                            peers,
-                            reservation,
-                            type: "start",
-                            name: jobName !== "" ? jobName : null,
-                            mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES",
+                            ...job,
                             acceptSameDataRetry: true
                         };
-                        const req2 = await Client.post(hpcJobQueryPost, rerunJob)
-                        this.props.history.push(`/applications/results/${req2.response.jobId}`);
+                        try {
+                            const rerunRequest = await Client.post(hpcJobQueryPost, rerunJob)
+                            this.props.history.push(`/applications/results/${rerunRequest.response.jobId}`);
+                        } catch (rerunErr) {
+                            snackbarStore.addFailure(
+                                errorMessageOrDefault(rerunErr, "An error occurred submitting the job.")
+                            )
+                        }
                     },
                     onCancel: async () => {
                         this.setState( () => ({jobSubmitted: false}));
@@ -657,7 +650,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 });
             }
             else {
-                snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));
+                snackbarStore.addFailure(
+                    errorMessageOrDefault(err, "An error occurred submitting the job.")
+                );
                 this.setState(() => ({jobSubmitted: false}));
             }
         } finally {

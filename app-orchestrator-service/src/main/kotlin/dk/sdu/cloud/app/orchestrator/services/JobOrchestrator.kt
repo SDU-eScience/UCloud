@@ -182,10 +182,7 @@ class JobOrchestrator<DBSession>(
         //Ignore jobs that are done or older than 5 min.
         val ignoreIfJobInStates = listOf(JobState.CANCELING, JobState.FAILURE, JobState.SUCCESS, JobState.TRANSFER_SUCCESS)
         val minutesInPast = System.currentTimeMillis() - (5 * 60 * 1000L)
-        println(jobs.size)
         jobs.forEach { storedJob ->
-            println(storedJob.job.mountMode)
-            println(storedJob.job.currentState)
             if (ignoreIfJobInStates.contains(storedJob.job.currentState) || storedJob.job.createdAt < minutesInPast) {
                 return@forEach
             }
@@ -194,7 +191,6 @@ class JobOrchestrator<DBSession>(
             }
         }
         return false
-
     }
 
     suspend fun handleProposedStateChange(
@@ -454,8 +450,6 @@ class JobOrchestrator<DBSession>(
                 version = version
             )
         }.items
-
-
     }
 
     suspend fun removeExpiredJobs() {
