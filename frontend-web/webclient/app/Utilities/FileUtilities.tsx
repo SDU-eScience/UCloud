@@ -10,6 +10,8 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {dialogStore} from "Dialog/DialogStore";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -33,7 +35,37 @@ export async function copyOrMoveFilesNew(
     let policy = UploadPolicy.REJECT;
     let allowRewrite = false;
 
+    const filesToCopy: File[] = [];
     for (let i = 0; i < files.length; i++) {
+        let add = true
+        const f = files[i];
+        if (f.fileType === "DIRECTORY" && targetPathFolder.startsWith(f.path)) {
+            if (files.length === 1) {
+                snackbarStore.addFailure("Copy of directory into itself is not allowed.");
+                return;
+            }
+            const skip = await new Promise(resolve => addStandardDialog({
+                title: `Failed to copy ${f.path}}`,
+                message: "A directory cannot be copied into it self. Would you like to skip this operation?",
+                cancelText: "Cancel entire copy",
+                confirmText: `Skip ${f.path}`,
+                onConfirm: () =>  resolve(true),
+                onCancel: () => resolve(false)
+
+            }));
+            if (skip) {
+                add = false;
+            }
+            else {
+                return
+            }
+        }
+        if (add) {
+            filesToCopy.push(f)
+        }
+    }
+
+    for (let i = 0; i < filesToCopy.length; i++) {
         const f = files[i];
         const {exists, newPathForFile, allowOverwrite} = await moveCopySetup({
             targetPath: targetPathFolder,
