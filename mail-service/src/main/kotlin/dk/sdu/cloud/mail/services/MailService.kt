@@ -1,18 +1,33 @@
 package dk.sdu.cloud.mail.services
 
+import com.github.jasync.sql.db.util.length
+import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.EmailExistsRequest
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.mail.api.MailRecipient
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import io.ktor.http.HttpStatusCode
 import javax.mail.*
 import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeMessage
 
-class MailService {
-    fun send(recipients: List<MailRecipient>, subject: String, text: String) {
-        val from = "support@escience.sdu.dk"
+class MailService(private val authenticatedClient: AuthenticatedClient) {
+    private val from = "support@escience.sdu.dk"
 
-        val recipientAddresses = recipients.map{
-            InternetAddress(it.email)
+    suspend fun send(recipient: String, subject: String, text: String) {
+
+        val emailCheck = UserDescriptions.emailExists.call(EmailExistsRequest(recipient)
+        , authenticatedClient).orRethrowAs {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "User with given email address does not exist")
+        }
+
+        val recipientAddress = if (emailCheck.exists) {
+            InternetAddress(recipient)
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "User with given email address does not exist")
         }
 
         // Setup mail server
@@ -27,9 +42,7 @@ class MailService {
 
             message.setFrom(InternetAddress(from))
 
-            recipientAddresses.forEach {
-                message.addRecipient(Message.RecipientType.BCC, it)
-            }
+            message.addRecipient(Message.RecipientType.TO, recipientAddress)
 
             message.subject = subject
             message.setText(text)

@@ -10,12 +10,8 @@ import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
-data class MailRecipient(
-    val email: String
-)
-
 data class SendRequest(
-    val recipients: List<MailRecipient>,
+    val email: String,
     val subject: String,
     val message: String
 )

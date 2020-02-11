@@ -11,7 +11,7 @@ import dk.sdu.cloud.service.Loggable
 class MailController(private val mailService: MailService) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(MailDescriptions.send) {
-            ok(mailService.send(request.recipients, request.subject, request.message))
+            ok(mailService.send(request.email, request.subject, request.message))
         }
         return@configure
     }
