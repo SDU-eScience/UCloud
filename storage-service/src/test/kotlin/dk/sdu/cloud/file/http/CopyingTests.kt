@@ -146,4 +146,25 @@ class CopyingTests : WithBackgroundScope() {
             }
         )
     }
+
+
+    @Test
+    fun `copy a folder into it self`() {
+        withKtorTest(
+            setup = { configureServerWithFileController(backgroundScope) },
+
+            test = {
+                val path = "/home/user1/folder"
+                val newPath = "/home/user1/folder/A"
+
+                successfulTaskMock()
+
+                val response = engine.stat(path)
+                assertEquals(HttpStatusCode.OK, response.status())
+
+                val response2 = engine.copy(path, newPath, WriteConflictPolicy.REJECT)
+                assertEquals(HttpStatusCode.BadRequest, response2.status())
+            }
+        )
+    }
 }

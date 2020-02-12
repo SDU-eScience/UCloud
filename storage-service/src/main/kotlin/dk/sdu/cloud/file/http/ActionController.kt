@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.http
 
+import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
@@ -99,7 +100,20 @@ class ActionController<Ctx : FSUserContext>(
             commandRunnerFactory.withCtxAndTimeout(this) {
                 val stat = fileLookupService.stat(it, request.path)
                 if (stat.fileType == FileType.DIRECTORY && request.newPath.startsWith(request.path)) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                    val pathSplitted = request.path.split("/");
+                    val newPathSplitted = request.newPath.split("/")
+                    var same = true;
+                    for (index in 0 until pathSplitted.length) {
+                        println(pathSplitted[index])
+                        println(newPathSplitted[index])
+                        if (pathSplitted[index] != newPathSplitted[index]) {
+                            same = false
+                            break
+                        }
+                    }
+                    if (same) {
+                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                    }
                 }
                 coreFs.copy(
                     it,

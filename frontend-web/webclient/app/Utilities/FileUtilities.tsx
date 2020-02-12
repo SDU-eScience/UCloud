@@ -44,20 +44,32 @@ export async function copyOrMoveFilesNew(
                 snackbarStore.addFailure("Copy of directory into itself is not allowed.");
                 return;
             }
-            const skip = await new Promise(resolve => addStandardDialog({
-                title: `Failed to copy ${f.path}}`,
-                message: "A directory cannot be copied into it self. Would you like to skip this operation?",
-                cancelText: "Cancel entire copy",
-                confirmText: `Skip ${f.path}`,
-                onConfirm: () =>  resolve(true),
-                onCancel: () => resolve(false)
-
-            }));
-            if (skip) {
-                add = false;
+            //Performing extra check to catch edge case
+            const pathSplitted = f.path.split("/");
+            const targetPathSplitted = targetPathFolder.split("/")
+            let same = true;
+            for (let index = 0; index < pathSplitted.length; index++) {
+                if (pathSplitted[index] !== targetPathSplitted[index]) {
+                    same = false
+                    break
+                }
             }
-            else {
-                return
+
+            if (same) {
+                const skip = await new Promise(resolve => addStandardDialog({
+                    title: `Failed to copy ${f.path}`,
+                    message: "A directory cannot be copied into it self. Would you like to skip this operation?",
+                    cancelText: "Cancel entire copy",
+                    confirmText: `Skip ${f.path}`,
+                    onConfirm: () => resolve(true),
+                    onCancel: () => resolve(false)
+
+                }));
+                if (skip) {
+                    add = false;
+                } else {
+                    return
+                }
             }
         }
         if (add) {
@@ -105,7 +117,7 @@ export async function copyOrMoveFilesNew(
     }
 
     if (!failures && successes) {
-        onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: files.length});
+        onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: filesToCopy.length});
     } else if (failures) {
         snackbarStore.addFailure(
             `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`
@@ -130,7 +142,7 @@ async function moveCopySetup({targetPath, path}: MoveCopySetup): Promise<{
 }
 
 function onOnlySuccess({operation, fileCount}: {operation: string; fileCount: number}): void {
-    snackbarStore.addSnack({message: `${operation} ${fileCount} files`, type: SnackType.Success});
+    snackbarStore.addSnack({message: `${operation} ${fileCount} file${fileCount === 1 ? "" : "s"}`, type: SnackType.Success});
 }
 
 export const statFileOrNull = async (path: string): Promise<File | null> => {
