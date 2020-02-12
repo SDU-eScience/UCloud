@@ -17,8 +17,8 @@ Takes the following parameters:
 
 ```json
 {
-    "email": "user@example.com"
-    "subject": "UCloud password reset"
+    "email": "user@example.com",
+    "subject": "UCloud password reset",
     "message": "This is a message that describes how you can reset your password"
 }
 ```
