@@ -39,7 +39,7 @@ export async function copyOrMoveFilesNew(
     for (let i = 0; i < files.length; i++) {
         let add = true
         const f = files[i];
-        if (f.fileType === "DIRECTORY" && targetPathFolder.startsWith(f.path)) {
+        if (isDirectory(f) && targetPathFolder.startsWith(f.path)) {
             if (files.length === 1) {
                 snackbarStore.addFailure("Copy of directory into itself is not allowed.");
                 return;
@@ -78,7 +78,7 @@ export async function copyOrMoveFilesNew(
     }
 
     for (let i = 0; i < filesToCopy.length; i++) {
-        const f = files[i];
+        const f = filesToCopy[i];
         const {exists, newPathForFile, allowOverwrite} = await moveCopySetup({
             targetPath: targetPathFolder,
             path: f.path,
@@ -88,7 +88,7 @@ export async function copyOrMoveFilesNew(
             const result = await rewritePolicyDialog({
                 path: newPathForFile,
                 homeFolder: Client.homeFolder,
-                filesRemaining: files.length - i,
+                filesRemaining: filesToCopy.length - i,
                 allowOverwrite
             });
             if ("cancelled" in result) {
@@ -97,7 +97,7 @@ export async function copyOrMoveFilesNew(
             } else {
                 allowRewrite = !!result.policy;
                 policy = result.policy as UploadPolicy;
-                if (files.length - i > 1) applyToAll = result.applyToAll;
+                if (filesToCopy.length - i > 1) applyToAll = result.applyToAll;
             }
         }
         if (applyToAll) allowRewrite = true;

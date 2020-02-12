@@ -104,8 +104,6 @@ class ActionController<Ctx : FSUserContext>(
                     val newPathSplitted = request.newPath.split("/")
                     var same = true;
                     for (index in 0 until pathSplitted.length) {
-                        println(pathSplitted[index])
-                        println(newPathSplitted[index])
                         if (pathSplitted[index] != newPathSplitted[index]) {
                             same = false
                             break

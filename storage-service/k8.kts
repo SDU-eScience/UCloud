@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "storage"
-    version = "3.2.3-copy"
+    version = "3.2.4"
 
     withAmbassador(null) {
         services.add(
