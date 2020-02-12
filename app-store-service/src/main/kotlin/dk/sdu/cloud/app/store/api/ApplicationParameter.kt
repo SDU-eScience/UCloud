@@ -10,6 +10,7 @@ private const val TYPE_INPUT_DIRECTORY = "input_directory"
 private const val TYPE_TEXT = "text"
 private const val TYPE_INTEGER = "integer"
 private const val TYPE_BOOLEAN = "boolean"
+private const val TYPE_ENUMERATION = "enumeration"
 private const val TYPE_FLOATING_POINT = "floating_point"
 private const val TYPE_PEER = "peer"
 private const val TYPE_SHARED_FILE_SYSTEM = "shared_file_system"
@@ -158,6 +159,21 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             if (entry.value) trueValue else falseValue
     }
 
+    data class EnumOption(val name: String, val value: String)
+    data class Enumeration(
+        override var name: String = "",
+        override val optional: Boolean = false,
+        override val defaultValue: EnumerationApplicationParameter? = null,
+        override val title: String = name,
+        override val description: String = "",
+        val options: Array<EnumOption> = emptyArray()
+    ) : ApplicationParameter<EnumerationApplicationParameter>(TYPE_ENUMERATION) {
+        override fun internalMap(inputParameter: Any): EnumerationApplicationParameter =
+            EnumerationApplicationParameter(inputParameter.toString())
+
+        override fun toInvocationArgument(entry: EnumerationApplicationParameter): String = entry.value
+    }
+
     class Peer(
         name: String = "",
         override val title: String,
@@ -260,6 +276,7 @@ enum class SharedFileSystemType {
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = FileTransferDescription::class, name = "file"),
+    JsonSubTypes.Type(value = EnumerationApplicationParameter::class, name = TYPE_ENUMERATION),
     JsonSubTypes.Type(value = BooleanApplicationParameter::class, name = TYPE_BOOLEAN),
     JsonSubTypes.Type(value = IntApplicationParameter::class, name = TYPE_INTEGER),
     JsonSubTypes.Type(value = DoubleApplicationParameter::class, name = TYPE_FLOATING_POINT),
@@ -282,6 +299,10 @@ data class FileTransferDescription(
 
 data class BooleanApplicationParameter(val value: Boolean) : ParsedApplicationParameter() {
     override val type = TYPE_BOOLEAN
+}
+
+data class EnumerationApplicationParameter(val value: String) : ParsedApplicationParameter() {
+    override val type = TYPE_ENUMERATION
 }
 
 data class IntApplicationParameter(val value: BigInteger) : ParsedApplicationParameter() {

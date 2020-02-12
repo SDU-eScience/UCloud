@@ -26,9 +26,9 @@ export function EnumerationParameter(props: TextParameterProps): JSX.Element {
                     <option />
                     {props.parameter.options.map(opt => (
                         <option
-                            key={opt.value}
-                            selected={defaultValue === opt.value}
-                            value={opt.value}
+                            key={opt.name}
+                            selected={defaultValue === opt.name}
+                            value={opt.name}
                         >
                             {opt.text}
                         </option>

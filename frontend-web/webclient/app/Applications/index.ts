@@ -208,7 +208,7 @@ export interface BooleanParameter extends BaseParameter {
 }
 
 interface EnumOption {
-    value: string | number;
+    name: string;
     text: string;
 }
 export interface EnumerationParameter extends BaseParameter {
