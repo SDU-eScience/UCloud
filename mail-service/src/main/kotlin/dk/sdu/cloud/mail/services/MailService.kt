@@ -1,5 +1,6 @@
 package dk.sdu.cloud.mail.services
 
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupEmailRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
@@ -11,10 +12,15 @@ import javax.mail.*
 import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeMessage
 
-class MailService(private val authenticatedClient: AuthenticatedClient) {
-    private val from = "support@escience.sdu.dk"
-
-    suspend fun send(recipient: String, subject: String, text: String) {
+class MailService(
+    private val authenticatedClient: AuthenticatedClient,
+    private val fromAddress: String,
+    private val whitelist: List<String>
+) {
+    suspend fun send(principal: SecurityPrincipal, recipient: String, subject: String, text: String) {
+        if (principal.username !in whitelist) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
+        }
 
         val getEmail = UserDescriptions.lookupEmail.call(
             LookupEmailRequest(recipient),
@@ -33,7 +39,7 @@ class MailService(private val authenticatedClient: AuthenticatedClient) {
         try {
             val message = MimeMessage(session)
 
-            message.setFrom(InternetAddress(from))
+            message.setFrom(InternetAddress(fromAddress))
 
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
 
