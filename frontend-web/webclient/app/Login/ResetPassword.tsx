@@ -4,10 +4,9 @@ import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link} from "ui-components";
+import {Absolute, Box, Button, Flex, Icon, Input, Text, ExternalLink, Link} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {DropdownContent, Dropdown} from "ui-components/Dropdown";
-import {TextSpan} from "ui-components/Text";
+import {DropdownContent} from "ui-components/Dropdown";
 import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
@@ -15,7 +14,6 @@ import {PRODUCT_NAME, SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.co
 import {BG1} from "./BG1";
 
 const bg2 = require("Assets/Images/bg2.svg");
-const wayfLogo = require("Assets/Images/WAYFLogo.svg");
 
 const BackgroundImage = styled.div<{image: string}>`
     background: url(${({image}) => image}) no-repeat 40% 0%;
@@ -24,8 +22,6 @@ const BackgroundImage = styled.div<{image: string}>`
 `;
 
 const inDevEnvironment = process.env.NODE_ENV === "development";
-const enabledWayf = true;
-const wayfService = inDevEnvironment ? "dev-web" : "web";
 
 export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
@@ -170,7 +166,6 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                 </LoginBox>
             </Absolute>
 
-
             <Absolute style={{overflowY: "hidden"}} bottom="0" height="50%" width="100%">
                 <BG1 />
             </Absolute>
@@ -178,117 +173,43 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
             <BackgroundImage image={bg2}>
                 <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
                     <LoginBox width="315px">
-                        {!isWebDav ? null : (
-                            <LoginBox mb={32}>
-                                You must re-authenticate with {PRODUCT_NAME} to use your files locally.
-                            </LoginBox>
-                        )}
-                        {!challengeId ? (
-                            <LoginDropdownContent
-                                overflow="visible"
-                                squareTop={false}
-                                cursor="pointer"
-                                width="315px"
-                                hover={false}
-                                visible
-                            >
-                                <LoginBox color="red" width="100%">
-                                    <form onSubmit={preventDefault}>
-                                        <Login
-                                            enabled2fa={!!challengeId}
-                                            usernameRef={usernameInput}
-                                            passwordRef={passwordInput}
-                                        />
-                                        <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-
-                                        <LoginButton
-                                            fullWidth
-                                            disabled={loading}
-                                            onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                        >
-                                            Login
-                                        </LoginButton>
-                                    </form>
-                                    <Box mt={20}>
-                                        <Link to="/reset-password" mt={20}>
-                                            <Text fontSize={1}>Forgot your password?</Text>
-                                        </Link>
-                                    </Box>
-                                </LoginBox>
-                            </LoginDropdownContent>
-                        ) : (
-                                <>
-                                    <LoginText fontSize={1} mt="5px">
-                                        Enter 2-factor authentication code
-                                    </LoginText>
-                                    <LoginDropdownContent
-                                        overflow="visible"
-                                        squareTop={false}
-                                        cursor="pointer"
-                                        width="315px"
-                                        hover={false}
-                                        visible
+                        <LoginText fontSize={1} mt="5px">
+                            To reset your password, enter your email address
+                        </LoginText>
+                        <LoginDropdownContent
+                            overflow="visible"
+                            squareTop={false}
+                            cursor="pointer"
+                            width="315px"
+                            hover={false}
+                            colorOnHover={false}
+                            visible
+                        >
+                            <LoginBox width="100%">
+                                <form onSubmit={preventDefault}>
+                                    <Input placeholder="Email address" />
+                                    <Button
+                                        fullWidth
+                                        disabled={loading}
+                                        onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                                        marginTop={10}
                                     >
-                                        <LoginBox width="100%">
-                                            <form onSubmit={preventDefault}>
-                                                <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                                                <Button
-                                                    fullWidth
-                                                    disabled={loading}
-                                                    onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                                >
-                                                    Submit
-                                                    </Button>
-                                            </form>
-                                        </LoginBox>
-                                    </LoginDropdownContent>
-                                </>
-                            )
-                        }
+                                        Reset password
+                                        </Button>
+                                </form>
+                                <Box mt={20}>
+                                    <Link to="login">
+                                        <Text fontSize={1}>Return to Login page</Text>
+                                    </Link>
+                                </Box>
+                            </LoginBox>
+                        </LoginDropdownContent>
                     </LoginBox>
                 </Flex>
             </BackgroundImage>
         </>
     );
 };
-
-interface TwoFactorProps {
-    enabled2fa: string;
-    inputRef: React.RefObject<HTMLInputElement>;
-}
-
-const TwoFactor: React.FunctionComponent<TwoFactorProps> = ({enabled2fa, inputRef}) => enabled2fa ? (
-    <LoginInput
-        ref={inputRef}
-        autoComplete="off"
-        autoFocus
-        type="text"
-        name="2fa"
-        id="2fa"
-        placeholder="6-digit code"
-    />
-) : null;
-
-interface LoginProps {
-    enabled2fa: boolean;
-    usernameRef: React.RefObject<HTMLInputElement>;
-    passwordRef: React.RefObject<HTMLInputElement>;
-}
-
-const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element | null => !enabled2fa ? (
-    <>
-        <LoginInput type="hidden" value="web-csrf" name="service" />
-        <LoginInput
-            ref={usernameRef}
-            autoFocus
-            type="text"
-            name="username"
-            id="username"
-            placeholder="Username"
-        />
-        <LoginInput ref={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
-    </>
-) : null;
 
 const LoginDropdownContent = styled(DropdownContent)`
     background-color: white;
@@ -297,23 +218,6 @@ const LoginDropdownContent = styled(DropdownContent)`
 
 const LoginExternalLink = styled(ExternalLink)`
     color: white;
-`;
-
-const LoginTextSpan = styled(TextSpan)`
-    color: white;
-`;
-
-const DropdownContentWrapper = styled.div`
-    & > ${Dropdown} > ${DropdownContent} {
-        color: black;
-        background-color: white;
-    }
-`;
-
-const LoginInput = styled(Input)`
-    margin-bottom: 0.5em;
-    border-color: lightgray;
-    color: black;
 `;
 
 const LoginText = styled(Text)`
@@ -325,9 +229,5 @@ const LoginIcon = styled(Icon)`
 `;
 
 const LoginBox = styled(Box)`
-    color: white;
-`;
-
-const LoginButton = styled(Button)`
     color: white;
 `;
