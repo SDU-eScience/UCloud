@@ -222,6 +222,18 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         );
     }
 
+    private checkForDuplicates(files: File[]): string[] {
+        const uploadNames = this.props.uploads.map(it => it.file.name);
+        const newFiles = files.map(it => it.name);
+        const duplicates: string[] = [];
+        for (const name of newFiles) {
+            if (uploadNames.includes(name)) {
+                duplicates.push(name);
+            }
+        }
+        return duplicates;
+    }
+
     private onFilesAdded = async (files: File[]): Promise<void> => {
         if (files.some(it => it.size === 0)) {
             snackbarStore.addSnack({
@@ -233,6 +245,15 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         if (files.some(it => it.name.length > 1025)) {
             snackbarStore.addSnack({
                 message: "Filenames can't exceed a length of 1024 characters.",
+                type: SnackType.Information
+            });
+        }
+
+        const duplicates = this.checkForDuplicates(files);
+
+        if (duplicates.length > 0) {
+            snackbarStore.addSnack({
+                message: `You are already added files ${duplicates.join(", ")}`,
                 type: SnackType.Information
             });
         }

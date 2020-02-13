@@ -154,7 +154,6 @@ export interface FilesTableProps {
     sortingColumns: SortBy[];
     files: File[];
     masterCheckbox?: React.ReactNode;
-    sortingIcon?: (name: SortBy) => "arrowUp" | "arrowDown" | undefined;
     sortFiles: (sortOrder: SortOrder, sortBy: SortBy) => void;
     onRenameFile?: (key: number, file: File, name: string) => void;
     onCreateFolder?: (key: number, name: string) => void;
@@ -168,7 +167,6 @@ export interface FilesTableProps {
 }
 
 export interface FilesTableHeaderProps {
-    toSortingIcon?: (s: SortBy) => "arrowUp" | "arrowDown" | undefined;
     sortFiles?: (sortOrder: SortOrder, sortBy: SortBy) => void;
     sortOrder: SortOrder;
     sortBy: SortBy;

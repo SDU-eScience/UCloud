@@ -25,7 +25,11 @@ interface LinkInfo {
     color2?: ThemeColor;
 }
 
-function AdminOverview(props: {setActivePage: () => void}): JSX.Element | null {
+interface AdminOperations {
+    setActivePage: () => void;
+}
+
+function AdminOverview(props: AdminOperations): JSX.Element | null {
 
     React.useEffect(() => {
         props.setActivePage();
@@ -41,7 +45,7 @@ function AdminOverview(props: {setActivePage: () => void}): JSX.Element | null {
                         <Box mt="30px">
                             {linkInfo.map(it => (
                                 <Link key={it.to} to={it.to}>
-                                    <Button color="black" mb="10px" mx="10px" width="200px">
+                                    <Button mb="10px" mx="10px" width="200px">
                                         {it.text}
                                         {!it.icon ? null : <Icon ml=".5em" name={it.icon} size={"1.5em"} color={it.color} color2={it.color2} />}
                                     </Button>
@@ -55,7 +59,7 @@ function AdminOverview(props: {setActivePage: () => void}): JSX.Element | null {
     );
 }
 
-const mapDispatchToProps = (dispatch: Dispatch) => ({
+const mapDispatchToProps = (dispatch: Dispatch): AdminOperations => ({
     setActivePage: () => dispatch(setActivePage(SidebarPages.Admin)),
 });
 

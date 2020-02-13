@@ -19,9 +19,9 @@ import {expandHomeFolder} from "./FileUtilities";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
-export const hpcJobQuery = (id: string) => `/hpc/jobs/${encodeURIComponent(id)}`;
+export const hpcJobQuery = (id: string): string => `/hpc/jobs/${encodeURIComponent(id)}`;
 
-export const toolImageQuery = (toolName: string, cacheBust?: string) =>
+export const toolImageQuery = (toolName: string, cacheBust?: string): string =>
     `/hpc/tools/logo/${toolName}?cacheBust=${cacheBust}`;
 
 export function hpcJobsQuery(
@@ -46,31 +46,19 @@ export function advancedSearchQuery(): string {
     return "/hpc/apps/advancedSearch";
 }
 
-export const hpcFavoriteApp = (name: string, version: string) =>
+export const hpcFavoriteApp = (name: string, version: string): string =>
     `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
 
-export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
-    `/hpc/apps/favorites?itemsPerPage=${itemsPerPage}&page=${pageNumber}`;
-
-export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
+export const hpcApplicationsQuery = (page: number, itemsPerPage: number): string =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
-
-interface HPCApplicationsSearchQuery {
-    query: string;
-    page: number;
-    itemsPerPage: number;
-}
-
-export const hpcApplicationsTagSearchQuery = ({query, page, itemsPerPage}: HPCApplicationsSearchQuery): string =>
-    `/hpc/apps/searchTags?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const cancelJobQuery = `hpc/jobs`;
 
 export const cancelJobDialog = (
     {jobId, onConfirm, jobCount = 1}: {
-        jobCount?: number,
-        jobId: string,
-        onConfirm: () => void
+        jobCount?: number;
+        jobId: string;
+        onConfirm: () => void;
     }
 ): void =>
     addStandardDialog({
@@ -81,17 +69,17 @@ export const cancelJobDialog = (
         onConfirm
     });
 
-export const cancelJob = (client: HttpClient, jobId: string): Promise<{request: XMLHttpRequest, response: void}> =>
+export const cancelJob = (client: HttpClient, jobId: string): Promise<{request: XMLHttpRequest; response: void}> =>
     client.delete(cancelJobQuery, {jobId});
 
-export function isRunExpired(run: JobWithStatus) {
+export function isRunExpired(run: JobWithStatus): boolean {
     return run.status === "Job did not complete within deadline.";
 }
 
 interface FavoriteApplicationFromPage<T> {
     name: string;
     version: string;
-    page: Page<{metadata: ApplicationMetadata, favorite: boolean} & T>;
+    page: Page<{metadata: ApplicationMetadata; favorite: boolean} & T>;
     client: HttpClient;
 }
 
@@ -259,11 +247,10 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                     return;
             }
         } else {
-            switch (parameter.type) {
-                case ParameterTypes.Range:
-                    const {bounds} = r.current.state;
-                    extracted[key] = {min: bounds[0], max: bounds[1]};
-                    return;
+            if (parameter.type === ParameterTypes.Range) {
+                const {bounds} = r.current.state;
+                extracted[key] = {min: bounds[0], max: bounds[1]};
+                return;
             }
         }
     });

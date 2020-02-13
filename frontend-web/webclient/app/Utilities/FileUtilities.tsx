@@ -1,7 +1,7 @@
 import {Client} from "Authentication/HttpClientInstance";
 import HttpClient from "Authentication/lib";
 import {SensitivityLevelMap} from "DefaultObjects";
-import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
+import {File, FileResource, FileType} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
@@ -216,30 +216,8 @@ export function resolvePath(path: string): string {
     return "/" + result.join("/");
 }
 
-const toAttributesString = (attrs: FileResource[]): string =>
-    attrs.length > 0 ? `&attributes=${encodeURIComponent(attrs.join(","))}` : "";
-
-export const filepathQuery = (
-    path: string,
-    page: number,
-    itemsPerPage: number,
-    order: SortOrder = SortOrder.ASCENDING,
-    sortBy: SortBy = SortBy.PATH,
-    attrs: FileResource[] = []
-): string =>
-    `files?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${toAttributesString(attrs)}`;
-
-export const fileLookupQuery = (
-    path: string,
-    itemsPerPage: number = 25,
-    order: SortOrder = SortOrder.DESCENDING,
-    sortBy: SortBy = SortBy.PATH,
-    attrs: FileResource[]
-): string =>
-    `files/lookup?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${toAttributesString(attrs)}`;
-
 export const filePreviewQuery = (path: string): string =>
-    `files/preview?path=${encodeURIComponent(resolvePath(path))}`;
+    `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 
 export const advancedFileSearch = "/file-search/advanced";
 
@@ -328,7 +306,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
 /**
  * Used to favorite/defavorite a file based on its current state.
  * @param {File} file The single file to be favorited
- * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
+ * @param {HttpClient} client The client instance used to changed the favorite state for the file
  */
 export const favoriteFile = async (file: File, client: HttpClient): Promise<File> => {
     try {
@@ -409,6 +387,11 @@ export const getParentPath = (path: string): string => {
     let parentPath = "/";
     for (let i = 0; i < splitPath.length - 1; i++) {
         parentPath += splitPath[i] + "/";
+    }
+    /* TODO: Should be equivalent, let's test it for a while and replace if it works. */
+    const parentP = `/${path.split("/").filter(it => it).slice(0, -1).join("/")}/`;
+    if (window.location.hostname === "localhost" && parentP !== parentPath) {
+        throw Error("ParentP and path not equal");
     }
     return parentPath;
 };
@@ -625,8 +608,8 @@ export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
 export function isFilePreviewSupported(f: File): boolean {
     if (isDirectory(f)) return false;
     if (f.sensitivityLevel === "SENSITIVE") return false;
-    if (UF.isExtPreviewSupported(UF.extensionFromPath(f.path))) return true;
-    return false;
+    return UF.isExtPreviewSupported(UF.extensionFromPath(f.path));
+
 }
 
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
