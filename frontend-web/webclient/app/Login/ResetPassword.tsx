@@ -58,7 +58,7 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
             body.append("username", usernameInput.current!.value);
             body.append("password", passwordInput.current!.value);
             const response = await promises.makeCancelable(
-                fetch(Client.computeURL("/auth", `/login?service=${service}`), {
+                fetch(Client.computeURL("/auth", `/login`), {
                     method: "POST",
                     headers: {
                         Accept: "application/json"
