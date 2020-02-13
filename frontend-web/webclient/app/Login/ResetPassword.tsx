@@ -105,7 +105,7 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
         }
     }
 
-    async function submit2FA(): Promise<void> {
+    async function submitResetPassword(): Promise<void> {
         const verificationCode = verificationInput.current && verificationInput.current.value || "";
         if (!verificationCode) return;
         try {
@@ -134,6 +134,8 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
             );
         }
     }
+
+    let resetId = "123";
 
     return (
         <>
@@ -172,39 +174,72 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
 
             <BackgroundImage image={bg2}>
                 <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
-                    <LoginBox width="315px">
-                        <LoginText fontSize={1} mt="5px">
-                            To reset your password, enter your email address
-                        </LoginText>
-                        <LoginDropdownContent
-                            overflow="visible"
-                            squareTop={false}
-                            cursor="pointer"
-                            width="315px"
-                            hover={false}
-                            colorOnHover={false}
-                            visible
-                        >
-                            <LoginBox width="100%">
-                                <form onSubmit={preventDefault}>
-                                    <Input placeholder="Email address" />
-                                    <Button
-                                        fullWidth
-                                        disabled={loading}
-                                        onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                        marginTop={10}
-                                    >
-                                        Reset password
-                                        </Button>
-                                </form>
-                                <Box mt={20}>
-                                    <Link to="login">
-                                        <Text fontSize={1}>Return to Login page</Text>
-                                    </Link>
-                                </Box>
-                            </LoginBox>
-                        </LoginDropdownContent>
-                    </LoginBox>
+                    {resetId == null ? (
+                        <LoginBox width="315px">
+                            <LoginText fontSize={1} mt="5px">
+                                To reset your password, enter your email address
+                            </LoginText>
+                            <LoginDropdownContent
+                                overflow="visible"
+                                squareTop={false}
+                                cursor="pointer"
+                                width="315px"
+                                hover={false}
+                                colorOnHover={false}
+                                visible
+                            >
+                                <LoginBox width="100%">
+                                    <form onSubmit={preventDefault}>
+                                        <Input placeholder="Email address" autoFocus />
+                                        <Button
+                                            fullWidth
+                                            disabled={loading}
+                                            onClick={() => submitResetPassword()}
+                                            marginTop={10}
+                                        >
+                                            Reset password
+                                            </Button>
+                                    </form>
+                                    <Box mt={20}>
+                                        <Link to="login">
+                                            <Text fontSize={1}>Return to Login page</Text>
+                                        </Link>
+                                    </Box>
+                                </LoginBox>
+                            </LoginDropdownContent>
+                        </LoginBox>
+                    ) : (
+                        <LoginBox width="315px">
+                            <LoginText fontSize={1} mt="5px">
+                                Please enter a new password
+                            </LoginText>
+                            <LoginDropdownContent
+                                overflow="visible"
+                                squareTop={false}
+                                cursor="pointer"
+                                width="315px"
+                                hover={false}
+                                colorOnHover={false}
+                                visible
+                            >
+                                <LoginBox width="100%">
+                                    <form onSubmit={preventDefault}>
+                                        <Input mb={10} type="password" placeholder="New password" autoFocus />
+                                        <Input type="password" placeholder="Repeat new password" />
+                                        <Button
+                                            fullWidth
+                                            disabled={loading}
+                                            onClick={() => submitResetPassword()}
+                                            marginTop={10}
+                                        >
+                                            Save new password
+                                            </Button>
+                                    </form>
+                                </LoginBox>
+                            </LoginDropdownContent>
+
+                        </LoginBox>
+                    )}
                 </Flex>
             </BackgroundImage>
         </>

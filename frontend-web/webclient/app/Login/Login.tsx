@@ -227,7 +227,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                             </LoginButton>
                                         </form>
                                         <Box mt={20}>
-                                            <Link to="/reset-password">
+                                            <Link to="/reset-password" mt={20}>
                                                 <Text fontSize={1}>Forgot your password?</Text>
                                             </Link>
                                         </Box>
