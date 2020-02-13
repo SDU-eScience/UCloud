@@ -17,8 +17,8 @@ data class LookupUsersRequest(val users: List<String>)
 data class UserLookup(val subject: String, val uid: Long, val role: Role)
 data class LookupUsersResponse(val results: Map<String, UserLookup?>)
 
-data class EmailExistsRequest(val email: String)
-data class EmailExistsResponse(val exists: Boolean)
+data class LookupEmailRequest(val userId: String)
+data class LookupEmailResponse(val email: String)
 
 typealias CreateUserAudit = List<CreateSingleUserAudit>
 
@@ -100,9 +100,9 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
         }
     }
 
-    val emailExists = call<EmailExistsRequest, EmailExistsResponse, CommonErrorMessage>("emailLookup") {
+    val lookupEmail = call<LookupEmailRequest, LookupEmailResponse, CommonErrorMessage>("lookupEmail") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = setOf(Role.SERVICE)
             access = AccessRight.READ
         }
 

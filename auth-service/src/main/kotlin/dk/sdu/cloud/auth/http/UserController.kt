@@ -96,11 +96,12 @@ class UserController<DBSession>(
             )
         }
 
-        implement(UserDescriptions.emailExists)  {
+        implement(UserDescriptions.lookupEmail) {
             ok(
-                EmailExistsResponse(
+                LookupEmailResponse(
                     db.withTransaction { session ->
-                        userDAO.emailExists(session, request.email)
+                        userDAO.findEmail(session, request.userId)
+                            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Email address not found")
                     }
                 )
             )
