@@ -7,7 +7,7 @@ import styled from "styled-components";
 import {Absolute, Box, Button, Flex, Icon, Input, Text, ExternalLink, Link} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent} from "ui-components/Dropdown";
-import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
+import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
 import {PRODUCT_NAME, SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
@@ -39,19 +39,13 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
         return () => promises.cancelPromises();
     }, []);
 
-    const isWebDav = getQueryParamOrElse(props, "dav", "false") === "true";
-    const service = isWebDav ? "dav" : (inDevEnvironment ? "dev-web" : "web");
+    const resetId = getQueryParam(props, "id");
 
     if (webDavInstructionToken !== null) {
         return <Instructions token={webDavInstructionToken} />;
     }
 
-    if (Client.isLoggedIn && !isWebDav) {
-        props.history.push("/");
-        return <div />;
-    }
-
-    async function attemptLogin(): Promise<void> {
+    async function attemptSaveNewPassword(): Promise<void> {
         if (!(usernameInput.current?.value) || !(passwordInput.current?.value)) {
             snackbarStore.addFailure("Invalid username or password");
             return;
@@ -61,7 +55,6 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
             setLoading(true);
 
             const body = new FormData();
-            body.append("service", service);
             body.append("username", usernameInput.current!.value);
             body.append("password", passwordInput.current!.value);
             const response = await promises.makeCancelable(
@@ -89,12 +82,8 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
     }
 
     function handleCompleteLogin(result: any): void {
-        if (isWebDav) {
-            setWebDavToken(result.refreshToken);
-        } else {
-            Client.setTokens(result.accessToken, result.csrfToken);
-            props.history.push("/loginSuccess");
-        }
+        Client.setTokens(result.accessToken, result.csrfToken);
+        props.history.push("/loginSuccess");
     }
 
     function handleAuthState(result: any): void {
@@ -134,8 +123,6 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
             );
         }
     }
-
-    let resetId = "123";
 
     return (
         <>
@@ -235,9 +222,13 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                                             Save new password
                                             </Button>
                                     </form>
+                                    <Box mt={20}>
+                                        <Link to="login">
+                                            <Text fontSize={1}>Return to Login page</Text>
+                                        </Link>
+                                    </Box>
                                 </LoginBox>
                             </LoginDropdownContent>
-
                         </LoginBox>
                     )}
                 </Flex>
