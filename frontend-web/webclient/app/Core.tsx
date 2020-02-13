@@ -24,6 +24,7 @@ import FileInfo from "Files/FileInfo";
 import FilePreview from "Files/FilePreview";
 import Files from "Files/Files";
 import {History} from "history";
+import {ResetPasswordPage} from "Login/ResetPassword";
 import {LoginPage} from "Login/Login";
 import Wayf from "Login/Wayf";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -56,6 +57,7 @@ const Core = (): JSX.Element => (
         <ErrorBoundary>
             <Switch>
                 <Route exact path="/login" component={LoginPage} />
+                <Route exact path="/reset-password" component={ResetPasswordPage} />
                 <Route exact path="/loginSuccess" component={LoginSuccess} />
                 <Route exact path="/login/wayf" component={Wayf} />
                 <Route exact path="/" component={requireAuth(Dashboard)} />

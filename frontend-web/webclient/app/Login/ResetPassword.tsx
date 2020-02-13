@@ -27,7 +27,7 @@ const inDevEnvironment = process.env.NODE_ENV === "development";
 const enabledWayf = true;
 const wayfService = inDevEnvironment ? "dev-web" : "web";
 
-export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
+export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
     const [challengeId, setChallengeID] = useState("");
     const [webDavInstructionToken, setWebDavToken] = useState<string | null>(null);
     const verificationInput = useRef<HTMLInputElement>(null);
@@ -124,7 +124,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                     challengeId,
                     verificationCode
                 })
-            });
+            })
             if (!response.ok) throw response;
             const result = await response.json();
             handleCompleteLogin(result);
@@ -183,57 +183,39 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                 You must re-authenticate with {PRODUCT_NAME} to use your files locally.
                             </LoginBox>
                         )}
-                        {enabledWayf && !challengeId ? (
-                            <a href={`/auth/saml/login?service=${service}`}>
-                                <Button disabled={loading} fullWidth color="wayfGreen">
-                                    <Image width="100px" src={wayfLogo} />
-                                    <LoginTextSpan fontSize={3} ml="2.5em">Login</LoginTextSpan>
-                                </Button>
-                            </a>
-                        ) : null}
                         {!challengeId ? (
-                            <DropdownContentWrapper>
-                                <ClickableDropdown
-                                    colorOnHover={false}
-                                    keepOpenOnClick
-                                    keepOpenOnOutsideClick
-                                    top="30px"
-                                    width="315px"
-                                    left="0px"
-                                    trigger={(
-                                        <LoginText
-                                            fontSize={1}
-                                            mt="5px"
-                                        >
-                                            More login options
-                                    </LoginText>
-                                    )}
-                                >
-                                    <LoginBox color="red" width="100%">
-                                        <form onSubmit={preventDefault}>
-                                            <Login
-                                                enabled2fa={!!challengeId}
-                                                usernameRef={usernameInput}
-                                                passwordRef={passwordInput}
-                                            />
-                                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                            <LoginDropdownContent
+                                overflow="visible"
+                                squareTop={false}
+                                cursor="pointer"
+                                width="315px"
+                                hover={false}
+                                visible
+                            >
+                                <LoginBox color="red" width="100%">
+                                    <form onSubmit={preventDefault}>
+                                        <Login
+                                            enabled2fa={!!challengeId}
+                                            usernameRef={usernameInput}
+                                            passwordRef={passwordInput}
+                                        />
+                                        <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
 
-                                            <LoginButton
-                                                fullWidth
-                                                disabled={loading}
-                                                onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                            >
-                                                Login
-                                            </LoginButton>
-                                        </form>
-                                        <Box mt={20}>
-                                            <Link to="/reset-password" mt={20}>
-                                                <Text fontSize={1}>Forgot your password?</Text>
-                                            </Link>
-                                        </Box>
-                                    </LoginBox>
-                                </ClickableDropdown>
-                            </DropdownContentWrapper>
+                                        <LoginButton
+                                            fullWidth
+                                            disabled={loading}
+                                            onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                                        >
+                                            Login
+                                        </LoginButton>
+                                    </form>
+                                    <Box mt={20}>
+                                        <Link to="/reset-password" mt={20}>
+                                            <Text fontSize={1}>Forgot your password?</Text>
+                                        </Link>
+                                    </Box>
+                                </LoginBox>
+                            </LoginDropdownContent>
                         ) : (
                                 <>
                                     <LoginText fontSize={1} mt="5px">
