@@ -7,6 +7,18 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8/` folders of each microservice.
 
+## 13-02-20
+
+We back-ported GPU support for the old versions.
+
+| Deployment | Image |
+| ---------- | ----- |
+| app-kubernetes | app-kubernetes-service:0.12.7-gpu.0 |
+| app-orchestrator | app-orchestrator-service:0.8.24-gpu.0 |
+| app-store | app-store-service:0.10.4-gpu.0 |
+| webclient-deployment | webclient:0.31.2-gpu.0 |
+| downtime-management | downtime-management-service:0.1.5 |
+
 ## 22-01-20
 
 Initial entry. The table below represents the active deployments.
