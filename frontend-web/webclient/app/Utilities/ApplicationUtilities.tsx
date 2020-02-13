@@ -19,9 +19,9 @@ import {expandHomeFolder} from "./FileUtilities";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
-export const hpcJobQuery = (id: string) => `/hpc/jobs/${encodeURIComponent(id)}`;
+export const hpcJobQuery = (id: string): string => `/hpc/jobs/${encodeURIComponent(id)}`;
 
-export const toolImageQuery = (toolName: string, cacheBust?: string) =>
+export const toolImageQuery = (toolName: string, cacheBust?: string): string =>
     `/hpc/tools/logo/${toolName}?cacheBust=${cacheBust}`;
 
 export function hpcJobsQuery(
@@ -49,20 +49,8 @@ export function advancedSearchQuery(): string {
 export const hpcFavoriteApp = (name: string, version: string) =>
     `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
 
-export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
-    `/hpc/apps/favorites?itemsPerPage=${itemsPerPage}&page=${pageNumber}`;
-
 export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
-
-interface HPCApplicationsSearchQuery {
-    query: string;
-    page: number;
-    itemsPerPage: number;
-}
-
-export const hpcApplicationsTagSearchQuery = ({query, page, itemsPerPage}: HPCApplicationsSearchQuery): string =>
-    `/hpc/apps/searchTags?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const cancelJobQuery = `hpc/jobs`;
 
@@ -164,10 +152,10 @@ const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes):
     switch (type) {
         case ParameterTypes.Boolean:
             return parameter === "Yes" ||
-                    parameter === "No" ||
-                      parameter === "" ||
-                    parameter === true ||
-                     parameter === false;
+                parameter === "No" ||
+                parameter === "" ||
+                parameter === true ||
+                parameter === false;
         case ParameterTypes.Integer:
             return parseInt(parameter as string, 10) % 1 === 0;
         case ParameterTypes.FloatingPoint:
@@ -187,8 +175,8 @@ const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes):
 
 interface ExtractedParameters {
     [key: string]: string | number | boolean |
-    {source: string, destination: string;} |
-    {min: number, max: number} |
+    {source: string; destination: string} |
+    {min: number; max: number} |
     {fileSystemId: string} |
     {jobId: string};
 }
@@ -249,18 +237,17 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                     extracted[key] = r.current.value
             }
         } else {
-            switch (parameter.type) {
-                case ParameterTypes.Range:
-                    const {bounds} = r.current.state;
-                    extracted[key] = {min: bounds[0], max: bounds[1]};
-                    return;
+            if (parameter.type === ParameterTypes.Range) {
+                const {bounds} = r.current.state;
+                extracted[key] = {min: bounds[0], max: bounds[1]};
+                return;
             }
         }
     });
     return extracted;
 }
 
-export const inCancelableState = (state: JobState) =>
+export const inCancelableState = (state: JobState): boolean =>
     state === JobState.VALIDATED ||
     state === JobState.PREPARED ||
     state === JobState.SCHEDULED ||

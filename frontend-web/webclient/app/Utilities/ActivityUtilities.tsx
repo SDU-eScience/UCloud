@@ -24,5 +24,3 @@ export const activityQuery = (scroll: ScrollRequest<number>, filter?: ActivityFi
 
 export const activityStreamByPath = (path: string) =>
     `/activity/by-path?path=${encodeURIComponent(path)}`;
-
-export const getLatestActivity = () => undefined;
