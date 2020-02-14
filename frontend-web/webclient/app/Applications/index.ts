@@ -209,7 +209,7 @@ export interface BooleanParameter extends BaseParameter {
 
 interface EnumOption {
     name: string;
-    text: string;
+    value: string;
 }
 export interface EnumerationParameter extends BaseParameter {
     default: {value: string; type: "enum"} | null;

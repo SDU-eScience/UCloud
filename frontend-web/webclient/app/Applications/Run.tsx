@@ -141,7 +141,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
     public render(): JSX.Element {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
-        if (!application) return <MainContainer main={<LoadingIcon size={18} />} />;
+        if (!application) return <MainContainer main={<LoadingIcon size={36} />} />;
 
         const parameters = application.invocation.parameters;
         const mandatory = parameters.filter(parameter => !parameter.optional);

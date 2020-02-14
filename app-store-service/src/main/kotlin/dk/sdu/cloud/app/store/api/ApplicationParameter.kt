@@ -30,6 +30,7 @@ private const val TYPE_LICENSE_SERVER = "license_server"
     JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = TYPE_FLOATING_POINT),
     JsonSubTypes.Type(value = ApplicationParameter.Peer::class, name = TYPE_PEER),
     JsonSubTypes.Type(value = ApplicationParameter.SharedFileSystem::class, name = TYPE_SHARED_FILE_SYSTEM),
+    JsonSubTypes.Type(value = ApplicationParameter.Enumeration::class, name = TYPE_ENUMERATION),
     JsonSubTypes.Type(value = ApplicationParameter.LicenseServer::class, name = TYPE_LICENSE_SERVER)
 )
 sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: String) {
@@ -166,7 +167,7 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         override val defaultValue: EnumerationApplicationParameter? = null,
         override val title: String = name,
         override val description: String = "",
-        val options: Array<EnumOption> = emptyArray()
+        val options: List<EnumOption> = emptyList()
     ) : ApplicationParameter<EnumerationApplicationParameter>(TYPE_ENUMERATION) {
         override fun internalMap(inputParameter: Any): EnumerationApplicationParameter =
             EnumerationApplicationParameter(inputParameter.toString())

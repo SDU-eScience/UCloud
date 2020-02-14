@@ -10,7 +10,7 @@ interface TextParameterProps extends ParameterProps {
 }
 
 export function EnumerationParameter(props: TextParameterProps): JSX.Element {
-    const defaultValue = props.parameter.default?.value ?? null;
+    const defaultValue = props.parameter.default?.value;
     const hasUnitName = !!props.parameter.unitName;
     return (
         <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
@@ -22,15 +22,14 @@ export function EnumerationParameter(props: TextParameterProps): JSX.Element {
                     key={props.parameter.name}
                     rightLabel={hasUnitName}
                     required={!props.parameter.optional}
+                    defaultValue={defaultValue}
                 >
-                    <option />
                     {props.parameter.options.map(opt => (
                         <option
                             key={opt.name}
-                            selected={defaultValue === opt.name}
-                            value={opt.name}
+                            value={opt.value}
                         >
-                            {opt.text}
+                            {opt.name}
                         </option>
                     ))}
                 </Select>

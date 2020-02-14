@@ -223,7 +223,7 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                             return;
                     }
                 case ParameterTypes.Enumeration:
-                    if (parameter.options.map(it => it.name).includes(r.current.value)) {
+                    if (parameter.options.map(it => it.value).includes(r.current.value)) {
                         extracted[key] = r.current.value;
                     }
                     return;
