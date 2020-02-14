@@ -1,13 +1,20 @@
 package dk.sdu.cloud.k8
 
+import io.fabric8.kubernetes.api.model.HasMetadata
 import io.fabric8.kubernetes.client.KubernetesClient
+import java.io.File
 
 data class DeploymentContext(
     val client: KubernetesClient,
     val namespace: String,
     val remainingArgs: List<String>,
-    val environment: Environment
+    val environment: Environment,
+    val repositoryRoot: File
 )
+
+fun DeploymentContext.resourceNamespace(resource: HasMetadata): String {
+    return resource.metadata?.namespace ?: namespace
+}
 
 interface KubernetesResource {
     val phase: DeploymentPhase get() = DeploymentPhase.DEPLOY

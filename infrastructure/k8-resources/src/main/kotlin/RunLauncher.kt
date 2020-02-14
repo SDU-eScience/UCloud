@@ -1,6 +1,8 @@
 package dk.sdu.cloud.k8
 
+import io.fabric8.kubernetes.client.Config
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import java.io.File
 import java.util.*
 
 private fun findServiceBundles(serviceArg: String): Collection<ResourceBundle> {
@@ -15,20 +17,23 @@ fun runLauncher(
     args: List<String>,
     skipUpToDateCheck: Boolean,
     forceYes: Boolean,
-    environment: Environment
+    environment: Environment,
+    repositoryRoot: File
 ) {
     try {
         val checkmark = "✅  "
         val question = "❓  "
         val cross = "❌  "
 
+        val kubeConfig = File(System.getProperty("user.home"), ".kube/config").readText()
         val scanner = Scanner(System.`in`)
         val serviceArg = args.firstOrNull() ?: ""
         val ctx = DeploymentContext(
-            DefaultKubernetesClient(),
+            DefaultKubernetesClient(Config.fromKubeconfig(environment.name.toLowerCase(), kubeConfig, null)),
             "default",
             if (args.size <= 1) emptyList() else args.subList(1, args.size),
-            environment
+            environment,
+            repositoryRoot
         )
 
         fun confirm(message: String): Boolean {

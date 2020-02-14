@@ -92,8 +92,9 @@ bundle {
             """
                 rpc:
                   client:
-                    host: ${host(ctx.environment)}
-                    scheme: ${scheme(ctx.environment)}
+                    host:
+                      host: ${host(ctx.environment)}
+                      scheme: ${scheme(ctx.environment)}
             """.trimIndent()
         )
 
@@ -120,7 +121,7 @@ bundle {
         data class AuthService(
             val name: String,
             val endpoint: String,
-            val serviceMode: String? = null,
+            val serviceMode: String = "WEB",
             val endpointAcceptStateViaCookie: Boolean = false,
             val refreshTokenExpiresAfter: Long = 2592000000
         )
@@ -175,6 +176,7 @@ bundle {
             "config.yml",
             mapOf(
                 "auth" to mapOf(
+                    "wayfCerts" to if (enableWayf) "/etc/wayf-certs" else "/etc/auth-certs",
                     "trustedOrigins" to trustedOrigins,
                     "certsLocation" to "/etc/auth-certs",
                     "enablePasswords" to true,

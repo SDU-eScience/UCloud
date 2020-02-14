@@ -20,17 +20,17 @@ class NetworkPolicyResource(val name: String, val version: String) : KubernetesR
 
     override fun DeploymentContext.isUpToDate(): Boolean {
         val existingJob =
-            client.network().networkPolicies().inNamespace(namespace).withName(name).get() ?: return false
+            client.network().networkPolicies().inNamespace(resourceNamespace(policy)).withName(name).get() ?: return false
         val k8Version = existingJob.metadata.annotations[UCLOUD_VERSION_ANNOTATION]
         return k8Version == version
     }
 
     override fun DeploymentContext.create() {
-        client.network().networkPolicies().inNamespace(namespace).withName(name).createOrReplace(policy)
+        client.network().networkPolicies().inNamespace(resourceNamespace(policy)).withName(name).createOrReplace(policy)
     }
 
     override fun DeploymentContext.delete() {
-        client.network().networkPolicies().inNamespace(namespace).withName(name).delete()
+        client.network().networkPolicies().inNamespace(resourceNamespace(policy)).withName(name).delete()
     }
 
     override fun toString(): String = "NetworkPolicy($name, $version)"

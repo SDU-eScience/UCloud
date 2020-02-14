@@ -22,17 +22,18 @@ class ConfigMapResource(
     }
 
     override fun DeploymentContext.isUpToDate(): Boolean {
-        val existing = client.configMaps().inNamespace(namespace).withName(name).get()?.metadata ?: return false
+        val existing =
+            client.configMaps().inNamespace(resourceNamespace(configMap)).withName(name).get()?.metadata ?: return false
         return checkVersion(version, existing)
     }
 
     override fun DeploymentContext.create() {
         configure?.invoke(this)
-        client.configMaps().inNamespace(namespace).createOrReplace(configMap)
+        client.configMaps().inNamespace(resourceNamespace(configMap)).createOrReplace(configMap)
     }
 
     override fun DeploymentContext.delete() {
-        client.configMaps().inNamespace(namespace).delete(configMap)
+        client.configMaps().inNamespace(resourceNamespace(configMap)).delete(configMap)
     }
 
     override fun toString(): String = "ConfigMapResource($name, $version)"

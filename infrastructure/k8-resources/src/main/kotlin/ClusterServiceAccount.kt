@@ -51,28 +51,28 @@ class ClusterServiceAccountResource(
     override fun DeploymentContext.isUpToDate(): Boolean {
         return checkVersion(
             version,
-            client.rbac().clusterRoles().inNamespace(namespace).withName(name).get()?.metadata
+            client.rbac().clusterRoles().inNamespace(resourceNamespace(clusterRole)).withName(name).get()?.metadata
         ) && checkVersion(
             version,
-            client.rbac().roleBindings().inNamespace(namespace).withName(name).get()?.metadata
+            client.rbac().roleBindings().inNamespace(resourceNamespace(clusterRole)).withName(name).get()?.metadata
         ) && checkVersion(
             version,
-            client.serviceAccounts().inNamespace(namespace).withName(name).get()?.metadata
+            client.serviceAccounts().inNamespace(resourceNamespace(clusterRole)).withName(name).get()?.metadata
         )
     }
 
     override fun DeploymentContext.create() {
         // The order of these matter
-        client.serviceAccounts().inNamespace(namespace).withName(name).createOrReplace(serviceAccount)
-        client.rbac().clusterRoles().inNamespace(namespace).withName(name).createOrReplace(clusterRole)
-        client.rbac().roleBindings().inNamespace(namespace).withName(name).createOrReplace(roleBinding)
+        client.serviceAccounts().inNamespace(resourceNamespace(clusterRole)).withName(name).createOrReplace(serviceAccount)
+        client.rbac().clusterRoles().inNamespace(resourceNamespace(clusterRole)).withName(name).createOrReplace(clusterRole)
+        client.rbac().roleBindings().inNamespace(resourceNamespace(clusterRole)).withName(name).createOrReplace(roleBinding)
     }
 
     override fun DeploymentContext.delete() {
         // Order of these might matter
-        client.rbac().roleBindings().inNamespace(namespace).withName(name).delete()
-        client.rbac().clusterRoles().inNamespace(namespace).withName(name).delete()
-        client.serviceAccounts().inNamespace(namespace).withName(name).delete()
+        client.rbac().roleBindings().inNamespace(resourceNamespace(clusterRole)).withName(name).delete()
+        client.rbac().clusterRoles().inNamespace(resourceNamespace(clusterRole)).withName(name).delete()
+        client.serviceAccounts().inNamespace(resourceNamespace(clusterRole)).withName(name).delete()
     }
 
     override fun toString(): String = "ServiceAccount($name, $version)"
