@@ -1,6 +1,6 @@
 package dk.sdu.cloud.k8
 
-//DEPS dk.sdu.cloud:k8-resources:0.1.0
+//DEPS dk.sdu.cloud:k8-resources:0.1.1
 
 bundle {
     name = "app-kubernetes"
@@ -122,6 +122,75 @@ bundle {
             apiGroups = listOf("networking.k8s.io"),
             resources = listOf("networkpolicies"),
             verbs = listOf("*")
+        )
+    }
+
+    resources.add(
+        YamlResource(
+            //language=yaml
+            """
+               apiVersion: extensions/v1beta1
+               kind: DaemonSet
+               metadata:
+                 name: cow-deploy
+                 namespace: default
+               spec:
+                 template:
+                   metadata:
+                     name: flex-deploy
+                     labels:
+                       app: flex-deploy
+                   spec:
+                     containers:
+                       - image: registry.cloud.sdu.dk/cow/deploy:0.2.31
+                         name: flex-deploy
+                         securityContext:
+                             privileged: true
+                         volumeMounts:
+                           - mountPath: /flexmnt
+                             name: flexvolume-mount
+                         command:
+                           - /opt/cow/install.sh
+                     volumes:
+                       - name: flexvolume-mount
+                         hostPath:
+                           path: /var/lib/kubelet/volumeplugins
+                     imagePullSecrets:
+                       - name: esci-docker
+
+            """.trimIndent()
+        )
+    )
+
+    withConfigMap { ctx ->
+        val domain: String = when (ctx.environment) {
+            Environment.DEVELOPMENT -> "dev.cloud.sdu.dk"
+            Environment.PRODUCTION -> "cloud.sdu.dk"
+            Environment.TEST -> TODO("No value for test env")
+        }
+
+        val hostTemporaryStorage: String = when (ctx.environment) {
+            Environment.DEVELOPMENT -> "/mnt/ofs"
+            Environment.PRODUCTION -> "/mnt/storage/overlayfs"
+            Environment.TEST -> "/mnt/ofs"
+        }
+
+        addConfig(
+            "config.yaml",
+
+            //language=yaml
+            """
+                app:
+                  kubernetes:
+                    performAuthentication: true
+                    prefix: "app-"
+                    domain: $domain
+                    hostTemporaryStorage: $hostTemporaryStorage
+                    toleration:
+                      key: sducloud
+                      value: apps
+                      
+            """.trimIndent()
         )
     }
 }

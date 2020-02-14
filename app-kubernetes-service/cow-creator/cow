@@ -49,17 +49,23 @@ domount() {
     directory_name=$(echo $request | jq -r .directoryName)
     snapshot_path=$(echo $request | jq -r .snapshotPath)
     real_path=$(echo $request | jq -r .realPath)
+    tmp_storage=$(echo $request | jq -r .tmpStorage)
 
     if [ ! "$workspace" ]
     then
         exit 1
     fi
 
+    if [ ! "$tmp_storage" ]
+    then
+        tmp_storage="/mnt/ofs"
+    fi
+
     # Mount lower directory
     mountcephfs $request
 
     # Allocate upper and work directories
-    tmp_work="/mnt/ofs/${workspace}_${directory_name}"
+    tmp_work="${tmp_storage}/${workspace}_${directory_name}"
     mkdir -p "${tmp_work}/upper"
     mkdir -p "${tmp_work}/work"
 

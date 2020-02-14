@@ -3,7 +3,6 @@ package dk.sdu.cloud.k8
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import java.util.*
 
-
 private fun findServiceBundles(serviceArg: String): Collection<ResourceBundle> {
     if (serviceArg.isEmpty()) return BundleRegistry.listBundles()
     val bundle = BundleRegistry.getBundle(serviceArg)
@@ -11,19 +10,35 @@ private fun findServiceBundles(serviceArg: String): Collection<ResourceBundle> {
     return listOf(bundle)
 }
 
-fun runLauncher(command: LauncherCommand, args: List<String>, skipUpToDateCheck: Boolean) {
+fun runLauncher(
+    command: LauncherCommand,
+    args: List<String>,
+    skipUpToDateCheck: Boolean,
+    forceYes: Boolean,
+    environment: Environment
+) {
     try {
+        val checkmark = "✅  "
+        val question = "❓  "
+        val cross = "❌  "
+
         val scanner = Scanner(System.`in`)
         val serviceArg = args.firstOrNull() ?: ""
         val ctx = DeploymentContext(
             DefaultKubernetesClient(),
             "default",
-            if (args.size <= 1) emptyList() else args.subList(1, args.size)
+            if (args.size <= 1) emptyList() else args.subList(1, args.size),
+            environment
         )
 
         fun confirm(message: String): Boolean {
+
             while (true) {
                 print("$message [Y/n] ")
+                if (forceYes) {
+                    println("Y")
+                    return true
+                }
                 when (scanner.nextLine()) {
                     "", "y", "Y" -> return true
                     "n", "N" -> return false
@@ -33,10 +48,6 @@ fun runLauncher(command: LauncherCommand, args: List<String>, skipUpToDateCheck:
                 }
             }
         }
-
-        val checkmark = "✅  "
-        val question = "❓  "
-        val cross = "❌  "
 
         when (command) {
             LauncherCommand.UP_TO_DATE -> {

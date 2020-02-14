@@ -2,6 +2,7 @@ package dk.sdu.cloud.k8
 
 import java.io.*
 import javax.script.ScriptEngineManager
+import kotlin.system.exitProcess
 
 enum class LauncherCommand(val cmd: String) {
     UP_TO_DATE("status"),
@@ -10,16 +11,22 @@ enum class LauncherCommand(val cmd: String) {
     AD_HOC_JOB("job")
 }
 
+enum class Environment {
+    DEVELOPMENT,
+    PRODUCTION,
+    TEST
+}
+
 fun main(args: Array<String>) {
     var directory = "."
     val freeformArgs = ArrayList<String>()
     val additionalFiles = ArrayList<String>()
     val outputScript = StringBuilder()
+    var forceYes = false
+    var environment = Environment.DEVELOPMENT
 
     val engine = ScriptEngineManager().getEngineByExtension("kts")!!
     var skipUpToDateCheck = false
-
-    outputScript.appendln("package dk.sdu.cloud.k8")
 
     run {
         var i = 0
@@ -33,10 +40,28 @@ fun main(args: Array<String>) {
                 "--file" -> {
                     val file = args.getOrNull(i + 1)
                     if (file != null) additionalFiles.add(file)
+                    i++
+                }
+
+                "--yes" -> {
+                    forceYes = true
                 }
 
                 "--force" -> {
                     skipUpToDateCheck = true
+                }
+
+                "--env" -> {
+                    val envString = args.getOrNull(i + 1)
+                    i++
+
+                    val foundEnvironment = Environment.values().find { it.name.equals(envString, ignoreCase = true) }
+                    if (foundEnvironment == null) {
+                        System.err.println("Could not find environment: $envString")
+                        exitProcess(1)
+                    }
+
+                    environment = foundEnvironment
                 }
 
                 else -> {
@@ -62,6 +87,8 @@ fun main(args: Array<String>) {
         }
 
     additionalFiles.forEach { allBundles.add(File(it)) }
+
+    outputScript.appendln("package dk.sdu.cloud.k8")
 
     allBundles.forEach { file ->
         if (!file.exists()) {
@@ -92,5 +119,5 @@ fun main(args: Array<String>) {
 
     System.err.println("k8.kts files are being compiled now...")
     engine.eval(outputScript.toString())
-    runLauncher(launcherCommand, remainingArgs, skipUpToDateCheck)
+    runLauncher(launcherCommand, remainingArgs, skipUpToDateCheck, forceYes, environment)
 }

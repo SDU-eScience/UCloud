@@ -1,4 +1,4 @@
-//DEPS dk.sdu.cloud:k8-resources:0.1.0
+//DEPS dk.sdu.cloud:k8-resources:0.1.1
 package dk.sdu.cloud.k8
 
 bundle {
@@ -108,4 +108,17 @@ bundle {
             listOf("--scan") + remainingArgs
         }
     )
+
+    withConfigMap("storage-config") {
+        addConfig(
+            "config.yml",
+            //language=yaml
+            """
+                storage:
+                  filePermissionAcl:
+                  - "_share"
+ 
+            """.trimIndent()
+        )
+    }
 }

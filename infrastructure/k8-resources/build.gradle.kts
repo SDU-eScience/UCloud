@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "dk.sdu.cloud"
-version = "0.1.0"
+version = "0.1.1"
 
 repositories {
     mavenCentral()
@@ -26,6 +26,12 @@ dependencies {
     implementation("net.java.dev.jna:jna:5.5.0")
     implementation("io.fabric8:kubernetes-client:4.6.4")
     implementation("org.slf4j:slf4j-simple:1.7.25")
+
+    val jacksonVersion = "2.10.0.pr3"
+    implementation("com.fasterxml.jackson.core:jackson-core:$jacksonVersion")
+    implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
+    implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
 }
 
 task<JavaExec>("runApp") {

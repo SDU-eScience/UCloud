@@ -21,7 +21,7 @@ data class PreparedWorkspace(
 }
 
 
-class WorkspaceService {
+class WorkspaceService(private val hostTemporaryStorage: String) {
     fun prepare(job: VerifiedJob): PreparedWorkspace {
         return when (job.mountMode ?: MountMode.COPY_FILES) {
             MountMode.COPY_FILES -> prepareCopyFiles(job)
@@ -93,7 +93,8 @@ class WorkspaceService {
                             "workspace" to workspaceId,
                             "directoryName" to snapshot.directoryName,
                             "snapshotPath" to snapshot.snapshotPath,
-                            "realPath" to snapshot.realPath
+                            "realPath" to snapshot.realPath,
+                            "tmpStorage" to hostTemporaryStorage
                         )
                     }
                 }

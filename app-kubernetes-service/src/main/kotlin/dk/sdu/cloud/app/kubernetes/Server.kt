@@ -68,7 +68,7 @@ class Server(override val micro: Micro, private val configuration: Configuration
         val networkPolicyService = NetworkPolicyService(k8Dependencies)
         val sharedFileSystemMountService = SharedFileSystemMountService()
         val hostAliasesService = HostAliasesService(k8Dependencies)
-        val workspaceService = WorkspaceService()
+        val workspaceService = WorkspaceService(configuration.hostTemporaryStorage)
 
         val logService = K8LogService(k8Dependencies)
         val jobMonitoringService = K8JobMonitoringService(
