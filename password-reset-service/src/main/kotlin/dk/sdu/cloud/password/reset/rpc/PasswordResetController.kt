@@ -1,19 +1,17 @@
 package dk.sdu.cloud.password.reset.rpc
 
-import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.password.reset.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.password.reset.services.PasswordResetService
 import dk.sdu.cloud.service.Loggable
 
-class PasswordResetController : Controller {
-    override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        implement(PasswordResetDescriptions.example) {
-            val user = ctx.securityPrincipal.username
-            log.info("We automatically log calls and user (but this is how you do it $user")
+class PasswordResetController(passwordResetService: PasswordResetService) : Controller {
+    private val resetService = passwordResetService
 
-            ok(ExampleResponse(request.message))
+    override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
+        implement(PasswordResetDescriptions.reset) {
+            ok(resetService.createReset(request.email))
         }
         return@configure
     }

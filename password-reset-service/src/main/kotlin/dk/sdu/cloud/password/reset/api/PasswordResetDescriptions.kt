@@ -2,6 +2,7 @@ package dk.sdu.cloud.password.reset.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
@@ -9,14 +10,14 @@ import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
-data class ExampleRequest(val message: String)
-data class ExampleResponse(val echo: String)
+data class PasswordResetRequest(val email: String)
 
 object PasswordResetDescriptions : CallDescriptionContainer("password.reset") {
     val baseContext = "/api/password/reset"
 
-    val example = call<ExampleRequest, ExampleResponse, CommonErrorMessage>("example") {
+    val reset = call<PasswordResetRequest, Unit, CommonErrorMessage>("reset") {
         auth {
+            roles = Roles.PUBLIC
             access = AccessRight.READ
         }
 
@@ -25,7 +26,6 @@ object PasswordResetDescriptions : CallDescriptionContainer("password.reset") {
 
             path {
                 using(baseContext)
-                +"example"
             }
 
             body { bindEntireRequestFromBody() }
