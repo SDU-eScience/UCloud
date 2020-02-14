@@ -145,6 +145,26 @@ class ApplicationTest {
     }
 
     @Test
+    fun `Create simple Enum App Param`() {
+        val enum = ApplicationParameter.Enumeration(
+            "enumName",
+            false,
+            EnumerationApplicationParameter("value"),
+            "title",
+            "description",
+            listOf(ApplicationParameter.EnumOption("Bash", "0"), ApplicationParameter.EnumOption("Fish", "1"))
+        )
+
+        assertEquals(false, enum.optional)
+        assertEquals("enumeration", enum.type)
+        assertEquals("title", enum.title)
+        assertEquals("description", enum.description)
+
+        val arg = enum.toInvocationArgument(enum.defaultValue!!)
+        assertEquals("value", arg)
+    }
+
+    @Test
     fun `Create simple Bool App Param`() {
         val boolParam = ApplicationParameter.Bool(
             "boolName",

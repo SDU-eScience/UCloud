@@ -44,7 +44,7 @@ export class OptionalParameters extends React.Component<OptionalParametersProps,
         this.initFuse();
     }
 
-    public componentDidUpdate(prevProps: OptionalParametersProps) {
+    public componentDidUpdate(prevProps: OptionalParametersProps): void {
         if (this.props.parameters !== prevProps.parameters) {
             this.initFuse();
             const current = this.searchField.current;
@@ -52,7 +52,7 @@ export class OptionalParameters extends React.Component<OptionalParametersProps,
         }
     }
 
-    public render() {
+    public render(): JSX.Element {
         const {onUse} = this.props;
         const {results} = this.state;
         const components = results.map((p, i) => <OptionalParameter key={i} parameter={p} onUse={() => onUse(p)} />);
@@ -65,7 +65,7 @@ export class OptionalParameters extends React.Component<OptionalParametersProps,
                     </Box>
                     <Box flexShrink={0}>
                         <Input
-                            placeholder={"Search..."}
+                            placeholder="Search..."
                             ref={this.searchField}
                             onChange={e => this.search(e.target.value)}
                         />
@@ -76,7 +76,7 @@ export class OptionalParameters extends React.Component<OptionalParametersProps,
         );
     }
 
-    private initFuse() {
+    private initFuse(): void {
         this.fuse = new Fuse(this.props.parameters, {
             shouldSort: true,
             threshold: 0.6,
@@ -91,7 +91,7 @@ export class OptionalParameters extends React.Component<OptionalParametersProps,
         });
     }
 
-    private search(searchTerm: string) {
+    private search(searchTerm: string): void {
         if (this.currentTimeout !== -1) clearTimeout(this.currentTimeout);
 
         if (searchTerm === "") {
@@ -150,12 +150,12 @@ class OptionalParameter extends React.Component<OptionalParameterProps, {open: b
         const {parameter, onUse} = this.props;
         const {open} = this.state;
 
-        const toggleOpen = (e: {preventDefault: () => void}) => {
+        const toggleOpen = (e: {preventDefault: () => void}): void => {
             e.preventDefault();
             this.setState({open: !open});
         };
 
-        const use = (e: SyntheticEvent<HTMLButtonElement>) => {
+        const use = (e: SyntheticEvent<HTMLButtonElement>): void => {
             e.stopPropagation();
             e.preventDefault();
             onUse();

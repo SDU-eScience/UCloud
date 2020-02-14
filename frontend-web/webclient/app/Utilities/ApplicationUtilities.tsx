@@ -46,19 +46,19 @@ export function advancedSearchQuery(): string {
     return "/hpc/apps/advancedSearch";
 }
 
-export const hpcFavoriteApp = (name: string, version: string) =>
+export const hpcFavoriteApp = (name: string, version: string): string =>
     `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
 
-export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
+export const hpcApplicationsQuery = (page: number, itemsPerPage: number): string =>
     `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const cancelJobQuery = `hpc/jobs`;
 
 export const cancelJobDialog = (
     {jobId, onConfirm, jobCount = 1}: {
-        jobCount?: number,
-        jobId: string,
-        onConfirm: () => void
+        jobCount?: number;
+        jobId: string;
+        onConfirm: () => void;
     }
 ): void =>
     addStandardDialog({
@@ -69,17 +69,17 @@ export const cancelJobDialog = (
         onConfirm
     });
 
-export const cancelJob = (client: HttpClient, jobId: string): Promise<{request: XMLHttpRequest, response: void}> =>
+export const cancelJob = (client: HttpClient, jobId: string): Promise<{request: XMLHttpRequest; response: void}> =>
     client.delete(cancelJobQuery, {jobId});
 
-export function isRunExpired(run: JobWithStatus) {
+export function isRunExpired(run: JobWithStatus): boolean {
     return run.status === "Job did not complete within deadline.";
 }
 
 interface FavoriteApplicationFromPage<T> {
     name: string;
     version: string;
-    page: Page<{metadata: ApplicationMetadata, favorite: boolean} & T>;
+    page: Page<{metadata: ApplicationMetadata; favorite: boolean} & T>;
     client: HttpClient;
 }
 
@@ -144,7 +144,8 @@ export const findKnownParameterValues = ({
     return extractedParameters;
 };
 
-export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
+export const isFileOrDirectoryParam = ({type}: {type: string}): boolean =>
+    type === "input_file" || type === "input_directory";
 
 
 type ParameterValueTypes = string | [number, number] | boolean | {source: string};
@@ -162,6 +163,9 @@ const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes):
             return typeof parseFloat(parameter as string) === "number";
         case ParameterTypes.Range:
             return typeof parameter === "object" && "size" in parameter;
+        case ParameterTypes.Enumeration:
+            /* FIXME: Need we do more? */
+            return typeof parameter === "string";
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
             return typeof parameter === "string" || "source" in (parameter as any);
@@ -218,6 +222,11 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                         default:
                             return;
                     }
+                case ParameterTypes.Enumeration:
+                    if (parameter.options.map(it => it.value).includes(r.current.value)) {
+                        extracted[key] = r.current.value;
+                    }
+                    return;
                 case ParameterTypes.Integer:
                     extracted[key] = parseInt(r.current.value, 10);
                     return;
@@ -234,7 +243,8 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                     extracted[key] = {jobId: r.current.value};
                     return;
                 case ParameterTypes.LicenseServer:
-                    extracted[key] = r.current.value
+                    extracted[key] = r.current.value;
+                    return;
             }
         } else {
             if (parameter.type === ParameterTypes.Range) {
@@ -247,12 +257,12 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
     return extracted;
 }
 
+/* FIXME: Shouldn't [JobState.Validated, JobState.Prepared, JobState.Scheduled, JobState.Running].includes(state) work? */
 export const inCancelableState = (state: JobState): boolean =>
     state === JobState.VALIDATED ||
     state === JobState.PREPARED ||
     state === JobState.SCHEDULED ||
     state === JobState.RUNNING;
-
 
 export function validateOptionalFields(
     invocation: ApplicationInvocationDescription,
@@ -266,6 +276,9 @@ export function validateOptionalFields(
         const {current} = parameters.get(it.name)!;
         if (current == null || !("checkValidity" in current)) return;
         if (("checkValidity" in current! && !current!.checkValidity())) optionalErrors.push(it.title);
+
+        /* FIXME/ERROR/TODO */
+        // Do we need to do anything for enumeration?
     });
 
     if (optionalErrors.length > 0) {
@@ -276,7 +289,6 @@ export function validateOptionalFields(
         );
         return false;
     }
-
     return true;
 }
 
@@ -290,7 +302,7 @@ export function checkForMissingParameters(
     requiredParams.forEach(rParam => {
         const parameterValue = parameters[rParam.name];
         if (parameterValue == null) missingParameters.push(rParam.title);
-        else if ([PT.Boolean, PT.FloatingPoint, PT.Integer, PT.Text].includes[rParam.type] &&
+        else if ([PT.Boolean, PT.FloatingPoint, PT.Integer, PT.Text, PT.Enumeration].includes[rParam.type] &&
             !["number", "string", "boolean"].includes(typeof parameterValue)) {
             missingParameters.push(rParam.title);
         } else if (rParam.type === ParameterTypes.InputDirectory || rParam.type === ParameterTypes.InputFile) {
