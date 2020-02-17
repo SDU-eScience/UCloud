@@ -40,7 +40,6 @@ import {
     Top,
     TopAccessory
 } from "UserSettings/AvatarOptions";
-import Avatar from "./avatar";
 export {default as Avatar, AvatarStyle} from "./avatar";
 
 export interface AvatarComponentProps {
@@ -64,6 +63,3 @@ export interface AvatarComponentProps {
     viewBox?: string;
 }
 
-export default function AvatarComponent(props: AvatarComponentProps): JSX.Element {
-    return <Avatar {...props} />;
-}

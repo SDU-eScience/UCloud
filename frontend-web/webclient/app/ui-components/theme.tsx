@@ -261,12 +261,7 @@ export const invertedColors = {
     borderGray: "#111"
 };
 
-/**
-* @deprecated - end
-*/
-
 export type ThemeColor = keyof typeof colors;
-
 
 export {colors};
 

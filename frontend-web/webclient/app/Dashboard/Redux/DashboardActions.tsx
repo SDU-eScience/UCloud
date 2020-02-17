@@ -1,4 +1,4 @@
-import {Analysis} from "Applications";
+import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {File} from "Files";
 import {Action} from "redux";
@@ -102,12 +102,12 @@ export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Act
         return setErrorMessage(DASHBOARD_RECENT_JOBS_ERROR, errorMessageOrDefault(err, "An error occurred fetching recent analyses."));
     }
 };
-type ReceiveRecentAnalyses = PayloadAction<typeof RECEIVE_RECENT_JOBS, {content: Analysis[]}>;
+type ReceiveRecentAnalyses = PayloadAction<typeof RECEIVE_RECENT_JOBS, {content: JobWithStatus[]}>;
 /**
  * Returns an action containing most recently updated analyses
- * @param {Analyses[]} content The list of recently updated analyses
+ * @param {JobState[]} content The list of recently updated analyses
  */
-export const receiveRecentAnalyses = (content: Analysis[]): ReceiveRecentAnalyses => ({
+export const receiveRecentAnalyses = (content: JobWithStatus[]): ReceiveRecentAnalyses => ({
     type: RECEIVE_RECENT_JOBS,
     payload: {content}
 });

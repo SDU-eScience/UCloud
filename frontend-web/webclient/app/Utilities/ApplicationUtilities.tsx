@@ -49,9 +49,6 @@ export function advancedSearchQuery(): string {
 export const hpcFavoriteApp = (name: string, version: string): string =>
     `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
 
-export const hpcApplicationsQuery = (page: number, itemsPerPage: number): string =>
-    `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
-
 export const cancelJobQuery = `hpc/jobs`;
 
 export const cancelJobDialog = (
@@ -86,7 +83,7 @@ interface FavoriteApplicationFromPage<T> {
 /**
  * Favorites an application.
  * @param {Application} Application the application to be favorited
- * @param {Cloud} cloud The cloud instance for requests
+ * @param {HttpClient} client The http client instance for requests
  */
 export async function favoriteApplicationFromPage<T>({
     name,

@@ -4,8 +4,6 @@ import {NotificationActions} from "./NotificationsActions";
 export const RECEIVE_SINGLE_NOTIFICATION = "RECEIVE_SINGLE_NOTIFICATION";
 export const RECEIVE_NOTIFICATIONS = "RECEIVE_NOTIFICATIONS";
 export const NOTIFICATION_READ = "NOTIFICATION_READ";
-export const SET_REDIRECT = "SET_REDIRECT";
-export const SET_NOTIFICATIONS_ERROR = "SET_NOTIFICATIONS_ERROR";
 export const NOTIFICATIONS_ERROR = "NOTIFICATIONS_ERROR";
 export const READ_ALL = "READ_ALL";
 
@@ -14,7 +12,6 @@ const Notifications = (
     action: NotificationActions
 ): NotificationsReduxObject => {
     switch (action.type) {
-        case SET_REDIRECT:
         case RECEIVE_NOTIFICATIONS: {
             return {...state, ...action.payload};
         }

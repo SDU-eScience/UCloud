@@ -340,9 +340,6 @@ export const reclassifyFile = async ({file, sensitivity, client}: ReclassifyFile
     return {...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity};
 };
 
-export const toFileText = (selectedFiles: File[]): string =>
-    `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`;
-
 export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
 export const expandHomeFolder = (path: string, homeFolder: string): string => {

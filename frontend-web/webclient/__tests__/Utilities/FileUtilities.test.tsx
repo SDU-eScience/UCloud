@@ -1,17 +1,8 @@
 import {
     getFilenameFromPath,
     replaceHomeFolder,
-    sizeToString,
-    toFileText,
+    sizeToString
 } from "../../app/Utilities/FileUtilities";
-import {mockFilesSensitivityConfidential} from "../mock/Files";
-
-describe("To file text", () => {
-    test("Single file", () => {
-        const firstFile = mockFilesSensitivityConfidential.items[0];
-        expect(toFileText([firstFile])).toBe("1 file selected");
-    });
-});
 
 describe("File size to string", () => {
     test("0 bytes to string", () =>

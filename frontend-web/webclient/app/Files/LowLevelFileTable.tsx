@@ -1034,7 +1034,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations): JSX.
         let As: StyledComponent<any, any>;
         if (fileOperations.length === 1) {
             As = OutlineButton;
-        } else if (props.inDropdown === true) {
+        } else if (props.inDropdown) {
             As = Box;
         } else {
             if (fileOp.currentDirectoryMode === true) {

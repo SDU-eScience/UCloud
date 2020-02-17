@@ -9,7 +9,6 @@ import {
     width,
     WidthProps
 } from "styled-system";
-import {Theme} from "./theme";
 import {Cursor} from "./Types";
 
 export const Table = styled.table<WidthProps & MinWidthProps & ColorProps>`

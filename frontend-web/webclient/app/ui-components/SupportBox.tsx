@@ -6,7 +6,7 @@ import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as Heading from "ui-components/Heading";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {PRODUCT_NAME, SITE_DOCUMENTATION_URL} from "../../site.config.json";
+import {SITE_DOCUMENTATION_URL} from "../../site.config.json";
 import Box from "./Box";
 import Button from "./Button";
 import ClickableDropdown from "./ClickableDropdown";

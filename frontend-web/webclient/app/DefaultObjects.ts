@@ -59,14 +59,6 @@ export interface ResponsiveReduxObject {
     is: Record<string, boolean>;
 }
 
-export const initResponsive = (): ResponsiveReduxObject => ({
-    mediaType: "",
-    orientation: "",
-    lessThan: {},
-    greaterThan: {},
-    is: {},
-});
-
 export interface FileInfoReduxObject {
     error?: string;
     activity: Page<Activity>;
@@ -126,8 +118,6 @@ interface LegacyReducers {
     sidebar?: Reducer<SidebarReduxObject>;
     activity?: Reducer<ActivityReduxObject>;
 }
-
-export type Reducers = LegacyReducers & ApplicationRedux.Reducers & AccountingRedux.Reducers;
 
 /* FIXME */
 interface LegacyReduxObject {

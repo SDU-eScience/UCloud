@@ -8,10 +8,6 @@ const SelectableTextWrapper = styled(Flex)`
     cursor: pointer;
 `;
 
-SelectableTextWrapper.defaultProps = {
-    theme
-};
-
 const SelectableText = styled(Text) <{selected: boolean}>`
     border-bottom: ${props => props.selected ? `3px solid ${theme.colors.blue}` : ""};
 `;

@@ -1,6 +1,6 @@
 import {HeaderSearchType} from "DefaultObjects";
 import {PayloadAction} from "Types";
-import {CONTEXT_SWITCH, SET_PRIORITIZED_SEARCH, SET_REFRESH_FUNCTION, USER_LOGIN, USER_LOGOUT} from "./HeaderReducer";
+import {SET_PRIORITIZED_SEARCH, SET_REFRESH_FUNCTION, USER_LOGIN, USER_LOGOUT} from "./HeaderReducer";
 
 export type HeaderActions = SetPrioritizedSearchAction | SetRefreshFunction;
 
@@ -24,9 +24,4 @@ export const logout = (): UserLogOut => ({
 interface UserLogIn {type: typeof USER_LOGIN}
 export const login = (): UserLogIn => ({
     type: USER_LOGIN
-});
-
-interface ContextSwitch {type: typeof CONTEXT_SWITCH}
-export const contextSwitch = (): ContextSwitch => ({
-    type: CONTEXT_SWITCH
 });

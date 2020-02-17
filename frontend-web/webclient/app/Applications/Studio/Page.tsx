@@ -34,7 +34,6 @@ interface StudioOperations {
 }
 
 const Studio: React.FunctionComponent<StudioOperations> = props => {
-    if (Client.userRole !== "ADMIN") return null;
 
     const [tools, setToolParameters, toolParameters] =
         useCloudAPI<Page<ToolReference>>(listTools({page: 0, itemsPerPage: 50}), emptyPage);
@@ -51,6 +50,8 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
     useEffect(() => {
         props.setLoading(tools.loading);
     }, [tools.loading]);
+
+    if (Client.userRole !== "ADMIN") return null;
 
     return (
         <MainContainer

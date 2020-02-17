@@ -77,8 +77,7 @@ export async function callAPIWithErrorHandler<T>(
     parameters: APICallParameters
 ): Promise<T | null> {
     try {
-        const res = await callAPI<T>(parameters);
-        return res;
+        return await callAPI<T>(parameters);
     } catch (e) {
         defaultErrorHandler(e);
         return null;
