@@ -14,39 +14,39 @@ import dk.sdu.cloud.app.store.api.SharedFileSystemType
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.StringApplicationParameter
 import org.junit.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class JobComparatorTest {
 
     @Test
     fun `compare same job`() {
-        val jc = JobComparator()
-        assertTrue(jc.jobsEqual(verifiedJob, verifiedJob))
+        assertEquals(verifiedJob, verifiedJob)
     }
 
     @Test
     fun `compare different jobs`() {
-        val jc = JobComparator()
 
         //Test compare with different maxTime, nodes, tasksPerNode.
         run {
             val jobNodes = verifiedJobForTestGenerator(nodes = 2)
             val jobTasksPerNode = verifiedJobForTestGenerator(tasksPerNode = 2)
             val jobTime = verifiedJobForTestGenerator(maxTime = SimpleDuration(1,1,0))
-            assertTrue(jc.jobsEqual(verifiedJob, verifiedJob))
-            assertFalse(jc.jobsEqual(verifiedJob, jobNodes))
-            assertFalse(jc.jobsEqual(verifiedJob, jobTasksPerNode))
-            assertFalse(jc.jobsEqual(verifiedJob, jobTime))
+            assertEquals(verifiedJob, verifiedJob)
+            assertNotEquals(verifiedJob, jobNodes)
+            assertNotEquals(verifiedJob, jobTasksPerNode)
+            assertNotEquals(verifiedJob, jobTime)
         }
 
         //Test compare with different mount modes.
         run {
             val jobCopy = verifiedJobForTestGenerator(mountMode = MountMode.COPY_FILES)
             val jobCOW = verifiedJobForTestGenerator(mountMode = MountMode.COPY_ON_WRITE)
-            assertFalse(jc.jobsEqual(verifiedJob, jobCOW))
-            assertFalse(jc.jobsEqual(verifiedJob, jobCopy))
-            assertFalse(jc.jobsEqual(jobCOW, jobCopy))
+            assertNotEquals(verifiedJob, jobCOW)
+            assertNotEquals(verifiedJob, jobCopy)
+            assertNotEquals(jobCOW, jobCopy)
         }
 
         //Test compare with different reservations.
@@ -55,22 +55,18 @@ class JobComparatorTest {
             val jobReservation2 = verifiedJobForTestGenerator(reservation = MachineReservation("L", 100, 2000))
             val jobReservation3 = verifiedJobForTestGenerator(reservation = MachineReservation("XL", 10, 2000))
             val jobReservation4 = verifiedJobForTestGenerator(reservation = MachineReservation("XL", 100, 10))
-            assertTrue(jc.jobsEqual(jobReservation, jobReservation))
-            assertFalse(jc.jobsEqual(verifiedJob, jobReservation))
-            assertFalse(jc.jobsEqual(jobReservation, jobReservation2))
-            assertFalse(jc.jobsEqual(jobReservation, jobReservation3))
-            assertFalse(jc.jobsEqual(jobReservation, jobReservation4))
+            assertEquals(jobReservation, jobReservation)
+            assertNotEquals(verifiedJob, jobReservation)
+            assertNotEquals(jobReservation, jobReservation2)
+            assertNotEquals(jobReservation, jobReservation3)
+            assertNotEquals(jobReservation, jobReservation4)
         }
 
         //Test compare with different workspace and project.
         run {
             val jobProject = verifiedJobForTestGenerator(project = "thisProject")
-            val jobWorkspace = verifiedJobForTestGenerator(workspace = "thisWorkspace")
-            assertTrue(jc.jobsEqual(jobProject, jobProject))
-            assertFalse(jc.jobsEqual(jobProject, jobWorkspace))
-            assertTrue(jc.jobsEqual(jobWorkspace, jobWorkspace))
-            assertFalse(jc.jobsEqual(verifiedJob, jobProject))
-            assertFalse(jc.jobsEqual(verifiedJob, jobWorkspace))
+            assertEquals(jobProject, jobProject)
+            assertNotEquals(verifiedJob, jobProject)
         }
 
         //Test compare with different upload files.
@@ -82,10 +78,10 @@ class JobComparatorTest {
                 validatedFileForUpload.copy(id = "fileID2")
             ))
 
-            assertFalse(jc.jobsEqual(verifiedJob, newJobSingleFile))
-            assertTrue(jc.jobsEqual(newJobSingleFile, newJobSingleFile))
-            assertFalse(jc.jobsEqual(newJobSingleFile, newJobSingleFile2))
-            assertFalse(jc.jobsEqual(newJobDoubleFile, newJobSingleFile))
+            assertNotEquals(verifiedJob, newJobSingleFile)
+            assertEquals(newJobSingleFile, newJobSingleFile)
+            assertNotEquals(newJobSingleFile, newJobSingleFile2)
+            assertNotEquals(newJobDoubleFile, newJobSingleFile)
 
         }
 
@@ -100,10 +96,10 @@ class JobComparatorTest {
                 )
             )
 
-            assertTrue(jc.jobsEqual(newJobMounts, newJobMounts))
-            assertFalse(jc.jobsEqual(newJobMounts, newJobMounts2))
-            assertFalse(jc.jobsEqual(newJobMounts2, newJobDoubleMount))
-            assertTrue(jc.jobsEqual(newJobDoubleMount, newJobDoubleMount))
+            assertEquals(newJobMounts, newJobMounts)
+            assertNotEquals(newJobMounts, newJobMounts2)
+            assertNotEquals(newJobMounts2, newJobDoubleMount)
+            assertEquals(newJobDoubleMount, newJobDoubleMount)
         }
         //Test compare with different peers
         run {
@@ -116,10 +112,10 @@ class JobComparatorTest {
                 )
             )
 
-            assertTrue(jc.jobsEqual(newJobPeers, newJobPeers))
-            assertFalse(jc.jobsEqual(newJobPeers, newJobPeers2))
-            assertFalse(jc.jobsEqual(newJobPeers2, newJobDoublePeers))
-            assertTrue(jc.jobsEqual(newJobDoublePeers, newJobDoublePeers))
+            assertEquals(newJobPeers, newJobPeers)
+            assertNotEquals(newJobPeers, newJobPeers2)
+            assertNotEquals(newJobPeers2, newJobDoublePeers)
+            assertEquals(newJobDoublePeers, newJobDoublePeers)
         }
 
         //Test compare with different system mounts
@@ -179,10 +175,10 @@ class JobComparatorTest {
                 ))
             )
 
-            assertTrue(jc.jobsEqual(newJobMounts, newJobMounts))
-            assertFalse(jc.jobsEqual(newJobMounts, newJobMounts2))
-            assertFalse(jc.jobsEqual(newJobMounts2, newJobDoubleMount))
-            assertTrue(jc.jobsEqual(newJobDoubleMount, newJobDoubleMount))
+            assertEquals(newJobMounts, newJobMounts)
+            assertNotEquals(newJobMounts, newJobMounts2)
+            assertNotEquals(newJobMounts2, newJobDoubleMount)
+            assertEquals(newJobDoubleMount, newJobDoubleMount)
         }
 
         //Test compare with different job input
@@ -225,12 +221,12 @@ class JobComparatorTest {
                 )
             )
 
-            assertTrue(jc.jobsEqual(newJobInput, newJobInput))
-            assertTrue(jc.jobsEqual(newJobInput3, newJobInput3))
-            assertFalse(jc.jobsEqual(newJobInput, newJobInput2))
-            assertFalse(jc.jobsEqual(newJobInput2, newJobInput3))
-            assertTrue(jc.jobsEqual(newJobInput3, newJobInput4))
-            assertFalse(jc.jobsEqual(newJobInput, newJobInput5))
+            assertEquals(newJobInput, newJobInput)
+            assertEquals(newJobInput3, newJobInput3)
+            assertNotEquals(newJobInput, newJobInput2)
+            assertNotEquals(newJobInput2, newJobInput3)
+            assertEquals(newJobInput3, newJobInput4)
+            assertNotEquals(newJobInput, newJobInput5)
 
         }
     }

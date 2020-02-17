@@ -170,7 +170,6 @@ class JobOrchestrator<DBSession>(
         securityPrincipalToken: SecurityPrincipalToken,
         jobWithToken: VerifiedJobWithAccessToken
     ): Boolean {
-        val jobComparator = JobComparator()
         val jobs = runBlocking {
             findLast10JobsForUser(
                 securityPrincipalToken,
@@ -179,14 +178,8 @@ class JobOrchestrator<DBSession>(
             )
         }
 
-        //Ignore jobs that are done or older than 5 min.
-        val ignoreIfJobInStates = listOf(JobState.CANCELING, JobState.FAILURE, JobState.SUCCESS, JobState.TRANSFER_SUCCESS)
-        val minutesInPast = System.currentTimeMillis() - (5 * 60 * 1000L)
         jobs.forEach { storedJob ->
-            if (ignoreIfJobInStates.contains(storedJob.job.currentState) || storedJob.job.createdAt < minutesInPast) {
-                return@forEach
-            }
-            if (jobComparator.jobsEqual(storedJob.job, jobWithToken.job)) {
+            if (storedJob.job == jobWithToken.job) {
                 return true
             }
         }
@@ -436,20 +429,19 @@ class JobOrchestrator<DBSession>(
         return jobWithToken.job
     }
 
-    suspend fun findLast10JobsForUser(
+    private suspend fun findLast10JobsForUser(
         securityPrincipalToken: SecurityPrincipalToken,
         application: String,
         version: String
     ): List<VerifiedJobWithAccessToken> {
         return db.withTransaction { session ->
-            jobDao.list(
+            jobDao.list10LatestActiveJobsOfApplication(
                 session,
                 securityPrincipalToken,
-                NormalizedPaginationRequest(10, 0),
-                application = application,
-                version = version
+                application,
+                version
             )
-        }.items
+        }
     }
 
     suspend fun removeExpiredJobs() {

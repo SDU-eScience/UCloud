@@ -173,4 +173,59 @@ data class VerifiedJob(
         get() = _sharedFileSystemMounts ?: emptyList()
 
     override fun toString() = "VerifiedJob(${application.metadata.name}@${application.metadata.version})"
+
+    override fun equals(other: Any?): Boolean {
+        if (other is VerifiedJob) {
+            //Check time and node settings
+            if (this.maxTime != other.maxTime) {
+                return false
+            }
+            if (this.nodes != other.nodes) {
+                return false
+            }
+            if (this.tasksPerNode != other.tasksPerNode) {
+                return false
+            }
+
+            //Check mountMode
+            if (this.mountMode != null || other.mountMode != null) {
+                if (this.mountMode?.name != other.mountMode?.name) {
+                    return false
+                }
+            }
+            //Check reservation
+            if (this.reservation != other.reservation) {
+                return false
+            }
+            // Check project
+            if (this.project != other.project) {
+                return false
+            }
+            //Check files
+            if (this.files.toSet() != other.files.toSet()) {
+                return false
+            }
+            //Check Mounts
+            if (this.mounts.toSet() !=  other.mounts.toSet()) {
+                return false
+            }
+
+            //Checking Peers
+            if (this.peers.toSet() !=  other.peers.toSet()) {
+                return false
+            }
+
+            //Check Shared File System mounts
+            if (this.sharedFileSystemMounts != other.sharedFileSystemMounts) {
+                return false
+            }
+
+            //Checking jobInput
+            if (this.jobInput.backingData != other.jobInput.backingData) {
+                return false
+            }
+            return true
+        }
+        return false
+    }
 }

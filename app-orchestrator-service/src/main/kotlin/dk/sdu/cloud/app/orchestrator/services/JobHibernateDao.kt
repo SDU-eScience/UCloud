@@ -16,6 +16,7 @@ import dk.sdu.cloud.app.store.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.file.api.CowWorkspace
+import dk.sdu.cloud.indexing.api.AllOf
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -412,6 +413,29 @@ class JobHibernateDao(
                 )
             }
         ).mapItemsNotNull { it.toModel() }
+    }
+
+    override suspend fun list10LatestActiveJobsOfApplication(
+        session: HibernateSession,
+        owner: SecurityPrincipalToken,
+        application: String,
+        version: String
+    ): List<VerifiedJobWithAccessToken> {
+        val validStates = listOf(JobState.SCHEDULED, JobState.RUNNING, JobState.PREPARED, JobState.VALIDATED)
+        return session.criteria<JobInformationEntity> (
+            orderBy = {
+                listOf(descending(entity[JobInformationEntity::createdAt]))
+            },
+            predicate = {
+                allOf(
+                    entity[JobInformationEntity::state] isInCollection validStates,
+                    entity[JobInformationEntity::application][EmbeddedNameAndVersion::name] equal application,
+                    entity[JobInformationEntity::application][EmbeddedNameAndVersion::version] equal version,
+                    entity[JobInformationEntity::owner] equal owner.realUsername()
+                )
+            }
+        ).resultList.take(10).mapNotNull { it.toModel() }
+
     }
 
     private inline fun <T, R : Any> Page<T>.mapItemsNotNull(mapper: (T) -> R?): Page<R> {
