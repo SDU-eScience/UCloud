@@ -236,10 +236,12 @@ class UserHibernateDAO(
         return usersWeFound + nullEntries
     }
 
-    override fun emailExists(session: HibernateSession, email: String): Boolean {
-        return session
-            .criteria<PersonEntity> { entity[PersonEntity::email] equal email }
-            .list().length > 0
+    override fun findEmail(session: HibernateSession, id: String): String? {
+        val user = session
+            .criteria<PersonEntity> { entity[PersonEntity::id] equal id }
+            .singleResult
+
+        return user.email
     }
 
     override fun findAllByUIDs(session: HibernateSession, uids: List<Long>): Map<Long, Principal?> {

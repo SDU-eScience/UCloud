@@ -7,12 +7,12 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.mail.rpc.*
 import dk.sdu.cloud.mail.services.MailService
 
-class Server(override val micro: Micro) : CommonServer {
+class Server(private val config: MailConfiguration, override val micro: Micro) : CommonServer {
     override val log = logger()
 
     override fun start() {
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val mailService = MailService(authenticatedClient)
+        val mailService = MailService(authenticatedClient, config.fromAddress, config.whitelist)
         with(micro.server) {
             configureControllers(
                 MailController(mailService)

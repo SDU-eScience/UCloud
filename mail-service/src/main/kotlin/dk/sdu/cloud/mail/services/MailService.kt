@@ -1,32 +1,33 @@
 package dk.sdu.cloud.mail.services
 
-import dk.sdu.cloud.auth.api.EmailExistsRequest
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.auth.api.LookupEmailRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import io.ktor.http.HttpStatusCode
 import javax.mail.*
 import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeMessage
 
-class MailService(private val authenticatedClient: AuthenticatedClient) {
-    private val from = "support@escience.sdu.dk"
+class MailService(
+    private val authenticatedClient: AuthenticatedClient,
+    private val fromAddress: String,
+    private val whitelist: List<String>
+) {
+    suspend fun send(principal: SecurityPrincipal, recipient: String, subject: String, text: String) {
+        if (principal.username !in whitelist) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
+        }
 
-    suspend fun send(recipient: String, subject: String, text: String) {
-
-        val emailCheck = UserDescriptions.emailExists.call(
-            EmailExistsRequest(recipient),
+        val getEmail = UserDescriptions.lookupEmail.call(
+            LookupEmailRequest(recipient),
             authenticatedClient
         ).orThrow()
 
-        val recipientAddress = if (emailCheck.exists) {
-            InternetAddress(recipient)
-        } else {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "User with given email address does not exist")
-        }
+        val recipientAddress = InternetAddress(getEmail.email)
 
         // Setup mail server
         val properties = System.getProperties()
@@ -38,7 +39,7 @@ class MailService(private val authenticatedClient: AuthenticatedClient) {
         try {
             val message = MimeMessage(session)
 
-            message.setFrom(InternetAddress(from))
+            message.setFrom(InternetAddress(fromAddress))
 
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
 

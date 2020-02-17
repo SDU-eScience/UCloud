@@ -8,7 +8,6 @@ import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.ServiceAgreementText
 import dk.sdu.cloud.auth.api.installAuth
-import dk.sdu.cloud.auth.services.SLAService
 import dk.sdu.cloud.auth.services.Service
 import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.ServiceMode
