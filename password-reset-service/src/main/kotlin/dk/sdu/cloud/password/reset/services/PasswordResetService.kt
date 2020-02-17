@@ -1,10 +1,30 @@
 package dk.sdu.cloud.password.reset.services
 
-class PasswordResetService {
+import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.withTransaction
+import io.ktor.util.encodeBase64
+import java.security.SecureRandom
+
+class PasswordResetService<Session>(
+    private val db: DBSessionFactory<Session>,
+    private val resetRequestsDao: ResetRequestsDao<Session>
+) {
+
+    @io.ktor.util.InternalAPI
     fun createReset(email: String) {
-        // TODO Generate token
+        // TODO Check if user exists (missing end-point)
+
+        // Generate token
+        val secureRandom = SecureRandom()
+        val token = ByteArray(128).also { secureRandom.nextBytes(it) }.encodeBase64()
+
         // TODO Save in DB
+        db.withTransaction {session ->
+            resetRequestsDao.create(session, token, userId)
+        }
+
         // TODO Send email to user
+
     }
 
     fun renewPassword(newPassword: String) {

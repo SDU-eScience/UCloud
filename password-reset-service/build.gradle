@@ -8,7 +8,8 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 
 buildscript {
     ext.serviceCommonVersion = "1.12.0"
-    ext.authApiVersion = "1.27.0"
+    ext.authApiVersion = "1.27.3-PASSWORD-RESET-TEST-1"
+    ext.mailApiVersion = "0.1.0"
 }
 
 repositories {
@@ -18,6 +19,7 @@ repositories {
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:$authApiVersion"
+    compile "dk.sdu.cloud:mail-api:$mailApiVersion"
     compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
 
