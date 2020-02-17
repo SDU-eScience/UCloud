@@ -85,7 +85,8 @@ data class AuthConfiguration(
     val tokenExtension: List<ServiceTokenExtension> = emptyList(),
     val trustedOrigins: List<String> = listOf("localhost"),
     val services: List<Service> = emptyList(),
-    val serviceLicenseAgreement: ServiceAgreementText? = null
+    val serviceLicenseAgreement: ServiceAgreementText? = null,
+    val unconditionalPasswordResetWhitelist: List<String> = listOf("password-reset-service")
 )
 
 fun main(args: Array<String>) {

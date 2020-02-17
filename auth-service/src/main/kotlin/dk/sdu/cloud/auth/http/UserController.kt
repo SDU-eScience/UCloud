@@ -31,6 +31,7 @@ class UserController<DBSession>(
     private val userCreationService: UserCreationService<DBSession>,
     private val userIterationService: UserIterationService,
     private val tokenService: TokenService<DBSession>,
+    private val unconditionalPasswordResetWhitelist: List<String>,
     private val developmentMode: Boolean = false
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
@@ -79,6 +80,23 @@ class UserController<DBSession>(
                     ctx.securityPrincipal.username,
                     request.newPassword,
                     request.currentPassword
+                )
+                ok(Unit)
+            }
+        }
+
+        implement(UserDescriptions.changePasswordWithReset) {
+            audit(ChangePasswordAudit())
+
+            if (ctx.securityPrincipal.username !in unconditionalPasswordResetWhitelist) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+            }
+
+            db.withTransaction { session ->
+                userDAO.unconditionalUpdatePassword(
+                    session,
+                    ctx.securityPrincipal.username,
+                    request.newPassword
                 )
                 ok(Unit)
             }

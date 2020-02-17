@@ -210,6 +210,7 @@ class Server(
                         userCreationService = userCreationService,
                         tokenService = tokenService,
                         userIterationService = userIterator,
+                        unconditionalPasswordResetWhitelist = config.unconditionalPasswordResetWhitelist,
                         developmentMode = micro.developmentModeEnabled
                     ),
 

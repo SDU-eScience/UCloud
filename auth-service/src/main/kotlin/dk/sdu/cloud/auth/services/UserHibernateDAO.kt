@@ -317,6 +317,15 @@ class UserHibernateDAO(
         session.update(entity)
     }
 
+    override fun unconditionalUpdatePassword(session: HibernateSession, id: String, newPassword: String) {
+        val entity = PrincipalEntity[session, id] as? PersonEntityByPassword ?: throw UserException.NotFound()
+
+        val (hashedPassword, salt) = passwordHashingService.hashPassword(newPassword)
+        entity.hashedPassword = hashedPassword
+        entity.salt = salt
+        session.update(entity)
+    }
+
     override fun setAcceptedSlaVersion(session: HibernateSession, user: String, version: Int) {
         val entity = PrincipalEntity[session, user] as? PersonEntity ?: throw UserException.NotFound()
         entity.serviceLicenseAgreement = version

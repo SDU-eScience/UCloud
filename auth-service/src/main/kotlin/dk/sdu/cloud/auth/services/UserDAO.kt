@@ -28,6 +28,12 @@ interface UserDAO<Session> {
         newPassword: String,
         currentPasswordForVerification: String?
     )
+    fun unconditionalUpdatePassword(
+        session: Session,
+        id: String,
+        newPassword: String
+    )
+
 
     fun delete(session: Session, id: String)
     fun setAcceptedSlaVersion(session: Session, user: String, version: Int)
