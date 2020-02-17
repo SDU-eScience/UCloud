@@ -12,6 +12,7 @@ import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
@@ -99,17 +100,14 @@ class ActionController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, request))
             commandRunnerFactory.withCtxAndTimeout(this) {
                 val stat = fileLookupService.stat(it, request.path)
-                if (stat.fileType == FileType.DIRECTORY && request.newPath.startsWith(request.path)) {
-                    val pathSplitted = request.path.split("/");
-                    val newPathSplitted = request.newPath.split("/")
-                    var same = true;
-                    for (index in 0 until pathSplitted.length) {
-                        if (pathSplitted[index] != newPathSplitted[index]) {
-                            same = false
-                            break
-                        }
-                    }
-                    if (same) {
+                val pathNormalized = request.path.normalize()
+                val targetPathNormalized = request.newPath.normalize()
+                if (stat.fileType == FileType.DIRECTORY && targetPathNormalized.startsWith(pathNormalized)) {
+                    //edge case check
+                    // /home/path/dir -> /home/path/dirA
+                    // Starts with same but are different dirs.
+                    val target = "$targetPathNormalized/"
+                    if (target.indexOf("$pathNormalized/") == 0) {
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
                 }

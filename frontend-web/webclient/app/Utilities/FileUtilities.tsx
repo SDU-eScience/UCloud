@@ -36,26 +36,21 @@ export async function copyOrMoveFilesNew(
     let allowRewrite = false;
 
     const filesToCopy: File[] = [];
+    if (files.length === 1) {
+        if (isDirectory(files[0]) && targetPathFolder.startsWith(files[0].path)) {
+            snackbarStore.addFailure("Copy of directory into itself is not allowed.");
+            return;
+        }
+    }
     for (let i = 0; i < files.length; i++) {
         let add = true
         const f = files[i];
         if (isDirectory(f) && targetPathFolder.startsWith(f.path)) {
-            if (files.length === 1) {
-                snackbarStore.addFailure("Copy of directory into itself is not allowed.");
-                return;
-            }
             //Performing extra check to catch edge case
-            const pathSplitted = f.path.split("/");
-            const targetPathSplitted = targetPathFolder.split("/")
-            let same = true;
-            for (let index = 0; index < pathSplitted.length; index++) {
-                if (pathSplitted[index] !== targetPathSplitted[index]) {
-                    same = false
-                    break
-                }
-            }
-
-            if (same) {
+            //Edge case e.g copy /home/dir/path into /home/dir/path2.
+            //Target location starts with old path, but is not the same.
+            const normalizedTarget = targetPathFolder + "/"
+            if (normalizedTarget.indexOf(f.path + "/") === 0) {
                 const skip = await new Promise(resolve => addStandardDialog({
                     title: `Failed to copy ${f.path}`,
                     message: "A directory cannot be copied into it self. Would you like to skip this operation?",
@@ -63,17 +58,16 @@ export async function copyOrMoveFilesNew(
                     confirmText: `Skip ${f.path}`,
                     onConfirm: () => resolve(true),
                     onCancel: () => resolve(false)
-
                 }));
                 if (skip) {
                     add = false;
                 } else {
-                    return
+                    return;
                 }
             }
         }
         if (add) {
-            filesToCopy.push(f)
+            filesToCopy.push(f);
         }
     }
 
