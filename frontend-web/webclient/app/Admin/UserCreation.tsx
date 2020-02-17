@@ -21,7 +21,7 @@ const initialState: UserCreationState = {
     passwordError: false
 };
 
-function UserCreation(props: UserCreationOperations) {
+function UserCreation(props: UserCreationOperations): JSX.Element | null {
     // FIXME: Use reducer instead, or break into smaller ones.
     const [state, setState] = React.useState(initialState);
     const [submitted, setSubmitted] = React.useState(false);

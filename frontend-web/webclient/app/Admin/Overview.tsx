@@ -11,8 +11,8 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {ThemeColor} from "ui-components/theme";
 
 const linkInfo: LinkInfo[] = [
-    {to: "/admin/userCreation", text: "User Creation", icon: "user", color: "black", color2: "white"},
-    {to: "/applications/studio", text: "Application Studio", icon: "appStore", color: "white", color2: "black"},
+    {to: "/admin/userCreation", text: "User Creation", icon: "user", color: "blue", color2: "white"},
+    {to: "/applications/studio", text: "Application Studio", icon: "appStore", color: "white", color2: "blue"},
     {to: "/admin/licenseServers", text: "License Servers", icon: "license", color: "white", color2: "white"},
     {to: "/admin/downtime", text: "Downtime Status", icon: "warning", color: "white", color2: "black"}
 ];

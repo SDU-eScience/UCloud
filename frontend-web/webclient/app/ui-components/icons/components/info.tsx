@@ -16,7 +16,7 @@ const SvgInfo = (props: any) => (
       transform="matrix(1 0 0 1 -412 -652)"
     />
     <text
-      x={586.816}
+      x={587.816}
       y={629.892}
       fontFamily="'IBMPlexSerif-SemiBold','IBM Plex Serif SemiBold',serif"
       fontWeight={600}
