@@ -125,6 +125,20 @@ class UserController<DBSession>(
             )
         }
 
+        implement(UserDescriptions.lookupUserWithEmail) {
+            ok(
+                db.withTransaction { session ->
+                    val user = userDAO.findByEmail(session, request.email)
+                        ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "User not found")
+
+                    LookupUserWithEmailResponse(
+                        user.userId,
+                        user.firstNames
+                    )
+                }
+            )
+        }
+
         implement(UserDescriptions.lookupUID) {
             ok(
                 db.withTransaction { session ->

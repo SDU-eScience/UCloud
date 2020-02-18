@@ -4,12 +4,14 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 
 data class HashedPasswordAndSalt(val hashedPassword: ByteArray, val salt: ByteArray)
+data class UserIdAndName(val userId: String, val firstNames: String)
 
 interface UserDAO<Session> {
     fun findById(session: Session, id: String): Principal
     fun findByIdOrNull(session: Session, id: String): Principal?
     fun findAllByIds(session: Session, ids: List<String>): Map<String, Principal?>
     fun findEmail(session: Session, id: String): String?
+    fun findByEmail(session: Session, email: String): UserIdAndName
     fun findAllByUIDs(session: Session, uids: List<Long>): Map<Long, Principal?>
     fun findByUsernamePrefix(session: Session, prefix: String): List<Principal>
     fun findByWayfId(session: Session, wayfId: String): Person.ByWAYF

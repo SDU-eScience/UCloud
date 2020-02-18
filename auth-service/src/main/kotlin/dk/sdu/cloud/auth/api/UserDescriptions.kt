@@ -20,6 +20,9 @@ data class LookupUsersResponse(val results: Map<String, UserLookup?>)
 data class LookupEmailRequest(val userId: String)
 data class LookupEmailResponse(val email: String)
 
+data class LookupUserWithEmailRequest(val email: String)
+data class LookupUserWithEmailResponse(val userId: String, val firstNames: String)
+
 typealias CreateUserAudit = List<CreateSingleUserAudit>
 
 data class CreateSingleUserAudit(val username: String, val role: Role?)
@@ -37,10 +40,6 @@ class ChangePasswordAudit
 
 data class ChangePasswordRequest(val currentPassword: String, val newPassword: String) {
     override fun toString() = "ChangePasswordRequest()"
-}
-
-data class ChangePasswordWithResetRequest(val newPassword: String) {
-    override fun toString() = "ChangePasswordWithResetRequest()"
 }
 
 data class LookupUIDRequest(val uids: List<Long>)
@@ -95,7 +94,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
             access = AccessRight.READ_WRITE
         }
 
-        http {
+      http {
             method = HttpMethod.Post
             path {
                 using(baseContext)
@@ -136,6 +135,24 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
                 using(baseContext)
                 +"lookup"
                 +"email"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val lookupUserWithEmail = call<LookupUserWithEmailRequest, LookupUserWithEmailResponse, CommonErrorMessage>("lookupUserWithEmail") {
+        auth {
+            roles = setOf(Role.SERVICE)
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"lookup"
+                +"with-email"
             }
 
             body { bindEntireRequestFromBody() }
