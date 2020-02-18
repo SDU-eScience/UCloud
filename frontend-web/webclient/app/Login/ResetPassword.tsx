@@ -12,6 +12,8 @@ import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
 import {PRODUCT_NAME, SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
+import {SnackType} from "Snackbar/Snackbars.js";
+import {cloudTryingItsBest} from "ui-components/icons/index.js";
 
 const bg2 = require("Assets/Images/bg2.svg");
 
@@ -21,32 +23,22 @@ const BackgroundImage = styled.div<{image: string}>`
     overflow: hidden;
 `;
 
-const inDevEnvironment = process.env.NODE_ENV === "development";
-
 export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
-    const [challengeId, setChallengeID] = useState("");
     const [webDavInstructionToken, setWebDavToken] = useState<string | null>(null);
-    const verificationInput = useRef<HTMLInputElement>(null);
-    const usernameInput = useRef<HTMLInputElement>(null);
+    const emailInput = useRef<HTMLInputElement>(null);
     const passwordInput = useRef<HTMLInputElement>(null);
+    const passwordRepeatInput = useRef<HTMLInputElement>(null);
     const [promises] = useState(new PromiseKeeper());
     const [loading, setLoading] = useState(false);
 
-    useEffect(() => {
-        if (props.initialState !== undefined) {
-            handleAuthState(props.initialState);
-        }
-        return () => promises.cancelPromises();
-    }, []);
-
-    const resetId = getQueryParam(props, "id");
+    const resetToken = getQueryParam(props, "token");
 
     if (webDavInstructionToken !== null) {
         return <Instructions token={webDavInstructionToken} />;
     }
 
     async function attemptSaveNewPassword(): Promise<void> {
-        if (!(usernameInput.current?.value) || !(passwordInput.current?.value)) {
+        if (!(passwordInput.current?.value) || !(passwordRepeatInput.current?.value)) {
             snackbarStore.addFailure("Invalid username or password");
             return;
         }
@@ -55,8 +47,8 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
             setLoading(true);
 
             const body = new FormData();
-            body.append("username", usernameInput.current!.value);
             body.append("password", passwordInput.current!.value);
+            body.append("passwordRepeat", passwordRepeatInput.current!.value);
             const response = await promises.makeCancelable(
                 fetch(Client.computeURL("/auth", `/login`), {
                     method: "POST",
@@ -71,7 +63,6 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                 throw response;
             }
 
-            handleAuthState(await response.json());
         } catch (e) {
             snackbarStore.addFailure(
                 errorMessageOrDefault({request: e, response: await e.json()}, "An error occurred")
@@ -81,47 +72,33 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
         }
     }
 
-    function handleCompleteLogin(result: any): void {
-        Client.setTokens(result.accessToken, result.csrfToken);
-        props.history.push("/loginSuccess");
-    }
+    async function submitResetPassword(e: {preventDefault(): void}): Promise<void> {
+        e.preventDefault();
+        setLoading(true);
 
-    function handleAuthState(result: any): void {
-        if ("2fa" in result) {
-            setChallengeID(result["2fa"]);
-        } else {
-            handleCompleteLogin(result);
-        }
-    }
+        const body = {
+            email: emailInput.current!.value
+        };
 
-    async function submitResetPassword(): Promise<void> {
-        const verificationCode = verificationInput.current && verificationInput.current.value || "";
-        if (!verificationCode) return;
-        try {
-            setLoading(true);
-            const response = await fetch(`/auth/2fa/challenge`, {
+        const response = await promises.makeCancelable(
+            fetch("/api/password/reset", {
                 method: "POST",
                 headers: {
                     "Accept": "application/json",
-                    "Content-Type": "application/json"
+                    "Content-type": "application/json"
                 },
-                body: JSON.stringify({
-                    challengeId,
-                    verificationCode
-                })
+                body: JSON.stringify(body)
             })
-            if (!response.ok) throw response;
-            const result = await response.json();
-            handleCompleteLogin(result);
-        } catch (e) {
-            setLoading(false);
-            snackbarStore.addFailure(
-                errorMessageOrDefault({
-                    request: e,
-                    response: await e.json()
-                }, "Could not submit verification code. Try again later"),
-            );
-        }
+        ).promise;
+
+        emailInput.current!.value = "";
+        setLoading(false);
+        snackbarStore.addSnack({
+            type: SnackType.Success,
+            message: `If an account exists with the entered email address, you will receive an email shortly.
+                Please check your inbox and follow the instructions.`,
+            lifetime: 15_000
+        });
     }
 
     return (
@@ -161,7 +138,7 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
 
             <BackgroundImage image={bg2}>
                 <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
-                    {resetId == null ? (
+                    {resetToken == null ? (
                         <LoginBox width="315px">
                             <LoginText fontSize={1} mt="5px">
                                 To reset your password, enter your email address
@@ -176,12 +153,17 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                                 visible
                             >
                                 <LoginBox width="100%">
-                                    <form onSubmit={preventDefault}>
-                                        <Input placeholder="Email address" autoFocus />
+                                    <form onSubmit={(e) => submitResetPassword(e)}>
+                                        <Input
+                                            placeholder="Email address"
+                                            name="email"
+                                            type="email"
+                                            ref={emailInput}
+                                            autoFocus required
+                                        />
                                         <Button
                                             fullWidth
                                             disabled={loading}
-                                            onClick={() => submitResetPassword()}
                                             marginTop={10}
                                         >
                                             Reset password
@@ -216,7 +198,6 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                                         <Button
                                             fullWidth
                                             disabled={loading}
-                                            onClick={() => submitResetPassword()}
                                             marginTop={10}
                                         >
                                             Save new password
