@@ -2,6 +2,7 @@
 name: password-reset
 
 namespaces:
-- password.reset
+  - password.reset
 
-dependencies: []
+dependencies:
+  - mail

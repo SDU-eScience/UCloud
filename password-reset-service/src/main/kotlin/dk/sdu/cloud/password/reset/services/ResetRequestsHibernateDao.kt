@@ -17,10 +17,10 @@ data class PasswordResetRequestEntity(
     var userId: String,
 
     @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "expires_at", nullable = false)
-    var expiresAt: Date,
+    @Column(name = "created_at", nullable = false)
+    var createdAt: Date,
 
-    @Column(name = "state", nullable = false)
+    @Column(name = "valid", nullable = false)
     var valid: Boolean
 ) {
     companion object : HibernateEntity<PasswordResetRequestEntity>, WithId<String>

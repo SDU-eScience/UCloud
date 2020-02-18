@@ -1,5 +1,7 @@
 package dk.sdu.cloud.password.reset
 
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.password.reset.rpc.*
@@ -11,9 +13,14 @@ class Server(override val micro: Micro) : CommonServer {
 
     override fun start() {
         val db = micro.hibernateDatabase
-
+        val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val resetRequestsDao = ResetRequestsHibernateDao()
-        val passwordResetService = PasswordResetService(db, resetRequestsDao)
+        val passwordResetService = PasswordResetService(
+            db,
+            authenticatedClient,
+            resetRequestsDao
+        )
+
         with(micro.server) {
             configureControllers(
                 PasswordResetController(passwordResetService)
@@ -23,7 +30,4 @@ class Server(override val micro: Micro) : CommonServer {
         startServices()
     }
 
-    override fun stop() {
-        super.stop()
-    }
 }
