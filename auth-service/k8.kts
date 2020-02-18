@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "auth"
-    version = "1.27.3-PASSWORD-RESET-TEST-5"
+    version = "1.27.3-PASSWORD-RESET-TEST-6"
 
     withAmbassador("/auth") {
         addSimpleMapping("/api/sla")

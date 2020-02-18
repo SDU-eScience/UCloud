@@ -42,6 +42,8 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
     override fun toString() = "ChangePasswordRequest()"
 }
 
+data class ChangePasswordWithResetRequest(val newPassword: String)
+
 data class LookupUIDRequest(val uids: List<Long>)
 data class LookupUIDResponse(val users: Map<Long, UserLookup?>)
 
@@ -86,7 +88,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
         }
     }
 
-    val changePasswordWithReset = call<ChangePasswordRequest, Unit, CommonErrorMessage>("changePasswordWithReset") {
+    val changePasswordWithReset = call<ChangePasswordWithResetRequest, Unit, CommonErrorMessage>("changePasswordWithReset") {
         audit<ChangePasswordAudit>()
 
         auth {
