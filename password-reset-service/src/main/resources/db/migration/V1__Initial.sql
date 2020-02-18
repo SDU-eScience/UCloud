@@ -4,7 +4,6 @@ create table password_reset_requests
 (
     token          varchar(128) not null,
     user_id        varchar(255) not null,
-    created_at     timestamp not null,
-    valid          boolean not null,
+    expires_at     timestamp not null,
     primary key (token)
 );

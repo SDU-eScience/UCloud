@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
 data class PasswordResetRequest(val email: String)
+data class NewPasswordRequest(val token: String, val newPassword: String)
 
 object PasswordResetDescriptions : CallDescriptionContainer("password.reset") {
     val baseContext = "/api/password/reset"
@@ -26,6 +27,24 @@ object PasswordResetDescriptions : CallDescriptionContainer("password.reset") {
 
             path {
                 using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val newPassword = call<NewPasswordRequest, Unit, CommonErrorMessage>("newPassword") {
+        auth {
+            roles = Roles.PUBLIC
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"new"
             }
 
             body { bindEntireRequestFromBody() }

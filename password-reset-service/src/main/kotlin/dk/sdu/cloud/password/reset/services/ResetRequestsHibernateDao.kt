@@ -1,8 +1,6 @@
 package dk.sdu.cloud.password.reset.services
 
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.*
 import java.util.*
 import javax.persistence.*
 
@@ -12,18 +10,20 @@ data class PasswordResetRequestEntity(
     @Id
     var token: String,
 
-
     @Column(name = "user_id", nullable = false)
     var userId: String,
 
     @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "created_at", nullable = false)
-    var createdAt: Date,
-
-    @Column(name = "valid", nullable = false)
-    var valid: Boolean
+    @Column(name = "expires_at", nullable = false)
+    var expiresAt: Date
 ) {
     companion object : HibernateEntity<PasswordResetRequestEntity>, WithId<String>
+
+    fun toModel(): ResetRequest = ResetRequest(
+        token,
+        userId,
+        expiresAt
+    )
 }
 
 
@@ -31,13 +31,31 @@ class ResetRequestsHibernateDao : ResetRequestsDao<HibernateSession> {
     override fun create(session: HibernateSession, token: String, userId: String) {
         val timeSource = System.currentTimeMillis()
 
+        // Set to expire in 10 minutes
+        val expiry = timeSource + 10 * 60
+
         val passwordResetRequest = PasswordResetRequestEntity(
             token,
             userId,
-            Date(timeSource),
-            true
+            Date(expiry)
         )
 
         session.save(passwordResetRequest)
+    }
+
+    override fun get(session: HibernateSession, token: String): ResetRequest? {
+        return session.criteria<PasswordResetRequestEntity> {
+            entity[PasswordResetRequestEntity::token] equal token
+        }.uniqueResult().toModel()
+    }
+
+    override fun invalidate(session: HibernateSession, token: String) {
+        val existing = session.criteria<PasswordResetRequestEntity> {
+            (entity[PasswordResetRequestEntity::token] equal token)
+        }.uniqueResult()
+
+        existing.expiresAt = Date(System.currentTimeMillis())
+
+        session.update(existing)
     }
 }

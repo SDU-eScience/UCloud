@@ -13,8 +13,13 @@ class PasswordResetController<Session>(passwordResetService: PasswordResetServic
     @InternalAPI
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(PasswordResetDescriptions.reset) {
-            ok(resetService.createReset(request.email))
+            ok(resetService.createResetRequest(request.email))
         }
+
+        implement(PasswordResetDescriptions.newPassword) {
+            ok(resetService.newPassword(request.token, request.newPassword))
+        }
+
         return@configure
     }
 
