@@ -2,13 +2,236 @@
 package dk.sdu.cloud.k8
 
 import java.io.File
+import java.nio.file.Files
 import java.util.*
 
-bundle {
+bundle { ctx ->
+    name = "rbd-provisioner"
+    version = "1"
+
+    val cephMonitors = when (ctx.environment) {
+        Environment.DEVELOPMENT, Environment.TEST -> "10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789"
+        Environment.PRODUCTION -> "172.26.3.1:6789,172.26.3.2:6789,172.26.3.3:6789"
+    }
+
+    withSecret(name = "ceph-secret", namespace = "kube-system") {
+        val scanner = Scanner(System.`in`)
+        println("Please enter ceph admin key: ")
+        val adminKey = scanner.nextLine()
+        secret.stringData = mapOf("key" to adminKey)
+    }
+
+    withSecret(name = "ceph-secret-kube", namespace = "kube-system") {
+        val scanner = Scanner(System.`in`)
+        println("Please enter key for ceph user (kube pool): ")
+        val userKey = scanner.nextLine()
+        secret.stringData = mapOf("key" to userKey)
+    }
+
+    resources.add(
+        object : KubernetesResource {
+            override val phase = DeploymentPhase.DEPLOY
+            override fun toString() = "RBD-Provisioner"
+            val cm = ConfigMapResource("rbd-provisioner-version", "1")
+
+            override fun DeploymentContext.create() {
+                YamlResource(
+                    """
+                        apiVersion: apps/v1
+                        kind: Deployment
+                        metadata:
+                          annotations:
+                            deployment.kubernetes.io/revision: "1"
+                          labels:
+                            app: rbd-provisioner
+                          name: rbd-provisioner
+                          namespace: kube-system
+                        spec:
+                          progressDeadlineSeconds: 2147483647
+                          replicas: 1
+                          revisionHistoryLimit: 2147483647
+                          selector:
+                            matchLabels:
+                              app: rbd-provisioner
+                          strategy:
+                            type: Recreate
+                          template:
+                            metadata:
+                              creationTimestamp: null
+                              labels:
+                                app: rbd-provisioner
+                            spec:
+                              containers:
+                              - env:
+                                - name: PROVISIONER_NAME
+                                  value: ceph.com/rbd
+                                image: quay.io/external_storage/rbd-provisioner:latest
+                                imagePullPolicy: Always
+                                name: rbd-provisioner
+                                resources: {}
+                                securityContext:
+                                  allowPrivilegeEscalation: true
+                                terminationMessagePath: /dev/termination-log
+                                terminationMessagePolicy: File
+                              dnsPolicy: ClusterFirst
+                              imagePullSecrets:
+                              - name: esci-docker
+                              restartPolicy: Always
+                              schedulerName: default-scheduler
+                              securityContext: {}
+                              serviceAccount: rbd-provisioner
+                              serviceAccountName: rbd-provisioner
+                              terminationGracePeriodSeconds: 30
+                                   
+                    """.trimIndent()
+                ).apply { create() }
+
+                YamlResource(
+                    """
+                        apiVersion: storage.k8s.io/v1
+                        kind: StorageClass
+                        metadata:
+                          name: rbd
+                        parameters:
+                          adminId: admin
+                          adminSecretName: ceph-secret
+                          adminSecretNamespace: kube-system
+                          imageFeatures: layering
+                          imageFormat: "2"
+                          monitors: $cephMonitors
+                          pool: kube
+                          userId: kube
+                          userSecretName: ceph-secret-kube
+                          userSecretNamespace: kube-system
+                        provisioner: ceph.com/rbd
+                        reclaimPolicy: Delete
+                        volumeBindingMode: Immediate
+
+                    """.trimIndent()
+                ).apply { create() }
+
+                YamlResource(
+                    """
+                        apiVersion: rbac.authorization.k8s.io/v1
+                        kind: ClusterRole
+                        metadata:
+                          name: rbd-provisioner
+                        rules:
+                        - apiGroups:
+                          - ""
+                          resources:
+                          - secrets
+                          verbs:
+                          - get
+                          - list
+                        - apiGroups:
+                          - ""
+                          resources:
+                          - persistentvolumes
+                          verbs:
+                          - get
+                          - list
+                          - watch
+                          - create
+                          - delete
+                        - apiGroups:
+                          - ""
+                          resources:
+                          - persistentvolumeclaims
+                          verbs:
+                          - get
+                          - list
+                          - watch
+                          - update
+                        - apiGroups:
+                          - storage.k8s.io
+                          resources:
+                          - storageclasses
+                          verbs:
+                          - get
+                          - list
+                          - watch
+                        - apiGroups:
+                          - ""
+                          resources:
+                          - events
+                          verbs:
+                          - get
+                          - create
+                          - list
+                          - update
+                          - patch
+                        - apiGroups:
+                          - ""
+                          resourceNames:
+                          - kube-dns
+                          - coredns
+                          resources:
+                          - services
+                          verbs:
+                          - list
+                          - get
+                        - apiGroups:
+                          - ""
+                          resources:
+                          - endpoints
+                          verbs:
+                          - get
+                          - list
+                          - watch
+                          - create
+                          - update
+                          - patch
+
+                    """.trimIndent()
+                ).apply { create() }
+
+                YamlResource(
+                    """
+                        apiVersion: rbac.authorization.k8s.io/v1
+                        kind: ClusterRoleBinding
+                        metadata:
+                          name: rbd-provisioner
+                        roleRef:
+                          apiGroup: rbac.authorization.k8s.io
+                          kind: ClusterRole
+                          name: rbd-provisioner
+                        subjects:
+                        - kind: ServiceAccount
+                          name: rbd-provisioner
+                          namespace: kube-system
+
+                    """.trimIndent()
+                ).apply { create() }
+
+                YamlResource(
+                    """
+                        apiVersion: v1
+                        kind: ServiceAccount
+                        metadata:
+                          name: rbd-provisioner
+                          namespace: kube-system
+
+                    """.trimIndent()
+                ).apply { create() }
+
+                with(cm) { create() }
+            }
+
+            override fun DeploymentContext.delete() {
+                // Not implemented
+            }
+
+            override fun DeploymentContext.isUpToDate(): Boolean = with(cm) { isUpToDate() }
+        }
+    )
+}
+
+bundle { ctx ->
     name = "stolon"
     version = "1"
 
-    withConfigMap("pgaudit") { ctx ->
+    withConfigMap("pgaudit") {
         configMap.metadata.namespace = "stolon"
         configMap.binaryData = mapOf(
             "pgaudit.so" to String(
@@ -22,14 +245,37 @@ bundle {
         )
     }
 
-    withHelmChart("stable/stolon-1.5.0") { ctx ->
+    withHelmChart("stolon") {
+        chartVersion = "1.5.6"
         val size = when (ctx.environment) {
             Environment.TEST, Environment.DEVELOPMENT -> "250Gi"
             Environment.PRODUCTION -> "250Gi" // For some reason this is also the production value
         }
 
+        val suPassword = ctx.client
+            .secrets()
+            .inNamespace("stolon")
+            .withName("stolon")
+            .get()
+            ?.data
+            ?.get("pg_su_password")
+            ?.let { Base64.getDecoder().decode(it).toString(Charsets.UTF_8) }
+            ?: UUID.randomUUID().toString()
+
+        val replPassword = ctx.client
+            .secrets()
+            .inNamespace("stolon")
+            .withName("stolon")
+            .get()
+            ?.data
+            ?.get("pg_repl_password")
+            ?.let { Base64.getDecoder().decode(it).toString(Charsets.UTF_8) }
+            ?: UUID.randomUUID().toString()
+
         //language=yml
         valuesAsString = """
+           superuserPassword: $suPassword
+           replicationPassword: $replPassword
            image:
              tag: v0.14.0-pg10
            keeper:
@@ -73,7 +319,8 @@ bundle {
     name = "ambassador"
     version = "1"
 
-    withHelmChart("stable/ambassador-5.1.0") {
+    withHelmChart("ambassador", namespace = "default") {
+        chartVersion = "5.3.1"
         //language=yml
         valuesAsString = """
             adminService:
@@ -93,7 +340,8 @@ bundle {
     name = "grafana"
     version = "1"
 
-    withHelmChart("stable/grafana-3.8.3") {
+    withHelmChart("grafana") {
+        chartVersion = "4.6.3"
         //language=yml
         valuesAsString = """
             image:
@@ -115,14 +363,21 @@ bundle {
     }
 }
 
-bundle {
+bundle { ctx ->
     name = "kibana"
-    version = "1"
+    version = "2"
 
-    withHelmChart("stable/kibana-7.5.0") {
+    withHelmChart("kibana", namespace = "elasticsearch") {
+        chartVersion = "7.6.0"
+        repo = HelmRepo("elastic", "https://helm.elastic.co")
+        val hostname = when (ctx.environment) {
+            Environment.TEST -> "elasticsearch-master"
+            Environment.PRODUCTION, Environment.DEVELOPMENT -> "elasticsearch-newmaster"
+        }
+
         //language=yml
         valuesAsString = """
-            elasticsearchHosts: http://elasticsearch-newmaster:9200
+            elasticsearchHosts: http://$hostname:9200
             extraEnvs:
             - name: ELASTICSEARCH_USERNAME
               valueFrom:
@@ -148,11 +403,12 @@ bundle {
     }
 }
 
-bundle {
+bundle { ctx ->
     name = "redis"
     version = "1"
 
-    withHelmChart("stable/redis-10.2.1") { ctx ->
+    withHelmChart("redis") {
+        chartVersion = "10.2.1"
         val rbdSize = when (ctx.environment) {
             Environment.DEVELOPMENT, Environment.TEST -> "1000Gi"
             Environment.PRODUCTION -> "5000Gi"
@@ -250,7 +506,9 @@ bundle {
     name = "prometheus"
     version = "1"
 
-    withHelmChart("stable/prometheus-9.1.0") {
+    withHelmChart("prometheus") {
+        chartVersion = "10.4.0"
+
         //language=yml
         valuesAsString = """
             alertmanager:
@@ -437,206 +695,352 @@ bundle {
     }
 }
 
-bundle {
+enum class ElasticRole {
+    MASTER,
+    CLIENT,
+    DATA
+}
+
+bundle { ctx ->
     name = "elasticsearch"
     version = "1"
 
-    val chart = "stable/elasticsearch-7.5.0"
-    val namespace = "elasticsearch"
+    fun roleSpecificConfiguration(role: ElasticRole): Map<String, Any?> {
+        val result = HashMap<String, Any?>()
+        when (role) {
+            ElasticRole.MASTER -> {
 
-    withHelmChart(chart, namespace = namespace) { ctx ->
-        name = when (ctx.environment) {
-            Environment.PRODUCTION -> "helm-es-migration-client"
-            Environment.DEVELOPMENT, Environment.TEST -> "elasticsearch-client"
+            }
+
+            ElasticRole.CLIENT -> {
+                result["persistence"] = mapOf(
+                    "enabled" to false
+                )
+                result["service"] to mapOf(
+                    "type" to "NodePort"
+                )
+            }
+
+            ElasticRole.DATA -> {
+
+            }
         }
-
-        //language=yml
-        valuesAsString = """
-            clusterName: elasticsearch
-            esConfig:
-              elasticsearch.yml: |
-                xpack.security.enabled: true
-                xpack.security.transport.ssl.enabled: true
-                xpack.security.transport.ssl.verification_mode: certificate
-                xpack.security.transport.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
-                xpack.security.transport.ssl.truststore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
-                xpack.security.http.ssl.enabled: false
-                xpack.security.http.ssl.truststore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
-                xpack.security.http.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
-
-                http.max_content_length: 500mb
-                indices.memory.index_buffer_size: 30%
-            esJavaOpts: -Xmx8g -Xms8g
-            extraEnvs:
-            - name: ELASTIC_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  key: password
-                  name: elastic-credentials
-            - name: ELASTIC_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  key: username
-                  name: elastic-credentials
-            masterService: elasticsearch-newmaster
-            nodeGroup: newclient
-            persistence:
-              enabled: false
-            protocol: http
-            replicas: 2
-            resources:
-              limits:
-                cpu: 2000m
-                memory: 14Gi
-              requests:
-                cpu: 2000m
-                memory: 14Gi
-            roles:
-              data: "false"
-              ingest: "false"
-              master: "false"
-            secretMounts:
-            - name: elastic-certificates
-              path: /usr/share/elasticsearch/config/certs
-              secretName: elastic-certificates
-            service:
-              type: NodePort
-            volumeClaimTemplate:
-              accessModes:
-              - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 1Gi
-              storageClassName: rbc # Note: This is wrong (TODO What will happen if we fix it)
-                        
-        """.trimIndent()
+        return result
     }
 
-    withHelmChart(chart, namespace = namespace) { ctx ->
-        name = when (ctx.environment) {
-            Environment.PRODUCTION -> "helm-es-migration-client"
-            Environment.DEVELOPMENT, Environment.TEST -> "elasticsearch-client"
-        }
+    fun configuration(role: ElasticRole): Map<String, Any?> =
+        roleSpecificConfiguration(role) +
+                mapOf<String, Any?>(
+                    "clusterName" to "elasticsearch",
+                    "nodeGroup" to when (role) {
+                        ElasticRole.MASTER -> "master"
+                        ElasticRole.CLIENT -> "client"
+                        ElasticRole.DATA -> "data"
+                    },
+                    "roles" to mapOf(
+                        "master" to (role == ElasticRole.MASTER).toString(),
+                        "ingest" to "false",
+                        "data" to (role == ElasticRole.DATA).toString()
+                    ),
+                    "replicas" to when (role) {
+                        ElasticRole.MASTER -> {
+                            when (ctx.environment) {
+                                Environment.DEVELOPMENT -> 3
+                                Environment.PRODUCTION -> 3
+                                Environment.TEST -> 2
+                            }
+                        }
+                        ElasticRole.CLIENT -> 2
+                        ElasticRole.DATA -> when (ctx.environment) {
+                            Environment.DEVELOPMENT -> 3
+                            Environment.PRODUCTION -> 4
+                            Environment.TEST -> 2
+                        }
+                    },
+                    "esJavaOpts" to when (role) {
+                        ElasticRole.MASTER -> "-Xmx8g -Xms8g"
+                        ElasticRole.CLIENT -> "-Xmx8g -Xms8g"
+                        ElasticRole.DATA -> "-Xmx20g -Xms20g"
+                    },
+                    "resources" to mapOf(
+                        "limits" to mapOf(
+                            "cpu" to when (role) {
+                                ElasticRole.MASTER -> "2000m"
+                                ElasticRole.CLIENT -> "2000m"
+                                ElasticRole.DATA -> 8
+                            },
+                            "memory" to when (role) {
+                                ElasticRole.MASTER -> "12Gi"
+                                ElasticRole.CLIENT -> "12Gi"
+                                ElasticRole.DATA -> "30Gi"
+                            }
+                        ),
+                        "requests" to mapOf(
+                            "cpu" to when (role) {
+                                ElasticRole.MASTER -> "2000m"
+                                ElasticRole.CLIENT -> "2000m"
+                                ElasticRole.DATA -> 4
+                            },
+                            "memory" to when (role) {
+                                ElasticRole.MASTER -> "12Gi"
+                                ElasticRole.CLIENT -> "12Gi"
+                                ElasticRole.DATA -> "30Gi"
+                            }
+                        )
+                    ),
+                    "masterService" to "elasticsearch-master",
+                    "volumeClaimTemplate" to mapOf(
+                        "accessModes" to listOf("ReadWriteOnce"),
+                        "storageClassName" to "rbd",
+                        "resources" to mapOf(
+                            "requests" to mapOf(
+                                "storage" to when (role) {
+                                    ElasticRole.MASTER -> {
+                                        "4Gi"
+                                    }
 
-        //language=yml
-        valuesAsString = """
-            clusterName: elasticsearch
-            esConfig:
-              elasticsearch.yml: |
-                xpack.security.enabled: true
-                xpack.security.transport.ssl.enabled: true
-                xpack.security.transport.ssl.verification_mode: certificate
-                xpack.security.transport.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
-                xpack.security.transport.ssl.truststore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
-                xpack.security.http.ssl.enabled: false
-                xpack.security.http.ssl.truststore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
-                xpack.security.http.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
+                                    ElasticRole.CLIENT -> {
+                                        "1Gi"
+                                    }
 
-                http.max_content_length: 500mb
-                indices.memory.index_buffer_size: 30%
-            esJavaOpts: -Xmx20g -Xms20g
-            extraEnvs:
-            - name: ELASTIC_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  key: password
-                  name: elastic-credentials
-            - name: ELASTIC_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  key: username
-                  name: elastic-credentials
-            masterService: elasticsearch-newmaster
-            nodeGroup: newdata
-            protocol: http
-            replicas: 3
-            resources:
-              limits:
-                cpu: 8
-                memory: 30Gi
-              requests:
-                cpu: 4
-                memory: 30Gi
-            roles:
-              data: "true"
-              ingest: "false"
-              master: "false"
-            secretMounts:
-            - name: elastic-certificates
-              path: /usr/share/elasticsearch/config/certs
-              secretName: elastic-certificates
-            volumeClaimTemplate:
-              accessModes:
-              - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 5000Gi
-              storageClassName: rbd
-            
-        """.trimIndent()
+                                    ElasticRole.DATA -> {
+                                        if (ctx.environment == Environment.TEST) {
+                                            "500Gi"
+                                        } else {
+                                            "5000Gi"
+                                        }
+                                    }
+                                }
+                            )
+                        )
+                    )
+                )
+
+    val security = mapOf(
+        "protocol" to "http",
+        "esConfig" to mapOf(
+            "elasticsearch.yml" to """
+               xpack.security.enabled: true
+               xpack.security.transport.ssl.enabled: true
+               xpack.security.transport.ssl.verification_mode: certificate
+               xpack.security.transport.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
+               xpack.security.transport.ssl.truststore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
+               xpack.security.http.ssl.enabled: false
+               xpack.security.http.ssl.truststore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
+               xpack.security.http.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
+               http.max_content_length: 500mb
+               indices.memory.index_buffer_size: 40%
+               ${if (ctx.environment == Environment.TEST) "discovery.zen.minimum_master_nodes: 2" else ""}
+ 
+            """.trimIndent()
+        ),
+        "extraEnvs" to listOf(
+            mapOf(
+                "name" to "ELASTIC_PASSWORD",
+                "valueFrom" to mapOf(
+                    "secretKeyRef" to mapOf(
+                        "name" to "elastic-credentials",
+                        "key" to "password"
+                    )
+                )
+            ),
+            mapOf(
+                "name" to "ELASTIC_USERNAME",
+                "valueFrom" to mapOf(
+                    "secretKeyRef" to mapOf(
+                        "name" to "elastic-credentials",
+                        "key" to "username"
+                    )
+                )
+            )
+        ),
+        "secretMounts" to listOf(
+            mapOf(
+                "name" to "elastic-certificates",
+                "secretName" to "elastic-certificates",
+                "path" to "/usr/share/elasticsearch/config/certs"
+            )
+        )
+    )
+
+    fun temporaryFile(contents: String): String {
+        return Files.createTempFile("file", ".yaml").toFile().also { it.writeText(contents) }.absolutePath
     }
 
-    withHelmChart(chart, namespace = namespace) { ctx ->
-        name = when (ctx.environment) {
-            Environment.PRODUCTION -> "helm-es-migration-master"
-            Environment.DEVELOPMENT, Environment.TEST -> "elasticsearch-master"
+    resources.add(object : KubernetesResource {
+        override val phase = DeploymentPhase.DEPLOY
+        override fun toString() = "ElasticSearchResource()"
+        val cm = ConfigMapResource("elasticsearch-version", "1")
+
+        fun install(role: ElasticRole, withSecurity: Boolean) {
+            val args = ArrayList<String>()
+            args.addAll(
+                listOf(
+                    "helm",
+                    "--kube-context",
+                    ctx.environment.name.toLowerCase(),
+                    "upgrade",
+                    "--install",
+                    "-f",
+                    temporaryFile(yamlMapper.writeValueAsString(configuration(role)))
+                )
+            )
+
+            if (withSecurity) args.addAll(listOf("-f", temporaryFile(yamlMapper.writeValueAsString(security))))
+
+            args.addAll(
+                listOf(
+                    "--namespace",
+                    "elasticsearch",
+                    "elasticsearch-${role.name.toLowerCase()}",
+                    "elastic/elasticsearch"
+                )
+            )
+
+            Process.runAndPrint(*args.toTypedArray())
         }
 
-        //language=yml
-        valuesAsString = """
-            clusterName: elasticsearch
-            esConfig:
-              elasticsearch.yml: |
-                xpack.security.enabled: true
-                xpack.security.transport.ssl.enabled: true
-                xpack.security.transport.ssl.verification_mode: certificate
-                xpack.security.transport.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
-                xpack.security.transport.ssl.truststore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
-                xpack.security.http.ssl.enabled: false
-                xpack.security.http.ssl.truststore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
-                xpack.security.http.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
+        override fun DeploymentContext.create() {
+            Helm.addRepo("elastic", "https://helm.elastic.co")
+            Helm.updateRepo()
 
-                http.max_content_length: 500mb
-                indices.memory.index_buffer_size: 30%
-            esJavaOpts: -Xmx8g -Xms8g
-            extraEnvs:
-            - name: ELASTIC_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  key: password
-                  name: elastic-credentials
-            - name: ELASTIC_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  key: username
-                  name: elastic-credentials
-            imageTag: 7.5.0 # TODO This is only present in the master's copy
-            masterService: elasticsearch-newmaster
-            nodeGroup: newmaster
-            protocol: http
-            replicas: 3
-            resources:
-              limits:
-                cpu: 2000m
-                memory: 14Gi
-              requests:
-                cpu: 2000m
-                memory: 14Gi
-            roles:
-              data: "false"
-              ingest: "false"
-              master: "true"
-            secretMounts:
-            - name: elastic-certificates
-              path: /usr/share/elasticsearch/config/certs
-              secretName: elastic-certificates
-            volumeClaimTemplate:
-              accessModes:
-              - ReadWriteOnce
-              resources:
-                requests:
-                  storage: 4Gi
-              storageClassName: rbd            
-        """.trimIndent()
+            println("Generating certificates...")
+            Process.runAndPrint(
+                "bash",
+                File(ctx.repositoryRoot, "infrastructure/elk/elasticsearch/generate_ca.sh").absolutePath
+            )
+
+            client.secrets().inNamespace("elasticsearch").createOrReplace(Secret().apply {
+                metadata = ObjectMeta()
+                metadata.name = "elastic-certificates"
+                val caFile = File("./elastic-node.p12")
+                data = mapOf(
+                    "elastic-node.p12" to String(
+                        Base64.getEncoder().encode(
+                            caFile.readBytes()
+                        )
+                    )
+                )
+                caFile.delete()
+                File("elastic-ca.p12").delete()
+            })
+
+            client.secrets().inNamespace("elasticsearch").createOrReplace(Secret().apply {
+                metadata = ObjectMeta()
+                metadata.name = "elastic-credentials"
+                stringData = mapOf("username" to "elastic", "password" to "empty")
+            })
+
+            install(ElasticRole.MASTER, withSecurity = true)
+            install(ElasticRole.CLIENT, withSecurity = true)
+            install(ElasticRole.DATA, withSecurity = true)
+
+            println("Configuring passwords (Waiting for cluster ready first)")
+            while (true) {
+                try {
+                    val isReady = client
+                        .pods()
+                        .inNamespace("elasticsearch")
+                        .list()
+                        .items
+                        .filter { it.metadata.name.contains("elastic") }
+                        .all { pod ->
+                            pod.status.conditions.find { it.type == "Ready" }?.status == "True"
+                        }
+
+                    if (isReady) break
+                } catch (ex: Throwable) {
+                    ex.printStackTrace()
+                }
+
+                Thread.sleep(2000)
+            }
+
+            while (true) {
+                println("Configuring passwords...")
+                val elasticClient = client.pods().inNamespace("elasticsearch").list().items
+                    .find { it.metadata.name.contains("client") } ?: continue
+
+                val exec = client.pods()
+                    .inNamespace("elasticsearch")
+                    .withName(elasticClient.metadata.name)
+                    .execWithDefaultListener(
+                        listOf(
+                            "elasticsearch-setup-passwords",
+                            "auto",
+                            "-b"
+                        ),
+                        attachStdout = true,
+                        attachStderr = true
+                    )
+
+                try {
+                    val stdout = exec.stdout!!
+                    val stderr = exec.stderr!!
+
+                    val output = stdout.readBytes().toString(Charsets.UTF_8)
+                    val errput = stderr.readBytes().toString(Charsets.UTF_8)
+                    stdout.close()
+                    stderr.close()
+
+                    if (!output.contains("Changed password") && !errput.contains("Changed password")) {
+                        println(errput)
+                        continue
+                    }
+
+                    val passwords = output.lines()
+                        .filter { it.startsWith("PASSWORD") }
+                        .map { passwordLine ->
+                            val username = passwordLine.substringBefore('=').removePrefix("PASSWORD ").trim()
+                            val password = passwordLine.substringAfter("= ").trim()
+
+                            Pair(username, password)
+                        }
+                        .toMap()
+
+
+                    passwords.forEach { (username, password) ->
+                        // We have used both formats for some reason
+                        // Using both to be somewhat compatible
+                        client.secrets().inNamespace("elasticsearch").createOrReplace(Secret().apply {
+                            metadata = ObjectMeta()
+                            metadata.name = "${username.replace('_', '-')}-credentials"
+                            stringData = mapOf("username" to username, "password" to password)
+                        })
+
+                        client.secrets().inNamespace("elasticsearch").createOrReplace(Secret().apply {
+                            metadata = ObjectMeta()
+                            metadata.name = "elasticsearch-${username.replace('_', '-')}-credentials"
+                            stringData = mapOf("username" to username, "password" to password)
+                        })
+                    }
+
+                    println("Passwords configured! Restarting all Elasticsearch pods")
+
+                    // Restart all pods
+                    client.pods().inNamespace("elasticsearch").delete()
+                    break
+                } catch (ex: Throwable) {
+                    ex.printStackTrace()
+                    continue
+                }
+            }
+
+            // Write that we are done
+            with(cm) { create() }
+        }
+
+        override fun DeploymentContext.delete() {
+            // Not implemented
+        }
+
+        override fun DeploymentContext.isUpToDate(): Boolean = with(cm) { isUpToDate() }
+    })
+
+    withService {
+        service.spec.apply {
+            type = "ExternalName"
+            externalName = "elasticsearch-client.elasticsearch.svc.cluster.local"
+        }
     }
 }

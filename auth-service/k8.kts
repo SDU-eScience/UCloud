@@ -24,7 +24,7 @@ bundle {
         return when (environment) {
             Environment.DEVELOPMENT -> "dev.cloud.sdu.dk"
             Environment.PRODUCTION -> "cloud.sdu.dk"
-            Environment.TEST -> TODO()
+            Environment.TEST -> "staging.dev.cloud.sdu.dk"
         }
     }
 

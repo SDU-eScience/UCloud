@@ -32,6 +32,9 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:$jacksonVersion")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:$jacksonVersion")
+
+    val ktorVersion = "1.3.0"
+    implementation("io.ktor:ktor-client-apache:$ktorVersion")
 }
 
 task<JavaExec>("runApp") {
@@ -55,7 +58,7 @@ publishing {
             url = URI(resolvedUrl)
             credentials {
                 this.username = username
-                this.password =password
+                this.password = password
             }
         }
     }

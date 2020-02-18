@@ -12,6 +12,8 @@
 # return not supported for all copies of internal attributes. This causes OverlayFS to fail entirely. We have added a
 # patch in our kernel which skips all internal ceph attributes.
 
+#exec &> >(tee -ai /tmp/log.txt)
+
 log() {
     echo -ne $* >&1
 }
@@ -57,6 +59,11 @@ domount() {
     fi
 
     if [ ! "$tmp_storage" ]
+    then
+        tmp_storage="/mnt/ofs"
+    fi
+
+    if [ "$tmp_storage" == "null" ]
     then
         tmp_storage="/mnt/ofs"
     fi

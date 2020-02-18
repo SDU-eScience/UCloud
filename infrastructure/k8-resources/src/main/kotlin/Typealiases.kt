@@ -11,3 +11,5 @@ typealias NetworkPolicyPort = io.fabric8.kubernetes.api.model.networking.Network
 typealias LabelSelector = io.fabric8.kubernetes.api.model.LabelSelector
 typealias IntOrString = io.fabric8.kubernetes.api.model.IntOrString
 typealias PersistentVolumeClaimVolumeSource = io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
+typealias Secret = io.fabric8.kubernetes.api.model.Secret
+typealias ObjectMeta = io.fabric8.kubernetes.api.model.ObjectMeta

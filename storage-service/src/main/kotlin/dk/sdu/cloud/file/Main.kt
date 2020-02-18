@@ -7,7 +7,8 @@ import dk.sdu.cloud.storage.api.StorageServiceDescription
 val SERVICE_USER = "_${StorageServiceDescription.name}"
 
 data class StorageConfiguration(
-    val filePermissionAcl: Set<String> = emptySet()
+    val filePermissionAcl: Set<String> = emptySet(),
+    val fileSystemMount: String? = null
 )
 
 fun main(args: Array<String>) {

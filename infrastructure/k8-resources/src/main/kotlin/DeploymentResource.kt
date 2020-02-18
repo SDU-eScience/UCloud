@@ -120,6 +120,7 @@ class DeploymentResource(
 
 fun MutableBundle.withDeployment(
     injectAllDefaults: Boolean = true,
+    injectServiceSecrets: Boolean = true,
     init: DeploymentResource.() -> Unit
 ): DeploymentResource {
     val resource = DeploymentResource(name, version)
@@ -130,6 +131,7 @@ fun MutableBundle.withDeployment(
             }
         }
 
+    if (injectServiceSecrets) resources.add(ServiceSecrets(name))
     resources.add(resource)
     return resource
 }

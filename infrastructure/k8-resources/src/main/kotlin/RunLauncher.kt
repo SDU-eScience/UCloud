@@ -6,10 +6,10 @@ import java.io.File
 import java.util.*
 
 private fun findServiceBundles(serviceArg: String): Collection<ResourceBundle> {
-    if (serviceArg.isEmpty()) return BundleRegistry.listBundles()
+    if (serviceArg.isEmpty()) return BundleRegistry.listBundles().map { it.first }
     val bundle = BundleRegistry.getBundle(serviceArg)
     require(bundle != null) { "Could not find bundle: $serviceArg" }
-    return listOf(bundle)
+    return listOf(bundle.first)
 }
 
 fun runLauncher(
@@ -21,9 +21,9 @@ fun runLauncher(
     repositoryRoot: File
 ) {
     try {
-        val checkmark = "✅  "
-        val question = "❓  "
-        val cross = "❌  "
+        val checkmark = "✅ "
+        val question = "❓ "
+        val cross = "❌ "
 
         val kubeConfig = File(System.getProperty("user.home"), ".kube/config").readText()
         val scanner = Scanner(System.`in`)
@@ -36,8 +36,11 @@ fun runLauncher(
             repositoryRoot
         )
 
-        fun confirm(message: String): Boolean {
+        BundleRegistry.listBundles().forEach { (bundle, init) ->
+            init(bundle, ctx)
+        }
 
+        fun confirm(message: String): Boolean {
             while (true) {
                 print("$message [Y/n] ")
                 if (forceYes) {

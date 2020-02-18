@@ -3,6 +3,13 @@ package dk.sdu.cloud.k8
 data class ProcessOutput(val stdout: String, val stderr: String, val exitCode: Int)
 
 object Process {
+    fun runAndPrint(vararg command: String) {
+        val (stdout, stderr, statusCode) = runAndCollect(*command)
+        println(stdout)
+        System.err.println(stderr)
+        if (statusCode != 0) throw IllegalStateException("Process ${command[0]} status code: $statusCode")
+    }
+
     fun runAndCollect(vararg command: String): ProcessOutput {
         val process = ProcessBuilder().command(*command).start()
         lateinit var stdoutText: String

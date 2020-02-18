@@ -109,12 +109,19 @@ bundle {
         }
     )
 
-    withConfigMap("storage-config") {
+    withConfigMap("storage-config") { ctx ->
+        val mountLocation = when (ctx.environment) {
+            Environment.PRODUCTION -> "/mnt/cephfs"
+            Environment.DEVELOPMENT -> "/mnt/cephfs/dev"
+            Environment.TEST -> "/mnt/cephfs/test"
+        }
+
         addConfig(
             "config.yml",
             //language=yaml
             """
                 storage:
+                  fileSystemMount: $mountLocation
                   filePermissionAcl:
                   - "_share"
  

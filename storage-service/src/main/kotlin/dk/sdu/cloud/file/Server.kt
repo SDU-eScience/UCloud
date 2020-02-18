@@ -5,7 +5,6 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WorkspaceMode
-import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.ExtractController
@@ -76,8 +75,13 @@ class Server(
         Chown.isDevMode = micro.developmentModeEnabled
 
         // FS root
-        val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() }
-            ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
+        val fsRootFile =
+            if (config.fileSystemMount == null) {
+                File("/mnt/cephfs/").takeIf { it.exists() }
+                    ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
+            } else {
+                File(config.fileSystemMount)
+            }
 
         // Authorization
         val homeFolderService = HomeFolderService(client)

@@ -8,8 +8,6 @@ class ConfigMapResource(
     private val name: String,
     private val version: String
 ) : KubernetesResource {
-    var configure: (DeploymentContext.() -> Unit)? = null
-
     val configMap = ConfigMap().apply {
         metadata = ObjectMeta().apply {
             this.name = this@ConfigMapResource.name
@@ -28,7 +26,6 @@ class ConfigMapResource(
     }
 
     override fun DeploymentContext.create() {
-        configure?.invoke(this)
         client.configMaps().inNamespace(resourceNamespace(configMap)).createOrReplace(configMap)
     }
 
@@ -51,11 +48,11 @@ fun ConfigMapResource.addConfig(fileName: String, fileContents: String) {
 fun MutableBundle.withConfigMap(
     name: String = this.name,
     version: String = this.version,
-    init: ConfigMapResource.(ctx: DeploymentContext) -> Unit
+    init: ConfigMapResource.() -> Unit
 ): ConfigMapResource {
     return ConfigMapResource(name, version)
         .apply {
-            configure = { init(this) }
+            init(this)
             resources.add(this)
         }
 }
