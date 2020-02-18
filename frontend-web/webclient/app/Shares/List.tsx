@@ -93,7 +93,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
                 props.setRefresh(undefined);
             }
         };
-    }, []);
+    }, [params]);
 
     useEffect(() => {
         const usernames: Set<string> = new Set(page.data.items.map(group =>

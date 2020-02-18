@@ -1351,7 +1351,7 @@ Array [
       width={24}
     >
       <clipPath
-        id="FtFileSystem_svg__a"
+        id="ftFileSystem_svg__a"
       >
         <path
           clipRule="nonzero"
@@ -1359,13 +1359,13 @@ Array [
         />
       </clipPath>
       <g
-        clipPath="url(#FtFileSystem_svg__a)"
+        clipPath="url(#ftFileSystem_svg__a)"
       >
         <use
           height={20.507}
           transform="scale(1 .97654)"
           width={24}
-          xlinkHref="#FtFileSystem_svg___Image2"
+          xlinkHref="#ftFileSystem_svg___Image2"
         />
       </g>
       <g
@@ -1379,7 +1379,7 @@ Array [
       <defs>
         <image
           height={21}
-          id="FtFileSystem_svg___Image2"
+          id="ftFileSystem_svg___Image2"
           width={24}
           xlinkHref="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAVCAYAAABc6S4mAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABYUlEQVQ4jY2Uy3XFMAhEZzguIA2l/5Ky8YMsjKTR188bW5bQABfg389vAARAkPkGAZp851vWgE17z7dBn8vjbkbxXBogCEcRBiz/EUGCQUD2nz3LtYsYcUV85KCLmF6sYkSk902s2fZixBVxV++Kt10Uk9jOe4htE7siboCGiExBiUKMT1HUtJCI8Ens8vi8GxcxceTIoIolgwpQUtD/s1lscOTIoPOeVsGN8DtjEgjf8BsZ7ACSYOwBMi8t1aT8GgN8wPiCAX0htoCfGShiUqbWNdGRAX1I4y4Dpo3WAwQt638PsKVxlwFvo0KNS+hvACuDRRUOVdQbT6FLXS+7feF9Ecs+cJAGxAvAarzp9ixdPb9gsIminMnZtO324kiKLRm0S04zyIdzCt81RTODdROtZpBEQRcxaTQACHjm/9smeplZMkYuDI+K9eN6bqLzzHqimARGuacI0AM8ed9Vl+MfWQ8XicMWet0AAAAASUVORK5CYII="
         />
@@ -1856,7 +1856,7 @@ Array [
         fontSize={24}
         fontWeight={600}
         transform="matrix(1 0 0 1 -579.022 -609.246)"
-        x={586.816}
+        x={587.816}
         y={629.892}
       >
         i
