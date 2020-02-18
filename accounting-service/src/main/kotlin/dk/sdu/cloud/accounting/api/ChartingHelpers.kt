@@ -35,6 +35,14 @@ object ChartingHelpers {
                 )
             }
 
+            dataPoints.add(
+                DataPoint2D(
+                    events.last().timestamp,
+                    events.asSequence().map(dataSelector).sum(),
+                    dataLabelSelector(events.asSequence().map(dataSelector).sum())
+                )
+            )
+
             return Chart(dataPoints, HINT_LINE_CHART, listOf(ChartDataTypes.DATETIME, dataType), dataTitle)
         }
     }
@@ -62,7 +70,14 @@ object ChartingHelpers {
                     )
                 )
             }
-
+            //Add last event entry
+            dataPoints.add(
+                DataPoint2D(
+                    events.last().timestamp,
+                    dataSelector(events.last()),
+                    dataLabelSelector(dataSelector(events.last()))
+                )
+            )
             return Chart(dataPoints, HINT_LINE_CHART, listOf(ChartDataTypes.DATETIME, dataType), dataTitle)
         }
     }
