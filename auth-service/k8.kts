@@ -1,24 +1,12 @@
 //DEPS dk.sdu.cloud:k8-resources:0.1.1
 package dk.sdu.cloud.k8
 
-bundle {
+import java.io.File
+import java.util.*
+
+bundle { ctx ->
     name = "auth"
     version = "1.27.3"
-
-    withAmbassador("/auth") {
-        addSimpleMapping("/api/sla")
-    }
-
-    val deployment = withDeployment {
-        deployment.spec.replicas = 2
-        injectSecret("auth-certs")
-        injectSecret("auth-wayf", "/etc/wayf-certs")
-        injectSecret("auth-wayf-config")
-        injectConfiguration("auth-config")
-    }
-
-    withPostgresMigration(deployment)
-    withCronJob(deployment, "0 2 * * 1", listOf("--tokenScan")) {}
 
     fun host(environment: Environment): String {
         return when (environment) {
@@ -30,7 +18,229 @@ bundle {
 
     fun scheme(environment: Environment): String = "https"
 
-    withConfigMap("token-validation") { ctx ->
+    withAmbassador("/auth") {
+        addSimpleMapping("/api/sla")
+    }
+
+    val deployment = withDeployment(injectServiceSecrets = false) {
+        deployment.spec.replicas = 2
+        injectSecret("auth-certs")
+        injectSecret("auth-wayf", "/etc/wayf-certs")
+        injectSecret("auth-wayf-config")
+        injectConfiguration("auth-config")
+    }
+
+    withPostgresMigration(deployment) {
+        val volumeBlacklist = setOf(
+            "auth-wayf",
+            "auth-wayf-config"
+        )
+        job.spec.template.spec.volumes =
+            job.spec.template.spec.volumes.filter { it.secret?.secretName !in volumeBlacklist } +
+                    volumeBlacklist.map { vol ->
+                        Volume().apply {
+                            name = vol
+                            emptyDir = EmptyDirVolumeSource()
+                        }
+                    }
+    }
+
+    withCronJob(deployment, "0 2 * * 1", listOf("--tokenScan")) {}
+
+    withSecret("auth-wayf", version = "0") {
+        when (ctx.environment) {
+            Environment.DEVELOPMENT, Environment.TEST -> {
+                // Do nothing
+            }
+
+            Environment.PRODUCTION -> {
+                TODO()
+            }
+        }
+    }
+
+    withSecret("auth-wayf-config", version = "0") {
+        when (ctx.environment) {
+            Environment.DEVELOPMENT, Environment.TEST -> {
+                // Do nothing
+            }
+
+            Environment.PRODUCTION -> {
+                TODO()
+            }
+        }
+    }
+
+    withSecret("auth-refresh-token") {
+        val client = ctx.client
+        val proxyPod = client.pods().inNamespace("stolon").list().items.find { it.metadata.name.contains("proxy") }
+            ?: throw IllegalStateException("Could not find stolon proxy")
+
+            client.secrets()
+                .inNamespace(ctx.namespace)
+                .withName("auth-psql")
+                .get()
+                ?: throw IllegalStateException("auth-psql must be configured first")
+
+        val stolonPassword =
+            client.secrets()
+                .inNamespace("stolon")
+                .withName("stolon")
+                .get()
+                ?.data
+                ?.get("pg_su_password")
+                ?.let { Base64.getDecoder().decode(it).toString(Charsets.UTF_8) }
+
+        fun executeStatement(statement: String) {
+            val exec =
+                client.pods().inNamespace("stolon").withName(proxyPod.metadata.name).execWithDefaultListener(
+                    listOf(
+                        "psql",
+                        "-c",
+                        statement,
+                        "postgresql://stolon:${stolonPassword}@localhost/postgres"
+                    ),
+                    attachStderr = true,
+                    attachStdout = true
+                )
+
+            println(exec.stdout?.bufferedReader()?.readText())
+            println(exec.stderr?.bufferedReader()?.readText())
+        }
+
+        val refreshToken = UUID.randomUUID().toString()
+        executeStatement("insert into auth.principals(dtype, id, created_at, modified_at, role) values " +
+                "('ServiceEntity', '_auth', now(), now(), 'SERVICE');")
+
+        executeStatement("insert into auth.refresh_tokens(token, associated_user_id, csrf, public_session_reference, " +
+                "extended_by, scopes, expires_after, refresh_token_expiry, extended_by_chain, created_at, ip, " +
+                "user_agent) " +
+                "values ('$refreshToken', '_auth', 'blank', 'auth', null, '[\"all:write\"]', 600000, null, '[]', " +
+                "now(), null, null)")
+
+        secret.stringData = mapOf(
+            "config.yml" to "refreshToken: $refreshToken"
+        )
+    }
+
+    withSecret("auth-psql", version = "1") {
+        val client = ctx.client
+        val proxyPod = client.pods().inNamespace("stolon").list().items.find { it.metadata.name.contains("proxy") }
+            ?: throw IllegalStateException("Could not find stolon proxy")
+
+        val stolonPassword =
+            client.secrets()
+                .inNamespace("stolon")
+                .withName("stolon")
+                .get()
+                ?.data
+                ?.get("pg_su_password")
+                ?.let { Base64.getDecoder().decode(it).toString(Charsets.UTF_8) }
+
+        fun executeStatement(statement: String) {
+            val exec =
+                client.pods().inNamespace("stolon").withName(proxyPod.metadata.name).execWithDefaultListener(
+                    listOf(
+                        "psql",
+                        "-c",
+                        statement,
+                        "postgresql://stolon:${stolonPassword}@localhost/postgres"
+                    ),
+                    attachStderr = true,
+                    attachStdout = true
+                )
+
+            println(exec.stdout?.bufferedReader()?.readText())
+            println(exec.stderr?.bufferedReader()?.readText())
+        }
+
+        val dbUser = name.replace('-', '_')
+        val schema = dbUser
+        val generatedPassword = UUID.randomUUID().toString()
+
+        executeStatement("drop owned by \"$dbUser\" cascade;")
+        executeStatement("drop schema \"$schema\";")
+        executeStatement("drop user \"$schema\";")
+        executeStatement("create user \"$dbUser\" password '$generatedPassword';")
+        executeStatement("create schema \"$schema\" authorization \"$dbUser\";")
+
+        secret.stringData = mapOf(
+            "db.yml" to """
+                    ---
+                    hibernate:
+                        database:
+                            profile: PERSISTENT_POSTGRES
+                            credentials:
+                                username: $dbUser
+                                password: $generatedPassword
+                            
+                """.trimIndent()
+        )
+
+        // Hack: Migration script needs an empty refresh-token. We will now inject one:
+        if (client.secrets().inNamespace(ctx.namespace).withName("auth-refresh-token").get() == null) {
+            client.secrets().inNamespace(ctx.namespace).create(Secret().apply {
+                metadata = ObjectMeta()
+                metadata.name = "auth-refresh-token"
+
+                stringData = mapOf(
+                    "config.yml" to "refreshToken: empty-refresh-token"
+                )
+            })
+        }
+    }
+
+    withSecret("auth-certs", version = "1") {
+        val scanner = Scanner(System.`in`)
+        val certsRoot = File(ctx.repositoryRoot, "auth-service/certs")
+        certsRoot.mkdirs()
+        println("Looking for certificates in ${certsRoot.absolutePath}")
+        val certPem = File(certsRoot, "cert.pem")
+        val keyPem = File(certsRoot, "key.pem")
+        if (!certPem.exists() || !keyPem.exists()) {
+            println("Could not find certificates!")
+            print("Do you want to generate these? [y/n] ")
+            while (true) {
+                if (scanner.nextLine().equals("y", ignoreCase = true)) {
+                    ProcessBuilder()
+                        .command(
+                            "bash",
+                            File(ctx.repositoryRoot, "auth-service/generate_self_signed_certs").absolutePath
+                        )
+                        .directory(File(ctx.repositoryRoot, "auth-service"))
+                        .start()
+                        .waitFor()
+                    break
+                } else {
+                    throw IllegalStateException("No certificates")
+                }
+            }
+        }
+
+        if (!certPem.exists() || !keyPem.exists()) {
+            throw IllegalStateException("No certs after generation")
+        }
+
+        print("Do you wish to use these certificates? [y/n] ")
+        while (true) {
+            if (scanner.nextLine().equals("y", ignoreCase = true)) {
+                repeat(10) {
+                    println("!!! Please make sure cert.pem contents is added to token-validation config map !!!")
+                    println("!!! See auth-service/k8.kts                                                    !!!")
+                }
+
+                secret.stringData = mapOf(
+                    "cert.pem" to certPem.readText(),
+                    "key.pem" to keyPem.readText()
+                )
+                break
+            } else {
+                throw IllegalStateException("Terminating")
+            }
+        }
+    }
+
+    withConfigMap("token-validation") {
         val cert: String = when (ctx.environment) {
             Environment.PRODUCTION -> {
                 """
@@ -83,7 +293,30 @@ bundle {
                 """.trimIndent()
             }
 
-            Environment.TEST -> TODO()
+            Environment.TEST -> {
+                """
+                    -----BEGIN CERTIFICATE-----
+                    MIIDSDCCAjACCQCOMA9vihmVcDANBgkqhkiG9w0BAQsFADBmMQswCQYDVQQGEwJE
+                    SzETMBEGA1UECAwKU3lkZGFubWFyazELMAkGA1UEBwwCTkExETAPBgNVBAoMCGVT
+                    Y2llbmNlMREwDwYDVQQLDAhlU2NpZW5jZTEPMA0GA1UEAwwGdWNsb3VkMB4XDTIw
+                    MDIxODEzNDYyNloXDTIxMDIxNzEzNDYyNlowZjELMAkGA1UEBhMCREsxEzARBgNV
+                    BAgMClN5ZGRhbm1hcmsxCzAJBgNVBAcMAk5BMREwDwYDVQQKDAhlU2NpZW5jZTER
+                    MA8GA1UECwwIZVNjaWVuY2UxDzANBgNVBAMMBnVjbG91ZDCCASIwDQYJKoZIhvcN
+                    AQEBBQADggEPADCCAQoCggEBAK8TIpxSyi1BwiiAFTDTHFVXSa/nHT882s22hikk
+                    6mljQohCqHXGpSTuINMM5ma5wdsqFfYb/nIz7fXdDktW/hAbhDIkoOLGxb4BJx+S
+                    /Ce3LZXSKlT8CxJ+Ayw66APG2ntksqQVkKvPD+HUpSEV5mXR+E+3uzj8Vd8e1SYi
+                    h/423zfJ8bJA7TSripi85BWzwMbWJYbLT4wW1PwOhNpwhqqClTjcnlfeqBb3SMmj
+                    pgKg5bM6YuZKyoSrKMF2WjzBxw1aOwBRKbO8Z12I8noFeGDw9+w/caYG+ZvusIEy
+                    oTk/+zhG8hRRyNa2RCAZspz06jaCUV1aFxX7Hl/yvRQAu6sCAwEAATANBgkqhkiG
+                    9w0BAQsFAAOCAQEAAmgal9lScwRkLMV2CSBhCcnog/PL5bIiQj0HieRkHb8gUiwk
+                    OGbOxDH2P/Gn/4WDO6SwQDXb8L/Kk3e+jDD8snt2n1Pqmw/7WgemTZoEQMVKuWGM
+                    TseyfMEA6PFA7OZTi4CMtfq/Qh0rlPN72wA3fxjOS8upku9X0S2gsLuNQorj8R/5
+                    iAHo/fPNAmAHVI8cyQRWbcP5K7TvEf3Ij9yBByas50AHoMdjCoSFqoIVtiT8JlMa
+                    0iRq2Uj2uVqPocy2tJ2K27FHKRR3H6YSdjzZ/Ys+9kxc22I40nLVLfCdnBV9/GGU
+                    a/e5GT6FiQPV79ntyelUEQCkqT7Xr0uSt4Cc2g==
+                    -----END CERTIFICATE-----
+                """.trimIndent()
+            }
         }
 
         addConfig(
@@ -110,7 +343,7 @@ bundle {
         )
     }
 
-    withConfigMap("auth-config") { ctx ->
+    withConfigMap("auth-config") {
         val trustedOrigins: List<String> = when (ctx.environment) {
             Environment.TEST, Environment.DEVELOPMENT -> listOf("localhost", host(ctx.environment))
             Environment.PRODUCTION -> listOf(host(ctx.environment))

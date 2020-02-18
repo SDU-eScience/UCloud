@@ -1,7 +1,7 @@
 //DEPS dk.sdu.cloud:k8-resources:0.1.1
 package dk.sdu.cloud.k8
 
-bundle {
+bundle { ctx ->
     name = "app-orchestrator"
     version = "1.4.0"
 
@@ -17,7 +17,7 @@ bundle {
 
     withPostgresMigration(deployment)
 
-    withConfigMap(name = "app-config") { ctx ->
+    withConfigMap(name = "app-config") {
         data class MachineType(val name: String, val cpu: Int?, val memoryInGigs: Int?, val gpu: Int? = null)
         data class ComputeBackend(val name: String, val title: String, val useWorkspaces: Boolean)
 

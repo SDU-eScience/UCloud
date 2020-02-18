@@ -245,6 +245,13 @@ bundle { ctx ->
         )
     }
 
+    withService(name = "postgres") {
+        service.spec.apply {
+            type = "ExternalName"
+            externalName = "stolon-proxy.stolon.svc.cluster.local"
+        }
+    }
+
     withHelmChart("stolon") {
         chartVersion = "1.5.6"
         val size = when (ctx.environment) {
@@ -499,6 +506,13 @@ bundle { ctx ->
             usePassword: false
             
         """.trimIndent()
+    }
+
+    withService(name = "redis") {
+        service.spec.apply {
+            type = "ExternalName"
+            externalName = "redis-master.redis.svc.cluster.local"
+        }
     }
 }
 
@@ -1000,20 +1014,30 @@ bundle { ctx ->
 
 
                     passwords.forEach { (username, password) ->
-                        // We have used both formats for some reason
-                        // Using both to be somewhat compatible
                         client.secrets().inNamespace("elasticsearch").createOrReplace(Secret().apply {
                             metadata = ObjectMeta()
                             metadata.name = "${username.replace('_', '-')}-credentials"
                             stringData = mapOf("username" to username, "password" to password)
                         })
-
-                        client.secrets().inNamespace("elasticsearch").createOrReplace(Secret().apply {
-                            metadata = ObjectMeta()
-                            metadata.name = "elasticsearch-${username.replace('_', '-')}-credentials"
-                            stringData = mapOf("username" to username, "password" to password)
-                        })
                     }
+
+                    client.secrets().inNamespace("elasticsearch").createOrReplace(Secret().apply {
+                        metadata = ObjectMeta()
+                        metadata.name = "elasticsearch-kibana-credentials"
+                        stringData = mapOf("username" to "elastic", "password" to passwords.getValue("elastic"))
+                    })
+
+                    client.secrets().inNamespace("default").createOrReplace(Secret().apply {
+                        metadata = ObjectMeta()
+                        metadata.name = "elasticsearch-credentials"
+                        stringData = mapOf("elk.yml" to """
+                            elk:
+                                elasticsearch:
+                                    credentials:
+                                        username: elastic
+                                        password: ${passwords.getValue("elastic")}
+                        """.trimIndent())
+                    })
 
                     println("Passwords configured! Restarting all Elasticsearch pods")
 

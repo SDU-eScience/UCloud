@@ -2,7 +2,7 @@ package dk.sdu.cloud.k8
 
 //DEPS dk.sdu.cloud:k8-resources:0.1.1
 
-bundle {
+bundle { ctx ->
     name = "app-kubernetes"
     version = "0.16.2-enum-widget-1"
 
@@ -162,11 +162,11 @@ bundle {
         )
     )
 
-    withConfigMap { ctx ->
+    withConfigMap {
         val domain: String = when (ctx.environment) {
             Environment.DEVELOPMENT -> "dev.cloud.sdu.dk"
             Environment.PRODUCTION -> "cloud.sdu.dk"
-            Environment.TEST -> TODO("No value for test env")
+            Environment.TEST -> "staging.dev.cloud.sdu.dk"
         }
 
         val hostTemporaryStorage: String = when (ctx.environment) {

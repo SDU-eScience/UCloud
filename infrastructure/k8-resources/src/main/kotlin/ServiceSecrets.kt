@@ -29,7 +29,6 @@ class ServiceSecrets(val name: String) : KubernetesResource {
 
             val resp = httpClient.post<HttpResponse>("${tokenAndHost.host}/auth/users/register") {
                 header("Authorization", "Bearer $jwt")
-                header("Content-Type", "application/json; charset=utf-8")
                 body = TextContent(
                     defaultMapper.writeValueAsString(
                         mapOf(
@@ -43,7 +42,7 @@ class ServiceSecrets(val name: String) : KubernetesResource {
 
             if (!resp.status.isSuccess()) throw IllegalStateException("User registration failed!")
             val refreshToken =
-                defaultMapper.readValue<Map<String, Any?>>(resp.content.toByteArray())["refreshToken"] as String
+                defaultMapper.readValue<List<Map<String, Any?>>>(resp.content.toByteArray())[0]["refreshToken"] as String
 
             client.secrets().inNamespace(namespace).create(Secret().apply {
                 metadata = ObjectMeta().apply {
@@ -77,40 +76,28 @@ class ServiceSecrets(val name: String) : KubernetesResource {
             val schema = dbUser
             val generatedPassword = UUID.randomUUID().toString()
 
-            client.pods().inNamespace("stolon").withName(proxyPod.metadata.name).exec(
-                "psql",
-                "-c",
-                "drop owned by \"$dbUser\" cascade;",
-                "postgresql://stolon:${stolonPassword}@localhost/postgres"
-            )
+            fun executeStatement(statement: String) {
+                val exec =
+                    client.pods().inNamespace("stolon").withName(proxyPod.metadata.name).execWithDefaultListener(
+                        listOf(
+                            "psql",
+                            "-c",
+                            statement,
+                            "postgresql://stolon:${stolonPassword}@localhost/postgres"
+                        ),
+                        attachStderr = true,
+                        attachStdout = true
+                    )
 
-            client.pods().inNamespace("stolon").withName(proxyPod.metadata.name).exec(
-                "psql",
-                "-c",
-                "drop schema \"$schema\";",
-                "postgresql://stolon:${stolonPassword}@localhost/postgres"
-            )
+                println(exec.stdout?.bufferedReader()?.readText())
+                println(exec.stderr?.bufferedReader()?.readText())
+            }
 
-            client.pods().inNamespace("stolon").withName(proxyPod.metadata.name).exec(
-                "psql",
-                "-c",
-                "drop user \"$schema\";",
-                "postgresql://stolon:${stolonPassword}@localhost/postgres"
-            )
-
-            client.pods().inNamespace("stolon").withName(proxyPod.metadata.name).exec(
-                "psql",
-                "-c",
-                "create user \"$dbUser\" password '$generatedPassword';",
-                "postgresql://stolon:${stolonPassword}@localhost/postgres"
-            )
-
-            client.pods().inNamespace("stolon").withName(proxyPod.metadata.name).exec(
-                "psql",
-                "-c",
-                "create schema \"$schema\" authorization \"$dbUser\";",
-                "postgresql://stolon:${stolonPassword}@localhost/postgres"
-            )
+            executeStatement("drop owned by \"$dbUser\" cascade;")
+            executeStatement("drop schema \"$schema\";")
+            executeStatement("drop user \"$schema\";")
+            executeStatement("create user \"$dbUser\" password '$generatedPassword';")
+            executeStatement("create schema \"$schema\" authorization \"$dbUser\";")
 
             client.secrets().inNamespace(namespace).create(Secret().apply {
                 metadata = ObjectMeta().apply {
@@ -149,7 +136,13 @@ class ServiceSecrets(val name: String) : KubernetesResource {
 
         private fun fetchJwt(environment: Environment): String {
             if (environment !in config) {
-                config = defaultMapper.readValue(k8ConfigFile)
+                config = try {
+                    defaultMapper.readValue(k8ConfigFile)
+                } catch (ex: Throwable) {
+                    // File probably not found
+                    ex.printStackTrace()
+                    emptyMap()
+                }
             }
 
             val tokenAndHost = config[environment]
@@ -161,6 +154,7 @@ class ServiceSecrets(val name: String) : KubernetesResource {
                 val refreshToken = scanner.nextLine()
 
                 config = config + mapOf(environment to TokenAndHost(refreshToken, hostName))
+                k8ConfigFile.writeText(defaultMapper.writeValueAsString(config))
                 return fetchJwt(environment)
             }
 

@@ -21,9 +21,11 @@ fun main(args: Array<String>) {
     var directory = "."
     val freeformArgs = ArrayList<String>()
     val additionalFiles = ArrayList<String>()
+    val importBuilder = StringBuilder()
     val outputScript = StringBuilder()
     var forceYes = false
     var environment = Environment.DEVELOPMENT
+    val imports = HashSet<String>()
 
     val engine = ScriptEngineManager().getEngineByExtension("kts")!!
     var skipUpToDateCheck = false
@@ -99,7 +101,7 @@ fun main(args: Array<String>) {
 
     additionalFiles.forEach { allBundles.add(File(it)) }
 
-    outputScript.appendln("package dk.sdu.cloud.k8")
+    importBuilder.appendln("package dk.sdu.cloud.k8")
 
     allBundles.forEach { file ->
         if (!file.exists()) {
@@ -111,6 +113,13 @@ fun main(args: Array<String>) {
                         line.startsWith("package") ||
                                 line.startsWith("//DEPS dk.sdu.cloud:k8-resources") -> {
                             // Do nothing
+                        }
+
+                        line.startsWith("import") -> {
+                            if (line.trim() !in imports) {
+                                importBuilder.appendln(line)
+                                imports.add(line.trim())
+                            }
                         }
 
                         else -> {
@@ -129,6 +138,6 @@ fun main(args: Array<String>) {
     require(launcherCommand != null) { "No such command '$command'" }
 
     System.err.println("k8.kts files are being compiled now...")
-    engine.eval(outputScript.toString())
+    engine.eval(importBuilder.toString() + "\n" + outputScript.toString())
     runLauncher(launcherCommand, remainingArgs, skipUpToDateCheck, forceYes, environment, repositoryRoot)
 }

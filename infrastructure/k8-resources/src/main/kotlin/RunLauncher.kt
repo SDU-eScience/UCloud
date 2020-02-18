@@ -138,6 +138,8 @@ fun runLauncher(
                 }
             }
         }
+
+        ctx.client.close()
     } catch (ex: Throwable) {
         ex.printStackTrace()
     }

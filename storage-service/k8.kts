@@ -1,7 +1,7 @@
 //DEPS dk.sdu.cloud:k8-resources:0.1.1
 package dk.sdu.cloud.k8
 
-bundle {
+bundle { ctx ->
     name = "storage"
     version = "3.2.4"
 
@@ -109,7 +109,7 @@ bundle {
         }
     )
 
-    withConfigMap("storage-config") { ctx ->
+    withConfigMap("storage-config") {
         val mountLocation = when (ctx.environment) {
             Environment.PRODUCTION -> "/mnt/cephfs"
             Environment.DEVELOPMENT -> "/mnt/cephfs/dev"
