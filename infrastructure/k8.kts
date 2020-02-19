@@ -6,12 +6,50 @@ import java.nio.file.Files
 import java.util.*
 
 bundle { ctx ->
-    name = "rbd-provisioner"
+    name = "ceph"
     version = "1"
 
     val cephMonitors = when (ctx.environment) {
         Environment.DEVELOPMENT, Environment.TEST -> "10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789"
         Environment.PRODUCTION -> "172.26.3.1:6789,172.26.3.2:6789,172.26.3.3:6789"
+    }
+
+    val cephFsUser = when (ctx.environment) {
+        Environment.PRODUCTION -> {
+            TODO()
+        }
+
+        Environment.TEST, Environment.DEVELOPMENT -> {
+            "snaptest"
+        }
+    }
+
+    val cephFsSecret = when (ctx.environment) {
+        Environment.DEVELOPMENT, Environment.TEST -> "snaptest"
+        Environment.PRODUCTION -> TODO()
+    }
+
+    val cephFsSubFolder = when (ctx.environment) {
+        Environment.DEVELOPMENT -> ""
+        Environment.PRODUCTION -> ""
+        Environment.TEST -> "staging"
+    }
+
+    withConfigMap("ceph-fs-config") {
+        addConfig(
+            "config.yml",
+            """
+                ceph:
+                  subfolder: $cephFsSubFolder
+            """.trimIndent()
+        )
+    }
+
+    withSecret(name = cephFsSecret, namespace = "default") {
+        val scanner = Scanner(System.`in`)
+        println("Please enter ceph fs key: ")
+        val adminKey = scanner.nextLine()
+        secret.stringData = mapOf("key" to adminKey)
     }
 
     withSecret(name = "ceph-secret", namespace = "kube-system") {
@@ -26,6 +64,48 @@ bundle { ctx ->
         println("Please enter key for ceph user (kube pool): ")
         val userKey = scanner.nextLine()
         secret.stringData = mapOf("key" to userKey)
+    }
+
+    val cephfsVolumes = mapOf(
+        "app-cephfs" to "app-kubernetes/cephfs",
+        "app-fs-cephfs" to "default/app-fs-k8s",
+        "cephfs" to "default/cephfs"
+    )
+    cephfsVolumes.forEach { (volName, pvc) ->
+        withPersistentVolume(volName) {
+            resource.spec.cephfs = CephFSPersistentVolumeSource().apply {
+                this.monitors = cephMonitors.split(",")
+                this.user = cephFsUser
+                this.secretRef = SecretReference().apply {
+                    this.name = cephFsSecret
+                    this.namespace = "default"
+                }
+            }
+            resource.spec.accessModes = listOf("ReadWriteMany")
+            resource.spec.capacity = mapOf("storage" to Quantity("9223372036854775807"))
+            resource.spec.persistentVolumeReclaimPolicy = "Retain"
+        }
+
+        val (ns, pvcName) = pvc.split("/")
+        withPersistentVolumeClaim(pvcName) {
+            resource.metadata.namespace = ns
+            resource.spec.accessModes = listOf("ReadWriteMany")
+            resource.spec.volumeName = volName
+        }
+    }
+
+    withSecret(name = "cow-lower", namespace = "app-kubernetes", version = "1") {
+        val scanner = Scanner(System.`in`)
+        println("Please enter ceph fs key: ")
+        val adminKey = scanner.nextLine()
+
+        secret.type = "ucloud/cow"
+
+        secret.stringData = mapOf(
+            "cephKey" to adminKey,
+            "cephMon" to cephMonitors,
+            "cephUser" to cephFsUser
+        )
     }
 
     resources.add(

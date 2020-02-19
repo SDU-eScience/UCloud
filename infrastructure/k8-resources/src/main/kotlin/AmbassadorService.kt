@@ -64,6 +64,12 @@ class AmbassadorService(
                         this.port = this@AmbassadorService.port
                         protocol = "TCP"
                         targetPort = IntOrString(this@AmbassadorService.port)
+                    },
+                    ServicePort().apply {
+                        this.name = this@AmbassadorService.name + "80"
+                        this.port = 80
+                        protocol = "TCP"
+                        targetPort = IntOrString(80)
                     }
                 )
 

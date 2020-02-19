@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.app.kubernetes.CephConfiguration
 import dk.sdu.cloud.app.orchestrator.api.MountMode
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
@@ -21,7 +22,10 @@ data class PreparedWorkspace(
 }
 
 
-class WorkspaceService(private val hostTemporaryStorage: String) {
+class WorkspaceService(
+    private val hostTemporaryStorage: String,
+    private val cephConfiguration: CephConfiguration = CephConfiguration()
+) {
     fun prepare(job: VerifiedJob): PreparedWorkspace {
         return when (job.mountMode ?: MountMode.COPY_FILES) {
             MountMode.COPY_FILES -> prepareCopyFiles(job)
@@ -30,6 +34,7 @@ class WorkspaceService(private val hostTemporaryStorage: String) {
     }
 
     private fun prepareCopyFiles(job: VerifiedJob): PreparedWorkspace {
+        val prefix = if (cephConfiguration.subfolder.isNotBlank()) "${cephConfiguration.subfolder}/" else ""
         val workspace = job.workspace ?: throw RPCException("No workspace found", HttpStatusCode.BadRequest)
         val volumes = listOf(
             volume {
@@ -49,7 +54,7 @@ class WorkspaceService(private val hostTemporaryStorage: String) {
                 subPath = workspace
                     .removePrefix("/")
                     .removeSuffix("/")
-                    .let { "$it/output" }
+                    .let { "$prefix$it/output" }
             },
 
             volumeMount {
@@ -59,7 +64,7 @@ class WorkspaceService(private val hostTemporaryStorage: String) {
                 subPath = workspace
                     .removePrefix("/")
                     .removeSuffix("/")
-                    .let { "$it/input" }
+                    .let { "$prefix$it/input" }
             }
         )
 
@@ -73,6 +78,7 @@ class WorkspaceService(private val hostTemporaryStorage: String) {
         // We are just interested in keeping the workspace ID
         val workspace = job.workspace ?: throw RPCException("No workspace found", HttpStatusCode.BadRequest)
         val workspaceId = workspace.removePrefix("/").removePrefix("workspace").removeSuffix("/")
+        val prefix = if (cephConfiguration.subfolder.isNotBlank()) "${cephConfiguration.subfolder}/" else ""
 
         val cow =
             job.cow ?: throw RPCException("No CoW workspace description found", HttpStatusCode.InternalServerError)
@@ -94,7 +100,8 @@ class WorkspaceService(private val hostTemporaryStorage: String) {
                             "directoryName" to snapshot.directoryName,
                             "snapshotPath" to snapshot.snapshotPath,
                             "realPath" to snapshot.realPath,
-                            "tmpStorage" to hostTemporaryStorage
+                            "tmpStorage" to hostTemporaryStorage,
+                            "cephSubDir" to if (cephConfiguration.subfolder.isBlank()) "" else "${cephConfiguration.subfolder}/"
                         )
                     }
                 }
@@ -121,7 +128,7 @@ class WorkspaceService(private val hostTemporaryStorage: String) {
             userMounts += volumeMount {
                 name = DATA_STORAGE
                 mountPath = WORKING_DIRECTORY
-                subPath = workspace.removePrefix("/").removeSuffix("/").let { "$it/work" }
+                subPath = workspace.removePrefix("/").removeSuffix("/").let { "$prefix$it/work" }
             }
         }
 

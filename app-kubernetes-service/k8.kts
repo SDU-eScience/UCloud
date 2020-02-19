@@ -4,7 +4,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "0.16.2-enum-widget-1"
+    version = "0.16.3"
 
     withAmbassador(pathPrefix = null) {
         addSimpleMapping("/api/app/compute/kubernetes")
@@ -51,6 +51,7 @@ bundle { ctx ->
         deployment.spec.template.spec.serviceAccountName = this@bundle.name
 
         injectConfiguration("app-kubernetes")
+        injectConfiguration("ceph-fs-config")
     }
 
     withPostgresMigration(deployment)
@@ -129,12 +130,15 @@ bundle { ctx ->
         YamlResource(
             //language=yaml
             """
-               apiVersion: extensions/v1beta1
+               apiVersion: apps/v1
                kind: DaemonSet
                metadata:
                  name: cow-deploy
                  namespace: default
                spec:
+                 selector:
+                   matchLabels:
+                     app: flex-deploy
                  template:
                    metadata:
                      name: flex-deploy
@@ -142,7 +146,7 @@ bundle { ctx ->
                        app: flex-deploy
                    spec:
                      containers:
-                       - image: registry.cloud.sdu.dk/cow/deploy:0.2.31
+                       - image: registry.cloud.sdu.dk/cow/deploy:0.2.37
                          name: flex-deploy
                          securityContext:
                              privileged: true
@@ -162,13 +166,18 @@ bundle { ctx ->
         )
     )
 
-    withConfigMap {
-        val domain: String = when (ctx.environment) {
-            Environment.DEVELOPMENT -> "dev.cloud.sdu.dk"
-            Environment.PRODUCTION -> "cloud.sdu.dk"
-            Environment.TEST -> "staging.dev.cloud.sdu.dk"
-        }
+    val prefix: String = when (ctx.environment) {
+        Environment.DEVELOPMENT, Environment.PRODUCTION -> "app-"
+        Environment.TEST -> "apps-"
+    }
 
+    val domain: String = when (ctx.environment) {
+        Environment.DEVELOPMENT -> "dev.cloud.sdu.dk"
+        Environment.PRODUCTION -> "cloud.sdu.dk"
+        Environment.TEST -> "dev.cloud.sdu.dk" // Uses different prefix
+    }
+
+    withConfigMap {
         val hostTemporaryStorage: String = when (ctx.environment) {
             Environment.DEVELOPMENT -> "/mnt/ofs"
             Environment.PRODUCTION -> "/mnt/storage/overlayfs"
@@ -183,7 +192,7 @@ bundle { ctx ->
                 app:
                   kubernetes:
                     performAuthentication: true
-                    prefix: "app-"
+                    prefix: "$prefix"
                     domain: $domain
                     hostTemporaryStorage: $hostTemporaryStorage
                     toleration:
@@ -192,5 +201,11 @@ bundle { ctx ->
                       
             """.trimIndent()
         )
+    }
+
+    withIngress("apps") {
+        resource.metadata.annotations = resource.metadata.annotations +
+                mapOf("nginx.ingress.kubernetes.io/proxy-body-size" to "0")
+        addRule("*.$domain", service = "app-kubernetes", port = 80)
     }
 }

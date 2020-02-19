@@ -13,3 +13,6 @@ typealias IntOrString = io.fabric8.kubernetes.api.model.IntOrString
 typealias PersistentVolumeClaimVolumeSource = io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource
 typealias Secret = io.fabric8.kubernetes.api.model.Secret
 typealias ObjectMeta = io.fabric8.kubernetes.api.model.ObjectMeta
+typealias CephFSPersistentVolumeSource = io.fabric8.kubernetes.api.model.CephFSPersistentVolumeSource
+typealias SecretReference = io.fabric8.kubernetes.api.model.SecretReference
+typealias Quantity = io.fabric8.kubernetes.api.model.Quantity

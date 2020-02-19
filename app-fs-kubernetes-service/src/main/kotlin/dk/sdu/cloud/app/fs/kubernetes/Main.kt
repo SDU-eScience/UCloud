@@ -4,6 +4,10 @@ import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.app.fs.kubernetes.api.AppFsKubernetesServiceDescription
 import dk.sdu.cloud.micro.*
 
+data class CephConfiguration(
+    val subfolder: String = ""
+)
+
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(AppFsKubernetesServiceDescription, args)
@@ -14,5 +18,6 @@ fun main(args: Array<String>) {
 
     if (micro.runScriptHandler()) return
 
-    Server(micro).start()
+    val folder = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
+    Server(micro, folder).start()
 }

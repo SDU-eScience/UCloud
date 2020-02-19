@@ -2,7 +2,11 @@ package dk.sdu.cloud.k8
 
 import io.fabric8.kubernetes.api.model.ObjectMeta
 import io.fabric8.kubernetes.api.model.ServiceAccount
-import io.fabric8.kubernetes.api.model.rbac.*
+import io.fabric8.kubernetes.api.model.rbac.ClusterRole
+import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding
+import io.fabric8.kubernetes.api.model.rbac.PolicyRule
+import io.fabric8.kubernetes.api.model.rbac.RoleRef
+import io.fabric8.kubernetes.api.model.rbac.Subject
 
 /**
  * A resource for creating a service account with a bound cluster role
@@ -27,7 +31,7 @@ class ClusterServiceAccountResource(
         rules = ArrayList()
     }
 
-    val roleBinding = RoleBinding().apply {
+    val roleBinding = ClusterRoleBinding().apply {
         metadata = ObjectMeta().apply {
             this.name = this@ClusterServiceAccountResource.name
             annotations = mapOf(UCLOUD_VERSION_ANNOTATION to version)
@@ -37,6 +41,7 @@ class ClusterServiceAccountResource(
             Subject().apply {
                 kind = "ServiceAccount"
                 name = this@ClusterServiceAccountResource.name
+                namespace = "default"
                 apiGroup = ""
             }
         )
@@ -54,7 +59,7 @@ class ClusterServiceAccountResource(
             client.rbac().clusterRoles().inNamespace(resourceNamespace(clusterRole)).withName(name).get()?.metadata
         ) && checkVersion(
             version,
-            client.rbac().roleBindings().inNamespace(resourceNamespace(clusterRole)).withName(name).get()?.metadata
+            client.rbac().clusterRoleBindings().inNamespace(resourceNamespace(clusterRole)).withName(name).get()?.metadata
         ) && checkVersion(
             version,
             client.serviceAccounts().inNamespace(resourceNamespace(clusterRole)).withName(name).get()?.metadata
@@ -63,9 +68,12 @@ class ClusterServiceAccountResource(
 
     override fun DeploymentContext.create() {
         // The order of these matter
-        client.serviceAccounts().inNamespace(resourceNamespace(clusterRole)).withName(name).createOrReplace(serviceAccount)
-        client.rbac().clusterRoles().inNamespace(resourceNamespace(clusterRole)).withName(name).createOrReplace(clusterRole)
-        client.rbac().roleBindings().inNamespace(resourceNamespace(clusterRole)).withName(name).createOrReplace(roleBinding)
+        client.serviceAccounts().inNamespace(resourceNamespace(clusterRole)).withName(name)
+            .createOrReplace(serviceAccount)
+        client.rbac().clusterRoles().inNamespace(resourceNamespace(clusterRole)).withName(name)
+            .createOrReplace(clusterRole)
+        client.rbac().clusterRoleBindings().inNamespace(resourceNamespace(clusterRole)).withName(name)
+            .createOrReplace(roleBinding)
     }
 
     override fun DeploymentContext.delete() {
@@ -75,7 +83,7 @@ class ClusterServiceAccountResource(
         client.serviceAccounts().inNamespace(resourceNamespace(clusterRole)).withName(name).delete()
     }
 
-    override fun toString(): String = "ServiceAccount($name, $version)"
+    override fun toString(): String = "ClusterServiceAccount($name, $version)"
 }
 
 fun ClusterServiceAccountResource.addRule(apiGroups: List<String>, resources: List<String>, verbs: List<String>) {
@@ -91,5 +99,5 @@ fun MutableBundle.withClusterServiceAccount(
     version: String = this.version,
     init: ClusterServiceAccountResource.() -> Unit
 ): ClusterServiceAccountResource {
-   return ClusterServiceAccountResource(name, version).apply(init).also { resources.add(it) }
+    return ClusterServiceAccountResource(name, version).apply(init).also { resources.add(it) }
 }

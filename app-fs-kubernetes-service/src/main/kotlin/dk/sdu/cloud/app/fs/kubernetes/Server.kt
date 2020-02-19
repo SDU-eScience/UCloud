@@ -10,11 +10,14 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
 import java.io.File
 
-class Server(override val micro: Micro) : CommonServer {
+class Server(override val micro: Micro, private val cephConfig: CephConfiguration) : CommonServer {
     override val log = logger()
 
     override fun start() {
-        val mountPoint = if (micro.developmentModeEnabled) File("./fs").also { it.mkdir() } else File("/mnt/cephfs")
+        val mountPoint =
+            if (micro.developmentModeEnabled) File("./fs").also { it.mkdir() }
+            else File("/mnt/cephfs/" + cephConfig.subfolder)
+
         val fsService = FileSystemService(mountPoint)
         with(micro.server) {
             configureControllers(
