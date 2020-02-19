@@ -122,7 +122,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                     )}
                                 />
                             </div>
-                            <Box pl="10px" style={{overflowX: "scroll"}} pb="5px">
+                            <Box pl="10px" style={{overflowX: "scroll"}} pb="15px">
                                 <Grid
                                     pt="20px"
                                     gridTemplateRows="repeat(3, 1fr)"
@@ -196,12 +196,11 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
 }
 
 const ScrollBox = styled(Box)`
-    overflow-x: scroll;
+    overflow-x: auto;
 `;
 
 const ToolGroupWrapper = styled(Flex)`
     width: 100%;
-    height: 200px;
     padding-bottom: 10px;
     padding-left: 10px;
     padding-right: 10px;
@@ -286,7 +285,7 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
                         })}
                     </Grid>
                 </ScrollBox>
-                <Flex mt="14px" flexDirection="row" alignItems="flex-start">
+                <Flex flexDirection="row" alignItems="flex-start">
                     {[...tags].filter(it => it !== props.tag).map(tag => (
                         <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
                     ))}
