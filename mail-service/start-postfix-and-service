@@ -1,0 +1,2 @@
+exec postfix start-fg &
+exec /opt/service/bin/service
