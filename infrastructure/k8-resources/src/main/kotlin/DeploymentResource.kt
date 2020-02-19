@@ -1,9 +1,16 @@
 package dk.sdu.cloud.k8
 
-import io.fabric8.kubernetes.api.model.*
+import io.fabric8.kubernetes.api.model.EnvVar
+import io.fabric8.kubernetes.api.model.EnvVarSource
+import io.fabric8.kubernetes.api.model.HTTPGetAction
+import io.fabric8.kubernetes.api.model.LocalObjectReference
+import io.fabric8.kubernetes.api.model.ObjectFieldSelector
+import io.fabric8.kubernetes.api.model.ObjectMeta
+import io.fabric8.kubernetes.api.model.PodSpec
+import io.fabric8.kubernetes.api.model.PodTemplateSpec
+import io.fabric8.kubernetes.api.model.Probe
 import io.fabric8.kubernetes.api.model.apps.Deployment
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpec
-import io.fabric8.kubernetes.client.KubernetesClient
 
 /**
  * A resource for creating a deployment
@@ -92,16 +99,18 @@ class DeploymentResource(
         get() = deployment.spec.template.spec.containers
 
     override fun DeploymentContext.create() {
-        client.apps().deployments().inNamespace(namespace).withName(name).createOrReplace(deployment)
+        client.apps().deployments().inNamespace(resourceNamespace(deployment)).withName(name)
+            .createOrReplace(deployment)
     }
 
     override fun DeploymentContext.delete() {
-        client.apps().deployments().inNamespace(namespace).withName(name).delete()
+        client.apps().deployments().inNamespace(resourceNamespace(deployment)).withName(name).delete()
     }
 
     override fun DeploymentContext.isUpToDate(): Boolean {
-        val existingDeployment = client.apps().deployments().inNamespace(namespace).withName(name).get()
-            ?: return false
+        val existingDeployment =
+            client.apps().deployments().inNamespace(resourceNamespace(deployment)).withName(name).get()
+                ?: return false
         val k8Version = existingDeployment.metadata.annotations[UCLOUD_VERSION_ANNOTATION]
         return k8Version == version
     }
@@ -111,6 +120,7 @@ class DeploymentResource(
 
 fun MutableBundle.withDeployment(
     injectAllDefaults: Boolean = true,
+    injectServiceSecrets: Boolean = true,
     init: DeploymentResource.() -> Unit
 ): DeploymentResource {
     val resource = DeploymentResource(name, version)
@@ -121,6 +131,7 @@ fun MutableBundle.withDeployment(
             }
         }
 
+    if (injectServiceSecrets) resources.add(ServiceSecrets(name))
     resources.add(resource)
     return resource
 }

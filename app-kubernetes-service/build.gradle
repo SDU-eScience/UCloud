@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.16.2-enum-widget-1'
+version '0.16.3'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.kubernetes.MainKt"

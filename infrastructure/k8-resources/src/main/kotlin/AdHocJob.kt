@@ -57,7 +57,7 @@ open class AdHocJob(
 
     override fun DeploymentContext.isUpToDate(): Boolean {
         val existingJob =
-            client.batch().jobs().inNamespace(namespace).withName("$name-$nameSuffix").get() ?: return false
+            client.batch().jobs().inNamespace(resourceNamespace(job)).withName("$name-$nameSuffix").get() ?: return false
         val k8Version = existingJob.metadata.annotations[UCLOUD_VERSION_ANNOTATION]
         return k8Version == version
     }
@@ -68,11 +68,11 @@ open class AdHocJob(
         job.spec.template.spec.containers.first().command = command
         command.addAll(additionalArgs())
 
-        client.batch().jobs().inNamespace(namespace).withName("$name-$nameSuffix").createOrReplace(job)
+        client.batch().jobs().inNamespace(resourceNamespace(job)).withName("$name-$nameSuffix").createOrReplace(job)
     }
 
     override fun DeploymentContext.delete() {
-        client.batch().jobs().inNamespace(namespace).withName("$name-$nameSuffix").delete()
+        client.batch().jobs().inNamespace(resourceNamespace(job)).withName("$name-$nameSuffix").delete()
     }
 
     override fun toString(): String = "AdHocJob($name, $version, $nameSuffix)"

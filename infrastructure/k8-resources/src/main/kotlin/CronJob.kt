@@ -60,17 +60,17 @@ class CronJobResource(
 
     override fun DeploymentContext.isUpToDate(): Boolean {
         val existingJob =
-            client.batch().jobs().inNamespace(namespace).withName(this@CronJobResource.name).get() ?: return false
+            client.batch().jobs().inNamespace(resourceNamespace(job)).withName(this@CronJobResource.name).get() ?: return false
         val k8Version = existingJob.metadata.annotations[UCLOUD_VERSION_ANNOTATION]
         return k8Version == version
     }
 
     override fun DeploymentContext.create() {
-        client.batch().cronjobs().inNamespace(namespace).withName(this@CronJobResource.name).createOrReplace(job)
+        client.batch().cronjobs().inNamespace(resourceNamespace(job)).withName(this@CronJobResource.name).createOrReplace(job)
     }
 
     override fun DeploymentContext.delete() {
-        client.batch().cronjobs().inNamespace(namespace).withName(this@CronJobResource.name).delete()
+        client.batch().cronjobs().inNamespace(resourceNamespace(job)).withName(this@CronJobResource.name).delete()
     }
 
     override fun toString(): String = "CronJob($name, $version)"

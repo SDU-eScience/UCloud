@@ -1,29 +1,52 @@
 package dk.sdu.cloud.k8
 
+import io.fabric8.kubernetes.client.Config
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
+import java.io.File
 import java.util.*
 
-
 private fun findServiceBundles(serviceArg: String): Collection<ResourceBundle> {
-    if (serviceArg.isEmpty()) return BundleRegistry.listBundles()
+    if (serviceArg.isEmpty()) return BundleRegistry.listBundles().map { it.first }
     val bundle = BundleRegistry.getBundle(serviceArg)
     require(bundle != null) { "Could not find bundle: $serviceArg" }
-    return listOf(bundle)
+    return listOf(bundle.first)
 }
 
-fun runLauncher(command: LauncherCommand, args: List<String>, skipUpToDateCheck: Boolean) {
+fun runLauncher(
+    command: LauncherCommand,
+    args: List<String>,
+    skipUpToDateCheck: Boolean,
+    forceYes: Boolean,
+    environment: Environment,
+    repositoryRoot: File
+) {
     try {
+        val checkmark = "✅ "
+        val question = "❓ "
+        val cross = "❌ "
+
+        val kubeConfig = File(System.getProperty("user.home"), ".kube/config").readText()
         val scanner = Scanner(System.`in`)
         val serviceArg = args.firstOrNull() ?: ""
         val ctx = DeploymentContext(
-            DefaultKubernetesClient(),
+            DefaultKubernetesClient(Config.fromKubeconfig(environment.name.toLowerCase(), kubeConfig, null)),
             "default",
-            if (args.size <= 1) emptyList() else args.subList(1, args.size)
+            if (args.size <= 1) emptyList() else args.subList(1, args.size),
+            environment,
+            repositoryRoot
         )
+
+        BundleRegistry.listBundles().forEach { (bundle, init) ->
+            init(bundle, ctx)
+        }
 
         fun confirm(message: String): Boolean {
             while (true) {
                 print("$message [Y/n] ")
+                if (forceYes) {
+                    println("Y")
+                    return true
+                }
                 when (scanner.nextLine()) {
                     "", "y", "Y" -> return true
                     "n", "N" -> return false
@@ -33,10 +56,6 @@ fun runLauncher(command: LauncherCommand, args: List<String>, skipUpToDateCheck:
                 }
             }
         }
-
-        val checkmark = "✅  "
-        val question = "❓  "
-        val cross = "❌  "
 
         when (command) {
             LauncherCommand.UP_TO_DATE -> {
@@ -119,6 +138,8 @@ fun runLauncher(command: LauncherCommand, args: List<String>, skipUpToDateCheck:
                 }
             }
         }
+
+        ctx.client.close()
     } catch (ex: Throwable) {
         ex.printStackTrace()
     }
