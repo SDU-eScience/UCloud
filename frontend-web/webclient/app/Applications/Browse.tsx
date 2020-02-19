@@ -81,7 +81,7 @@ class Applications extends React.Component<ApplicationsProps> {
 
     private renderPage = (page: Page<FullAppInfo>) => (<ApplicationPage onFavorite={this.onFavorite} page={page} />);
 
-    private onFavorite = async (name: string, version: string) => {
+    private onFavorite = async (name: string, version: string): Promise<void> => {
         const page = this.props.applicationsPage.content as Page<FullAppInfo>;
         this.props.receiveApplications(await favoriteApplicationFromPage({
             client: Client,
@@ -89,7 +89,7 @@ class Applications extends React.Component<ApplicationsProps> {
             version,
             page
         }));
-    }
+    };
 
     private pageNumber(props: ApplicationsProps = this.props): number {
         return parseInt(getQueryParamOrElse(props, "page", "0"), 10);

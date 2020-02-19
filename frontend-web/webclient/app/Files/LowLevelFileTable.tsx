@@ -67,7 +67,7 @@ import {
     sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {addStandardDialog, Arrow, FileIcon} from "UtilityComponents";
+import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 
@@ -165,7 +165,6 @@ interface InternalFileTableAPI {
     error: string | undefined;
     pageLoading: boolean;
     setSorting: ((sortBy: SortBy, order: SortOrder, updateColumn?: boolean) => void);
-    sortingIcon: (other: SortBy) => React.ReactNode;
     reload: () => void;
     sortBy: SortBy;
     order: SortOrder;
@@ -222,7 +221,6 @@ function useApiForComponent(
             pageLoading,
             error: undefined,
             setSorting: () => 0,
-            sortingIcon: () => undefined,
             sortBy: SortBy.PATH,
             order: SortOrder.ASCENDING,
             reload: (): void => {
@@ -255,9 +253,6 @@ function useApiForComponent(
             });
         };
 
-        const sortingIcon = (other: SortBy): React.ReactNode =>
-            <Arrow sortBy={pageParameters.sortBy} activeSortBy={other} order={pageParameters.order} />;
-
         const reload = (): void => loadManaged(pageParameters);
         const sortBy = pageParameters.sortBy;
         const order = pageParameters.order;
@@ -265,7 +260,7 @@ function useApiForComponent(
         const onPageChanged = (pageNumber: number, itemsPerPage: number): void =>
             loadManaged({...pageParameters, page: pageNumber, itemsPerPage});
 
-        return {page, error, pageLoading: loading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged};
+        return {page, error, pageLoading: loading, setSorting, reload, sortBy, order, onPageChanged};
     }
 }
 
@@ -652,128 +647,125 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                         }}
                         py="5px"
                         width="100%"
-                        alignItems={"center"}
+                        alignItems="center"
                         key={f.path}
                     >
-
-                            {(
-                                <NameBox
-                                    file={f}
-                                    onRenameFile={onRenameFile}
-                                    onNavigate={onFileNavigation}
-                                    callbacks={callbacks}
-                                    fileBeingRenamed={fileBeingRenamed}
-                                    previewEnabled={props.previewEnabled}
-                                />
-                            )}
-                            <Box ml="auto" />
-                            {(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
-                                <Flex alignItems="center" onClick={UF.stopPropagation}>
-                                    {/* Show members as icons */}
-                                    {/* {!f.acl ? null : <ACLAvatars members={f.acl.map(it => it.entity)} />} */}
-                                    {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
-                                        f.size != null
-                                            && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
-                                                <Tooltip
-                                                    wrapperOffsetLeft="0"
-                                                    wrapperOffsetTop="4px"
-                                                    right="0"
-                                                    top="1"
-                                                    mb="50px"
-                                                    trigger={(
-                                                        <Link to={filePreviewQuery(f.path)}>
-                                                            <Icon
-                                                                cursor="pointer"
-                                                                size="24px"
-                                                                mr="8px"
-                                                                color="midGray"
-                                                                hoverColor="gray"
-                                                                name="preview"
-                                                            />
-                                                        </Link>
-                                                    )}
-                                                >
-                                                    Preview available
-                                            </Tooltip>
-                                            ) : (
-                                                <Tooltip
-                                                    wrapperOffsetLeft="0"
-                                                    wrapperOffsetTop="4px"
-                                                    tooltipContentWidth="85px"
-                                                    right="0"
-                                                    top="1"
-                                                    mb="50px"
-                                                    trigger={(
+                        <NameBox
+                            file={f}
+                            onRenameFile={onRenameFile}
+                            onNavigate={onFileNavigation}
+                            callbacks={callbacks}
+                            fileBeingRenamed={fileBeingRenamed}
+                            previewEnabled={props.previewEnabled}
+                        />
+                        <Box ml="auto" />
+                        {(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
+                            <Flex alignItems="center" onClick={UF.stopPropagation}>
+                                {/* Show members as icons */}
+                                {/* {!f.acl ? null : <ACLAvatars members={f.acl.map(it => it.entity)} />} */}
+                                {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
+                                    f.size != null
+                                        && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
+                                            <Tooltip
+                                                wrapperOffsetLeft="0"
+                                                wrapperOffsetTop="4px"
+                                                right="0"
+                                                top="1"
+                                                mb="50px"
+                                                trigger={(
+                                                    <Link to={filePreviewQuery(f.path)}>
                                                         <Icon
-                                                            opacity="0.5"
-                                                            cursor="default"
+                                                            cursor="pointer"
                                                             size="24px"
                                                             mr="8px"
                                                             color="midGray"
+                                                            hoverColor="gray"
                                                             name="preview"
                                                         />
-                                                    )}
-                                                >
-                                                    {(f.size ?? 0) > 0 ? "File too large for preview" : "File is empty"}
-                                                </Tooltip>
-                                            )}
-                                    {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
-                                        ((applications.get(f.path) ?? []).length < 1) ? null : (
-                                            <ClickableDropdown
-                                                width="175px"
-                                                left="-160px"
-                                                trigger={<Icon mr="8px" name="play" size="1em" color="midGray" hoverColor="gray" style={{display:"block"}}/>}
+                                                    </Link>
+                                                )}
                                             >
-                                                <QuickLaunchApps
-                                                    file={f}
-                                                    applications={applications.get(f.path)}
-                                                    history={history}
-                                                    ml="-17px"
-                                                    mr="-17px"
-                                                    pl="15px"
-                                                />
-                                            </ClickableDropdown>
-                                        )
-                                    }
-                                    <SensitivityIcon sensitivity={f.sensitivityLevel} />
-                                    {checkedFiles.size !== 0 ? <Box width="38px" /> : fileOperations.length > 1 ? (
-                                        <Box>
-                                            <ClickableDropdown
-                                                width="175px"
-                                                left="-160px"
+                                                Preview available
+                                            </Tooltip>
+                                        ) : (
+                                            <Tooltip
+                                                wrapperOffsetLeft="0"
+                                                wrapperOffsetTop="4px"
+                                                tooltipContentWidth="85px"
+                                                right="0"
+                                                top="1"
+                                                mb="50px"
                                                 trigger={(
                                                     <Icon
-                                                        onClick={UF.preventDefault}
-                                                        ml="10px"
-                                                        mr="10px"
-                                                        name="ellipsis"
-                                                        size="1em"
-                                                        rotation={90}
+                                                        opacity="0.5"
+                                                        cursor="default"
+                                                        size="24px"
+                                                        mr="8px"
+                                                        color="midGray"
+                                                        name="preview"
                                                     />
                                                 )}
                                             >
-                                                <FileOperations
-                                                    files={[f]}
-                                                    fileOperations={fileOperations}
-                                                    inDropdown
-                                                    ml="-17px"
-                                                    mr="-17px"
-                                                    pl="15px"
-                                                    callback={callbacks}
-                                                />
-                                            </ClickableDropdown>
-                                        </Box>
-                                    ) : (
-                                            <Box mt="-2px" ml="5px">
-                                                <FileOperations
-                                                    files={[f]}
-                                                    fileOperations={fileOperations}
-                                                    callback={callbacks}
-                                                />
-                                            </Box>
+                                                {(f.size ?? 0) > 0 ? "File too large for preview" : "File is empty"}
+                                            </Tooltip>
                                         )}
-                                </Flex>
-                            )}
+                                {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
+                                    ((applications.get(f.path) ?? []).length < 1) ? null : (
+                                        <ClickableDropdown
+                                            width="175px"
+                                            left="-160px"
+                                            trigger={<Icon mr="8px" name="play" size="1em" color="midGray" hoverColor="gray" style={{display: "block"}} />}
+                                        >
+                                            <QuickLaunchApps
+                                                file={f}
+                                                applications={applications.get(f.path)}
+                                                history={history}
+                                                ml="-17px"
+                                                mr="-17px"
+                                                pl="15px"
+                                            />
+                                        </ClickableDropdown>
+                                    )
+                                }
+                                <SensitivityIcon sensitivity={f.sensitivityLevel} />
+                                {checkedFiles.size !== 0 ? <Box width="38px" /> : fileOperations.length > 1 ? (
+                                    <Box>
+                                        <ClickableDropdown
+                                            width="175px"
+                                            left="-160px"
+                                            trigger={(
+                                                <Icon
+                                                    onClick={UF.preventDefault}
+                                                    ml="10px"
+                                                    mr="10px"
+                                                    name="ellipsis"
+                                                    size="1em"
+                                                    rotation={90}
+                                                />
+                                            )}
+                                        >
+                                            <FileOperations
+                                                files={[f]}
+                                                fileOperations={fileOperations}
+                                                inDropdown
+                                                ml="-17px"
+                                                mr="-17px"
+                                                pl="15px"
+                                                callback={callbacks}
+                                            />
+                                        </ClickableDropdown>
+                                    </Box>
+                                ) : (
+                                        <Box mt="-2px" ml="5px">
+                                            <FileOperations
+                                                files={[f]}
+                                                fileOperations={fileOperations}
+                                                callback={callbacks}
+                                            />
+                                        </Box>
+                                    )}
+                            </Flex>
+                        )}
                     </Flex>
                 ))}
             </List>
@@ -924,7 +916,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             <Box width="100%">
                 {canNavigate && !beingRenamed ? (
                     <BaseLink
-                        onClick={(e): void => {
+                        onClick={e => {
                             e.preventDefault();
                             e.stopPropagation();
                             props.onNavigate(resolvePath(props.file.path));
@@ -1042,7 +1034,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations): JSX.
         let As: StyledComponent<any, any>;
         if (fileOperations.length === 1) {
             As = OutlineButton;
-        } else if (props.inDropdown === true) {
+        } else if (props.inDropdown) {
             As = Box;
         } else {
             if (fileOp.currentDirectoryMode === true) {

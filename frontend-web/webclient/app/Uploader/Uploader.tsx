@@ -20,7 +20,8 @@ import {
     OutlineButton,
     Progress,
     Select,
-    Text
+    Text,
+    Truncate
 } from "ui-components";
 import {Box, Flex} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -122,8 +123,8 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
             right: "auto",
             top: "50%",
             transform: "translate(-50%,-50%)",
-            minWidth: "20rem",
-            width: "80%",
+            minWidth: "730px",
+            width: "80vw",
             maxWidth: "60rem",
             background: ""
         }
@@ -198,7 +199,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
                             uploads.filter(it => !it.conflictFile).length ? (
                                 <Button fullWidth color="green" onClick={this.startAllUploads}>
                                     <Icon name={"upload"} />{" "}Start all!
-                            </Button>
+                                </Button>
                             ) : null}
                         <Dropzone onDrop={this.onFilesAdded}>
                             {({getRootProps, getInputProps}) => (
@@ -221,6 +222,18 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         );
     }
 
+    private checkForDuplicates(files: File[]): string[] {
+        const uploadNames = this.props.uploads.map(it => it.file.name);
+        const newFiles = files.map(it => it.name);
+        const duplicates: string[] = [];
+        for (const name of newFiles) {
+            if (uploadNames.includes(name)) {
+                duplicates.push(name);
+            }
+        }
+        return duplicates;
+    }
+
     private onFilesAdded = async (files: File[]): Promise<void> => {
         if (files.some(it => it.size === 0)) {
             snackbarStore.addSnack({
@@ -232,6 +245,15 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         if (files.some(it => it.name.length > 1025)) {
             snackbarStore.addSnack({
                 message: "Filenames can't exceed a length of 1024 characters.",
+                type: SnackType.Information
+            });
+        }
+
+        const duplicates = this.checkForDuplicates(files);
+
+        if (duplicates.length > 0) {
+            snackbarStore.addSnack({
+                message: `You are already added files ${duplicates.join(", ")}`,
                 type: SnackType.Information
             });
         }
@@ -448,16 +470,23 @@ const UploaderRow = (p: {
     );
 
     const fileTitle = (
-        <span>
-            <b>{p.upload.file.name} </b>
+        <Box>
+            <Truncate
+                title={p.upload.file.name}
+                width={["320px", "320px", "320px", "320px", "440px", "560px"]}
+                mb="-4px"
+                fontSize={20}
+            >
+                {p.upload.file.name}
+            </Truncate>
             ({sizeToString(p.upload.file.size)}){fileInfo}<ConflictFile file={p.upload.conflictFile} />
-        </span>
+        </Box>
     );
     let body: React.ReactNode;
-    if (!!p.upload.error) {
+    if (p.upload.error) {
         body = (
             <>
-                <Box width={0.5}>
+                <Box width={"50%"}>
                     {fileTitle}
                 </Box>
                 <Spacer
@@ -479,7 +508,7 @@ const UploaderRow = (p: {
     } else if (!p.upload.isUploading) {
         body = (
             <>
-                <Box width={0.7}>
+                <Box width="80%">
                     <Spacer
                         left={fileTitle}
                         right={p.upload.conflictFile ? <PolicySelect setRewritePolicy={p.setRewritePolicy!} /> : null}
@@ -498,26 +527,26 @@ const UploaderRow = (p: {
                     )}
                 </Box>
                 <Error error={p.upload.error} />
-                <Box width={0.3}>
-                    <ButtonGroup width="100%">
+                <Box width="165px">
+                    <UploaderButtonGroup width="165px">
                         {p.upload.isPending ? <Button color="blue" disabled>Pending</Button> : (
                             <Button
-                                data-tag={"startUpload"}
+                                data-tag="startUpload"
                                 color="green"
                                 disabled={!!p.upload.error}
                                 onClick={e => ifPresent(p.onUpload, c => c(e))}
                             >
                                 <Icon name="upload" />Upload
-                            </Button>
-                        )}
-                        <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag={"removeUpload"}>
+                            </Button>)}
+                        <Button color="red" onClick={e => ifPresent(p.onDelete, c => c(e))} data-tag="removeUpload">
                             <Icon name="close" />
                         </Button>
-                    </ButtonGroup>
-                    <Flex justifyContent="center" pt="0.3em">
+                    </UploaderButtonGroup>
+                    <Flex justifyContent="center">
                         <ClickableDropdown
+                            width="150px"
                             chevron
-                            trigger={prettierString(p.upload.sensitivity)}
+                            trigger={`Sensitivity: ${prettierString(p.upload.sensitivity)}`}
                             onChange={p.setSensitivity}
                             options={privacyOptions}
                         />
@@ -528,7 +557,7 @@ const UploaderRow = (p: {
     } else { // Uploading
         body = (
             <>
-                <Box width={0.25}>
+                <Box width="100%">
                     {fileTitle}
                     <br />
                     {isArchiveExtension(p.upload.file.name) ?
@@ -568,10 +597,20 @@ const UploaderRow = (p: {
             <Box width={0.04} textAlign="center">
                 <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Client.homeFolder)} />
             </Box>
-            <Flex width={0.96}>{body}</Flex>
+            <Flex width="100%">{body}</Flex>
         </Flex>
     );
 };
+
+const UploaderButtonGroup = styled(ButtonGroup)`
+    & > ${Button}:last-child, .last {
+        width: 40px;
+    }
+
+    & > ${Button}:first-child, .first {
+        width: 115px;
+    }
+`;
 
 const ProgressBar = ({upload}: {upload: Upload}): JSX.Element => (
     <Box width={0.45} ml="0.5em" mr="0.5em" pl="0.5" pr="0.5">
@@ -589,7 +628,7 @@ interface PolicySelect {
 }
 
 const PolicySelect = ({setRewritePolicy}: PolicySelect): JSX.Element => (
-    <Flex mt="-12px" width="200px" mr="0.5em">
+    <Flex mt="-38px" width="150px" mr="0.5em">
         <Select
             width="200px"
             defaultValue="Rename"

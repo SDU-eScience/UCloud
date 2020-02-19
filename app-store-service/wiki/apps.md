@@ -425,6 +425,45 @@ parameters:
 
 With `my_parameter = true` will cause invocation `foo --my-flag 1`.
 
+#### `type: enumeration`
+
+An enumeration. A simple enumeration value, uses fixed input options. Both `name` and `value` in the options are strings.
+Internally similar to a `text` parameter.
+
+##### Examples
+
+__Simple:__
+
+```yaml
+parameters:
+  shell:
+    type: enumeration
+    options:
+      -
+        name: Bash
+        value: "0"
+      -
+        name: Zsh
+        value: "1"
+```
+
+__With default value:__
+
+```yaml
+parameters:
+  shell:
+    defaultValue:
+      type: enumeration
+      value: "1"
+    options:
+      -
+        name: Bash
+        value: "0"
+      -
+        name: Zsh
+        value: "1"
+```
+
 #### `type: peer`
 
 A peer is a different application which this application should 'connect' to.

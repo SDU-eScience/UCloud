@@ -14,6 +14,4 @@ export const h5 = ({children, ...props}): JSX.Element =>
 export const h6 = ({children, ...props}): JSX.Element =>
     (<Text as="h6" bold={true} caps={true} fontSize={0} m={0} {...props}>{children}</Text>);
 
-const Heading = h3;
-
-export default Heading;
+export default h3;

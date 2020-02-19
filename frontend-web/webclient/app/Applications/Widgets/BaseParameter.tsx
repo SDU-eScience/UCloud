@@ -14,8 +14,8 @@ export interface ParameterProps {
 }
 
 export const BaseParameter: React.FunctionComponent<{
-    parameter: Types.ApplicationParameter,
-    onRemove?: () => void
+    parameter: Types.ApplicationParameter;
+    onRemove?: () => void;
 }> = ({parameter, children, onRemove}) => (
     <Box mt={"1em"}>
         <Label fontSize={1} htmlFor={parameter.name}>

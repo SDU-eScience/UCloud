@@ -59,7 +59,6 @@ const Text = styled.div<TextProps>`
 export const TextDiv = Text;
 export const TextSpan = (props: any) => <Text as="span" {...props} />;
 export const TextP = (props: any) => <Text as="p" {...props} />;
-export const TextS = (props: any) => <Text as="s" {...props} />;
 
 interface EllipsedTextProps extends TextProps, WidthProps, MaxWidthProps {}
 export const EllipsedText = styled(Text) <EllipsedTextProps>`

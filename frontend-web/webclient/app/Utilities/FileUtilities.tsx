@@ -1,7 +1,7 @@
 import {Client} from "Authentication/HttpClientInstance";
 import HttpClient from "Authentication/lib";
 import {SensitivityLevelMap} from "DefaultObjects";
-import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
+import {File, FileResource, FileType} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
@@ -10,6 +10,8 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {dialogStore} from "Dialog/DialogStore";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -33,8 +35,44 @@ export async function copyOrMoveFilesNew(
     let policy = UploadPolicy.REJECT;
     let allowRewrite = false;
 
+    const filesToCopy: File[] = [];
+    if (files.length === 1) {
+        if (isDirectory(files[0]) && targetPathFolder.startsWith(files[0].path)) {
+            snackbarStore.addFailure("Copy of directory into itself is not allowed.");
+            return;
+        }
+    }
     for (let i = 0; i < files.length; i++) {
+        let add = true
         const f = files[i];
+        if (isDirectory(f) && targetPathFolder.startsWith(f.path)) {
+            //Performing extra check to catch edge case
+            //Edge case e.g copy /home/dir/path into /home/dir/path2.
+            //Target location starts with old path, but is not the same.
+            const normalizedTarget = targetPathFolder + "/"
+            if (normalizedTarget.indexOf(f.path + "/") === 0) {
+                const skip = await new Promise(resolve => addStandardDialog({
+                    title: `Failed to copy ${f.path}`,
+                    message: "A directory cannot be copied into it self. Would you like to skip this operation?",
+                    cancelText: "Cancel entire copy",
+                    confirmText: `Skip ${f.path}`,
+                    onConfirm: () => resolve(true),
+                    onCancel: () => resolve(false)
+                }));
+                if (skip) {
+                    add = false;
+                } else {
+                    return;
+                }
+            }
+        }
+        if (add) {
+            filesToCopy.push(f);
+        }
+    }
+
+    for (let i = 0; i < filesToCopy.length; i++) {
+        const f = filesToCopy[i];
         const {exists, newPathForFile, allowOverwrite} = await moveCopySetup({
             targetPath: targetPathFolder,
             path: f.path,
@@ -44,7 +82,7 @@ export async function copyOrMoveFilesNew(
             const result = await rewritePolicyDialog({
                 path: newPathForFile,
                 homeFolder: Client.homeFolder,
-                filesRemaining: files.length - i,
+                filesRemaining: filesToCopy.length - i,
                 allowOverwrite
             });
             if ("cancelled" in result) {
@@ -53,7 +91,7 @@ export async function copyOrMoveFilesNew(
             } else {
                 allowRewrite = !!result.policy;
                 policy = result.policy as UploadPolicy;
-                if (files.length - i > 1) applyToAll = result.applyToAll;
+                if (filesToCopy.length - i > 1) applyToAll = result.applyToAll;
             }
         }
         if (applyToAll) allowRewrite = true;
@@ -73,7 +111,7 @@ export async function copyOrMoveFilesNew(
     }
 
     if (!failures && successes) {
-        onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: files.length});
+        onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: filesToCopy.length});
     } else if (failures) {
         snackbarStore.addFailure(
             `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`
@@ -98,7 +136,7 @@ async function moveCopySetup({targetPath, path}: MoveCopySetup): Promise<{
 }
 
 function onOnlySuccess({operation, fileCount}: {operation: string; fileCount: number}): void {
-    snackbarStore.addSnack({message: `${operation} ${fileCount} files`, type: SnackType.Success});
+    snackbarStore.addSnack({message: `${operation} ${fileCount} file${fileCount === 1 ? "" : "s"}`, type: SnackType.Success});
 }
 
 export const statFileOrNull = async (path: string): Promise<File | null> => {
@@ -216,30 +254,8 @@ export function resolvePath(path: string): string {
     return "/" + result.join("/");
 }
 
-const toAttributesString = (attrs: FileResource[]): string =>
-    attrs.length > 0 ? `&attributes=${encodeURIComponent(attrs.join(","))}` : "";
-
-export const filepathQuery = (
-    path: string,
-    page: number,
-    itemsPerPage: number,
-    order: SortOrder = SortOrder.ASCENDING,
-    sortBy: SortBy = SortBy.PATH,
-    attrs: FileResource[] = []
-): string =>
-    `files?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&page=${page}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${toAttributesString(attrs)}`;
-
-export const fileLookupQuery = (
-    path: string,
-    itemsPerPage: number = 25,
-    order: SortOrder = SortOrder.DESCENDING,
-    sortBy: SortBy = SortBy.PATH,
-    attrs: FileResource[]
-): string =>
-    `files/lookup?path=${encodeURIComponent(resolvePath(path))}&itemsPerPage=${itemsPerPage}&order=${encodeURIComponent(order)}&sortBy=${encodeURIComponent(sortBy)}${toAttributesString(attrs)}`;
-
 export const filePreviewQuery = (path: string): string =>
-    `files/preview?path=${encodeURIComponent(resolvePath(path))}`;
+    `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 
 export const advancedFileSearch = "/file-search/advanced";
 
@@ -328,7 +344,7 @@ export const isFixedFolder = (filePath: string, homeFolder: string): boolean => 
 /**
  * Used to favorite/defavorite a file based on its current state.
  * @param {File} file The single file to be favorited
- * @param {Cloud} cloud The cloud instance used to changed the favorite state for the file
+ * @param {HttpClient} client The client instance used to changed the favorite state for the file
  */
 export const favoriteFile = async (file: File, client: HttpClient): Promise<File> => {
     try {
@@ -361,9 +377,6 @@ export const reclassifyFile = async ({file, sensitivity, client}: ReclassifyFile
     }
     return {...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity};
 };
-
-export const toFileText = (selectedFiles: File[]): string =>
-    `${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} selected`;
 
 export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
 export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
@@ -409,6 +422,11 @@ export const getParentPath = (path: string): string => {
     let parentPath = "/";
     for (let i = 0; i < splitPath.length - 1; i++) {
         parentPath += splitPath[i] + "/";
+    }
+    /* TODO: Should be equivalent, let's test it for a while and replace if it works. */
+    const parentP = `/${path.split("/").filter(it => it).slice(0, -1).join("/")}/`;
+    if (window.location.hostname === "localhost" && parentP !== parentPath) {
+        throw Error("ParentP and path not equal");
     }
     return parentPath;
 };
@@ -625,8 +643,8 @@ export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
 export function isFilePreviewSupported(f: File): boolean {
     if (isDirectory(f)) return false;
     if (f.sensitivityLevel === "SENSITIVE") return false;
-    if (UF.isExtPreviewSupported(UF.extensionFromPath(f.path))) return true;
-    return false;
+    return UF.isExtPreviewSupported(UF.extensionFromPath(f.path));
+
 }
 
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
