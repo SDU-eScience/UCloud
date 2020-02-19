@@ -90,7 +90,7 @@ class ReindexService(
 
             //if no entries in last week no need to generate an empty index.
             if (fromIndices.isEmpty()) {
-                log.info("No entries in last week. Won't create a weekly index")
+                log.info("No entries in last week. Won't create a weekly index for $toIndex")
                 return@forEach
             }
 
