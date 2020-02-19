@@ -10,6 +10,8 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {dialogStore} from "Dialog/DialogStore";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -33,8 +35,44 @@ export async function copyOrMoveFilesNew(
     let policy = UploadPolicy.REJECT;
     let allowRewrite = false;
 
+    const filesToCopy: File[] = [];
+    if (files.length === 1) {
+        if (isDirectory(files[0]) && targetPathFolder.startsWith(files[0].path)) {
+            snackbarStore.addFailure("Copy of directory into itself is not allowed.");
+            return;
+        }
+    }
     for (let i = 0; i < files.length; i++) {
+        let add = true
         const f = files[i];
+        if (isDirectory(f) && targetPathFolder.startsWith(f.path)) {
+            //Performing extra check to catch edge case
+            //Edge case e.g copy /home/dir/path into /home/dir/path2.
+            //Target location starts with old path, but is not the same.
+            const normalizedTarget = targetPathFolder + "/"
+            if (normalizedTarget.indexOf(f.path + "/") === 0) {
+                const skip = await new Promise(resolve => addStandardDialog({
+                    title: `Failed to copy ${f.path}`,
+                    message: "A directory cannot be copied into it self. Would you like to skip this operation?",
+                    cancelText: "Cancel entire copy",
+                    confirmText: `Skip ${f.path}`,
+                    onConfirm: () => resolve(true),
+                    onCancel: () => resolve(false)
+                }));
+                if (skip) {
+                    add = false;
+                } else {
+                    return;
+                }
+            }
+        }
+        if (add) {
+            filesToCopy.push(f);
+        }
+    }
+
+    for (let i = 0; i < filesToCopy.length; i++) {
+        const f = filesToCopy[i];
         const {exists, newPathForFile, allowOverwrite} = await moveCopySetup({
             targetPath: targetPathFolder,
             path: f.path,
@@ -44,7 +82,7 @@ export async function copyOrMoveFilesNew(
             const result = await rewritePolicyDialog({
                 path: newPathForFile,
                 homeFolder: Client.homeFolder,
-                filesRemaining: files.length - i,
+                filesRemaining: filesToCopy.length - i,
                 allowOverwrite
             });
             if ("cancelled" in result) {
@@ -53,7 +91,7 @@ export async function copyOrMoveFilesNew(
             } else {
                 allowRewrite = !!result.policy;
                 policy = result.policy as UploadPolicy;
-                if (files.length - i > 1) applyToAll = result.applyToAll;
+                if (filesToCopy.length - i > 1) applyToAll = result.applyToAll;
             }
         }
         if (applyToAll) allowRewrite = true;
@@ -73,7 +111,7 @@ export async function copyOrMoveFilesNew(
     }
 
     if (!failures && successes) {
-        onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: files.length});
+        onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: filesToCopy.length});
     } else if (failures) {
         snackbarStore.addFailure(
             `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`
@@ -98,7 +136,7 @@ async function moveCopySetup({targetPath, path}: MoveCopySetup): Promise<{
 }
 
 function onOnlySuccess({operation, fileCount}: {operation: string; fileCount: number}): void {
-    snackbarStore.addSnack({message: `${operation} ${fileCount} files`, type: SnackType.Success});
+    snackbarStore.addSnack({message: `${operation} ${fileCount} file${fileCount === 1 ? "" : "s"}`, type: SnackType.Success});
 }
 
 export const statFileOrNull = async (path: string): Promise<File | null> => {
