@@ -3,6 +3,7 @@ package dk.sdu.cloud.integration
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.integration.backend.AvatarTesting
 import dk.sdu.cloud.integration.backend.FileTesting
 import dk.sdu.cloud.integration.backend.UserAndClient
 import dk.sdu.cloud.micro.*
@@ -43,9 +44,12 @@ suspend fun main(args: Array<String>) {
         UserAndClient(config.userB.username, authenticatedClientB)
     )
 
+    val avatarTesting = AvatarTesting(fileTesting.userA, fileTesting.userB)
+
     while (true) {
         Integration.log.info("Running tests")
         fileTesting.runTest()
+        avatarTesting.runTest()
         delay(1000L * 60)
     }
 }
