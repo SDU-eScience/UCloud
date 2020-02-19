@@ -25,18 +25,14 @@ import dk.sdu.cloud.integration.client
 import dk.sdu.cloud.notification.api.ListNotificationRequest
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.test.retrySection
 import dk.sdu.cloud.share.api.Shares
 import io.ktor.util.cio.readChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.runBlocking
-import org.junit.Test
 import java.nio.file.Files
 import java.util.*
 import java.util.zip.ZipInputStream
-import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 
 /**
  * In this test suite we will perform testing of the file feature as a whole.
@@ -109,7 +105,6 @@ class FileTesting {
         log.info("File system is ready")
     }
 
-    @Test
     fun runTest(): Unit = runBlocking {
         val users = retrieveUsers(2)
         awaitFSReady(users)
@@ -641,7 +636,7 @@ class FileTesting {
         run {
             val startSensitivity = FileDescriptions.stat.call(StatRequest(filePath), client).orThrow().sensitivityLevel
 
-            assertEquals(SensitivityLevel.PRIVATE, startSensitivity)
+            require(SensitivityLevel.PRIVATE == startSensitivity)
 
             FileDescriptions.reclassify.call(
                 ReclassifyRequest(
@@ -652,7 +647,7 @@ class FileTesting {
             ).orThrow()
 
             val newSensitivity = FileDescriptions.stat.call(StatRequest(filePath), client).orThrow().sensitivityLevel
-            assertEquals(SensitivityLevel.SENSITIVE, newSensitivity)
+            require(SensitivityLevel.SENSITIVE == newSensitivity)
 
             val copyPath = joinPath(
                 homeFolder,
@@ -668,7 +663,7 @@ class FileTesting {
             ).orThrow()
 
             val copiedSensitivity = FileDescriptions.stat.call(StatRequest(copyPath), client).orThrow().sensitivityLevel
-            assertEquals(SensitivityLevel.SENSITIVE, copiedSensitivity)
+            require(SensitivityLevel.SENSITIVE == copiedSensitivity)
         }
     }
 
@@ -836,13 +831,13 @@ class FileTesting {
                 ListNotificationRequest(itemsPerPage = null, page = null),
                 client
             ).orThrow()
-            assertNotEquals(0, notifications.itemsInTotal)
+            require(0 != notifications.itemsInTotal)
 
             val shares = Shares.list.call(
                 Shares.List.Request(sharedByMe = true),
                 client
             ).orThrow().items
-            assertNotEquals(0, shares.size)
+            require(shares.isNotEmpty())
 
             val share = shares.single().shares.single()
 
@@ -960,4 +955,20 @@ class FileTesting {
             const val RENAME = "Share2"
         }
     }
+}
+
+/**
+ * Utility code for retrying a section multiple times. This is useful for testing async code.
+ */
+inline fun <T> retrySection(attempts: Int = 5, delay: Long = 500, block: () -> T): T {
+    for (i in 1..attempts) {
+        @Suppress("TooGenericExceptionCaught")
+        try {
+            return block()
+        } catch (ex: Throwable) {
+            if (i == attempts) throw ex
+            Thread.sleep(delay)
+        }
+    }
+    throw IllegalStateException("retrySection impossible situation reached. This should not happen.")
 }
