@@ -1,14 +1,11 @@
 package dk.sdu.cloud.integration.backend
 
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.ChartRequest
 import dk.sdu.cloud.accounting.api.UsageRequest
 import dk.sdu.cloud.accounting.storage.api.StorageUsedResourceDescription
 import dk.sdu.cloud.activity.api.ActivityDescriptions
 import dk.sdu.cloud.activity.api.ListActivityByPathRequest
 import dk.sdu.cloud.activity.api.ListActivityByUserRequest
-import dk.sdu.cloud.auth.api.CreateSingleUserRequest
-import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -20,8 +17,6 @@ import dk.sdu.cloud.file.trash.api.FileTrashDescriptions
 import dk.sdu.cloud.file.trash.api.TrashRequest
 import dk.sdu.cloud.filesearch.api.AdvancedSearchRequest
 import dk.sdu.cloud.filesearch.api.FileSearchDescriptions
-import dk.sdu.cloud.integration.adminClient
-import dk.sdu.cloud.integration.client
 import dk.sdu.cloud.notification.api.ListNotificationRequest
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
@@ -33,6 +28,8 @@ import kotlinx.coroutines.runBlocking
 import java.nio.file.Files
 import java.util.*
 import java.util.zip.ZipInputStream
+
+data class UserAndClient(val username: String, val client: AuthenticatedClient)
 
 /**
  * In this test suite we will perform testing of the file feature as a whole.
@@ -64,28 +61,10 @@ import java.util.zip.ZipInputStream
  * - Shares (and actions from users on both sides)
  * - Activity (did all of these actions get logged as expected)
  */
-class FileTesting {
-    data class UserAndClient(val username: String, val client: AuthenticatedClient)
+class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
 
     val UserAndClient.homeFolder: String
         get() = "/home/$username"
-
-    private suspend fun retrieveUsers(userCount: Int): List<UserAndClient> {
-        val randomUUID = UUID.randomUUID()
-        val users = (1..userCount).map { "test-${randomUUID}_${it}_" }
-        val password = UUID.randomUUID().toString()
-        log.debug("Password: $password")
-
-        val clients = UserDescriptions.createNewUser
-            .call(
-                users.map { CreateSingleUserRequest(it, password, Role.USER) },
-                adminClient
-            )
-            .orThrow()
-            .map { it.client() }
-
-        return users.zip(clients).map { (u, c) -> UserAndClient(u, c) }
-    }
 
     private suspend fun awaitFSReady(users: List<UserAndClient>) {
         retrySection(attempts = 20) {
@@ -106,7 +85,7 @@ class FileTesting {
     }
 
     fun runTest(): Unit = runBlocking {
-        val users = retrieveUsers(2)
+        val users = listOf(userA, userB)
         awaitFSReady(users)
 
         with(users[0]) {
