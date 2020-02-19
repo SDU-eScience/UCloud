@@ -13,6 +13,7 @@ import dk.sdu.cloud.mail.api.SendRequest
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
+import io.ktor.util.InternalAPI
 import io.ktor.util.encodeBase64
 import java.security.SecureRandom
 import java.util.*
@@ -28,7 +29,6 @@ class PasswordResetService<Session>(
     private val authenticatedClient: AuthenticatedClient,
     private val resetRequestsDao: ResetRequestsDao<Session>
 ) {
-    @io.ktor.util.InternalAPI
     suspend fun createResetRequest(email: String) {
         println("Request send from $authenticatedClient")
 
@@ -41,8 +41,7 @@ class PasswordResetService<Session>(
 
         // Generate token
         val secureRandom = SecureRandom()
-        val token =
-            ByteArray(64).also { secureRandom.nextBytes(it) }.encodeBase64().filterNot { it == '&' && it == '/' }
+        val token = Base64.getUrlEncoder().encodeToString(ByteArray(64).also { secureRandom.nextBytes(it) })
 
         // Save in request
         db.withTransaction { session ->
