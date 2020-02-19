@@ -12,32 +12,11 @@ import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
 
-data class IntegrationTestConfiguration(
-    val adminRefreshToken: String
-)
+data class Configuration(val userA: User, val userB: User)
 
-val micro = Micro().apply {
-    initWithDefaultFeatures(
-        IntegrationTestingServiceDescription, arrayOf(
-            "--dev",
-            "--config-dir",
-            "${System.getProperty("user.home")}/sducloudprod"
-        )
-    )
+data class User(val username: String, val refreshToken: String) {
+    init {
+        require(username.isNotEmpty())
+        require(refreshToken.isNotEmpty())
+    }
 }
-
-val tokenValidation = micro.tokenValidation as TokenValidationJWT
-
-val config = micro.configuration.requestChunkAt<IntegrationTestConfiguration>("test", "integration")
-val adminClient = RefreshingJWTAuthenticator(
-    micro.client,
-    config.adminRefreshToken,
-    tokenValidation
-).authenticateClient(OutgoingHttpCall)
-
-fun CreateSingleUserResponse.client(): AuthenticatedClient =
-    RefreshingJWTAuthenticator(
-        micro.client, refreshToken,
-        tokenValidation
-    ).authenticateClient(OutgoingHttpCall)
-
