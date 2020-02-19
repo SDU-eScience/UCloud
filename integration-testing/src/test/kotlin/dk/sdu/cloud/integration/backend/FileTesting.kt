@@ -13,8 +13,6 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.calls.types.StreamingFile
-import dk.sdu.cloud.calls.types.StreamingRequest
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteRequest
@@ -28,10 +26,7 @@ import dk.sdu.cloud.notification.api.ListNotificationRequest
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.test.retrySection
-import dk.sdu.cloud.share.api.AcceptShareRequest
-import dk.sdu.cloud.share.api.CreateShareRequest
-import dk.sdu.cloud.share.api.ListSharesRequest
-import dk.sdu.cloud.share.api.ShareDescriptions
+import dk.sdu.cloud.share.api.Shares
 import io.ktor.util.cio.readChannel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
@@ -206,16 +201,10 @@ class FileTesting {
         val fileToUpload = Files.createTempFile("", "").toFile().also { it.writeText(CONTENTS) }
 
         createDir(DIR)
-        MultiPartUploadDescriptions.upload.call(
-            StreamingRequest.Outgoing(
-                UploadRequest(
-                    joinPath(
-                        homeFolder,
-                        DIR,
-                        NAME
-                    ),
-                    upload = StreamingFile.fromFile(fileToUpload)
-                )
+        MultiPartUploadDescriptions.simpleUpload.call(
+            SimpleUploadRequest(
+                joinPath(homeFolder, DIR, NAME),
+                BinaryStream.outgoingFromChannel(fileToUpload.readChannel(), fileToUpload.length())
             ),
             client
         ).orThrow()
@@ -288,7 +277,7 @@ class FileTesting {
                 listAt(
                     DIR,
                     FOLDER_NAME
-                ), FileType.FILE, Companion.SmallFileUpload.NAME
+                ), FileType.FILE, SmallFileUpload.NAME
             )
         }
         log.info("Directory copied!")
@@ -344,8 +333,8 @@ class FileTesting {
             CopyRequest(
                 path = joinPath(
                     homeFolder,
-                    Companion.SmallFileUpload.DIR,
-                    Companion.SmallFileUpload.NAME
+                    SmallFileUpload.DIR,
+                    SmallFileUpload.NAME
                 ),
                 newPath = fileToDelete
             ),
@@ -354,7 +343,7 @@ class FileTesting {
 
         FileDescriptions.copy.call(
             CopyRequest(
-                path = joinPath(homeFolder, Companion.SmallFileUpload.DIR),
+                path = joinPath(homeFolder, SmallFileUpload.DIR),
                 newPath = dirToDelete
             ),
             client
@@ -397,8 +386,8 @@ class FileTesting {
             CopyRequest(
                 path = joinPath(
                     homeFolder,
-                    Companion.SmallFileUpload.DIR,
-                    Companion.SmallFileUpload.NAME
+                    SmallFileUpload.DIR,
+                    SmallFileUpload.NAME
                 ),
                 newPath = fileToDelete
             ),
@@ -407,7 +396,7 @@ class FileTesting {
 
         FileDescriptions.copy.call(
             CopyRequest(
-                path = joinPath(homeFolder, Companion.SmallFileUpload.DIR),
+                path = joinPath(homeFolder, SmallFileUpload.DIR),
                 newPath = dirToDelete
             ),
             client
@@ -772,7 +761,7 @@ class FileTesting {
     private suspend fun UserAndClient.searchTest() {
         val searchResults = FileSearchDescriptions.advancedSearch.call(
             AdvancedSearchRequest(
-                fileName = Companion.SmallFileUpload.NAME.fileName(),
+                fileName = SmallFileUpload.NAME.fileName(),
                 fileTypes = listOf(FileType.FILE),
                 itemsPerPage = 100,
                 page = 0,
@@ -780,14 +769,15 @@ class FileTesting {
                 extensions = null,
                 modifiedAt = null,
                 sensitivity = null,
-                annotations = null
+                annotations = null,
+                includeShares = true
             ),
             client
         ).orThrow()
 
         requireFile(
             searchResults.items, FileType.FILE,
-            Companion.SmallFileUpload.NAME
+            SmallFileUpload.NAME
         )
     }
 
@@ -829,8 +819,8 @@ class FileTesting {
         with(owner) {
             createDir(DIR)
 
-            ShareDescriptions.create.call(
-                CreateShareRequest(
+            Shares.create.call(
+                Shares.Create.Request(
                     otherUser.username,
                     joinPath(homeFolder, DIR),
                     setOf(AccessRight.READ, AccessRight.WRITE)
@@ -848,16 +838,16 @@ class FileTesting {
             ).orThrow()
             assertNotEquals(0, notifications.itemsInTotal)
 
-            val shares = ShareDescriptions.list.call(
-                ListSharesRequest(),
+            val shares = Shares.list.call(
+                Shares.List.Request(sharedByMe = true),
                 client
             ).orThrow().items
             assertNotEquals(0, shares.size)
 
             val share = shares.single().shares.single()
 
-            ShareDescriptions.accept.call(
-                AcceptShareRequest(
+            Shares.accept.call(
+                Shares.Accept.Request(
                     share.id,
                     createLink = true
                 ),
