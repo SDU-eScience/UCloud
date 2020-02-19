@@ -122,7 +122,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                     )}
                                 />
                             </div>
-                            <Box pl="10px" style={{overflowX: "scroll"}} pb="5px">
+                            <Box pl="10px" style={{overflowX: "scroll"}} pb="15px">
                                 <Grid
                                     pt="20px"
                                     gridTemplateRows="repeat(3, 1fr)"
