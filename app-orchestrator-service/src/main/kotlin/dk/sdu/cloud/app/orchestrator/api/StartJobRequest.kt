@@ -19,5 +19,6 @@ data class StartJobRequest(
     val sharedFileSystemMounts: List<SharedFileSystemMountDescription> = emptyList(),
     val peers: List<ApplicationPeer> = emptyList(),
     val reservation: String? = null,
-    val mountMode: MountMode? = null
+    val mountMode: MountMode? = null,
+    val acceptSameDataRetry: Boolean = false
 )

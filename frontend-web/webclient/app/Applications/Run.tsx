@@ -614,7 +614,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             reservation,
             type: "start",
             name: jobName !== "" ? jobName : null,
-            mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES"
+            mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES",
+            acceptSameDataRetry: false
         };
 
         try {
@@ -623,8 +624,37 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Client.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));
-            this.setState(() => ({jobSubmitted: false}));
+            if (err.request.status == 409) {
+                addStandardDialog({
+                    title: "Job with same parameters already running",
+                    message: "You might be trying to run a duplicate job. Would you like to proceed?",
+                    cancelText: "No",
+                    confirmText: "Yes",
+                    onConfirm: async () => {
+                        const rerunJob = {
+                            ...job,
+                            acceptSameDataRetry: true
+                        };
+                        try {
+                            const rerunRequest = await Client.post(hpcJobQueryPost, rerunJob)
+                            this.props.history.push(`/applications/results/${rerunRequest.response.jobId}`);
+                        } catch (rerunErr) {
+                            snackbarStore.addFailure(
+                                errorMessageOrDefault(rerunErr, "An error occurred submitting the job.")
+                            )
+                        }
+                    },
+                    onCancel: async () => {
+                        this.setState( () => ({jobSubmitted: false}));
+                    }
+                });
+            }
+            else {
+                snackbarStore.addFailure(
+                    errorMessageOrDefault(err, "An error occurred submitting the job.")
+                );
+                this.setState(() => ({jobSubmitted: false}));
+            }
         } finally {
             this.props.setLoading(false);
         }

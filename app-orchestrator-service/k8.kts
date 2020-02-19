@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-orchestrator"
-    version = "1.3.2-enum-widget"
+    version = "1.4.0"
 
     withAmbassador(null) {
         addSimpleMapping("/api/hpc/jobs")
