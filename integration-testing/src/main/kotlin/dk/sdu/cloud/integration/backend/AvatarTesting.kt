@@ -26,9 +26,9 @@ class AvatarTesting(private val userAndClient: UserAndClient, private val otherU
 
     private suspend fun updateAvatar() {
         log.info("Updating avatar")
-        val top = if (avatar.top == "NoHair")
-            "NoHair"
-        else "Hat"
+        val top =
+            if (avatar.top == "NoHair") "NoHair"
+            else "Hat"
         AvatarDescriptions.update.call(
             UpdateRequest(
                 top,
