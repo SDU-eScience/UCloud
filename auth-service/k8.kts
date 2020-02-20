@@ -364,6 +364,7 @@ bundle { ctx ->
             listOf(
                 AuthService("web-csrf", "$base/api/auth-callback-csrf"),
                 AuthService("web", "$base/app/login/wayf", endpointAcceptStateViaCookie = true),
+                AuthService("dev-web", "http://localhost:9000/app/login/wayf", endpointAcceptStateViaCookie = true),
                 AuthService("dav", "$base/app/login/wayf?dav=true", serviceMode = "APPLICATION")
             )
 
