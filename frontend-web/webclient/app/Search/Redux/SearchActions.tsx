@@ -43,7 +43,7 @@ export async function searchFiles(request: AdvancedSearchRequest): Promise<any> 
 
 export async function searchApplications(body: AppSearchRequest): Promise<any> {
     try {
-        const {response} = await Client.post(advancedSearchQuery(), body);
+        const {response} = await Client.post(advancedSearchQuery, body);
         return receiveApplications(response);
     } catch (e) {
         snackbarStore.addFailure("An error occurred searching for applications");
