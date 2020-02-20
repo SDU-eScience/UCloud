@@ -1,11 +1,11 @@
 group 'dk.sdu.cloud'
-version '1.4.1'
+version '1.4.2'
 
 apply plugin: 'application'
 mainClassName = 'dk.sdu.cloud.app.abacus.MainKt'
 
 buildscript {
-    ext.serviceCommonVersion = "1.12.2"
+    ext.serviceCommonVersion = "1.12.3"
     ext.authApiVersion = "1.26.4"
 }
 

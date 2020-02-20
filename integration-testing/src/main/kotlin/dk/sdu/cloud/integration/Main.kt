@@ -9,6 +9,7 @@ import dk.sdu.cloud.integration.backend.UserAndClient
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidationJWT
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.share.api.ShareServiceDescription
 import kotlinx.coroutines.delay
 
@@ -39,17 +40,22 @@ suspend fun main(args: Array<String>) {
         micro.tokenValidation as TokenValidationJWT
     ).authenticateClient(OutgoingHttpCall)
 
-    val fileTesting = FileTesting(
-        UserAndClient(config.userA.username, authenticatedClientA),
-        UserAndClient(config.userB.username, authenticatedClientB)
-    )
-
-    val avatarTesting = AvatarTesting(fileTesting.userA, fileTesting.userB)
-
     while (true) {
-        Integration.log.info("Running tests")
-        fileTesting.runTest()
-        avatarTesting.runTest()
-        delay(1000L * 60)
+        try {
+            Integration.log.info("Running tests")
+            FileTesting(
+                UserAndClient(config.userA.username, authenticatedClientA),
+                UserAndClient(config.userB.username, authenticatedClientB)
+            ).runTest()
+
+            AvatarTesting(
+                UserAndClient(config.userA.username, authenticatedClientA),
+                UserAndClient(config.userB.username, authenticatedClientB)
+            ).runTest()
+        } catch (ex: Throwable) {
+            Integration.log.warn(ex.stackTraceToString())
+        } finally {
+            delay(1000L * 60 * 15)
+        }
     }
 }

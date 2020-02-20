@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-store"
-    version = "0.12.0-enum-widget"
+    version = "0.12.1"
 
     withAmbassador(null) {
         addSimpleMapping("/api/hpc")

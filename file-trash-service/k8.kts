@@ -3,11 +3,11 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-trash"
-    version = "1.3.8"
+    version = "1.3.10"
 
     withAmbassador("/api/files/trash") {}
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = 1
     }
 }

@@ -5,7 +5,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "integration"
-    version = "0.1.0"
+    version = "0.1.2"
 
     val userLetters = listOf("a", "b")
 
@@ -13,10 +13,11 @@ bundle { ctx ->
         withDeployment(image = "registry.cloud.sdu.dk/sdu-cloud/integration-testing:${this@bundle.version}") {
             deployment.spec.replicas = 1
             userLetters.forEach { injectSecret("integration-user-$it") }
+            deployment.spec.template.spec.containers.forEach { it.livenessProbe = null }
         }
 
     userLetters.forEach { letter ->
-        withSecret("integration-user-$letter") {
+        withSecret("integration-user-$letter", version = "0.1.0") {
             val scanner = Scanner(System.`in`)
             println("Please enter username for user $letter:")
             val username = scanner.nextLine()

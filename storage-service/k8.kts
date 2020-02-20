@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "3.2.6"
+    version = "3.2.9"
 
     withAmbassador(null) {
         services.add(
@@ -81,7 +81,7 @@ bundle { ctx ->
     }
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = 1
 
         injectConfiguration("storage-config")
         injectConfiguration("ceph-fs-config")

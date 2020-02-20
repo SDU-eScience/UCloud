@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-kubernetes-watcher"
-    version = "0.1.5"
+    version = "0.1.6"
 
     withAmbassador("/api/app/kubernetes/watcher") {}
 
