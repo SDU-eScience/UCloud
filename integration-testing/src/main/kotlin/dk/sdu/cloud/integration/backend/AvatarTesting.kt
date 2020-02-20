@@ -61,7 +61,7 @@ class AvatarTesting(private val userAndClient: UserAndClient, private val otherU
             userAndClient.client
         ).orThrow().avatars
         if (result.size != 2) throw IllegalStateException("Should find 2 avatars, found ${result.size}")
-        log.info("Successfully ")
+        log.info("Successfully fetched multiple avatars.")
     }
 
     companion object : Loggable {
