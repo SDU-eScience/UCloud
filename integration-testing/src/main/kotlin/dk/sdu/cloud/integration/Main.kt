@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.integration.backend.AvatarTesting
+import dk.sdu.cloud.integration.backend.FileFavoriteTest
 import dk.sdu.cloud.integration.backend.FileTesting
 import dk.sdu.cloud.integration.backend.UserAndClient
 import dk.sdu.cloud.micro.*
@@ -43,11 +44,16 @@ suspend fun main(args: Array<String>) {
     while (true) {
         try {
             Integration.log.info("Running tests")
+
             FileTesting(
                 UserAndClient(config.userA.username, authenticatedClientA),
                 UserAndClient(config.userB.username, authenticatedClientB)
             ).runTest()
 
+            FileFavoriteTest(
+                UserAndClient(config.userA.username, authenticatedClientA)
+            ).runTest()
+            
             AvatarTesting(
                 UserAndClient(config.userA.username, authenticatedClientA),
                 UserAndClient(config.userB.username, authenticatedClientB)

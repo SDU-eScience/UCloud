@@ -10,9 +10,26 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
-import dk.sdu.cloud.file.favorite.api.ToggleFavoriteRequest
+import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.CopyRequest
+import dk.sdu.cloud.file.api.DeleteFileRequest
+import dk.sdu.cloud.file.api.DownloadByURI
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.ListDirectoryRequest
+import dk.sdu.cloud.file.api.MoveRequest
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.file.api.ReclassifyRequest
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.SimpleBulkUpload
+import dk.sdu.cloud.file.api.SimpleUploadRequest
+import dk.sdu.cloud.file.api.StatRequest
+import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.file.trash.api.FileTrashDescriptions
 import dk.sdu.cloud.file.trash.api.TrashRequest
 import dk.sdu.cloud.filesearch.api.AdvancedSearchRequest
@@ -35,7 +52,7 @@ data class UserAndClient(val username: String, val client: AuthenticatedClient)
  * In this test suite we will perform testing of the file feature as a whole.
  *
  * The test suite starts by creating various folders and files. This will happen via various ways, starting from
- * simple to more advanced (more likely to fail) operations. They will be performed in the following order:
+ * simple to more advanced (more likely to fail) operations. The following will be performed:
  *
  * - Create directory
  * - Upload small file
@@ -49,45 +66,12 @@ data class UserAndClient(val username: String, val client: AuthenticatedClient)
  * - UTF8 handling
  * - Favorites (with moves and deletions)
  * - File sensitivity
- *
- * At the end of this we will have a reference file system that sub-tests will validate against. We will perform the
- * following tests:
- *
- * - List directory (will be used to validate the file system is correct)
- * - Single file download
- * - Bulk file download
- * - Storage accounting (graph and usage)
- * - File search (simple and advanced searches)
- * - Shares (and actions from users on both sides)
- * - Activity (did all of these actions get logged as expected)
  */
 class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
-    val UserAndClient.homeFolder: String
-        get() = "/home/$username"
-
     private val testId = UUID.randomUUID().toString()
 
-    private suspend fun awaitFSReady(users: List<UserAndClient>) {
-        retrySection(attempts = 20) {
-            users.forEach { ctx ->
-                FileDescriptions.listAtPath.call(
-                    ListDirectoryRequest(
-                        ctx.homeFolder,
-                        itemsPerPage = null,
-                        page = null,
-                        sortBy = null,
-                        order = null
-                    ),
-                    ctx.client
-                ).orThrow()
-            }
-        }
-        log.info("File system is ready")
-    }
-
-    fun runTest(): Unit = runBlocking {
+    suspend fun runTest() {
         val users = listOf(userA, userB)
-        awaitFSReady(users)
 
         with(users[0]) {
             createDirectoryTest()
@@ -99,73 +83,39 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
             deleteTrashTest()
             simpleArchiveTest()
             complexArchiveTest()
-            favoritesTest()
             sensitivityTest()
             singleDownloadTest()
             bulkDownloadTest()
             //accountingTest()
-            searchTest()
-            activityTest()
+            //searchTest()
+            //activityTest()
         }
 
-        shareTest(users[0], users[1])
-
-        return@runBlocking
-    }
-
-    private suspend fun UserAndClient.listAt(vararg components: String): List<StorageFile> {
-        return FileDescriptions.listAtPath.call(
-            ListDirectoryRequest(
-                joinPath(homeFolder, *components),
-                itemsPerPage = 100,
-                page = 0,
-                order = null,
-                sortBy = null
-            ),
-            client
-        ).orThrow().items
-    }
-
-    private fun UserAndClient.requireFile(list: List<StorageFile>, type: FileType, fileName: String) {
-        val result = list.find {
-            it.path.fileName() == fileName
-        } ?: throw IllegalArgumentException("${fileName.toList()} was not in output ${list.map { it.path }}")
-
-        if (result.fileType != type) {
-            throw IllegalArgumentException("Invalid type of $fileName. Was ${result.fileType} and not $type")
-        }
-    }
-
-    private suspend fun UserAndClient.createDir(vararg components: String) {
-        FileDescriptions.createDirectory.call(
-            CreateDirectoryRequest(
-                path = joinPath(homeFolder, *components),
-                owner = null
-            ),
-            client
-        ).orThrow()
+        //shareTest(users[0], users[1])
     }
 
     private suspend fun UserAndClient.createDirectoryTest() {
         log.info("Testing creation of directories")
 
-        createDir(testId)
+        createDir(testId) // Create the root directory for this test (all other tests will depend on this)
+
+        // Create some directories
+        createDir(testId, DirectoryTest.DIR)
         repeat(DirectoryTest.DIR_COUNT) {
             createDir(testId, DirectoryTest.DIR, "$it")
         }
 
-        run {
-            val homeDir = listAt(testId)
-            requireFile(
-                homeDir,
-                FileType.DIRECTORY,
-                DirectoryTest.DIR
-            )
+        // Then test that we can find them
+        val homeDir = listAt(testId)
+        requireFile(
+            homeDir,
+            FileType.DIRECTORY,
+            DirectoryTest.DIR
+        )
 
-            val dir = listAt(testId, DirectoryTest.DIR)
-            repeat(DirectoryTest.DIR_COUNT) {
-                requireFile(dir, FileType.DIRECTORY, "$it")
-            }
+        val dir = listAt(testId, DirectoryTest.DIR)
+        repeat(DirectoryTest.DIR_COUNT) {
+            requireFile(dir, FileType.DIRECTORY, "$it")
         }
 
         log.info("Directories successfully created!")
@@ -185,18 +135,17 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
             client
         ).orThrow()
 
-        run {
-            requireFile(
-                listAt(testId),
-                FileType.DIRECTORY,
-                DIR
-            )
-            requireFile(
-                listAt(testId, DIR),
-                FileType.FILE,
-                NAME
-            )
-        }
+        requireFile(
+            listAt(testId),
+            FileType.DIRECTORY,
+            DIR
+        )
+
+        requireFile(
+            listAt(testId, DIR),
+            FileType.FILE,
+            NAME
+        )
 
         log.info("Small file uploaded!")
     }
@@ -607,23 +556,6 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
         }
     }
 
-    private suspend fun UserAndClient.favoritesTest(): Unit = with(Favorites) {
-        log.info("Toggling favorites")
-        repeat(3) {
-            FileFavoriteDescriptions.toggleFavorite.call(
-                ToggleFavoriteRequest(
-                    joinPath(
-                        homeFolder,
-                        testId,
-                        FILE_TO_FAVORITE
-                    )
-                ),
-                client
-            ).orThrow()
-        }
-        log.info("Favorites test done.")
-    }
-
     private suspend fun UserAndClient.sensitivityTest(): Unit = with(SensitivityTest) {
         createDir(testId, DIR)
 
@@ -956,10 +888,6 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
             const val DIR = "ComplexArchive"
             const val DIR_ZIP = "ZIP"
             const val DIR_TGZ = "TGZ"
-        }
-
-        object Favorites {
-            const val FILE_TO_FAVORITE = DirectoryTest.DIR
         }
 
         object SensitivityTest {
