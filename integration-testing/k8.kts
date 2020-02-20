@@ -5,7 +5,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "integration"
-    version = "0.1.0"
+    version = "0.1.2"
 
     val userLetters = listOf("a", "b")
 
@@ -16,7 +16,7 @@ bundle { ctx ->
         }
 
     userLetters.forEach { letter ->
-        withSecret("integration-user-$letter") {
+        withSecret("integration-user-$letter", version = "0.1.0") {
             val scanner = Scanner(System.`in`)
             println("Please enter username for user $letter:")
             val username = scanner.nextLine()

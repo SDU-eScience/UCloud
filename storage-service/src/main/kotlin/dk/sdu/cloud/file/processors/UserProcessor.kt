@@ -12,9 +12,6 @@ import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.service.Loggable
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.attribute.PosixFilePermissions
@@ -57,12 +54,11 @@ class UserProcessor<FSCtx : CommandRunner>(
             val path = directory.toPath()
             try {
                 Files.createDirectory(path, filePermissions)
-            } catch (ignored: FileAlreadyExistsException) {
+            } catch (ignored: java.nio.file.FileAlreadyExistsException) {
                 // Ignored
             }
             Chown.setOwner(path, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
         }
-
         // We must notify the system to scan for files created by external systems. In this case the create
         // user executable counts as an external system. An external system is any system that is not the
         // micro-service itself. We need to do this to ensure that the correct events are emitted into the u

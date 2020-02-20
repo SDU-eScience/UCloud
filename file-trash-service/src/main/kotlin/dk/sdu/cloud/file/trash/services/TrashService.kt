@@ -7,7 +7,6 @@ import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.DeleteFileRequest
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.api.MoveRequest
 import dk.sdu.cloud.file.api.StatRequest
@@ -17,11 +16,14 @@ import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.micro.BackgroundScope
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.task.api.Progress
+import dk.sdu.cloud.task.api.runTask
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
-import dk.sdu.cloud.task.api.runTask
-import kotlinx.coroutines.*
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
 
 class TrashService(
     private val trashDirectoryService: TrashDirectoryService,
@@ -69,18 +71,26 @@ class TrashService(
     }
 
     suspend fun moveFilesToTrash(files: List<String>, username: String, userCloud: AuthenticatedClient) {
-        validateTrashDirectory(username, userCloud)
+        try {
+            validateTrashDirectory(username, userCloud)
+        } catch (ex: Throwable) {
+            log.warn(ex.stackTraceToString())
+            throw ex
+        }
         backgroundScope.launch {
             runTask(wsServiceClient, backgroundScope, "Moving files to trash", username) {
-
                 this.status = "Moving files to trash"
                 val progress = Progress("Number of files", 0, files.size)
                 this.progress = progress
 
                 files.forEach {
                     launch {
-                        moveFileToTrash(it, username, userCloud)
-                        progress.current++
+                        try {
+                            moveFileToTrash(it, username, userCloud)
+                            progress.current++
+                        } catch (ex: Throwable) {
+                            log.warn(ex.stackTraceToString())
+                        }
                     }
                 }
             }
@@ -140,5 +150,9 @@ class TrashService(
                 // No further action needed, trash directory already exists
             }
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
