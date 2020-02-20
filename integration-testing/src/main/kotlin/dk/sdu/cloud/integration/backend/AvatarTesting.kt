@@ -6,6 +6,7 @@ import dk.sdu.cloud.avatar.api.SerializedAvatar
 import dk.sdu.cloud.avatar.api.UpdateRequest
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.service.Loggable
 
 
 class AvatarTesting(private val userAndClient: UserAndClient, private val otherUser: UserAndClient) {
@@ -18,16 +19,13 @@ class AvatarTesting(private val userAndClient: UserAndClient, private val otherU
     }
 
     private suspend fun fetchAvatar() {
-        // TODO Logging
-        try {
-            avatar = AvatarDescriptions.findAvatar.call(Unit, userAndClient.client).orThrow()
-        } catch (e: Exception) {
-            throw Exception("Failed to fetch avatar\n $e")
-        }
+        log.info("Fetching avatar")
+        avatar = AvatarDescriptions.findAvatar.call(Unit, userAndClient.client).orThrow()
+        log.info("Fetched avatar")
     }
 
     private suspend fun updateAvatar() {
-        // TODO Logging
+        log.info("Updating avatar")
         val top = if (avatar.top == "NoHair")
             "NoHair"
         else "Hat"
@@ -52,19 +50,21 @@ class AvatarTesting(private val userAndClient: UserAndClient, private val otherU
 
         val fetchedTop = AvatarDescriptions.findAvatar.call(Unit, userAndClient.client).orThrow().top
         if (fetchedTop != top)
-            throw Exception("Expected $top, got $fetchedTop")
+            throw IllegalStateException("Expected $top, got $fetchedTop")
+        log.info("Successfully updated avatar.")
     }
 
     private suspend fun findBulk() {
-        // TODO Logging
-        try {
-            val result = AvatarDescriptions.findBulk.call(
-                FindBulkRequest(listOf(userAndClient.username, otherUser.username)),
-                userAndClient.client
-            ).orThrow().avatars
-            if (result.size != 2) throw Exception("Should find 2 avatars, found ${result.size}")
-        } catch (e: Exception) {
-            throw Exception(e.toString())
-        }
+        log.info("Finding multiple avatars")
+        val result = AvatarDescriptions.findBulk.call(
+            FindBulkRequest(listOf(userAndClient.username, otherUser.username)),
+            userAndClient.client
+        ).orThrow().avatars
+        if (result.size != 2) throw IllegalStateException("Should find 2 avatars, found ${result.size}")
+        log.info("Successfully ")
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
