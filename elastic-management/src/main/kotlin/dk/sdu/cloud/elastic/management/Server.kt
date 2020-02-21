@@ -60,7 +60,7 @@ class Server(
             @Suppress("TooGenericExceptionCaught")
             try {
                 val deleteService = ExpiredEntriesDeleteService(elasticHighLevelClient)
-                //deleteService.deleteExpiredAllIndices()
+                deleteService.deleteExpiredAllIndices()
                 val shrinkService = ShrinkService(elasticHighLevelClient, config.gatherNode)
                 shrinkService.shrink()
                 deleteService.deleteOldRancherLogs()
