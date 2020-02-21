@@ -15,6 +15,7 @@ import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.settings.Settings
 import org.slf4j.Logger
 import java.io.IOException
+import java.net.SocketTimeoutException
 import java.time.LocalDate
 
 class ShrinkService(
@@ -74,7 +75,17 @@ class ShrinkService(
                 retries++
                 continue
             }
-            mergeIndex(elastic, targetIndex)
+            try {
+                mergeIndex(elastic, targetIndex)
+            } catch (ex: Exception) {
+                when (ex) {
+                    is SocketTimeoutException -> log.info("Caught TimeoutException - It is okay - merge still happening")
+                    else -> {
+                        log.info("Caught other exception - should still be okay but:")
+                        ex.printStackTrace()
+                    }
+                }
+            }
             return
         }
         throw Exception("Too many retries on shrink of $sourceIndex")
