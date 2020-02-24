@@ -15,7 +15,6 @@ dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
     compile "dk.sdu.cloud:file-api:3.1.0"
-    compile "dk.sdu.cloud:indexing-api:1.15.4"
     compile "dk.sdu.cloud:file-favorite-api:1.4.2"
 
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
