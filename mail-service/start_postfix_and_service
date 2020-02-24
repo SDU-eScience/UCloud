@@ -1,2 +1,3 @@
+#!/usr/bin/env bash
 exec postfix start-fg &
 exec /opt/service/bin/service
