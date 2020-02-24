@@ -3,10 +3,7 @@ package dk.sdu.cloud.integration
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.integration.backend.AvatarTesting
-import dk.sdu.cloud.integration.backend.FileFavoriteTest
-import dk.sdu.cloud.integration.backend.FileTesting
-import dk.sdu.cloud.integration.backend.UserAndClient
+import dk.sdu.cloud.integration.backend.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidationJWT
@@ -35,28 +32,11 @@ suspend fun main(args: Array<String>) {
         micro.tokenValidation as TokenValidationJWT
     ).authenticateClient(OutgoingHttpCall)
 
-    val authenticatedClientB = RefreshingJWTAuthenticator(
-        micro.client,
-        config.userB.refreshToken,
-        micro.tokenValidation as TokenValidationJWT
-    ).authenticateClient(OutgoingHttpCall)
-
     while (true) {
         try {
             Integration.log.info("Running tests")
-
-            FileTesting(
-                UserAndClient(config.userA.username, authenticatedClientA),
-                UserAndClient(config.userB.username, authenticatedClientB)
-            ).runTest()
-
-            FileFavoriteTest(
+            SupportTesting(
                 UserAndClient(config.userA.username, authenticatedClientA)
-            ).runTest()
-            
-            AvatarTesting(
-                UserAndClient(config.userA.username, authenticatedClientA),
-                UserAndClient(config.userB.username, authenticatedClientB)
             ).runTest()
         } catch (ex: Throwable) {
             Integration.log.warn(ex.stackTraceToString())

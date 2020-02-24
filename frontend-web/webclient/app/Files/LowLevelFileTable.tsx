@@ -502,7 +502,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             main={(
                 <>
                     {!sortingSupported ? <div /> : (
-                        <StickyBox backgroundColor={"white"}>
+                        <StickyBox backgroundColor="white">
                             <Spacer
                                 left={isMasterDisabled ? null : (
                                     <Box mr="18px">
