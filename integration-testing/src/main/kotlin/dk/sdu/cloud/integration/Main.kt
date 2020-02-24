@@ -58,6 +58,10 @@ suspend fun main(args: Array<String>) {
                 UserAndClient(config.userA.username, authenticatedClientA),
                 UserAndClient(config.userB.username, authenticatedClientB)
             ).runTest()
+
+            SupportTesting(
+                UserAndClient(config.userA.username, authenticatedClientA)
+            ).runTest()
         } catch (ex: Throwable) {
             Integration.log.warn(ex.stackTraceToString())
         } finally {
