@@ -35,11 +35,9 @@ import {Button, Checkbox, Flex, Icon, Label, Text, VerticalButtonGroup} from "ui
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import * as Heading from "ui-components/Heading";
-import {cloudTryingItsBest} from "ui-components/icons";
 import Input, {HiddenInputField, InputLabel} from "ui-components/Input";
 import {SidebarPages} from "ui-components/Sidebar";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import {stopPropagation} from "UtilityFunctions";
 
@@ -75,7 +73,6 @@ async function loadApplicationPermissionEntries(appName: string): Promise<Applic
 
 const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOperations> = props => {
     const name = props.match.params.name;
-    if (Client.userRole !== "ADMIN") return null;
 
     const [commandLoading, invokeCommand] = useAsyncCommand();
     const [logoCacheBust, setLogoCacheBust] = useState("" + Date.now());
@@ -131,6 +128,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     const newTagField = useRef<HTMLInputElement>(null);
     const newPermissionField = useRef<HTMLInputElement>(null);
 
+    if (Client.userRole !== "ADMIN") return null;
     return (
         <MainContainer
             header={(

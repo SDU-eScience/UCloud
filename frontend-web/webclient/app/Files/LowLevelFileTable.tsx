@@ -67,7 +67,7 @@ import {
     sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {addStandardDialog, Arrow, FileIcon} from "UtilityComponents";
+import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 
@@ -165,7 +165,6 @@ interface InternalFileTableAPI {
     error: string | undefined;
     pageLoading: boolean;
     setSorting: ((sortBy: SortBy, order: SortOrder, updateColumn?: boolean) => void);
-    sortingIcon: (other: SortBy) => React.ReactNode;
     reload: () => void;
     sortBy: SortBy;
     order: SortOrder;
@@ -222,7 +221,6 @@ function useApiForComponent(
             pageLoading,
             error: undefined,
             setSorting: () => 0,
-            sortingIcon: () => undefined,
             sortBy: SortBy.PATH,
             order: SortOrder.ASCENDING,
             reload: (): void => {
@@ -255,9 +253,6 @@ function useApiForComponent(
             });
         };
 
-        const sortingIcon = (other: SortBy): React.ReactNode =>
-            <Arrow sortBy={pageParameters.sortBy} activeSortBy={other} order={pageParameters.order} />;
-
         const reload = (): void => loadManaged(pageParameters);
         const sortBy = pageParameters.sortBy;
         const order = pageParameters.order;
@@ -265,7 +260,7 @@ function useApiForComponent(
         const onPageChanged = (pageNumber: number, itemsPerPage: number): void =>
             loadManaged({...pageParameters, page: pageNumber, itemsPerPage});
 
-        return {page, error, pageLoading: loading, setSorting, sortingIcon, reload, sortBy, order, onPageChanged};
+        return {page, error, pageLoading: loading, setSorting, reload, sortBy, order, onPageChanged};
     }
 }
 
@@ -921,7 +916,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
             <Box width="100%">
                 {canNavigate && !beingRenamed ? (
                     <BaseLink
-                        onClick={(e): void => {
+                        onClick={e => {
                             e.preventDefault();
                             e.stopPropagation();
                             props.onNavigate(resolvePath(props.file.path));
@@ -1039,7 +1034,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations): JSX.
         let As: StyledComponent<any, any>;
         if (fileOperations.length === 1) {
             As = OutlineButton;
-        } else if (props.inDropdown === true) {
+        } else if (props.inDropdown) {
             As = Box;
         } else {
             if (fileOp.currentDirectoryMode === true) {

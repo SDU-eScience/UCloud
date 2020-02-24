@@ -64,6 +64,7 @@ class Server(
                 val shrinkService = ShrinkService(elasticHighLevelClient, config.gatherNode)
                 shrinkService.shrink()
                 deleteService.deleteOldRancherLogs()
+                deleteService.deleteOldFileBeatLogs()
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())

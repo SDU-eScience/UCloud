@@ -17,7 +17,7 @@ module.exports = {
     module: {
         rules: [
             {
-                test: /\.(j|t)sx?$/,
+                test: /\.[jt]sx?$/,
                 exclude: /node_modules/,
                 loader: ["ts-loader"],
             },

@@ -22,11 +22,6 @@ export interface Page<T> {
     items: T[];
 }
 
-export interface TimeRange {
-    minTimeStamp?: number;
-    maxTimeStamp?: number;
-}
-
 export function singletonToPage<T>(item?: T | null, itemsPerPage: number = 50): Page<T> {
     if (item === undefined || item === null) return emptyPage;
     return {
@@ -61,18 +56,12 @@ export class AccessRights {
     public static WRITE_RIGHTS = [AccessRight.READ, AccessRight.WRITE];
 }
 
-export interface DropdownOption {
-    name: string;
-    value: string;
-}
-
 export interface ClearRefresh {
     clearRefresh: () => void;
 }
 
 export type SetLoadingAction<T> = PayloadAction<T, {loading: boolean}>;
 export type Error<T> = PayloadAction<T, {error?: string, statusCode?: number}>;
-export type ReceivePage<T1, T2> = PayloadAction<T1, {page: Page<T2>}>;
 export interface PayloadAction<T1, T2> extends Action<T1> {payload: T2;}
 
 export interface Dictionary<V> {

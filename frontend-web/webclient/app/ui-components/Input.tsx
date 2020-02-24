@@ -47,7 +47,7 @@ const Input = styled.input<InputProps>`
 
     margin: 0;
 
-    ${({showError, theme}) => showError ? `&:invalid {
+    ${p => p.showError ? `&:invalid {
         border-color: var(--red, #f00);
     }` : null};
 

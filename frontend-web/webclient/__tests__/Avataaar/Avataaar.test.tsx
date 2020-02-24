@@ -1,7 +1,7 @@
 import * as React from "react";
 import {create} from "react-test-renderer";
 import {ThemeProvider} from "styled-components";
-import Avatar from "../../app/AvataaarLib/index";
+import {Avatar} from "../../app/AvataaarLib/index";
 import {UserAvatar} from "../../app/AvataaarLib/UserAvatar";
 import theme from "../../app/ui-components/theme";
 import {

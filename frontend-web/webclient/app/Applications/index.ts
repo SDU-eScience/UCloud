@@ -95,17 +95,17 @@ interface ApplicationTool {
     createdAt: number;
     modifiedAt: number;
     description: {
-        info: ApplicationInfo
-        container: string
-        defaultNumberOfNodes: number
-        defaultTasksPerNode: number
-        defaultAllocationTime: MaxTime
-        requiredModules: string[]
-        authors: string[]
-        title: string
-        description: string
-        backend: string
-        license: string
+        info: ApplicationInfo;
+        container: string;
+        defaultNumberOfNodes: number;
+        defaultTasksPerNode: number;
+        defaultAllocationTime: MaxTime;
+        requiredModules: string[];
+        authors: string[];
+        title: string;
+        description: string;
+        backend: string;
+        license: string;
     };
 }
 
@@ -187,13 +187,13 @@ export interface RunOperations extends SetStatusLoading {
 }
 
 export interface RunAppProps extends RunOperations {
-    match: match<{appName: string, appVersion: string}>;
+    match: match<{appName: string; appVersion: string}>;
     history: History;
     updatePageTitle: () => void;
 }
 
 export interface NumberParameter extends BaseParameter {
-    defaultValue: {value: number, type: "double" | "int"} | null;
+    defaultValue: {value: number; type: "double" | "int"} | null;
     min: number | null;
     max: number | null;
     step: number | null;
@@ -201,10 +201,20 @@ export interface NumberParameter extends BaseParameter {
 }
 
 export interface BooleanParameter extends BaseParameter {
-    defaultValue: {value: boolean, type: "bool"} | null;
+    defaultValue: {value: boolean; type: "bool"} | null;
     trueValue?: string | null;
     falseValue?: string | null;
     type: ParameterTypes.Boolean;
+}
+
+interface EnumOption {
+    name: string;
+    value: string;
+}
+export interface EnumerationParameter extends BaseParameter {
+    default: {value: string; type: "enum"} | null;
+    options: EnumOption[];
+    type: ParameterTypes.Enumeration;
 }
 
 export interface InputFileParameter extends BaseParameter {
@@ -218,13 +228,13 @@ export interface InputDirectoryParameter extends BaseParameter {
 }
 
 export interface TextParameter extends BaseParameter {
-    defaultValue: {value: string, type: "string"} | null;
+    defaultValue: {value: string; type: "string"} | null;
     type: ParameterTypes.Text;
 }
 
 export interface RangeParameter extends BaseParameter {
     type: ParameterTypes.Range;
-    defaultValue: {min: number; max: number;};
+    defaultValue: {min: number; max: number};
     min: number;
     max: number;
 }
@@ -265,7 +275,8 @@ export type ApplicationParameter =
     RangeParameter |
     PeerParameter |
     SharedFileSystemParameter |
-    LicenseServerParameter;
+    LicenseServerParameter |
+    EnumerationParameter;
 
 type Invocation = WordInvocation | VarInvocation;
 
@@ -291,6 +302,7 @@ export enum ParameterTypes {
     FloatingPoint = "floating_point",
     Text = "text",
     Boolean = "boolean",
+    Enumeration = "enumeration",
     Range = "range",
     Peer = "peer",
     SharedFileSystem = "shared_file_system",

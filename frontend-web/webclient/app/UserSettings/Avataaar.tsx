@@ -1,5 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {default as Avataaar} from "AvataaarLib";
+import {Avatar} from "AvataaarLib";
 import {ReduxObject} from "DefaultObjects";
 import Spinner from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -40,7 +40,7 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
                 <>
                     <Flex>
                         <Box ml="auto" />
-                        <Avataaar
+                        <Avatar
                             style={{height: "150px"}}
                             avatarStyle="circle"
                             {...avatar}

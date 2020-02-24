@@ -3,7 +3,7 @@ import {Link} from "react-router-dom";
 import {Flex, ToggleBadge} from "ui-components";
 import {Card} from "ui-components/Card";
 
-export const Tabs: React.FunctionComponent<{}> = (props) => (
+export const Tabs: React.FunctionComponent = (props) => (
     <Card>
         <Flex>
             {props.children}

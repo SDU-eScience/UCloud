@@ -1,9 +1,9 @@
-//DEPS dk.sdu.cloud:k8-resources:0.1.0
+//DEPS dk.sdu.cloud:k8-resources:0.1.1
 package dk.sdu.cloud.k8
 
-bundle {
+bundle { ctx ->
     name = "storage"
-    version = "3.2.3"
+    version = "3.2.10"
 
     withAmbassador(null) {
         services.add(
@@ -81,9 +81,10 @@ bundle {
     }
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = 1
 
         injectConfiguration("storage-config")
+        injectConfiguration("ceph-fs-config")
 
         val cephfsVolume = "cephfs"
         serviceContainer.volumeMounts.add(VolumeMount().apply {
@@ -99,6 +100,37 @@ bundle {
         })
     }
 
+    resources.add(
+        DeploymentResource(
+            name = "storage-workspace-queue",
+            version = version,
+            image = "registry.cloud.sdu.dk/sdu-cloud/storage-service:${version}"
+        ).apply {
+            this.deployment.spec.replicas = 3
+            this.serviceContainer.args = this.serviceContainer.args + listOf("--workspace-queue")
+            this.serviceContainer.livenessProbe = null
+
+            injectConfiguration("token-validation")
+            injectSecret("storage-refresh-token")
+            injectSecret("storage-psql")
+            injectConfiguration("storage-config")
+            injectConfiguration("ceph-fs-config")
+
+            val cephfsVolume = "cephfs"
+            serviceContainer.volumeMounts.add(VolumeMount().apply {
+                name = cephfsVolume
+                mountPath = "/mnt/cephfs"
+            })
+
+            volumes.add(Volume().apply {
+                name = cephfsVolume
+                persistentVolumeClaim = PersistentVolumeClaimVolumeSource().apply {
+                    claimName = cephfsVolume
+                }
+            })
+        }
+    )
+
     withPostgresMigration(deployment)
 
     withAdHocJob(
@@ -108,4 +140,24 @@ bundle {
             listOf("--scan") + remainingArgs
         }
     )
+
+    withConfigMap("storage-config") {
+        val mountLocation = when (ctx.environment) {
+            Environment.PRODUCTION -> "/mnt/cephfs"
+            Environment.DEVELOPMENT -> "/mnt/cephfs/dev"
+            Environment.TEST -> "/mnt/cephfs/test"
+        }
+
+        addConfig(
+            "config.yml",
+            //language=yaml
+            """
+                storage:
+                  fileSystemMount: $mountLocation
+                  filePermissionAcl:
+                  - "_share"
+ 
+            """.trimIndent()
+        )
+    }
 }

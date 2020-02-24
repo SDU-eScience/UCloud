@@ -7,6 +7,9 @@ import * as icons from "./icons";
 import theme, {Theme} from "./theme";
 import {Cursor} from "./Types";
 
+export function getCssVar(name: string): string {
+    return getComputedStyle(document.documentElement).getPropertyValue(`--${name}`);
+}
 
 const IconBase = ({name, size, theme, color2, spin, hoverColor, ...props}: IconBaseProps): JSX.Element => {
     const key = 0;
@@ -18,12 +21,13 @@ const IconBase = ({name, size, theme, color2, spin, hoverColor, ...props}: IconB
             return (<></>);
         }
     }
+
     return (
         <Component
             key={key.toString()}
             width={size}
             height={size}
-            color2={color2 ? theme.colors[color2] : undefined}
+            color2={color2 ? getCssVar(color2) : undefined}
             {...props}
         />
     );

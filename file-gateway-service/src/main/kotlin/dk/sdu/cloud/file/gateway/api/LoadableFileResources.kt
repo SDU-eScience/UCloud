@@ -1,5 +1,13 @@
 package dk.sdu.cloud.file.gateway.api
 
+import com.fasterxml.jackson.core.JsonParser
+import com.fasterxml.jackson.databind.DeserializationContext
+import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
+import com.fasterxml.jackson.module.kotlin.treeToValue
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.StorageFile
 
 val DEFAULT_RESOURCES_TO_LOAD = FileResource.values().joinToString(",") { it.text }
@@ -37,12 +45,22 @@ val LoadFileResource.resourcesToLoad: Set<FileResource>
         FileResource.values().find { it.text == param }
     }.toSet().normalize()
 
+@JsonDeserialize(using = StorageFileWithMetadataDeserializer::class)
 class StorageFileWithMetadata(
     delegate: StorageFile,
 
     // custom resources
     val favorited: Boolean?
 ) : StorageFile by delegate
+
+class StorageFileWithMetadataDeserializer : StdDeserializer<StorageFileWithMetadata>(null as Class<*>?) {
+    override fun deserialize(p: JsonParser, ctxt: DeserializationContext): StorageFileWithMetadata {
+        val tree = p.codec.readTree<JsonNode>(p)!!
+        val delegate = defaultMapper.treeToValue<StorageFile>(tree)
+        val favorited = tree["favorited"].takeIf { !it.isNull }?.asBoolean()
+        return StorageFileWithMetadata(delegate, favorited)
+    }
+}
 
 private fun Set<FileResource>.normalize(): Set<FileResource> {
     val result = HashSet(this)
