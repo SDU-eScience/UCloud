@@ -10,6 +10,9 @@ import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.share.api.ShareServiceDescription
 import kotlinx.coroutines.delay
+import org.apache.logging.log4j.Level
+import org.apache.logging.log4j.LogManager
+import kotlin.system.exitProcess
 
 object Integration : Loggable {
     override val log = logger()
@@ -32,16 +35,48 @@ suspend fun main(args: Array<String>) {
         micro.tokenValidation as TokenValidationJWT
     ).authenticateClient(OutgoingHttpCall)
 
+    val authenticatedClientB = RefreshingJWTAuthenticator(
+        micro.client,
+        config.userB.refreshToken,
+        micro.tokenValidation as TokenValidationJWT
+    ).authenticateClient(OutgoingHttpCall)
+
+    val userA = UserAndClient(config.userA.username, authenticatedClientA)
+    val userB = UserAndClient(config.userB.username, authenticatedClientB)
+
+    val testToRun = args.indexOf("--run-test").takeIf { it != -1 }?.let { args.getOrNull(it + 1) }
+    val runAllTests = testToRun == null
+    fun shouldRun(testName: String): Boolean = runAllTests || testToRun == testName
+
     while (true) {
         try {
             Integration.log.info("Running tests")
-            SupportTesting(
-                UserAndClient(config.userA.username, authenticatedClientA)
-            ).runTest()
+            if (shouldRun("support")) {
+                SupportTesting(userA).runTest()
+            }
+
+            if (shouldRun("avatar")) {
+                AvatarTesting(userA, userB).runTest()
+            }
+
+            if (shouldRun("file-favorite")) {
+                FileFavoriteTest(userA).runTest()
+            }
+
+            if (shouldRun("files")) {
+                FileTesting(userA, userB).runTest()
+            }
         } catch (ex: Throwable) {
             Integration.log.warn(ex.stackTraceToString())
+            if (!runAllTests) {
+                exitProcess(1)
+            }
         } finally {
             delay(1000L * 60 * 15)
+        }
+
+        if (!runAllTests) {
+            exitProcess(0)
         }
     }
 }
