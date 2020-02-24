@@ -232,6 +232,11 @@ const NoShares = ({sharedByMe}: {sharedByMe: boolean}): JSX.Element => (
 );
 
 
+function guessFileType(path: string): FileType {
+    if (!path.includes(".")) return "DIRECTORY";
+    else return "FILE";
+}
+
 interface ListEntryProperties {
     groupedShare: SharesByPath;
     onUpdate: () => void;
@@ -245,11 +250,14 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const [newShareRights, setNewShareRights] = useState(AccessRights.READ_RIGHTS);
     const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
     const [fileType, setFileType] = useState<FileType>("DIRECTORY");
+
     const promises = usePromiseKeeper();
     const newShareUsername = useRef<HTMLInputElement>(null);
 
     React.useEffect(() => {
-        Client.get<File>(statFileQuery(groupedShare.path)).then(({response}) => setFileType(response.fileType));
+        Client.get<File>(statFileQuery(groupedShare.path))
+            .then(({response}) => setFileType(response.fileType))
+            .catch(() => setFileType(guessFileType(groupedShare.path)));
     }, []);
 
     const doCreateShare = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
