@@ -11,7 +11,6 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.canonicalPath
 import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.createdAt
 import dk.sdu.cloud.file.api.creator
