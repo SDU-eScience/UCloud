@@ -32,7 +32,7 @@ class AppSearchTesting(private val user: UserAndClient) {
         ).orThrow()
 
         check(sameResult.items.isNotEmpty() && sameResult.itemsInTotal <= result.itemsInTotal) {
-            "Expected at least one app in simple search."
+            "Expected result to be non-empty, and previous result to have more or equal app count."
         }
         checkContainsName(sameResult, "figlet")
 
