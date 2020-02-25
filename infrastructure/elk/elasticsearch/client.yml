@@ -1,4 +1,4 @@
-replicas: 2
+replicas: 3
 
 clusterName: "elasticsearch"
 nodeGroup: "newclient"
@@ -6,7 +6,7 @@ masterService: "elasticsearch-newmaster"
 
 #esMajorVersion: 6
 #imageTag: "6.8.1"
-imageTag: "7.5.0"
+#imageTag: "7.5.0"
 
 roles:
   master: "false"

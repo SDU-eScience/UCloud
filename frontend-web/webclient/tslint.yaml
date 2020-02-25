@@ -1,6 +1,9 @@
 ---
 # These are all up for debate. Create an issue with the discussion tag if you find a rule you don't agree with,
 # or think that it is missing, and make a case for the change.
+
+
+# OUTDATED: Use .eslint.rc.js instead
 extends:
     - "tslint:recommended"
     - "tslint-react"

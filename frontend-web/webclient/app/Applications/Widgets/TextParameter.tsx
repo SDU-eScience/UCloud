@@ -7,8 +7,8 @@ interface TextParameterProps extends ParameterProps {
     parameter: Types.TextParameter;
 }
 
-export const TextParameter = (props: TextParameterProps) => {
-    const placeholder = !!props.parameter.defaultValue ? props.parameter.defaultValue.value : undefined;
+export const TextParameter = (props: TextParameterProps): JSX.Element => {
+    const placeholder = props.parameter.defaultValue?.value ?? undefined;
     const hasUnitName = !!props.parameter.unitName;
     return (
         <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>

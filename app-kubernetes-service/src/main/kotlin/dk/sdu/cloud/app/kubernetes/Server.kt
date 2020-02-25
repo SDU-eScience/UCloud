@@ -39,7 +39,11 @@ import io.ktor.routing.routing
 import kotlinx.coroutines.runBlocking
 import java.io.File
 
-class Server(override val micro: Micro, private val configuration: Configuration) : CommonServer {
+class Server(
+    override val micro: Micro,
+    private val configuration: Configuration,
+    private val cephConfig: CephConfiguration
+) : CommonServer {
     override val log = logger()
     lateinit var tunnelManager: TunnelManager
 
@@ -66,9 +70,9 @@ class Server(override val micro: Micro, private val configuration: Configuration
 
         val jobCache = VerifiedJobCache(serviceClient)
         val networkPolicyService = NetworkPolicyService(k8Dependencies)
-        val sharedFileSystemMountService = SharedFileSystemMountService()
+        val sharedFileSystemMountService = SharedFileSystemMountService(cephConfig)
         val hostAliasesService = HostAliasesService(k8Dependencies)
-        val workspaceService = WorkspaceService()
+        val workspaceService = WorkspaceService(configuration.hostTemporaryStorage, cephConfig)
 
         val logService = K8LogService(k8Dependencies)
         val jobMonitoringService = K8JobMonitoringService(

@@ -15,9 +15,6 @@ export const runApplication = (application: ApplicationMetadata): string =>
 
 export const results = (): string => `/applications/results`;
 
-export const resultById = (jobId: string): string =>
-    `/applications/results/${encodeURIComponent(jobId)}`;
-
 export const browse = (itemsPerPage: number = 25, page: number = 0): string =>
     buildQueryString(`/applications`, {itemsPerPage, page});
 

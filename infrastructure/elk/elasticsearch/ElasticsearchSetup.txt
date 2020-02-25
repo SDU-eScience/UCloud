@@ -1,0 +1,20 @@
+
+Setup standard no security logging cluster:
+- helm upgrade --install -f /infrastructure/elk/elasticsearch/masterKubeelastic.yml --namespace elasticsearch elasticsearch-master elastic/elasticsearch
+- helm upgrade --install -f /infrastructure/elk/elasticsearch/clientKubeelastic.yml --namespace elasticsearch elasticsearch-client elastic/elasticsearch
+- helm upgrade --install -f /infrastructure/elk/elasticsearch/dataKubeelastic.yml --namespace elasticsearch elasticsearch-data elastic/elasticsearch
+
+run generate_ca.sh from /infrastructure/elk/elasticsearch
+
+kubectl create secret generic elastic-certificates --from-file=elastic-certificates.p12 
+
+Enter client pod and go to elasticsearch/bin and run "elasticsearch-setup-passwords auto"
+Prints out users and their auto generated passwords.
+Add these as secrets to kubernetes.
+
+Init Security:
+
+- helm upgrade --install -f /infrastructure/elk/elasticsearch/masterKubeelastic.yml -f /infrastructure/elk/elasticsearch/security.yml --namespace elasticsearch elasticsearch-master elastic/elasticsearch
+- helm upgrade --install -f /infrastructure/elk/elasticsearch/clientKubeelastic.yml -f /infrastructure/elk/elasticsearch/security.yml --namespace elasticsearch elasticsearch-client elastic/elasticsearch
+- helm upgrade --install -f /infrastructure/elk/elasticsearch/dataKubeelastic.yml -f /infrastructure/elk/elasticsearch/security.yml --namespace elasticsearch elasticsearch-data elastic/elasticsearch
+

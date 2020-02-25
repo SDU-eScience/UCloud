@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-fs-kubernetes"
-    version = "0.1.7"
+    version = "0.1.10"
 
     withAmbassador("/api/app/fs/kubernetes") {}
 
@@ -13,8 +13,7 @@ bundle {
         val storageVolume = "app-fs-k8s"
         serviceContainer.volumeMounts.add(VolumeMount().apply {
             name = storageVolume
-            mountPath = "/mnt/cephfs/app-filesystems"
-            subPath = "app-filesystems"
+            mountPath = "/mnt/cephfs"
         })
 
         volumes.add(Volume().apply {
@@ -23,6 +22,8 @@ bundle {
                 claimName = storageVolume
             }
         })
+
+        injectConfiguration("ceph-fs-config")
     }
 
     withPostgresMigration(deployment)

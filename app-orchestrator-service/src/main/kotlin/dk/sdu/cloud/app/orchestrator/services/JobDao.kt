@@ -55,6 +55,13 @@ interface JobDao<Session> {
         version: String? = null
     ): Page<VerifiedJobWithAccessToken>
 
+    suspend fun list10LatestActiveJobsOfApplication(
+        session: Session,
+        owner: SecurityPrincipalToken,
+        application: String,
+        version: String
+    ): List<VerifiedJobWithAccessToken>
+
     suspend fun findJobsCreatedBefore(
         session: Session,
         timestamp: Long

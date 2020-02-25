@@ -19,9 +19,9 @@ import {expandHomeFolder} from "./FileUtilities";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
-export const hpcJobQuery = (id: string) => `/hpc/jobs/${encodeURIComponent(id)}`;
+export const hpcJobQuery = (id: string): string => `/hpc/jobs/${encodeURIComponent(id)}`;
 
-export const toolImageQuery = (toolName: string, cacheBust?: string) =>
+export const toolImageQuery = (toolName: string, cacheBust?: string): string =>
     `/hpc/tools/logo/${toolName}?cacheBust=${cacheBust}`;
 
 export function hpcJobsQuery(
@@ -46,31 +46,16 @@ export function advancedSearchQuery(): string {
     return "/hpc/apps/advancedSearch";
 }
 
-export const hpcFavoriteApp = (name: string, version: string) =>
+export const hpcFavoriteApp = (name: string, version: string): string =>
     `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
-
-export const hpcFavorites = (itemsPerPage: number, pageNumber: number) =>
-    `/hpc/apps/favorites?itemsPerPage=${itemsPerPage}&page=${pageNumber}`;
-
-export const hpcApplicationsQuery = (page: number, itemsPerPage: number) =>
-    `/hpc/apps?page=${page}&itemsPerPage=${itemsPerPage}`;
-
-interface HPCApplicationsSearchQuery {
-    query: string;
-    page: number;
-    itemsPerPage: number;
-}
-
-export const hpcApplicationsTagSearchQuery = ({query, page, itemsPerPage}: HPCApplicationsSearchQuery): string =>
-    `/hpc/apps/searchTags?query=${encodeURIComponent(query)}&page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const cancelJobQuery = `hpc/jobs`;
 
 export const cancelJobDialog = (
     {jobId, onConfirm, jobCount = 1}: {
-        jobCount?: number,
-        jobId: string,
-        onConfirm: () => void
+        jobCount?: number;
+        jobId: string;
+        onConfirm: () => void;
     }
 ): void =>
     addStandardDialog({
@@ -81,24 +66,24 @@ export const cancelJobDialog = (
         onConfirm
     });
 
-export const cancelJob = (client: HttpClient, jobId: string): Promise<{request: XMLHttpRequest, response: void}> =>
+export const cancelJob = (client: HttpClient, jobId: string): Promise<{request: XMLHttpRequest; response: void}> =>
     client.delete(cancelJobQuery, {jobId});
 
-export function isRunExpired(run: JobWithStatus) {
+export function isRunExpired(run: JobWithStatus): boolean {
     return run.status === "Job did not complete within deadline.";
 }
 
 interface FavoriteApplicationFromPage<T> {
     name: string;
     version: string;
-    page: Page<{metadata: ApplicationMetadata, favorite: boolean} & T>;
+    page: Page<{metadata: ApplicationMetadata; favorite: boolean} & T>;
     client: HttpClient;
 }
 
 /**
  * Favorites an application.
  * @param {Application} Application the application to be favorited
- * @param {Cloud} cloud The cloud instance for requests
+ * @param {HttpClient} client The http client instance for requests
  */
 export async function favoriteApplicationFromPage<T>({
     name,
@@ -156,7 +141,8 @@ export const findKnownParameterValues = ({
     return extractedParameters;
 };
 
-export const isFileOrDirectoryParam = ({type}: {type: string}) => type === "input_file" || type === "input_directory";
+export const isFileOrDirectoryParam = ({type}: {type: string}): boolean =>
+    type === "input_file" || type === "input_directory";
 
 
 type ParameterValueTypes = string | [number, number] | boolean | {source: string};
@@ -164,16 +150,19 @@ const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes):
     switch (type) {
         case ParameterTypes.Boolean:
             return parameter === "Yes" ||
-                    parameter === "No" ||
-                      parameter === "" ||
-                    parameter === true ||
-                     parameter === false;
+                parameter === "No" ||
+                parameter === "" ||
+                parameter === true ||
+                parameter === false;
         case ParameterTypes.Integer:
             return parseInt(parameter as string, 10) % 1 === 0;
         case ParameterTypes.FloatingPoint:
             return typeof parseFloat(parameter as string) === "number";
         case ParameterTypes.Range:
             return typeof parameter === "object" && "size" in parameter;
+        case ParameterTypes.Enumeration:
+            /* FIXME: Need we do more? */
+            return typeof parameter === "string";
         case ParameterTypes.InputDirectory:
         case ParameterTypes.InputFile:
             return typeof parameter === "string" || "source" in (parameter as any);
@@ -187,8 +176,8 @@ const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes):
 
 interface ExtractedParameters {
     [key: string]: string | number | boolean |
-    {source: string, destination: string;} |
-    {min: number, max: number} |
+    {source: string; destination: string} |
+    {min: number; max: number} |
     {fileSystemId: string} |
     {jobId: string};
 }
@@ -230,6 +219,11 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                         default:
                             return;
                     }
+                case ParameterTypes.Enumeration:
+                    if (parameter.options.map(it => it.value).includes(r.current.value)) {
+                        extracted[key] = r.current.value;
+                    }
+                    return;
                 case ParameterTypes.Integer:
                     extracted[key] = parseInt(r.current.value, 10);
                     return;
@@ -246,26 +240,26 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                     extracted[key] = {jobId: r.current.value};
                     return;
                 case ParameterTypes.LicenseServer:
-                    extracted[key] = r.current.value
+                    extracted[key] = r.current.value;
+                    return;
             }
         } else {
-            switch (parameter.type) {
-                case ParameterTypes.Range:
-                    const {bounds} = r.current.state;
-                    extracted[key] = {min: bounds[0], max: bounds[1]};
-                    return;
+            if (parameter.type === ParameterTypes.Range) {
+                const {bounds} = r.current.state;
+                extracted[key] = {min: bounds[0], max: bounds[1]};
+                return;
             }
         }
     });
     return extracted;
 }
 
-export const inCancelableState = (state: JobState) =>
+/* FIXME: Shouldn't [JobState.Validated, JobState.Prepared, JobState.Scheduled, JobState.Running].includes(state) work? */
+export const inCancelableState = (state: JobState): boolean =>
     state === JobState.VALIDATED ||
     state === JobState.PREPARED ||
     state === JobState.SCHEDULED ||
     state === JobState.RUNNING;
-
 
 export function validateOptionalFields(
     invocation: ApplicationInvocationDescription,
@@ -279,6 +273,9 @@ export function validateOptionalFields(
         const {current} = parameters.get(it.name)!;
         if (current == null || !("checkValidity" in current)) return;
         if (("checkValidity" in current! && !current!.checkValidity())) optionalErrors.push(it.title);
+
+        /* FIXME/ERROR/TODO */
+        // Do we need to do anything for enumeration?
     });
 
     if (optionalErrors.length > 0) {
@@ -289,7 +286,6 @@ export function validateOptionalFields(
         );
         return false;
     }
-
     return true;
 }
 
@@ -303,7 +299,7 @@ export function checkForMissingParameters(
     requiredParams.forEach(rParam => {
         const parameterValue = parameters[rParam.name];
         if (parameterValue == null) missingParameters.push(rParam.title);
-        else if ([PT.Boolean, PT.FloatingPoint, PT.Integer, PT.Text].includes[rParam.type] &&
+        else if ([PT.Boolean, PT.FloatingPoint, PT.Integer, PT.Text, PT.Enumeration].includes[rParam.type] &&
             !["number", "string", "boolean"].includes(typeof parameterValue)) {
             missingParameters.push(rParam.title);
         } else if (rParam.type === ParameterTypes.InputDirectory || rParam.type === ParameterTypes.InputFile) {

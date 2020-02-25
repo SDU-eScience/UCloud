@@ -27,6 +27,7 @@ class DistributedLockBestEffortFactory(private val micro: Micro) : DistributedLo
 interface DistributedLock {
     suspend fun acquire(): Boolean
     suspend fun release()
+    suspend fun renew(durationMs: Long): Boolean
 }
 
 /**
@@ -46,6 +47,7 @@ class DistributedLockBestEffort(
     private val mutex = Mutex()
     private val key = "distributed-lock-$name"
     private var acquiredLockValue: String? = null
+    private var lockCooldown: Long = 0
 
     override suspend fun acquire(): Boolean {
         return mutex.withLock {
@@ -82,10 +84,41 @@ class DistributedLockBestEffort(
         }
     }
 
+    override suspend fun renew(durationMs: Long): Boolean {
+        require(acquiredLockValue != null)
+
+        mutex.withLock {
+            val now = System.currentTimeMillis()
+            if (now > lockCooldown) {
+                if (durationMs >= 5000) {
+                    lockCooldown = now + (durationMs / 10)
+                }
+
+                return connectionManager.getConnection().eval<Long>(
+                    RENEW_SCRIPT,
+                    ScriptOutputType.INTEGER,
+                    arrayOf(key),
+                    acquiredLockValue,
+                    (durationMs / 1000L).toString()
+                ).get() != 0L
+            }
+
+            return true
+        }
+    }
+
     companion object {
         private val RELEASE_SCRIPT = """
             if redis.call("get", KEYS[1]) == ARGV[1] then
                 return redis.call("del", KEYS[1])
+            else
+                return 0
+            end
+        """.trimIndent()
+
+        private val RENEW_SCRIPT = """
+            if redis.call("get", KEYS[1]) == ARGV[1] then
+                return redis.call("expire", KEYS[1], ARGV[2])
             else
                 return 0
             end

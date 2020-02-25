@@ -71,28 +71,27 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         val callId = Random.nextInt(10000) // Non unique ID for logging
         val start = System.currentTimeMillis()
         val shortRequestMessage = request.toString().take(100)
-
-        val targetHost = ctx.attributes.outgoingTargetHost
-        val host = targetHost.host.removeSuffix("/")
-
-        val ourSampleCount = sampleCounter.incrementAndGet()
-
-        // For some reason ktor's websocket client does not currently work when pointed at WSS, but works fine
-        // when redirected from WS to WSS.
-        val port = targetHost.takeIf { it.port != 443 }?.port ?: 80
-        val scheme = "ws"
-
-        val path = call.websocket.path.removePrefix("/")
-
-        val url = "$scheme://$host:$port/$path"
-
         val streamId = streamId.getAndIncrement().toString()
+        val shouldSample = sampleCounter.incrementAndGet() % SAMPLE_FREQUENCY == 0
 
-        val requestDebug = "[$callId] -> ${call.fullName}: $shortRequestMessage"
-        if (ourSampleCount % SAMPLE_FREQUENCY == 0) {
-            log.info(requestDebug)
-        } else {
-            log.debug(requestDebug)
+        val url = run {
+            val targetHost = ctx.attributes.outgoingTargetHost
+            val host = targetHost.host.removeSuffix("/")
+
+            // For some reason ktor's websocket client does not currently work when pointed at WSS, but works fine
+            // when redirected from WS to WSS.
+            val port = targetHost.takeIf { it.port != 443 }?.port ?: 80
+            val scheme = "ws"
+
+            val path = call.websocket.path.removePrefix("/")
+
+            "$scheme://$host:$port/$path"
+        }
+
+        run {
+            val requestDebug = "[$callId] -> ${call.fullName}: $shortRequestMessage"
+            if (shouldSample) log.info(requestDebug)
+            else log.debug(requestDebug)
         }
 
         val session = connectionPool.retrieveConnection(url)
@@ -125,14 +124,13 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
                     if (message is WSMessage.Response) {
                         val responseDebug =
                             "[$callId] <- ${call.fullName} RESPONSE ${System.currentTimeMillis() - start}ms"
-                        if (message.status in 400..599 || ourSampleCount % SAMPLE_FREQUENCY == 0) {
-                            log.info(responseDebug)
-                        } else {
-                            log.debug(responseDebug)
-                        }
+
+                        if (message.status in 400..599 || shouldSample) log.info(responseDebug)
+                        else log.debug(responseDebug)
 
                         response = message
                         session.unsubscribe(streamId)
+                        break
                     } else if (message is WSMessage.Message && handler != null) {
                         log.debug("[$callId] <- ${call.fullName} MESSAGE ${System.currentTimeMillis() - start}ms")
                         handler(message.payload!!)
@@ -147,9 +145,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
                 if (ex is ClosedReceiveChannelException || ex is CancellationException) {
                     // Do nothing. It is expected that the channel will close down.
-                    log.debug("Channel was closed")
+                    log.info("Channel was closed")
                     response = WSMessage.Response(streamId, null, HttpStatusCode.BadGateway.value)
-
                 } else {
                     throw ex
                 }
@@ -237,11 +234,9 @@ internal class WSClientSession constructor(
         scope.launch {
             @Suppress("TooGenericExceptionCaught")
             try {
-                var messagesReceived = 0
                 while (true) {
                     val frame = underlyingSession.incoming.receive()
 
-                    messagesReceived++
                     if (frame is Frame.Text) {
                         val text = frame.readText()
 

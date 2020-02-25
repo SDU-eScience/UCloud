@@ -34,3 +34,6 @@ secretMounts:
   - name: elastic-certificates
     secretName: elastic-certificates
     path: /usr/share/kibana/config/certs
+
+service:
+  type: NodePort

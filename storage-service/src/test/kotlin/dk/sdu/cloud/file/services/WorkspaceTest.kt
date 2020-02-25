@@ -24,6 +24,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertFalse
 
+/*
 class WorkspaceTest : WithBackgroundScope() {
     private lateinit var micro: Micro
     private lateinit var aclService: AclService<*>
@@ -292,3 +293,5 @@ class WorkspaceTest : WithBackgroundScope() {
         assertFalse(File(fsRoot, fileToDelete).exists())
     }
 }
+
+ */

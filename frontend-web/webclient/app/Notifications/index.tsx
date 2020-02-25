@@ -175,7 +175,7 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
             onClick={handleAction}
         >
             <Box mr="0.4em" width="10%">
-                <Icon name={resolveEventIcon(notification.type)} color2={"black"} color="white" />
+                <Icon {...resolveEventType(notification.type)} />
             </Box>
             <Flex width="90%" flexDirection="column">
                 <TextSpan color="grey" fontSize={1}>
@@ -195,14 +195,13 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
         if (props.onAction) props.onAction(props.notification);
     }
 
-    function resolveEventIcon(eventType: string): IconName {
+    function resolveEventType(eventType: string): {name: IconName; color: ThemeColor; color2: ThemeColor} {
         switch (eventType) {
-            case "APP_COMPLETE":
-                return "info";
             case "SHARE_REQUEST":
-                return "share";
+                return {name: "share", color: "black", color2: "black"};
+            case "APP_COMPLETE":
             default:
-                return "info";
+                return {name: "info", color: "white", color2: "black"};
         }
     }
 }

@@ -146,4 +146,49 @@ class CopyingTests : WithBackgroundScope() {
             }
         )
     }
+
+
+    @Test
+    fun `copy a folder into it self`() {
+        withKtorTest(
+            setup = { configureServerWithFileController(backgroundScope) },
+
+            test = {
+                val path = "/home/user1/folder"
+                val newPath = "/home/user1/folder/A"
+
+                successfulTaskMock()
+
+                val response = engine.stat(path)
+                assertEquals(HttpStatusCode.OK, response.status())
+
+                val response2 = engine.copy(path, newPath, WriteConflictPolicy.REJECT)
+                assertEquals(HttpStatusCode.BadRequest, response2.status())
+            }
+        )
+    }
+
+    @Test
+    fun `copy a folder into it self - edge case`() {
+        withKtorTest(
+            setup = { configureServerWithFileController(backgroundScope) },
+
+            test = {
+                val path = "/home/user1/folder"
+                val path2 = "/home/user1/folderA"
+                val newPath = "/home/user1/folderA"
+
+                successfulTaskMock()
+
+                val response = engine.stat(path)
+                assertEquals(HttpStatusCode.OK, response.status())
+
+                val response2 = engine.copy(path, newPath, WriteConflictPolicy.REJECT)
+                assertEquals(HttpStatusCode.OK, response2.status())
+
+                val response3 = engine.copy(path2, newPath, WriteConflictPolicy.REJECT)
+                assertEquals(HttpStatusCode.BadRequest, response3.status())
+            }
+        )
+    }
 }

@@ -1,6 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {PayloadAction} from "Types";
 import {AvatarType} from "UserSettings/Avataaar";
@@ -25,8 +24,6 @@ export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | Set
         return setAvatarError();
     }
 }
-
-export const updateAvatar = (avatar: AvatarType): SaveAvataaar => saveAvataaar(avatar);
 
 type SetAvatarError = Action<typeof AVATAR_ERROR>;
 export const setAvatarError = (): SetAvatarError => ({

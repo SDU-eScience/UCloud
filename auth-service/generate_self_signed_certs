@@ -2,6 +2,6 @@
 set -e
 mkdir -p certs
 cd certs
-openssl req -x509 -newkey rsa:2048 -keyout key.pem -nodes -out cert.pem -days 365
+openssl req -x509 -newkey rsa:2048 -keyout key.pem -nodes -out cert.pem -days 365 -subj "/C=DK/ST=Syddanmark/L=NA/O=eScience/OU=eScience/CN=ucloud"
 cd ..
 echo OK

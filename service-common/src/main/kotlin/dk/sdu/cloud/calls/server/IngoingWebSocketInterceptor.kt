@@ -181,9 +181,12 @@ class IngoingWebSocketInterceptor(
 
                             if (frame is Frame.Text) {
                                 val text = frame.readText()
+                                log.debug("Received frame: $text")
 
                                 @Suppress("BlockingMethodInNonBlockingContext")
                                 val parsedMessage = defaultMapper.readTree(text)
+
+                                log.debug("Parsed message: $parsedMessage")
 
                                 // We silently discard messages that don't follow the correct format
                                 val requestedCall =
@@ -192,6 +195,8 @@ class IngoingWebSocketInterceptor(
                                         ?.textValue()
                                         ?: continue
 
+                                log.debug("RequestedCall: $requestedCall")
+
                                 if (parsedMessage[WSRequest.PAYLOAD_FIELD]?.isNull != false) continue
 
                                 val streamId =
@@ -199,6 +204,8 @@ class IngoingWebSocketInterceptor(
                                         ?.takeIf { !it.isNull && it.isTextual }
                                         ?.textValue()
                                         ?: continue
+
+                                log.debug("streamId: $streamId")
 
                                 // We alert the caller if the send a well-formed message that we cannot handle
                                 val call = callsByName[requestedCall]
@@ -212,15 +219,18 @@ class IngoingWebSocketInterceptor(
                                             )
                                         )
                                     )
+                                    log.debug("Unknown call")
                                     continue
                                 }
 
                                 launch {
+                                    log.debug("Handling call...")
                                     rpcServer.handleIncomingCall(
                                         this@IngoingWebSocketInterceptor,
                                         call,
                                         WSCall(session, parsedMessage, streamId)
                                     )
+                                    log.debug("Call has been handled")
                                 }
                             }
                         }
@@ -231,7 +241,7 @@ class IngoingWebSocketInterceptor(
                                     throwable is ClosedSendChannelException
 
                         if (isChannelException(ex) || isChannelException(ex.cause)) {
-                            log.debug("Channel was closed")
+                            log.info("Channel was closed")
                         } else {
                             log.info("Caught exception in websocket server handler")
                             log.info(ex.stackTraceToString())

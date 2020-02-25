@@ -1,19 +1,8 @@
 import {
-    filepathQuery,
     getFilenameFromPath,
     replaceHomeFolder,
-    sizeToString,
-    toFileText,
+    sizeToString
 } from "../../app/Utilities/FileUtilities";
-import {mockFilesSensitivityConfidential} from "../mock/Files";
-
-describe("To file text", () => {
-    test("Single file", () => {
-        const firstFile = mockFilesSensitivityConfidential.items[0];
-        expect(toFileText([firstFile])).toBe("1 file selected");
-    });
-});
-
 
 describe("File size to string", () => {
     test("0 bytes to string", () =>
@@ -79,14 +68,5 @@ describe("Replace homefolder", () => {
     const noHomeFolder = "NotHomeFolder/subfolder/";
     test("Replace homefolder, no homefolder", () =>
         expect(replaceHomeFolder(noHomeFolder, mockHomeFolder)).toBe(`${noHomeFolder}`)
-    );
-});
-
-
-describe("Filepath query", () => {
-    test("Defaults", () =>
-        expect(filepathQuery("/path", 0, 25)).toBe(
-            "files?path=%2Fpath&itemsPerPage=25&page=0&order=ASCENDING&sortBy=path"
-        )
     );
 });

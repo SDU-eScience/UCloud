@@ -1,9 +1,9 @@
 import styled from "styled-components";
 import {
-  borderRadius,
-  BorderRadiusProps,
-  fontWeight,
-  FontWeightProps
+    borderRadius,
+    BorderRadiusProps,
+    fontWeight,
+    FontWeightProps
 } from "styled-system";
 import Box, {BoxProps} from "./Box";
 
@@ -16,11 +16,11 @@ const RatingBadge = styled(Box) <RatingBadgeProps>`
 `;
 
 RatingBadge.defaultProps = {
-  fontWeight: "bold",
-  px: 2,
-  color: "white",
-  bg: "blue",
-  borderRadius: 1
+    fontWeight: "bold",
+    px: 2,
+    color: "white",
+    bg: "blue",
+    borderRadius: 1
 };
 
 RatingBadge.displayName = "RatingBadge";

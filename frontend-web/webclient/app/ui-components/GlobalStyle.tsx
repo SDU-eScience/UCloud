@@ -33,8 +33,8 @@ const UIGlobalStyle = css`
     --textHighlight: var(--blue, #f00);
     --headerText: var(--white, #f00);
     --headerBg: #006aff;
-    --headerIconColor: var(--headerText, #f00);
-    --headerIconColor2: var(--midGray, #f00);
+    --headerIconColor: #fff;
+    --headerIconColor2: #c9d3df;
     --borderGray: var(--midGray, #f00);
     --paginationHoverColor: #f7f7f7;
     --paginationHoverColor: var(--lightBlue, #f00);

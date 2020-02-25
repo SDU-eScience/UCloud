@@ -2,36 +2,39 @@ package dk.sdu.cloud.k8
 
 import kotlin.properties.Delegates
 
-interface ResourceBundle {
-    val name: String
-    val version: String
-    val resources: List<KubernetesResource>
+typealias MutableBundle = ResourceBundle
+
+class ResourceBundle {
+    var name: String by Delegates.notNull()
+    var version: String by Delegates.notNull()
+    val resources = ArrayList<KubernetesResource>()
 }
 
-class MutableBundle : ResourceBundle {
-    override var name: String by Delegates.notNull()
-    override var version: String by Delegates.notNull()
-    override val resources = ArrayList<KubernetesResource>()
-}
-
-fun bundle(init: MutableBundle.() -> Unit): ResourceBundle {
+typealias BundleInit = MutableBundle.(ctx: DeploymentContext) -> Unit
+fun bundle(init: BundleInit): ResourceBundle {
     return MutableBundle()
-        .apply(init)
-        .also { BundleRegistry.addBundle(it) }
+        .also { BundleRegistry.addBundle(it, init) }
 }
 
 object BundleRegistry {
-    private val bundles = HashMap<String, ResourceBundle>()
+    private val bundles = HashMap<String, Pair<ResourceBundle, BundleInit>>()
+    val allBundles = ArrayList<Pair<ResourceBundle, BundleInit>>()
 
-    fun addBundle(bundle: ResourceBundle) {
-        bundles[bundle.name] = bundle
+    fun addBundle(
+        bundle: ResourceBundle,
+        init: BundleInit
+    ) {
+        allBundles.add(Pair(bundle, { ctx ->
+            init(ctx)
+            bundles[bundle.name] = Pair(bundle, init)
+        }))
     }
 
-    fun getBundle(bundleName: String): ResourceBundle? {
+    fun getBundle(bundleName: String): Pair<ResourceBundle, BundleInit>? {
         return bundles[bundleName]
     }
 
-    fun listBundles(): Collection<ResourceBundle> {
-        return bundles.values
+    fun listBundles(): Collection<Pair<ResourceBundle, BundleInit>> {
+        return allBundles
     }
 }

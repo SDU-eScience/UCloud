@@ -103,7 +103,7 @@ class EndToEndTest {
     private fun WebDriver.uploadArchive() {
         val file = Files.createTempFile("archive", ".tar.gz").toFile()
         file.outputStream().use { outs ->
-            javaClass.classLoader.getResourceAsStream("complex.tar.gz").use { it.copyTo(outs) }
+            javaClass.classLoader.getResourceAsStream("").use { it.copyTo(outs) }
         }
 
         with(UploadDialog) {

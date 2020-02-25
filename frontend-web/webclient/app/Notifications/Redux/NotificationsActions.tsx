@@ -10,16 +10,11 @@ import {
     NOTIFICATIONS_ERROR,
     READ_ALL,
     RECEIVE_NOTIFICATIONS,
-    RECEIVE_SINGLE_NOTIFICATION, SET_REDIRECT
+    RECEIVE_SINGLE_NOTIFICATION
 } from "./NotificationsReducer";
 
-export type NotificationActions =
-    ReceiveNotificationAction |
-    ReceiveSingleNotificationAction |
-    SetRedirectToAction |
-    ReadAction |
-    SetNotificationError |
-    ReadAllAction;
+export type NotificationActions = ReceiveNotificationAction | ReceiveSingleNotificationAction | ReadAction |
+    SetNotificationError | ReadAllAction;
 
 type SetNotificationError = Action<typeof NOTIFICATIONS_ERROR>;
 interface ReceiveSingleNotificationAction {
@@ -95,15 +90,4 @@ export const readAllNotifications = async (): Promise<ReadAllAction | SetNotific
         );
         return notificationError();
     }
-
 };
-
-type SetRedirectToAction = PayloadAction<typeof SET_REDIRECT, {redirectTo: string}>;
-/**
- * Sets the redirectTo to be used in the Notifications component
- * @param {string} redirectTo the path to be redirected to
- */
-export const setRedirectTo = (redirectTo: string): SetRedirectToAction => ({
-    type: SET_REDIRECT,
-    payload: {redirectTo}
-});

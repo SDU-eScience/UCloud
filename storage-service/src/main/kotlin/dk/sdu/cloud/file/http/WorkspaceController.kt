@@ -29,19 +29,15 @@ class WorkspaceController(
         }
 
         implement(WorkspaceDescriptions.transfer) {
-            val transferredFiles =
-                workspaceService.transfer(
-                    request.workspaceId,
-                    request.transferGlobs,
-                    request.destination,
-                    request.replaceExisting
-                )
+            workspaceService.requestTransfer(
+                request.workspaceId,
+                request.transferGlobs,
+                request.destination,
+                request.replaceExisting,
+                request.deleteWorkspace
+            )
 
-            if (request.deleteWorkspace) {
-                workspaceService.delete(request.workspaceId)
-            }
-
-            ok(Workspaces.Transfer.Response(transferredFiles))
+            ok(Workspaces.Transfer.Response(emptyList()))
         }
 
         return@with

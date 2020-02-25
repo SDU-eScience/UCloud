@@ -1,4 +1,4 @@
-import {AppState} from "Applications";
+import {AppState, JobState, JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {SortOrder} from "Files";
 import {Action} from "redux";
@@ -6,7 +6,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page, PayloadAction, SetLoadingAction} from "Types";
 import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {Analysis, RunsSortBy} from "..";
+import {RunsSortBy} from "..";
 import {
     CHECK_ALL_ANALYSES,
     CHECK_ANALYSIS,
@@ -23,6 +23,9 @@ export type AnalysesActions = ReceiveAnalysesProps | AnalysesError | AnalysesLoa
  * @param {number} page the page number to be retrieved
  * @param {SortOrder} sortOrder the order the page should be sorted by
  * @param {RunsSortBy} sortBy the field the analyses should be
+ * @param {number} minTimestamp
+ * @param {number} maxTimestamp
+ * @param {JobState} filter
  */
 export const fetchAnalyses = async (
     itemsPerPage: number,
@@ -31,7 +34,7 @@ export const fetchAnalyses = async (
     sortBy: RunsSortBy,
     minTimestamp?: number,
     maxTimestamp?: number,
-    filter?: AppState
+    filter?: JobState
 ): Promise<ReceiveAnalysesProps | AnalysesError> => {
     try {
         const {response} = await Client.get(
@@ -45,7 +48,7 @@ export const fetchAnalyses = async (
 };
 
 type ReceiveAnalysesProps = PayloadAction<
-    typeof RECEIVE_ANALYSES, {page: Page<Analysis>, sortBy: RunsSortBy, sortOrder: SortOrder}
+    typeof RECEIVE_ANALYSES, {page: Page<JobWithStatus>, sortBy: RunsSortBy, sortOrder: SortOrder}
 >;
 /**
  * Returns an action containing the page retrieved
@@ -53,7 +56,7 @@ type ReceiveAnalysesProps = PayloadAction<
  * @param sortBy is the field the analyses are sorted by
  * @param sortOrder is the order the analyses are sorted
  */
-const receiveAnalyses = (page: Page<Analysis>, sortBy: RunsSortBy, sortOrder: SortOrder): ReceiveAnalysesProps => ({
+const receiveAnalyses = (page: Page<JobWithStatus>, sortBy: RunsSortBy, sortOrder: SortOrder): ReceiveAnalysesProps => ({
     type: RECEIVE_ANALYSES,
     payload: {page, sortBy, sortOrder}
 });

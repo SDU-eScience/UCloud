@@ -9,7 +9,6 @@ export {default as Container} from "./Container";
 export {default as Divider} from "./Divider";
 export {default as Flex} from "./Flex";
 export {default as Grid} from "./Grid";
-export {default as InputField} from "./FormField";
 export {default as FormField} from "./FormField";
 export {default as FtIcon} from "./FtIcon";
 export {default as Heading} from "./Heading";

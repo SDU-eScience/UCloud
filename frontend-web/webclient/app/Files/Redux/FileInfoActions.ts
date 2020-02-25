@@ -1,14 +1,12 @@
 import {Activity} from "Activity";
 import {Client} from "Authentication/HttpClientInstance";
-import {File} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page, PayloadAction, SetLoadingAction} from "Types";
 import {activityStreamByPath} from "Utilities/ActivityUtilities";
-import {statFileQuery} from "Utilities/FileUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {FILE_INFO_ERROR, RECEIVE_FILE_ACTIVITY, RECEIVE_FILE_STAT, SET_FILE_INFO_LOADING, } from "./FileInfoReducer";
+import {FILE_INFO_ERROR, RECEIVE_FILE_ACTIVITY, SET_FILE_INFO_LOADING} from "./FileInfoReducer";
 
-export type FileInfoActions = ReceiveFileStat | FileInfoError | SetFileInfoLoading | ReceiveFileActivity;
+export type FileInfoActions = FileInfoError | SetFileInfoLoading | ReceiveFileActivity;
 
 export async function fetchFileActivity(path: string): Promise<ReceiveFileActivity | FileInfoError> {
     try {
@@ -24,22 +22,6 @@ type ReceiveFileActivity = PayloadAction<typeof RECEIVE_FILE_ACTIVITY, {activity
 const receiveFileActivity = (activity: Page<Activity>): ReceiveFileActivity => ({
     type: RECEIVE_FILE_ACTIVITY,
     payload: {activity, loading: false}
-});
-
-export async function fetchFileStat(path: string): Promise<ReceiveFileStat | FileInfoError> {
-    try {
-        const {response} = await Client.get<File>(statFileQuery(path));
-        return receiveFileStat(response);
-    } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching file"));
-        return fileInfoError();
-    }
-}
-
-type ReceiveFileStat = PayloadAction<typeof RECEIVE_FILE_STAT, {file: File, loading: false}>;
-export const receiveFileStat = (file: File): ReceiveFileStat => ({
-    type: RECEIVE_FILE_STAT,
-    payload: {file, loading: false}
 });
 
 type FileInfoError = PayloadAction<typeof FILE_INFO_ERROR, {loading: false, error?: string, file: undefined}>;

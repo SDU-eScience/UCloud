@@ -16,7 +16,7 @@ interface TwoFactorSetupProps {
 }
 
 export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactorSetupProps, TwoFactorSetupState> {
-    public state = this.initialState();
+    public state = TwoFactorSetup.initialState();
 
     public componentDidMount() {
         this.loadStatus();
@@ -51,7 +51,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
         }
     }
 
-    private initialState(): TwoFactorSetupState {
+    private static initialState(): TwoFactorSetupState {
         return {
             verificationCode: "",
             isConnectedToAccount: false
@@ -61,7 +61,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
     private displayConnectedStatus() {
         if (this.state.isConnectedToAccount === undefined) {
             return "Unknown. Could not fetch 2FA status";
-        } else if (this.state.isConnectedToAccount === true) {
+        } else if (this.state.isConnectedToAccount) {
             return "You have a 2FA device connected to your account";
         } else {
             return "You do NOT have a 2FA device connected to your account";
