@@ -66,6 +66,10 @@ suspend fun main(args: Array<String>) {
             if (shouldRun("files")) {
                 FileTesting(userA, userB).runTest()
             }
+
+            if (shouldRun("batch-app")) {
+                BatchApplication(userA).runTest()
+            }
         } catch (ex: Throwable) {
             Integration.log.warn(ex.stackTraceToString())
             if (!runAllTests) {

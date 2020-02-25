@@ -44,4 +44,5 @@ bundle { ctx ->
     withTest("avatar")
     withTest("file-favorite")
     withTest("files")
+    withTest("batch-app")
 }
