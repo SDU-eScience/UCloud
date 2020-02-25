@@ -18,8 +18,10 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
 
     suspend fun UserAndClient.runTest() {
         createFilesystem()
+        var firstShareId: ShareId
+        var secondShareId: ShareId
         with(userA) {
-            val firstShareID = createShare(
+            firstShareId = createShare(
                 joinPath(homeFolder, folder, shareFolderA),
                 userB.username,
                 setOf(AccessRight.WRITE)
@@ -29,7 +31,7 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
             check(listResponse.itemsInTotal == 1)
             check(listResponse.items.first().path == joinPath(homeFolder, folder, shareFolderA))
 
-            val secondShareID = createShare(
+            secondShareId = createShare(
                 joinPath(homeFolder, folder, shareFolderB),
                 userB.username,
                 setOf(AccessRight.READ)
@@ -41,7 +43,7 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
             check(listResponse.items.last().path == joinPath(homeFolder, folder, shareFolderB))
         }
         with(userB) {
-            val listResponse = list(false)
+            var listResponse = list(false)
             check(listResponse.itemsInTotal == 2) { "Expected to only have 2 shares"}
 
             check(listResponse.items.first().path == joinPath(homeFolder, folder, shareFolderA)) {
@@ -55,7 +57,11 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
                 check(share.sharedBy == userA.username) { "Was not shared by ${userA.username}"}
             }
 
+            accept()
 
+            revoke()
+
+            listResponse = list(false)
         }
     }
 
@@ -89,7 +95,7 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
     }
 
     suspend fun UserAndClient.accept() {
-
+        Shares.accept.call(Shares.Accept.Request())
     }
 
     suspend fun UserAndClient.listFiles() {
