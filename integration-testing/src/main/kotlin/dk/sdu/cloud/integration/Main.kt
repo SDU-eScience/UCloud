@@ -79,6 +79,11 @@ suspend fun main(args: Array<String>) {
             if (shouldRun("concurrent-upload")) {
                 ConcurrentFileUploadsTest(userA, concurrency).runTest()
             }
+
+            if (shouldRun("app-search")) {
+                AppSearchTesting(userA).runTest()
+            }
+
         } catch (ex: Throwable) {
             Integration.log.warn(ex.stackTraceToString())
             if (!runAllTests) {
