@@ -90,7 +90,9 @@ suspend fun main(args: Array<String>) {
                 exitProcess(1)
             }
         } finally {
-            delay(1000L * 60 * 15)
+            if (runAllTests) {
+                delay(1000L * 60 * 15)
+            }
         }
 
         if (!runAllTests) {

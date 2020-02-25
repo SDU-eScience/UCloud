@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "3.2.11"
+    version = "3.2.12"
 
     withAmbassador(null) {
         services.add(
@@ -13,7 +13,7 @@ bundle { ctx ->
                     apiVersion: ambassador/v1
                     kind: Mapping
                     name: storage_list
-                    prefix: ^/*/api/files(/(lookup|stat))?${'$'}
+                    prefix: ^/*/api/files(/(lookup|stat))?/?${'$'}
                     prefix_regex: true
                     rewrite: ""
                     service: storage:8080
@@ -35,10 +35,10 @@ bundle { ctx ->
                     name: storage_list_2
                     timeout_ms: 0
                     rewrite: ""
-                    prefix: /api/files/
+                    prefix: ^/api/files(/.*)?${'$'}
+                    prefix_regex: true
                     service: storage:8080
                     use_websocket: true
-                    precedence: 10
                     
                 """.trimIndent()
             )

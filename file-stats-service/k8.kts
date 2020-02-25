@@ -17,7 +17,6 @@ bundle {
                     prefix_regex: true
                     rewrite: ""
                     service: file-stats:8080
-                    precedence: 10
                     
                 """.trimIndent()
             )

@@ -38,6 +38,7 @@ class FileFavoriteTest(private val userA: UserAndClient) {
 
     private suspend fun UserAndClient.checkFavoriteStatus(name: String, shouldBeFavorite: Boolean) {
         retrySection {
+            log.info("Checking if $name shouldBeFavorite=$shouldBeFavorite")
             require(
                 FileGatewayDescriptions.stat.call(
                     StatRequest(joinPath(homeFolder, testId, name), null),
