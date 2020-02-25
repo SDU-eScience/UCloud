@@ -70,6 +70,10 @@ suspend fun main(args: Array<String>) {
             if (shouldRun("batch-app")) {
                 BatchApplication(userA).runTest()
             }
+
+            if (shouldRun("file-activity")) {
+                FileActivityTest(userA).runTest()
+            }
         } catch (ex: Throwable) {
             Integration.log.warn(ex.stackTraceToString())
             if (!runAllTests) {

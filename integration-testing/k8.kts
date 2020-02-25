@@ -45,4 +45,5 @@ bundle { ctx ->
     withTest("file-favorite")
     withTest("files")
     withTest("batch-app")
+    withTest("file-activity")
 }
