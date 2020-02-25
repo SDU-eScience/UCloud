@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "3.2.10"
+    version = "3.2.11"
 
     withAmbassador(null) {
         services.add(
@@ -38,6 +38,7 @@ bundle { ctx ->
                     prefix: /api/files/
                     service: storage:8080
                     use_websocket: true
+                    precedence: 10
                     
                 """.trimIndent()
             )

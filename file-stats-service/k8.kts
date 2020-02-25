@@ -3,9 +3,26 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-stats"
-    version = "1.2.10"
+    version = "1.2.11"
 
-    withAmbassador("/api/files/stats") {}
+    withAmbassador(null) {
+        services.add(
+            AmbassadorMapping(
+                """
+                    ---
+                    apiVersion: ambassador/v1
+                    kind: Mapping
+                    name: file_stats
+                    prefix: ^/api/files/stats(/.*)?${'$'}
+                    prefix_regex: true
+                    rewrite: ""
+                    service: file-stats:8080
+                    precedence: 10
+                    
+                """.trimIndent()
+            )
+        )
+    }
 
     val deployment = withDeployment {
         deployment.spec.replicas = 2
