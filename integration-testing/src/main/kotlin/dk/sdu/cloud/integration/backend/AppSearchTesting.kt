@@ -20,7 +20,7 @@ class AppSearchTesting(private val user: UserAndClient) {
     private suspend fun simpleSearch() {
         log.info("Simple Search - With part of name")
         val result = AppStore.searchApps.call(
-            AppSearchRequest("fig", 25, 0), user.client
+            AppSearchRequest("fig", 100, 0), user.client
         ).orThrow()
 
         check(result.items.isNotEmpty()) { "Expected at least one app in simple search." }
@@ -28,20 +28,22 @@ class AppSearchTesting(private val user: UserAndClient) {
 
         log.info("Simple Search - With full name")
         val sameResult = AppStore.searchApps.call(
-            AppSearchRequest("figlet", 25, 0), user.client
+            AppSearchRequest("figlet", 100, 0), user.client
         ).orThrow()
 
-        check(sameResult.items.isNotEmpty() && sameResult.itemsInTotal == result.itemsInTotal) {
+        check(sameResult.items.isNotEmpty() && sameResult.itemsInTotal <= result.itemsInTotal) {
             "Expected at least one app in simple search."
         }
         checkContainsName(sameResult, "figlet")
 
         log.info("Simple Search - With wrong name")
-        val emptyResult = AppStore.searchApps.call(
-            AppSearchRequest("feglit", 25, 0), user.client
+        val nonFigletResult = AppStore.searchApps.call(
+            AppSearchRequest("xXx_no_scope_xXx", 100, 0), user.client
         ).orThrow()
 
-        check(emptyResult.items.isEmpty()) { "Expected no apps in simple search." }
+        check(nonFigletResult.items.all { !it.metadata.name.toLowerCase().contains("figlet") }) {
+            "Expected no apps with name 'figlet'."
+        }
     }
 
     private fun checkContainsName(page: Page<ApplicationSummaryWithFavorite>, expectedName: String) {
@@ -52,41 +54,40 @@ class AppSearchTesting(private val user: UserAndClient) {
         }
     }
 
-    // Søg med navn, med tags, med og uden versions,
     private suspend fun advancedSearch() {
         log.info("Advanced search")
 
         log.info("No parameters for query")
         val emptyResult = AppStore.advancedSearch.call(
-            AdvancedSearchRequest(null, null, false, 25, 0), user.client
+            AdvancedSearchRequest(null, null, false, 100, 0), user.client
         ).orThrow()
 
         check(emptyResult.items.isEmpty()) { "Expected result to be empty" }
 
         log.info("With name")
         val byNameResult = AppStore.advancedSearch.call(
-            AdvancedSearchRequest("figlet", null, false, 25, 0), user.client
+            AdvancedSearchRequest("figlet", null, false, 100, 0), user.client
         ).orThrow()
 
         check(byNameResult.itemsInTotal > 0) { "Expected at least one app" }
 
         log.info("With tags")
         val byTagResult = AppStore.advancedSearch.call(
-            AdvancedSearchRequest(null, listOf("figlet"), false, 25, 0), user.client
+            AdvancedSearchRequest(null, listOf("figlet"), false, 100, 0), user.client
         ).orThrow()
 
         check(byTagResult.itemsInTotal > 0) { "Expected at least one app" }
 
         log.info("With name and tag")
         val byNameAndTagResult = AppStore.advancedSearch.call(
-            AdvancedSearchRequest("figlet", listOf("figlet"), false, 25, 0), user.client
+            AdvancedSearchRequest("figlet", listOf("figlet"), false, 100, 0), user.client
         ).orThrow()
 
         check(byNameAndTagResult.itemsInTotal > 0) { "Expected at least one app" }
 
         log.info("With name, tag, and all versions")
         val byNameAndTagAndVersionsResult = AppStore.advancedSearch.call(
-            AdvancedSearchRequest("figlet", listOf("figlet"), true, 25, 0), user.client
+            AdvancedSearchRequest("figlet", listOf("figlet"), true, 100, 0), user.client
         ).orThrow()
 
         check(byNameAndTagAndVersionsResult.itemsInTotal > byNameAndTagResult.itemsInTotal) {
