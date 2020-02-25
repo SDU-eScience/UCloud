@@ -28,6 +28,7 @@ suspend fun main(args: Array<String>) {
     if (micro.runScriptHandler()) return
 
     val config = micro.configuration.requestChunkAt<Configuration>("integration")
+    val concurrency = config.concurrency ?: 50
 
     val authenticatedClientA = RefreshingJWTAuthenticator(
         micro.client,
@@ -73,6 +74,10 @@ suspend fun main(args: Array<String>) {
 
             if (shouldRun("file-activity")) {
                 FileActivityTest(userA).runTest()
+            }
+
+            if (shouldRun("concurrent-upload")) {
+                ConcurrentFileUploadsTest(userA, concurrency).runTest()
             }
         } catch (ex: Throwable) {
             Integration.log.warn(ex.stackTraceToString())
