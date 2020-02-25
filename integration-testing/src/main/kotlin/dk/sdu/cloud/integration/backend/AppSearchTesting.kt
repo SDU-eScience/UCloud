@@ -38,7 +38,7 @@ class AppSearchTesting(private val user: UserAndClient) {
 
         log.info("Simple Search - With wrong name")
         val nonFigletResult = AppStore.searchApps.call(
-            AppSearchRequest("xXx_no_scope_xXx", 100, 0), user.client
+            AppSearchRequest("feglit", 100, 0), user.client
         ).orThrow()
 
         check(nonFigletResult.items.all { !it.metadata.name.toLowerCase().contains("figlet") }) {
