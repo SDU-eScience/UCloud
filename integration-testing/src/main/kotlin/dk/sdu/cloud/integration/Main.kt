@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.integration.backend.AvatarTesting
 import dk.sdu.cloud.integration.backend.FileFavoriteTest
 import dk.sdu.cloud.integration.backend.FileTesting
+import dk.sdu.cloud.integration.backend.ShareTesting
 import dk.sdu.cloud.integration.backend.UserAndClient
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Loggable
@@ -58,6 +59,12 @@ suspend fun main(args: Array<String>) {
                 UserAndClient(config.userA.username, authenticatedClientA),
                 UserAndClient(config.userB.username, authenticatedClientB)
             ).runTest()
+
+            ShareTesting(
+                UserAndClient(config.userA.username, authenticatedClientA),
+                UserAndClient(config.userB.username, authenticatedClientB)
+            ).runTest()
+
         } catch (ex: Throwable) {
             Integration.log.warn(ex.stackTraceToString())
         } finally {

@@ -23,61 +23,95 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
     private val shareFolderA = "folderToShare"
     private val shareFolderB = "anotherFolderToShare"
 
-    suspend fun UserAndClient.runTest() {
-        createFilesystem()
+    suspend fun runTest() {
+        log.info("Share tests are starting")
+        with(userA) {
+            createFilesystem()
+        }
         var firstShareId: ShareId
         var secondShareId: ShareId
+
         with(userA) {
+            //Clean up shares from last run
+            var listResponse = list()
+
+            listResponse.items.forEach {
+                revoke(it.shares.first().id)
+            }
+            //Done cleanup
             firstShareId = createShare(
                 joinPath(homeFolder, folder, shareFolderA),
                 userB.username,
                 setOf(AccessRight.WRITE)
             )
-            var listResponse = list()
+            Thread.sleep(1000)
+            listResponse = list()
 
-            check(listResponse.itemsInTotal == 1)
-            check(listResponse.items.first().path == joinPath(homeFolder, folder, shareFolderA))
+            check(listResponse.itemsInTotal == 1) {"Number of shares was not 1 but is: ${listResponse.itemsInTotal}"}
+            check(listResponse.items.first().path == joinPath(homeFolder, folder, shareFolderA)) {
+                "Only item is not ${joinPath(homeFolder, folder, shareFolderA)}"
+            }
 
             secondShareId = createShare(
                 joinPath(homeFolder, folder, shareFolderB),
                 userB.username,
                 setOf(AccessRight.READ)
             )
+            Thread.sleep(500)
+
             listResponse = list()
 
-            check(listResponse.itemsInTotal == 2)
-            check(listResponse.items.first().path == joinPath(homeFolder, folder, shareFolderA))
-            check(listResponse.items.last().path == joinPath(homeFolder, folder, shareFolderB))
+            check(listResponse.itemsInTotal == 2) {"Number of shares was not 2 but is: ${listResponse.itemsInTotal}"}
+            check(listResponse.items.first().path == joinPath(homeFolder, folder, shareFolderA)) {
+                "First item is not ${joinPath(homeFolder, folder, shareFolderA)}"
+            }
+            check(listResponse.items.last().path == joinPath(homeFolder, folder, shareFolderB)) {
+                "Second item is not ${joinPath(homeFolder, folder, shareFolderB)}"
+            }
+
         }
         with(userB) {
             var listResponse = list(false)
             check(listResponse.itemsInTotal == 2) { "Expected to only have 2 shares"}
 
-            check(listResponse.items.first().path == joinPath(homeFolder, folder, shareFolderA)) {
-                "First item is not ${joinPath(homeFolder, folder, shareFolderA)}"
+            check(listResponse.items.first().path == joinPath(userA.homeFolder, folder, shareFolderA)) {
+                "First item is not ${joinPath(userA.homeFolder, folder, shareFolderA)}"
             }
-            check(listResponse.items.last().path == joinPath(homeFolder, folder, shareFolderB)){
-                "Second item is not ${joinPath(homeFolder, folder, shareFolderB)}"
+            check(listResponse.items.last().path == joinPath(userA.homeFolder, folder, shareFolderB)){
+                "Second item is not ${joinPath(userA.homeFolder, folder, shareFolderB)}"
             }
 
             listResponse.items.forEach { share ->
                 check(share.sharedBy == userA.username) { "Was not shared by ${userA.username}"}
             }
 
-            check(listResponse.items.first().shares.first().state == ShareState.REQUEST_SENT)
-            check(listResponse.items.last().shares.first().state == ShareState.REQUEST_SENT)
+            check(listResponse.items.first().shares.first().state == ShareState.REQUEST_SENT) {
+                "State was not REQUEST_SENT but ${listResponse.items.first().shares.first().state}"
+            }
+            check(listResponse.items.last().shares.first().state == ShareState.REQUEST_SENT) {
+                "State was not REQUEST_SENT but ${listResponse.items.last().shares.first().state}"
+            }
 
             accept(firstShareId)
 
             revoke(secondShareId)
 
+            //Give chance to update states
+            Thread.sleep(1000)
+
             listResponse = list(false)
 
-            check(listResponse.itemsInTotal == 1)
-            check(listResponse.items.first().path == joinPath(homeFolder, folder, shareFolderA))
+            check(listResponse.itemsInTotal == 1) {"Number of items is not 1 but ${listResponse.itemsInTotal}"}
+            check(listResponse.items.first().path == joinPath(userA.homeFolder, folder, shareFolderA)) {
+                "Path does not match: ${joinPath(userA.homeFolder, folder, shareFolderA)}"
+            }
             check(listResponse.items.first().shares.first().state == ShareState.ACCEPTED ||
-                    listResponse.items.first().shares.first().state == ShareState.UPDATING)
-            check(listResponse.items.first().shares.first().rights.contains(AccessRight.WRITE))
+                    listResponse.items.first().shares.first().state == ShareState.UPDATING) {
+                "Item is not in Accepted or Updating state. State is: ${listResponse.items.first().shares.first().state}"
+            }
+            check(listResponse.items.first().shares.first().rights.contains(AccessRight.WRITE)) {
+                "Rights are not WRITE but: ${listResponse.items.first().shares.first().rights}"
+            }
         }
 
         with(userA) {
@@ -88,30 +122,40 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
         }
 
         with(userB) {
-            val sharesByPath = findByPath(joinPath(homeFolder, folder, shareFolderA))
-            check(sharesByPath.sharedBy == userA.username)
+            val sharesByPath = findByPath(joinPath(userA.homeFolder, folder, shareFolderA))
+            check(sharesByPath.sharedBy == userA.username) {"FindbyPath error: Shareby is not ${userA.username}"}
 
             try {
-                findByPath("not/path")
+                findByPath(joinPath(homeFolder, folder, "notThere"))
             } catch (ex: RPCException) {
-                check(ex.httpStatusCode == HttpStatusCode.NotFound)
+                check(ex.httpStatusCode == HttpStatusCode.NotFound) {
+                    "status code is not 400 but: ${ex.httpStatusCode}"
+                }
             }
 
             val listedFiles = listFiles()
-            check(listedFiles.itemsInTotal == 1)
-            check(listedFiles.items.first().path == joinPath(homeFolder, folder, shareFolderA))
+            check(listedFiles.itemsInTotal == 1) {
+                "Number of shares after update is not as expected. Is ${listedFiles.itemsInTotal} but should be 1"
+            }
+            check(listedFiles.items.first().path == joinPath(userA.homeFolder, folder, shareFolderA)) {
+                "Path ${listedFiles.items.first().path} is not correct. " +
+                        "Should be ${ joinPath(userA.homeFolder, folder, shareFolderA)}"
+            }
         }
 
         with(userA) {
             revoke(firstShareId)
+            Thread.sleep(1000)
             val listResponse = list()
-            check(listResponse.itemsInTotal == 0)
+            check(listResponse.itemsInTotal == 0) {
+                "After double revoke there should be no more, but there are ${listResponse.itemsInTotal} left"
+            }
         }
+        log.info("Share tests are DONE")
     }
 
     private suspend fun UserAndClient.createFilesystem() {
         with(userA) {
-            log.info("Creating fs for userA")
             createDir(folder)
             createDir(folder, shareFolderA)
             createDir(folder, shareFolderB)
