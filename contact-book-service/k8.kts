@@ -12,5 +12,9 @@ bundle {
         injectSecret("elasticsearch-credentials")
     }
 
-    withAdHocJob(deployment, "migration", { listOf("--createIndex") })
+    resources.add(
+        object : AdHocJob(deployment, { listOf("--createIndex") }, "index") {
+            override val phase: DeploymentPhase = DeploymentPhase.MIGRATE
+        }
+    )
 }
