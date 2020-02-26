@@ -66,7 +66,6 @@ module.exports = webpackMerge(commonConfig, {
         },
         runtimeChunk: true,
     },
-    
 
     plugins: [
         new webpack.NoEmitOnErrorsPlugin(),
@@ -92,7 +91,7 @@ module.exports = webpackMerge(commonConfig, {
           minifyURLs: true,
         },
         inject: true,
-      }),  
+      }),
       new CompressionPlugin({
         algorithm: 'gzip',
         test: /\.js$|\.css$|\.html$/,
