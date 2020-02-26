@@ -88,24 +88,17 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
     return <LowLevelFileTable {...mergedProperties} />;
 };
 
-const SHARES_FOLDER = "Shares";
-const FAVORITES_FOLDER = "Favorites";
-const APP_FS_FOLDER = "App File Systems";
 export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
-    fakeFolders: [
-        Client.homeFolder + SHARES_FOLDER,
-        Client.homeFolder + FAVORITES_FOLDER,
-        Client.homeFolder + APP_FS_FOLDER
-    ],
+    fakeFolders: Client.fakeFolders,
 
     loadFolder: async (folder, page, itemsPerPage): Promise<Page<File>> => {
-        if (folder === Client.homeFolder + FAVORITES_FOLDER) {
+        if (folder === Client.favoritesFolder) {
             return (await Client.get<Page<File>>(favoritesQuery(page, itemsPerPage))).response;
-        } else if (folder === Client.homeFolder + SHARES_FOLDER) {
+        } else if (folder === Client.sharesFolder) {
             return (await Client.get<Page<File>>(
                 buildQueryString("/shares/list-files", {page, itemsPerPage}))
             ).response;
-        } else if (folder === Client.homeFolder + APP_FS_FOLDER) {
+        } else if (folder === Client.appFsFolder) {
             return (await Client.get<Page<File>>(buildQueryString("/app/fs/fs-compat", {page, itemsPerPage}))).response;
         } else {
             return emptyPage;
