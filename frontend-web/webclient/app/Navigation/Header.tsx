@@ -66,14 +66,14 @@ import {
     shouldHideSidebarAndHeader,
     stopPropagationAndPreventDefault
 } from "UtilityFunctions";
-import {DEV_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
+import {DEV_SITE, STAGING_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
 }
 
-const DevelopmentBadge = (): JSX.Element | null => window.location.host === DEV_SITE || inDevEnvironment() ?
-    <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
+const DevelopmentBadge = (): JSX.Element | null => [DEV_SITE, STAGING_SITE].includes(window.location.host) ||
+    inDevEnvironment() ? <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
 
 function Header(props: HeaderProps): JSX.Element | null {
     const [upcomingDowntime, setUpcomingDowntime] = React.useState(-1);
