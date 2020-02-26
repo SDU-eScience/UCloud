@@ -84,6 +84,9 @@ suspend fun main(args: Array<String>) {
                 AppSearchTesting(userA).runTest()
             }
 
+            if (shouldRun("concurrent-archive")) {
+                ConcurrentArchiveTest(userA, concurrency).runTest()
+            }
         } catch (ex: Throwable) {
             Integration.log.warn(ex.stackTraceToString())
             if (!runAllTests) {

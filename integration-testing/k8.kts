@@ -39,11 +39,13 @@ bundle { ctx ->
         withAdHocJob(deployment, testName, { listOf("--run-test", testName) })
     }
 
-    withTest("file-favorite")
     withTest("support")
     withTest("avatar")
     withTest("file-favorite")
     withTest("files")
     withTest("batch-app")
     withTest("file-activity")
+    withTest("concurrent-upload")
+    withTest("app-search")
+    withTest("concurrent-archive")
 }
