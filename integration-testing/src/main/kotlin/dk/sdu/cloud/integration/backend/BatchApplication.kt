@@ -19,7 +19,7 @@ class BatchApplication(private val userA: UserAndClient) {
         log.info("Starting Figlet...")
         val jobId = JobDescriptions.start.call(
             StartJobRequest(
-                NameAndVersion("figlet", "1.0.2-website"),
+                NameAndVersion("figlet", "1.0.3"),
                 name = "figlet",
                 parameters = mapOf(
                     "text" to "Hello, World!"
@@ -55,7 +55,7 @@ class BatchApplication(private val userA: UserAndClient) {
                 .toByteArray()
                 .toString(Charsets.UTF_8)
 
-            require(stdout.lines().size == 6) { "$stdout\nOutput does not appear to be correct" }
+            require(stdout.lines().size == 7) { "$stdout\nOutput does not appear to be correct" }
         }
     }
 

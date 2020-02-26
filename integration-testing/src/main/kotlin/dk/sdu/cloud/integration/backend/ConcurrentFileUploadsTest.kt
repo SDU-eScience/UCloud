@@ -3,6 +3,8 @@ package dk.sdu.cloud.integration.backend
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
+import dk.sdu.cloud.file.api.DeleteFileRequest
+import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.file.api.SimpleUploadRequest
 import dk.sdu.cloud.file.api.joinPath
@@ -44,6 +46,11 @@ class ConcurrentFileUploadsTest(
                                 joinPath(homeFolder, testId, "$id"),
                                 BinaryStream.outgoingFromChannel(sampleFile.readChannel())
                             ),
+                            client
+                        ).orThrow()
+
+                        FileDescriptions.deleteFile.call(
+                            DeleteFileRequest(joinPath(homeFolder, testId, "$id")),
                             client
                         ).orThrow()
                     }
