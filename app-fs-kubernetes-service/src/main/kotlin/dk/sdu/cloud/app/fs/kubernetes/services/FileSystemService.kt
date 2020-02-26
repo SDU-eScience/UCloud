@@ -24,7 +24,7 @@ class FileSystemService(
         }
     }
 
-    fun create(id: String, ownerUid: Int) {
+    fun create(id: String) {
         val file = File(rootDirectroy, id).toPath()
         Files.createDirectory(file)
         Files.setPosixFilePermissions(
@@ -34,8 +34,6 @@ class FileSystemService(
                 PosixFilePermission.OWNER_EXECUTE
             )
         )
-
-        Chown.setOwner(file, ownerUid, ownerUid)
     }
 
     fun delete(id: String) {
