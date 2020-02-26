@@ -10,8 +10,6 @@ import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.share.api.ShareServiceDescription
 import kotlinx.coroutines.delay
-import org.apache.logging.log4j.Level
-import org.apache.logging.log4j.LogManager
 import kotlin.system.exitProcess
 
 object Integration : Loggable {
@@ -42,12 +40,14 @@ suspend fun main(args: Array<String>) {
         micro.tokenValidation as TokenValidationJWT
     ).authenticateClient(OutgoingHttpCall)
 
-    val userA = UserAndClient(config.userA.username, authenticatedClientA)
-    val userB = UserAndClient(config.userB.username, authenticatedClientB)
+    val userA = UserAndClient(config.userA.username, authenticatedClientA, config.userA.refreshToken)
+    val userB = UserAndClient(config.userB.username, authenticatedClientB, config.userB.refreshToken)
 
     val testToRun = args.indexOf("--run-test").takeIf { it != -1 }?.let { args.getOrNull(it + 1) }
     val runAllTests = testToRun == null
     fun shouldRun(testName: String): Boolean = runAllTests || testToRun == testName
+
+    val hostResolver = micro.feature(ClientFeature).hostResolver
 
     while (true) {
         try {
@@ -86,6 +86,10 @@ suspend fun main(args: Array<String>) {
 
             if (shouldRun("concurrent-archive")) {
                 ConcurrentArchiveTest(userA, concurrency).runTest()
+            }
+
+            if (shouldRun("concurrent-app")) {
+                ConcurrentAppTest(userA, 25, hostResolver).runTest()
             }
         } catch (ex: Throwable) {
             Integration.log.warn(ex.stackTraceToString())

@@ -48,4 +48,5 @@ bundle { ctx ->
     withTest("concurrent-upload")
     withTest("app-search")
     withTest("concurrent-archive")
+    withTest("concurrent-app")
 }
