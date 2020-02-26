@@ -359,7 +359,7 @@ const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
     }
 };
 
-const isStateComplete = (state: JobState, currentState: JobState) =>
+const isStateComplete = (state: JobState, currentState: JobState): boolean =>
     stateToOrder(state) < stateToOrder(currentState);
 
 const stateToTitle = (state: JobState): string => {

@@ -3,45 +3,16 @@ package dk.sdu.cloud.integration.backend
 import dk.sdu.cloud.accounting.api.ChartRequest
 import dk.sdu.cloud.accounting.api.UsageRequest
 import dk.sdu.cloud.accounting.storage.api.StorageUsedResourceDescription
-import dk.sdu.cloud.activity.api.ActivityDescriptions
-import dk.sdu.cloud.activity.api.ListActivityByPathRequest
-import dk.sdu.cloud.activity.api.ListActivityByUserRequest
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.CopyRequest
-import dk.sdu.cloud.file.api.DeleteFileRequest
-import dk.sdu.cloud.file.api.DownloadByURI
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.ListDirectoryRequest
-import dk.sdu.cloud.file.api.MoveRequest
-import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.file.api.ReclassifyRequest
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SimpleBulkUpload
-import dk.sdu.cloud.file.api.SimpleUploadRequest
-import dk.sdu.cloud.file.api.StatRequest
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.file.api.sensitivityLevel
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.trash.api.FileTrashDescriptions
 import dk.sdu.cloud.file.trash.api.TrashRequest
-import dk.sdu.cloud.filesearch.api.AdvancedSearchRequest
-import dk.sdu.cloud.filesearch.api.FileSearchDescriptions
-import dk.sdu.cloud.notification.api.ListNotificationRequest
-import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.share.api.Shares
 import io.ktor.util.cio.readChannel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.io.jvm.javaio.toInputStream
-import kotlinx.coroutines.runBlocking
 import java.nio.file.Files
 import java.util.*
 import java.util.zip.ZipInputStream
@@ -76,7 +47,6 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
         with(users[0]) {
             createDirectoryTest()
             smallFileUploadTest()
-            largeFileUploadTest()
             copyFilesTest()
             moveFilesTest()
             deleteDirectTest()
@@ -86,12 +56,8 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
             sensitivityTest()
             singleDownloadTest()
             bulkDownloadTest()
-            //accountingTest()
-            //searchTest()
-            //activityTest()
+            log.info("Test complete")
         }
-
-        //shareTest(users[0], users[1])
     }
 
     private suspend fun UserAndClient.createDirectoryTest() {
@@ -148,12 +114,6 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
         )
 
         log.info("Small file uploaded!")
-    }
-
-    private suspend fun UserAndClient.largeFileUploadTest(): Unit = with(LargeFileUpload) {
-        log.info("Uploading large file")
-        // TODO We need a large file
-        log.info("Large file uploaded!")
     }
 
     private suspend fun UserAndClient.copyFilesTest(): Unit = with(Copy) {
@@ -694,144 +654,13 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
                 log.info(zipIn.readBytes().toString(Charsets.UTF_8))
 
                 entry = zipIn.nextEntry
+                log.info("Looking for next entry")
             }
         }
 
+        log.info("Done unpacking")
         (1..10).forEach { filename ->
-            assert(foundNames.map { it.fileName() }.any { it == filename.toString() })
-        }
-    }
-
-    private suspend fun UserAndClient.searchTest() {
-        val searchResults = FileSearchDescriptions.advancedSearch.call(
-            AdvancedSearchRequest(
-                fileName = SmallFileUpload.NAME.fileName(),
-                fileTypes = listOf(FileType.FILE),
-                itemsPerPage = 100,
-                page = 0,
-                createdAt = null,
-                extensions = null,
-                modifiedAt = null,
-                sensitivity = null,
-                annotations = null,
-                includeShares = true
-            ),
-            client
-        ).orThrow()
-
-        requireFile(
-            searchResults.items, FileType.FILE,
-            SmallFileUpload.NAME
-        )
-    }
-
-    private suspend fun UserAndClient.activityTest() {
-        run {
-            val feed = ActivityDescriptions.listByPath.call(
-                ListActivityByPathRequest(
-                    joinPath(
-                        homeFolder,
-                        testId,
-                        SmallFileUpload.DIR,
-                        SmallFileUpload.NAME
-                    ),
-                    itemsPerPage = 100,
-                    page = 0
-                ),
-                client
-            ).orThrow()
-
-            if (feed.items.isEmpty()) {
-                throw IllegalStateException("Activity for file was empty")
-            }
-        }
-
-        run {
-            val feed = ActivityDescriptions.listByUser.call(
-                ListActivityByUserRequest(itemsPerPage = 100, page = 0),
-                client
-            ).orThrow()
-
-            if (feed.items.size <= 10) {
-                throw IllegalStateException("Not enough items in the feed")
-            }
-        }
-    }
-
-    private suspend fun shareTest(owner: UserAndClient, otherUser: UserAndClient): Unit = with(SendShare) {
-        with(owner) {
-            createDir(testId, DIR)
-
-            Shares.create.call(
-                Shares.Create.Request(
-                    otherUser.username,
-                    joinPath(homeFolder, testId, DIR),
-                    setOf(AccessRight.READ, AccessRight.WRITE)
-                ),
-                client
-            ).orThrow()
-        }
-
-        delay(500)
-
-        with(otherUser) {
-            val notifications = NotificationDescriptions.list.call(
-                ListNotificationRequest(itemsPerPage = null, page = null),
-                client
-            ).orThrow()
-            require(0 != notifications.itemsInTotal)
-
-            val shares = Shares.list.call(
-                Shares.List.Request(sharedByMe = true),
-                client
-            ).orThrow().items
-            require(shares.isNotEmpty())
-
-            val share = shares.single().shares.first()
-
-            Shares.accept.call(
-                Shares.Accept.Request(
-                    share.id,
-                    createLink = true
-                ),
-                client
-            ).orThrow()
-
-            retrySection {
-                createDir(
-                    testId,
-                    DIR,
-                    ITEM_TO_CREATE
-                )
-            }
-        }
-
-        with(owner) {
-            FileDescriptions.move.call(
-                MoveRequest(
-                    path = joinPath(homeFolder, testId, DIR),
-                    newPath = joinPath(
-                        homeFolder,
-                        testId,
-                        RENAME
-                    )
-                ),
-                client
-            ).orThrow()
-        }
-
-        with(otherUser) {
-            retrySection(delay = 1000) {
-                listAt(testId, RENAME)
-            }
-        }
-
-        with(owner) {
-            listAt(
-                testId,
-                RENAME,
-                ITEM_TO_CREATE
-            )
+            require(foundNames.map { it.fileName() }.any { it == filename.toString() })
         }
     }
 
@@ -847,11 +676,6 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
             const val DIR = "SmallFileUpload"
             const val NAME = "file.txt"
             val CONTENTS = "Hello, World 🎉!"
-        }
-
-        object LargeFileUpload {
-            const val DIR = "LargeFileUpload"
-            const val NAME = "large.bin"
         }
 
         object Copy {
@@ -894,12 +718,6 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
             const val DIR = "Sensitivity"
             const val FILE_TO_TEST = "file.txt"
             const val FILE_COPY = "copy.txt"
-        }
-
-        object SendShare {
-            const val DIR = "Share"
-            const val ITEM_TO_CREATE = "item"
-            const val RENAME = "Share2"
         }
     }
 }

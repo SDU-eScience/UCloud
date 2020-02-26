@@ -5,7 +5,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "integration"
-    version = "0.1.2"
+    version = "0.1.3"
 
     val userLetters = listOf("a", "b")
 
@@ -14,6 +14,7 @@ bundle { ctx ->
             deployment.spec.replicas = 1
             userLetters.forEach { injectSecret("integration-user-$it") }
             deployment.spec.template.spec.containers.forEach { it.livenessProbe = null }
+            serviceContainer.command.add("--debug")
         }
 
     userLetters.forEach { letter ->
@@ -33,4 +34,16 @@ bundle { ctx ->
             )
         }
     }
+
+    fun withTest(testName: String) {
+        withAdHocJob(deployment, testName, { listOf("--run-test", testName) })
+    }
+
+    withTest("file-favorite")
+    withTest("support")
+    withTest("avatar")
+    withTest("file-favorite")
+    withTest("files")
+    withTest("batch-app")
+    withTest("file-activity")
 }
