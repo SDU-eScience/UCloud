@@ -15,6 +15,7 @@ import dk.sdu.cloud.file.gateway.api.FileResource
 import dk.sdu.cloud.file.gateway.api.ListAtDirectoryRequest
 import dk.sdu.cloud.file.gateway.api.StatRequest
 import dk.sdu.cloud.service.Loggable
+import kotlinx.coroutines.delay
 import java.util.*
 
 class FileFavoriteTest(private val userA: UserAndClient) {
@@ -37,29 +38,33 @@ class FileFavoriteTest(private val userA: UserAndClient) {
     }
 
     private suspend fun UserAndClient.checkFavoriteStatus(name: String, shouldBeFavorite: Boolean) {
-        retrySection {
+        retrySection(attempts = 10, delay = 2_000) {
             log.info("Checking if $name shouldBeFavorite=$shouldBeFavorite")
-            require(
-                FileGatewayDescriptions.stat.call(
-                    StatRequest(joinPath(homeFolder, testId, name), null),
-                    client
-                ).orThrow().favorited == shouldBeFavorite
-            ) { "File favorite status should be $shouldBeFavorite (stat)" }
+            val file = FileGatewayDescriptions.stat.call(
+                StatRequest(joinPath(homeFolder, testId, name), null),
+                client
+            ).orThrow()
 
-            require(
-                FileGatewayDescriptions.listAtDirectory.call(
-                    ListAtDirectoryRequest(
-                        joinPath(homeFolder, testId),
-                        10,
-                        0,
-                        null,
-                        null,
-                        null,
-                        setOf(FileResource.PATH, FileResource.FAVORITES)
-                    ),
-                    client
-                ).orThrow().items.any { it.path.fileName() == name && it.favorited == shouldBeFavorite }
-            ) { "File favorite status should be $shouldBeFavorite (list)" }
+            require(file.favorited == shouldBeFavorite) {
+                "File favorite status should be $shouldBeFavorite (stat)\nGot file: $file"
+            }
+
+            val list = FileGatewayDescriptions.listAtDirectory.call(
+                ListAtDirectoryRequest(
+                    joinPath(homeFolder, testId),
+                    10,
+                    0,
+                    null,
+                    null,
+                    null,
+                    setOf(FileResource.PATH, FileResource.FAVORITES)
+                ),
+                client
+            ).orThrow()
+
+            require(list.items.any { it.path.fileName() == name && it.favorited == shouldBeFavorite }) {
+                "File favorite status should be $shouldBeFavorite (list)\nGot list: $list"
+            }
         }
     }
 
@@ -68,6 +73,9 @@ class FileFavoriteTest(private val userA: UserAndClient) {
             log.info("Running file-favorite test")
             createDir(testId)
             createDir(testId, favoriteMe)
+
+            // Wait for file to be indexed
+            delay(5000)
 
             log.info("Initial test")
             checkFavoriteStatus(favoriteMe, false)
