@@ -11,5 +11,6 @@ RUN apt-get install postfix mailutils -y
 RUN update-rc.d -f postfix remove
 RUN postconf -e syslog_name=postfix-docker-smtp
 RUN postconf -e mynetworks=0.0.0.0/0
+RUN cp /etc/host.conf /etc/hosts /etc/nsswitch.conf /etc/resolv.conf /etc/services /var/spool/postfix/etc
 USER 11042
 CMD ./start_postfix_and_service

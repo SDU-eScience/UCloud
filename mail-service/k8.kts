@@ -3,12 +3,26 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "mail"
-    version = "0.1.0-PASSWORD-RESET-TEST-6"
+    version = "0.1.0-PASSWORD-RESET-TEST-11"
 
     withAmbassador {}
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1
+        injectConfiguration("mail-config")
+    }
+
+    withConfigMap("mail-config") {
+        addConfig(
+            "config.yml",
+            //language=yaml
+            """
+                mail:
+                  whitelist:
+                  - "_password-reset"
+                  fromAddress: "support@escience.sdu.dk"
+            """.trimIndent()
+        )
     }
 
     withPostgresMigration(deployment)
