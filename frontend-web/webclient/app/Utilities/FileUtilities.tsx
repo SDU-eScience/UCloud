@@ -10,8 +10,6 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
-import {errorMessageOrDefault} from "UtilityFunctions";
-import {dialogStore} from "Dialog/DialogStore";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -43,13 +41,13 @@ export async function copyOrMoveFilesNew(
         }
     }
     for (let i = 0; i < files.length; i++) {
-        let add = true
+        let add = true;
         const f = files[i];
         if (isDirectory(f) && targetPathFolder.startsWith(f.path)) {
-            //Performing extra check to catch edge case
-            //Edge case e.g copy /home/dir/path into /home/dir/path2.
-            //Target location starts with old path, but is not the same.
-            const normalizedTarget = targetPathFolder + "/"
+            // Performing extra check to catch edge case
+            // Edge case e.g copy /home/dir/path into /home/dir/path2.
+            // Target location starts with old path, but is not the same.
+            const normalizedTarget = targetPathFolder + "/";
             if (normalizedTarget.indexOf(f.path + "/") === 0) {
                 const skip = await new Promise(resolve => addStandardDialog({
                     title: `Failed to copy ${f.path}`,
@@ -484,7 +482,7 @@ export async function updateSensitivity({files, client, onSensitivityChange}: Up
     } catch (e) {
         snackbarStore.addFailure(UF.errorMessageOrDefault(e, "Could not reclassify file"));
     } finally {
-        if (!!onSensitivityChange) onSensitivityChange();
+        onSensitivityChange?.();
     }
 }
 

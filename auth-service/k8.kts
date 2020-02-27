@@ -6,7 +6,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "auth"
-    version = "1.27.4"
+    version = "1.27.4-MAIL-TEST-1"
 
     fun host(environment: Environment): String {
         return when (environment) {
@@ -71,7 +71,7 @@ bundle { ctx ->
         }
     }
 
-    withSecret("auth-refresh-token") {
+    withSecret("auth-refresh-token", version = "1") {
         val client = ctx.client
         val proxyPod = client.pods().inNamespace("stolon").list().items.find { it.metadata.name.contains("proxy") }
             ?: throw IllegalStateException("Could not find stolon proxy")
@@ -158,9 +158,6 @@ bundle { ctx ->
         val schema = dbUser
         val generatedPassword = UUID.randomUUID().toString()
 
-        executeStatement("drop owned by \"$dbUser\" cascade;")
-        executeStatement("drop schema \"$schema\";")
-        executeStatement("drop user \"$schema\";")
         executeStatement("create user \"$dbUser\" password '$generatedPassword';")
         executeStatement("create schema \"$schema\" authorization \"$dbUser\";")
 
@@ -240,7 +237,7 @@ bundle { ctx ->
         }
     }
 
-    withConfigMap("token-validation") {
+    withConfigMap("token-validation", version = "1") {
         val cert: String = when (ctx.environment) {
             Environment.PRODUCTION -> {
                 """
@@ -270,25 +267,25 @@ bundle { ctx ->
             Environment.DEVELOPMENT -> {
                 """
                     -----BEGIN CERTIFICATE-----
-                    MIIDZDCCAkwCCQD7FaLkoHJ8yzANBgkqhkiG9w0BAQsFADB0MQswCQYDVQQGEwJE
-                    SzETMBEGA1UECAwKU3lkZGFubWFyazEPMA0GA1UEBwwGT2RlbnNlMREwDwYDVQQK
-                    DAhTRFVDbG91ZDERMA8GA1UECwwIU0RVQ2xvdWQxGTAXBgNVBAMMEGRldi5jbG91
-                    ZC5zZHUuZGswHhcNMTkxMjA5MTIxNDQ3WhcNMjAxMjA4MTIxNDQ3WjB0MQswCQYD
-                    VQQGEwJESzETMBEGA1UECAwKU3lkZGFubWFyazEPMA0GA1UEBwwGT2RlbnNlMREw
-                    DwYDVQQKDAhTRFVDbG91ZDERMA8GA1UECwwIU0RVQ2xvdWQxGTAXBgNVBAMMEGRl
-                    di5jbG91ZC5zZHUuZGswggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCf
-                    WREVDhCHCiz5qsdXeNJBF4Kq4LRTwAlR70mFRHdhLQ1pOv8zMDF/9Ai3L1Xze2qZ
-                    e148Bea4msQBAND3OIvWw+4tyIvk0ZsE7Tc6vDfABbaLA51WjZ2D+ENE+QTTkLoa
-                    t3fv+d4F4K+hhqfO4mggUBMpTm88OKAF0oXkG+fVsQkGkc47B7J6JmIdtX6mqwCD
-                    Y3tlIouuc+xldK7ZLvwZhlyW5Esg0EpkT1dStniBvO/8/Gklp3VYu7V/bGFkIu3O
-                    G6FTicaNbF6re/DbmQxqcHnAiiPKm6z+b9LwsMJ8SfgG/fjuit8Vr5IbBHCV8YDl
-                    zUS5SHcL1Cy1LOaQ7Qe9AgMBAAEwDQYJKoZIhvcNAQELBQADggEBAENha7xCQfiZ
-                    wzHrw58nahechm4qNrypV8H6uT8tZ/C2ZZyBN01QtzfJ3xCwuC3qHTP4yc0hfPP6
-                    kLAm5K7sn7jFOf3i2E3AObCNmsV97yQeiHTlvoW+7U9ucOO/7RuQ89r0nWzcjA/k
-                    NMUAnL91O2yw8SvX1IRuxMvsDzOSdDUzynOZJL/gvbDciYWzeFz8LuDLsJqqNTmm
-                    dvWcew0MVVCYkAMeAYgWH2is2e4geuhC+WHlWoJR8eGzUS2aBgWzGefG27fMhJly
-                    lbLNiSExivmstH1xCrjPjhhhxLnmhDvEiWL6QfnBKaV5qDWf4LWKnlg4BieFM4IO
-                    w5Yy70atUaI=
+                    MIIDfzCCAmegAwIBAgIUDlxDPskNFRztsjog68XuA4jjGZkwDQYJKoZIhvcNAQEL
+                    BQAwTzELMAkGA1UEBhMCREsxDDAKBgNVBAgMA0Z5bjEPMA0GA1UEBwwGT2RlbnNl
+                    MREwDwYDVQQKDAhlU2NpZW5jZTEOMAwGA1UEAwwFQnJpYW4wHhcNMTkxMDAxMTEz
+                    NTM0WhcNMjAwOTMwMTEzNTM0WjBPMQswCQYDVQQGEwJESzEMMAoGA1UECAwDRnlu
+                    MQ8wDQYDVQQHDAZPZGVuc2UxETAPBgNVBAoMCGVTY2llbmNlMQ4wDAYDVQQDDAVC
+                    cmlhbjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMBg0lJG0fpH02pc
+                    46DEfBm4xe0caQpptxQX4uq8Bl4jW8Lf+ycl2UC3qP/ccCsBmAvmSS1DWRnxSDjc
+                    eWvSP7oYJarVhPlavj/uNpRDCIs0JBGIRvJB2szriJCwxJXtAyAqTOi9apUQq8we
+                    9gXB2E48HLo230xnOfUR1++O01aQOVosIrNZvZEwxP6HHXL6TYVRRzlfi0OgYjMs
+                    by5Jx65l2HVqJZGV/WOfwBYVdaJEJGM3PMXIuZSJmRJX/clgrjCeaQRFMt/BDPnF
+                    sjfg2xuTZz8dhDpsYel2d9GdDpmI5Yb7bfXaj2AYZ+KXcGIuhNPV8dycvSFgqH4B
+                    btTrFwUCAwEAAaNTMFEwHQYDVR0OBBYEFJpREMDgQ+CYNKWKE955VW5GtE82MB8G
+                    A1UdIwQYMBaAFJpREMDgQ+CYNKWKE955VW5GtE82MA8GA1UdEwEB/wQFMAMBAf8w
+                    DQYJKoZIhvcNAQELBQADggEBAKKhwgVtqPxoAmaKjC/i4KWpYltCBZtQB0NwXRxp
+                    WlFZ/rnPxA8dCDej1T/dvW3LgCF2su91e44ImH/z+6liJa6O5yHxs/rWT5RsdDNy
+                    gFMmOBcCHgCS1bcHyz0ZUtOkPvFLODC2vfdxKa3fks7C5O2CKDsBkIMxqu/TMU1S
+                    /DY5UHyr0nI2jur2M/xcYTEg4RuQRljr4i9vBENdZd/wfKAEPgRDjDVMoxhdi4R6
+                    zCEdr3vdt8PNI7AbaO7N4znbT8ftmhtxs8+YlgmomSI4vu8FvkDk34xx4T0A6OCC
+                    dy5pKr7I/0JbWjqjdb26wgDPhAL8Ts6wV6o23xNtAGgJhJ0=
                     -----END CERTIFICATE-----
                 """.trimIndent()
             }

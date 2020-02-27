@@ -45,8 +45,8 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
     const initialFetchParams = props.byPath === undefined ?
         listShares({sharedByMe: false, itemsPerPage: 25, page: 0}) : findShare(props.byPath);
 
-    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<Dictionary<AvatarType>>(
-        loadAvatars({usernames: new Set([])}), {}
+    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<{avatars: Dictionary<AvatarType>}>(
+        loadAvatars({usernames: new Set([])}), {avatars: {}}
     );
 
     let sharedByMe = false;
@@ -153,7 +153,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
                             key={it.path}
                             refresh={refresh}
                             sharedByMe={sharedByMe}
-                            avatars={avatars.data}
+                            avatars={avatars.data.avatars}
                             shareByPath={it}
                             simple={simple}
                         />
@@ -176,7 +176,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
 };
 
 function AvatarComponent(p: {username: string; avatars: Dictionary<AvatarType>}): JSX.Element {
-    const avatar = p.avatars.avatars[p.username] ?? defaultAvatar;
+    const avatar = p.avatars[p.username] ?? defaultAvatar;
     return <UserAvatar avatar={avatar} mr="10px" />;
 }
 
@@ -232,6 +232,11 @@ const NoShares = ({sharedByMe}: {sharedByMe: boolean}): JSX.Element => (
 );
 
 
+function guessFileType(path: string): FileType {
+    if (!path.includes(".")) return "DIRECTORY";
+    else return "FILE";
+}
+
 interface ListEntryProperties {
     groupedShare: SharesByPath;
     onUpdate: () => void;
@@ -245,11 +250,14 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const [newShareRights, setNewShareRights] = useState(AccessRights.READ_RIGHTS);
     const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
     const [fileType, setFileType] = useState<FileType>("DIRECTORY");
+
     const promises = usePromiseKeeper();
     const newShareUsername = useRef<HTMLInputElement>(null);
 
     React.useEffect(() => {
-        Client.get<File>(statFileQuery(groupedShare.path)).then(({response}) => setFileType(response.fileType));
+        Client.get<File>(statFileQuery(groupedShare.path))
+            .then(({response}) => setFileType(response.fileType))
+            .catch(() => setFileType(guessFileType(groupedShare.path)));
     }, []);
 
     const doCreateShare = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {

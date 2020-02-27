@@ -7,6 +7,15 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8/` folders of each microservice.
 
+## 21-02-20
+
+Bug fix via new storage version. Added more names to GPU whitelist.
+
+| Deployment | Image |
+| ---------- | ----- |
+| storage | storage-service:3.2.10 |
+| app-orchestrator | app-orchestrator-service:0.8.24-gpu.3 |
+
 ## 13-02-20
 
 We back-ported GPU support for the old versions.

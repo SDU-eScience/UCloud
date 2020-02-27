@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-gateway"
-    version = "1.3.11"
+    version = "1.3.13"
 
     withAmbassador(null) {
         services.add(
@@ -13,7 +13,7 @@ bundle {
                     apiVersion: ambassador/v1
                     kind: Mapping
                     name: file_gw_list
-                    prefix: ^/*/api/files(/(lookup|stat))?${'$'}
+                    prefix: ^/*/api/files(/(lookup|stat))?/?${'$'}
                     prefix_regex: true
                     rewrite: ""
                     service: file-gateway:8080
@@ -32,7 +32,7 @@ bundle {
                     apiVersion: ambassador/v1
                     kind: Mapping
                     name: file_fav_list_gw
-                    prefix: ^/api/files/favorite${'$'}
+                    prefix: ^/api/files/favorite/?${'$'}
                     prefix_regex: true
                     rewrite: ""
                     service: file-gateway:8080
@@ -50,7 +50,7 @@ bundle {
                     apiVersion: ambassador/v1
                     kind: Mapping
                     name: filesearch_gw
-                    prefix: ^/api/file-search(/.*)?${'$'}
+                    prefix: ^/api/file-search(/.*)?/?${'$'}
                     prefix_regex: true
                     service: file-gateway:8080
                     timeout_ms: 30000
@@ -68,7 +68,7 @@ bundle {
                     apiVersion: ambassador/v1
                     kind: Mapping
                     name: share_file_list_gw
-                    prefix: ^/api/shares/list-files${'$'}
+                    prefix: ^/api/shares/list-files/?${'$'}
                     prefix_regex: true
                     rewrite: ""
                     service: file-gateway:8080

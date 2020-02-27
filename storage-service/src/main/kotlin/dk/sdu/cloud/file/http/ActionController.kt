@@ -107,7 +107,7 @@ class ActionController<Ctx : FSUserContext>(
                     // /home/path/dir -> /home/path/dirA
                     // Starts with same but are different dirs.
                     val target = "$targetPathNormalized/"
-                    if (target.indexOf("$pathNormalized/") == 0) {
+                    if (target.indexOf("$pathNormalized/") == 0 && request.policy != WriteConflictPolicy.RENAME) {
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
                 }

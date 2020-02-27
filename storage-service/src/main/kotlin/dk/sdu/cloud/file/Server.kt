@@ -28,6 +28,7 @@ import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
+import dk.sdu.cloud.file.services.WorkspaceJobService
 import dk.sdu.cloud.file.services.WorkspaceService
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
@@ -45,6 +46,7 @@ import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.H2_DIALECT
@@ -116,8 +118,10 @@ class Server(
             micro.eventStreamService
         )
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer, micro.backgroundScope)
+        val queue = WorkspaceJobService(micro.hibernateDatabase, DistributedLockBestEffortFactory(micro))
         val workspaceService = WorkspaceService(
-            fsRootFile, mapOf(
+            fsRootFile,
+            mapOf(
                 WorkspaceMode.COPY_FILES to CopyFilesWorkspaceCreator(
                     fsRootFile.absoluteFile.normalize(),
                     fileScanner,
@@ -132,7 +136,8 @@ class Server(
                     processRunner,
                     coreFileSystem
                 )
-            )
+            ),
+            queue
         )
 
         // RPC services
@@ -154,6 +159,11 @@ class Server(
             }
             log.info("Missing argument after --scan")
             exitProcess(1)
+        }
+
+        if (micro.commandLineArguments.contains("--workspace-queue")) {
+            workspaceService.runWorkQueue()
+            exitProcess(0)
         }
 
         UserProcessor(

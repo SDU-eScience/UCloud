@@ -13,6 +13,7 @@ import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.common.settings.Settings
+import java.net.SocketTimeoutException
 
 internal fun deleteIndex(index: String, elastic: RestHighLevelClient) {
     elastic.indices().delete(DeleteIndexRequest(index), RequestOptions.DEFAULT)
@@ -25,8 +26,7 @@ internal fun createIndex(
     numberOfShards: Int = 1,
     numberOfReplicas: Int = 1
 ) {
-    val request = CreateIndexRequest()
-    request.index(newIndexName)
+    val request = org.elasticsearch.client.indices.CreateIndexRequest(newIndexName)
     request.settings(
         Settings.builder()
             .put("index.number_of_shards", numberOfShards)

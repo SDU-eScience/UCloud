@@ -42,22 +42,18 @@ export function hpcJobsQuery(
     return query;
 }
 
-export function advancedSearchQuery(): string {
-    return "/hpc/apps/advancedSearch";
-}
+export const advancedSearchQuery = "/hpc/apps/advancedSearch";
 
 export const hpcFavoriteApp = (name: string, version: string): string =>
     `/hpc/apps/favorites/${encodeURIComponent(name)}/${encodeURIComponent(version)}`;
 
 export const cancelJobQuery = `hpc/jobs`;
 
-export const cancelJobDialog = (
-    {jobId, onConfirm, jobCount = 1}: {
-        jobCount?: number;
-        jobId: string;
-        onConfirm: () => void;
-    }
-): void =>
+export const cancelJobDialog = ({jobId, onConfirm, jobCount = 1}: {
+    jobCount?: number;
+    jobId: string;
+    onConfirm: () => void;
+}): void =>
     addStandardDialog({
         title: `Cancel job${jobCount > 1 ? "s" : ""}?`,
         message: jobCount === 1 ? `Cancel job: ${jobId}?` : "Cancel jobs?",
@@ -70,6 +66,7 @@ export const cancelJob = (client: HttpClient, jobId: string): Promise<{request: 
     client.delete(cancelJobQuery, {jobId});
 
 export function isRunExpired(run: JobWithStatus): boolean {
+    /* FIXME: This is not great in the long run. If this changes in the backend, it's very awkward to keep updated. */
     return run.status === "Job did not complete within deadline.";
 }
 

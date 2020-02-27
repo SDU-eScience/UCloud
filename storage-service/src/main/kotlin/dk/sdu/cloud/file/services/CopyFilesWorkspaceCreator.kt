@@ -13,6 +13,7 @@ import dk.sdu.cloud.file.services.linuxfs.listAndClose
 import dk.sdu.cloud.file.services.linuxfs.runAndRethrowNIOExceptions
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.DistributedLock
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
@@ -164,8 +165,12 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
         replaceExisting: Boolean,
         matchers: List<PathMatcher>,
         destination: String,
-        defaultDestinationDir: Path
+        defaultDestinationDir: Path,
+        lock: DistributedLock
     ): List<String> {
+        // Give us at least 3 minutes to complete initial setup
+        lock.renew(1000L * 60 * 3)
+
         // TODO This might need to clear ACLs from user code. Technically this won't be needed under new system but would
         //  be needed if we change stuff around again.
         val workspace = workspaceFile(fsRoot, id)
@@ -332,6 +337,7 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
                 // and fixing permissions of files we need to transfer.
 
                 Files.walk(currentFile).forEach { child ->
+                    runBlocking { lock.renew(1000L * 60) }
                     if (Files.isSymbolicLink(child)) {
                         Files.deleteIfExists(child)
                     } else {
@@ -362,6 +368,7 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
                     // Then we remove files in the destination directory which no longer exists in the workspace.
                     // We also do a filter (in clean directory) which ensures that new files are not deleted.
                     runBlocking {
+                        lock.renew(1000L * 60 * 5)
                         cleanDestinationDirectory(
                             manifest.username,
                             destinationDir.toFile(),
@@ -370,10 +377,12 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
                     }
 
                     runCatching {
+                        lock.renew(1000L * 60)
                         Files.createDirectories(destinationDir) // Ensure that directory exists
                     }
 
                     currentFile.listAndClose().forEach { child ->
+                        lock.renew(1000L * 60)
                         transferFile(child, destinationDir, relativeTo = currentFile)
                     }
                 }
@@ -385,6 +394,7 @@ class CopyFilesWorkspaceCreator<Ctx : FSUserContext>(
 
         log.debug("Transferred ${transferred.size} files")
         transferred.forEach { path ->
+            lock.renew(1000L * 60)
             log.debug("Scanning external files")
             fileScanner.scanFilesCreatedExternally(path)
             log.debug("Scanning external files done")

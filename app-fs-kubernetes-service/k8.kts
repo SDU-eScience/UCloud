@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-fs-kubernetes"
-    version = "0.1.10"
+    version = "0.1.11"
 
     withAmbassador("/api/app/fs/kubernetes") {}
 
