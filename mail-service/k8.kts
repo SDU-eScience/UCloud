@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "mail"
-    version = "0.1.0-PASSWORD-RESET-TEST-11"
+    version = "0.1.0-mail-test.2"
 
     withAmbassador {}
 
@@ -26,4 +26,5 @@ bundle {
     }
 
     withPostgresMigration(deployment)
+    withAdHocJob(deployment, "test", { listOf("--send-test-mail") })
 }

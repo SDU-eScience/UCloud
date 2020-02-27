@@ -1,7 +1,4 @@
 FROM registry.cloud.sdu.dk/sdu-cloud/base:0.1.0
-COPY build/service /opt/service/
-COPY build/service /opt/service/
-COPY start_postfix_and_service start_postfix_and_service
 EXPOSE 25
 USER 0
 RUN apt-get update
@@ -12,5 +9,9 @@ RUN update-rc.d -f postfix remove
 RUN postconf -e syslog_name=postfix-docker-smtp
 RUN postconf -e mynetworks=0.0.0.0/0
 RUN cp /etc/host.conf /etc/hosts /etc/nsswitch.conf /etc/resolv.conf /etc/services /var/spool/postfix/etc
-USER 11042
-CMD ./start_postfix_and_service
+
+COPY build/service /opt/service/
+RUN mv /opt/service/bin/service /opt/service/bin/start_service
+
+COPY start_postfix_and_service /opt/service/bin/service
+RUN chmod +x /opt/service/bin/service
