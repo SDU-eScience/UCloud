@@ -16,6 +16,7 @@ import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.Shares
 import dk.sdu.cloud.share.api.SharesByPath
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.delay
 import java.util.*
 
 class ShareTesting (private val userA: UserAndClient, private val userB: UserAndClient) {
@@ -44,11 +45,11 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
                 userB.username,
                 setOf(AccessRight.WRITE)
             )
-            Thread.sleep(1000)
+            delay(1000)
             listResponse = list()
 
-            check(listResponse.itemsInTotal == 1) {"Number of shares was not 1 but is: ${listResponse.itemsInTotal}"}
-            check(listResponse.items.first().path == joinPath(homeFolder, folder, shareFolderA)) {
+            require(listResponse.itemsInTotal == 1) {"Number of shares was not 1 but is: ${listResponse.itemsInTotal}"}
+            check(listResponse.items.single().path == joinPath(homeFolder, folder, shareFolderA)) {
                 "Only item is not ${joinPath(homeFolder, folder, shareFolderA)}"
             }
 
@@ -57,11 +58,11 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
                 userB.username,
                 setOf(AccessRight.READ)
             )
-            Thread.sleep(500)
+            delay(500)
 
             listResponse = list()
 
-            check(listResponse.itemsInTotal == 2) {"Number of shares was not 2 but is: ${listResponse.itemsInTotal}"}
+            require(listResponse.itemsInTotal == 2) {"Number of shares was not 2 but is: ${listResponse.itemsInTotal}"}
             check(listResponse.items.first().path == joinPath(homeFolder, folder, shareFolderA)) {
                 "First item is not ${joinPath(homeFolder, folder, shareFolderA)}"
             }
@@ -72,7 +73,7 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
         }
         with(userB) {
             var listResponse = list(false)
-            check(listResponse.itemsInTotal == 2) { "Expected to only have 2 shares"}
+            require(listResponse.itemsInTotal == 2) { "Expected to only have 2 shares"}
 
             check(listResponse.items.first().path == joinPath(userA.homeFolder, folder, shareFolderA)) {
                 "First item is not ${joinPath(userA.homeFolder, folder, shareFolderA)}"
@@ -97,28 +98,28 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
             revoke(secondShareId)
 
             //Give chance to update states
-            Thread.sleep(1000)
+            delay(1000)
 
             listResponse = list(false)
 
-            check(listResponse.itemsInTotal == 1) {"Number of items is not 1 but ${listResponse.itemsInTotal}"}
-            check(listResponse.items.first().path == joinPath(userA.homeFolder, folder, shareFolderA)) {
+            require(listResponse.itemsInTotal == 1) {"Number of items is not 1 but ${listResponse.itemsInTotal}"}
+            check(listResponse.items.single().path == joinPath(userA.homeFolder, folder, shareFolderA)) {
                 "Path does not match: ${joinPath(userA.homeFolder, folder, shareFolderA)}"
             }
-            check(listResponse.items.first().shares.first().state == ShareState.ACCEPTED ||
-                    listResponse.items.first().shares.first().state == ShareState.UPDATING) {
-                "Item is not in Accepted or Updating state. State is: ${listResponse.items.first().shares.first().state}"
+            check(listResponse.items.single().shares.first().state == ShareState.ACCEPTED ||
+                    listResponse.items.single().shares.first().state == ShareState.UPDATING) {
+                "Item is not in Accepted or Updating state. State is: ${listResponse.items.single().shares.first().state}"
             }
-            check(listResponse.items.first().shares.first().rights.contains(AccessRight.WRITE)) {
-                "Rights are not WRITE but: ${listResponse.items.first().shares.first().rights}"
+            check(listResponse.items.single().shares.first().rights.contains(AccessRight.WRITE)) {
+                "Rights are not WRITE but: ${listResponse.items.single().shares.first().rights}"
             }
         }
 
         with(userA) {
             update(firstShareId, setOf(AccessRight.READ))
             val listResponse = list()
-            check(listResponse.itemsInTotal == 1)
-            check(listResponse.items.first().shares.first().rights.contains(AccessRight.READ))
+            require(listResponse.itemsInTotal == 1)
+            check(listResponse.items.single().shares.first().rights.contains(AccessRight.READ))
         }
 
         with(userB) {
@@ -134,20 +135,20 @@ class ShareTesting (private val userA: UserAndClient, private val userB: UserAnd
             }
 
             val listedFiles = listFiles()
-            check(listedFiles.itemsInTotal == 1) {
+            require(listedFiles.itemsInTotal == 1) {
                 "Number of shares after update is not as expected. Is ${listedFiles.itemsInTotal} but should be 1"
             }
-            check(listedFiles.items.first().path == joinPath(userA.homeFolder, folder, shareFolderA)) {
-                "Path ${listedFiles.items.first().path} is not correct. " +
+            check(listedFiles.items.single().path == joinPath(userA.homeFolder, folder, shareFolderA)) {
+                "Path ${listedFiles.items.single().path} is not correct. " +
                         "Should be ${ joinPath(userA.homeFolder, folder, shareFolderA)}"
             }
         }
 
         with(userA) {
             revoke(firstShareId)
-            Thread.sleep(1000)
+            delay(1000)
             val listResponse = list()
-            check(listResponse.itemsInTotal == 0) {
+            require(listResponse.itemsInTotal == 0) {
                 "After double revoke there should be no more, but there are ${listResponse.itemsInTotal} left"
             }
         }

@@ -72,10 +72,10 @@ suspend fun main(args: Array<String>) {
 
             if (shouldRun("shares")) {
             	ShareTesting(
-                	UserAndClient(config.userA.username, authenticatedClientA),
-                	UserAndClient(config.userB.username, authenticatedClientB)
+                	userA,
+                    userB
             	).runTest()
-	    }
+            }
 
             if (shouldRun("batch-app")) {
                 BatchApplication(userA).runTest()
