@@ -27,7 +27,7 @@ class MailService(
             authenticatedClient
         ).orThrow()
 
-        val recipientAddress = InternetAddress(getEmail.email, "eScience Support")
+        val recipientAddress = InternetAddress(getEmail.email)
 
         // Setup mail server
         val properties = System.getProperties()
@@ -39,7 +39,7 @@ class MailService(
         try {
             val message = MimeMessage(session)
 
-            message.setFrom(InternetAddress(fromAddress))
+            message.setFrom(InternetAddress(fromAddress, "eScience Support"))
 
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
 
