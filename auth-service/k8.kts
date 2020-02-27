@@ -414,7 +414,8 @@ bundle { ctx ->
                     "enableWayf" to enableWayf,
                     "production" to true, // As in not local development
                     "services" to services,
-                    "tokenExtension" to tokenExtension
+                    "tokenExtension" to tokenExtension,
+                    "unconditionalPasswordResetWhitelist" to listOf("_password-reset")
                 )
             )
         )
