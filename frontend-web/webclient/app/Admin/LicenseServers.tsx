@@ -12,6 +12,7 @@ import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
 import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
+import * as ReactModal from "react-modal";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
@@ -23,6 +24,7 @@ import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-compo
 import {TextSpan} from "ui-components/Text";
 import {addStandardDialog} from "UtilityComponents";
 import {defaultErrorHandler} from "UtilityFunctions";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
 const LeftAlignedTableHeader = styled(TableHeader)`
     text-align: left;
 `;
@@ -40,7 +42,7 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
         }));
     }
 
-    function promptDeleteTag(tag: TagEntry): Promise<string|null> {
+    function promptDeleteTag(tag: TagEntry): Promise<string | null> {
         return new Promise(resolve => addStandardDialog({
             title: `Are you sure?`,
             message: (
@@ -54,7 +56,7 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
                 if (licenseServer === null) {
                     resolve(null);
                     return;
-                };
+                }
                 await invokeCommand(deleteLicenseServerTag(
                     {
                         serverId: licenseServer.id,
@@ -67,7 +69,7 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
         }));
     }
 
-    async function loadAndSetTagList(serverId: string) {
+    async function loadAndSetTagList(serverId: string): Promise<void> {
         setTagList(await loadTags(serverId));
     }
 
@@ -148,7 +150,7 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
                                                 onClick={async () => {
                                                     const licenseServerId = await promptDeleteTag(tagEntry);
 
-                                                    if(licenseServerId !== null) {
+                                                    if (licenseServerId !== null) {
                                                         loadAndSetTagList(licenseServerId);
                                                     }
                                                 }}
@@ -172,53 +174,37 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
 function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element {
     const [accessList, setAccessList] = React.useState<AclEntry[]>([]);
     const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
+    const [accessEntryToDelete, setAccessEntryToDelete] = React.useState<AclEntry | null>(null);
     const [, invokeCommand] = useAsyncCommand();
 
     const newPermissionEntityField = React.useRef<HTMLInputElement>(null);
 
     async function loadAcl(serverId: string): Promise<AclEntry[]> {
         const {response} = await Client.get<{
-            entity: {id: string; type: string};
+            entity_name: string;
+            entity_type: string;
             permission: LicenseServerAccessRight;
         }[]>(`/app/license/listAcl?serverId=${serverId}`);
         return response.map(item => ({
-            id: item.entity.id,
-            type: item.entity.type,
+            id: item.entity_name,
+            type: item.entity_type,
             permission: item.permission
         }));
     }
 
-    function promptDeleteAclEntry(accessEntry: AclEntry): Promise<string | null> {
-        return new Promise(resolve => addStandardDialog({
-            title: `Are you sure?`,
-            message: (
-                <Box>
-                    <Text>
-                        Remove access for {accessEntry.id}?
-                    </Text>
-                </Box>
-            ),
-            onConfirm: async () => {
-                if (licenseServer === null) {
-                    resolve(null);
-                    return;
+    async function deleteAclEntry(accessEntry: AclEntry): Promise<void> {
+        if (licenseServer == null) return;
+        await invokeCommand(updateLicenseServerPermission({
+            serverId: licenseServer.id,
+            changes: [
+                {
+                    entity: {id: accessEntry.id, type: UserEntityType.USER},
+                    rights: accessEntry.permission,
+                    revoke: true
                 }
-                await invokeCommand(updateLicenseServerPermission(
-                    {
-                        serverId: licenseServer.id,
-                        changes: [
-                            {
-                                entity: {id: accessEntry.id, type: UserEntityType.USER},
-                                rights: accessEntry.permission,
-                                revoke: true
-                            }
-                        ]
-                    }
-                ));
-                resolve(licenseServer.id);
-            },
-            addToFront: true
+            ]
         }));
+        setAccessEntryToDelete(null);
     }
 
     async function loadAndSetAccessList(serverId: string): Promise<void> {
@@ -233,6 +219,14 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     return (
         <Box>
             <div>
+                <ReactModal ariaHideApp={false} isOpen={accessEntryToDelete != null} style={defaultModalStyle}>
+                    <Heading.h3>Delete entry</Heading.h3>
+                    <Box>
+                        <Text>
+                            Remove access for {accessEntryToDelete?.id}?
+                        </Text>
+                    </Box>
+                </ReactModal>
                 <Flex alignItems="center">
                     <Heading.h3>
                         <TextSpan color="gray">Access control for</TextSpan> {licenseServer?.name}
@@ -318,13 +312,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                                 type="button"
                                                 paddingLeft={10}
                                                 paddingRight={10}
-                                                onClick={async () => {
-                                                    const licenseServerId = await promptDeleteAclEntry(accessEntry);
-
-                                                    if (licenseServerId !== null) {
-                                                        loadAndSetAccessList(licenseServerId);
-                                                    }
-                                                }}
+                                                onClick={async () => deleteAclEntry(accessEntry)}
                                             >
                                                 <Icon size={16} name="trash" />
                                             </Button>
@@ -467,7 +455,7 @@ export default function LicenseServers(): JSX.Element | null {
                     <Box maxWidth={800} mt={30} marginLeft="auto" marginRight="auto">
                         <form onSubmit={e => submit(e)}>
                             <Label mb="1em">
-                                Name 
+                                Name
                                 <Input
                                     value={name}
                                     error={nameError}
