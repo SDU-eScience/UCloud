@@ -1,6 +1,7 @@
 package dk.sdu.cloud.contact.book.services
 
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.bulk.BulkRequest
@@ -11,6 +12,7 @@ import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.indices.CreateIndexRequest
+import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.SearchHit
@@ -22,6 +24,9 @@ import kotlin.collections.HashMap
 class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): ContactBookDAO {
 
     fun createIndex() {
+        if(elasticClient.indices().exists(GetIndexRequest(CONTACT_BOOK_INDEX), RequestOptions.DEFAULT)) {
+            return
+        }
         val request = CreateIndexRequest(CONTACT_BOOK_INDEX)
         request.settings("""
             {
@@ -89,6 +94,9 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
     }
 
     override fun insertContact(fromUser: String, toUser: String, serviceOrigin: String) {
+        if (!elasticClient.indices().exists(GetIndexRequest(CONTACT_BOOK_INDEX), RequestOptions.DEFAULT)) {
+            createIndex()
+        }
         val exists = findSingleContactOrNull(fromUser, toUser, serviceOrigin)
         if (exists == null) {
             val request = createInsertContactRequest(fromUser, toUser, serviceOrigin)
@@ -205,7 +213,8 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
         return response.hits
     }
 
-    companion object {
+    companion object: Loggable {
+        override val log = logger()
         const val CONTACT_BOOK_INDEX = "contactbook"
     }
 }

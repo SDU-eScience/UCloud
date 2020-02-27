@@ -70,10 +70,17 @@ suspend fun main(args: Array<String>) {
                 FileTesting(userA, userB).runTest()
             }
 
+            if (shouldRun("shares")) {
+            	ShareTesting(
+                	userA,
+                    userB
+            	).runTest()
+            }
+
             if (shouldRun("batch-app")) {
                 BatchApplication(userA).runTest()
             }
-
+        
             if (shouldRun("file-activity")) {
                 FileActivityTest(userA).runTest()
             }
