@@ -1,5 +1,6 @@
 package dk.sdu.cloud.auth.services
 
+import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
@@ -233,6 +234,14 @@ class UserHibernateDAO(
         val nullEntries = usersWeDidntFind.map { it to null as Principal? }.toMap()
 
         return usersWeFound + nullEntries
+    }
+
+    override fun findEmail(session: HibernateSession, id: String): String? {
+        val user = session
+            .criteria<PersonEntity> { entity[PersonEntity::id] equal id }
+            .singleResult
+
+        return user.email
     }
 
     override fun findAllByUIDs(session: HibernateSession, uids: List<Long>): Map<Long, Principal?> {
