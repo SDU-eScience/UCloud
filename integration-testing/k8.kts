@@ -5,7 +5,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "integration"
-    version = "0.2.1"
+    version = "0.2.2"
 
     val userLetters = listOf("a", "b")
 

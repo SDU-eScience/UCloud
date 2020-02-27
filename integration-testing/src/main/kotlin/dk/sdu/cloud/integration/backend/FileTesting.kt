@@ -313,7 +313,7 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
 
         FileTrashDescriptions.clear.call(Unit, client).orThrow()
 
-        run {
+        retrySection(attempts = 360, delay = 1000) {
             requireFile(
                 listAt(testId), FileType.DIRECTORY,
                 DIR
