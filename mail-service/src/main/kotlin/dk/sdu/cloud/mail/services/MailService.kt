@@ -27,7 +27,7 @@ class MailService(
             authenticatedClient
         ).orThrow()
 
-        val recipientAddress = InternetAddress(getEmail.email)
+        val recipientAddress = InternetAddress(getEmail.email, "eScience Support")
 
         // Setup mail server
         val properties = System.getProperties()
