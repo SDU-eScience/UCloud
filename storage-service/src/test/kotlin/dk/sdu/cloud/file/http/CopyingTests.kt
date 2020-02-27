@@ -191,4 +191,26 @@ class CopyingTests : WithBackgroundScope() {
             }
         )
     }
+
+    @Test
+    fun `copy a folder into the same folder - edge case`() {
+        withKtorTest(
+            setup = { configureServerWithFileController(backgroundScope) },
+
+            test = {
+                val path = "/home/user1/folder"
+
+                successfulTaskMock()
+
+                val response = engine.stat(path)
+                assertEquals(HttpStatusCode.OK, response.status())
+
+                val response2 = engine.copy(path, path, WriteConflictPolicy.RENAME)
+                assertEquals(HttpStatusCode.OK, response2.status())
+
+                val response3 = engine.copy(path, path, WriteConflictPolicy.REJECT)
+                assertEquals(HttpStatusCode.BadRequest, response3.status())
+            }
+        )
+    }
 }

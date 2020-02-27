@@ -345,12 +345,28 @@ export default class HttpClient {
         return `${this.homeFolder}Trash/`;
     }
 
+    public get sharesFolder(): string {
+        return `${this.homeFolder}Shares`;
+    }
+
+    public get favoritesFolder(): string {
+        return `${this.homeFolder}Favorites`;
+    }
+
+    public get appFsFolder(): string {
+        return `${this.homeFolder}App File Systems`;
+    }
+
+    public get fakeFolders(): [string, string, string] {
+        return [this.sharesFolder, this.favoritesFolder, this.appFsFolder];
+    }
+
     public get isLoggedIn(): boolean {
         return this.userInfo != null;
     }
 
     /**
-     * @returns {string} the userrole. Null if none available in the JWT
+     * @returns {string} the userrole. Empty string if none available in the JWT
      */
     get userRole(): string {
         const info = this.userInfo;

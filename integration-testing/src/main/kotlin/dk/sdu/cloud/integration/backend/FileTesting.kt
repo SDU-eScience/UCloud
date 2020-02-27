@@ -17,7 +17,7 @@ import java.nio.file.Files
 import java.util.*
 import java.util.zip.ZipInputStream
 
-data class UserAndClient(val username: String, val client: AuthenticatedClient)
+data class UserAndClient(val username: String, val client: AuthenticatedClient, val refreshToken: String)
 
 /**
  * In this test suite we will perform testing of the file feature as a whole.
@@ -313,7 +313,7 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
 
         FileTrashDescriptions.clear.call(Unit, client).orThrow()
 
-        run {
+        retrySection(attempts = 360, delay = 1000) {
             requireFile(
                 listAt(testId), FileType.DIRECTORY,
                 DIR

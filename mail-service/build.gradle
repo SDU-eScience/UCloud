@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.1.0-PASSWORD-RESET-TEST-6'
+version '0.1.0-mail-test.11'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.mail.MainKt"
@@ -8,7 +8,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 
 buildscript {
     ext.serviceCommonVersion = "1.12.0"
-    ext.authApiVersion = "1.27.4-MAIL-TEST-1"
+    ext.authApiVersion = "1.27.4-MAIL-TEST-2"
 }
 
 repositories {

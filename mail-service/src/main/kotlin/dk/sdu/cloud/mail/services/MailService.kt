@@ -39,7 +39,7 @@ class MailService(
         try {
             val message = MimeMessage(session)
 
-            message.setFrom(InternetAddress(fromAddress))
+            message.setFrom(InternetAddress(fromAddress, "eScience Support"))
 
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
 

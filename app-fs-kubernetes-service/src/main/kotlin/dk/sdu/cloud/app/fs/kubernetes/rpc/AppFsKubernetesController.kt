@@ -12,7 +12,7 @@ class AppFsKubernetesController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(KubernetesFileSystemCalls.create) {
-            fsService.create(request.internalId, request.ownerUid)
+            fsService.create(request.internalId)
             ok(FileSystemCalls.Create.Response())
         }
 

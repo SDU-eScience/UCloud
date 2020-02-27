@@ -208,7 +208,7 @@ function useApiForComponent(
     };
 
     useEffect(() => {
-        if (props.page === undefined) {
+        if (props.page === undefined && !Client.fakeFolders.includes(props.path ?? "")) {
             const request = {...pageParameters, path: props.path!};
             if (props.path !== pageParameters.path) request.page = 0;
             loadManaged(request);

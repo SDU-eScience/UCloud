@@ -49,7 +49,7 @@ class AvatarTesting(private val userAndClient: UserAndClient, private val otherU
         )
 
         val fetchedTop = AvatarDescriptions.findAvatar.call(Unit, userAndClient.client).orThrow().top
-        check(fetchedTop != top) { "Expected $top, got $fetchedTop" }
+        check(fetchedTop == top) { "Expected $top, got $fetchedTop" }
         log.info("Successfully updated avatar.")
     }
 
@@ -59,7 +59,7 @@ class AvatarTesting(private val userAndClient: UserAndClient, private val otherU
             FindBulkRequest(listOf(userAndClient.username, otherUser.username)),
             userAndClient.client
         ).orThrow().avatars
-        check(result.size != 2) { "Should find 2 avatars, found ${result.size}" }
+        check(result.size == 2) { "Should find 2 avatars, found ${result.size}" }
         log.info("Successfully fetched multiple avatars.")
     }
 
