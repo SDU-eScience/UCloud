@@ -5,7 +5,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "integration"
-    version = "0.1.3"
+    version = "0.2.0"
 
     val userLetters = listOf("a", "b")
 
@@ -14,8 +14,22 @@ bundle { ctx ->
             deployment.spec.replicas = 1
             userLetters.forEach { injectSecret("integration-user-$it") }
             deployment.spec.template.spec.containers.forEach { it.livenessProbe = null }
+            injectSecret("integration-slack-hook")
             serviceContainer.command.add("--debug")
         }
+
+    withSecret("integration-slack-hook", version = "0.1.0") {
+        val scanner = Scanner(System.`in`)
+        println("Please enter slack hook:")
+        val hook = scanner.nextLine()
+        secret.stringData = mapOf(
+            "config.yml" to """
+                    integration:
+                      slack:
+                        hook: $hook
+                """.trimIndent()
+        )
+    }
 
     userLetters.forEach { letter ->
         withSecret("integration-user-$letter", version = "0.1.0") {
@@ -33,6 +47,7 @@ bundle { ctx ->
                 """.trimIndent()
             )
         }
+
     }
 
     fun withTest(testName: String) {

@@ -28,6 +28,8 @@ suspend fun main(args: Array<String>) {
     val config = micro.configuration.requestChunkAt<Configuration>("integration")
     val concurrency = config.concurrency ?: 100
 
+    val slackNotifier = SlackNotifier(config.slack.hook)
+
     val authenticatedClientA = RefreshingJWTAuthenticator(
         micro.client,
         config.userA.refreshToken,
@@ -92,7 +94,9 @@ suspend fun main(args: Array<String>) {
                 ConcurrentAppTest(userA, 25, hostResolver).runTest()
             }
         } catch (ex: Throwable) {
-            Integration.log.warn(ex.stackTraceToString())
+            val stackTrace = ex.stackTraceToString()
+            Integration.log.warn(stackTrace)
+            slackNotifier.onAlert(Alert(stackTrace))
             if (!runAllTests) {
                 exitProcess(1)
             }
