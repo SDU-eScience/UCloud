@@ -8,10 +8,7 @@ import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileImpl
 import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.ownSensitivityLevel
-import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.processors.ScanProcessor
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService

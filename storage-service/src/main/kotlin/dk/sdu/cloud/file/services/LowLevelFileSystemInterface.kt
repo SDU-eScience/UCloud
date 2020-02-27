@@ -9,14 +9,6 @@ import dk.sdu.cloud.task.api.TaskContext
 import java.io.InputStream
 import java.io.OutputStream
 
-class FSResult<T>(
-    val statusCode: Int,
-    value: T? = null
-) {
-    private val _value: T? = value
-    val value: T get() = _value!!
-}
-
 data class FSACLEntity(val user: String)
 
 interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
@@ -40,7 +32,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         to: String,
         writeConflictPolicy: WriteConflictPolicy,
         task: TaskContext = DiscardingTaskContext
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
+    )
 
     /**
      * Moves the file at [from] to the new path at [to].
@@ -57,7 +49,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         to: String,
         writeConflictPolicy: WriteConflictPolicy,
         task: TaskContext = DiscardingTaskContext
-    ): FSResult<List<StorageEvent.Moved>>
+    )
 
     /**
      * Lists the file at the path given by [directory].
@@ -75,7 +67,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         paginationRequest: NormalizedPaginationRequest? = null,
         order: SortOrder? = null,
         type: FileType? = null
-    ): FSResult<Page<FileRow>>
+    ): Page<FileRow>
 
     suspend fun listDirectory(
         ctx: Ctx,
@@ -84,13 +76,9 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         sortBy: FileSortBy? = null,
         paginationRequest: NormalizedPaginationRequest? = null,
         type: FileType? = null
-    ): FSResult<List<FileRow>> {
+    ): List<FileRow> {
         val res = listDirectoryPaginated(ctx, directory, mode, sortBy, paginationRequest, type = type)
-        if (res.statusCode != 0) {
-            return FSResult(res.statusCode, null)
-        }
-
-        return FSResult(0, res.value.items)
+        return res.items
     }
 
 
@@ -106,7 +94,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         path: String,
         task: TaskContext = DiscardingTaskContext
-    ): FSResult<List<StorageEvent.Deleted>>
+    )
 
     /**
      * Opens a file for writing. The contents of [path] will be truncated immediately.
@@ -124,7 +112,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         path: String,
         allowOverwrite: Boolean
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
+    )
 
     /**
      * Writes to the file opened by [openForWriting].
@@ -135,7 +123,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     suspend fun write(
         ctx: Ctx,
         writer: suspend (OutputStream) -> Unit
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
+    )
 
     /**
      * Opens a file for reading.
@@ -149,7 +137,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     suspend fun openForReading(
         ctx: Ctx,
         path: String
-    ): FSResult<Unit>
+    )
 
     /**
      * Reads the file opened by [openForReading].
@@ -189,7 +177,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
-    ): FSResult<List<FileRow>>
+    ): List<FileRow>
 
     /**
      * Creates a directory at [path].
@@ -202,7 +190,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     suspend fun makeDirectory(
         ctx: Ctx,
         path: String
-    ): FSResult<List<StorageEvent.CreatedOrRefreshed>>
+    )
 
     /**
      * Returns the attribute named [attribute] for the file at [path].
@@ -215,7 +203,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         path: String,
         attribute: String
-    ): FSResult<String>
+    ): String
 
     /**
      * Sets [attribute] to [value] at [path].
@@ -230,7 +218,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         attribute: String,
         value: String,
         allowOverwrite: Boolean = true
-    ): FSResult<Unit>
+    )
 
     /**
      * Returns a list of attribute keys for the file at [path].
@@ -241,7 +229,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     suspend fun listExtendedAttribute(
         ctx: Ctx,
         path: String
-    ): FSResult<List<String>>
+    ): List<String>
 
     /**
      * Deletes [attribute] at [path].
@@ -254,7 +242,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         path: String,
         attribute: String
-    ): FSResult<Unit>
+    )
 
     /**
      * Returns file attributes specified by [mode] for the file at [path].
@@ -266,5 +254,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
         ctx: Ctx,
         path: String,
         mode: Set<FileAttribute>
-    ): FSResult<FileRow>
+    ): FileRow
+
+    suspend fun onFileCreated(ctx: Ctx, path: String)
 }

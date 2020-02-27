@@ -34,7 +34,7 @@ class LinuxFSRunner(override val user: String, private val serviceScope: Corouti
     }
 
     suspend fun <T> submit(job: suspend () -> T): T {
-        val context = if (user == SERVICE_USER) serviceScope.coroutineContext else LinuxFSScope.coroutineContext
+        val context = serviceScope.coroutineContext
         return withContext(context) {
             runAndRethrowNIOExceptions { job() }
         }

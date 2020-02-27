@@ -19,6 +19,8 @@ enum class FileType {
     LINK
 }
 
+data class Timestamps(val accessed: Long, val created: Long, val modified: Long)
+
 @JsonTypeInfo(defaultImpl = StorageFileImpl::class, use = JsonTypeInfo.Id.MINIMAL_CLASS)
 interface StorageFile {
     @get:JsonProperty("fileType")

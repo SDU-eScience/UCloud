@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.http
 
-import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
@@ -37,7 +36,7 @@ class ActionController<Ctx : FSUserContext>(
                 commandRunnerFactory.withCtxAndTimeout(this, user = owner) {
                     coreFs.makeDirectory(it, request.path)
                     if (sensitivity != null) {
-                        sensitivityService.setSensitivityLevel(it, request.path, sensitivity, null)
+                        sensitivityService.setSensitivityLevel(it, request.path, sensitivity)
                     }
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
@@ -48,8 +47,7 @@ class ActionController<Ctx : FSUserContext>(
                         sensitivityService.setSensitivityLevel(
                             it,
                             request.path,
-                            sensitivity,
-                            ctx.securityPrincipal.username
+                            sensitivity
                         )
                     }
                     CallResult.Success(Unit, HttpStatusCode.OK)
@@ -86,8 +84,7 @@ class ActionController<Ctx : FSUserContext>(
                     sensitivityService.setSensitivityLevel(
                         it,
                         targetPath,
-                        stat.sensitivityLevel,
-                        ctx.securityPrincipal.username
+                        stat.sensitivityLevel
                     )
                 }
 

@@ -471,31 +471,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
         }
     }
 
-    val deliverMaterializedFileSystem = call<
-            DeliverMaterializedFileSystemRequest,
-            DeliverMaterializedFileSystemResponse,
-            CommonErrorMessage>("deliverMaterializedFileSystem")
-    {
-        audit<DeliverMaterializedFileSystemAudit>()
-
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ_WRITE
-        }
-
-        websocket(wsBaseContext)
-
-        http {
-            method = HttpMethod.Post
-            path {
-                using(baseContext)
-                +"deliver-materialized"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
     val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         audit<BulkFileAudit<UpdateAclRequest>>()
 

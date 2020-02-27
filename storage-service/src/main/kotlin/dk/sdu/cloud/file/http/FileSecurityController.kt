@@ -37,9 +37,9 @@ class FileSecurityController<Ctx : FSUserContext>(
 
                 val sensitivity = request.sensitivity
                 if (sensitivity != null) {
-                    sensitivityService.setSensitivityLevel(ctx, request.path, sensitivity, user)
+                    sensitivityService.setSensitivityLevel(ctx, request.path, sensitivity)
                 } else {
-                    sensitivityService.clearSensitivityLevel(ctx, request.path, user)
+                    sensitivityService.clearSensitivityLevel(ctx, request.path)
                 }
             }
             ok(Unit)

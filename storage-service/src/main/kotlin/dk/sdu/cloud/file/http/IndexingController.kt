@@ -28,13 +28,6 @@ class IndexingController<Ctx : FSUserContext>(
                 ok(VerifyFileKnowledgeResponse(indexingService.verifyKnowledge(ctx, request.files, mode)))
             }
         }
-
-        implement(FileDescriptions.deliverMaterializedFileSystem) {
-            audit(DeliverMaterializedFileSystemAudit(request.rootsToMaterialized.keys.toList()))
-
-            val result = indexingService.submitScan(request.rootsToMaterialized)
-            ok(DeliverMaterializedFileSystemResponse(result))
-        }
     }
 
     companion object : Loggable {

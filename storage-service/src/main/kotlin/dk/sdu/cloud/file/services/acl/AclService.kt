@@ -5,7 +5,6 @@ import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parents
 import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -33,11 +32,10 @@ import dk.sdu.cloud.service.db.withTransaction
 class AclService<Session>(
     private val db: DBSessionFactory<Session>,
     private val dao: AclDao<Session>,
-    private val homeFolderService: HomeFolderService,
-    private val pathNormalizer: (String) -> String?
+    private val homeFolderService: HomeFolderService
 ) {
     suspend fun updatePermissions(path: String, username: String, permissions: Set<AccessRight>) {
-        val normalizedPath = pathNormalizer(path) ?: throw FSException.NotFound()
+        val normalizedPath = path.normalize()
 
         log.debug("updatePermissions($normalizedPath, $username, $permissions)")
         db.withTransaction {
@@ -57,16 +55,13 @@ class AclService<Session>(
     }
 
     suspend fun isOwner(path: String, username: String): Boolean {
-        return internalIsOwner(pathNormalizer(path) ?: return false, username)
+        return internalIsOwner(path.normalize(), username)
     }
 
     suspend fun hasPermission(path: String, username: String, permission: AccessRight): Boolean {
         if (username == SERVICE_USER) return true
 
-        val normalizedPath = pathNormalizer(path) ?: run {
-            log.debug("pathNormalizer for $path returned null!")
-            return false
-        }
+        val normalizedPath = path.normalize()
         if (internalIsOwner(normalizedPath, username)) return true
 
         return db.withTransaction {
@@ -77,7 +72,7 @@ class AclService<Session>(
     suspend fun listAcl(
         paths: List<String>
     ): Map<String, List<UserWithPermissions>> {
-        val normalizedPaths = paths.mapNotNull { it to (pathNormalizer(it) ?: return@mapNotNull null) }
+        val normalizedPaths = paths.map { it to it.normalize() }
 
         return db.withTransaction { session ->
             normalizedPaths.chunked(200).flatMap { normalizedChunk ->
@@ -99,7 +94,7 @@ class AclService<Session>(
     }
 
     suspend fun revokePermission(path: String, username: String) {
-        val normalizedPath = pathNormalizer(path) ?: throw FSException.NotFound()
+        val normalizedPath = path.normalize()
 
         db.withTransaction {
             dao.revokePermission(it, normalizedPath, username)
