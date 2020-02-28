@@ -25,6 +25,7 @@ import {TextSpan} from "ui-components/Text";
 import {addStandardDialog} from "UtilityComponents";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
+
 const LeftAlignedTableHeader = styled(TableHeader)`
     text-align: left;
 `;
@@ -36,7 +37,7 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
     const newTagField = React.useRef<HTMLInputElement>(null);
 
     async function loadTags(serverId: string): Promise<TagEntry[]> {
-        const {response} = await Client.get(`/app/license/tag/list?serverId=${serverId}`);
+        const {response} = await Client.get<{tags: string[]}>(`/app/license/tag/list?serverId=${serverId}`);
         return response.tags.map(item => ({
             name: item
         }));
@@ -192,14 +193,15 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
         }));
     }
 
-    async function deleteAclEntry(accessEntry: AclEntry): Promise<void> {
+    async function deleteAclEntry(): Promise<void> {
         if (licenseServer == null) return;
+        if (accessEntryToDelete == null) return;
         await invokeCommand(updateLicenseServerPermission({
             serverId: licenseServer.id,
             changes: [
                 {
-                    entity: {id: accessEntry.id, type: UserEntityType.USER},
-                    rights: accessEntry.permission,
+                    entity: {id: accessEntryToDelete.id, type: UserEntityType.USER},
+                    rights: accessEntryToDelete.permission,
                     revoke: true
                 }
             ]
@@ -219,12 +221,23 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     return (
         <Box>
             <div>
-                <ReactModal ariaHideApp={false} isOpen={accessEntryToDelete != null} style={defaultModalStyle}>
+                <ReactModal
+                    ariaHideApp={false}
+                    shouldCloseOnEsc
+                    shouldCloseOnOverlayClick
+                    onAfterClose={() => setAccessEntryToDelete(null)}
+                    isOpen={accessEntryToDelete != null}
+                    style={defaultModalStyle}
+                >
                     <Heading.h3>Delete entry</Heading.h3>
                     <Box>
                         <Text>
                             Remove access for {accessEntryToDelete?.id}?
                         </Text>
+                    </Box>
+                    <Box mt="6px" alignItems="center">
+                        <Button mr="4px" color="red" onClick={() => setAccessEntryToDelete(null)}>Cancel</Button>
+                        <Button color="green" onClick={deleteAclEntry}>Delete</Button>
                     </Box>
                 </ReactModal>
                 <Flex alignItems="center">
@@ -312,7 +325,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                                 type="button"
                                                 paddingLeft={10}
                                                 paddingRight={10}
-                                                onClick={async () => deleteAclEntry(accessEntry)}
+                                                onClick={() => setAccessEntryToDelete(accessEntry)}
                                             >
                                                 <Icon size={16} name="trash" />
                                             </Button>
@@ -340,7 +353,7 @@ function openAclDialog(licenseServer: LicenseServer): void {
     dialogStore.addDialog(<LicenseServerAclPrompt licenseServer={licenseServer} />, () => undefined);
 }
 
-function openTagsDialog(licenseServer: LicenseServer) {
+function openTagsDialog(licenseServer: LicenseServer): void {
     dialogStore.addDialog(<LicenseServerTagsPrompt licenseServer={licenseServer} />, () => undefined)
 }
 
@@ -509,7 +522,7 @@ export default function LicenseServers(): JSX.Element | null {
                         </form>
 
                         <Box mt={30}>
-                            {(licenseServers.length > 0) ? (
+                            {licenseServers.length > 0 ? (
                                 licenseServers.map(licenseServer => (
                                     <Card key={licenseServer.id} mb={2} padding={20} borderRadius={5}>
                                         <Flex justifyContent="space-between">
