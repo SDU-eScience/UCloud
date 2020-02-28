@@ -7,19 +7,9 @@ enum class FileAttribute(val value: Long) {
     FILE_TYPE(1 shl 0),
 
     /**
-     * Unix mode
-     */
-    UNIX_MODE(1 shl 4),
-
-    /**
      * Unix creator information (this is the file creator)
      */
     CREATOR(1 shl 5),
-
-    /**
-     * Unix group information
-     */
-    GROUP(1 shl 6),
 
     /**
      * Timestamp information

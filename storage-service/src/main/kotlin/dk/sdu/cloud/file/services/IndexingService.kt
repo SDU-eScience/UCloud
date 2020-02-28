@@ -9,7 +9,7 @@ import dk.sdu.cloud.service.Loggable
 /**
  * Service responsible for handling operations related to indexing
  */
-class IndexingService<Ctx : FSUserContext>(private val aclService: AclService<*>) {
+class IndexingService<Ctx : FSUserContext>(private val aclService: AclService) {
     suspend fun verifyKnowledge(
         ctx: Ctx,
         files: List<String>,

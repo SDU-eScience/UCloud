@@ -29,7 +29,7 @@ interface StorageFile {
     /**
      * The canonical path of the file
      *
-     * Because SDUCloud doesn't support hard links we are guaranteed that each file has exactly one canonical path.
+     * Because UCloud doesn't support hard links we are guaranteed that each file has exactly one canonical path.
      */
     @get:JsonProperty("path")
     val pathOrNull: String?
@@ -41,7 +41,7 @@ interface StorageFile {
     val modifiedAtOrNull: Long?
 
     /**
-     * The SDUCloud username of the creator of this file
+     * The UCloud username of the creator of this file
      */
     @get:JsonProperty("ownerName")
     val ownerNameOrNull: String?
@@ -78,7 +78,7 @@ interface StorageFile {
     val fileIdOrNull: String?
 
     /**
-     * The SDUCloud username of the creator of this file
+     * The UCloud username of the creator of this file
      */
     @get:JsonProperty("creator")
     val creatorOrNull: String?

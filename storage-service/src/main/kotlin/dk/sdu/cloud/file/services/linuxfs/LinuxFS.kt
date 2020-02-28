@@ -57,7 +57,7 @@ import kotlin.streams.toList
 
 class LinuxFS(
     fsRoot: File,
-    private val aclService: AclService<*>
+    private val aclService: AclService
 ) : LowLevelFileSystemInterface<LinuxFSRunner> {
     private val fsRoot = fsRoot.normalize().absoluteFile
 
@@ -351,7 +351,6 @@ class LinuxFS(
                 }
 
                 var fileType: FileType? = null
-                var unixMode: Int? = null
                 var timestamps: Timestamps? = null
                 var path: String? = null
                 var inode: String? = null
@@ -373,7 +372,6 @@ class LinuxFS(
                         val opts = ArrayList<String>()
                         if (FileAttribute.INODE in mode) opts.add("ino")
                         if (FileAttribute.CREATOR in mode) opts.add("uid")
-                        if (FileAttribute.UNIX_MODE in mode) opts.add("mode")
 
                         if (opts.isEmpty()) {
                             null
@@ -386,8 +384,6 @@ class LinuxFS(
                         inode = runCatching { getExtendedAttributeInternal(systemFile, XATTR_ID) }.getOrNull()
                             ?: (attributes.getValue("ino") as Long).toString()
                     }
-
-                    if (FileAttribute.UNIX_MODE in mode) unixMode = attributes["mode"] as Int
                 }
 
                 run {
@@ -489,9 +485,7 @@ class LinuxFS(
 
                 FileRow(
                     fileType,
-                    unixMode,
                     realOwner,
-                    "",
                     timestamps,
                     path,
                     inode,

@@ -9,9 +9,7 @@ import dk.sdu.cloud.file.api.Timestamps
 @Suppress("ConstructorParameterNaming")
 class FileRow(
     val _fileType: FileType?,
-    val _unixMode: Int?,
     val _creator: String?,
-    val _group: String?,
     val _timestamps: Timestamps?,
     val _path: String?,
     val _inode: String?,
@@ -21,9 +19,6 @@ class FileRow(
     val _owner: String?
 ) {
     val fileType: FileType get() = _fileType!!
-    val unixMode: Int get() = _unixMode!!
-    val creator: String get() = _creator!!
-    val group: String get() = _group!!
     val timestamps: Timestamps get() = _timestamps!!
     val path: String get() = _path!!
     val inode: String get() = _inode!!
@@ -35,9 +30,7 @@ class FileRow(
     override fun toString(): String {
         return "FileRow(" +
                 "_fileType=$_fileType, \n" +
-                "_unixMode=$_unixMode, \n" +
                 "_creator=$_creator, \n" +
-                "_group=$_group, \n" +
                 "_timestamps=$_timestamps, \n" +
                 "_path=$_path, \n" +
                 "_inode=$_inode, \n" +
@@ -51,9 +44,7 @@ class FileRow(
 
 fun FileRow.mergeWith(other: FileRow): FileRow {
     val _fileType: FileType? = this._fileType ?: other._fileType
-    val _unixMode: Int? = this._unixMode ?: other._unixMode
     val _creator: String? = this._creator ?: other._creator
-    val _group: String? = this._group ?: other._group
     val _timestamps: Timestamps? = this._timestamps ?: other._timestamps
     val _path: String? = this._path ?: other._path
     val _inode: String? = this._inode ?: other._inode
@@ -64,9 +55,7 @@ fun FileRow.mergeWith(other: FileRow): FileRow {
 
     return FileRow(
         _fileType,
-        _unixMode,
         _creator,
-        _group,
         _timestamps,
         _path,
         _inode,

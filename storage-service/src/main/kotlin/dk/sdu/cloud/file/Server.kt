@@ -19,8 +19,9 @@ import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.WSFileSessionService
-import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
+import dk.sdu.cloud.file.services.acl.MetadataDao
+import dk.sdu.cloud.file.services.acl.MetadataService
 import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
@@ -38,6 +39,7 @@ import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.H2_DIALECT
 import dk.sdu.cloud.service.db.H2_DRIVER
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
@@ -70,9 +72,9 @@ class Server(
 
         // Authorization
         val homeFolderService = HomeFolderService(client)
-        val aclDao = AclHibernateDao()
-        val newAclService =
-            AclService(micro.hibernateDatabase, aclDao, homeFolderService)
+        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val metadataService = MetadataService(db, MetadataDao())
+        val newAclService = AclService(metadataService, homeFolderService)
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
         val fs = LinuxFS(fsRootFile, newAclService)
