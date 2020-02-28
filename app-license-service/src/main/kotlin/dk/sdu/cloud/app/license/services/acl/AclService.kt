@@ -54,18 +54,18 @@ class AclService<Session>(
             AppLicenseController.log.debug("Verifying that user exists")
 
             val lookup = UserDescriptions.lookupUsers.call(
-                LookupUsersRequest(listOf(entity.principal.username)),
+                LookupUsersRequest(listOf(entity.id)),
                 authenticatedClient
             ).orRethrowAs {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
 
-            if (lookup.results[entity.principal.username] == null) throw RPCException.fromStatusCode(
+            if (lookup.results[entity.id] == null) throw RPCException.fromStatusCode(
                 HttpStatusCode.BadRequest,
                 "The user does not exist"
             )
 
-            if (lookup.results[entity.principal.username]?.role == Role.SERVICE) {
+            if (lookup.results[entity.id]?.role == Role.SERVICE) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "The user does not exist")
             }
             dao.updatePermissions(session, serverId, entity, permissions)

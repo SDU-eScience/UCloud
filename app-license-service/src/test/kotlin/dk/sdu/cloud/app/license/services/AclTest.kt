@@ -54,7 +54,7 @@ class AclTest {
 
     @Test
     fun `empty acls`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
+        val user = UserEntity("user", EntityType.USER)
         val serverId = "1234"
 
         val instance = aclService.listAcl(serverId)
@@ -66,8 +66,8 @@ class AclTest {
 
     @Test
     fun `revoke permission`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
-        val user2 = UserEntity(principal2, EntityType.USER)
+        val user = UserEntity("user", EntityType.USER)
+        val user2 = UserEntity("user2", EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
@@ -92,8 +92,8 @@ class AclTest {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
 
-        val userEntity = UserEntity(principal, EntityType.USER)
-        val userEntity2 = UserEntity(principal2, EntityType.USER)
+        val userEntity = UserEntity("user", EntityType.USER)
+        val userEntity2 = UserEntity("user2", EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
@@ -117,8 +117,8 @@ class AclTest {
 
     @Test
     fun `add user to acl several times`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
-        val user2 = UserEntity(principal2, EntityType.USER)
+        val user = UserEntity("user", EntityType.USER)
+        val user2 = UserEntity("user2", EntityType.USER)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
@@ -139,7 +139,7 @@ class AclTest {
         val list = aclService.listAcl(serverId)
         assertThatPropertyEquals(list, { it.size }, 2)
 
-        assertTrue(EntityWithPermission(principal.username, EntityType.USER, ServerAccessRight.READ_WRITE) in list)
-        assertTrue(EntityWithPermission(principal2.username, EntityType.USER, ServerAccessRight.READ) in list)
+        assertTrue(EntityWithPermission("user", EntityType.USER, ServerAccessRight.READ_WRITE) in list)
+        assertTrue(EntityWithPermission("user2", EntityType.USER, ServerAccessRight.READ) in list)
     }
 }

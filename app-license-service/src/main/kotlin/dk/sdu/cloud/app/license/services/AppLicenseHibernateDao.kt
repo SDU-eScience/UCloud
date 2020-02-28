@@ -39,7 +39,7 @@ class LicenseServerEntity(
     var address: String,
 
     @Column(name = "port", unique = false, nullable = false)
-    var port: String,
+    var port: Int,
 
     @Column(name = "license", unique = false, nullable = true)
     var license: String?
@@ -108,7 +108,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         """.trimIndent(), LicenseServerEntity::class.java
         ).also {
             it.setParameter("tags", tags)
-            it.setParameter("entityId", userEntity.principal.username)
+            it.setParameter("entityId", userEntity.id)
             it.setParameter("entityType", userEntity.type.toString())
         }.list().map { entity ->
             entity.toIdentifiable()

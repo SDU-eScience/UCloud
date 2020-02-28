@@ -49,7 +49,7 @@ class AppLicenseTest {
 
     @Test
     fun `save new license server and fetch`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
+        val user = UserEntity("user", EntityType.USER)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
@@ -61,12 +61,12 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
+        assertEquals("testName", appLicenseService.getLicenseServer(principal, serverId, user)?.name)
     }
 
     @Test
     fun `save new license and update`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
+        val user = UserEntity("user", EntityType.USER)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
@@ -78,10 +78,11 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
+        assertEquals("testName", appLicenseService.getLicenseServer(principal, serverId, user)?.name)
         val newAddress = "new-address.com"
 
         appLicenseService.updateLicenseServer(
+            principal,
             UpdateServerRequest(
                 "testName",
                 newAddress,
@@ -92,14 +93,14 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
-        assertEquals(newAddress, appLicenseService.getLicenseServer(serverId, user)?.address)
+        assertEquals("testName", appLicenseService.getLicenseServer(principal, serverId, user)?.name)
+        assertEquals(newAddress, appLicenseService.getLicenseServer(principal, serverId, user)?.address)
     }
 
     @Test
     fun `save and update license - fail if unauthorized`() = runBlocking {
-        val user = UserEntity(principal, EntityType.USER)
-        val user2 = UserEntity(principal2, EntityType.USER)
+        val user = UserEntity("user", EntityType.USER)
+        val user2 = UserEntity("user2", EntityType.USER)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
@@ -111,11 +112,12 @@ class AppLicenseTest {
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(serverId, user)?.name)
+        assertEquals("testName", appLicenseService.getLicenseServer(principal, serverId, user)?.name)
         val newAddress = "new-address.com"
 
         assertFails {
             appLicenseService.updateLicenseServer(
+                principal2,
                 UpdateServerRequest(
                     "testName",
                     newAddress,
@@ -127,7 +129,7 @@ class AppLicenseTest {
             )
         }
 
-        assertFails { appLicenseService.getLicenseServer(serverId, user2) }
-        assertEquals("example.com", appLicenseService.getLicenseServer(serverId, user)?.address)
+        assertFails { appLicenseService.getLicenseServer(principal2, serverId, user2) }
+        assertEquals("example.com", appLicenseService.getLicenseServer(principal, serverId, user)?.address)
     }
 }
