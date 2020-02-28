@@ -31,8 +31,8 @@ class ResetRequestsHibernateDao : ResetRequestsDao<HibernateSession> {
     override fun create(session: HibernateSession, token: String, userId: String) {
         val timeSource = System.currentTimeMillis()
 
-        // Set to expire in 10 minutes
-        val expiry = timeSource + 10 * 60
+        // Set to expire in 30 minutes
+        val expiry = timeSource + 30 * 60 * 1000
 
         val passwordResetRequest = PasswordResetRequestEntity(
             token,
@@ -44,6 +44,7 @@ class ResetRequestsHibernateDao : ResetRequestsDao<HibernateSession> {
     }
 
     override fun get(session: HibernateSession, token: String): ResetRequest? {
+        println(token)
         return session.criteria<PasswordResetRequestEntity> {
             entity[PasswordResetRequestEntity::token] equal token
         }.uniqueResult().toModel()
