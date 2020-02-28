@@ -19,7 +19,7 @@ class AclService<Session>(
     private val dao: AclDao<Session>
 ) {
 
-    fun hasPermission(serverId: String, entity: UserEntity, permission: ServerAccessRight): Boolean {
+    suspend fun hasPermission(serverId: String, entity: UserEntity, permission: ServerAccessRight): Boolean {
         return db.withTransaction { session ->
             dao.hasPermission(session, serverId, entity, permission)
         }
@@ -72,13 +72,13 @@ class AclService<Session>(
         }
     }
 
-    fun listAcl(serverId: String): List<EntityWithPermission> {
+    suspend fun listAcl(serverId: String): List<EntityWithPermission> {
         return db.withTransaction {
             dao.listAcl(it, serverId)
         }
     }
 
-    fun revokePermission(serverId: String, entity: UserEntity) {
+    suspend fun revokePermission(serverId: String, entity: UserEntity) {
         db.withTransaction {
             revokePermissionWithSession(it, serverId, entity)
         }
@@ -90,5 +90,5 @@ class AclService<Session>(
 
     fun revokeAllServerPermissionsWithSession(session: Session, serverId: String) {
         dao.revokeAllServerPermissions(session, serverId)
-    };
+    }
 }

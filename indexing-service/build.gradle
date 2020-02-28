@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.15.8'
+version '1.15.11'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"
@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.11.7"
+    ext.serviceCommonVersion = "1.12.3"
     ext.fileApiVersion = "3.0.7"
     ext.authApiVersion = "1.26.4"
 }

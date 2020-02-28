@@ -10,16 +10,16 @@ const ClickableIcon = styled(Icon)`
 `;
 
 const left = ({leftLabel}: {leftLabel?: boolean}) =>
-  leftLabel ? css`border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
+    leftLabel ? css`border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
 const right = ({rightLabel}: {rightLabel?: boolean}) =>
-  rightLabel ? css`border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
+    rightLabel ? css`border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
 
 interface SelectProps extends SpaceProps, WidthProps {
-  fontSize?: number | string;
-  leftLabel?: boolean;
-  rightLabel?: boolean;
-  showError?: boolean;
+    fontSize?: number | string;
+    leftLabel?: boolean;
+    rightLabel?: boolean;
+    showError?: boolean;
 }
 
 const SelectBase = styled.select<SelectProps>`
@@ -34,18 +34,18 @@ const SelectBase = styled.select<SelectProps>`
   }
 
   ${p => p.showError ? `&:invalid {
-    border-color: ${p.theme.colors.red};
+    border-color: var(--red, #f00);
   }` : null}
 
   background-color: transparent;
   border-radius: ${theme.radius};
   border-width: ${p => p.theme.borderWidth};
   border-style: solid;
-  border-color: ${p => p.theme.colors.borderGray};
+  border-color: var(--borderGray, #f00);
 
   &:focus {
     outline: none;
-    border-color: ${p => p.theme.colors.blue};
+    border-color: var(--blue, #f00);
   }
 
   ${space} ${fontSize}
@@ -53,21 +53,21 @@ const SelectBase = styled.select<SelectProps>`
 `;
 
 SelectBase.defaultProps = {
-  m: 0,
-  pl: 12,
-  pr: 32,
-  py: 7
+    m: 0,
+    pl: 12,
+    pr: 32,
+    py: 7
 };
 
 type Props = SelectProps &
-  React.SelectHTMLAttributes<HTMLSelectElement> &
-  {selectRef?: React.RefObject<HTMLSelectElement>};
+    React.SelectHTMLAttributes<HTMLSelectElement> &
+{selectRef?: React.RefObject<HTMLSelectElement>};
 
 const Select = styled((props: Props) => (
-  <Flex width={1} alignItems="center">
-    <SelectBase {...props} ref={props.selectRef} />
-    <ClickableIcon ml={-32} name="chevronDown" color="gray" size="0.7em" />
-  </Flex>
+    <Flex width={1} alignItems="center">
+        <SelectBase {...props} ref={props.selectRef} />
+        <ClickableIcon ml={-32} name="chevronDown" color="gray" size="0.7em" />
+    </Flex>
 ))``;
 
 export default Select;

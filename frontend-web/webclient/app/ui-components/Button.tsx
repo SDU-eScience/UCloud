@@ -2,7 +2,7 @@ import styled from "styled-components";
 import {ButtonStyleProps, height, HeightProps, SizeProps, space, SpaceProps, width, WidthProps} from "styled-system";
 import theme, {Theme, ThemeColor} from "./theme";
 
-const size = (p: {size: string, theme: Theme}) => {
+const size = (p: {size: string; theme: Theme}) => {
   switch (p.size) {
     case "tiny":
       return {
@@ -56,16 +56,16 @@ const Button = styled.button<ButtonProps>`
   text-align: center;
   text-decoration: none;
   font-family: inherit;
-  font-weight: ${props => props.theme.bold};
+  font-weight: ${theme.bold};
   line-height: ${props => props.lineHeight};
   cursor: pointer;
-  border-radius: ${props => props.theme.radius};
-  background-color: ${props => props.theme.colors[props.color!]};
-  color: ${props => props.theme.colors[props.textColor!]};
+  border-radius: ${theme.radius};
+  background-color: var(--${p => p.color}, #f00);
+  color: var(--${p => p.textColor}, #f00);
   border-width: 0;
   border-style: solid;
 
-  transition: ${p => `${p.theme.timingFunctions.easeInOut} ${p.theme.transitionDelays.small}`};
+  transition: ${theme.timingFunctions.easeInOut} ${theme.transitionDelays.small};
 
   &:disabled {
     opacity: 0.25;

@@ -1,11 +1,11 @@
-import {File, SensitivityLevel} from "Files";
+import {SensitivityLevel} from "Files";
 import {Action} from "redux";
-import {Error, Page, PayloadAction, SetLoadingAction} from "Types";
+import {PayloadAction, SetLoadingAction} from "Types";
 import * as DFSReducer from "./DetailedFileSearchReducer";
 
 export type DetailedFileSearchActions = ToggleFilesSearchHiddenAction | ToggleFoldersAllowedAction | SetTime |
-    ToggleFilesAllowedAction | SetFilename | TagAction | SensitivityAction | SetError | SetFilesSearchLoading |
-    ReceiveFilesSearchFiles | ExtensionAction | ToggleIncludeSharesAction;
+    ToggleFilesAllowedAction | SetFilename | TagAction | SensitivityAction | SetFilesSearchLoading |
+    ExtensionAction | ToggleIncludeSharesAction;
 
 type ToggleFilesSearchHiddenAction = Action<typeof DFSReducer.DETAILED_FILES_TOGGLE_HIDDEN>;
 export const toggleFilesSearchHidden = (): ToggleFilesSearchHiddenAction => ({
@@ -58,22 +58,10 @@ export const sensitivityAction = (type: SensitivityTypes, sensitivities: Sensiti
     payload: {sensitivities}
 });
 
-type SetError = Error<typeof DFSReducer.DETAILED_FILES_SET_ERROR>;
-export const setErrorMessage = (error?: string): SetError => ({
-    type: DFSReducer.DETAILED_FILES_SET_ERROR,
-    payload: {error}
-});
-
 type SetFilesSearchLoading = SetLoadingAction<typeof DFSReducer.DETAILED_FILES_SET_LOADING>;
 export const setFilesSearchLoading = (loading: boolean): SetFilesSearchLoading => ({
     type: DFSReducer.DETAILED_FILES_SET_LOADING,
     payload: {loading}
-});
-
-type ReceiveFilesSearchFiles = PayloadAction<typeof DFSReducer.DETAILED_FILES_RECEIVE_PAGE, {page: Page<File>}>;
-export const receivePage = (page: Page<File>): ReceiveFilesSearchFiles => ({
-    type: DFSReducer.DETAILED_FILES_RECEIVE_PAGE,
-    payload: {page}
 });
 
 type SetTime = PayloadAction<typeof DFSReducer.DETAILED_FILES_SET_TIME, Times>;

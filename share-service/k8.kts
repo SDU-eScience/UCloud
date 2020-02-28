@@ -3,9 +3,9 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "share"
-    version = "1.6.5"
+    version = "1.6.8"
 
-    withAmbassador("/api/shares") {
+    withAmbassador(null) {
         services.add(
             AmbassadorMapping(
                 """
@@ -22,6 +22,23 @@ bundle {
                     headers:
                       x-no-load: true 
                       
+                """.trimIndent()
+            )
+        )
+
+        services.add(
+            AmbassadorMapping(
+                """
+                    ---
+                    apiVersion: ambassador/v1
+                    kind: Mapping
+                    name: shares_1
+                    prefix: ^/api/shares(/.*)?${'$'}
+                    prefix_regex: true
+                    rewrite: ""
+                    service: share:8080
+                    precedence: 10
+                     
                 """.trimIndent()
             )
         )

@@ -227,7 +227,7 @@ class JobFileTest{
 
         ClientMock.mockCallSuccess(
             WorkspaceDescriptions.create,
-            Workspaces.Create.Response("ID", emptyList())
+            Workspaces.Create.Response("ID", emptyList(), WorkspaceMode.COPY_FILES, null)
         )
         runBlocking {
             service.createWorkspace(verifiedJobWithAccessToken)

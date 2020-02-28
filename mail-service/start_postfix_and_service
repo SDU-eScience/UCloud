@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+mkdir -p /etc/service/mservice/supervise
+cat >/etc/service/mservice/run <<EOF
+#!/usr/bin/env bash
+/opt/service/bin/start_service $@
+EOF
+chmod +x /etc/service/mservice/run
+
+exec /usr/sbin/runit_bootstrap
+tail -f /dev/null

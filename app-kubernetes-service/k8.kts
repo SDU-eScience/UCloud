@@ -1,10 +1,10 @@
 package dk.sdu.cloud.k8
 
-//DEPS dk.sdu.cloud:k8-resources:0.1.0
+//DEPS dk.sdu.cloud:k8-resources:0.1.1
 
-bundle {
+bundle { ctx ->
     name = "app-kubernetes"
-    version = "0.15.0"
+    version = "0.16.4"
 
     withAmbassador(pathPrefix = null) {
         addSimpleMapping("/api/app/compute/kubernetes")
@@ -51,6 +51,7 @@ bundle {
         deployment.spec.template.spec.serviceAccountName = this@bundle.name
 
         injectConfiguration("app-kubernetes")
+        injectConfiguration("ceph-fs-config")
     }
 
     withPostgresMigration(deployment)
@@ -123,5 +124,88 @@ bundle {
             resources = listOf("networkpolicies"),
             verbs = listOf("*")
         )
+    }
+
+    resources.add(
+        YamlResource(
+            //language=yaml
+            """
+               apiVersion: apps/v1
+               kind: DaemonSet
+               metadata:
+                 name: cow-deploy
+                 namespace: default
+               spec:
+                 selector:
+                   matchLabels:
+                     app: flex-deploy
+                 template:
+                   metadata:
+                     name: flex-deploy
+                     labels:
+                       app: flex-deploy
+                   spec:
+                     containers:
+                       - image: registry.cloud.sdu.dk/cow/deploy:0.2.37
+                         name: flex-deploy
+                         securityContext:
+                             privileged: true
+                         volumeMounts:
+                           - mountPath: /flexmnt
+                             name: flexvolume-mount
+                         command:
+                           - /opt/cow/install.sh
+                     volumes:
+                       - name: flexvolume-mount
+                         hostPath:
+                           path: /var/lib/kubelet/volumeplugins
+                     imagePullSecrets:
+                       - name: esci-docker
+
+            """.trimIndent()
+        )
+    )
+
+    val prefix: String = when (ctx.environment) {
+        Environment.DEVELOPMENT, Environment.PRODUCTION -> "app-"
+        Environment.TEST -> "apps-"
+    }
+
+    val domain: String = when (ctx.environment) {
+        Environment.DEVELOPMENT -> "dev.cloud.sdu.dk"
+        Environment.PRODUCTION -> "cloud.sdu.dk"
+        Environment.TEST -> "dev.cloud.sdu.dk" // Uses different prefix
+    }
+
+    withConfigMap {
+        val hostTemporaryStorage: String = when (ctx.environment) {
+            Environment.DEVELOPMENT -> "/mnt/ofs"
+            Environment.PRODUCTION -> "/mnt/storage/overlayfs"
+            Environment.TEST -> "/mnt/ofs"
+        }
+
+        addConfig(
+            "config.yaml",
+
+            //language=yaml
+            """
+                app:
+                  kubernetes:
+                    performAuthentication: true
+                    prefix: "$prefix"
+                    domain: $domain
+                    hostTemporaryStorage: $hostTemporaryStorage
+                    toleration:
+                      key: sducloud
+                      value: apps
+                      
+            """.trimIndent()
+        )
+    }
+
+    withIngress("apps") {
+        resource.metadata.annotations = resource.metadata.annotations +
+                mapOf("nginx.ingress.kubernetes.io/proxy-body-size" to "0")
+        addRule("*.$domain", service = "app-kubernetes", port = 80)
     }
 }

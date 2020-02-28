@@ -33,24 +33,26 @@ export interface InputProps extends BorderProps, SpaceProps, BorderRadiusProps, 
     autocomplete?: "on" | "off";
 }
 
-const left = ({leftLabel}: {leftLabel?: boolean}) => leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
-const right = ({rightLabel}: {rightLabel?: boolean}) => rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
+const left = ({leftLabel}: {leftLabel?: boolean}): string =>
+    leftLabel ? `border-top-left-radius: 0; border-bottom-left-radius: 0;` : "";
+const right = ({rightLabel}: {rightLabel?: boolean}): string =>
+    rightLabel ? `border-top-right-radius: 0; border-bottom-right-radius: 0;` : "";
 
 const Input = styled.input<InputProps>`
     display: block;
     font-family: inherit;
     background-color: ${props => props.error ? props.theme.colors.lightRed : "transparent"};
     ${fontSize}
-    color: ${props => props.theme.colors.black};
+    color: var(--black, #f00);
 
     margin: 0;
 
-    ${({showError, theme}) => showError ? `&:invalid {
-        border-color: ${theme.colors.red};
+    ${p => p.showError ? `&:invalid {
+        border-color: var(--red, #f00);
     }` : null};
 
     ::placeholder {
-        color: ${({theme}) => theme.colors.gray};
+        color: var(--gray, #f00);
     }
 
     &:focus {

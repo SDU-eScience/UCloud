@@ -1,9 +1,57 @@
 import {css} from "styled-components";
+import theme from "./theme";
 
 const fontLight = require("Assets/IBMPlexSans-Light.ttf");
 const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
 
 const UIGlobalStyle = css`
+/* Colors */
+:root {
+    --black: #000;
+    --white: #fff;
+    --textBlack: #1e252e;
+    --lightGray: #f5f7f9;
+    --midGray: #c9d3df;
+    --gray: #8393A7;
+    --darkGray: #53657d;
+    --lightBlue: #f0f6ff;
+    --lightBlue2: #cdf;
+    --blue: #006aff;
+    --darkBlue: #049;
+    --lightGreen: #00ff77;
+    --green: #00C05A;
+    --darkGreen: #00823c;
+    --lightRed: #fcc;
+    --red: #c00;
+    --darkRed: #800;
+    --orange: #ff6400;
+    --darkOrange: #ff5722;
+    --lightPurple: #ecf;
+    --purple: #70b;
+    --yellow: #ffed33;
+    --text: var(--textBlack, #f00);
+    --textHighlight: var(--blue, #f00);
+    --headerText: var(--white, #f00);
+    --headerBg: #006aff;
+    --headerIconColor: #fff;
+    --headerIconColor2: #c9d3df;
+    --borderGray: var(--midGray, #f00);
+    --paginationHoverColor: #f7f7f7;
+    --paginationHoverColor: var(--lightBlue, #f00);
+    --paginationDisabled: var(--lightGray, #f00);
+    --iconColor: var(--darkGray, #f00);
+    --iconColor2: var(--gray, #f00);
+    --FtIconColor: var(--lightGray, #f00);
+    --FtIconColor2: var(--midGray, #f00);
+    --FtFolderColor: var(--gray, #f00);
+    --FtFolderColor2: var(--midGray, #f00);
+    --spinnerColor: var(--blue, #f00);
+    --tableRowHighlight: var(--lightBlue, #f00);
+    --appCard: #ebeff3;
+    --wayfGreen: #66b340;
+}
+
+
 /* Custom font */
 @font-face {
   font-family: 'IBM Plex Sans';
@@ -57,7 +105,7 @@ const UIGlobalStyle = css`
 html {
   cursor: default; /* 1 */
   font-family:
-    ${props => props.theme.fontFamily},
+    ${theme.fontFamily},
     system-ui,
     /* macOS 10.11-10.12 */ -apple-system,
     /* Windows 6+ */ Segoe UI,
@@ -71,9 +119,9 @@ html {
     /* Windows emoji */ "Segoe UI Symbol",
     /* Linux emoji */ "Noto Color Emoji"; /* 2 */
 
-  line-height: ${props => props.theme.lineHeights.standard}; /* 3 */
-  font-weight: ${props => props.theme.fontWeights.regular};
-  color: ${props => props.theme.colors.text};
+  line-height: ${theme.lineHeights.standard}; /* 3 */
+  font-weight: ${theme.fontWeights.regular};
+  color: var(--text, #f00);
   -moz-tab-size: 4; /* 4 */
   tab-size: 4; /* 4 */
   -ms-text-size-adjust: 100%; /* 5 */
@@ -82,7 +130,7 @@ html {
 }
 
 div.ReactModal__Content.ReactModal__Content--after-open {
-  background-color: ${({theme}) => theme.colors.white};
+  background-color: var(--white, #f00);
 }
 
 /* Sections
@@ -94,7 +142,7 @@ div.ReactModal__Content.ReactModal__Content--after-open {
 
 body {
   margin: 0;
-  background-color: ${({theme}) => theme.colors.white};
+  background-color: var(--white, #f00);
 }
 
 /**

@@ -18,7 +18,7 @@ interface UserAvatar extends SpaceProps {
 
 export const UserAvatar = ({avatar, width = "60px"}: UserAvatar): JSX.Element => (
     <ClippedBox mx="8px" width={width} alignItems="center" height="48px">
-        <AvatarImage avatar={avatar} />
+        <Avatar avatarStyle="Circle" {...avatar} />
     </ClippedBox>
 );
 
@@ -47,31 +47,12 @@ function AvatarList(props: {avatars: AvatarType[]}): JSX.Element {
                     alignItems="center"
                     key={i}
                 >
-                    <AvatarImage avatar={a} />
+                    <Avatar avatarStyle="Circle" {...a} />
                 </Flex>
             ))}
         </WrapperWrapper>
     );
 }
-
-const AvatarImage = ({avatar}): JSX.Element => (
-    <Avatar
-        avatarStyle="Circle"
-        topType={avatar.top}
-        accessoriesType={avatar.topAccessory}
-        hairColor={avatar.hairColor}
-        hatColor={avatar.hatColor}
-        facialHairType={avatar.facialHair}
-        facialHairColor={avatar.facialHairColor}
-        clotheType={avatar.clothes}
-        clotheColor={avatar.colorFabric}
-        graphicType={avatar.clothesGraphic}
-        eyeType={avatar.eyes}
-        eyebrowType={avatar.eyebrows}
-        mouthType={avatar.mouthTypes}
-        skinColor={avatar.skinColors}
-    />
-);
 
 const WrapperWrapper = styled(Flex)`
     & > ${Flex} > svg {

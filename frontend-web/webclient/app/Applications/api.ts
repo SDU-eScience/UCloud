@@ -211,11 +211,11 @@ export function machineTypes(): APICallParameters {
     };
 }
 
-export interface listLicenseServersProps {
-    tags: string[]
+export interface ListLicenseServersProps {
+    tags: string[];
 }
 
-export function licenseServers(props: listLicenseServersProps): APICallParameters {
+export function licenseServers(props: ListLicenseServersProps): APICallParameters {
     return {
         reloadId: Math.random(),
         method: "GET",
@@ -229,6 +229,7 @@ export interface MachineReservation {
     name: string;
     cpu: number | null;
     memoryInGigs: number | null;
+    gpu: number | null;
 }
 
 export type AppOrTool = "APPLICATION" | "TOOL";

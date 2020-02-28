@@ -98,7 +98,7 @@ interface TextLabelProps {
 export const SidebarTextLabel = ({
     icon, children, title, height = "30px", color = "iconColor", color2 = "iconColor2",
     iconSize = "24", space = "22px", textSize = 3, hover = true
-}: TextLabelProps) => (
+}: TextLabelProps): JSX.Element => (
         <SidebarElementContainer title={title} height={height} ml="22px" hover={hover}>
             <Icon name={icon} color={color} color2={color2} size={iconSize} mr={space} />
             <Text fontSize={textSize}> {children} </Text>
@@ -130,7 +130,7 @@ interface SidebarElement {
     activePage: SidebarPages;
 }
 
-const SidebarElement = ({icon, label, to, activePage}: SidebarElement) => (
+const SidebarElement = ({icon, label, to, activePage}: SidebarElement): JSX.Element => (
     <SidebarLink to={to} active={enumToLabel(activePage) === label ? true : undefined}>
         <SidebarTextLabel icon={icon}>{label}</SidebarTextLabel>
     </SidebarLink>
@@ -170,10 +170,10 @@ interface SidebarMenuElements {
 }
 
 export const sideBarMenuElements: {
-    guest: SidebarMenuElements,
-    general: SidebarMenuElements,
-    auditing: SidebarMenuElements,
-    admin: SidebarMenuElements
+    guest: SidebarMenuElements;
+    general: SidebarMenuElements;
+    auditing: SidebarMenuElements;
+    admin: SidebarMenuElements;
 } = {
     guest: {
         items: [
@@ -204,7 +204,7 @@ interface SidebarProps extends SidebarStateProps {
     sideBarEntries?: any;
 }
 
-const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps) => {
+const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: SidebarProps): JSX.Element | null => {
     if (!loggedIn) return null;
 
     // TODO If more hacks like this is needed then implement a general process for hiding header/sidebar.

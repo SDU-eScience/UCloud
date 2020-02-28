@@ -12,6 +12,8 @@
 # return not supported for all copies of internal attributes. This causes OverlayFS to fail entirely. We have added a
 # patch in our kernel which skips all internal ceph attributes.
 
+#exec &> >(tee -ai /tmp/log.txt)
+
 log() {
     echo -ne $* >&1
 }
@@ -43,17 +45,40 @@ mountcephfs() {
 domount() {
     # Prepare input
     mntpath=$1
-    request=$2
+    shift
+    request=$*
     workspace=$(echo $request | jq -r .workspace)
     directory_name=$(echo $request | jq -r .directoryName)
     snapshot_path=$(echo $request | jq -r .snapshotPath)
     real_path=$(echo $request | jq -r .realPath)
+    tmp_storage=$(echo $request | jq -r .tmpStorage)
+    sub_directory=$(echo $request | jq -r .cephSubDir)
+
+    if [ ! "$workspace" ]
+    then
+        exit 1
+    fi
+
+    if [ ! "$tmp_storage" ]
+    then
+        tmp_storage="/mnt/ofs"
+    fi
+
+    if [ "$tmp_storage" == "null" ]
+    then
+        tmp_storage="/mnt/ofs"
+    fi
+
+    if [ "$sub_directory" == "null" ]
+    then
+        sub_directory=""
+    fi
 
     # Mount lower directory
     mountcephfs $request
 
     # Allocate upper and work directories
-    tmp_work="/mnt/ofs/${workspace}_${directory_name}"
+    tmp_work="${tmp_storage}/${workspace}_${directory_name}"
     mkdir -p "${tmp_work}/upper"
     mkdir -p "${tmp_work}/work"
 
@@ -63,7 +88,7 @@ domount() {
     echo "$request" >$metadata_file
 
     # Mount overlay
-    mount -t overlay overlay -o "lowerdir=${cephfs_mount}/${snapshot_path},upperdir=${tmp_work}/upper,workdir=${tmp_work}/work" "${mntpath}"
+    mount -t overlay overlay -o "lowerdir=${cephfs_mount}/${sub_directory}${snapshot_path},upperdir=${tmp_work}/upper,workdir=${tmp_work}/work" "${mntpath}"
     chown 11042:11042 "${mntpath}"
 
     log '{"status":"Success"}'
@@ -83,14 +108,19 @@ unmount() {
     directory_name=$(echo $request | jq -r .directoryName)
     snapshot_path=$(echo $request | jq -r .snapshotPath)
     real_path=$(echo $request | jq -r .realPath)
+    sub_directory=$(echo $request | jq -r .cephSubDir)
+    if [ "$sub_directory" == "null" ]
+    then
+        sub_directory=""
+    fi
 
     # Move data to CephFS workspace upper
     tmp_work="/mnt/ofs/${workspace}_${directory_name}" &>/dev/null
 
-    rm -rf "${cephfs_mount}/workspace/${workspace}/snapshots/${directory_name}/upper" &>/dev/null
-    mv "${tmp_work}/upper/" "${cephfs_mount}/workspace/${workspace}/snapshots/${directory_name}/upper/" &>/dev/null
+    rm -rf "${cephfs_mount}/${sub_directory}workspace/${workspace}/snapshots/${directory_name}/upper" &>/dev/null
+    mv "${tmp_work}/upper/" "${cephfs_mount}/${sub_directory}workspace/${workspace}/snapshots/${directory_name}/upper/" &>/dev/null
     rm -rf "${tmp_work}" &>/dev/null
-    touch "${cephfs_mount}/workspace/${workspace}/snapshots/${directory_name}/upper/.ucloud-ready"
+    touch "${cephfs_mount}/${sub_directory}workspace/${workspace}/snapshots/${directory_name}/upper/.ucloud-ready"
 
     # Do the actual unmount
     umount $mntpath &>/dev/null

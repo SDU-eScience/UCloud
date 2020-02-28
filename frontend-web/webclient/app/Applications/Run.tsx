@@ -141,7 +141,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
     public render(): JSX.Element {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
-        if (!application) return <MainContainer main={<LoadingIcon size={18} />} />;
+        if (!application) return <MainContainer main={<LoadingIcon size={36} />} />;
 
         const parameters = application.invocation.parameters;
         const mandatory = parameters.filter(parameter => !parameter.optional);
@@ -221,7 +221,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 additional={(
                     <FileSelector
                         onFileSelect={it => {
-                            if (!!it) this.onImportFileSelected(it);
+                            if (it) this.onImportFileSelected(it);
                             this.setState(() => ({fsShown: false}));
                         }}
                         trigger={null}
@@ -414,7 +414,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                         ))}
                                     </RunSection>
                                 )}
-                     
+
                             {!application.invocation.shouldAllowAdditionalPeers ? null : (
                                 <RunSection>
                                     <Flex>
@@ -436,21 +436,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                 File systems used by the <b>job</b> are automatically added to this job.
                                             </>
                                         ) : (
-                                            <>
-                                                If you need to use the services of another job click{" "}
-                                                <BaseLink
-                                                    href="#"
-                                                    onClick={e => {
-                                                        e.preventDefault();
-                                                        this.connectToJob();
-                                                    }}
-                                                >
-                                                    "Connect to job".
+                                                <>
+                                                    If you need to use the services of another job click{" "}
+                                                    <BaseLink
+                                                        href="#"
+                                                        onClick={e => {
+                                                            e.preventDefault();
+                                                            this.connectToJob();
+                                                        }}
+                                                    >
+                                                        "Connect to job".
                                                 </BaseLink>
-                                                {" "}
-                                                These services include networking and shared application file systems.
+                                                    {" "}
+                                                    These services include networking and shared application file systems.
                                             </>
-                                        )}
+                                            )}
                                     </Box>
 
                                     {
@@ -613,8 +613,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             peers,
             reservation,
             type: "start",
-            name: jobName ?? null,
-            mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES"
+            name: jobName !== "" ? jobName : null,
+            mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES",
+            acceptSameDataRetry: false
         };
 
         try {
@@ -623,8 +624,37 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Client.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));
-            this.setState(() => ({jobSubmitted: false}));
+            if (err.request.status == 409) {
+                addStandardDialog({
+                    title: "Job with same parameters already running",
+                    message: "You might be trying to run a duplicate job. Would you like to proceed?",
+                    cancelText: "No",
+                    confirmText: "Yes",
+                    onConfirm: async () => {
+                        const rerunJob = {
+                            ...job,
+                            acceptSameDataRetry: true
+                        };
+                        try {
+                            const rerunRequest = await Client.post(hpcJobQueryPost, rerunJob)
+                            this.props.history.push(`/applications/results/${rerunRequest.response.jobId}`);
+                        } catch (rerunErr) {
+                            snackbarStore.addFailure(
+                                errorMessageOrDefault(rerunErr, "An error occurred submitting the job.")
+                            )
+                        }
+                    },
+                    onCancel: async () => {
+                        this.setState( () => ({jobSubmitted: false}));
+                    }
+                });
+            }
+            else {
+                snackbarStore.addFailure(
+                    errorMessageOrDefault(err, "An error occurred submitting the job.")
+                );
+                this.setState(() => ({jobSubmitted: false}));
+            }
         } finally {
             this.props.setLoading(false);
         }
@@ -657,7 +687,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             app.invocation.parameters.forEach(it => {
                 if (Object.values(ParameterTypes).includes(it.type)) {
                     parameterValues.set(it.name, React.createRef<HTMLInputElement>());
-                } else if (it.type === "boolean") {
+                } else if (["boolean", "enumeration"].includes(it.type)) {
                     parameterValues.set(it.name, React.createRef<HTMLSelectElement>());
                 } else if (it.type === "range") {
                     parameterValues.set(it.name, React.createRef<RangeRef>());
@@ -729,7 +759,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     const invalidFiles: string[] = [];
                     for (const paramKey in fileParams) {
                         const param = fileParams[paramKey];
-                        if (!!userInputValues[param.name]) {
+                        if (userInputValues[param.name]) {
                             const path = expandHomeFolder(userInputValues[param.name], Client.homeFolder);
                             if (!await checkIfFileExists(path, Client)) {
                                 invalidFiles.push(userInputValues[param.name]);
@@ -816,7 +846,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     private fetchAndImportParameters = async (file: {path: string}): Promise<void> => {
         const fileStat = await Client.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
-            snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed not allowed.");
+            snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed.");
             return;
         }
         const response = await fetchFileContent(file.path, Client);
@@ -880,16 +910,16 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
 );
 
 interface JobSchedulingOptionsProps {
+    /* FIXME: add typesafety */
     onChange: (a, b, c) => void;
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
     reservationRef: React.RefObject<HTMLInputElement>;
 }
 
-const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
+const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
     if (!props.app) return null;
     const {maxTime, numberOfNodes, tasksPerNode, name} = props.options;
-
     return (
         <>
             <Flex mb="4px" mt="4px">
@@ -945,7 +975,10 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps) => {
 
             <div>
                 <Label>Machine type</Label>
-                <MachineTypes inputRef={props.reservationRef} />
+                <MachineTypes
+                    runAsRoot={props.app.invocation.container?.runAsRoot ?? false}
+                    inputRef={props.reservationRef}
+                />
             </div>
         </>
     );

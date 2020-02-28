@@ -10,5 +10,5 @@ namespaces:
 dependencies:
   - files
   - shares
-  - filesearch
+  - fileSearch
   - files.favorite

@@ -17,6 +17,9 @@ data class LookupUsersRequest(val users: List<String>)
 data class UserLookup(val subject: String, val uid: Long, val role: Role)
 data class LookupUsersResponse(val results: Map<String, UserLookup?>)
 
+data class LookupEmailRequest(val userId: String)
+data class LookupEmailResponse(val email: String)
+
 typealias CreateUserAudit = List<CreateSingleUserAudit>
 
 data class CreateSingleUserAudit(val username: String, val role: Role?)
@@ -91,6 +94,24 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
             path {
                 using(baseContext)
                 +"lookup"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val lookupEmail = call<LookupEmailRequest, LookupEmailResponse, CommonErrorMessage>("lookupEmail") {
+        auth {
+            roles = setOf(Role.SERVICE)
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"lookup"
+                +"email"
             }
 
             body { bindEntireRequestFromBody() }

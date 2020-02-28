@@ -27,11 +27,11 @@ const View: React.FunctionComponent = () => {
     const newMemberRef = useRef<HTMLInputElement>(null);
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
 
-    const reload = () => setProjectParams(viewProject({id}));
+    const reload = (): void => setProjectParams(viewProject({id}));
 
     useEffect(() => reload(), [id]);
 
-    const onSubmit = async (e: React.FormEvent) => {
+    const onSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
         const inputField = newMemberRef.current!;
         const username = inputField.value;
@@ -86,15 +86,15 @@ const View: React.FunctionComponent = () => {
 };
 
 const ViewMember: React.FunctionComponent<{
-    project: Project,
-    member: ProjectMember,
-    allowManagement: boolean,
-    onActionComplete: () => void
+    project: Project;
+    member: ProjectMember;
+    allowManagement: boolean;
+    onActionComplete: () => void;
 }> = props => {
     const [isLoading, runCommand] = useAsyncCommand();
     const [role, setRole] = useState<ProjectRole>(props.member.role);
 
-    const deleteMember = async () => {
+    const deleteMember = async (): Promise<void> => {
         await runCommand(deleteMemberInProject({
             projectId: props.project.id,
             member: props.member.username

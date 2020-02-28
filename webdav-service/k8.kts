@@ -1,9 +1,9 @@
-//DEPS dk.sdu.cloud:k8-resources:0.1.0
+//DEPS dk.sdu.cloud:k8-resources:0.1.1
 package dk.sdu.cloud.k8
 
-bundle {
+bundle { ctx ->
     name = "webdav"
-    version = "0.1.10"
+    version = "0.1.12"
 
     withAmbassador {}
 
@@ -14,7 +14,12 @@ bundle {
     withPostgresMigration(deployment)
 
     withIngress {
-        addRule("webdav.dev.cloud.sdu.dk")
-        addRule("dav.cloud.sdu.dk")
+        val domain = when (ctx.environment) {
+            Environment.TEST -> "davs.dev.cloud.sdu.dk"
+            Environment.DEVELOPMENT -> "webdav.dev.cloud.sdu.dk"
+            Environment.PRODUCTION ->  "dav.cloud.sdu.dk"
+        }
+
+        addRule(domain)
     }
 }

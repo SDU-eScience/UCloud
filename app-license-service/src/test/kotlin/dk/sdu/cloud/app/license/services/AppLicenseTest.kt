@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.NewServerRequest
 import dk.sdu.cloud.app.license.api.UpdateServerRequest
 import dk.sdu.cloud.app.license.services.acl.AclHibernateDao
@@ -13,11 +12,10 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
-import kotlin.math.absoluteValue
-import kotlin.random.Random
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
@@ -26,16 +24,11 @@ class AppLicenseTest {
     private lateinit var micro: Micro
     private lateinit var aclService: AclService<HibernateSession>
     private lateinit var appLicenseService: AppLicenseService<HibernateSession>
-    private lateinit var principal: SecurityPrincipal
-    private lateinit var principal2: SecurityPrincipal
 
     @BeforeTest
     fun initializeTest() {
         micro = initializeMicro()
         micro.install(HibernateFeature)
-
-        principal = SecurityPrincipal("user", Role.ADMIN, "user", "user", Random.nextLong().absoluteValue, "user@example.com")
-        principal2 = SecurityPrincipal("user2", Role.USER, "user2", "user2", Random.nextLong().absoluteValue, "user2@example.com")
 
         ClientMock.mockCall(UserDescriptions.lookupUsers) {
             TestCallResult.Ok(
@@ -55,13 +48,13 @@ class AppLicenseTest {
             NewServerRequest(
                 "testName",
                 "example.com",
-                "1234",
+                1234,
                  null
             ),
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(principal, serverId, user)?.name)
+        assertEquals("testName", appLicenseService.getLicenseServer(TestUsers.admin, serverId, user)?.name)
     }
 
     @Test
@@ -72,29 +65,29 @@ class AppLicenseTest {
             NewServerRequest(
                 "testName",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(principal, serverId, user)?.name)
+        assertEquals("testName", appLicenseService.getLicenseServer(TestUsers.admin, serverId, user)?.name)
         val newAddress = "new-address.com"
 
         appLicenseService.updateLicenseServer(
-            principal,
+            TestUsers.admin,
             UpdateServerRequest(
                 "testName",
                 newAddress,
-                "1234",
+                1234,
                 null,
                 serverId
             ),
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(principal, serverId, user)?.name)
-        assertEquals(newAddress, appLicenseService.getLicenseServer(principal, serverId, user)?.address)
+        assertEquals("testName", appLicenseService.getLicenseServer(TestUsers.admin, serverId, user)?.name)
+        assertEquals(newAddress, appLicenseService.getLicenseServer(TestUsers.admin, serverId, user)?.address)
     }
 
     @Test
@@ -106,22 +99,22 @@ class AppLicenseTest {
             NewServerRequest(
                 "testName",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
         )
 
-        assertEquals("testName", appLicenseService.getLicenseServer(principal, serverId, user)?.name)
+        assertEquals("testName", appLicenseService.getLicenseServer(TestUsers.admin, serverId, user)?.name)
         val newAddress = "new-address.com"
 
         assertFails {
             appLicenseService.updateLicenseServer(
-                principal2,
+                TestUsers.user,
                 UpdateServerRequest(
                     "testName",
                     newAddress,
-                    "1234",
+                    1234,
                     null,
                     serverId
                 ),
@@ -129,7 +122,7 @@ class AppLicenseTest {
             )
         }
 
-        assertFails { appLicenseService.getLicenseServer(principal2, serverId, user2) }
-        assertEquals("example.com", appLicenseService.getLicenseServer(principal, serverId, user)?.address)
+        assertFails { appLicenseService.getLicenseServer(TestUsers.user, serverId, user2) }
+        assertEquals("example.com", appLicenseService.getLicenseServer(TestUsers.admin, serverId, user)?.address)
     }
 }

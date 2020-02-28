@@ -16,6 +16,7 @@ import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.stackTraceToString
 
 class LookupController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
@@ -90,13 +91,18 @@ class LookupController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.findHomeFolder) {
-            val username = if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.username.isNotBlank()) {
-                request.username
-            } else {
-                ctx.securityPrincipal.username
-            }
+            try {
+                val username = if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.username.isNotBlank()) {
+                    request.username
+                } else {
+                    ctx.securityPrincipal.username
+                }
 
-            ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(username)))
+                ok(FindHomeFolderResponse(homeFolderService.findHomeFolder(username)))
+            } catch (ex: Throwable) {
+                log.warn(ex.stackTraceToString())
+                throw ex
+            }
         }
     }
 

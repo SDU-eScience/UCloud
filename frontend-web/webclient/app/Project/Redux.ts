@@ -4,7 +4,7 @@ export interface State {
 
 export const initialState = {};
 
-export const reducer = (state: State = initialState, newState: {type: string, project?: string}) => {
+export const reducer = (state: State = initialState, newState: {type: string; project?: string}) => {
     if (newState.type === "SET_PROJECT") {
         return {project: newState.project};
     }

@@ -65,7 +65,6 @@ module.exports = {
             "number",
             "String",
             "string",
-            "Boolean",
             "boolean",
             "Undefined"
         ],

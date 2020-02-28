@@ -59,19 +59,6 @@ export interface ResponsiveReduxObject {
     is: Record<string, boolean>;
 }
 
-export const initResponsive = (): ResponsiveReduxObject => ({
-    mediaType: "",
-    orientation: "",
-    lessThan: {},
-    greaterThan: {},
-    is: {},
-});
-
-export interface FilePreviewReduxState {
-    file?: File;
-    error?: string;
-}
-
 export interface FileInfoReduxObject {
     error?: string;
     activity: Page<Activity>;
@@ -132,8 +119,6 @@ interface LegacyReducers {
     activity?: Reducer<ActivityReduxObject>;
 }
 
-export type Reducers = LegacyReducers & ApplicationRedux.Reducers & AccountingRedux.Reducers;
-
 /* FIXME */
 interface LegacyReduxObject {
     dashboard: DashboardStateProps;
@@ -149,7 +134,6 @@ interface LegacyReduxObject {
     detailedApplicationSearch: DetailedApplicationSearchReduxState;
     fileInfo: FileInfoReduxObject;
     avatar: AvatarReduxObject;
-    filePreview: FilePreviewReduxState;
     responsive?: ResponsiveReduxObject;
     project: ProjectRedux.State;
     loading?: boolean;
@@ -207,19 +191,12 @@ export function initObject(): ReduxObject {
         detailedFileSearch: initFilesDetailedSearch(),
         fileInfo: initFileInfo(),
         avatar: initAvatar(),
-        filePreview: initFilePreview(),
         project: ProjectRedux.initialState,
         ...ApplicationRedux.init(),
         ...AccountingRedux.init(),
         responsive: undefined,
     };
 }
-
-
-export const initFilePreview = (): FilePreviewReduxState => ({
-    file: undefined,
-    error: undefined
-});
 
 export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});

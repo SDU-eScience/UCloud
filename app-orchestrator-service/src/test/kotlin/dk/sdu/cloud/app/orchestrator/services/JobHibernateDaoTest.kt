@@ -428,7 +428,7 @@ class JobHibernateDaoTest {
     @Test(expected = JobException::class)
     fun `Update Workspace - not found test`() = runBlocking {
         db.withTransaction {
-            jobHibDao.updateWorkspace(it, "systemId", "workspace")
+            jobHibDao.updateWorkspace(it, "systemId", "workspace", null)
         }
     }
 
@@ -436,7 +436,7 @@ class JobHibernateDaoTest {
     fun `Update Workspace`() = runBlocking {
         db.withTransaction {
             addJob(it)
-            jobHibDao.updateWorkspace(it, systemId, "workspace")
+            jobHibDao.updateWorkspace(it, systemId, "workspace", null)
         }
     }
 

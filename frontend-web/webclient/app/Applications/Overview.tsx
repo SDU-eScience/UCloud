@@ -122,7 +122,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                                     )}
                                 />
                             </div>
-                            <Box pl="10px" style={{overflowX: "scroll"}} pb="5px">
+                            <Box pl="10px" style={{overflowX: "scroll"}} pb="15px">
                                 <Grid
                                     pt="20px"
                                     gridTemplateRows="repeat(3, 1fr)"
@@ -196,17 +196,16 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
 }
 
 const ScrollBox = styled(Box)`
-    overflow-x: scroll;
+    overflow-x: auto;
 `;
 
 const ToolGroupWrapper = styled(Flex)`
     width: 100%;
-    height: 200px;
     padding-bottom: 10px;
     padding-left: 10px;
     padding-right: 10px;
     margin-top: 30px;
-    background-color: ${props => props.theme.colors.appCard};
+    background-color: var(--appCard, #f00);
     box-shadow: ${theme.shadows.sm};
     border-radius: 5px;
     background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxkZWZzPjxwYXR0ZXJuIHZpZXdCb3g9IjAgMCBhdXRvIGF1dG8iIHg9IjAiIHk9IjAiIGlkPSJwMSIgd2lkdGg9IjU2IiBwYXR0ZXJuVHJhbnNmb3JtPSJyb3RhdGUoMTUpIHNjYWxlKDAuNSAwLjUpIiBoZWlnaHQ9IjEwMCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTI4IDY2TDAgNTBMMCAxNkwyOCAwTDU2IDE2TDU2IDUwTDI4IDY2TDI4IDEwMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iMS41Ij48L3BhdGg+PHBhdGggZD0iTTI4IDBMMjggMzRMMCA1MEwwIDg0TDI4IDEwMEw1NiA4NEw1NiA1MEwyOCAzNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjYzlkM2RmNDQiIHN0cm9rZS13aWR0aD0iNCI+PC9wYXRoPjwvcGF0dGVybj48L2RlZnM+PHJlY3QgZmlsbD0idXJsKCNwMSkiIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjwvcmVjdD48L3N2Zz4=");
@@ -286,7 +285,7 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
                         })}
                     </Grid>
                 </ScrollBox>
-                <Flex mt="14px" flexDirection="row" alignItems="flex-start">
+                <Flex flexDirection="row" alignItems="flex-start">
                     {[...tags].filter(it => it !== props.tag).map(tag => (
                         <ShowAllTagItem tag={tag} key={tag}><Tag key={tag} label={tag} /></ShowAllTagItem>
                     ))}

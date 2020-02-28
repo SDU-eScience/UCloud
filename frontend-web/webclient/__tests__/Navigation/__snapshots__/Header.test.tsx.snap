@@ -132,7 +132,7 @@ exports[`Header Mount header 1`] = `
   display: block;
   font-family: inherit;
   background-color: transparent;
-  color: #000;
+  color: var(--black,#f00);
   margin: 0;
   border-width: 0px;
   padding-left: 30px;
@@ -144,19 +144,19 @@ exports[`Header Mount header 1`] = `
 }
 
 .c10::-webkit-input-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c10::-moz-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c10:-ms-input-placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c10::placeholder {
-  color: #8393A7;
+  color: var(--gray,#f00);
 }
 
 .c10:focus {
@@ -245,26 +245,26 @@ exports[`Header Mount header 1`] = `
   border-radius: 5px;
 }
 
-.c9 input::-webkit-input-placeholder,
+.c9 > input::-webkit-input-placeholder,
 .c9 input::-moz-placeholder,
 .c9 input::-ms-input-placeholder,
 .c9 input:-moz-placeholder {
   color: white;
 }
 
-.c9 input:focus::-webkit-input-placeholder,
+.c9 > input:focus::-webkit-input-placeholder,
 .c9 input:focus::-moz-placeholder,
 .c9 input:focus::-ms-input-placeholder,
 .c9 input:focus::-moz-placeholder {
   color: black;
 }
 
-.c9 input:focus ~ div > span > div > svg,
+.c9 > input:focus ~ div > span > div > svg,
 .c9 input:focus + div > label > svg {
   color: black;
 }
 
-.c9 input ~ div > span > div > svg,
+.c9 > input ~ div > span > div > svg,
 .c9 input + div > label > svg {
   color: white;
 }
@@ -272,6 +272,10 @@ exports[`Header Mount header 1`] = `
 .c9 > input:focus {
   color: black;
   background-color: white;
+}
+
+.c9 > input {
+  color: white;
 }
 
 .c9 > .c13 > .c4 > input {
@@ -811,7 +815,7 @@ exports[`Header Mount header 1`] = `
           className="c23"
           clipRule="evenodd"
           color="headerIconColor"
-          color2="#006aff"
+          color2=""
           cursor="inherit"
           fill="currentcolor"
           fillRule="evenodd"
@@ -825,7 +829,7 @@ exports[`Header Mount header 1`] = `
           />
           <path
             d="M4.8 8.4h14.4v2.4H4.8V8.4zm9.6 6H4.8V12h9.6v2.4zm4.8-7.2H4.8V4.8h14.4v2.4z"
-            fill="#006aff"
+            fill={null}
             fillRule="nonzero"
           />
         </svg>
@@ -855,7 +859,7 @@ exports[`Header Mount header 1`] = `
               className="c26"
               clipRule="evenodd"
               color="headerIconColor"
-              color2="#c9d3df"
+              color2=""
               cursor="pointer"
               fill="currentcolor"
               fillRule="evenodd"
@@ -869,7 +873,7 @@ exports[`Header Mount header 1`] = `
               />
               <path
                 d="M12 24c1.56 0 2.823-1.194 2.823-2.667H9.176C9.176 22.806 10.44 24 12 24"
-                fill="#c9d3df"
+                fill={null}
                 fillRule="nonzero"
               />
             </svg>

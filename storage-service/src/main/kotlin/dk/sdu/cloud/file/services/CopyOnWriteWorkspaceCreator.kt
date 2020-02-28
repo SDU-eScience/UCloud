@@ -23,10 +23,12 @@ import dk.sdu.cloud.file.services.linuxfs.listAndClose
 import dk.sdu.cloud.file.services.linuxfs.runAndRethrowNIOExceptions
 import dk.sdu.cloud.file.services.linuxfs.translateAndCheckFile
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.service.DistributedLock
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
@@ -36,6 +38,7 @@ import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 import kotlin.streams.asSequence
+import kotlin.time.ExperimentalTime
 
 /**
  * Each copy-on-write file system has the following layers:
@@ -197,7 +200,8 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         replaceExisting: Boolean,
         matchers: List<PathMatcher>,
         destination: String,
-        defaultDestinationDir: Path
+        defaultDestinationDir: Path,
+        lock: DistributedLock
     ): List<String> {
         val workspace = workspaceFile(fsRoot, id)
         val cowManifest = defaultMapper.readValue<CowWorkspace>(workspace.resolve(SNAPS_FILE).toFile())
@@ -207,7 +211,10 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         val canWriteToDefault =
             aclService.hasPermission(defaultDestinationDir.toCloudPath(), manifest.username, AccessRight.WRITE)
 
+        log.info("Waiting for transfer to finish...")
+
         cowManifest.snapshots.forEach { snapshot ->
+            log.info("Waiting for snapshot... ${snapshot.directoryName}")
             val snapshotRoot = snapshotsDirectory.resolve(snapshot.directoryName)
             val upper = snapshotRoot.resolve(UPPER_LAYER)
             val realRootPath = File(translateAndCheckFile(fsRoot, snapshot.realPath)).toPath()
@@ -218,6 +225,7 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                 val deadline = System.currentTimeMillis() + (1000L * 60 * 60 * 10)
                 val readyFlag = upper.resolve(".ucloud-ready")
                 while (System.currentTimeMillis() < deadline) {
+                    lock.renew(1000L * 60)
                     if (Files.exists(readyFlag)) {
                         log.debug("Found flag!")
                         break
@@ -235,18 +243,21 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                 }
             }
 
+            log.info("Files in snapshot have been transferred to CephFS")
+
             val hasWriteAccess = aclService.hasPermission(snapshot.realPath, manifest.username, AccessRight.WRITE)
             if (hasWriteAccess) {
-                transferSnapshot(manifest.username, upper, realRootPath, transferredFiles)
+                transferSnapshot(manifest.username, upper, realRootPath, transferredFiles, lock)
             } else {
                 if (canWriteToDefault) {
                     upper.listAndClose().forEach { file ->
                         transferToDefault(
-                            snapshotRoot,
+                            upper,
                             file,
                             defaultDestinationDir,
                             manifest.username,
-                            transferredFiles
+                            transferredFiles,
+                            lock
                         )
                     }
                 }
@@ -263,7 +274,14 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
                     matchers.any { it.matches(child.fileName) } && child.fileName.toString() !in snapshotNames
                 }
                 .forEach { file ->
-                    transferToDefault(workDirectory, file, defaultDestinationDir, manifest.username, transferredFiles)
+                    transferToDefault(
+                        workDirectory,
+                        file,
+                        defaultDestinationDir,
+                        manifest.username,
+                        transferredFiles,
+                        lock
+                    )
                 }
         }
 
@@ -272,16 +290,20 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
 
     // This should already be scheduled in a thread pool designed for blocking IO. Not much we can do all file IO
     // is inherently blocking.
+    @UseExperimental(ExperimentalTime::class)
     @Suppress("BlockingMethodInNonBlockingContext")
     private suspend fun transferToDefault(
         rootPath: Path,
         directory: Path,
         defaultDestinationDir: Path,
         username: String,
-        transferredFiles: ArrayList<String>
+        transferredFiles: ArrayList<String>,
+        lock: DistributedLock
     ) {
         fsRunner.withContext(SERVICE_USER) { rootCtx ->
             Files.walk(directory).asSequence().forEach { path ->
+                runBlocking { lock.renew(1000L * 60) }
+
                 val relativePath = rootPath.relativize(path)
                 val realPath = defaultDestinationDir.resolve(relativePath)
                 val cloudPath = realPath.toCloudPath()
@@ -327,10 +349,13 @@ class CopyOnWriteWorkspaceCreator<Ctx : FSUserContext>(
         username: String,
         upper: Path,
         realRootPath: Path,
-        transferredFiles: ArrayList<String>
+        transferredFiles: ArrayList<String>,
+        lock: DistributedLock
     ) {
         fsRunner.withContext(SERVICE_USER) { rootCtx ->
             Files.walk(upper).asSequence().drop(1).forEach seq@{ path ->
+                runBlocking { lock.renew(1000L * 60) }
+
                 try {
                     val realPath = run {
                         val relativePath = upper.relativize(path)

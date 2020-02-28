@@ -55,7 +55,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
     const jobId = props.match.params.jobId;
     const outputFolder = jobWithStatus?.outputFolder ?? "";
 
-    async function fetchJob() {
+    async function fetchJob(): Promise<void> {
         try {
             const {response} = await promises.makeCancelable(Client.get<JobWithStatus>(hpcJobQuery(jobId))).promise;
             setJobWithStatus(response);
@@ -68,7 +68,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
         }
     }
 
-    async function fetchWebLink() {
+    async function fetchWebLink(): Promise<void> {
         try {
             const {response} = await promises.makeCancelable(Client.get(`/hpc/jobs/query-web/${jobId}`)).promise;
             setInteractiveLink(response.path);
@@ -78,7 +78,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
         }
     }
 
-    async function fetchApplication() {
+    async function fetchApplication(): Promise<void> {
         if (jobWithStatus === null) return;
         try {
             const {response} = await promises.makeCancelable(Client.get<WithAppInvocation>(
@@ -91,7 +91,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
         }
     }
 
-    async function onCancelJob() {
+    async function onCancelJob(): Promise<void> {
         cancelJobDialog({
             jobId,
             onConfirm: async () => {
@@ -359,7 +359,7 @@ const stateToOrder = (state: JobState): 0 | 1 | 2 | 3 | 4 | 5 => {
     }
 };
 
-const isStateComplete = (state: JobState, currentState: JobState) =>
+const isStateComplete = (state: JobState, currentState: JobState): boolean =>
     stateToOrder(state) < stateToOrder(currentState);
 
 const stateToTitle = (state: JobState): string => {
@@ -384,9 +384,9 @@ const stateToTitle = (state: JobState): string => {
 };
 
 const StepTrackerItem: React.FunctionComponent<{
-    stateToDisplay: JobState,
-    currentState: JobState,
-    failedState: JobState | null
+    stateToDisplay: JobState;
+    currentState: JobState;
+    failedState: JobState | null;
 }> = ({stateToDisplay, currentState, failedState}) => {
     const active = stateToDisplay === currentState;
     const complete = isStateComplete(stateToDisplay, currentState);

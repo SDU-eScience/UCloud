@@ -425,6 +425,45 @@ parameters:
 
 With `my_parameter = true` will cause invocation `foo --my-flag 1`.
 
+#### `type: enumeration`
+
+An enumeration. A simple enumeration value, uses fixed input options. Both `name` and `value` in the options are strings.
+Internally similar to a `text` parameter.
+
+##### Examples
+
+__Simple:__
+
+```yaml
+parameters:
+  shell:
+    type: enumeration
+    options:
+      -
+        name: Bash
+        value: "0"
+      -
+        name: Zsh
+        value: "1"
+```
+
+__With default value:__
+
+```yaml
+parameters:
+  shell:
+    defaultValue:
+      type: enumeration
+      value: "1"
+    options:
+      -
+        name: Bash
+        value: "0"
+      -
+        name: Zsh
+        value: "1"
+```
+
 #### `type: peer`
 
 A peer is a different application which this application should 'connect' to.
@@ -494,6 +533,31 @@ parameters:
     mountLocation: /mnt/shared
     exportToPeers: false
 ```
+
+#### `type: license_server`
+
+License servers are for internal authorization by an application. License servers can be administered using the Admin page, and tagged with optional keywords. The `license_server` parameter can then be used to make license servers available for selection by keywords.
+
+An Access Control List exists for every license server. Permissions for a license server needs to be explicitly set for each user.
+
+##### Examples
+
+```yaml
+invocation:
+- type: var
+  vars: my_license_server
+parameters:
+  my_license_server:
+    title: "A license server is required, pick one"
+    type: license_server
+    tagged: [figlet-server]
+```
+
+The user will be prompted to select any license server with the tag `figlet-server`, which the user has access to according to each license server ACL.
+
+The details of the license server is hidden from the user. When the job is started, the details of the selected server will be fetched and passed as an invocation parameter.
+
+Ultimately it is up to each application to handle the license server information while the job is running (that is, authorization etc.).
 
 ### `fileExtensions`
 

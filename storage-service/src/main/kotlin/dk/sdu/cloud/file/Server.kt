@@ -5,7 +5,6 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.WorkspaceMode
-import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.http.ActionController
 import dk.sdu.cloud.file.http.CommandRunnerFactoryForCalls
 import dk.sdu.cloud.file.http.ExtractController
@@ -29,6 +28,7 @@ import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.StorageEventProducer
 import dk.sdu.cloud.file.services.WSFileSessionService
+import dk.sdu.cloud.file.services.WorkspaceJobService
 import dk.sdu.cloud.file.services.WorkspaceService
 import dk.sdu.cloud.file.services.acl.AclHibernateDao
 import dk.sdu.cloud.file.services.acl.AclService
@@ -46,6 +46,7 @@ import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.H2_DIALECT
@@ -60,6 +61,7 @@ import kotlin.system.exitProcess
 
 class Server(
     private val config: StorageConfiguration,
+    private val cephConfig: CephConfiguration,
     override val micro: Micro
 ) : CommonServer {
     override val log: Logger = logger()
@@ -76,8 +78,9 @@ class Server(
         Chown.isDevMode = micro.developmentModeEnabled
 
         // FS root
-        val fsRootFile = File("/mnt/cephfs/").takeIf { it.exists() }
-            ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
+        val fsRootFile =
+            File("/mnt/cephfs/" + cephConfig.subfolder).takeIf { it.exists() }
+                ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
         // Authorization
         val homeFolderService = HomeFolderService(client)
@@ -115,22 +118,27 @@ class Server(
             micro.eventStreamService
         )
         val fileScanner = FileScanner(processRunner, coreFileSystem, storageEventProducer, micro.backgroundScope)
-        val workspaceService = WorkspaceService(fsRootFile, mapOf(
-            WorkspaceMode.COPY_FILES to CopyFilesWorkspaceCreator(
-                fsRootFile.absoluteFile.normalize(),
-                fileScanner,
-                newAclService,
-                coreFileSystem,
-                processRunner
-            ),
+        val queue = WorkspaceJobService(micro.hibernateDatabase, DistributedLockBestEffortFactory(micro))
+        val workspaceService = WorkspaceService(
+            fsRootFile,
+            mapOf(
+                WorkspaceMode.COPY_FILES to CopyFilesWorkspaceCreator(
+                    fsRootFile.absoluteFile.normalize(),
+                    fileScanner,
+                    newAclService,
+                    coreFileSystem,
+                    processRunner
+                ),
 
-            WorkspaceMode.COPY_ON_WRITE to CopyOnWriteWorkspaceCreator(
-                fsRootFile.absoluteFile.normalize(),
-                newAclService,
-                processRunner,
-                coreFileSystem
-            )
-        ))
+                WorkspaceMode.COPY_ON_WRITE to CopyOnWriteWorkspaceCreator(
+                    fsRootFile.absoluteFile.normalize(),
+                    newAclService,
+                    processRunner,
+                    coreFileSystem
+                )
+            ),
+            queue
+        )
 
         // RPC services
         val wsService = WSFileSessionService(processRunner)
@@ -140,9 +148,9 @@ class Server(
 
         if (micro.commandLineArguments.contains("--scan")) {
             val index = micro.commandLineArguments.indexOf("--scan")
-            if (micro.commandLineArguments.size > index+1) {
+            if (micro.commandLineArguments.size > index + 1) {
                 val path = micro.commandLineArguments[index + 1]
-                if (!path.startsWith("/")){
+                if (!path.startsWith("/")) {
                     log.info("Must give path as argument after --scan")
                     exitProcess(1)
                 }
@@ -153,9 +161,16 @@ class Server(
             exitProcess(1)
         }
 
+        if (micro.commandLineArguments.contains("--workspace-queue")) {
+            workspaceService.runWorkQueue()
+            exitProcess(0)
+        }
+
         UserProcessor(
             streams,
-            fileScanner
+            fileScanner,
+            fsRootFile,
+            homeFolderService
         ).init()
 
         StorageProcessor(streams, newAclService).init()

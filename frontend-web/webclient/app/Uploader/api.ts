@@ -114,7 +114,7 @@ function statusToError(status: number) {
             return "Internal Server Error Occurred";
         }
         default:
-            return "An error ocurred.";
+            return "An error occurred.";
     }
 }
 

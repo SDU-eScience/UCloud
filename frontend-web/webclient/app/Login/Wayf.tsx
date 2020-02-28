@@ -25,7 +25,7 @@ function getCookie(name: string): string | null {
     return null;
 }
 
-function eraseCookie(name: string) {
+function eraseCookie(name: string): void {
     document.cookie = name + "=; path=/; Max-Age=-99999999;";
 }
 

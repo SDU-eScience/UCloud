@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.27.2'
+version '1.27.4-MAIL-TEST-1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"
@@ -11,7 +11,7 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.12.0"
+    ext.serviceCommonVersion = "1.12.3"
 }
 
 dependencies {

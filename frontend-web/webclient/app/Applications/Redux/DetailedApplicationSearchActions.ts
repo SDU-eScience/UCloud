@@ -47,7 +47,7 @@ export const setShowAllVersions = (): SetShowAllVersions => ({
 
 export async function fetchApplications(body: AdvancedSearchRequest) {
     try {
-        const {response} = await Client.post(advancedSearchQuery(), body);
+        const {response} = await Client.post(advancedSearchQuery, body);
         return receiveApplications(response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred searching for applications"));

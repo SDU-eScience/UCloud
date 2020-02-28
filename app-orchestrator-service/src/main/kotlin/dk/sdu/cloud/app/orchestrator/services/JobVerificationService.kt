@@ -158,8 +158,6 @@ class JobVerificationService<Session>(
             allMounts
         }
 
-        println("done verifying job")
-
         return VerifiedJobWithAccessToken(
             VerifiedJob(
                 application = application,
@@ -212,20 +210,15 @@ class JobVerificationService<Session>(
                 .asSequence()
                 .map { appParameter ->
                     if (appParameter is ApplicationParameter.LicenseServer) {
-                        println("appParameter is ${appParameter}")
                         val licenseServerId = userParameters[appParameter.name]
-                        println("LicenseServerId: ${licenseServerId}")
                         if (licenseServerId != null) {
                             // Transform license server
-                            println("Looking up info")
                             val lookupLicenseServer = runBlocking {
                                 AppLicenseDescriptions.get.call(
                                     LicenseServerRequest(licenseServerId.toString()),
                                     authenticatedClient
                                 )
                             }.orThrow()
-
-                            println(lookupLicenseServer.toString())
 
                             userParameters[appParameter.name] = mapOf(
                                 "id" to licenseServerId,
@@ -235,7 +228,6 @@ class JobVerificationService<Session>(
                             )
                         }
                     }
-                    println(userParameters.toString())
                     appParameter
                 }
                 .map { appParameter ->

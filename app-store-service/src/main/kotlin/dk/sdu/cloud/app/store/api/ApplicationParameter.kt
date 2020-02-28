@@ -10,6 +10,7 @@ private const val TYPE_INPUT_DIRECTORY = "input_directory"
 private const val TYPE_TEXT = "text"
 private const val TYPE_INTEGER = "integer"
 private const val TYPE_BOOLEAN = "boolean"
+private const val TYPE_ENUMERATION = "enumeration"
 private const val TYPE_FLOATING_POINT = "floating_point"
 private const val TYPE_PEER = "peer"
 private const val TYPE_SHARED_FILE_SYSTEM = "shared_file_system"
@@ -29,6 +30,7 @@ private const val TYPE_LICENSE_SERVER = "license_server"
     JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = TYPE_FLOATING_POINT),
     JsonSubTypes.Type(value = ApplicationParameter.Peer::class, name = TYPE_PEER),
     JsonSubTypes.Type(value = ApplicationParameter.SharedFileSystem::class, name = TYPE_SHARED_FILE_SYSTEM),
+    JsonSubTypes.Type(value = ApplicationParameter.Enumeration::class, name = TYPE_ENUMERATION),
     JsonSubTypes.Type(value = ApplicationParameter.LicenseServer::class, name = TYPE_LICENSE_SERVER)
 )
 sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: String) {
@@ -158,6 +160,21 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             if (entry.value) trueValue else falseValue
     }
 
+    data class EnumOption(val name: String, val value: String)
+    data class Enumeration(
+        override var name: String = "",
+        override val optional: Boolean = false,
+        override val defaultValue: EnumerationApplicationParameter? = null,
+        override val title: String = name,
+        override val description: String = "",
+        val options: List<EnumOption> = emptyList()
+    ) : ApplicationParameter<EnumerationApplicationParameter>(TYPE_ENUMERATION) {
+        override fun internalMap(inputParameter: Any): EnumerationApplicationParameter =
+            EnumerationApplicationParameter(inputParameter.toString())
+
+        override fun toInvocationArgument(entry: EnumerationApplicationParameter): String = entry.value
+    }
+
     class Peer(
         name: String = "",
         override val title: String,
@@ -229,22 +246,20 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         override val defaultValue: LicenseServerApplicationParameter? = null
 
         override fun internalMap(inputParameter: Any): LicenseServerApplicationParameter {
-            println("internalMap called: $inputParameter")
             @Suppress("UNCHECKED_CAST")
             val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad license server")
             val licenseServerId = asMap["id"] as? String? ?: throw IllegalArgumentException("Missing 'licenseServerId'")
             val licenseServerAddress = asMap["address"] as? String? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerAddress'")
-            val licenseServerPort = asMap["port"] as? String? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerPort'")
+            val licenseServerPort = asMap["port"] as? Int? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerPort'")
             val licenseServerKey = asMap["license"] as? String?  // Allowed to be null
             return LicenseServerApplicationParameter(licenseServerId, licenseServerAddress, licenseServerPort, licenseServerKey)
         }
 
         override fun toInvocationArgument(entry: LicenseServerApplicationParameter): String {
-            println("toInvocationArgument called: $entry")
             return if (entry.license != null) {
-                entry.address + ":" + entry.port + "/" + entry.license
+                "${entry.address}:${entry.port}/${entry.license}"
             } else {
-                entry.address + ":" + entry.port
+                "${entry.address}:${entry.port}"
             }
         }
     }
@@ -262,6 +277,7 @@ enum class SharedFileSystemType {
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = FileTransferDescription::class, name = "file"),
+    JsonSubTypes.Type(value = EnumerationApplicationParameter::class, name = TYPE_ENUMERATION),
     JsonSubTypes.Type(value = BooleanApplicationParameter::class, name = TYPE_BOOLEAN),
     JsonSubTypes.Type(value = IntApplicationParameter::class, name = TYPE_INTEGER),
     JsonSubTypes.Type(value = DoubleApplicationParameter::class, name = TYPE_FLOATING_POINT),
@@ -284,6 +300,10 @@ data class FileTransferDescription(
 
 data class BooleanApplicationParameter(val value: Boolean) : ParsedApplicationParameter() {
     override val type = TYPE_BOOLEAN
+}
+
+data class EnumerationApplicationParameter(val value: String) : ParsedApplicationParameter() {
+    override val type = TYPE_ENUMERATION
 }
 
 data class IntApplicationParameter(val value: BigInteger) : ParsedApplicationParameter() {
@@ -311,7 +331,7 @@ data class SharedFileSystemApplicationParameter(
 data class LicenseServerApplicationParameter(
     val id: String,
     val address: String,
-    val port: String,
+    val port: Int,
     val license: String?
 ) : ParsedApplicationParameter() {
     override val type = TYPE_LICENSE_SERVER

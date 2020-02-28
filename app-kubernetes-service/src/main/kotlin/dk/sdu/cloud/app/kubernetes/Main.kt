@@ -18,7 +18,12 @@ data class Configuration(
     val prefix: String = "app-",
     val domain: String = "cloud.sdu.dk",
     val performAuthentication: Boolean = true,
-    val toleration: TolerationKeyAndValue? = null
+    val toleration: TolerationKeyAndValue? = null,
+    val hostTemporaryStorage: String = "/mnt/ofs"
+)
+
+data class CephConfiguration(
+    val subfolder: String = ""
 )
 
 fun main(args: Array<String>) {
@@ -33,6 +38,7 @@ fun main(args: Array<String>) {
     if (micro.runScriptHandler()) return
 
     val configuration = micro.configuration.requestChunkAtOrNull("app", "kubernetes") ?: Configuration()
+    val cephConfig = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
 
-    Server(micro, configuration).start()
+    Server(micro, configuration, cephConfig).start()
 }

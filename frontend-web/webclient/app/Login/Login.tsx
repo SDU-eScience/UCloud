@@ -3,10 +3,10 @@ import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import styled, {ThemeProvider} from "styled-components";
-import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, theme, ExternalLink} from "ui-components";
+import styled from "styled-components";
+import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {DropdownContent} from "ui-components/Dropdown";
+import {DropdownContent, Dropdown} from "ui-components/Dropdown";
 import {TextSpan} from "ui-components/Text";
 import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
@@ -140,59 +140,59 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
     }
 
     return (
-        <ThemeProvider theme={theme}>
-            <>
-                <Absolute right="1em" top=".5em">
-                    <div>
-                        {!SUPPORT_EMAIL ? null : (
-                            <ClickableDropdown
-                                width="224px"
-                                top="36px"
-                                right="5px"
-                                colorOnHover={false}
-                                trigger={<Icon mr={"1em"} color="white" name="suggestion" />}
-                            >
-                                <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
-                                    Need help?
+        <>
+            <Absolute right="1em" top=".5em">
+                <div>
+                    {!SUPPORT_EMAIL ? null : (
+                        <ClickableDropdown
+                            width="224px"
+                            top="36px"
+                            right="5px"
+                            colorOnHover={false}
+                            trigger={<LoginIcon mr={"1em"} name="suggestion" />}
+                        >
+                            <ExternalLink href={`mailto:${SUPPORT_EMAIL}`}>
+                                Need help?
                                     {" "}<b>{SUPPORT_EMAIL}</b>
-                                </ExternalLink>
-                            </ClickableDropdown>
-                        )}
-                        {!SITE_DOCUMENTATION_URL ? null : (
-                            <ExternalLink href={SITE_DOCUMENTATION_URL} color={"white"}>
-                                <Icon name="docs" /> Docs
                             </ExternalLink>
+                        </ClickableDropdown>
+                    )}
+                    {!SITE_DOCUMENTATION_URL ? null : (
+                        <LoginExternalLink href={SITE_DOCUMENTATION_URL}>
+                            <LoginIcon name="docs" /> Docs
+                        </LoginExternalLink>
+                    )}
+                </div>
+            </Absolute>
+            <Absolute top="4vw" left="8vw">
+                <LoginBox width={"calc(96px + 10vw)"}>
+                    <LoginIcon name="logoSdu" size="100%" />
+                </LoginBox>
+            </Absolute>
+
+
+            <Absolute style={{overflowY: "hidden"}} bottom="0" height="50%" width="100%">
+                <BG1 />
+            </Absolute>
+
+            <BackgroundImage image={bg2}>
+                <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
+                    <LoginBox width="315px">
+                        {!isWebDav ? null : (
+                            <LoginBox mb={32}>
+                                You must re-authenticate with {PRODUCT_NAME} to use your files locally.
+                            </LoginBox>
                         )}
-                    </div>
-                </Absolute>
-                <Absolute top="4vw" left="8vw">
-                    <Box width={"calc(96px + 10vw)"}>
-                        <Icon color="white" name="logoSdu" size="100%" />
-                    </Box>
-                </Absolute>
-
-
-                <Absolute style={{overflowY: "hidden"}} bottom="0" height="50%" width="100%">
-                    <BG1 />
-                </Absolute>
-
-                <BackgroundImage image={bg2}>
-                    <Flex alignItems="top" justifyContent="center" width="100vw" height="100vh" pt="20vh">
-                        <Box width="315px">
-                            {!isWebDav ? null : (
-                                <Box color="white" mb={32}>
-                                    You must re-authenticate with {PRODUCT_NAME} to use your files locally.
-                                </Box>
-                            )}
-                            {enabledWayf && !challengeId ? (
-                                <a href={`/auth/saml/login?service=${service}`}>
-                                    <Button disabled={loading} fullWidth color="wayfGreen">
-                                        <Image width="100px" src={wayfLogo} />
-                                        <TextSpan fontSize={3} ml="2.5em">Login</TextSpan>
-                                    </Button>
-                                </a>
-                            ) : null}
-                            {!challengeId ? (
+                        {enabledWayf && !challengeId ? (
+                            <a href={`/auth/saml/login?service=${service}`}>
+                                <Button disabled={loading} fullWidth color="wayfGreen">
+                                    <Image width="100px" src={wayfLogo} />
+                                    <LoginTextSpan fontSize={3} ml="2.5em">Login</LoginTextSpan>
+                                </Button>
+                            </a>
+                        ) : null}
+                        {!challengeId ? (
+                            <DropdownContentWrapper>
                                 <ClickableDropdown
                                     colorOnHover={false}
                                     keepOpenOnClick
@@ -201,16 +201,15 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                     width="315px"
                                     left="0px"
                                     trigger={(
-                                        <Text
+                                        <LoginText
                                             fontSize={1}
-                                            color="white"
                                             mt="5px"
                                         >
                                             More login options
-                                        </Text>
+                                    </LoginText>
                                     )}
                                 >
-                                    <Box width="100%">
+                                    <LoginBox color="red" width="100%">
                                         <form onSubmit={preventDefault}>
                                             <Login
                                                 enabled2fa={!!challengeId}
@@ -219,50 +218,50 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                             />
                                             <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
 
-                                            <Button
+                                            <LoginButton
                                                 fullWidth
                                                 disabled={loading}
                                                 onClick={() => challengeId ? submit2FA() : attemptLogin()}
                                             >
                                                 Login
-                                                    </Button>
+                                            </LoginButton>
                                         </form>
-                                    </Box>
+                                    </LoginBox>
                                 </ClickableDropdown>
-                            ) : (
-                                    <>
-                                        <Text fontSize={1} color="white" mt="5px">
-                                            Enter 2-factor authentication code
-                                        </Text>
-                                        <DropdownContent
-                                            overflow="visible"
-                                            squareTop={false}
-                                            cursor="pointer"
-                                            width="315px"
-                                            hover={false}
-                                            visible
-                                        >
-                                            <Box width="100%">
-                                                <form onSubmit={preventDefault}>
-                                                    <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
-                                                    <Button
-                                                        fullWidth
-                                                        disabled={loading}
-                                                        onClick={() => challengeId ? submit2FA() : attemptLogin()}
-                                                    >
-                                                        Submit
+                            </DropdownContentWrapper>
+                        ) : (
+                                <>
+                                    <LoginText fontSize={1} mt="5px">
+                                        Enter 2-factor authentication code
+                                    </LoginText>
+                                    <LoginDropdownContent
+                                        overflow="visible"
+                                        squareTop={false}
+                                        cursor="pointer"
+                                        width="315px"
+                                        hover={false}
+                                        visible
+                                    >
+                                        <LoginBox width="100%">
+                                            <form onSubmit={preventDefault}>
+                                                <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                                                <Button
+                                                    fullWidth
+                                                    disabled={loading}
+                                                    onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                                                >
+                                                    Submit
                                                     </Button>
-                                                </form>
-                                            </Box>
-                                        </DropdownContent>
-                                    </>
-                                )
-                            }
-                        </Box>
-                    </Flex>
-                </BackgroundImage>
-            </>
-        </ThemeProvider>
+                                            </form>
+                                        </LoginBox>
+                                    </LoginDropdownContent>
+                                </>
+                            )
+                        }
+                    </LoginBox>
+                </Flex>
+            </BackgroundImage>
+        </>
     );
 };
 
@@ -271,12 +270,11 @@ interface TwoFactorProps {
     inputRef: React.RefObject<HTMLInputElement>;
 }
 
-const TwoFactor: React.FunctionComponent<TwoFactorProps> = ({enabled2fa, inputRef}: TwoFactorProps) => enabled2fa ? (
-    <Input
+const TwoFactor: React.FunctionComponent<TwoFactorProps> = ({enabled2fa, inputRef}) => enabled2fa ? (
+    <LoginInput
         ref={inputRef}
         autoComplete="off"
         autoFocus
-        mb="0.5em"
         type="text"
         name="2fa"
         id="2fa"
@@ -292,16 +290,57 @@ interface LoginProps {
 
 const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element | null => !enabled2fa ? (
     <>
-        <Input type="hidden" value="web-csrf" name="service" />
-        <Input
+        <LoginInput type="hidden" value="web-csrf" name="service" />
+        <LoginInput
             ref={usernameRef}
             autoFocus
-            mb="0.5em"
             type="text"
             name="username"
             id="username"
             placeholder="Username"
         />
-        <Input ref={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
+        <LoginInput ref={passwordRef} mb="0.8em" type="password" name="password" id="password" placeholder="Password" />
     </>
 ) : null;
+
+const LoginDropdownContent = styled(DropdownContent)`
+    background-color: white;
+    color: white;
+`;
+
+const LoginExternalLink = styled(ExternalLink)`
+    color: white;
+`;
+
+const LoginTextSpan = styled(TextSpan)`
+    color: white;
+`;
+
+const DropdownContentWrapper = styled.div`
+    & > ${Dropdown} > ${DropdownContent} {
+        color: black;
+        background-color: white;
+    }
+`;
+
+const LoginInput = styled(Input)`
+    margin-bottom: 0.5em;
+    border-color: lightgray;
+    color: black;
+`;
+
+const LoginText = styled(Text)`
+    color: white;
+`;
+
+const LoginIcon = styled(Icon)`
+    color: white;
+`;
+
+const LoginBox = styled(Box)`
+    color: white;
+`;
+
+const LoginButton = styled(Button)`
+    color: white;
+`;

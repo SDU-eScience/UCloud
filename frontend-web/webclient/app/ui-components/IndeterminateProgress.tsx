@@ -3,7 +3,7 @@ import styled from "styled-components";
 import Box from "./Box";
 import Flex from "./Flex";
 import Text from "./Text";
-import {default as theme, ThemeColor} from "./theme";
+import {ThemeColor} from "./theme";
 
 interface ProgressBaseProps {
     height?: number | string;
@@ -11,9 +11,9 @@ interface ProgressBaseProps {
     active?: boolean;
 }
 
-const ProgressBase = styled(Box)<ProgressBaseProps>`
+const ProgressBase = styled(Box) <ProgressBaseProps>`
     border-radius: 5px;
-    background-color: ${props => props.theme.colors.lightGray};
+    background-color: var(--lightGray, #foo);
     height: ${props => props.height};
     position: relative;
     overflow: hidden;
@@ -38,7 +38,7 @@ const ProgressBase = styled(Box)<ProgressBaseProps>`
         height: 100%;
 
         z-index: 2;
-        background-color: ${props => props.theme.colors[props.color!]};
+        background-color: var(--${p => p.color}, #f00);
 
         animation: movingbox 3s linear infinite;
     }
@@ -55,9 +55,9 @@ interface Progress {
     label: string;
 }
 
-const Progress = ({color, label}: Progress) => (
+const Progress = ({color, label}: Progress): JSX.Element => (
     <>
-        <ProgressBase height={"30px"} width={"100%"} color={color} />
+        <ProgressBase height="30px" width="100%" color={color} />
         {label ? <Flex justifyContent="center"><Text>{label}</Text></Flex> : null}
     </>
 );

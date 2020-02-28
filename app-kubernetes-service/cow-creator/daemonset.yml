@@ -10,7 +10,7 @@ spec:
         app: flex-deploy
     spec:
       containers:
-        - image: registry.cloud.sdu.dk/cow/deploy:0.2.25
+        - image: registry.cloud.sdu.dk/cow/deploy:0.2.34
           name: flex-deploy
           securityContext:
               privileged: true

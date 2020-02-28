@@ -1,5 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {default as Avataaar} from "AvataaarLib";
+import {Avatar} from "AvataaarLib";
 import {ReduxObject} from "DefaultObjects";
 import Spinner from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -23,7 +23,7 @@ interface AvataaarModificationOperations {
     setActivePage: () => void;
 }
 
-function Modification(props: AvataaarModificationOperations) {
+function Modification(props: AvataaarModificationOperations): JSX.Element {
     const [avatar, setAvatar] = React.useState(defaultAvatar);
     const [loading, setLoading] = React.useState(true);
 
@@ -40,22 +40,10 @@ function Modification(props: AvataaarModificationOperations) {
                 <>
                     <Flex>
                         <Box ml="auto" />
-                        <Avataaar
+                        <Avatar
                             style={{height: "150px"}}
                             avatarStyle="circle"
-                            topType={avatar.top}
-                            hatColor={avatar.hatColor}
-                            accessoriesType={avatar.topAccessory}
-                            hairColor={avatar.hairColor}
-                            facialHairType={avatar.facialHair}
-                            facialHairColor={avatar.facialHairColor}
-                            clotheType={avatar.clothes}
-                            clotheColor={avatar.colorFabric}
-                            graphicType={avatar.clothesGraphic}
-                            eyeType={avatar.eyes}
-                            eyebrowType={avatar.eyebrows}
-                            mouthType={avatar.mouthTypes}
-                            skinColor={avatar.skinColors}
+                            {...avatar}
                         />
                         <Box mr="auto" />
                     </Flex>
@@ -104,7 +92,7 @@ function Modification(props: AvataaarModificationOperations) {
                             update={hairColor => setAvatar({...avatar, hairColor})}
                             options={Options.HairColor}
                             title="Hair color"
-                            disabled={!avatar.top.includes("Hair") || avatar.top === "LongHairFrida"}
+                            disabled={!avatar.top.includes("Hair") || ["LongHairFrida", "LongHairShavedSides"].includes(avatar.top)}
                         />
                         <AvatarSelect
                             defaultValue={avatar.facialHair}
@@ -195,7 +183,13 @@ interface AvatarSelect<T1, T2> {
     disabled: boolean;
 }
 
-function AvatarSelect<T1 extends string, T2>({update, options, title, disabled, defaultValue}: AvatarSelect<T1, T2>) {
+function AvatarSelect<T1 extends string, T2>({
+    update,
+    options,
+    title,
+    disabled,
+    defaultValue
+}: AvatarSelect<T1, T2>): JSX.Element | null {
     if (disabled) return null;
     return (
         <Label mt="0.8em">{title}

@@ -70,6 +70,18 @@ class ExpiredEntriesDeleteService(
         deleteIndex(indexToDelete, elastic)
     }
 
+    fun deleteOldFileBeatLogs() {
+        val datePeriodFormat = LocalDate.now().minusDays(180).toString().replace("-","." )
+
+        val indexToDelete = "filebeat-$datePeriodFormat"
+
+        if (!indexExists(indexToDelete, elastic)) {
+            log.info("no index with the name $indexToDelete")
+            return
+        }
+        deleteIndex(indexToDelete, elastic)
+    }
+
     fun deleteExpiredAllIndices() {
         val list = getListOfIndices(elastic, "*")
         list.forEach {

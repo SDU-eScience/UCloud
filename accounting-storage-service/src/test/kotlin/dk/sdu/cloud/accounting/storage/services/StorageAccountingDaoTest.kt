@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.withDatabase
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
 
@@ -15,13 +16,15 @@ class StorageAccountingDaoTest {
     fun `insert and list all Test`() {
         val dao = StorageAccountingHibernateDao()
         withDatabase { db ->
-            db.withTransaction {
-                dao.insert(it, ServicePrincipal("_user", Role.SERVICE), 12345)
-            }
-            db.withTransaction {
-                val result = dao.findAllList(it, ContextQueryImpl(202020), "_user")
-                assertEquals(12345, result.first().bytesUsed)
-                assertEquals("_user", result.first().user)
+            runBlocking {
+                db.withTransaction {
+                    dao.insert(it, ServicePrincipal("_user", Role.SERVICE), 12345)
+                }
+                db.withTransaction {
+                    val result = dao.findAllList(it, ContextQueryImpl(202020), "_user")
+                    assertEquals(12345, result.first().bytesUsed)
+                    assertEquals("_user", result.first().user)
+                }
             }
         }
     }
@@ -30,16 +33,19 @@ class StorageAccountingDaoTest {
     fun `insert and list all Page Test`() {
         val dao = StorageAccountingHibernateDao()
         withDatabase { db ->
-            db.withTransaction {
-                dao.insert(it, ServicePrincipal("_user", Role.SERVICE), 12345)
-            }
-            db.withTransaction {
-                val result = dao.findAllPage(it, NormalizedPaginationRequest(10, 0), ContextQueryImpl(202020), "_user")
-                assertEquals(12345, result.items.first().bytesUsed)
-                assertEquals("_user", result.items.first().user)
-                assertEquals(0, result.pageNumber)
-                assertEquals(10, result.itemsPerPage)
-                assertEquals(1, result.itemsInTotal)
+            runBlocking {
+                db.withTransaction {
+                    dao.insert(it, ServicePrincipal("_user", Role.SERVICE), 12345)
+                }
+                db.withTransaction {
+                    val result =
+                        dao.findAllPage(it, NormalizedPaginationRequest(10, 0), ContextQueryImpl(202020), "_user")
+                    assertEquals(12345, result.items.first().bytesUsed)
+                    assertEquals("_user", result.items.first().user)
+                    assertEquals(0, result.pageNumber)
+                    assertEquals(10, result.itemsPerPage)
+                    assertEquals(1, result.itemsInTotal)
+                }
             }
         }
     }
@@ -48,18 +54,20 @@ class StorageAccountingDaoTest {
     fun `insert and list all By user Test`() {
         val dao = StorageAccountingHibernateDao()
         withDatabase { db ->
-            db.withTransaction {
-                dao.insert(it, ServicePrincipal("_user", Role.SERVICE), 12345)
-                dao.insert(it, ServicePrincipal("_user2", Role.SERVICE), 6666)
+            runBlocking {
+                db.withTransaction {
+                    dao.insert(it, ServicePrincipal("_user", Role.SERVICE), 12345)
+                    dao.insert(it, ServicePrincipal("_user2", Role.SERVICE), 6666)
 
-            }
-            db.withTransaction {
-                val result = dao.findAllByUserId(it, "_user2", NormalizedPaginationRequest(10, 0))
-                assertEquals(6666, result.items.first().bytesUsed)
-                assertEquals("_user2", result.items.first().user)
-                assertEquals(0, result.pageNumber)
-                assertEquals(10, result.itemsPerPage)
-                assertEquals(1, result.itemsInTotal)
+                }
+                db.withTransaction {
+                    val result = dao.findAllByUserId(it, "_user2", NormalizedPaginationRequest(10, 0))
+                    assertEquals(6666, result.items.first().bytesUsed)
+                    assertEquals("_user2", result.items.first().user)
+                    assertEquals(0, result.pageNumber)
+                    assertEquals(10, result.itemsPerPage)
+                    assertEquals(1, result.itemsInTotal)
+                }
             }
         }
     }

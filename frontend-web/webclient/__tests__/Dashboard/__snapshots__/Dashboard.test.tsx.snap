@@ -31,6 +31,140 @@ exports[`Dashboard Dashboard mount 1`] = `
   color: #53657d;
 }
 
+.c19 {
+  width: 32px;
+  height: 32px;
+  margin: 20px auto;
+  -webkit-animation-name: jkjquP;
+  animation-name: jkjquP;
+}
+
+.c19 > svg path:nth-child(1) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.04s;
+  animation-delay: -0.04s;
+}
+
+.c19 > svg path:nth-child(2) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.08s;
+  animation-delay: -0.08s;
+}
+
+.c19 > svg path:nth-child(3) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.12s;
+  animation-delay: -0.12s;
+}
+
+.c19 > svg path:nth-child(4) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.16s;
+  animation-delay: -0.16s;
+}
+
+.c19 > svg path:nth-child(5) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.2s;
+  animation-delay: -0.2s;
+}
+
+.c19 > svg path:nth-child(6) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.24s;
+  animation-delay: -0.24s;
+}
+
+.c19 > svg path:nth-child(7) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.28s;
+  animation-delay: -0.28s;
+}
+
+.c19 > svg path:nth-child(8) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.32s;
+  animation-delay: -0.32s;
+}
+
+.c19 > svg path:nth-child(9) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.36s;
+  animation-delay: -0.36s;
+}
+
+.c19 > svg path:nth-child(10) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.4s;
+  animation-delay: -0.4s;
+}
+
+.c19 > svg path:nth-child(11) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.44s;
+  animation-delay: -0.44s;
+}
+
+.c19 > svg path:nth-child(12) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.48s;
+  animation-delay: -0.48s;
+}
+
+.c19 > svg path:nth-child(13) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.52s;
+  animation-delay: -0.52s;
+}
+
+.c19 > svg path:nth-child(14) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.56s;
+  animation-delay: -0.56s;
+}
+
+.c19 > svg path:nth-child(15) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.6s;
+  animation-delay: -0.6s;
+}
+
+.c19 > svg path:nth-child(16) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.64s;
+  animation-delay: -0.64s;
+}
+
+.c19 > svg path:nth-child(17) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.68s;
+  animation-delay: -0.68s;
+}
+
+.c19 > svg path:nth-child(18) {
+  -webkit-animation: jkjquP 0.72s linear infinite;
+  animation: jkjquP 0.72s linear infinite;
+  -webkit-animation-delay: -0.72s;
+  animation-delay: -0.72s;
+}
+
 .c0 {
   margin-left: 190px;
   padding-top: 48px;
@@ -95,8 +229,8 @@ exports[`Dashboard Dashboard mount 1`] = `
   line-height: 1.5;
   cursor: pointer;
   border-radius: 5px;
-  background-color: #006aff;
-  color: #fff;
+  background-color: var(--blue,#f00);
+  color: var(--white,#f00);
   border-width: 0;
   border-style: solid;
   -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
@@ -191,274 +325,6 @@ exports[`Dashboard Dashboard mount 1`] = `
 
 .c13 > *:last-child {
   border-bottom: 0px;
-}
-
-.c19 {
-  width: 32px;
-  height: 32px;
-  margin: 20px auto;
-  -webkit-animation-name: iCarlF;
-  animation-name: iCarlF;
-}
-
-.c19 > svg path:nth-child(1) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.04s;
-  animation-delay: -0.04s;
-}
-
-.c19 > svg path:nth-child(2) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.08s;
-  animation-delay: -0.08s;
-}
-
-.c19 > svg path:nth-child(3) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.12s;
-  animation-delay: -0.12s;
-}
-
-.c19 > svg path:nth-child(4) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.16s;
-  animation-delay: -0.16s;
-}
-
-.c19 > svg path:nth-child(5) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.2s;
-  animation-delay: -0.2s;
-}
-
-.c19 > svg path:nth-child(6) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.24s;
-  animation-delay: -0.24s;
-}
-
-.c19 > svg path:nth-child(7) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.28s;
-  animation-delay: -0.28s;
-}
-
-.c19 > svg path:nth-child(8) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.32s;
-  animation-delay: -0.32s;
-}
-
-.c19 > svg path:nth-child(9) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.36s;
-  animation-delay: -0.36s;
-}
-
-.c19 > svg path:nth-child(10) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.4s;
-  animation-delay: -0.4s;
-}
-
-.c19 > svg path:nth-child(11) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.44s;
-  animation-delay: -0.44s;
-}
-
-.c19 > svg path:nth-child(12) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.48s;
-  animation-delay: -0.48s;
-}
-
-.c19 > svg path:nth-child(13) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.52s;
-  animation-delay: -0.52s;
-}
-
-.c19 > svg path:nth-child(14) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.56s;
-  animation-delay: -0.56s;
-}
-
-.c19 > svg path:nth-child(15) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.6s;
-  animation-delay: -0.6s;
-}
-
-.c19 > svg path:nth-child(16) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.64s;
-  animation-delay: -0.64s;
-}
-
-.c19 > svg path:nth-child(17) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.68s;
-  animation-delay: -0.68s;
-}
-
-.c19 > svg path:nth-child(18) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.72s;
-  animation-delay: -0.72s;
-}
-
-.c21 {
-  width: 32px;
-  height: 32px;
-  margin: 20px auto;
-  -webkit-animation-name: iCarlF;
-  animation-name: iCarlF;
-}
-
-.c21 > svg path:nth-child(1) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.04s;
-  animation-delay: -0.04s;
-}
-
-.c21 > svg path:nth-child(2) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.08s;
-  animation-delay: -0.08s;
-}
-
-.c21 > svg path:nth-child(3) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.12s;
-  animation-delay: -0.12s;
-}
-
-.c21 > svg path:nth-child(4) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.16s;
-  animation-delay: -0.16s;
-}
-
-.c21 > svg path:nth-child(5) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.2s;
-  animation-delay: -0.2s;
-}
-
-.c21 > svg path:nth-child(6) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.24s;
-  animation-delay: -0.24s;
-}
-
-.c21 > svg path:nth-child(7) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.28s;
-  animation-delay: -0.28s;
-}
-
-.c21 > svg path:nth-child(8) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.32s;
-  animation-delay: -0.32s;
-}
-
-.c21 > svg path:nth-child(9) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.36s;
-  animation-delay: -0.36s;
-}
-
-.c21 > svg path:nth-child(10) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.4s;
-  animation-delay: -0.4s;
-}
-
-.c21 > svg path:nth-child(11) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.44s;
-  animation-delay: -0.44s;
-}
-
-.c21 > svg path:nth-child(12) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.48s;
-  animation-delay: -0.48s;
-}
-
-.c21 > svg path:nth-child(13) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.52s;
-  animation-delay: -0.52s;
-}
-
-.c21 > svg path:nth-child(14) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.56s;
-  animation-delay: -0.56s;
-}
-
-.c21 > svg path:nth-child(15) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.6s;
-  animation-delay: -0.6s;
-}
-
-.c21 > svg path:nth-child(16) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.64s;
-  animation-delay: -0.64s;
-}
-
-.c21 > svg path:nth-child(17) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.68s;
-  animation-delay: -0.68s;
-}
-
-.c21 > svg path:nth-child(18) {
-  -webkit-animation: iCarlF 0.72s linear infinite;
-  animation: iCarlF 0.72s linear infinite;
-  -webkit-animation-delay: -0.72s;
-  animation-delay: -0.72s;
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
@@ -681,7 +547,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             className="c16"
             clipRule="evenodd"
             color="iconColor"
-            color2="#8393A7"
+            color2=""
             cursor="pointer"
             fill="currentcolor"
             fillRule="evenodd"
@@ -697,7 +563,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
             <path
               d="M13 16.962L14.999 19 24 9.96l-2-1.999-9 9z"
-              fill="#8393A7"
+              fill={null}
               fillRule="nonzero"
             />
           </svg>
@@ -854,7 +720,7 @@ exports[`Dashboard Dashboard mount 1`] = `
                 className="c9"
               >
                 <div
-                  className="c21"
+                  className="c19"
                   height={32}
                   width={32}
                 >

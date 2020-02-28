@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "contact-book"
-    version = "0.1.13"
+    version = "0.1.15"
 
     withAmbassador("/api/contactbook") {}
 
@@ -12,5 +12,9 @@ bundle {
         injectSecret("elasticsearch-credentials")
     }
 
-    withAdHocJob(deployment, "migration", { listOf("--createIndex") })
+    resources.add(
+        object : AdHocJob(deployment, { listOf("--createIndex") }, "index") {
+            override val phase: DeploymentPhase = DeploymentPhase.MIGRATE
+        }
+    )
 }

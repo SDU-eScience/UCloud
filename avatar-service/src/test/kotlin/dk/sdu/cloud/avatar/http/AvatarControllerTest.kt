@@ -22,6 +22,7 @@ import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.mockk.Runs
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -40,7 +41,7 @@ class AvatarControllerTest {
         withKtorTest(
             setup,
             test = {
-                every { service.upsert(any(), any()) } just Runs
+                coEvery { service.upsert(any(), any()) } just Runs
 
                 sendJson(
                     method = HttpMethod.Post,
@@ -76,8 +77,7 @@ class AvatarControllerTest {
         withKtorTest(
             setup,
             test = {
-
-                every { service.findByUser(any()) } answers {
+                coEvery { service.findByUser(any()) } answers {
                     avatar
                 }
 
@@ -113,7 +113,7 @@ class AvatarControllerTest {
 
 
             test = {
-                every { service.bulkFind(any()) } answers {
+                coEvery { service.bulkFind(any()) } answers {
                     mapOf(
                         TestUsers.user.username to serializedAvatar,
                         TestUsers.user2.username to serializedAvatar.copy(top = Top.LONG_HAIR_BIG_HAIR.string),

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-fs"
-    version = "0.2.7"
+    version = "0.2.9"
 
     // /api/avatar is added by default
     withAmbassador("/api/app/fs") {}

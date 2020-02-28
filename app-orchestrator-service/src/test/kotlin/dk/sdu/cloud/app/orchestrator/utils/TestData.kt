@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.utils
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.VerifiedJobWithAccessToken
+import dk.sdu.cloud.file.api.CowWorkspace
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
@@ -91,43 +92,69 @@ val normToolDesc = NormalizedToolDescription(
 
 val normTool = Tool("", 0L, 0L, normToolDesc)
 
-val verifiedJob = VerifiedJob(
-    normAppDesc,
-    null,
-    emptyList(),
-    "verifiedId",
-    "owner",
-    1,
-    1,
-    SimpleDuration(0, 1, 0),
-    VerifiedJobInput(emptyMap()),
-    "backend",
-    JobState.SCHEDULED,
-    "scheduled",
-    null,
-    archiveInCollection = normAppDesc.metadata.title,
-    createdAt = 12345678,
-    modifiedAt = 123456789
-)
+fun verifiedJobForTestGenerator(
+    application: Application? = null,
+    name: String? = null,
+    files: List<ValidatedFileForUpload> = emptyList(),
+    id: String = "verifiedId",
+    owner: String = "owner",
+    nodes: Int = 1,
+    tasksPerNode: Int = 1,
+    maxTime: SimpleDuration = SimpleDuration(0, 1, 0),
+    jobInput: VerifiedJobInput = VerifiedJobInput(emptyMap()),
+    backend: String = "backend",
+    currentState: JobState = JobState.RUNNING,
+    status: String = currentState.name,
+    failedState: JobState? = null,
+    archiveInCollection: String = normAppDesc.metadata.title,
+    workspace: String? = null,
+    createdAt: Long = 12345678,
+    modifiedAt: Long = 123456789,
+    mounts: List<ValidatedFileForUpload>? = null,
+    startedAt: Long = 123456789,
+    timeLeft: Long = 123456790,
+    user: String = owner,
+    project: String? = null,
+    folderId: String? = null,
+    sharedFileSystemMounts: List<SharedFileSystemMount>? = null,
+    peers: List<ApplicationPeer>? = null,
+    reservation: MachineReservation = MachineReservation.BURST,
+    mountMode: MountMode? = null
+):VerifiedJob {
+    return VerifiedJob(
+        application = application ?: normAppDesc,
+        name = name,
+        files = files,
+        id = id,
+        owner = owner,
+        nodes = nodes,
+        tasksPerNode = tasksPerNode,
+        maxTime = maxTime,
+        jobInput = jobInput,
+        backend = backend,
+        currentState = currentState,
+        status = status,
+        failedState = failedState,
+        archiveInCollection = archiveInCollection,
+        workspace = workspace,
+        createdAt = createdAt,
+        modifiedAt = modifiedAt,
+        _mounts = mounts,
+        startedAt = startedAt,
+        timeLeft = timeLeft,
+        user = user,
+        project = project,
+        folderId = folderId,
+        _sharedFileSystemMounts = sharedFileSystemMounts,
+        _peers = peers,
+        reservation = reservation,
+        mountMode = mountMode
 
-val verifiedJob2 = VerifiedJob(
-    normAppDesc,
-    null,
-    emptyList(),
-    "verifiedId2",
-    "owner",
-    1,
-    1,
-    SimpleDuration(0, 1, 0),
-    VerifiedJobInput(emptyMap()),
-    "backend",
-    JobState.SCHEDULED,
-    "scheduled",
-    null,
-    archiveInCollection = normAppDesc.metadata.title,
-    createdAt = 12345678,
-    modifiedAt = 123456789
-)
+    )
+}
+val verifiedJob = verifiedJobForTestGenerator(currentState = JobState.SCHEDULED)
+
+val verifiedJob2 = verifiedJobForTestGenerator(id = "verifiedId2", currentState = JobState.SCHEDULED)
 
 val verifiedJobWithAccessToken = VerifiedJobWithAccessToken(
     verifiedJob,
@@ -186,4 +213,13 @@ val storageFile = StorageFile(
     "fileID",
     "creator",
     SensitivityLevel.PRIVATE
+)
+
+val validatedFileForUpload = ValidatedFileForUpload(
+    "fileId",
+    storageFile,
+    "destinationFileName",
+    "destination/path",
+    "source/path",
+    null
 )

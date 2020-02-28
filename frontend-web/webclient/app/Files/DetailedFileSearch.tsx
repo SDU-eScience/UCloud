@@ -37,7 +37,7 @@ interface DetailedFileSearchGivenProps {
 
 type DetailedFileSearchProps = DetailedFileSearchStateProps & DetailedFileSearchGivenProps;
 
-function DetailedFileSearch(props: DetailedFileSearchProps) {
+function DetailedFileSearch(props: DetailedFileSearchProps): JSX.Element {
     const extensionsInput = React.useRef<HTMLInputElement>(null);
     const history = useHistory();
 
@@ -56,7 +56,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
         );
     }
 
-    function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    function onSubmit(event: React.FormEvent<HTMLFormElement>): void {
         event.preventDefault();
         onSearch();
     }
@@ -220,7 +220,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
         </>
     );
 
-    function onAddExtension() {
+    function onAddExtension(): void {
         const extensions = extensionsInput.current;
         if (!extensions || !extensions.value) return;
         const newExtensions = extensions.value.trim().split(" ").filter(it => it);
@@ -228,12 +228,12 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
         extensions.value = "";
     }
 
-    function onAddPresets(presetExtensions: string) {
+    function onAddPresets(presetExtensions: string): void {
         const ext = presetExtensions.trim().split(" ").filter(it => it);
         props.addExtensions(ext);
     }
 
-    function validateAndSetDate(m: Date | null, property: PossibleTime) {
+    function validateAndSetDate(m: Date | null, property: PossibleTime): void {
         const {setTimes, createdBefore, modifiedBefore, createdAfter, modifiedAfter} = props;
         if (m == null) {
             setTimes({[property]: undefined});
@@ -280,7 +280,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps) {
         setTimes({[property]: m});
     }
 
-    function onSearch() {
+    function onSearch(): void {
         onAddExtension();
         history.push(searchPage("files", props.search));
     }
@@ -292,7 +292,7 @@ interface SearchStampsProps {
     clearAll: () => void;
 }
 
-export const SearchStamps = ({stamps, onStampRemove, clearAll}: SearchStampsProps) => (
+export const SearchStamps = ({stamps, onStampRemove, clearAll}: SearchStampsProps): JSX.Element => (
     <Box pb="5px">
         {[...stamps].map(l => (
             <Stamp onClick={() => onStampRemove(l)} ml="2px" mt="2px" color="blue" key={l} text={l} />))}

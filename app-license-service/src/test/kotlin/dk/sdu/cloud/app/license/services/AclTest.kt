@@ -18,24 +18,16 @@ import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.Test
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.SecurityPrincipal
-import kotlin.math.absoluteValue
-import kotlin.random.Random
 
 class AclTest {
     private lateinit var micro: Micro
     private lateinit var aclService: AclService<HibernateSession>
     private lateinit var licenseService: AppLicenseService<HibernateSession>
-    private lateinit var principal: SecurityPrincipal
-    private lateinit var principal2: SecurityPrincipal
 
     @BeforeTest
     fun initializeTest() {
         micro = initializeMicro()
         micro.install(HibernateFeature)
-
-        principal = SecurityPrincipal("user", Role.ADMIN, "user", "user", Random.nextLong().absoluteValue, "user@example.com")
-        principal2 = SecurityPrincipal("user2", Role.ADMIN, "user2", "user2", Random.nextLong().absoluteValue, "user2@example.com")
 
         ClientMock.mockCall(UserDescriptions.lookupUsers) {
             TestCallResult.Ok(
@@ -46,9 +38,11 @@ class AclTest {
         aclService = AclService(micro.hibernateDatabase, ClientMock.authenticatedClient, AclHibernateDao())
         licenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao())
 
-        micro.hibernateDatabase.withTransaction {
-            it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;")
-                .executeUpdate()
+        runBlocking {
+            micro.hibernateDatabase.withTransaction {
+                it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;")
+                    .executeUpdate()
+            }
         }
     }
 
@@ -73,7 +67,7 @@ class AclTest {
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user
@@ -99,7 +93,7 @@ class AclTest {
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             userEntity
@@ -124,7 +118,7 @@ class AclTest {
             NewServerRequest(
                 "test",
                 "example.com",
-                "1234",
+                1234,
                 null
             ),
             user

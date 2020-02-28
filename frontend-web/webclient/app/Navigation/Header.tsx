@@ -66,14 +66,14 @@ import {
     shouldHideSidebarAndHeader,
     stopPropagationAndPreventDefault
 } from "UtilityFunctions";
-import {DEV_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
+import {DEV_SITE, STAGING_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
 }
 
-const DevelopmentBadge = (): JSX.Element | null => window.location.host === DEV_SITE || inDevEnvironment() ?
-    <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
+const DevelopmentBadge = (): JSX.Element | null => [DEV_SITE, STAGING_SITE].includes(window.location.host) ||
+    inDevEnvironment() ? <DevelopmentBadgeBase>{window.location.host}</DevelopmentBadgeBase> : null;
 
 function Header(props: HeaderProps): JSX.Element | null {
     const [upcomingDowntime, setUpcomingDowntime] = React.useState(-1);
@@ -257,10 +257,6 @@ const Logo = (): JSX.Element => (
     </Link>
 );
 
-const Login = (): JSX.Element => (
-    <Icon name="user" />
-);
-
 const SearchInput = styled(Flex)`
     min-width: 250px;
     width: 425px;
@@ -270,21 +266,25 @@ const SearchInput = styled(Flex)`
     color: white;
     background-color: rgba(236, 239, 244, 0.25);
     border-radius: 5px;
-    input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input:-moz-placeholder {
+    
+    & > input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input:-moz-placeholder {
         color: white;
     }
-    input:focus::-webkit-input-placeholder, input:focus::-moz-placeholder, input:focus::-ms-input-placeholder, input:focus::-moz-placeholder {
+    & > input:focus::-webkit-input-placeholder, input:focus::-moz-placeholder, input:focus::-ms-input-placeholder, input:focus::-moz-placeholder {
         color: black;
     }
-    input:focus ~ div > span > div > svg, input:focus + div > label > svg {
+    & > input:focus ~ div > span > div > svg, input:focus + div > label > svg {
         color: black;
     }
-    input ~ div > span > div > svg, input + div > label > svg {
+    & > input ~ div > span > div > svg, input + div > label > svg {
         color: white;
     }
     & > input:focus {
         color: black;
         background-color: white;
+    }
+    & > input {
+        color: white;
     }
     & > ${Dropdown} > ${Text} > input {
         width: 350px;
@@ -378,7 +378,6 @@ const _Search = (props: SearchProps): JSX.Element => {
                         <DetailedApplicationSearch defaultAppQuery={props.search} />
                     ) : null}
                 </ClickableDropdown>
-                {!Client.isLoggedIn ? <Login /> : null}
             </SearchInput>
         </Relative>
     );

@@ -21,16 +21,16 @@ class IngressResource(val name: String, val version: String) : KubernetesResourc
     override fun DeploymentContext.isUpToDate(): Boolean {
         return checkVersion(
             version,
-            client.extensions().ingresses().inNamespace(namespace).withName(name).get()?.metadata
+            client.extensions().ingresses().inNamespace(resourceNamespace(resource)).withName(name).get()?.metadata
         )
     }
 
     override fun DeploymentContext.create() {
-        client.extensions().ingresses().inNamespace(namespace).withName(name).createOrReplace(resource)
+        client.extensions().ingresses().inNamespace(resourceNamespace(resource)).withName(name).createOrReplace(resource)
     }
 
     override fun DeploymentContext.delete() {
-        client.extensions().ingresses().inNamespace(namespace).withName(name).delete()
+        client.extensions().ingresses().inNamespace(resourceNamespace(resource)).withName(name).delete()
     }
 }
 

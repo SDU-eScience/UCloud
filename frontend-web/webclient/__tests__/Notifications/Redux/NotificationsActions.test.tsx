@@ -11,13 +11,6 @@ describe("Notifications Actions", () => {
         expect(storeCopy.getState().notifications.items.length).toBe(mockNotifications.items.length);
     });
 
-    test("Set Redirect", () => {
-        const redirectTo = "/asd/asd/";
-        const storeCopy = {...store};
-        storeCopy.dispatch(NotificationsActions.setRedirectTo(redirectTo) as AnyAction);
-        expect(storeCopy.getState().notifications.redirectTo).toEqual(redirectTo);
-    });
-
     test.skip("Read notification", async () => {
         const storeCopy = {...store};
         storeCopy.dispatch(NotificationsActions.receiveNotifications(mockNotifications));
