@@ -100,12 +100,12 @@ class AclService(
                     )
                     .forEach { dataList ->
                         dataList.value.forEach { data ->
-                            if (data.user == null) {
+                            if (data.username == null) {
                                 log.warn("ACL metadata with null user detected!")
                             } else {
                                 val aclMetadata = defaultMapper.treeToValue<AclMetadata>(data.payload)
                                 flatPermissions[data.path] = (flatPermissions[data.path] ?: emptyList()) +
-                                        listOf(UserWithPermissions(data.user, aclMetadata.permissions))
+                                        listOf(UserWithPermissions(data.username, aclMetadata.permissions))
                             }
                         }
                     }

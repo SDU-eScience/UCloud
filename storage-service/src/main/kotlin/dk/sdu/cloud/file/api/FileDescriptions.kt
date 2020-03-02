@@ -234,17 +234,6 @@ sealed class KnowledgeMode {
 data class VerifyFileKnowledgeRequest(val user: String, val files: List<String>, val mode: KnowledgeMode? = null)
 data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 
-data class DeliverMaterializedFileSystemAudit(val roots: List<String>)
-data class DeliverMaterializedFileSystemRequest(
-    val rootsToMaterialized: Map<String, List<StorageFile>>
-) {
-    override fun toString() = "DeliverMaterializedFileSystemRequest()"
-}
-
-data class DeliverMaterializedFileSystemResponse(
-    val shouldContinue: Map<String, Boolean>
-)
-
 object FileDescriptions : CallDescriptionContainer("files") {
     val baseContext = "/api/files"
     val wsBaseContext = "$baseContext/ws"

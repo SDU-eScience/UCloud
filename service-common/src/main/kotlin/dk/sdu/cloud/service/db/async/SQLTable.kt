@@ -55,6 +55,16 @@ fun SQLTable.timestamp(
     notNull: Boolean = false
 ) = addField(name, "timestamp", SqlType.TTimestamp, notNull)
 
+fun SQLTable.jsonb(
+    name: String,
+    notNull: Boolean = false
+) = addField(name, "jsonb", SqlType.TJSONB, notNull)
+
+fun SQLTable.bool(
+    name: String,
+    notNull: Boolean = false
+) = addField(name, "bool", SqlType.TBoolean, notNull)
+
 sealed class SqlType<T> {
     object TString : SqlType<String>()
     object TBoolean : SqlType<Boolean>()
@@ -66,6 +76,7 @@ sealed class SqlType<T> {
     object TDouble : SqlType<Double>()
     object TBytes : SqlType<ByteArray>()
     object TTimestamp : SqlType<LocalDateTime>()
+    object TJSONB : SqlType<String>()
 }
 
 class SQLField<Type : SqlType<*>>(

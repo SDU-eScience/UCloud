@@ -8,6 +8,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.jsonb
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
@@ -15,7 +16,7 @@ import dk.sdu.cloud.service.db.async.timestamp
 data class Metadata(
     val path: String,
     val type: String,
-    val user: String?,
+    val username: String?,
     val payload: JsonNode
 )
 
@@ -46,7 +47,7 @@ object MetadataTable : SQLTable("metadata") {
      *
      * This will be an empty string for file specific metadata.
      */
-    val user = text("user", notNull = true)
+    val username = text("username", notNull = true)
 
     /**
      * The type of metadata
@@ -56,21 +57,21 @@ object MetadataTable : SQLTable("metadata") {
     /**
      * The data for this file
      */
-    val data = text("data", notNull = true) // TODO JSONB
+    val data = jsonb("data", notNull = true)
 }
 
 class MetadataDao {
     suspend fun findMetadata(
         session: AsyncDBConnection,
         path: String,
-        user: String?,
+        username: String?,
         type: String?
     ): Metadata? {
         return session
             .sendPreparedStatement(
                 {
                     setParameter("path", path.normalize())
-                    setParameter("user", user)
+                    setParameter("username", username)
                     setParameter("type", type)
                 },
                 """
@@ -78,8 +79,8 @@ class MetadataDao {
                     from metadata
                     where
                         path = ?path and
-                        (?user is null or user = ?user) and
-                        (?type is null or type = ?type)
+                        (?username::text is null or username = ?username) and
+                        (?type::text is null or type = ?type)
                 """
             )
             .rows
@@ -96,41 +97,43 @@ class MetadataDao {
                 {
                     setParameter("path", metadata.path.normalize())
                     setParameter("path_moving_to", null as String?)
-                    setParameter("user", metadata.user ?: "")
+                    setParameter("username", metadata.username ?: "")
                     setParameter("type", metadata.type)
                     setParameter("data", defaultMapper.writeValueAsString(metadata.payload))
                 },
                 """
                     insert into metadata
-                    (path, path_moving_to, last_modified, user, type, data)
-                    values
-                    (?path, ?path_moving_to, now(), ?user, ?type, ?data)
-                    on conflict update
+                        (path, path_moving_to, last_modified, username, type, data)
+                    values 
+                        (?path, ?path_moving_to, now(), ?username, ?type, ?data)
+                    
+                    on conflict (path, type, username) do update set 
+                        (data, last_modified, path_moving_to) = 
+                        (excluded.data, excluded.last_modified, excluded.path_moving_to);
                 """
             )
-        TODO()
     }
 
     suspend fun listMetadata(
         session: AsyncDBConnection,
         paths: List<String>,
-        user: String?,
+        username: String?,
         type: String?
     ): Map<String, List<Metadata>> {
         return session
             .sendPreparedStatement(
                 {
                     setParameter("paths", paths.map { it.normalize() })
-                    setParameter("user", user)
+                    setParameter("username", username)
                     setParameter("type", type)
                 },
                 """
                     select *
                     from metadata
                     where
-                        path in ?paths and
-                        (?user is null or user = ?user) and
-                        (?type is null or type = ?type)
+                        path in (select unnest(?paths::text[])) and
+                        (?username::text is null or username = ?username) and
+                        (?type::text is null or type = ?type)
                 """
             )
             .rows
@@ -139,31 +142,31 @@ class MetadataDao {
     }
 
     /**
-     * Removes one or more entries for a [user]/[path]
+     * Removes one or more entries for a [username]/[path]
      *
      * If [type] == null then this will remove all entries for this file.
      *
-     * If [user] == null then this metadata belongs to the file rather than a specific user.
+     * If [username] == null then this metadata belongs to the file rather than a specific username.
      */
     suspend fun removeEntry(
         session: AsyncDBConnection,
         path: String,
-        user: String?,
+        username: String?,
         type: String?
     ) {
         session
             .sendPreparedStatement(
                 {
                     setParameter("path", path.normalize())
-                    setParameter("user", user)
+                    setParameter("username", username)
                     setParameter("type", type)
                 },
                 """
                     delete from metadata  
                     where
                         path = ?path and
-                        (?user is null or user = ?user) and
-                        (?type is null or type = ?type)
+                        (?username::text is null or username = ?username) and
+                        (?type::text is null or type = ?type)
                 """
             )
     }
@@ -233,7 +236,7 @@ class MetadataDao {
         return Metadata(
             getField(MetadataTable.path),
             getField(MetadataTable.type),
-            getField(MetadataTable.user).takeIf { it.isNotEmpty() },
+            getField(MetadataTable.username).takeIf { it.isNotEmpty() },
             runCatching {
                 defaultMapper.readTree(getField(MetadataTable.data))
             }.getOrNull() ?: run {
@@ -241,7 +244,7 @@ class MetadataDao {
                     "Unable to parse metadata for: " +
                             "${getField(MetadataTable.path)}, " +
                             "${getField(MetadataTable.type)}, " +
-                            getField(MetadataTable.user)
+                            getField(MetadataTable.username)
                 )
 
                 defaultMapper.readTree("{}")

@@ -1,9 +1,6 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.audit
-import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemAudit
-import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemResponse
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse

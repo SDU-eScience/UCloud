@@ -55,8 +55,6 @@ class Server(
     override val log: Logger = logger()
 
     override fun start() = runBlocking {
-        supportReverseInH2(micro)
-
         val streams = micro.eventStreamService
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val wsClient = micro.authenticator.authenticateClient(OutgoingWSCall)
@@ -159,30 +157,5 @@ class Server(
         }
 
         startServices()
-    }
-
-    private suspend fun supportReverseInH2(micro: Micro) {
-        val databaseConfig = micro.databaseConfig
-
-        if (databaseConfig.dialect == H2_DIALECT || databaseConfig.driver == H2_DRIVER) {
-            // Add database 'polyfill' for postgres reverse function.
-            log.info("Adding the H2 polyfill")
-            micro.hibernateDatabase.withTransaction { session ->
-                session.createNativeQuery(
-                    "CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ " +
-                            "String reverse(String s) { return new StringBuilder(s).reverse().toString(); } " +
-                            "\$\$;"
-                ).executeUpdate()
-            }
-        }
-
-        micro.hibernateDatabase.withTransaction { session ->
-            try {
-                session.createNativeQuery("select REVERSE('foo')").list().first().toString()
-            } catch (ex: Throwable) {
-                log.error("Could not reverse string in database!")
-                exitProcess(1)
-            }
-        }
     }
 }
