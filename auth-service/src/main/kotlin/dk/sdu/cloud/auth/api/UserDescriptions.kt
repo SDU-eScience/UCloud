@@ -42,7 +42,7 @@ data class ChangePasswordRequest(val currentPassword: String, val newPassword: S
     override fun toString() = "ChangePasswordRequest()"
 }
 
-data class ChangePasswordWithResetRequest(val newPassword: String)
+data class ChangePasswordWithResetRequest(val userId: String, val newPassword: String)
 
 data class LookupUIDRequest(val uids: List<Long>)
 data class LookupUIDResponse(val users: Map<Long, UserLookup?>)

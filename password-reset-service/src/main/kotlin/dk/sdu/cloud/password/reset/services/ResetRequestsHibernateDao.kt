@@ -44,10 +44,11 @@ class ResetRequestsHibernateDao : ResetRequestsDao<HibernateSession> {
     }
 
     override fun get(session: HibernateSession, token: String): ResetRequest? {
-        println(token)
-        return session.criteria<PasswordResetRequestEntity> {
+        val result = session.criteria<PasswordResetRequestEntity> {
             entity[PasswordResetRequestEntity::token] equal token
-        }.uniqueResult().toModel()
+        }.uniqueResult()
+
+        return result.toModel()
     }
 
     override fun invalidate(session: HibernateSession, token: String) {

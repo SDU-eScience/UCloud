@@ -1,19 +1,18 @@
 import {Client} from "Authentication/HttpClientInstance";
 import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
-import {useEffect, useRef, useState} from "react";
+import {useRef, useState} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Absolute, Box, Button, Flex, Icon, Input, Text, ExternalLink, Link} from "ui-components";
+import {Absolute, Box, Button, Flex, Input, Text, ExternalLink, Link} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {DropdownContent} from "ui-components/Dropdown";
-import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "Utilities/URIUtilities";
-import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
+import {RouterLocationProps, getQueryParam} from "Utilities/URIUtilities";
+import {errorMessageOrDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
-import {PRODUCT_NAME, SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
+import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
 import {SnackType} from "Snackbar/Snackbars.js";
-import {cloudTryingItsBest} from "ui-components/icons/index.js";
+import {LoginBox, LoginDropdownContent, LoginExternalLink, LoginIcon, LoginText} from "Login/Login"
 
 const bg2 = require("Assets/Images/bg2.svg");
 
@@ -24,7 +23,6 @@ const BackgroundImage = styled.div<{image: string}>`
 `;
 
 export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
-    const [webDavInstructionToken, setWebDavToken] = useState<string | null>(null);
     const emailInput = useRef<HTMLInputElement>(null);
     const passwordInput = useRef<HTMLInputElement>(null);
     const passwordRepeatInput = useRef<HTMLInputElement>(null);
@@ -33,29 +31,38 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
 
     const resetToken = getQueryParam(props, "token");
 
-    if (webDavInstructionToken !== null) {
-        return <Instructions token={webDavInstructionToken} />;
-    }
+    async function attemptSaveNewPassword(e: {preventDefault(): void}): Promise<void> {
+        e.preventDefault();
 
-    async function attemptSaveNewPassword(): Promise<void> {
         if (!(passwordInput.current?.value) || !(passwordRepeatInput.current?.value)) {
+            console.log(passwordInput.current?.value)
             snackbarStore.addFailure("Invalid username or password");
+            return;
+        }
+
+        if (passwordInput.current?.value !== passwordRepeatInput.current?.value) {
+            snackbarStore.addFailure("Passwords does not match");
+            return;
+        }
+
+        if (resetToken == null) {
             return;
         }
 
         try {
             setLoading(true);
 
-            const body = new FormData();
-            body.append("password", passwordInput.current!.value);
-            body.append("passwordRepeat", passwordRepeatInput.current!.value);
+            const body = {
+                token: resetToken,
+                newPassword: passwordInput.current!.value
+            };
             const response = await promises.makeCancelable(
-                fetch(Client.computeURL("/auth", `/login`), {
+                fetch(Client.computeURL("/api/password/reset", `/new`), {
                     method: "POST",
                     headers: {
                         Accept: "application/json"
                     },
-                    body
+                    body: JSON.stringify(body)
                 })
             ).promise;
 
@@ -69,6 +76,15 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
             );
         } finally {
             setLoading(false);
+
+            passwordInput.current.value = ""
+            passwordRepeatInput.current.value = ""
+
+            snackbarStore.addSnack({
+                type: SnackType.Success,
+                message: `Your password was changed successfully. Return to the Login page to log in with your new password`,
+                lifetime: 15_000
+            });
         }
     }
 
@@ -170,7 +186,7 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                                             </Button>
                                     </form>
                                     <Box mt={20}>
-                                        <Link to="login">
+                                        <Link to="/login">
                                             <Text fontSize={1}>Return to Login page</Text>
                                         </Link>
                                     </Box>
@@ -192,9 +208,20 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                                 visible
                             >
                                 <LoginBox width="100%">
-                                    <form onSubmit={preventDefault}>
-                                        <Input mb={10} type="password" placeholder="New password" autoFocus />
-                                        <Input type="password" placeholder="Repeat new password" />
+                                    <form onSubmit={(e) => attemptSaveNewPassword(e)}>
+                                        <Input
+                                            mb={10}
+                                            type="password"
+                                            placeholder="New password"
+                                            ref={passwordInput}
+                                            autoFocus
+                                        />
+
+                                        <Input
+                                            type="password"
+                                            placeholder="Repeat new password"
+                                            ref={passwordRepeatInput}
+                                        />
                                         <Button
                                             fullWidth
                                             disabled={loading}
@@ -204,7 +231,7 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                                             </Button>
                                     </form>
                                     <Box mt={20}>
-                                        <Link to="login">
+                                        <Link to="/login">
                                             <Text fontSize={1}>Return to Login page</Text>
                                         </Link>
                                     </Box>
@@ -217,24 +244,3 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
         </>
     );
 };
-
-const LoginDropdownContent = styled(DropdownContent)`
-    background-color: white;
-    color: white;
-`;
-
-const LoginExternalLink = styled(ExternalLink)`
-    color: white;
-`;
-
-const LoginText = styled(Text)`
-    color: white;
-`;
-
-const LoginIcon = styled(Icon)`
-    color: white;
-`;
-
-const LoginBox = styled(Box)`
-    color: white;
-`;

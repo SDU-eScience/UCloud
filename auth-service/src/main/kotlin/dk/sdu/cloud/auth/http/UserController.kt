@@ -95,7 +95,7 @@ class UserController<DBSession>(
             db.withTransaction { session ->
                 userDAO.unconditionalUpdatePassword(
                     session,
-                    ctx.securityPrincipal.username,
+                    request.userId,
                     request.newPassword
                 )
                 ok(Unit)

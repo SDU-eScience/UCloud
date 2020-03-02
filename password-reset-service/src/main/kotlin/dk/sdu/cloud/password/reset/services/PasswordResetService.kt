@@ -85,14 +85,15 @@ class PasswordResetService<Session>(
     suspend fun newPassword(token: String, newPassword: String) {
         val resetRequest = db.withTransaction { session ->
             resetRequestsDao.get(session, token)
-        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Unable to reset password")
 
         if (resetRequest.expiresAt.time < System.currentTimeMillis()) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Unable to reset password (token expired)")
         }
 
         UserDescriptions.changePasswordWithReset.call(
             ChangePasswordWithResetRequest(
+                resetRequest.userId,
                 newPassword
             ), authenticatedClient
         ).orThrow()

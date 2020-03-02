@@ -308,12 +308,12 @@ const Login = ({enabled2fa, usernameRef, passwordRef}: LoginProps): JSX.Element 
     </>
 ) : null;
 
-const LoginDropdownContent = styled(DropdownContent)`
+export const LoginDropdownContent = styled(DropdownContent)`
     background-color: white;
     color: white;
 `;
 
-const LoginExternalLink = styled(ExternalLink)`
+export const LoginExternalLink = styled(ExternalLink)`
     color: white;
 `;
 
@@ -334,15 +334,15 @@ const LoginInput = styled(Input)`
     color: black;
 `;
 
-const LoginText = styled(Text)`
+export const LoginText = styled(Text)`
     color: white;
 `;
 
-const LoginIcon = styled(Icon)`
+export const LoginIcon = styled(Icon)`
     color: white;
 `;
 
-const LoginBox = styled(Box)`
+export const LoginBox = styled(Box)`
     color: white;
 `;
 
