@@ -3,23 +3,13 @@ import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {useRef, useState} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import styled from "styled-components";
 import {Absolute, Box, Button, Flex, Input, Text, ExternalLink, Link} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {RouterLocationProps, getQueryParam} from "Utilities/URIUtilities";
-import {errorMessageOrDefault} from "UtilityFunctions";
 import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
 import {SnackType} from "Snackbar/Snackbars.js";
-import {LoginBox, LoginDropdownContent, LoginExternalLink, LoginIcon, LoginText} from "Login/Login"
-
-const bg2 = require("Assets/Images/bg2.svg");
-
-const BackgroundImage = styled.div<{image: string}>`
-    background: url(${({image}) => image}) no-repeat 40% 0%;
-    background-size: cover;
-    overflow: hidden;
-`;
+import {bg2, BackgroundImage, BlackLoginText, LoginBox, LoginDropdownContent, LoginExternalLink, LoginIcon, LoginText} from "Login/Login";
 
 export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: any}> = props => {
     const emailInput = useRef<HTMLInputElement>(null);
@@ -34,8 +24,7 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
         e.preventDefault();
 
         if (!(passwordInput.current?.value) || !(passwordRepeatInput.current?.value)) {
-            console.log(passwordInput.current?.value)
-            snackbarStore.addFailure("Invalid username or password");
+            snackbarStore.addFailure("Invalid password");
             return;
         }
 
@@ -65,25 +54,27 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                 })
             ).promise;
 
-            if (!response.ok) { // noinspection ExceptionCaughtLocallyJS
+            passwordInput.current.value = ""
+            passwordRepeatInput.current.value = ""
+
+            if (!response.ok) {
                 throw response;
             }
 
-        } catch (e) {
-            snackbarStore.addFailure(
-                errorMessageOrDefault({request: e, response: await e.json()}, "An error occurred")
-            );
-        } finally {
             setLoading(false);
-
-            passwordInput.current.value = ""
-            passwordRepeatInput.current.value = ""
 
             snackbarStore.addSnack({
                 type: SnackType.Success,
                 message: `Your password was changed successfully. Return to the Login page to log in with your new password`,
                 lifetime: 15_000
             });
+
+        } catch (e) {
+            setLoading(false);
+
+            snackbarStore.addFailure(
+                e.statusText
+            );
         }
     }
 
@@ -186,7 +177,7 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                                     </form>
                                     <Box mt={20}>
                                         <Link to="/login">
-                                            <Text fontSize={1}>Return to Login page</Text>
+                                            <BlackLoginText fontSize={1}>Return to Login page</BlackLoginText>
                                         </Link>
                                     </Box>
                                 </LoginBox>
@@ -231,7 +222,7 @@ export const ResetPasswordPage: React.FC<RouterLocationProps & {initialState?: a
                                     </form>
                                     <Box mt={20}>
                                         <Link to="/login">
-                                            <Text fontSize={1}>Return to Login page</Text>
+                                            <BlackLoginText fontSize={1}>Return to Login page</BlackLoginText>
                                         </Link>
                                     </Box>
                                 </LoginBox>

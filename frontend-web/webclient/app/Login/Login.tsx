@@ -14,10 +14,10 @@ import {Instructions} from "WebDav/Instructions";
 import {PRODUCT_NAME, SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
 
-const bg2 = require("Assets/Images/bg2.svg");
+export const bg2 = require("Assets/Images/bg2.svg");
 const wayfLogo = require("Assets/Images/WAYFLogo.svg");
 
-const BackgroundImage = styled.div<{image: string}>`
+export const BackgroundImage = styled.div<{image: string}>`
     background: url(${({image}) => image}) no-repeat 40% 0%;
     background-size: cover;
     overflow: hidden;
@@ -228,7 +228,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                         </form>
                                         <Box mt={20}>
                                             <Link to="/reset-password" mt={20}>
-                                                <Text fontSize={1}>Forgot your password?</Text>
+                                                <BlackLoginText fontSize={1}>Forgot your password?</BlackLoginText>
                                             </Link>
                                         </Box>
                                     </LoginBox>
@@ -348,4 +348,8 @@ export const LoginBox = styled(Box)`
 
 const LoginButton = styled(Button)`
     color: white;
+`;
+
+export const BlackLoginText = styled(Text)`
+    color: black;
 `;
