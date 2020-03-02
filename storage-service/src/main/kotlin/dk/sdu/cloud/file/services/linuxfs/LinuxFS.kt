@@ -61,6 +61,10 @@ class LinuxFS(
 ) : LowLevelFileSystemInterface<LinuxFSRunner> {
     private val fsRoot = fsRoot.normalize().absoluteFile
 
+    override suspend fun requirePermission(ctx: LinuxFSRunner, path: String, permission: AccessRight) {
+        aclService.requirePermission(path.normalize(), ctx.user, permission)
+    }
+
     override suspend fun copy(
         ctx: LinuxFSRunner,
         from: String,

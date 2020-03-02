@@ -79,7 +79,7 @@ class Server(
         val aclService = ACLWorker(newAclService)
         val sensitivityService = FileSensitivityService(fs)
         val coreFileSystem =
-            CoreFileSystemService(fs, sensitivityService, wsClient, micro.backgroundScope)
+            CoreFileSystemService(fs, sensitivityService, wsClient, micro.backgroundScope, metadataService)
 
         // Specialized operations (built on high level FS)
         val fileLookupService = FileLookupService(processRunner, coreFileSystem)

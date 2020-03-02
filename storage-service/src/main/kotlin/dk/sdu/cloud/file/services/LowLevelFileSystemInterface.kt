@@ -257,4 +257,6 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     ): FileRow
 
     suspend fun onFileCreated(ctx: Ctx, path: String)
+
+    suspend fun requirePermission(ctx: Ctx, path: String, permission: AccessRight)
 }

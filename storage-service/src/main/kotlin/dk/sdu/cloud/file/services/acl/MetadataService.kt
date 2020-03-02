@@ -1,6 +1,8 @@
 package dk.sdu.cloud.file.services.acl
 
+import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.withSession
 import dk.sdu.cloud.service.db.withTransaction
 
 class MetadataService(
@@ -39,20 +41,44 @@ class MetadataService(
         }
     }
 
-    suspend fun handleFilesMoved(
+    suspend fun <R> runMoveAction(
         oldPath: String,
-        newPath: String
-    ) {
-        db.withTransaction { session ->
-            dao.handleFilesMoved(session, oldPath, newPath)
+        newPath: String,
+        block: suspend () -> R
+    ): R {
+        val normalizedOld = oldPath.normalize()
+        val normalizedNew = newPath.normalize()
+        return db.withSession { session ->
+            db.withTransaction(session) {
+                dao.writeFileIsMoving(session, normalizedOld, normalizedNew)
+            }
+
+            val result = block()
+
+            db.withTransaction(session) {
+                dao.handleFilesMoved(session, normalizedOld, normalizedNew)
+            }
+
+            result
         }
     }
 
-    suspend fun handleFilesDeleted(
-        paths: List<String>
-    ) {
-        db.withTransaction { session ->
-            dao.handleFilesDeleted(session, paths)
+    suspend fun <R> runDeleteAction(
+        paths: List<String>,
+        block: suspend () -> R
+    ): R {
+        return db.withSession { session ->
+            db.withTransaction(session) {
+                dao.writeFilesAreDeleting(session, paths)
+            }
+
+            val result = block()
+
+            db.withTransaction(session) {
+                dao.handleFilesDeleted(session, paths)
+            }
+
+            result
         }
     }
 }

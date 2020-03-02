@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileSortBy
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
@@ -11,8 +12,7 @@ import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.api.relativize
-import dk.sdu.cloud.file.services.linuxfs.Chown
-import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.acl.MetadataService
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.micro.BackgroundScope
@@ -21,13 +21,10 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.task.api.MeasuredSpeedInteger
 import dk.sdu.cloud.task.api.Progress
-import dk.sdu.cloud.task.api.SimpleSpeed
 import dk.sdu.cloud.task.api.runTask
-import kotlinx.coroutines.delay
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.*
-import kotlin.random.Random
 
 const val XATTR_BIRTH = "birth"
 const val XATTR_ID = "fid"
@@ -36,7 +33,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val wsServiceClient: AuthenticatedClient,
-    private val backgroundScope: BackgroundScope
+    private val backgroundScope: BackgroundScope,
+    private val metadataService: MetadataService
 ) {
     internal data class NewFileData(
         val fileId: String
@@ -175,7 +173,11 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         ctx: Ctx,
         path: String
     ) {
-        fs.delete(ctx, path)
+        // Require permission up-front to ensure metadata is not updated without permissions
+        fs.requirePermission(ctx, path, AccessRight.WRITE)
+        metadataService.runDeleteAction(listOf(path)) {
+            fs.delete(ctx, path)
+        }
     }
 
     suspend fun stat(
@@ -250,7 +252,11 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         writeConflictPolicy: WriteConflictPolicy
     ): String {
         val targetPath = renameAccordingToPolicy(ctx, to, writeConflictPolicy)
-        fs.move(ctx, from, targetPath, writeConflictPolicy)
+        fs.requirePermission(ctx, from.normalize(), AccessRight.WRITE)
+        fs.requirePermission(ctx, targetPath.normalize(), AccessRight.WRITE)
+        metadataService.runMoveAction(from.normalize(), targetPath.normalize()) {
+            fs.move(ctx, from, targetPath, writeConflictPolicy)
+        }
         return targetPath
     }
 
@@ -266,7 +272,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
-    suspend fun renameAccordingToPolicy(
+    private suspend fun renameAccordingToPolicy(
         ctx: Ctx,
         desiredTargetPath: String,
         conflictPolicy: WriteConflictPolicy
@@ -289,31 +295,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             WriteConflictPolicy.REJECT -> {
                 if (targetExists) throw FSException.AlreadyExists()
                 else desiredTargetPath
-            }
-        }
-    }
-
-    suspend fun dummyTask(ctx: Ctx) {
-        val range = 0 until 100
-
-        runTask(wsServiceClient, backgroundScope, "Storage Test", ctx.user, updateFrequencyMs = 50) {
-            val progress = Progress("Progress", 0, range.last)
-            val taskSpeed = SimpleSpeed("Speeed!", 0.0, "Foo")
-            val tasksPerSecond = MeasuredSpeedInteger("Tasks", "T/s")
-
-            speeds = listOf(taskSpeed, tasksPerSecond)
-            this.progress = progress
-
-            for (iteration in range) {
-                status = "Working on step $iteration"
-                if (iteration % 10 == 0) {
-                    taskSpeed.speed = Random.nextDouble()
-                }
-                progress.current = iteration
-                writeln("Started work on $iteration")
-                delay(100)
-                tasksPerSecond.increment(1)
-                writeln("Work on $iteration complete!")
             }
         }
     }

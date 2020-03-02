@@ -17,7 +17,8 @@ data class Metadata(
     val path: String,
     val type: String,
     val username: String?,
-    val payload: JsonNode
+    val payload: JsonNode,
+    val movingTo: String? = null
 )
 
 object MetadataTable : SQLTable("metadata") {
@@ -96,7 +97,7 @@ class MetadataDao {
             .sendPreparedStatement(
                 {
                     setParameter("path", metadata.path.normalize())
-                    setParameter("path_moving_to", null as String?)
+                    setParameter("path_moving_to", metadata.movingTo)
                     setParameter("username", metadata.username ?: "")
                     setParameter("type", metadata.type)
                     setParameter("data", defaultMapper.writeValueAsString(metadata.payload))
@@ -171,6 +172,68 @@ class MetadataDao {
             )
     }
 
+    suspend fun writeFilesAreDeleting(
+        session: AsyncDBConnection,
+        paths: List<String>
+    ) {
+        val updatedRows = session
+            .sendPreparedStatement(
+                {
+                    setParameter("paths", paths.map { it.normalize() })
+                },
+                """
+                    update metadata
+                    set
+                        path_moving_to = '/deleted',
+                        last_modified = now()
+                    where
+                        path in (select unnest(?paths))
+                """
+            )
+            .rowsAffected
+
+        if (updatedRows == 0L) {
+            log.debug("No metadata found. Inserting special entry.")
+
+            val payload = defaultMapper.readTree("{}")
+            for (path in paths) {
+                updateMetadata(session, Metadata(path, "moving", null, payload, "/deleted"))
+            }
+        } else {
+            log.debug("Existing metadata was updated ($updatedRows)")
+        }
+    }
+
+    suspend fun writeFileIsMoving(
+        session: AsyncDBConnection,
+        oldPath: String,
+        newPath: String
+    ) {
+        val updatedRows = session
+            .sendPreparedStatement(
+                {
+                    setParameter("newPath", newPath.normalize())
+                    setParameter("oldPath", oldPath.normalize())
+                },
+                """
+                    update metadata
+                    set
+                        path_moving_to = ?newPath,
+                        last_modified = now()
+                    where
+                        path = ?oldPath
+                """
+            )
+            .rowsAffected
+
+        if (updatedRows == 0L) {
+            log.debug("No metadata found. Inserting special entry.")
+            updateMetadata(session, Metadata(oldPath, "moving", null, defaultMapper.readTree("{}"), newPath))
+        } else {
+            log.debug("Existing metadata was updated ($updatedRows)")
+        }
+    }
+
     suspend fun handleFilesMoved(
         session: AsyncDBConnection,
         oldPath: String,
@@ -188,7 +251,9 @@ class MetadataDao {
             """
                 update metadata
                 set 
-                    path = concat(?newPath, substr(path, ?startIdx))
+                    path = concat(?newPath::text, substr(path, ?startIdx)),
+                    path_moving_to = null,
+                    last_modified = now()
                 where path like ?oldPathLike 
             """
         )
@@ -202,7 +267,9 @@ class MetadataDao {
             """
                 update metadata 
                 set
-                    path = ?newPath
+                    path = ?newPath,
+                    path_moving_to = null,
+                    last_modified = now()
                 where
                     path = ?oldPath
             """
