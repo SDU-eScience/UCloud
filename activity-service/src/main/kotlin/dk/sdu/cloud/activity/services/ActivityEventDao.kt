@@ -14,44 +14,35 @@ data class ActivityEventFilter(
     val offset: Int? = null
 )
 
-interface ActivityEventDao<Session> {
-    fun findByFileId(
-        session: Session,
+interface ActivityEventDao {
+    fun findByFilePath(
         pagination: NormalizedPaginationRequest,
-        fileId: String
+        filePath: String
     ): Page<ActivityEvent>
 
     fun findByUser(
-        session: Session,
         pagination: NormalizedPaginationRequest,
         user: String
     ): Page<ActivityEvent>
 
     fun findEvents(
-        session: Session,
         items: Int,
         filter: ActivityEventFilter = ActivityEventFilter()
     ): List<ActivityEvent>
 
     fun countEvents(
-        session: Session,
         filter: ActivityEventFilter
     ): Long
 
     fun insertBatch(
-        session: Session,
         events: List<ActivityEvent>
-    ) {
-        events.forEach { insert(session, it) }
-    }
+    )
 
     fun insert(
-        session: Session,
         event: ActivityEvent
     )
 
     fun deleteOldActivity(
-        session: Session,
         numberOfDaysInPast: Long
     )
 }

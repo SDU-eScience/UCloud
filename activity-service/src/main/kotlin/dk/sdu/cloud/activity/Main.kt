@@ -2,6 +2,7 @@ package dk.sdu.cloud.activity
 
 import dk.sdu.cloud.activity.api.ActivityServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
+import dk.sdu.cloud.micro.ElasticFeature
 import dk.sdu.cloud.micro.HealthCheckFeature
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
@@ -15,6 +16,7 @@ fun main(args: Array<String>) {
         install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
         install(HealthCheckFeature)
+        install(ElasticFeature)
     }
 
     if (micro.runScriptHandler()) return

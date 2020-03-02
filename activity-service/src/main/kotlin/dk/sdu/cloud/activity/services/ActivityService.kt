@@ -14,21 +14,16 @@ import dk.sdu.cloud.service.ScrollResult
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 
-class ActivityService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val activityDao: ActivityEventDao<DBSession>,
+class ActivityService(
+    private val activityEventElasticDao: ActivityEventElasticDao,
     private val fileLookupService: FileLookupService
 ) {
-    suspend fun insertBatch(events: List<ActivityEvent>) {
-        db.withTransaction { session ->
-            activityDao.insertBatch(session, events)
-        }
+    fun insertBatch(events: List<ActivityEvent>) {
+        activityEventElasticDao.insertBatch(events)
     }
 
-    suspend fun deleteOldActivity(numberOfDaysInPast: Long) {
-        db.withTransaction { session ->
-            activityDao.deleteOldActivity(session, numberOfDaysInPast)
-        }
+    fun deleteOldActivity(numberOfDaysInPast: Long) {
+        activityEventElasticDao.deleteOldActivity(numberOfDaysInPast)
     }
 
     suspend fun findEventsForPath(
@@ -39,121 +34,112 @@ class ActivityService<DBSession>(
         causedBy: String? = null
     ): Page<ActivityEvent> {
         val fileStat = fileLookupService.lookupFile(path, userAccessToken, user, causedBy)
-        return db.withTransaction { session ->
-            activityDao.findByFileId(session, pagination, fileStat.fileId)
-        }
+        return activityEventElasticDao.findByFileId(pagination, fileStat.fileId)
     }
 
-    suspend fun findEventsForFileId(
+    fun findEventsForFileId(
         pagination: NormalizedPaginationRequest,
         fileId: String
     ): Page<ActivityEvent> {
-        return db.withTransaction { session ->
-            activityDao.findByFileId(session, pagination, fileId)
-        }
+        return activityEventElasticDao.findByFileId(pagination, fileId)
     }
 
-    suspend fun findEventsForUser(
+    fun findEventsForUser(
         pagination: NormalizedPaginationRequest,
         user: String
     ): Page<ActivityEvent> {
-        return db.withTransaction { session ->
-            activityDao.findByUser(session, pagination, user)
-        }
+        return activityEventElasticDao.findByUser(pagination, user)
     }
 
-    suspend fun browseForUser(
+    fun browseForUser(
         scroll: NormalizedScrollRequest<Int>,
         user: String,
         collapseThreshold: Int,
         userFilter: ActivityFilter? = null
     ): ScrollResult<ActivityEventGroup, Int> {
-        return db.withTransaction { session ->
-            val filter = ActivityEventFilter(
-                offset = scroll.offset,
-                user = user,
-                minTimestamp = userFilter?.minTimestamp,
-                maxTimestamp = userFilter?.maxTimestamp,
-                type = userFilter?.type
-            )
+        val filter = ActivityEventFilter(
+            offset = scroll.offset,
+            user = user,
+            minTimestamp = userFilter?.minTimestamp,
+            maxTimestamp = userFilter?.maxTimestamp,
+            type = userFilter?.type
+        )
 
-            val allEvents = activityDao.findEvents(
-                session,
-                scroll.scrollSize,
-                filter
-            )
+        val allEvents = activityEventElasticDao.findEvents(
+            scroll.scrollSize,
+            filter
+        )
 
-            data class GroupBuilder(val type: ActivityEventType, val timestamp: Long) {
-                val items = ArrayList<ActivityEvent>()
-            }
-
-            var currentGroup: GroupBuilder? = null
-            val groupBuilders = ArrayList<GroupBuilder>()
-
-            fun finalizeGroup() {
-                val group = currentGroup ?: return
-                groupBuilders.add(group)
-            }
-
-            for (event in allEvents) {
-                if (currentGroup == null || currentGroup.type != event.type || (currentGroup.timestamp - event.timestamp) > GROUP_TIME_THRESHOLD) {
-                    if (currentGroup != null) finalizeGroup()
-
-                    currentGroup = GroupBuilder(event.type, event.timestamp).also {
-                        it.items.add(event)
-                    }
-                } else {
-                    currentGroup.items.add(event)
-                }
-            }
-            finalizeGroup()
-
-            val groups = groupBuilders.mapIndexed { i, group ->
-                val nextGroup = groupBuilders.getOrNull(i + 1)
-                val minTimestamp = nextGroup?.timestamp ?: group.timestamp - GROUP_TIME_THRESHOLD
-
-                if (group.items.size > collapseThreshold) {
-                    val numberOfEvents = activityDao.countEvents(session, filter.let {
-                        it.copy(
-                            type = group.type,
-                            maxTimestamp = group.timestamp,
-                            minTimestamp = listOfNotNull(
-                                it.minTimestamp,
-                                minTimestamp
-                            ).min()!!
-                        )
-                    })
-                    val items = group.items.take(collapseThreshold)
-
-                    ActivityEventGroup(
-                        group.type,
-                        group.timestamp,
-                        numberOfEvents - items.size,
-                        items
-                    )
-                } else {
-                    ActivityEventGroup(
-                        group.type,
-                        group.timestamp,
-                        null,
-                        group.items
-                    )
-                }
-            }
-
-            val returnedRows = groups.sumBy { it.items.size }
-
-            // Note: We provide no strict guarantees that this will actually skip the correct stuff. The other
-            // settings, such as collapseAt GROUP_TIME_THRESHOLD are meant to make it unlikely we skip
-            // significant portions. Setting collapseAt = 0 will allow the user to see all events.
-            val skippedRows: Int = groups.sumBy { it.numberOfHiddenResults?.toInt() ?: 0 }
-
-            log.debug("Returned rows: $returnedRows. Skipped: $skippedRows. All rows: ${allEvents.size}")
-
-            val nextOffset = returnedRows + skippedRows + (scroll.offset ?: 0)
-
-            ScrollResult(groups, nextOffset, endOfScroll = groups.isEmpty())
+        data class GroupBuilder(val type: ActivityEventType, val timestamp: Long) {
+            val items = ArrayList<ActivityEvent>()
         }
+
+        var currentGroup: GroupBuilder? = null
+        val groupBuilders = ArrayList<GroupBuilder>()
+
+        fun finalizeGroup() {
+            val group = currentGroup ?: return
+            groupBuilders.add(group)
+        }
+
+        for (event in allEvents) {
+            if (currentGroup == null || currentGroup.type != event.type || (currentGroup.timestamp - event.timestamp) > GROUP_TIME_THRESHOLD) {
+                if (currentGroup != null) finalizeGroup()
+
+                currentGroup = GroupBuilder(event.type, event.timestamp).also {
+                    it.items.add(event)
+                }
+            } else {
+                currentGroup.items.add(event)
+            }
+        }
+        finalizeGroup()
+
+        val groups = groupBuilders.mapIndexed { i, group ->
+            val nextGroup = groupBuilders.getOrNull(i + 1)
+            val minTimestamp = nextGroup?.timestamp ?: group.timestamp - GROUP_TIME_THRESHOLD
+
+            if (group.items.size > collapseThreshold) {
+                val numberOfEvents = activityEventElasticDao.countEvents(filter.let {
+                    it.copy(
+                        type = group.type,
+                        maxTimestamp = group.timestamp,
+                        minTimestamp = listOfNotNull(
+                            it.minTimestamp,
+                            minTimestamp
+                        ).min()!!
+                    )
+                })
+                val items = group.items.take(collapseThreshold)
+
+                ActivityEventGroup(
+                    group.type,
+                    group.timestamp,
+                    numberOfEvents - items.size,
+                    items
+                )
+            } else {
+                ActivityEventGroup(
+                    group.type,
+                    group.timestamp,
+                    null,
+                    group.items
+                )
+            }
+        }
+
+        val returnedRows = groups.sumBy { it.items.size }
+
+        // Note: We provide no strict guarantees that this will actually skip the correct stuff. The other
+        // settings, such as collapseAt GROUP_TIME_THRESHOLD are meant to make it unlikely we skip
+        // significant portions. Setting collapseAt = 0 will allow the user to see all events.
+        val skippedRows: Int = groups.sumBy { it.numberOfHiddenResults?.toInt() ?: 0 }
+
+        log.debug("Returned rows: $returnedRows. Skipped: $skippedRows. All rows: ${allEvents.size}")
+
+        val nextOffset = returnedRows + skippedRows + (scroll.offset ?: 0)
+
+        return ScrollResult(groups, nextOffset, endOfScroll = groups.isEmpty())
     }
 
     companion object : Loggable {
