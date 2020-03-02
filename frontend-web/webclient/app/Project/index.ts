@@ -33,7 +33,7 @@ export interface UserInProject {
 }
 
 // TODO This is a service only API. We need a gateway API which is responsible for also creating a data management plan
-export const createProject = (payload: {title: string, principalInvestigator: string}): APICallParameters => ({
+export const createProject = (payload: {title: string; principalInvestigator: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,
@@ -51,7 +51,7 @@ export const viewProject = (payload: {id: string}): APICallParameters => ({
     disallowProjects: true
 });
 
-export const addMemberInProject = (payload: {projectId: string, member: ProjectMember}): APICallParameters => ({
+export const addMemberInProject = (payload: {projectId: string; member: ProjectMember}): APICallParameters => ({
     method: "POST",
     path: "/projects/members",
     payload,
@@ -59,7 +59,7 @@ export const addMemberInProject = (payload: {projectId: string, member: ProjectM
     disallowProjects: true
 });
 
-export const deleteMemberInProject = (payload: {projectId: string, member: string}): APICallParameters => ({
+export const deleteMemberInProject = (payload: {projectId: string; member: string}): APICallParameters => ({
     method: "DELETE",
     path: "/projects/members",
     payload,
@@ -68,7 +68,7 @@ export const deleteMemberInProject = (payload: {projectId: string, member: strin
 });
 
 export const changeRoleInProject = (
-    payload: {projectId: string, member: string, newRole: ProjectRole}
+    payload: {projectId: string; member: string; newRole: ProjectRole}
 ): APICallParameters => ({
     method: "POST",
     path: "/projects/members/change-role",
