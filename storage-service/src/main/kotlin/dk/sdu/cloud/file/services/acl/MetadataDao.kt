@@ -13,6 +13,8 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 
+data class FileInMovement(val path: String, val pathMovingTo: String)
+
 data class Metadata(
     val path: String,
     val type: String,
@@ -187,7 +189,7 @@ class MetadataDao {
                         path_moving_to = '/deleted',
                         last_modified = now()
                     where
-                        path in (select unnest(?paths))
+                        path in (select unnest(?paths::text[]))
                 """
             )
             .rowsAffected
@@ -276,6 +278,26 @@ class MetadataDao {
         )
     }
 
+    suspend fun cancelMovement(
+        session: AsyncDBConnection,
+        paths: List<String>
+    ) {
+        session.sendPreparedStatement(
+            {
+                setParameter("paths", paths)
+            },
+            """
+                update metadata
+                set 
+                    path_moving_to = null,
+                    last_modified = now()
+                where
+                    path in (select unnest(?paths::text[])) and
+                    path_moving_to is not null
+            """
+        )
+    }
+
     suspend fun handleFilesDeleted(
         session: AsyncDBConnection,
         paths: List<String>
@@ -290,13 +312,76 @@ class MetadataDao {
                     from metadata p
                     where p.path in (
                         select p.path
-                        from (select unnest(?paths as path) as t
+                        from (select unnest(?paths::text[] as path)) as t
                         where 
                             p.path = t.path or
                             p.path like (t.path || '/%')
                     )
                 """
             )
+    }
+
+    suspend fun findUnmanagedMetadata(
+        session: AsyncDBConnection
+    ): List<FileInMovement> {
+        return session
+            .sendQuery(
+                """
+                    select distinct path, path_moving_to
+                    from metadata
+                    where
+                        path_moving_to is not null and
+                        last_modified <= (now() - interval '5 minutes')
+                    limit 500
+                """
+            )
+            .rows
+            .map {
+                FileInMovement(it["path"] as String, it["path_moving_to"] as String)
+            }
+    }
+
+    suspend fun moveMetadata(session: AsyncDBConnection, oldPath: String, newPath: String) {
+        session
+            .sendPreparedStatement(
+                {
+                    setParameter("oldPath", oldPath.normalize())
+                    setParameter("newPath", newPath.normalize())
+                },
+                """
+                    update metadata m
+                    set
+                        path = path_moving_to,
+                        path_moving_to = null,
+                        last_modified = now()
+                    where
+                        path = ?oldPath and
+                        path_moving_to = ?newPath and
+                        (path_moving_to, type, username) not in 
+                            (select path, type, username from metadata m2 where m.path_moving_to = m2.path)
+                """
+            )
+
+        session
+            .sendPreparedStatement(
+                {
+                    setParameter("oldPath", oldPath.normalize())
+                },
+                """
+                    delete from metadata where path = ?oldPath
+                """
+            )
+    }
+
+    suspend fun deleteStaleMovingAttributes(session: AsyncDBConnection) {
+        session.sendQuery(
+            """
+                delete from metadata
+                where
+                    type = 'moving' and
+                    path_moving_to is null
+            """
+        )
     }
 
     private fun RowData.toMetadata(): Metadata {

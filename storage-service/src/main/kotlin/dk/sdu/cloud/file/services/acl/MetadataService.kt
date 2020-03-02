@@ -14,7 +14,7 @@ class MetadataService(
         user: String?,
         type: String?
     ): Metadata? {
-        return db.withTransaction { session -> dao.findMetadata(session, path, user, type) }
+        return db.withTransaction { session -> dao.findMetadata(session, path.normalize(), user, type) }
     }
 
     suspend fun updateMetadata(metadata: Metadata) {
@@ -27,7 +27,7 @@ class MetadataService(
         type: String?
     ): Map<String, List<Metadata>> {
         return db.withTransaction { session ->
-            dao.listMetadata(session, paths, user, type)
+            dao.listMetadata(session, paths.map { it.normalize() }, user, type)
         }
     }
 
@@ -37,7 +37,7 @@ class MetadataService(
         type: String?
     ) {
         db.withTransaction { session ->
-            dao.removeEntry(session, path, user, type)
+            dao.removeEntry(session, path.normalize(), user, type)
         }
     }
 
@@ -53,13 +53,19 @@ class MetadataService(
                 dao.writeFileIsMoving(session, normalizedOld, normalizedNew)
             }
 
-            val result = block()
+            val result = runCatching { block() }
 
-            db.withTransaction(session) {
-                dao.handleFilesMoved(session, normalizedOld, normalizedNew)
+            if (result.isSuccess) {
+                db.withTransaction(session) {
+                    dao.handleFilesMoved(session, normalizedOld, normalizedNew)
+                }
+            } else {
+                db.withTransaction(session) {
+                    dao.cancelMovement(session, listOf(normalizedOld))
+                }
             }
 
-            result
+            result.getOrThrow()
         }
     }
 
@@ -67,18 +73,25 @@ class MetadataService(
         paths: List<String>,
         block: suspend () -> R
     ): R {
+        val normalized = paths.map { it.normalize() }
         return db.withSession { session ->
             db.withTransaction(session) {
-                dao.writeFilesAreDeleting(session, paths)
+                dao.writeFilesAreDeleting(session, normalized)
             }
 
-            val result = block()
+            val result = runCatching { block() }
 
-            db.withTransaction(session) {
-                dao.handleFilesDeleted(session, paths)
+            if (result.isSuccess) {
+                db.withTransaction(session) {
+                    dao.handleFilesDeleted(session, normalized)
+                }
+            } else {
+                db.withTransaction(session) {
+                    dao.cancelMovement(session, normalized)
+                }
             }
 
-            result
+            result.getOrThrow()
         }
     }
 }

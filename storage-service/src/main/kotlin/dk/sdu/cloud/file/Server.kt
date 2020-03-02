@@ -18,6 +18,7 @@ import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
+import dk.sdu.cloud.file.services.MetadataRecoveryService
 import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.MetadataDao
@@ -31,21 +32,17 @@ import dk.sdu.cloud.micro.backgroundScope
 import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
-import dk.sdu.cloud.service.db.H2_DIALECT
-import dk.sdu.cloud.service.db.H2_DRIVER
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
-import kotlin.system.exitProcess
 
 class Server(
     private val config: StorageConfiguration,
@@ -71,7 +68,8 @@ class Server(
         // Authorization
         val homeFolderService = HomeFolderService(client)
         val db = AsyncDBSessionFactory(micro.databaseConfig)
-        val metadataService = MetadataService(db, MetadataDao())
+        val metadataDao = MetadataDao()
+        val metadataService = MetadataService(db, metadataDao)
         val newAclService = AclService(metadataService, homeFolderService)
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
@@ -96,6 +94,15 @@ class Server(
             fsRootFile,
             homeFolderService
         ).init()
+
+        MetadataRecoveryService(
+            micro.backgroundScope,
+            DistributedLockBestEffortFactory(micro),
+            coreFileSystem,
+            processRunner,
+            db,
+            metadataDao
+        ).startProcessing()
 
         val tokenValidation =
             micro.tokenValidation as? TokenValidationJWT ?: throw IllegalStateException("JWT token validation required")
