@@ -8,7 +8,6 @@ import {Absolute, Box, Button, Flex, Input, Text, ExternalLink, Link} from "ui-c
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {RouterLocationProps, getQueryParam} from "Utilities/URIUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {Instructions} from "WebDav/Instructions";
 import {SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
 import {SnackType} from "Snackbar/Snackbars.js";
