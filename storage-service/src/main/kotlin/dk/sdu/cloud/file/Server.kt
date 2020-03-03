@@ -9,6 +9,7 @@ import dk.sdu.cloud.file.http.ExtractController
 import dk.sdu.cloud.file.http.FileSecurityController
 import dk.sdu.cloud.file.http.IndexingController
 import dk.sdu.cloud.file.http.LookupController
+import dk.sdu.cloud.file.http.MetadataController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
 import dk.sdu.cloud.file.processors.UserProcessor
@@ -159,7 +160,9 @@ class Server(
                     commandRunnerForCalls,
                     sensitivityService,
                     micro.backgroundScope
-                )
+                ),
+
+                MetadataController(metadataService)
             )
         }
 

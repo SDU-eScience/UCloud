@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.treeToValue
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.FindMetadataRequest
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.parents
 import dk.sdu.cloud.file.services.HomeFolderService
@@ -133,7 +134,7 @@ class AclService(
 
     suspend fun revokePermission(path: String, username: String) {
         val normalizedPath = path.normalize()
-        metadataService.removeEntry(normalizedPath, username, METADATA_TYPE)
+        metadataService.removeEntries(listOf(FindMetadataRequest(normalizedPath, username, METADATA_TYPE)))
     }
 
     companion object : Loggable {

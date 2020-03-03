@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.services.acl
 
+import dk.sdu.cloud.file.api.FindMetadataRequest
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withSession
@@ -21,6 +22,12 @@ class MetadataService(
         db.withTransaction { session -> dao.updateMetadata(session, metadata) }
     }
 
+    suspend fun updateMetadataBulk(metadata: List<Metadata>) {
+        db.withTransaction { session ->
+            metadata.forEach {  dao.updateMetadata(session, it) }
+        }
+    }
+
     suspend fun listMetadata(
         paths: List<String>,
         user: String?,
@@ -31,13 +38,9 @@ class MetadataService(
         }
     }
 
-    suspend fun removeEntry(
-        path: String,
-        user: String?,
-        type: String?
-    ) {
+    suspend fun removeEntries(updates: List<FindMetadataRequest>) {
         db.withTransaction { session ->
-            dao.removeEntry(session, path.normalize(), user, type)
+            updates.forEach { dao.removeEntry(session, it.path, it.username, it.type) }
         }
     }
 
