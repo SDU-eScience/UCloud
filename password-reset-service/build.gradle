@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.1.0-PASSWORD-RESET-TEST-17'
+version '0.1.0-PASSWORD-RESET-TEST-18'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.password.reset.MainKt"

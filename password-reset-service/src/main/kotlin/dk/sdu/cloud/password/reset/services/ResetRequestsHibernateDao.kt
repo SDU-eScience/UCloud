@@ -50,14 +50,4 @@ class ResetRequestsHibernateDao : ResetRequestsDao<HibernateSession> {
 
         return result.toModel()
     }
-
-    override fun invalidate(session: HibernateSession, token: String) {
-        val existing = session.criteria<PasswordResetRequestEntity> {
-            (entity[PasswordResetRequestEntity::token] equal token)
-        }.uniqueResult()
-
-        existing.expiresAt = Date(System.currentTimeMillis())
-
-        session.update(existing)
-    }
 }

@@ -7,6 +7,7 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.password.reset.rpc.*
 import dk.sdu.cloud.password.reset.services.PasswordResetService
 import dk.sdu.cloud.password.reset.services.ResetRequestsHibernateDao
+import java.security.SecureRandom
 
 class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
@@ -15,10 +16,12 @@ class Server(override val micro: Micro) : CommonServer {
         val db = micro.hibernateDatabase
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val resetRequestsDao = ResetRequestsHibernateDao()
+        val secureRandom = SecureRandom()
         val passwordResetService = PasswordResetService(
             db,
             authenticatedClient,
-            resetRequestsDao
+            resetRequestsDao,
+            secureRandom
         )
 
         with(micro.server) {

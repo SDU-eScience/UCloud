@@ -89,7 +89,7 @@ class UserController<DBSession>(
             audit(ChangePasswordAudit())
 
             if (ctx.securityPrincipal.username !in unconditionalPasswordResetWhitelist) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             }
 
             db.withTransaction { session ->

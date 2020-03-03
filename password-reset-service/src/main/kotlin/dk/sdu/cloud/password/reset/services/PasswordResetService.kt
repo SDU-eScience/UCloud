@@ -14,6 +14,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.delay
 import org.slf4j.Logger
 import java.security.SecureRandom
 import java.util.*
@@ -27,7 +28,8 @@ data class ResetRequest(
 class PasswordResetService<Session>(
     private val db: DBSessionFactory<Session>,
     private val authenticatedClient: AuthenticatedClient,
-    private val resetRequestsDao: ResetRequestsDao<Session>
+    private val resetRequestsDao: ResetRequestsDao<Session>,
+    private val secureRandom: SecureRandom
 ) {
     suspend fun createResetRequest(email: String) {
         // Check if user exists, and get userId
@@ -40,12 +42,11 @@ class PasswordResetService<Session>(
         val lookup = if (lookupWithEmailOrNull != null) {
             lookupWithEmailOrNull
         } else {
-            log.error("Failed to find user with email $email, returned status ${lookupWithEmail.statusCode}")
+            log.debug("Failed to find user with email $email, returned status ${lookupWithEmail.statusCode}")
+            delay(50)
             return
         }
 
-        // Generate token
-        val secureRandom = SecureRandom()
         val token = Base64.getUrlEncoder().encodeToString(ByteArray(64).also { secureRandom.nextBytes(it) })
 
         // Save in request
@@ -53,33 +54,23 @@ class PasswordResetService<Session>(
             resetRequestsDao.create(session, token, lookup.userId)
         }
 
-        try {
-            val mailRequest = MailDescriptions.send.call(
-                SendRequest(
-                    lookup.userId,
-                    "[UCloud] Reset of Password",
-                    """Hello ${lookup.firstNames},
-                    |
-                    |We received a request to reset your UCloud account password. To proceed, follow the link below.
-                    |
-                    |https://cloud.sdu.dk/app/reset-password?token=${token}
-                    |
-                    |If you did not initiate this request, feel free to disregard this email, or reply to this email for support.
-                    |
-                    |Best regards 
-                    |SDU eScience Center
-                    """.trimMargin()
-                ), authenticatedClient
-            ).orNull()
-
-            // Send email to user
-            if (mailRequest == null) {
-                log.error("Failed to send email to $email")
-                return
-            }
-        } catch (e: Exception) {
-            log.error(e.message)
-        }
+        MailDescriptions.send.call(
+            SendRequest(
+                lookup.userId,
+                "[UCloud] Reset of Password",
+                """Hello ${lookup.firstNames},
+                |
+                |We received a request to reset your UCloud account password. To proceed, follow the link below.
+                |
+                |https://cloud.sdu.dk/app/reset-password?token=${token}
+                |
+                |If you did not initiate this request, feel free to disregard this email, or reply to this email for support.
+                |
+                |Best regards 
+                |SDU eScience Center
+                """.trimMargin()
+            ), authenticatedClient
+        ).orThrow()
     }
 
     suspend fun newPassword(token: String, newPassword: String) {
@@ -97,10 +88,6 @@ class PasswordResetService<Session>(
                 newPassword
             ), authenticatedClient
         ).orThrow()
-
-        db.withTransaction { session ->
-            resetRequestsDao.invalidate(session, token)
-        }
     }
 
     companion object : Loggable {
