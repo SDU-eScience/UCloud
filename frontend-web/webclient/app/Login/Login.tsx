@@ -144,10 +144,11 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
 
             snackbarStore.addSnack({
                 type: SnackType.Success,
-                message: `Your password was changed successfully. Return to the Login page to log in with your new password`,
+                message: `Your password was changed successfully`,
                 lifetime: 15_000
             });
 
+            props.history.push("/login");
         } catch (e) {
             setLoading(false);
 
