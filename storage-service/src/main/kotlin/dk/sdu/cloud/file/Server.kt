@@ -96,14 +96,16 @@ class Server(
             homeFolderService
         ).init()
 
-        MetadataRecoveryService(
+        val metadataRecovery = MetadataRecoveryService(
             micro.backgroundScope,
             DistributedLockBestEffortFactory(micro),
             coreFileSystem,
             processRunner,
             db,
             metadataDao
-        ).startProcessing()
+        )
+
+        metadataRecovery.startProcessing()
 
         val tokenValidation =
             micro.tokenValidation as? TokenValidationJWT ?: throw IllegalStateException("JWT token validation required")
@@ -162,7 +164,7 @@ class Server(
                     micro.backgroundScope
                 ),
 
-                MetadataController(metadataService)
+                MetadataController(metadataService, metadataRecovery)
             )
         }
 

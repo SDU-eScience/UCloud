@@ -384,6 +384,20 @@ class MetadataDao {
         )
     }
 
+    suspend fun deleteByPrefix(session: AsyncDBConnection, path: String) {
+        session.sendPreparedStatement(
+            {
+                setParameter("path", path.normalize())
+            },
+            """
+                delete from metadata
+                where
+                    path like (?path || '/%) or
+                    path = ?path
+            """
+        )
+    }
+
     private fun RowData.toMetadata(): Metadata {
         return Metadata(
             getField(MetadataTable.path),

@@ -47,6 +47,20 @@ class MetadataRecoveryService<Ctx : FSUserContext>(
         }
     }
 
+    suspend fun verify(paths: List<String>) {
+        db.withTransaction { session ->
+            fsRunner.withContext(SERVICE_USER) { ctx ->
+                paths.forEach { path ->
+                    val stat = fs.statOrNull(ctx, path, setOf(FileAttribute.PATH))
+                    if (stat == null) {
+                        log.debug("File not found! $path")
+                        dao.deleteByPrefix(session, path)
+                    }
+                }
+            }
+        }
+    }
+
     @UseExperimental(ExperimentalTime::class)
     private suspend fun process(lock: DistributedLock) {
         val didAcquire = lock.acquire()

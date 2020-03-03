@@ -6,6 +6,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.FindMetadataResponse
 import dk.sdu.cloud.file.api.MetadataDescriptions
 import dk.sdu.cloud.file.api.MetadataUpdate
+import dk.sdu.cloud.file.services.MetadataRecoveryService
 import dk.sdu.cloud.file.services.acl.Metadata
 import dk.sdu.cloud.file.services.acl.MetadataService
 import dk.sdu.cloud.service.Controller
@@ -13,7 +14,10 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 
-class MetadataController(private val metadataService: MetadataService) : Controller {
+class MetadataController(
+    private val metadataService: MetadataService,
+    private val metadataRecovery: MetadataRecoveryService<*>
+) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(MetadataDescriptions.findMetadata) {
             ok(
@@ -44,6 +48,10 @@ class MetadataController(private val metadataService: MetadataService) : Control
                     null
                 )
             }))
+        }
+
+        implement(MetadataDescriptions.verify) {
+            ok(metadataRecovery.verify(request.paths))
         }
 
         Unit

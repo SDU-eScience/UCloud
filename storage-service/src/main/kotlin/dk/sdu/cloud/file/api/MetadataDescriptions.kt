@@ -35,6 +35,9 @@ data class FindMetadataResponse(val metadata: List<MetadataUpdate>)
 data class RemoveMetadataRequest(val updates: List<FindMetadataRequest>)
 typealias RemoveMetadataResponse = Unit
 
+data class VerifyRequest(val paths: List<String>)
+typealias VerifyResponse = Unit
+
 object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
     private const val baseContext = "/api/files/metadata"
 
@@ -84,6 +87,24 @@ object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
 
             path {
                 using(baseContext)
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val verify = call<VerifyRequest, VerifyResponse, CommonErrorMessage>("verify") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"verify"
             }
 
             body { bindEntireRequestFromBody() }
