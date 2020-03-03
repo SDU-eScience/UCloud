@@ -65,7 +65,7 @@ The procedure of shrinking requires multiple steps.
   Once the shrink has completed we are left with duplicate data. The original index and the new smaller (shardswise) index.
   To finish the shrink we delete the old index from the cluster.
   
-###Potential errors and how they are handled
+### Potential errors and how they are handled
 When doing the daily reduction of shards multiple things can happen:
 - Allocation to single node not done: Even if we allocate all the shards to one node in a seperate step, there could have 
   been a short instance where the number of reallocating shards was 0, but in fact not done yet. If this is the case,
