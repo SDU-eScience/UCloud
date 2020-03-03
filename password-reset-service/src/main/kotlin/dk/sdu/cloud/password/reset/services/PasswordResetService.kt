@@ -62,7 +62,7 @@ class PasswordResetService<Session>(
                 |
                 |We received a request to reset your UCloud account password. To proceed, follow the link below.
                 |
-                |https://cloud.sdu.dk/app/reset-password?token=${token}
+                |https://cloud.sdu.dk/app/login?password-reset=true&token=${token}
                 |
                 |If you did not initiate this request, feel free to disregard this email, or reply to this email for support.
                 |
