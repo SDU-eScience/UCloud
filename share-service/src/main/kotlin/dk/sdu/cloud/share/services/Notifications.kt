@@ -12,7 +12,6 @@ import kotlinx.coroutines.launch
 
 suspend fun aSendCreatedNotification(
     serviceClient: AuthenticatedClient,
-    id: Long,
     owner: String,
     share: Shares.Create.Request
 ): Job =
@@ -27,7 +26,6 @@ suspend fun aSendCreatedNotification(
                             message = "$owner has shared a file with you",
 
                             meta = mapOf(
-                                "shareId" to id,
                                 "path" to share.path,
                                 "rights" to share.rights
                             )

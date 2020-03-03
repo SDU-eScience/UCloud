@@ -91,6 +91,28 @@ class MetadataDao {
             .firstOrNull()
     }
 
+    suspend fun createMetadata(
+        session: AsyncDBConnection,
+        metadata: Metadata
+    ) {
+        session
+            .sendPreparedStatement(
+                {
+                    setParameter("path", metadata.path.normalize())
+                    setParameter("path_moving_to", metadata.movingTo)
+                    setParameter("username", metadata.username ?: "")
+                    setParameter("type", metadata.type)
+                    setParameter("data", defaultMapper.writeValueAsString(metadata.payload))
+                },
+                """
+                    insert into metadata
+                        (path, path_moving_to, last_modified, username, type, data)
+                    values 
+                        (?path, ?path_moving_to, now(), ?username, ?type, ?data)
+                """
+            )
+    }
+
     suspend fun updateMetadata(
         session: AsyncDBConnection,
         metadata: Metadata
@@ -384,18 +406,45 @@ class MetadataDao {
         )
     }
 
-    suspend fun deleteByPrefix(session: AsyncDBConnection, path: String) {
+    suspend fun deleteByPrefix(session: AsyncDBConnection, path: String, includeFile: Boolean = true) {
         session.sendPreparedStatement(
             {
                 setParameter("path", path.normalize())
+                setParameter("includeFile", includeFile)
             },
             """
                 delete from metadata
                 where
                     path like (?path || '/%) or
-                    path = ?path
+                    (?includeFile and path = ?path)
             """
         )
+    }
+
+    suspend fun findByPrefix(
+        session: AsyncDBConnection,
+        pathPrefix: String,
+        type: String?,
+        username: String?
+    ): List<Metadata> {
+        return session
+            .sendPreparedStatement(
+                {
+                    setParameter("pathPrefix", pathPrefix.normalize())
+                    setParameter("type", type)
+                    setParameter("username", username)
+                },
+                """
+                    select *
+                    from metadata
+                    where
+                        (path like (?path || '/%') or path = ?path) and
+                        (?type::text is null or type = ?type) and
+                        (?username::text is null or username = ?username)
+                """
+            )
+            .rows
+            .map { it.toMetadata() }
     }
 
     private fun RowData.toMetadata(): Metadata {

@@ -17,7 +17,6 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.indexing.api.*
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.databaseConfig
@@ -36,7 +35,6 @@ import dk.sdu.cloud.share.ShareServiceTest.Companion.recipient
 import dk.sdu.cloud.share.ShareServiceTest.Companion.sharedFile
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.Shares
-import dk.sdu.cloud.share.services.ShareAsyncDao
 import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
 import dk.sdu.cloud.service.db.async.*

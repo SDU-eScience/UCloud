@@ -20,6 +20,9 @@ data class MetadataUpdate(
 data class UpdateMetadataRequest(val updates: List<MetadataUpdate>)
 typealias UpdateMetadataResponse = Unit
 
+data class CreateMetadataRequest(val updates: List<MetadataUpdate>)
+typealias CreateMetadataResponse = Unit
+
 data class FindMetadataRequest(
     val path: String?,
     val type: String?,
@@ -38,6 +41,9 @@ typealias RemoveMetadataResponse = Unit
 data class VerifyRequest(val paths: List<String>)
 typealias VerifyResponse = Unit
 
+data class FindByPrefixRequest(val pathPrefix: String, val username: String?, val type: String?)
+typealias FindByPrefixResponse = FindMetadataResponse
+
 object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
     private const val baseContext = "/api/files/metadata"
 
@@ -53,6 +59,21 @@ object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
             path {
                 using(baseContext)
             }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val createMetadata = call<CreateMetadataRequest, CreateMetadataResponse, CommonErrorMessage>("createMetadata") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Put
+
+            path { using(baseContext) }
 
             body { bindEntireRequestFromBody() }
         }
@@ -105,6 +126,24 @@ object MetadataDescriptions : CallDescriptionContainer("files.metadata") {
             path {
                 using(baseContext)
                 +"verify"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val findByPrefix = call<FindByPrefixRequest, FindByPrefixResponse, CommonErrorMessage>("findByPrefix") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"by-prefix"
             }
 
             body { bindEntireRequestFromBody() }

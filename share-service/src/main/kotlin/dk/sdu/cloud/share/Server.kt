@@ -8,7 +8,6 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.CommonServer
@@ -17,14 +16,8 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.share.http.ShareController
-import dk.sdu.cloud.share.processors.StorageEventProcessor
-import dk.sdu.cloud.share.services.ProcessingService
-import dk.sdu.cloud.share.services.ShareAsyncDao
 import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
-import dk.sdu.cloud.share.services.ShareSynchronization
-import kotlinx.coroutines.runBlocking
-import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro
@@ -35,7 +28,6 @@ class Server(
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
         // Core services
-        val shareDao = ShareAsyncDao()
         val userClientFactory: (String) -> AuthenticatedClient = {
             RefreshingJWTAuthenticator(
                 micro.client,
@@ -44,36 +36,13 @@ class Server(
             ).authenticateClient(OutgoingHttpCall)
         }
 
-        val db = AsyncDBSessionFactory(micro.databaseConfig)
         val shareService = ShareService(
             serviceClient = client,
-            db = db,
-            shareDao = shareDao,
             userClientFactory = userClientFactory,
-            devMode = micro.developmentModeEnabled,
-            eventStreamService = micro.eventStreamService
+            devMode = micro.developmentModeEnabled
         )
 
-        val processingService =
-            ProcessingService(db, shareDao, shareService)
-
-        val shareQueryService = ShareQueryService(db, shareDao, client)
-
-        if (micro.commandLineArguments.contains("--sync")) {
-            val service = ShareSynchronization(db, shareDao, userClientFactory)
-            runBlocking {
-                service.synchronize()
-            }
-            exitProcess(0)
-        }
-
-        // Processors
-        StorageEventProcessor(
-            processingService,
-            micro.eventStreamService,
-            if (micro.developmentModeEnabled) "admin@dev" else "_share"
-        ).init()
-        shareService.initializeJobQueue()
+        val shareQueryService = ShareQueryService(client)
 
         // Controllers
         with(micro.server) {

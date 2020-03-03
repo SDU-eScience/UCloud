@@ -24,9 +24,19 @@ class MetadataService(
         db.withTransaction { session -> dao.updateMetadata(session, metadata) }
     }
 
+    suspend fun createMetadata(metadata: Metadata) {
+        db.withTransaction { session -> dao.createMetadata(session, metadata) }
+    }
+
     suspend fun updateMetadataBulk(metadata: List<Metadata>) {
         db.withTransaction { session ->
-            metadata.forEach {  dao.updateMetadata(session, it) }
+            metadata.forEach { dao.updateMetadata(session, it) }
+        }
+    }
+
+    suspend fun createMetadataBulk(metadata: List<Metadata>) {
+        db.withTransaction { session ->
+            metadata.forEach { dao.createMetadata(session, it) }
         }
     }
 
@@ -99,6 +109,16 @@ class MetadataService(
             }
 
             result.getOrThrow()
+        }
+    }
+
+    suspend fun findByPrefix(
+        pathPrefix: String,
+        username: String?,
+        type: String?
+    ): List<Metadata> {
+        return db.withTransaction { session ->
+            dao.findByPrefix(session, pathPrefix, type, username)
         }
     }
 }

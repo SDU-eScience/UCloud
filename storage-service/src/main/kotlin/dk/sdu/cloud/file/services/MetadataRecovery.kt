@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.SERVICE_USER
+import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.services.acl.MetadataDao
 import dk.sdu.cloud.file.util.FSException
@@ -51,10 +52,14 @@ class MetadataRecoveryService<Ctx : FSUserContext>(
         db.withTransaction { session ->
             fsRunner.withContext(SERVICE_USER) { ctx ->
                 paths.forEach { path ->
-                    val stat = fs.statOrNull(ctx, path, setOf(FileAttribute.PATH))
+                    val stat = fs.statOrNull(ctx, path, setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE))
                     if (stat == null) {
                         log.debug("File not found! $path")
                         dao.deleteByPrefix(session, path)
+                    } else {
+                        if (stat.fileType == FileType.DIRECTORY) {
+                            dao.deleteByPrefix(session, path, includeFile = false)
+                        }
                     }
                 }
             }

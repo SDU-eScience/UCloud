@@ -35,12 +35,43 @@ class MetadataController(
             )
         }
 
+        implement(MetadataDescriptions.findByPrefix) {
+            ok(
+                FindMetadataResponse(
+                    metadataService
+                        .findByPrefix(
+                            request.pathPrefix,
+                            request.username,
+                            request.type
+                        )
+                        .map {
+                            MetadataUpdate(it.path, it.type, it.username, defaultMapper.writeValueAsString(it.payload))
+                        }
+                )
+            )
+        }
+
         implement(MetadataDescriptions.removeMetadata) {
             ok(metadataService.removeEntries(request.updates))
         }
 
         implement(MetadataDescriptions.updateMetadata) {
             ok(metadataService.updateMetadataBulk(request.updates.map {
+                Metadata(
+                    it.path,
+                    it.type,
+                    it.username,
+                    runCatching { defaultMapper.readTree(it.jsonPayload) }.getOrElse { ex ->
+                        log.debug(ex.stackTraceToString())
+                        throw RPCException("Bad JSON payload", HttpStatusCode.BadRequest)
+                    },
+                    null
+                )
+            }))
+        }
+
+        implement(MetadataDescriptions.createMetadata) {
+            ok(metadataService.createMetadataBulk(request.updates.map {
                 Metadata(
                     it.path,
                     it.type,
