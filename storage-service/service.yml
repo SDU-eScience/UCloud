@@ -3,9 +3,9 @@ name: storage
 
 namespaces:
   - files
-  - files.workspace
   - files.upload
   - files.jobs
+  - files.metadata
 
 dependencies:
   - task

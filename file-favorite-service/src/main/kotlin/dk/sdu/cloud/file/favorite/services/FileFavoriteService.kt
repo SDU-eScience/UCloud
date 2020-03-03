@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.favorite.services
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.calls.RPCException
@@ -12,6 +13,7 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindMetadataRequest
 import dk.sdu.cloud.file.api.MetadataDescriptions
 import dk.sdu.cloud.file.api.MetadataUpdate
+import dk.sdu.cloud.file.api.RemoveMetadataRequest
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileAttribute
@@ -21,11 +23,11 @@ import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import dk.sdu.cloud.service.stackTraceToString
 
 data class FavoritePayload(
+    @get:JsonProperty("isFavorite")
     val isFavorite: Boolean
 )
 
@@ -53,21 +55,39 @@ class FileFavoriteService(
                     ).orNull()?.metadata?.singleOrNull()?.jsonPayload ?: return@runCatching false
 
                     defaultMapper.readValue<FavoritePayload>(payload).isFavorite
-                }.getOrDefault(false)
+                }.getOrElse { ex ->
+                    log.info(ex.stackTraceToString())
+                    false
+                }
 
-                MetadataDescriptions.updateMetadata.call(
-                    UpdateMetadataRequest(
-                        listOf(
-                            MetadataUpdate(
-                                path,
-                                FAVORITE_METADATA_TYPE,
-                                user.principal.username,
-                                defaultMapper.writeValueAsString(FavoritePayload(!isFavorite))
+                if (isFavorite) {
+                    MetadataDescriptions.removeMetadata.call(
+                        RemoveMetadataRequest(
+                            listOf(
+                                FindMetadataRequest(
+                                    path,
+                                    FAVORITE_METADATA_TYPE,
+                                    user.principal.username
+                                )
                             )
-                        )
-                    ),
-                    serviceClient
-                ).orThrow()
+                        ),
+                        serviceClient
+                    ).orThrow()
+                } else {
+                    MetadataDescriptions.updateMetadata.call(
+                        UpdateMetadataRequest(
+                            listOf(
+                                MetadataUpdate(
+                                    path,
+                                    FAVORITE_METADATA_TYPE,
+                                    user.principal.username,
+                                    defaultMapper.writeValueAsString(FavoritePayload(!isFavorite))
+                                )
+                            )
+                        ),
+                        serviceClient
+                    ).orThrow()
+                }
             } catch (e: RPCException) {
                 log.debug(e.stackTraceToString())
                 failures.add(path)
@@ -113,11 +133,15 @@ class FileFavoriteService(
 
         return allMetadata.metadata
             .paginate(pagination)
-            .mapItems { metadata ->
-                FileDescriptions.stat.call(
-                    StatRequest(metadata.path, attributes = "${StorageFileAttribute.path}"),
-                    userClient
-                ).orThrow()
+            .run {
+                val newItems = items.mapNotNull { metadata ->
+                    FileDescriptions.stat.call(
+                        StatRequest(metadata.path, attributes = "${StorageFileAttribute.path}"),
+                        userClient
+                    ).orNull()
+                }
+
+                Page(itemsInTotal, itemsPerPage, pageNumber, newItems)
             }
     }
 
