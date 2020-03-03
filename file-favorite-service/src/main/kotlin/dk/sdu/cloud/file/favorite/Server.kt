@@ -2,14 +2,10 @@ package dk.sdu.cloud.file.favorite
 
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.file.favorite.http.FileFavoriteController
-import dk.sdu.cloud.file.favorite.processors.StorageEventProcessor
-import dk.sdu.cloud.file.favorite.services.FileFavoriteHibernateDAO
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
@@ -20,23 +16,11 @@ class Server(override val micro: Micro) : CommonServer {
 
     override fun start() {
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val db = micro.hibernateDatabase
+        val fileFavoriteService = FileFavoriteService(client)
 
-        // Initialize services here
-        val fileFavoriteDao = FileFavoriteHibernateDAO()
-        val fileFavoriteService = FileFavoriteService(db, fileFavoriteDao, client)
-
-        // Processors
-        StorageEventProcessor(
-            fileFavoriteService,
-            micro.eventStreamService,
-            if (micro.developmentModeEnabled) "admin@dev" else "_file-favorite"
-        ).init()
-
-        // Initialize server
         with(micro.server) {
             configureControllers(
-                FileFavoriteController(fileFavoriteService, client)
+                FileFavoriteController(fileFavoriteService, client.withoutAuthentication())
             )
         }
 

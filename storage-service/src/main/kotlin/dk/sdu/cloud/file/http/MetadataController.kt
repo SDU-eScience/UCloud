@@ -23,7 +23,11 @@ class MetadataController(
             ok(
                 FindMetadataResponse(
                     metadataService
-                        .listMetadata(listOf(request.path), request.username, request.type).values.flatten()
+                        .listMetadata(
+                            if (request.path == null) null else listOf(request.path!!),
+                            request.username,
+                            request.type
+                        ).values.flatten()
                         .map {
                             MetadataUpdate(it.path, it.type, it.username, defaultMapper.writeValueAsString(it.payload))
                         }

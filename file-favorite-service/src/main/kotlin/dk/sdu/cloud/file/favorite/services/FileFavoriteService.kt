@@ -1,140 +1,129 @@
 package dk.sdu.cloud.file.favorite.services
 
+import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FindMetadataRequest
+import dk.sdu.cloud.file.api.MetadataDescriptions
+import dk.sdu.cloud.file.api.MetadataUpdate
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileAttribute
-import dk.sdu.cloud.file.api.fileId
-import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
-import dk.sdu.cloud.indexing.api.AddSubscriptionRequest
-import dk.sdu.cloud.indexing.api.LookupDescriptions
-import dk.sdu.cloud.indexing.api.RemoveSubscriptionRequest
-import dk.sdu.cloud.indexing.api.ReverseLookupFilesRequest
-import dk.sdu.cloud.indexing.api.Subscriptions
+import dk.sdu.cloud.file.api.UpdateMetadataRequest
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.paginate
+import dk.sdu.cloud.service.stackTraceToString
 
-class FileFavoriteService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val dao: FileFavoriteDAO<DBSession>,
+data class FavoritePayload(
+    val isFavorite: Boolean
+)
+
+class FileFavoriteService(
     private val serviceClient: AuthenticatedClient
 ) {
     suspend fun toggleFavorite(
         files: List<String>,
         user: SecurityPrincipalToken,
-        userCloud: AuthenticatedClient,
-        audit: ToggleFavoriteAudit? = null
+        userCloud: AuthenticatedClient
     ): List<String> {
         // Note: This function must ensure that the user has the correct privileges to the file!
         val failures = ArrayList<String>()
-        val newFileIds = HashSet<String>()
-        val removedFileIds = HashSet<String>()
-        db.withTransaction { session ->
-            files.forEachIndexed { index, path ->
-                try {
-                    val fileId =
-                        FileDescriptions.stat.call(
-                            StatRequest(path, attributes = "${StorageFileAttribute.fileId}"),
-                            userCloud
-                        ).orThrow().fileId
+        files.forEach { path ->
+            try {
+                FileDescriptions.stat.call(
+                    StatRequest(path, attributes = "${StorageFileAttribute.path}"),
+                    userCloud
+                ).orThrow()
 
-                    val favorite = dao.isFavorite(session, user, fileId)
+                val isFavorite: Boolean = runCatching {
+                    val payload = MetadataDescriptions.findMetadata.call(
+                        FindMetadataRequest(path, FAVORITE_METADATA_TYPE, user.principal.username),
+                        serviceClient
+                    ).orNull()?.metadata?.singleOrNull()?.jsonPayload ?: return@runCatching false
 
-                    val fileAudit = audit?.files?.get(index)
-                    if (fileAudit != null) {
-                        fileAudit.fileId = fileId
-                        fileAudit.newStatus = !favorite
-                    }
+                    defaultMapper.readValue<FavoritePayload>(payload).isFavorite
+                }.getOrDefault(false)
 
-                    if (favorite) {
-                        dao.delete(session, user, fileId)
-                        removedFileIds.add(fileId)
-                    } else {
-                        dao.insert(session, user, fileId)
-                        newFileIds.add(fileId)
-                    }
-                } catch (e: RPCException) {
-                    failures.add(path)
-                }
+                MetadataDescriptions.updateMetadata.call(
+                    UpdateMetadataRequest(
+                        listOf(
+                            MetadataUpdate(
+                                path,
+                                FAVORITE_METADATA_TYPE,
+                                user.principal.username,
+                                defaultMapper.writeValueAsString(FavoritePayload(!isFavorite))
+                            )
+                        )
+                    ),
+                    serviceClient
+                ).orThrow()
+            } catch (e: RPCException) {
+                log.debug(e.stackTraceToString())
+                failures.add(path)
             }
         }
-
-        if (newFileIds.isNotEmpty()) {
-            Subscriptions.addSubscription.call(
-                AddSubscriptionRequest(newFileIds),
-                serviceClient
-            )
-        }
-
-        if (removedFileIds.isNotEmpty()) {
-            Subscriptions.removeSubscription.call(
-                RemoveSubscriptionRequest(removedFileIds),
-                serviceClient
-            )
-        }
-
         return failures
     }
 
-   suspend fun getFavoriteStatus(files: List<StorageFile>, user: SecurityPrincipalToken): Map<String, Boolean> =
-        db.withTransaction { dao.bulkIsFavorite(it, files, user) }
-
-    suspend fun listAll(
-        pagination: NormalizedPaginationRequest,
-        user: SecurityPrincipalToken
-    ): Page<StorageFile> {
-        val fileIds = db.withTransaction {
-            dao.listAll(it, pagination, user)
-        }
-
-        if (fileIds.items.isEmpty()) return Page(0, 0, 0, emptyList())
-
-        val lookupResponse = LookupDescriptions.reverseLookupFiles.call(
-            ReverseLookupFilesRequest(fileIds.items),
+    suspend fun getFavoriteStatus(files: List<StorageFile>, user: SecurityPrincipalToken): Map<String, Boolean> {
+        val allMetadata = MetadataDescriptions.findMetadata.call(
+            FindMetadataRequest(null, FAVORITE_METADATA_TYPE, user.principal.username),
             serviceClient
         ).orThrow()
 
-        run {
-            // Delete unknown files (files that did not appear in the reverse lookup)
-            val unknownFiles = HashSet<String>()
-            for ((index, file) in lookupResponse.files.withIndex()) {
-                val fileId = fileIds.items[index]
-                if (file == null) {
-                    unknownFiles.add(fileId)
+        val filesSet = files.map { it.path.normalize() }.toSet()
+
+        val result = HashMap<String, Boolean>()
+        files.forEach { result[it.path.normalize()] = false }
+
+        allMetadata.metadata
+            .asSequence()
+            .filter { it.path.normalize() in filesSet }
+            .forEach {
+                val isFavorite =
+                    runCatching { defaultMapper.readValue<FavoritePayload>(it.jsonPayload) }.getOrNull()?.isFavorite
+                if (isFavorite != null) {
+                    result[it.path.normalize()] = isFavorite
                 }
             }
 
-            if (unknownFiles.isNotEmpty()) {
-                log.info("The following files no longer exist: $unknownFiles")
-                db.withTransaction { session -> dao.deleteById(session, unknownFiles) }
-            }
-        }
-
-        // TODO It might be necessary for us to verify knowledge of these files.
-        // But given we need to do a stat to get it into the database it should be fine.
-        return Page(
-            fileIds.itemsInTotal,
-            fileIds.itemsPerPage,
-            fileIds.pageNumber,
-            lookupResponse.files.filterNotNull()
-        )
+        return result
     }
 
-    suspend fun deleteById(fileIds: Set<String>) {
-        db.withTransaction {
-            dao.deleteById(it, fileIds)
-        }
+    suspend fun listAll(
+        pagination: NormalizedPaginationRequest,
+        user: SecurityPrincipalToken,
+        userClient: AuthenticatedClient
+    ): Page<StorageFile> {
+        val allMetadata = MetadataDescriptions.findMetadata.call(
+            FindMetadataRequest(null, FAVORITE_METADATA_TYPE, user.principal.username),
+            serviceClient
+        ).orThrow()
+
+        return allMetadata.metadata
+            .paginate(pagination)
+            .mapItems { metadata ->
+                FileDescriptions.stat.call(
+                    StatRequest(metadata.path, attributes = "${StorageFileAttribute.path}"),
+                    userClient
+                ).orThrow()
+            }
     }
 
     companion object : Loggable {
         override val log = logger()
+
+        const val FAVORITE_METADATA_TYPE = "favorite"
     }
 }

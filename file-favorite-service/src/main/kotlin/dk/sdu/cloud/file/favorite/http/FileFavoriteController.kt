@@ -2,9 +2,8 @@ package dk.sdu.cloud.file.favorite.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.ClientAndBackend
 import dk.sdu.cloud.calls.client.bearerAuth
-import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.bearer
@@ -19,9 +18,9 @@ import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 
-class FileFavoriteController<DBSession>(
-    private val fileFavoriteService: FileFavoriteService<DBSession>,
-    private val cloudContext: AuthenticatedClient
+class FileFavoriteController(
+    private val fileFavoriteService: FileFavoriteService,
+    private val clientContext: ClientAndBackend
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         handleFavoriteToggle(FileFavoriteDescriptions.toggleFavorite)
@@ -36,7 +35,12 @@ class FileFavoriteController<DBSession>(
         }
 
         implement(FileFavoriteDescriptions.list) {
-            ok(fileFavoriteService.listAll(request.normalize(), ctx.securityToken))
+            ok(
+                fileFavoriteService.listAll(
+                    request.normalize(), ctx.securityToken,
+                    clientContext.bearerAuth(ctx.bearer!!)
+                )
+            )
         }
     }
 
@@ -52,8 +56,7 @@ class FileFavoriteController<DBSession>(
                     fileFavoriteService.toggleFavorite(
                         listOf(request.path),
                         ctx.securityToken,
-                        cloudContext.withoutAuthentication().bearerAuth(ctx.bearer!!),
-                        auditMessage
+                        clientContext.bearerAuth(ctx.bearer!!)
                     )
                 )
             )

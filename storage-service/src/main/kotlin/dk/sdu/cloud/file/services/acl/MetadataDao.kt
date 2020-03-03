@@ -119,14 +119,14 @@ class MetadataDao {
 
     suspend fun listMetadata(
         session: AsyncDBConnection,
-        paths: List<String>,
+        paths: List<String>?,
         username: String?,
         type: String?
     ): Map<String, List<Metadata>> {
         return session
             .sendPreparedStatement(
                 {
-                    setParameter("paths", paths.map { it.normalize() })
+                    setParameter("paths", paths?.map { it.normalize() })
                     setParameter("username", username)
                     setParameter("type", type)
                 },
@@ -134,7 +134,7 @@ class MetadataDao {
                     select *
                     from metadata
                     where
-                        path in (select unnest(?paths::text[])) and
+                        (?paths::text[] is null or path in (select unnest(?paths::text[]))) and
                         (?username::text is null or username = ?username) and
                         (?type::text is null or type = ?type)
                 """

@@ -1,10 +1,12 @@
 package dk.sdu.cloud.file.services.acl
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.FindMetadataRequest
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withSession
 import dk.sdu.cloud.service.db.withTransaction
+import io.ktor.http.HttpStatusCode
 
 class MetadataService(
     private val db: AsyncDBSessionFactory,
@@ -29,18 +31,20 @@ class MetadataService(
     }
 
     suspend fun listMetadata(
-        paths: List<String>,
+        paths: List<String>?,
         user: String?,
         type: String?
     ): Map<String, List<Metadata>> {
         return db.withTransaction { session ->
-            dao.listMetadata(session, paths.map { it.normalize() }, user, type)
+            dao.listMetadata(session, paths?.map { it.normalize() }, user, type)
         }
     }
 
     suspend fun removeEntries(updates: List<FindMetadataRequest>) {
+        if (updates.any { it.path == null }) throw RPCException("Path must be non-null", HttpStatusCode.BadRequest)
+
         db.withTransaction { session ->
-            updates.forEach { dao.removeEntry(session, it.path, it.username, it.type) }
+            updates.forEach { dao.removeEntry(session, it.path!!, it.username, it.type) }
         }
     }
 

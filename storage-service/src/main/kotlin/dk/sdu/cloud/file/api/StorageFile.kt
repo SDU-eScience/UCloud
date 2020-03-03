@@ -75,6 +75,7 @@ interface StorageFile {
      * The ID is an opaque identifier, and its contents is entirely implementation dependant.
      */
     @get:JsonProperty("fileId")
+    @Deprecated("No longer in use")
     val fileIdOrNull: String?
 
     /**

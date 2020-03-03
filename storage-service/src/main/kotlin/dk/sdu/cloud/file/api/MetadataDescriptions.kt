@@ -21,12 +21,12 @@ data class UpdateMetadataRequest(val updates: List<MetadataUpdate>)
 typealias UpdateMetadataResponse = Unit
 
 data class FindMetadataRequest(
-    val path: String,
+    val path: String?,
     val type: String?,
     val username: String?
 ) {
     init {
-        require(type != null || username != null) { "At least one argument must be non-null!" }
+        require(path != null || type != null || username != null) { "At least one argument must be non-null!" }
     }
 }
 
