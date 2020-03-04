@@ -18,6 +18,7 @@ import kotlinx.coroutines.delay
 import org.slf4j.Logger
 import java.security.SecureRandom
 import java.util.*
+import kotlin.random.Random.Default.nextLong
 
 data class ResetRequest(
     val token: String,
@@ -43,7 +44,7 @@ class PasswordResetService<Session>(
             lookupWithEmailOrNull
         } else {
             log.debug("Failed to find user with email $email, returned status ${lookupWithEmail.statusCode}")
-            delay(50)
+            delay(200 + nextLong(50, 100))
             return
         }
 
