@@ -244,6 +244,14 @@ class UserHibernateDAO(
         return user.email
     }
 
+    override fun findByEmail(session: HibernateSession, email: String): UserIdAndName {
+        val user = session
+            .criteria<PersonEntity> { entity[PersonEntity::email] equal email }
+            .singleResult
+
+        return UserIdAndName(user.id, user.firstNames)
+    }
+
     override fun findAllByUIDs(session: HibernateSession, uids: List<Long>): Map<Long, Principal?> {
         val users = session
             .criteria<PrincipalEntity> { entity[PrincipalEntity::uid] isInCollection uids }
@@ -312,6 +320,15 @@ class UserHibernateDAO(
                 throw UserException.InvalidAuthentication()
             }
         }
+
+        val (hashedPassword, salt) = passwordHashingService.hashPassword(newPassword)
+        entity.hashedPassword = hashedPassword
+        entity.salt = salt
+        session.update(entity)
+    }
+
+    override fun unconditionalUpdatePassword(session: HibernateSession, id: String, newPassword: String) {
+        val entity = PrincipalEntity[session, id] as? PersonEntityByPassword ?: throw UserException.NotFound()
 
         val (hashedPassword, salt) = passwordHashingService.hashPassword(newPassword)
         entity.hashedPassword = hashedPassword

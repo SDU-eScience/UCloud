@@ -1,0 +1,8 @@
+---
+name: password-reset
+
+namespaces:
+  - password.reset
+
+dependencies:
+  - mail

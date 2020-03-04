@@ -31,6 +31,7 @@ class UserController<DBSession>(
     private val userCreationService: UserCreationService<DBSession>,
     private val userIterationService: UserIterationService,
     private val tokenService: TokenService<DBSession>,
+    private val unconditionalPasswordResetWhitelist: List<String>,
     private val developmentMode: Boolean = false
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
@@ -84,6 +85,23 @@ class UserController<DBSession>(
             }
         }
 
+        implement(UserDescriptions.changePasswordWithReset) {
+            audit(ChangePasswordAudit())
+
+            if (ctx.securityPrincipal.username !in unconditionalPasswordResetWhitelist) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            }
+
+            db.withTransaction { session ->
+                userDAO.unconditionalUpdatePassword(
+                    session,
+                    request.userId,
+                    request.newPassword
+                )
+                ok(Unit)
+            }
+        }
+
         implement(UserDescriptions.lookupUsers) {
             ok(
                 LookupUsersResponse(
@@ -104,6 +122,20 @@ class UserController<DBSession>(
                             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Email address not found")
                     }
                 )
+            )
+        }
+
+        implement(UserDescriptions.lookupUserWithEmail) {
+            ok(
+                db.withTransaction { session ->
+                    val user = userDAO.findByEmail(session, request.email)
+                        ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "User not found")
+
+                    LookupUserWithEmailResponse(
+                        user.userId,
+                        user.firstNames
+                    )
+                }
             )
         }
 

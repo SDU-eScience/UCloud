@@ -1,0 +1,26 @@
+group 'dk.sdu.cloud'
+version '0.1.0-PASSWORD-RESET-TEST-19'
+
+apply plugin: 'application'
+mainClassName = "dk.sdu.cloud.password.reset.MainKt"
+
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"
+
+buildscript {
+    ext.serviceCommonVersion = "1.12.0"
+    ext.authApiVersion = "1.27.4-MAIL-TEST-6"
+    ext.mailApiVersion = "0.1.0-PASSWORD-RESET-TEST-11"
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
+    compile "dk.sdu.cloud:auth-api:$authApiVersion"
+    compile "dk.sdu.cloud:mail-api:$mailApiVersion"
+    compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
+}
+
+sduCloud.createTasksForApiJar("password.reset", [])
