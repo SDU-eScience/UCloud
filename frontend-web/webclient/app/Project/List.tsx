@@ -76,7 +76,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             sidebar={(
                 <VerticalButtonGroup>
                     <Link to="/projects/create"><Button>Create</Button></Link>
-                    <Button color="red" onClick={() => props.setProject(undefined)}>Unselect Project</Button>
+                    <Button color="red" onClick={() => props.setProject(undefined)}>Clear selection</Button>
                 </VerticalButtonGroup>
             )}
         />

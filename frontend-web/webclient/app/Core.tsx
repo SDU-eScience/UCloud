@@ -44,6 +44,7 @@ import Uploader from "Uploader/Uploader";
 import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
 import {inDevEnvironment} from "UtilityFunctions";
+import GroupsOverview from "Project/GroupView";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -117,6 +118,7 @@ const Core = (): JSX.Element => (
                 <Route exact path="/projects" component={requireAuth(ProjectList)} />
                 <Route exact path="/projects/create" component={requireAuth(ProjectCreate)} />
                 <Route exact path="/projects/view/:id" component={requireAuth(ProjectView)} />
+                <Route exact path="/projects/groups" component={requireAuth(GroupsOverview)} />
 
                 <Route
                     exact
