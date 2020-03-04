@@ -9,27 +9,23 @@ export interface ListProps {
     simple?: boolean;
 }
 
-export interface Share {
-    id: ShareId;
+export interface MinimalShare {
+    state: ShareState;
     sharedWith: string;
     rights: AccessRight[];
-    state: ShareState;
 }
 
 export enum ShareState {
     REQUEST_SENT = "REQUEST_SENT",
     ACCEPTED = "ACCEPTED",
-    FAILURE = "FAILURE",
     UPDATING = "UPDATING"
 }
-
-export type ShareId = string;
 
 export interface SharesByPath {
     path: string;
     sharedBy: string;
     sharedByMe: boolean;
-    shares: Share[];
+    shares: MinimalShare[];
 }
 
 export const findShare = (path: string): APICallParameters => ({
@@ -62,22 +58,36 @@ export const createShare = (path: string, sharedWith: string, rights: AccessRigh
     reloadId: Math.random()
 });
 
-export const revokeShare = (id: ShareId): APICallParameters => ({
+export interface RevokeShareParams {
+    path: string;
+    sharedWith: string;
+}
+
+export const revokeShare = ({path, sharedWith}: RevokeShareParams): APICallParameters => ({
     method: "POST",
-    path: `/shares/revoke/${id}`,
+    path: `/shares/revoke`,
+    parameters: {path, sharedWith},
+    payload: {path, sharedWith},
     reloadId: Math.random()
 });
 
-export const acceptShare = (id: ShareId): APICallParameters => ({
+export const acceptShare = (path: string): APICallParameters => ({
     method: "POST",
-    path: `/shares/accept/${id}`,
+    path: `/shares/accept`,
+    parameters: {path},
     reloadId: Math.random()
 });
 
-export const updateShare = (id: ShareId, rights: AccessRight[]): APICallParameters => ({
+export interface UpdateShareParams {
+    path: string;
+    sharedWith: string;
+    rights: AccessRight[];
+}
+
+export const updateShare = ({path, sharedWith, rights}: UpdateShareParams): APICallParameters => ({
     method: "POST",
-    path: "/shares",
-    payload: {id, rights}
+    path: "/shares/update",
+    payload: {path, sharedWith, rights}
 });
 
 export interface LoadAvatarsParams {

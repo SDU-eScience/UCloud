@@ -106,6 +106,7 @@ object Shares : CallDescriptionContainer("shares") {
 
             path {
                 using(baseContext)
+                +"update"
             }
 
             body {
@@ -157,8 +158,9 @@ object Shares : CallDescriptionContainer("shares") {
             path {
                 using(baseContext)
                 +"accept"
-                +boundTo(Accept.Request::path)
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 

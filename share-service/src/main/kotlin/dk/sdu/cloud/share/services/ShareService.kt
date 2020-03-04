@@ -31,6 +31,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.Shares
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.isSuccess
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
@@ -239,16 +240,24 @@ class ShareService(
         val updates = listOf(
             MetadataUpdate(
                 path,
-                share.sharedWith,
                 METADATA_TYPE_SHARES,
+                share.sharedWith,
                 defaultMapper.writeValueAsString(share)
             )
         )
 
         if (updateIfExists) {
-            MetadataDescriptions.updateMetadata.call(UpdateMetadataRequest(updates), serviceClient)
+            MetadataDescriptions.updateMetadata.call(UpdateMetadataRequest(updates), serviceClient).orThrow()
         } else {
-            MetadataDescriptions.createMetadata.call(CreateMetadataRequest(updates), serviceClient)
+            val resp = MetadataDescriptions.createMetadata.call(CreateMetadataRequest(updates), serviceClient)
+            if (!resp.statusCode.isSuccess()) {
+                if (resp.statusCode == HttpStatusCode.Conflict) {
+                    throw RPCException("File has already been shared with this user", HttpStatusCode.Conflict)
+                } else {
+                    log.warn("Received bad response from server: ${resp.statusCode}")
+                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                }
+            }
         }
     }
 

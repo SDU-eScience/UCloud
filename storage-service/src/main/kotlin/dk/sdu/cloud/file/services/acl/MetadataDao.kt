@@ -2,6 +2,8 @@ package dk.sdu.cloud.file.services.acl
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.jasync.sql.db.RowData
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.service.Loggable
@@ -12,6 +14,7 @@ import dk.sdu.cloud.service.db.async.jsonb
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
+import io.ktor.http.HttpStatusCode
 
 data class FileInMovement(val path: String, val pathMovingTo: String)
 
@@ -95,22 +98,30 @@ class MetadataDao {
         session: AsyncDBConnection,
         metadata: Metadata
     ) {
-        session
-            .sendPreparedStatement(
-                {
-                    setParameter("path", metadata.path.normalize())
-                    setParameter("path_moving_to", metadata.movingTo)
-                    setParameter("username", metadata.username ?: "")
-                    setParameter("type", metadata.type)
-                    setParameter("data", defaultMapper.writeValueAsString(metadata.payload))
-                },
-                """
+        try {
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("path", metadata.path.normalize())
+                        setParameter("path_moving_to", metadata.movingTo)
+                        setParameter("username", metadata.username ?: "")
+                        setParameter("type", metadata.type)
+                        setParameter("data", defaultMapper.writeValueAsString(metadata.payload))
+                    },
+                    """
                     insert into metadata
                         (path, path_moving_to, last_modified, username, type, data)
                     values 
                         (?path, ?path_moving_to, now(), ?username, ?type, ?data)
                 """
-            )
+                )
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorMessage.fields['C'] == "23505") {
+                throw RPCException("Already exists", HttpStatusCode.Conflict)
+            } else {
+                throw ex
+            }
+        }
     }
 
     suspend fun updateMetadata(
@@ -430,7 +441,7 @@ class MetadataDao {
         return session
             .sendPreparedStatement(
                 {
-                    setParameter("pathPrefix", pathPrefix.normalize())
+                    setParameter("path", pathPrefix.normalize())
                     setParameter("type", type)
                     setParameter("username", username)
                 },
