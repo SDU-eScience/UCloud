@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.file.api.CowWorkspace
 import kotlin.math.max
 
 data class VerifiedJob(
@@ -82,11 +81,6 @@ data class VerifiedJob(
     val archiveInCollection: String,
 
     /**
-     * The workspace to use for files.
-     */
-    val workspace: String? = null,
-
-    /**
      * Timestamp for when this job was created.
      */
     val createdAt: Long = System.currentTimeMillis(),
@@ -125,29 +119,6 @@ data class VerifiedJob(
     val user: String = owner,
 
     /**
-     * The project that this job belongs to.
-     *
-     * If this project is started by a project proxy user then this property will point to that project. If this is not
-     * started by a project proxy user then this will be null.
-     */
-    val project: String? = null,
-
-    /**
-     * The file id of the job folder
-     */
-    val folderId: String? = null,
-
-        /**
-         * A list of shared file systems to be mounted inside of the container.
-     *
-     * A backend is allowed to reject a shared file system mount if it does not support mounting it. This should
-     * happen early, for example, by comparing the backend against a whitelist of supported backends.
-     */
-    @Suppress("ConstructorParameterNaming")
-    @get:JsonProperty("sharedFileSystemMounts")
-    val _sharedFileSystemMounts: List<SharedFileSystemMount>? = null,
-
-    /**
      * A list of peers that this application is requesting networking with.
      */
     @Suppress("ConstructorParameterNaming")
@@ -156,9 +127,7 @@ data class VerifiedJob(
 
     val reservation: MachineReservation = MachineReservation.BURST,
 
-    val mountMode: MountMode? = null,
-
-    val cow: CowWorkspace? = null
+    val outputFolder: String? = null
 ) {
     @get:JsonIgnore
     val mounts: List<ValidatedFileForUpload>
@@ -167,10 +136,6 @@ data class VerifiedJob(
     @get:JsonIgnore
     val peers: List<ApplicationPeer>
         get() = _peers ?: emptyList()
-
-    @get:JsonIgnore
-    val sharedFileSystemMounts: List<SharedFileSystemMount>
-        get() = _sharedFileSystemMounts ?: emptyList()
 
     override fun toString() = "VerifiedJob(${application.metadata.name}@${application.metadata.version})"
 
@@ -187,18 +152,8 @@ data class VerifiedJob(
                 return false
             }
 
-            //Check mountMode
-            if (this.mountMode != null || other.mountMode != null) {
-                if (this.mountMode?.name != other.mountMode?.name) {
-                    return false
-                }
-            }
             //Check reservation
             if (this.reservation != other.reservation) {
-                return false
-            }
-            // Check project
-            if (this.project != other.project) {
                 return false
             }
             //Check files
@@ -206,17 +161,12 @@ data class VerifiedJob(
                 return false
             }
             //Check Mounts
-            if (this.mounts.toSet() !=  other.mounts.toSet()) {
+            if (this.mounts.toSet() != other.mounts.toSet()) {
                 return false
             }
 
             //Checking Peers
-            if (this.peers.toSet() !=  other.peers.toSet()) {
-                return false
-            }
-
-            //Check Shared File System mounts
-            if (this.sharedFileSystemMounts != other.sharedFileSystemMounts) {
+            if (this.peers.toSet() != other.peers.toSet()) {
                 return false
             }
 

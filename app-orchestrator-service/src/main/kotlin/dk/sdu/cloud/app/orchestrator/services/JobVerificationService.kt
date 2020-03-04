@@ -5,7 +5,6 @@ import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
 import dk.sdu.cloud.app.orchestrator.api.FileForUploadArchiveType
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.MachineReservation
-import dk.sdu.cloud.app.orchestrator.api.MountMode
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
@@ -19,7 +18,6 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
 import dk.sdu.cloud.app.license.api.LicenseServerRequest
-import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
@@ -55,7 +53,6 @@ class JobVerificationService<Session>(
     private val appStore: AppStoreService,
     private val toolStore: ToolStoreService,
     private val defaultBackend: String,
-    private val sharedMountVerificationService: SharedMountVerificationService,
     private val db: DBSessionFactory<Session>,
     private val dao: JobDao<Session>,
     private val authenticatedClient: AuthenticatedClient,
@@ -128,43 +125,13 @@ class JobVerificationService<Session>(
             Pair(allPeers, resolvedPeers)
         }
 
-        val sharedMounts = run {
-            val additionalSharedMounts =
-                sharedMountVerificationService.verifyMounts(unverifiedJob.request.sharedFileSystemMounts, userClient)
-
-            val parameterSharedMounts =
-                sharedMountVerificationService.verifyMounts(
-                    application.invocation.parameters,
-                    verifiedParameters,
-                    userClient
-                )
-
-            val peerMounts =
-                resolvedPeers.flatMap { peer -> peer.job.sharedFileSystemMounts.filter { it.exportToPeers } }
-
-            val allMounts = additionalSharedMounts + parameterSharedMounts + peerMounts
-
-            val duplicateMountLocations = allMounts
-                .groupBy { it.mountedAt }
-                .filter { it.value.size > 1 }
-
-            if (duplicateMountLocations.isNotEmpty()) {
-                throw JobException.VerificationError(
-                    "Duplicate mounts detected at " +
-                            duplicateMountLocations.keys.joinToString()
-                )
-            }
-
-            allMounts
-        }
-
         return VerifiedJobWithAccessToken(
             VerifiedJob(
                 application = application,
                 files = files,
                 id = jobId,
                 name = name,
-                owner = unverifiedJob.decodedToken.realUsername(),
+                owner = unverifiedJob.decodedToken.principal.username,
                 nodes = numberOfJobs,
                 tasksPerNode = tasksPerNode,
                 maxTime = allocatedTime,
@@ -177,11 +144,8 @@ class JobVerificationService<Session>(
                 _mounts = mounts,
                 startedAt = null,
                 user = unverifiedJob.decodedToken.principal.username,
-                project = unverifiedJob.decodedToken.projectOrNull(),
-                _sharedFileSystemMounts = sharedMounts,
                 _peers = allPeers,
-                reservation = reservation,
-                mountMode = unverifiedJob.request.mountMode ?: MountMode.COPY_FILES
+                reservation = reservation
             ),
             null,
             unverifiedJob.refreshToken
@@ -240,10 +204,8 @@ class JobVerificationService<Session>(
                     }
                 }
                 .map { paramWithValue ->
-                    // Fix path for InputFiles with MountMode.COPY_ON_WRITE
+                    // Fix path for InputFiles
                     val (param, value) = paramWithValue
-                    if (job.request.mountMode != MountMode.COPY_ON_WRITE || value == null) return@map paramWithValue
-
                     if (param is ApplicationParameter.InputFile) {
                         value as FileTransferDescription
                         param to value.copy(destination = "${value.destination.fileName()}/${value.destination}")
@@ -321,6 +283,8 @@ class JobVerificationService<Session>(
                 throw JobException.VerificationError("Missing file in storage: $sourcePath. Are you sure it exists?")
             }
             .result
+
+        TODO("Check if we need to mount as read only")
 
         if (stat.fileType != desiredFileType) {
             throw JobException.VerificationError(

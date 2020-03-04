@@ -5,8 +5,6 @@ import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
 import dk.sdu.cloud.app.orchestrator.api.JobSortBy
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.MachineReservation
-import dk.sdu.cloud.app.orchestrator.api.MountMode
-import dk.sdu.cloud.app.orchestrator.api.SharedFileSystemMount
 import dk.sdu.cloud.app.orchestrator.api.SortOrder
 import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
@@ -15,8 +13,6 @@ import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolReference
-import dk.sdu.cloud.file.api.CowWorkspace
-import dk.sdu.cloud.indexing.api.AllOf
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -27,7 +23,6 @@ import dk.sdu.cloud.service.db.JSONB_LIST_TYPE
 import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_KEY_TYPE
 import dk.sdu.cloud.service.db.JSONB_MAP_PARAM_VALUE_TYPE
 import dk.sdu.cloud.service.db.JSONB_MAP_TYPE
-import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.service.db.criteria
@@ -131,9 +126,6 @@ data class JobInformationEntity(
     @Column(length = 1024)
     var archiveInCollection: String,
 
-    @Column(length = 1024)
-    var workspace: String?,
-
     var backendName: String,
 
     var startedAt: Date?,
@@ -144,22 +136,6 @@ data class JobInformationEntity(
 
     @Column(length = 1024)
     var username: String?,
-
-    @Column(length = 1024)
-    var project: String?,
-
-    var folderId: String?,
-
-    @Type(
-        type = JSONB_LIST_TYPE,
-        parameters = [
-            Parameter(
-                name = JSONB_LIST_PARAM_TYPE,
-                value = "dk.sdu.cloud.app.orchestrator.api.SharedFileSystemMount"
-            )
-        ]
-    )
-    var sharedFileSystemMounts: List<SharedFileSystemMount>?,
 
     @Type(
         type = JSONB_LIST_TYPE,
@@ -183,11 +159,7 @@ data class JobInformationEntity(
 
     var reservedGpus: Int?,
 
-    @Type(type = JSONB_TYPE)
-    var cow: CowWorkspace?,
-
-    @Enumerated(EnumType.STRING)
-    var mountMode: MountMode?
+    var outputFolder: String?
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -218,23 +190,18 @@ class JobHibernateDao(
             maxTimeSeconds = job.maxTime.seconds,
             accessToken = token,
             archiveInCollection = job.archiveInCollection,
-            workspace = job.workspace,
             backendName = job.backend,
             startedAt = null,
             modifiedAt = Date(job.modifiedAt),
             createdAt = Date(job.createdAt),
             username = job.user,
-            project = job.project,
-            folderId = job.folderId,
-            sharedFileSystemMounts = job.sharedFileSystemMounts,
             peers = job.peers,
             refreshToken = refreshToken,
             reservationType = job.reservation.name,
             reservedCpus = job.reservation.cpu,
             reservedMemoryInGigs = job.reservation.memoryInGigs,
             reservedGpus = job.reservation.gpu,
-            cow = job.cow,
-            mountMode = job.mountMode
+            outputFolder = job.outputFolder
         )
 
         session.save(entity)
@@ -274,16 +241,6 @@ class JobHibernateDao(
         ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
     }
 
-    override fun updateWorkspace(session: HibernateSession, systemId: String, workspace: String, cow: CowWorkspace?) {
-        session.updateCriteria<JobInformationEntity>(
-            where = { entity[JobInformationEntity::systemId] equal systemId },
-            setProperties = {
-                criteria.set(entity[JobInformationEntity::workspace], workspace)
-                criteria.set(entity[JobInformationEntity::cow], cow)
-            }
-        ).executeUpdate().takeIf { it == 1 } ?: throw JobException.NotFound("job: $systemId")
-    }
-
     override suspend fun find(
         session: HibernateSession,
         systemIds: List<String>,
@@ -293,10 +250,7 @@ class JobHibernateDao(
             val ownerPredicate = if (owner == null) {
                 literal(true).toPredicate()
             } else {
-                (entity[JobInformationEntity::owner] equal owner.realUsername()) or
-                        ((entity[JobInformationEntity::project] equal owner.projectOrNull()) and
-                                (entity[JobInformationEntity::state] isInCollection
-                                        (JobState.values().filter { it.isFinal() })))
+                (entity[JobInformationEntity::owner] equal owner.principal.username)
             }
 
             ownerPredicate and (entity[JobInformationEntity::systemId] isInCollection systemIds)
@@ -354,21 +308,7 @@ class JobHibernateDao(
                 }
             },
             predicate = {
-                val canViewAsOwner = entity[JobInformationEntity::owner] equal owner.realUsername()
-
-                val project = owner.projectOrNull()
-                val canViewAsPartOfProject =
-                    if (project == null) {
-                        literal(false).toPredicate()
-                    } else {
-                        allOf(
-                            entity[JobInformationEntity::project] equal project,
-                            anyOf(
-                                entity[JobInformationEntity::state] equal JobState.FAILURE,
-                                entity[JobInformationEntity::state] equal JobState.SUCCESS
-                            )
-                        )
-                    }
+                val canViewAsOwner = entity[JobInformationEntity::owner] equal owner.principal.username
 
                 // Time ranges
                 val lowerTime = entity[JobInformationEntity::createdAt] greaterThanEquals Date(minTimestamp ?: 0)
@@ -406,10 +346,7 @@ class JobHibernateDao(
                     matchesUpperFilter,
                     appStateFilter,
                     byNameAndVersionFilter,
-                    anyOf(
-                        canViewAsOwner,
-                        canViewAsPartOfProject
-                    )
+                    canViewAsOwner
                 )
             }
         ).mapItemsNotNull { it.toModel() }
@@ -422,7 +359,7 @@ class JobHibernateDao(
         version: String
     ): List<VerifiedJobWithAccessToken> {
         val validStates = listOf(JobState.SCHEDULED, JobState.RUNNING, JobState.PREPARED, JobState.VALIDATED)
-        return session.criteria<JobInformationEntity> (
+        return session.criteria<JobInformationEntity>(
             orderBy = {
                 listOf(descending(entity[JobInformationEntity::createdAt]))
             },
@@ -431,7 +368,7 @@ class JobHibernateDao(
                     entity[JobInformationEntity::state] isInCollection validStates,
                     entity[JobInformationEntity::application][EmbeddedNameAndVersion::name] equal application,
                     entity[JobInformationEntity::application][EmbeddedNameAndVersion::version] equal version,
-                    entity[JobInformationEntity::owner] equal owner.realUsername()
+                    entity[JobInformationEntity::owner] equal owner.principal.username
                 )
             }
         ).resultList.take(10).mapNotNull { it.toModel() }
@@ -468,19 +405,14 @@ class JobHibernateDao(
                 status,
                 failedState,
                 archiveInCollection,
-                workspace,
                 createdAt = createdAt.time,
                 modifiedAt = modifiedAt.time,
                 _mounts = mounts,
                 startedAt = startedAt?.time,
                 user = username ?: owner,
-                project = project,
-                _sharedFileSystemMounts = sharedFileSystemMounts,
                 _peers = peers,
                 reservation = MachineReservation(reservationType, reservedCpus, reservedMemoryInGigs),
-                folderId = folderId,
-                cow = cow,
-                mountMode = mountMode
+                outputFolder = outputFolder
             ),
             accessToken,
             refreshToken

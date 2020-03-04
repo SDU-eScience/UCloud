@@ -11,7 +11,6 @@ import dk.sdu.cloud.app.kubernetes.services.K8JobMonitoringService
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
 import dk.sdu.cloud.app.kubernetes.services.K8NameAllocator
 import dk.sdu.cloud.app.kubernetes.services.NetworkPolicyService
-import dk.sdu.cloud.app.kubernetes.services.SharedFileSystemMountService
 import dk.sdu.cloud.app.kubernetes.services.TunnelManager
 import dk.sdu.cloud.app.kubernetes.services.VerifiedJobCache
 import dk.sdu.cloud.app.kubernetes.services.VncService
@@ -70,9 +69,8 @@ class Server(
 
         val jobCache = VerifiedJobCache(serviceClient)
         val networkPolicyService = NetworkPolicyService(k8Dependencies)
-        val sharedFileSystemMountService = SharedFileSystemMountService(cephConfig)
         val hostAliasesService = HostAliasesService(k8Dependencies)
-        val workspaceService = WorkspaceService(configuration.hostTemporaryStorage, cephConfig)
+        val workspaceService = WorkspaceService(cephConfig)
 
         val logService = K8LogService(k8Dependencies)
         val jobMonitoringService = K8JobMonitoringService(
@@ -86,7 +84,6 @@ class Server(
             k8Dependencies,
             jobMonitoringService,
             networkPolicyService,
-            sharedFileSystemMountService,
             broadcastingStream,
             hostAliasesService,
             workspaceService,

@@ -126,46 +126,6 @@ bundle { ctx ->
         )
     }
 
-    resources.add(
-        YamlResource(
-            //language=yaml
-            """
-               apiVersion: apps/v1
-               kind: DaemonSet
-               metadata:
-                 name: cow-deploy
-                 namespace: default
-               spec:
-                 selector:
-                   matchLabels:
-                     app: flex-deploy
-                 template:
-                   metadata:
-                     name: flex-deploy
-                     labels:
-                       app: flex-deploy
-                   spec:
-                     containers:
-                       - image: registry.cloud.sdu.dk/cow/deploy:0.2.37
-                         name: flex-deploy
-                         securityContext:
-                             privileged: true
-                         volumeMounts:
-                           - mountPath: /flexmnt
-                             name: flexvolume-mount
-                         command:
-                           - /opt/cow/install.sh
-                     volumes:
-                       - name: flexvolume-mount
-                         hostPath:
-                           path: /var/lib/kubelet/volumeplugins
-                     imagePullSecrets:
-                       - name: esci-docker
-
-            """.trimIndent()
-        )
-    )
-
     val prefix: String = when (ctx.environment) {
         Environment.DEVELOPMENT, Environment.PRODUCTION -> "app-"
         Environment.TEST -> "apps-"

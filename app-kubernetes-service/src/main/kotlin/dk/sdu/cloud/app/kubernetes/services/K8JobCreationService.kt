@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.kubernetes.services
 
-import dk.sdu.cloud.app.kubernetes.CephConfiguration
 import dk.sdu.cloud.app.kubernetes.TolerationKeyAndValue
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.store.api.ContainerDescription
@@ -24,10 +23,8 @@ import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.PodResource
 import kotlinx.coroutines.launch
 
-const val INPUT_DIRECTORY = "/input"
 const val WORKING_DIRECTORY = "/work"
 const val MULTI_NODE_DIRECTORY = "/etc/ucloud"
-const val DATA_STORAGE = "workspace-storage"
 const val MULTI_NODE_STORAGE = "multi-node-config"
 const val MULTI_NODE_CONTAINER = "init"
 const val USER_CONTAINER = "user-job"
@@ -39,7 +36,6 @@ class K8JobCreationService(
     private val k8: K8Dependencies,
     private val k8JobMonitoringService: K8JobMonitoringService,
     private val networkPolicyService: NetworkPolicyService,
-    private val sharedFileSystemMountService: SharedFileSystemMountService,
     private val broadcastingStream: BroadcastingStream,
     private val hostAliasesService: HostAliasesService,
     private val workspaceService: WorkspaceService,
@@ -86,7 +82,6 @@ class K8JobCreationService(
     @Suppress("LongMethod", "ComplexMethod") // Just a DSL
     private fun createJobs(verifiedJob: VerifiedJob) {
         // We need to create and prepare some other resources as well
-        val (sharedVolumes, sharedMounts) = sharedFileSystemMountService.createVolumesAndMounts(verifiedJob)
         networkPolicyService.createPolicy(verifiedJob.id, verifiedJob.peers.map { it.jobId })
         val hostAliases = hostAliasesService.findAliasesForPeers(verifiedJob.peers)
         val preparedWorkspace = workspaceService.prepare(verifiedJob)
@@ -272,8 +267,7 @@ class K8JobCreationService(
                                                 null
                                             ),
 
-                                            *preparedWorkspace.user.mounts.toTypedArray(),
-                                            *sharedMounts.toTypedArray()
+                                            *preparedWorkspace.mounts.toTypedArray()
                                         )
 
                                         withHostAliases(*hostAliases.toTypedArray())
@@ -288,8 +282,7 @@ class K8JobCreationService(
                                         emptyDir = EmptyDirVolumeSource()
                                     },
 
-                                    *preparedWorkspace.volumes.toTypedArray(),
-                                    *sharedVolumes.toTypedArray()
+                                    *preparedWorkspace.volumes.toTypedArray()
                                 )
 
                                 if (toleration != null) {
