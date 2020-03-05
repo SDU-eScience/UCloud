@@ -30,7 +30,7 @@ import * as Favorites from "./Redux/FavoriteActions";
 
 
 export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
-    <Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
+    <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
 );
 
 export interface ApplicationsOperations {

@@ -12,46 +12,70 @@ import {
     roleInProject,
     viewProject
 } from "Project/index";
+import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router";
 import {Box, Button, Flex, Input, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {defaultAvatar} from "UserSettings/Avataaar";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {errorMessageOrDefault, prettierString} from "UtilityFunctions";
+import {Client} from "Authentication/HttpClientInstance";
+
+function newProjectMember(): ProjectMember {
+    return {
+        role: Object.values(ProjectRole)[(Math.random() * 4) | 0],
+        username: "Frank"
+    };
+}
 
 const View: React.FunctionComponent = () => {
     const {id} = useParams<{id: string}>();
-    const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
+    //const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
+    const project = {
+        data: emptyProject("Hello"),
+        loading: false,
+        error: {} as {why?: string}
+    };
+
+    for (let i = 0; i < 10; i++) project.data.members.push(newProjectMember());
+
     const role = roleInProject(project.data);
-    const allowManagement = role === ProjectRole.PI;
+    const allowManagement = role === ProjectRole.PI || Client.userIsAdmin;
     const newMemberRef = useRef<HTMLInputElement>(null);
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
 
-    const reload = (): void => setProjectParams(viewProject({id}));
+    // const reload = (): void => setProjectParams(viewProject({id}));
 
-    useEffect(() => reload(), [id]);
+    // useEffect(() => reload(), [id]);
 
     const onSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
         const inputField = newMemberRef.current!;
         const username = inputField.value;
-
-        await createNewMember(addMemberInProject({
-            projectId: id,
-            member: {
-                username,
-                role: ProjectRole.USER
-            }
-        }));
-
-        inputField.value = "";
-        reload();
+        try {
+            await createNewMember(addMemberInProject({
+                projectId: id,
+                member: {
+                    username,
+                    role: ProjectRole.USER
+                }
+            }));
+            inputField.value = "";
+            // reload();
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed adding new "));
+        }
     };
 
     return (
         <LoadingMainContainer
-            headerSize={0}
-            header={null}
+            header={(
+                <Heading.h3>
+                    Project {project.data.title}
+                </Heading.h3>
+            )}
             sidebar={null}
             loading={project.loading && project.data.members.length === 0}
             error={project.error ? project.error.why : undefined}
@@ -75,10 +99,9 @@ const View: React.FunctionComponent = () => {
                             project={project.data}
                             member={e}
                             allowManagement={allowManagement}
-                            onActionComplete={() => reload()}
+                            onActionComplete={() => undefined/* reload() */}
                         />
-                    ))
-                    }
+                    ))}
                 </>
             )}
         />
@@ -103,16 +126,18 @@ const ViewMember: React.FunctionComponent<{
         props.onActionComplete();
     };
 
+    const prettierRole = prettierString(role);
+
     return (
         <Box mt={16}>
             <Flex>
                 <UserAvatar avatar={defaultAvatar} />
                 <Box flexGrow={1}>
                     {props.member.username} <br />
-                    {!props.allowManagement ? role : (
+                    {!props.allowManagement ? prettierRole : (
                         <ClickableDropdown
                             chevron
-                            trigger={role}
+                            trigger={prettierRole}
                             onChange={async value => {
                                 setRole(value);
 
