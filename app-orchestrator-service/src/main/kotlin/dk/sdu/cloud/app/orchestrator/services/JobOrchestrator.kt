@@ -24,6 +24,9 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.events.EventProducer
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.MetadataDescriptions
+import dk.sdu.cloud.file.api.VerifyRequest
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -359,6 +362,13 @@ class JobOrchestrator<DBSession>(
                             serviceClient.withoutAuthentication().bearerAuth(jobWithToken.refreshToken)
                         ).throwIfInternal()
                     }
+
+                    MetadataDescriptions.verify.call(
+                        VerifyRequest(
+                            job.files.map { it.sourcePath } + job.mounts.map { it.sourcePath }
+                        ),
+                        serviceClient
+                    ).orThrow()
 
                     // This one should _NEVER_ throw an exception
                     val resp = backend.cleanup.call(job, serviceClient)
