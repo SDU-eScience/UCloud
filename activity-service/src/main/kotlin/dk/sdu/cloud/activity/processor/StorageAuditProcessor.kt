@@ -18,6 +18,7 @@ import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
+import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 

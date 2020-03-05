@@ -34,14 +34,6 @@ interface ActivityEventDao {
         filter: ActivityEventFilter
     ): Long
 
-    fun insertBatch(
-        events: List<ActivityEvent>
-    )
-
-    fun insert(
-        event: ActivityEvent
-    )
-
     fun deleteOldActivity(
         numberOfDaysInPast: Long
     )

@@ -2,13 +2,14 @@ package dk.sdu.cloud.activity.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
+import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
+import org.omg.PortableInterceptor.ACTIVE
 
 private const val TYPE_DOWNLOAD = "download"
-private const val TYPE_UPDATED = "updated"
 private const val TYPE_DELETED = "deleted"
 private const val TYPE_FAVORITE = "favorite"
 private const val TYPE_INSPECTED = "inspected"
@@ -21,7 +22,14 @@ enum class ActivityEventType {
     deleted,
     favorite,
     inspected,
-    moved
+    moved,
+    copy,
+    usedInApp,
+    directoryCreated,
+    reclassify,
+    upload,
+    updatedACL
+
 }
 
 @JsonTypeInfo(
@@ -31,7 +39,6 @@ enum class ActivityEventType {
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = ActivityEvent.Download::class, name = TYPE_DOWNLOAD),
-    JsonSubTypes.Type(value = ActivityEvent.Updated::class, name = TYPE_UPDATED),
     JsonSubTypes.Type(value = ActivityEvent.Deleted::class, name = TYPE_DELETED),
     JsonSubTypes.Type(value = ActivityEvent.Favorite::class, name = TYPE_FAVORITE),
     JsonSubTypes.Type(value = ActivityEvent.Inspected::class, name = TYPE_INSPECTED),
@@ -45,64 +52,105 @@ sealed class ActivityEvent {
     // ActivityEventDao
 
     abstract val timestamp: Long
-    abstract val fileId: String
+    abstract val filePath: String
     abstract val username: String
-    abstract val originalFilePath: String
 
     // TODO We cannot reliably track who uploaded a file (due to bulk uploads)
+
+    data class Reclassify(
+        override val username: String,
+        override val timestamp: Long,
+        override val filePath: String,
+        val newSensitivity: String
+    ) : ActivityEvent()
+
+    data class DirectoryCreated(
+        override val username: String,
+        override val timestamp: Long,
+        override val filePath: String
+    ) : ActivityEvent()
 
     data class Download(
         override val username: String,
         override val timestamp: Long,
-        override val fileId: String,
-        override val originalFilePath: String
+        override val filePath: String
     ) : ActivityEvent()
 
-    data class Updated(
+    data class Copy(
         override val username: String,
         override val timestamp: Long,
-        override val fileId: String,
-        override val originalFilePath: String
+        override val filePath: String,
+        val copyFilePath: String
+    ) : ActivityEvent()
+
+    data class Uploaded(
+        override val username: String,
+        override val timestamp: Long,
+        override val filePath: String
+    ) : ActivityEvent()
+
+    data class UpdatedAcl(
+        override val username: String,
+        override val timestamp: Long,
+        override val filePath: String,
+        val rightsAndUser: List<Pair<Set<AccessRight>, String>>
     ) : ActivityEvent()
 
     data class Favorite(
         override val username: String,
         val isFavorite: Boolean,
         override val timestamp: Long,
-        override val fileId: String,
-        override val originalFilePath: String
+        override val filePath: String
     ) : ActivityEvent()
 
     data class Inspected(
         override val username: String,
         override val timestamp: Long,
-        override val fileId: String,
-        override val originalFilePath: String
+        override val filePath: String
     ) : ActivityEvent()
 
     data class Moved(
         override val username: String,
         val newName: String,
         override val timestamp: Long,
-        override val fileId: String,
-        override val originalFilePath: String
+        override val filePath: String
     ) : ActivityEvent()
 
     data class Deleted(
-        override val timestamp: Long,
-        override val fileId: String,
         override val username: String,
-        override val originalFilePath: String
+        override val timestamp: Long,
+        override val filePath: String
+    ) : ActivityEvent()
+
+    data class UsedByApplication(
+        override val username: String, //used By
+        override val timestamp: Long,
+        override val filePath: String,
+        val applicationName: String,
+        val applicationVersion: String
+    ) : ActivityEvent()
+
+    data class SharedWith(
+        override val username: String,
+        override val timestamp: Long,
+        override val filePath: String,
+        val sharedWith: String,
+        val status: Set<AccessRight>
     ) : ActivityEvent()
 }
 
 val ActivityEvent.type: ActivityEventType get() = when (this) {
     is ActivityEvent.Download -> ActivityEventType.download
-    is ActivityEvent.Updated -> ActivityEventType.updated
     is ActivityEvent.Favorite -> ActivityEventType.favorite
     is ActivityEvent.Inspected -> ActivityEventType.inspected
     is ActivityEvent.Moved -> ActivityEventType.moved
     is ActivityEvent.Deleted -> ActivityEventType.deleted
+    is ActivityEvent.UsedByApplication -> ActivityEventType.usedInApp
+    is ActivityEvent.DirectoryCreated -> ActivityEventType.directoryCreated
+    is ActivityEvent.UpdatedAcl -> ActivityEventType.updatedACL
+    is ActivityEvent.Uploaded -> ActivityEventType.upload
+    is ActivityEvent.Reclassify -> ActivityEventType.reclassify
+    is ActivityEvent.Copy -> ActivityEventType.copy
 }
 
 data class ActivityEventGroup(

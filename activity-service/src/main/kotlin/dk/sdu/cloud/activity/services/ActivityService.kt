@@ -6,6 +6,7 @@ import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.ActivityFilter
 import dk.sdu.cloud.activity.api.type
 import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.NormalizedScrollRequest
@@ -18,9 +19,6 @@ class ActivityService(
     private val activityEventElasticDao: ActivityEventElasticDao,
     private val fileLookupService: FileLookupService
 ) {
-    fun insertBatch(events: List<ActivityEvent>) {
-        activityEventElasticDao.insertBatch(events)
-    }
 
     fun deleteOldActivity(numberOfDaysInPast: Long) {
         activityEventElasticDao.deleteOldActivity(numberOfDaysInPast)
@@ -34,14 +32,14 @@ class ActivityService(
         causedBy: String? = null
     ): Page<ActivityEvent> {
         val fileStat = fileLookupService.lookupFile(path, userAccessToken, user, causedBy)
-        return activityEventElasticDao.findByFileId(pagination, fileStat.fileId)
+        return activityEventElasticDao.findByFilePath(pagination, fileStat.path)
     }
 
-    fun findEventsForFileId(
+    fun findEventsForFilePath(
         pagination: NormalizedPaginationRequest,
-        fileId: String
+        filePath: String
     ): Page<ActivityEvent> {
-        return activityEventElasticDao.findByFileId(pagination, fileId)
+        return activityEventElasticDao.findByFilePath(pagination, filePath)
     }
 
     fun findEventsForUser(
