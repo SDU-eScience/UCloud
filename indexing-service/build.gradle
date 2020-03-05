@@ -20,6 +20,7 @@ dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:file-api:$fileApiVersion"
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
+    compile 'net.java.dev.jna:jna:5.2.0'
     compile 'mbuhot:eskotlin:0.4.0'
 
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"

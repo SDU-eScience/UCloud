@@ -27,7 +27,7 @@ class QueryController(
                     itemsInTotal = results.itemsInTotal,
                     itemsPerPage = results.itemsPerPage,
                     pageNumber = results.pageNumber,
-                    items = queryService.lookupInheritedSensitivity(results.items)
+                    items = results.items.map { it.toMaterializedFile() }
                 )
             )
         }

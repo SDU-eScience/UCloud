@@ -16,11 +16,9 @@ interface IndexQueryService {
 
     fun query(
         query: FileQuery,
-        paging: NormalizedPaginationRequest,
+        paging: NormalizedPaginationRequest?,
         sorting: SortRequest? = null
-    ): Page<StorageFile>
+    ): Page<ElasticIndexedFile>
 
     fun statisticsQuery(statisticsRequest: StatisticsRequest): StatisticsResponse
-
-    fun lookupInheritedSensitivity(results: List<StorageFile>): List<StorageFile>
 }

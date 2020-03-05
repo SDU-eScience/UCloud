@@ -62,7 +62,7 @@ class ElasticIndexingTest {
     @Test
     fun `test migration`() {
         val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
+        val elastic = FileSystemScanner(rest)
         every { rest.indices().create(any<CreateIndexRequest>(), any()) } answers {
             val response = mockk<CreateIndexResponse>()
             every { response.isAcknowledged } returns true
@@ -74,7 +74,7 @@ class ElasticIndexingTest {
     @Test(expected = RuntimeException::class)
     fun `test migration - failure`() {
         val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
+        val elastic = FileSystemScanner(rest)
         every { rest.indices().create(CreateIndexRequest(any()), any()) } answers {
             val response = mockk<CreateIndexResponse>()
             every { response.isAcknowledged } returns false
@@ -86,7 +86,7 @@ class ElasticIndexingTest {
     @Test(expected = ElasticsearchStatusException::class)
     fun `test migration - exception in delete`() {
         val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
+        val elastic = FileSystemScanner(rest)
         every { rest.indices().delete(any(), any()) } answers {
             throw ElasticsearchStatusException("Something went wrong", RestStatus.BAD_REQUEST)
         }
@@ -96,7 +96,7 @@ class ElasticIndexingTest {
     @Test
     fun `create or modified Test`() {
         val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
+        val elastic = FileSystemScanner(rest)
 
         every { rest.update(any(), any()) } answers {
             val response = mockk<UpdateResponse>(relaxed = true)
@@ -110,7 +110,7 @@ class ElasticIndexingTest {
     @Test
     fun `Delete event test`() {
         val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
+        val elastic = FileSystemScanner(rest)
 
         every { rest.delete(any(), any()) } answers {
             val response = DeleteResponse(mockk(relaxed = true))
@@ -124,7 +124,7 @@ class ElasticIndexingTest {
     fun `Moved test`() {
 
         val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
+        val elastic = FileSystemScanner(rest)
 
         every { rest.update(any(), any()) } answers {
             val response = UpdateResponse(mockk(relaxed = true))
@@ -138,7 +138,7 @@ class ElasticIndexingTest {
     fun `Sensitivity update test`() {
 
         val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
+        val elastic = FileSystemScanner(rest)
 
         every { rest.update(any(), any()) } answers {
             val response = mockk<UpdateResponse>()
@@ -151,7 +151,7 @@ class ElasticIndexingTest {
     @Test
     fun `Invalidated test`() {
         val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
+        val elastic = FileSystemScanner(rest)
 
         every { rest.update(any(), any()) } answers {
             val response = UpdateResponse(mockk())
@@ -165,7 +165,7 @@ class ElasticIndexingTest {
     fun `Bulk test`() {
         val events = listOf(eventCreatedOrRefreshed, eventSensitivity, eventMoved)
         val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
+        val elastic = FileSystemScanner(rest)
 
         every { rest.update(any(), any()) } answers {
             val response = UpdateResponse(mockk())
@@ -179,7 +179,7 @@ class ElasticIndexingTest {
     fun `Bulk test - error`() {
         val events = listOf(eventCreatedOrRefreshed, eventDeleted)
         val rest = mockk<RestHighLevelClient>(relaxed = true)
-        val elastic = ElasticIndexingService(rest)
+        val elastic = FileSystemScanner(rest)
 
         every { rest.bulk(any(), any()) } answers {
             val response = mockk<BulkResponse>()

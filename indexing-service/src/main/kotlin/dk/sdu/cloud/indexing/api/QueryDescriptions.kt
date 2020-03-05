@@ -107,16 +107,6 @@ data class FileQuery(
     val roots: List<String>,
 
     /**
-     * Predicates for [StorageFile.fileId]
-     */
-    val id: PredicateCollection<String>? = null,
-
-    /**
-     * Predicates for [StorageFile.ownerName]
-     */
-    val owner: PredicateCollection<String>? = null,
-
-    /**
      * Query for file names. Only the file name is considered.
      *
      * The query is allowed to do expansions, making it useful for end-user queries.
@@ -142,21 +132,6 @@ data class FileQuery(
      * Predicate for file depth. Only exact matches are considered.
      */
     val fileDepth: PredicateCollection<Comparison<Int>>? = null,
-
-    /**
-     * Predicate for created at. Only exact matches are considered.
-     */
-    val createdAt: PredicateCollection<Comparison<Long>>? = null,
-
-    /**
-     * Predicate for modified at. Only exact matches are considered.
-     */
-    val modifiedAt: PredicateCollection<Comparison<Long>>? = null,
-
-    /**
-     * Predicate for sensitivity. Only exact matches are considered.
-     */
-    val sensitivity: PredicateCollection<SensitivityLevel>? = null,
 
     /**
      * Predicate for [StorageFile.size]. Only exact matches are considered.
@@ -226,7 +201,10 @@ data class StatisticsRequest(
 
     // This is currently very limited. We can figure out what we need later.
     val size: NumericStatisticsRequest? = null,
-    val fileDepth: NumericStatisticsRequest? = null
+    val fileDepth: NumericStatisticsRequest? = null,
+    val recursiveEntries: Boolean = false,
+    val recursiveFiles: Boolean = false,
+    val recursiveSubDirs: Boolean = false
 ) : WithFileQuery
 
 /**
@@ -235,7 +213,10 @@ data class StatisticsRequest(
 data class StatisticsResponse(
     val count: Long,
     val size: NumericStatistics?,
-    val fileDepth: NumericStatistics?
+    val fileDepth: NumericStatistics?,
+    val recursiveEntries: Long?,
+    val recursiveFiles: Long?,
+    val recursiveSubDirs: Long?
 )
 
 data class SortRequest(
@@ -246,11 +227,7 @@ data class SortRequest(
 enum class SortableField {
     FILE_NAME,
     FILE_TYPE,
-
-    SIZE,
-
-    CREATED_AT,
-    MODIFIED_AT
+    SIZE
 }
 
 enum class SortDirection {

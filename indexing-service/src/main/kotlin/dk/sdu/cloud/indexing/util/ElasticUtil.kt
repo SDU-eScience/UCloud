@@ -28,7 +28,7 @@ import kotlin.coroutines.resumeWithException
 
 inline fun <reified T : Any> SearchResponse.paginated(
     mapper: ObjectMapper,
-    paging: NormalizedPaginationRequest
+    paging: NormalizedPaginationRequest?
 ): Page<T> {
     val items = hits.hits
         .filter { it.hasSource() }
@@ -45,9 +45,9 @@ inline fun <reified T : Any> SearchResponse.paginated(
         }
 
     return Page(
-        hits.totalHits.value.toInt(),
-        paging.itemsPerPage,
-        paging.page,
+        hits.totalHits?.value?.toInt() ?: 0,
+        paging?.itemsPerPage ?: hits.totalHits?.value?.toInt() ?: 0,
+        paging?.page ?: 0,
         items
     )
 }
@@ -67,7 +67,7 @@ inline fun <reified T : Any> SearchResponse.mapped(mapper: ObjectMapper): List<T
 
 inline fun <reified T : Any> RestHighLevelClient.search(
     mapper: ObjectMapper,
-    paging: NormalizedPaginationRequest,
+    paging: NormalizedPaginationRequest?,
     vararg indices: String,
     noinline builder: SearchSourceBuilder.() -> QueryBuilder
 ): Page<T> {

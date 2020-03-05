@@ -2,13 +2,7 @@ package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.ownSensitivityLevel
-import dk.sdu.cloud.file.api.parents
-import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.Comparison
 import dk.sdu.cloud.indexing.api.ComparisonOperator
@@ -21,13 +15,10 @@ import dk.sdu.cloud.indexing.api.SortRequest
 import dk.sdu.cloud.indexing.api.SortableField
 import dk.sdu.cloud.indexing.api.StatisticsRequest
 import dk.sdu.cloud.indexing.api.StatisticsResponse
-import dk.sdu.cloud.indexing.util.mapped
-import dk.sdu.cloud.indexing.util.parent
 import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.mapItems
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.range
@@ -63,17 +54,15 @@ class ElasticQueryService(
 
     override fun query(
         query: FileQuery,
-        paging: NormalizedPaginationRequest,
+        paging: NormalizedPaginationRequest?,
         sorting: SortRequest?
-    ): Page<StorageFile> {
+    ): Page<ElasticIndexedFile> {
         return elasticClient.search<ElasticIndexedFile>(mapper, paging, FILES_INDEX) {
             if (sorting != null) {
                 val field = when (sorting.field) {
                     SortableField.FILE_NAME -> ElasticIndexedFile.FILE_NAME_KEYWORD
                     SortableField.FILE_TYPE -> ElasticIndexedFile.FILE_TYPE_FIELD
                     SortableField.SIZE -> ElasticIndexedFile.SIZE_FIELD
-                    SortableField.CREATED_AT -> ElasticIndexedFile.TIMESTAMP_CREATED_FIELD
-                    SortableField.MODIFIED_AT -> ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD
                 }
 
                 val direction = when (sorting.direction) {
@@ -87,41 +76,6 @@ class ElasticQueryService(
             searchBasedOnQuery(query).also {
                 log.debug(it.toString())
             }
-        }.mapItems { it.toMaterializedFile() }
-    }
-
-    override fun lookupInheritedSensitivity(results: List<StorageFile>): List<StorageFile> {
-        val allParents =
-            results.flatMap { it.path.parents() }.map { it.normalize() }.filter { it.components().size > 2 }.toSet()
-        val allParentFiles = elasticClient
-            .search(FILES_INDEX) {
-                source(SearchSourceBuilder().apply {
-                    size(allParents.size)
-                    query(
-                        bool {
-                            filter {
-                                terms {
-                                    ElasticIndexedFile.PATH_KEYWORD to allParents.toList()
-                                }
-                            }
-                        }
-                    )
-                })
-
-                log.debug(source().toString())
-            }
-            .mapped<ElasticIndexedFile>(mapper)
-            .map { it.path to it.sensitivity }
-            .toMap()
-
-        fun lookupSensitivity(path: String): SensitivityLevel {
-            if (path.components().size <= 2) return SensitivityLevel.PRIVATE
-            return allParentFiles[path.normalize()] ?: lookupSensitivity(path.parent())
-        }
-
-        return results.map {
-            val sensitivity = it.ownSensitivityLevel ?: lookupSensitivity(it.path.parent())
-            it.withSensitivity(sensitivity)
         }
     }
 
@@ -147,15 +101,10 @@ class ElasticQueryService(
                         list.add(terms { ElasticIndexedFile.PATH_FIELD to filteredRoots })
                     }
 
-                    id.addClausesIfExists(list, ElasticIndexedFile.ID_FIELD)
-                    owner.addClausesIfExists(list, ElasticIndexedFile.OWNER_FIELD)
                     fileNameExact.addClausesIfExists(list, ElasticIndexedFile.FILE_NAME_FIELD)
                     extensions.addClausesIfExists(list, ElasticIndexedFile.FILE_NAME_EXTENSION)
                     fileTypes.addClausesIfExists(list, ElasticIndexedFile.FILE_TYPE_FIELD)
                     fileDepth.addClausesIfExists(list, ElasticIndexedFile.FILE_DEPTH_FIELD)
-                    createdAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_CREATED_FIELD)
-                    modifiedAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD)
-                    sensitivity.addClausesIfExists(list, ElasticIndexedFile.SENSITIVITY_FIELD)
                     size.addClausesIfExists(list, ElasticIndexedFile.SIZE_FIELD)
                 }
             }.also {
@@ -260,7 +209,10 @@ class ElasticQueryService(
         return StatisticsResponse(
             result.hits?.totalHits?.value ?: 0,
             size,
-            fileDepth
+            fileDepth,
+            TODO(),
+            TODO(),
+            TODO()
         )
     }
 
@@ -367,7 +319,7 @@ class ElasticQueryService(
     companion object : Loggable {
         override val log = logger()
 
-        private const val FILES_INDEX = ElasticIndexingService.FILES_INDEX
+        private const val FILES_INDEX = FileSystemScanner.FILES_INDEX
 
         private const val FILE_NAME_QUERY_MAX_EXPANSIONS = 10
     }
