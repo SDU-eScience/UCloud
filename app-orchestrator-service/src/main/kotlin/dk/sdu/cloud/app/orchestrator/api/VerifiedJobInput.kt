@@ -17,4 +17,19 @@ class VerifiedJobInput(
     }
 
     fun asMap(): Map<String, ParsedApplicationParameter?> = Collections.unmodifiableMap(backingData)
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as VerifiedJobInput
+
+        if (backingData != other.backingData) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return backingData.hashCode()
+    }
 }

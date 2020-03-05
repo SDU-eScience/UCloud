@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.CephConfiguration
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.service.Loggable
@@ -22,12 +23,23 @@ class WorkspaceService(private val cephConfiguration: CephConfiguration = CephCo
             persistentVolumeClaim = PersistentVolumeClaimVolumeSource("cephfs", false)
         }
 
-        job.mounts.forEach { mount ->
+        data class FileMount(val path: String, val readOnly: Boolean) {
+            val fileName = path.normalize().fileName()
+        }
+        val fileMounts = run {
+            val allMounts =
+                job.mounts.map { FileMount(it.sourcePath, it.readOnly) } +
+                        job.files.map { FileMount(it.sourcePath, it.readOnly) }
+
+            allMounts.associateBy { it.path }.values
+        }
+
+        fileMounts.forEach { mount ->
             mounts.add(
                 volumeMount {
                     name = "data"
                     readOnly = mount.readOnly
-                    mountPath = joinPath("/work", mount.destinationFileName)
+                    mountPath = joinPath("/work", mount.fileName)
                     subPath = buildString {
                         if (cephConfiguration.subfolder.isNotEmpty()) {
                             append(
@@ -37,10 +49,34 @@ class WorkspaceService(private val cephConfiguration: CephConfiguration = CephCo
                             )
                             append("/")
                         }
-                        append(mount.sourcePath.normalize().removePrefix("/"))
+                        append(mount.path.normalize().removePrefix("/"))
                     }
                 }
             )
+        }
+
+        val outputFolder = job.outputFolder
+        if (outputFolder != null) {
+            mounts.add(
+                volumeMount {
+                    name = "data"
+                    mountPath = "/work"
+                    readOnly = false
+                    subPath = buildString {
+                        if (cephConfiguration.subfolder.isNotEmpty()) {
+                            append(
+                                cephConfiguration.subfolder
+                                    .removePrefix("/")
+                                    .removeSuffix("/")
+                            )
+                            append("/")
+                        }
+                        append(outputFolder.normalize().removePrefix("/"))
+                    }
+                }
+            )
+        } else {
+            log.warn("No output folder found!")
         }
 
         return PreparedWorkspace(mounts, listOf(volume))

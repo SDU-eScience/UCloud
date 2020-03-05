@@ -134,9 +134,6 @@ data class JobInformationEntity(
 
     override var createdAt: Date,
 
-    @Column(length = 1024)
-    var username: String?,
-
     @Type(
         type = JSONB_LIST_TYPE,
         parameters = [
@@ -183,8 +180,8 @@ class JobHibernateDao(
             nodes = job.nodes,
             tasksPerNode = job.tasksPerNode,
             parameters = job.jobInput.asMap(),
-            files = job.files,
-            mounts = job.mounts,
+            files = job.files.toList(),
+            mounts = job.mounts.toList(),
             maxTimeHours = job.maxTime.hours,
             maxTimeMinutes = job.maxTime.minutes,
             maxTimeSeconds = job.maxTime.seconds,
@@ -194,8 +191,7 @@ class JobHibernateDao(
             startedAt = null,
             modifiedAt = Date(job.modifiedAt),
             createdAt = Date(job.createdAt),
-            username = job.user,
-            peers = job.peers,
+            peers = job.peers.toList(),
             refreshToken = refreshToken,
             reservationType = job.reservation.name,
             reservedCpus = job.reservation.cpu,
@@ -390,29 +386,28 @@ class JobHibernateDao(
     ): VerifiedJobWithAccessToken? {
         val withoutTool = VerifiedJobWithAccessToken(
             VerifiedJob(
-                appStoreService.findByNameAndVersion(application.name, application.version)
-                    ?: return null, // return null in case application no longer exists (issue #915)
+                systemId, // return null in case application no longer exists (issue #915)
                 name,
-                files,
-                systemId,
                 owner,
-                nodes,
-                tasksPerNode,
-                SimpleDuration(maxTimeHours, maxTimeMinutes, maxTimeSeconds),
-                VerifiedJobInput(parameters),
-                backendName,
-                state,
-                status,
-                failedState,
-                archiveInCollection,
+                application = appStoreService.findByNameAndVersion(application.name, application.version)
+                    ?: return null,
+                backend = backendName,
+                nodes = nodes,
+                maxTime = SimpleDuration(maxTimeHours, maxTimeMinutes, maxTimeSeconds),
+                tasksPerNode = tasksPerNode,
+                reservation = MachineReservation(reservationType, reservedCpus, reservedMemoryInGigs),
+                jobInput = VerifiedJobInput(parameters),
+                files = files?.toSet(),
+                _mounts = mounts?.toSet(),
+                _peers = peers?.toSet(),
+                currentState = state,
+                failedState = failedState,
+                status = status,
+                archiveInCollection = archiveInCollection,
+                outputFolder = outputFolder,
                 createdAt = createdAt.time,
                 modifiedAt = modifiedAt.time,
-                _mounts = mounts,
-                startedAt = startedAt?.time,
-                user = username ?: owner,
-                _peers = peers,
-                reservation = MachineReservation(reservationType, reservedCpus, reservedMemoryInGigs),
-                outputFolder = outputFolder
+                startedAt = startedAt?.time
             ),
             accessToken,
             refreshToken

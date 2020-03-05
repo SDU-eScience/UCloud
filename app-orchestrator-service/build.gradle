@@ -1,6 +1,6 @@
 group 'dk.sdu.cloud'
 
-version '2.0.0-storage-events.0'
+version '2.0.0-storage-events.1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
@@ -10,10 +10,9 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 buildscript {
     ext.serviceCommonVersion = "1.13.0-storage-events.1"
     ext.authApiVersion = "1.27.0"
-    ext.appStoreApiVersion = "0.12.0-enum-widget"
+    ext.appStoreApiVersion = "0.13.0-storage-events.0"
     ext.appLicenseApiVersion = "0.1.5"
     ext.fileApiVersion = "4.0.0-storage-events.3"
-    ext.appFsVersion = "0.2.5"
 }
 
 repositories {
@@ -36,7 +35,6 @@ sduCloud.createTasksForApiJar(
         "app.orchestrator",
         [
                 "dk.sdu.cloud:app-store-api:$appStoreApiVersion",
-                "dk.sdu.cloud:file-api:$fileApiVersion",
-                "dk.sdu.cloud:app-fs-api:$appFsVersion"
+                "dk.sdu.cloud:file-api:$fileApiVersion"
         ]
 )

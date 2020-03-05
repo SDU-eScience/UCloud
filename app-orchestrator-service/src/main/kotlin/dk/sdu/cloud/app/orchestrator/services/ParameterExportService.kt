@@ -5,7 +5,7 @@ import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.service.Loggable
 
-data class ExportedMount(val ref: String, val readOnly: Boolean)
+data class ExportedMount(val ref: String)
 
 data class ExportedParameters(
     val siteVersion: Int,
@@ -25,13 +25,12 @@ class ParameterExportService {
             rawParameters,
             verifiedJob.nodes,
             verifiedJob.maxTime,
-            verifiedJob.mounts.map { ExportedMount(it.sourcePath, it.readOnly) }
+            verifiedJob.mounts.map { ExportedMount(it.sourcePath) }
         )
     }
 
     companion object : Loggable {
         override val log = logger()
-
         const val VERSION = 1
     }
 }

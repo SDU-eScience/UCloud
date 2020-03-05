@@ -6,7 +6,7 @@ import io.fabric8.kubernetes.api.model.HostAlias
 import io.ktor.http.HttpStatusCode
 
 class HostAliasesService(private val k8: K8Dependencies) {
-    fun findAliasesForPeers(peers: List<ApplicationPeer>): List<HostAlias> {
+    fun findAliasesForPeers(peers: Collection<ApplicationPeer>): List<HostAlias> {
         return peers.flatMap { findAliasesForRunningJob(it.jobId, it.name) }
     }
 

@@ -66,13 +66,11 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             @Suppress("UNCHECKED_CAST")
             val params = inputParameter as? Map<String, Any> ?: throw IllegalArgumentException("Invalid user input")
             val source = params["source"] as String? ?: throw IllegalArgumentException("Missing source property")
-            val destination =
-                params["destination"] as String? ?: throw IllegalArgumentException("Missing destination property")
 
-            return FileTransferDescription(source, destination)
+            return FileTransferDescription(source)
         }
 
-        override fun toInvocationArgument(entry: FileTransferDescription): String = entry.destination
+        override fun toInvocationArgument(entry: FileTransferDescription): String = entry.invocationParameter
     }
 
     data class InputDirectory(
@@ -86,15 +84,10 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             @Suppress("UNCHECKED_CAST")
             val params = inputParameter as? Map<String, Any> ?: throw IllegalArgumentException("Invalid user input")
             val source = params["source"] as String? ?: throw IllegalArgumentException("Missing source property")
-            val destination =
-                params["destination"] as String? ?: throw IllegalArgumentException("Missing destination property")
-            val readOnly = params["readOnly"] as? Boolean ?: false
-
-            return FileTransferDescription(source, destination, readOnly)
+            return FileTransferDescription(source)
         }
 
-        override fun toInvocationArgument(entry: FileTransferDescription): String =
-            entry.destination.removeSuffix("/") + "/"
+        override fun toInvocationArgument(entry: FileTransferDescription): String = entry.invocationParameter
     }
 
     data class Text(
@@ -249,10 +242,17 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             @Suppress("UNCHECKED_CAST")
             val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad license server")
             val licenseServerId = asMap["id"] as? String? ?: throw IllegalArgumentException("Missing 'licenseServerId'")
-            val licenseServerAddress = asMap["address"] as? String? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerAddress'")
-            val licenseServerPort = asMap["port"] as? Int? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerPort'")
+            val licenseServerAddress = asMap["address"] as? String?
+                ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerAddress'")
+            val licenseServerPort =
+                asMap["port"] as? Int? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerPort'")
             val licenseServerKey = asMap["license"] as? String?  // Allowed to be null
-            return LicenseServerApplicationParameter(licenseServerId, licenseServerAddress, licenseServerPort, licenseServerKey)
+            return LicenseServerApplicationParameter(
+                licenseServerId,
+                licenseServerAddress,
+                licenseServerPort,
+                licenseServerKey
+            )
         }
 
         override fun toInvocationArgument(entry: LicenseServerApplicationParameter): String {
@@ -292,8 +292,7 @@ sealed class ParsedApplicationParameter {
 
 data class FileTransferDescription(
     val source: String,
-    val destination: String,
-    val readOnly: Boolean = false
+    val invocationParameter: String = source
 ) : ParsedApplicationParameter() {
     override val type = "file"
 }

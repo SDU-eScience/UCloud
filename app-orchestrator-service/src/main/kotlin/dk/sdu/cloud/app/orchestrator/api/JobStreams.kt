@@ -55,13 +55,6 @@ enum class JobState {
 data class ValidatedFileForUpload(
     val id: String,
     val stat: StorageFile,
-    val destinationFileName: String,
-    val destinationPath: String,
     val sourcePath: String,
-    val needsExtractionOfType: FileForUploadArchiveType?,
     val readOnly: Boolean = false
 )
-
-enum class FileForUploadArchiveType {
-    ZIP
-}

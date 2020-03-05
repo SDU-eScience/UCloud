@@ -43,7 +43,7 @@ import kotlinx.coroutines.runBlocking
  * updates (e.g. state change). In reaction to life-time events the orchestrator will update
  * its internal state and potentially send new updates to the relevant computation backends.
  *
- * Below is a description of how a [VerifiedJob] moves between its states ([VerifiedJob.currentState]):
+ * Below is a description of how a [VerifiedJob] moves between its states ([currentState]):
  *
  * - A user starts an application (see [startJob])
  *   - Sets state to [JobState.VALIDATED]. Backends notified via [ComputationDescriptions.jobVerified]
@@ -145,21 +145,23 @@ class JobOrchestrator<DBSession>(
                 throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "Job with same parameters already running")
             }
         }
-        val initialState = JobStateChange(jobWithToken.job.id, JobState.PREPARED)
-        log.debug("Notifying compute")
-        backend.jobVerified.call(jobWithToken.job, serviceClient).orThrow()
-
         log.debug("Switching state and preparing job...")
         val (outputFolder) = jobFileService.initializeResultFolder(jobWithToken)
         jobFileService.exportParameterFile(outputFolder, jobWithToken, req.parameters)
+        val jobWithOutputFolder = jobWithToken.job.copy(outputFolder = outputFolder)
+        val jobWithTokenAndFolder = jobWithToken.copy(job = jobWithOutputFolder)
+
+        log.debug("Notifying compute")
+        val initialState = JobStateChange(jobWithToken.job.id, JobState.PREPARED)
+        backend.jobVerified.call(jobWithOutputFolder, serviceClient).orThrow()
 
         db.withTransaction { session ->
             jobDao.create(
                 session,
-                jobWithToken.copy(job = jobWithToken.job.copy(outputFolder = outputFolder))
+                jobWithTokenAndFolder
             )
         }
-        handleStateChange(jobWithToken, initialState)
+        handleStateChange(jobWithTokenAndFolder, initialState)
 
         return initialState.systemId
     }
