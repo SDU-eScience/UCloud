@@ -32,23 +32,23 @@ function newProjectMember(): ProjectMember {
 
 const View: React.FunctionComponent = () => {
     const {id} = useParams<{id: string}>();
-    //const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
-    const project = {
+    const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
+    /* const project = {
         data: emptyProject("Hello"),
         loading: false,
         error: {} as {why?: string}
-    };
+    }; */
 
-    for (let i = 0; i < 10; i++) project.data.members.push(newProjectMember());
+    // for (let i = 0; i < 10; i++) project.data.members.push(newProjectMember());
 
     const role = roleInProject(project.data);
     const allowManagement = role === ProjectRole.PI || Client.userIsAdmin;
     const newMemberRef = useRef<HTMLInputElement>(null);
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
 
-    // const reload = (): void => setProjectParams(viewProject({id}));
+    const reload = (): void => setProjectParams(viewProject({id}));
 
-    // useEffect(() => reload(), [id]);
+    useEffect(() => reload(), [id]);
 
     const onSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
@@ -63,7 +63,7 @@ const View: React.FunctionComponent = () => {
                 }
             }));
             inputField.value = "";
-            // reload();
+            reload();
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed adding new "));
         }
