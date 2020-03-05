@@ -1,17 +1,14 @@
 import * as React from "react";
-import {Card, Icon, Button, Box, Flex} from "ui-components";
+import {Card, Icon, Button, Text} from "ui-components";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
-import * as Heading from "ui-components/Heading";
-import {Text} from "ui-components"
-import * as ReactModal from "react-modal";
 import {emptyPage} from "DefaultObjects";
-import {useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
 import {Page} from "Types";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {defaultAvatar} from "UserSettings/Avataaar";
+import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {GridCardGroup} from "ui-components/Grid";
+import {useHistory, useParams} from "react-router";
+import DetailedGroupView from "./DetailedGroupView";
 
 interface GroupWithSummary {
     group: string;
@@ -27,47 +24,77 @@ function newGroupWithSummary(): GroupWithSummary {
     };
 }
 
-function GroupsOverview(): JSX.Element {
+const baseContext = "/projects/groups/";
+
+function listGroupMembersRequest(props: ListGroupMembersRequestProps): APICallParameters<ListGroupMembersRequestProps> {
+    return {
+        method: "GET",
+        path: `${baseContext}members`,
+        payload: props
+    };
+}
+
+interface ListGroupMembersRequestProps {
+    group: string;
+    itemsPerPage?: number;
+    page?: number;
+}
+
+
+
+function GroupsOverview(): JSX.Element | null {
     // TODO -- Add groups. Remove groups.
     // File imports of users
-    const [groups, doFetch, params] = useCloudAPI<Page<GroupWithSummary>>({}, emptyPage);
-    const [activeGroup, setActiveGroup] = React.useState<GroupWithSummary | null>(null);
-
-    if (!groups.data.items.length) {
-        for (let i = 0; i < 10; i++) groups.data.items.push(newGroupWithSummary());
-        groups.data.itemsInTotal = 10;
-        groups.data.items[5].group = groups.data.items[5].group.slice(0, 10);
-        groups.data.items[9].group = groups.data.items[9].group.concat(groups.data.items[9].group).split(" ").join();
-        groups.data.items[9].group = groups.data.items[9].group.concat(groups.data.items[9].group);
-    }
+    const history = useHistory();
+    const {group} = useParams<{group?: string}>();
+    const [groupSummaries, doFetch, params] = useCloudAPI<Page<GroupWithSummary>>({}, {...emptyPage});
+    const [activeGroup, fetchActiveGroup, activeGroupParams] = useCloudAPI<Page<string>>(
+        listGroupMembersRequest({group: group ?? ""}),
+        {...emptyPage}
+    );
 
     React.useEffect(() => {
-        console.log("Params changed");
-    }, [params]);
+        if (group)
+            fetchActiveGroup(listGroupMembersRequest({group: group ?? ""}));
+    }, [group]);
+
+    if (group) {
+        if (activeGroup.loading) return <LoadingSpinner size={24} />;
+        if (activeGroup.error) return <MainContainer main={
+            <Text fontSize={"24px"}>Could not fetch '{group}'.</Text>
+        } />;
+        return <DetailedGroupView name={group} members={activeGroup.data} />;
+    }
 
     return <MainContainer
         sidebar={<Button width="100%">New Group</Button>}
         main={(
-            <GridCardGroup minmax={300}>
-                {groups.data.items.map(group => (
-                    <Card cursor="pointer" onClick={() => setActiveGroup(group)} key={group.group} overflow="hidden" p="8px" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
-                        <SimpleGroupView group={group} />
-                    </Card>
-                ))}
-            </GridCardGroup>
+            <Pagination.List
+                loading={groupSummaries.loading}
+                onPageChanged={page => {throw Error("TODO");}}
+                page={groupSummaries.data}
+                pageRenderer={page =>
+                    <GridCardGroup minmax={300}>
+                        {page.items.map(g => (
+                            <Card
+                                onClick={() => history.push(`/projects/groups/${encodeURI(g.group)}`)}
+                                key={g.group}
+                                overflow="hidden"
+                                p="8px"
+                                width={1}
+                                boxShadow="sm"
+                                borderWidth={1}
+                                borderRadius={6}
+                            >
+                                <SimpleGroupView group={g} />
+                            </Card>
+                        ))}
+                    </ GridCardGroup>
+                }
+                customEmptyPage={<Text></Text>}
+            />
         )}
         header={null}
-        additional={
-            <ReactModal
-                shouldCloseOnEsc
-                shouldCloseOnOverlayClick
-                onRequestClose={() => setActiveGroup(null)}
-                style={defaultModalStyle}
-                isOpen={activeGroup != null}
-            >
-                <DetailedGroupView group={activeGroup ?? newGroupWithSummary()} />
-            </ReactModal>
-        }
     />;
 }
 
@@ -84,30 +111,6 @@ function SimpleGroupView({group}: GroupViewProps): JSX.Element {
     );
 }
 
-function DetailedGroupView({group}: GroupViewProps): JSX.Element {
-    const [avatars, setAvatars] = React.useState([]);
-    return (
-        <div>
-            <div>
-                <Text
-                    style={{wordBreak: "break-word"}}
-                    p="6px"
-                    fontSize="25px"
-                    width="100%"
-                >{group.group}</Text>
-                <Heading.h5>Members: {group.numberOfMembers}</Heading.h5>
-            </div>
-            <div>
-                <Box overflowY="scroll">
-                    {group.members.map(member =>
-                        <Flex key={member}>
-                            <UserAvatar avatar={defaultAvatar} /> <Text mt="10px">{member}</Text>
-                        </Flex>
-                    )}
-                </Box>
-            </div>
-        </div>
-    );
-}
+
 
 export default GroupsOverview;
