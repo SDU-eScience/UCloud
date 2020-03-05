@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.15.11'
+version '1.16.0-storage-events.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.indexing.MainKt"
@@ -11,9 +11,9 @@ repositories {
 }
 
 buildscript {
-    ext.serviceCommonVersion = "1.12.3"
-    ext.fileApiVersion = "3.0.7"
-    ext.authApiVersion = "1.26.4"
+    ext.serviceCommonVersion = "1.13.0-storage-events.1"
+    ext.fileApiVersion = "4.0.0-storage-events.3"
+    ext.authApiVersion = "1.27.0"
 }
 
 dependencies {

@@ -1,7 +1,6 @@
 package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
@@ -28,9 +27,7 @@ import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.mapItems
-import io.ktor.http.HttpStatusCode
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.range
@@ -50,11 +47,11 @@ import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 
 /**
- * An implementation of [IndexQueryService] and [ReverseLookupService] using an Elasticsearch backend.
+ * An implementation of [IndexQueryService] using an Elasticsearch backend.
  */
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient
-) : IndexQueryService, ReverseLookupService {
+) : IndexQueryService {
     private val mapper = defaultMapper
 
     override fun findFileByIdOrNull(id: String): StorageFile? {
@@ -62,33 +59,6 @@ class ElasticQueryService(
             ?.takeIf { it.isExists }
             ?.let { mapper.readValue<ElasticIndexedFile>(it.sourceAsString) }
             ?.toMaterializedFile()
-    }
-
-    override fun reverseLookup(fileId: String): String {
-        return reverseLookupBatch(listOf(fileId)).single() ?: throw RPCException("Not found", HttpStatusCode.BadRequest)
-    }
-
-    override fun reverseLookupBatch(fileIds: List<String>): List<String?> {
-        return reverseLookupFileBatch(fileIds).map { it?.path }
-    }
-
-    override fun reverseLookupFileBatch(fileIds: List<String>): List<StorageFile?> {
-        if (fileIds.size > MAX_FILES_IN_REVERSE_BATCH_LOOKUP) throw RPCException(
-            "Bad request. Too many file IDs",
-            HttpStatusCode.BadRequest
-        )
-
-        val req = PaginationRequest(MAX_FILES_IN_REVERSE_BATCH_LOOKUP, 0).normalize()
-        val files = elasticClient.search<ElasticIndexedFile>(mapper, req, FILES_INDEX) {
-            bool {
-                filter {
-                    terms { ElasticIndexedFile.ID_FIELD to fileIds }
-                }
-            }
-        }.items.associateBy<ElasticIndexedFile, String> { file: ElasticIndexedFile ->
-            file.id
-        }
-        return fileIds.map { files[it]?.toMaterializedFile() }
     }
 
     override fun query(
@@ -288,7 +258,7 @@ class ElasticQueryService(
         }
 
         return StatisticsResponse(
-            result.hits.totalHits.value,
+            result.hits?.totalHits?.value ?: 0,
             size,
             fileDepth
         )
@@ -398,8 +368,6 @@ class ElasticQueryService(
         override val log = logger()
 
         private const val FILES_INDEX = ElasticIndexingService.FILES_INDEX
-
-        private const val MAX_FILES_IN_REVERSE_BATCH_LOOKUP = 100
 
         private const val FILE_NAME_QUERY_MAX_EXPANSIONS = 10
     }

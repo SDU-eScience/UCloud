@@ -16,7 +16,6 @@ import dk.sdu.cloud.file.api.size
 /**
  * An [StorageFile] as it is represented in elasticsearch
  *
- * @see dk.sdu.cloud.indexing.services.IndexingService
  * @see dk.sdu.cloud.indexing.services.IndexQueryService
  */
 data class ElasticIndexedFile(
