@@ -9,7 +9,6 @@ data class ActivityEventFilter(
     val minTimestamp: Long? = null,
     val maxTimestamp: Long? = null,
     val type: ActivityEventType? = null,
-    val fileId: String? = null,
     val user: String? = null,
     val offset: Int? = null
 )

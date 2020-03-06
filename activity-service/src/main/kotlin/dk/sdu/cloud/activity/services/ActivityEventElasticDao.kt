@@ -3,6 +3,7 @@ package dk.sdu.cloud.activity.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.activity.api.ActivityEvent
+import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.store.api.ApplicationParameter
 import dk.sdu.cloud.app.store.api.FileTransferDescription
@@ -173,7 +174,6 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         val request = SearchRequest(*ALL_RELEVATE_INDCIES).apply {
             SearchSourceBuilder().query(
                 QueryBuilders.boolQuery()
-                    //App.start
                     .should(
                         QueryBuilders.multiMatchQuery(
                             user,
@@ -198,8 +198,51 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         return Page(numberOfItems, pagination.itemsPerPage, pagination.page, activityEventList)
     }
 
-    override fun findEvents(items: Int, filter: ActivityEventFilter): List<ActivityEvent> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun findEvents(size: Int, filter: ActivityEventFilter): List<ActivityEvent> {
+        val query = QueryBuilders.boolQuery()
+
+        if (filter.minTimestamp != null) {
+            query.filter(QueryBuilders.rangeQuery("@timestamp").gte(filter.minTimestamp))
+        }
+        if (filter.maxTimestamp != null) {
+            query.filter(QueryBuilders.rangeQuery("@timestamp").lte(filter.maxTimestamp))
+        }
+        val index = if (filter.type != null) {
+            when (filter.type){
+                ActivityEventType.download -> arrayOf(FILES_DOWNLOAD)
+                ActivityEventType.favorite -> arrayOf(FILES_FAVORITE_TOGGLE)
+                ActivityEventType.moved -> arrayOf(FILES_MOVED)
+                ActivityEventType.deleted -> arrayOf(FILES_DELETE_FILE)
+                ActivityEventType.usedInApp -> arrayOf(APP_START_INDEX)
+                ActivityEventType.directoryCreated -> arrayOf(FILES_CREATE_DIR)
+                ActivityEventType.updatedACL -> arrayOf(FILES_UPDATEDACL)
+                ActivityEventType.upload -> arrayOf(FILES_SIMPLE_UPLOAD, FILES_SIMPLE_BULK_UPLOAD)
+                ActivityEventType.reclassify -> arrayOf(FILES_RECLASSYFIED)
+                ActivityEventType.copy -> arrayOf(FILES_COPY)
+                ActivityEventType.sharedWith -> arrayOf(SHARES_CREATED)
+                ActivityEventType.allUsedInApp -> arrayOf(APP_START_INDEX)
+            }
+        } else ALL_RELEVATE_INDCIES
+
+        val request = SearchRequest(*index).apply {
+            SearchSourceBuilder().query(
+                query.should(
+                        QueryBuilders.multiMatchQuery(
+                            filter.user,
+                            "token.principal.username"
+                        )
+                    )
+                    .filter(
+                        QueryBuilders.matchQuery(
+                            "responseCode", 200
+                        )
+                    )
+            ).from(filter.offset ?: 0)
+                .size(size)
+                .sort("@timestamp", SortOrder.DESC)
+        }
+        val searchResponse = client.search(request, RequestOptions.DEFAULT)
+        return mapEventsBasedOnIndex(searchResponse, isUserSearch = true)
     }
 
     private fun mapEventsBasedOnIndex(
@@ -207,7 +250,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         isFileSearch: Boolean = false,
         folderOfFile: String = "",
         normalizedFilePath: String = "",
-        isUserSearch: Boolean = false,
+        isUserSearch: Boolean = false
     ): List<ActivityEvent> {
         val activityEventList = arrayListOf<ActivityEvent>()
         searchResponse.hits.hits.forEach { doc ->

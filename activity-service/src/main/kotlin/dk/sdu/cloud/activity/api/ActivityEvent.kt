@@ -18,10 +18,8 @@ private const val TYPE_MOVED = "moved"
 @Suppress("EnumEntryName") // backwards-compatibility
 enum class ActivityEventType {
     download,
-    updated,
     deleted,
     favorite,
-    inspected,
     moved,
     copy,
     usedInApp,
@@ -30,7 +28,7 @@ enum class ActivityEventType {
     upload,
     updatedACL,
     sharedWith,
-    appRun
+    allUsedInApp
 }
 
 @JsonTypeInfo(
@@ -104,12 +102,6 @@ sealed class ActivityEvent {
         override val filePath: String
     ) : ActivityEvent()
 
-    data class Inspected(
-        override val username: String,
-        override val timestamp: Long,
-        override val filePath: String
-    ) : ActivityEvent()
-
     data class Moved(
         override val username: String,
         val newName: String,
@@ -151,17 +143,16 @@ sealed class ActivityEvent {
 val ActivityEvent.type: ActivityEventType get() = when (this) {
     is ActivityEvent.Download -> ActivityEventType.download
     is ActivityEvent.Favorite -> ActivityEventType.favorite
-    is ActivityEvent.Inspected -> ActivityEventType.inspected
     is ActivityEvent.Moved -> ActivityEventType.moved
     is ActivityEvent.Deleted -> ActivityEventType.deleted
-    is ActivityEvent.UsedByApplication -> ActivityEventType.usedInApp
+    is ActivityEvent.SingleFileUsedByApplication -> ActivityEventType.usedInApp
     is ActivityEvent.DirectoryCreated -> ActivityEventType.directoryCreated
     is ActivityEvent.UpdatedAcl -> ActivityEventType.updatedACL
     is ActivityEvent.Uploaded -> ActivityEventType.upload
     is ActivityEvent.Reclassify -> ActivityEventType.reclassify
     is ActivityEvent.Copy -> ActivityEventType.copy
     is ActivityEvent.SharedWith -> ActivityEventType.sharedWith
-    is ActivityEvent.AppRun -> ActivityEventType.appRun
+    is ActivityEvent.AllFilesUsedByApplication -> ActivityEventType.allUsedInApp
 }
 
 data class ActivityEventGroup(
