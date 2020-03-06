@@ -30,3 +30,29 @@ export function listGroupMembersRequest(
         payload: props
     };
 }
+
+interface AddGroupMemberProps {
+    group: string;
+    memberUsername: string;
+}
+
+export function addGroupMember(payload: AddGroupMemberProps): APICallParameters<AddGroupMemberProps> {
+    return {
+        method: "PUT",
+        path: `${baseContext}`,
+        payload
+    };
+}
+
+interface RemoveGroupMemberProps {
+    group: string;
+    memberUsername: string;
+}
+
+export function removeGroupMemberRequest(payload: RemoveGroupMemberProps): APICallParameters<RemoveGroupMemberProps> {
+    return {
+        method: "DELETE",
+        path: `${baseContext}members`,
+        payload
+    };
+}

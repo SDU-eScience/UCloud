@@ -3,12 +3,12 @@ import {Card, Icon, Button, Text, Heading} from "ui-components";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
 import {emptyPage} from "DefaultObjects";
-import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
+import {useCloudAPI} from "Authentication/DataHook";
 import {Page} from "Types";
-import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {GridCardGroup} from "ui-components/Grid";
 import {useHistory, useParams} from "react-router";
 import DetailedGroupView from "./DetailedGroupView";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 interface GroupWithSummary {
     group: string;
@@ -36,7 +36,7 @@ function GroupsOverview(): JSX.Element | null {
     }
 
     return <MainContainer
-        sidebar={<Button width="100%">New Group</Button>}
+        sidebar={<Button onClick={() => snackbarStore.addFailure("TODO")} width="100%">New Group</Button>}
         main={(
             <Pagination.List
                 loading={groupSummaries.loading}
@@ -60,7 +60,7 @@ function GroupsOverview(): JSX.Element | null {
                         ))}
                     </ GridCardGroup>
                 }
-                customEmptyPage={<Heading>You have no groups.</Heading>}
+                customEmptyPage={<Heading>You have no groups to manage.</Heading>}
             />
         )}
         header={null}
