@@ -164,7 +164,6 @@ const typeMatchesValue = (type: ParameterTypes, parameter: ParameterValueTypes):
         case ParameterTypes.InputFile:
             return typeof parameter === "string" || "source" in (parameter as any);
         case ParameterTypes.Text:
-        case ParameterTypes.SharedFileSystem:
         case ParameterTypes.LicenseServer:
         case ParameterTypes.Peer:
             return typeof parameter === "string";
@@ -229,9 +228,6 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
                     return;
                 case ParameterTypes.Text:
                     extracted[key] = r.current.value;
-                    return;
-                case ParameterTypes.SharedFileSystem:
-                    extracted[key] = {fileSystemId: r.current.value};
                     return;
                 case ParameterTypes.Peer:
                     extracted[key] = {jobId: r.current.value};
@@ -302,11 +298,6 @@ export function checkForMissingParameters(
         } else if (rParam.type === ParameterTypes.InputDirectory || rParam.type === ParameterTypes.InputFile) {
             // tslint:disable-next-line: no-string-literal
             if (!parameterValue["source"]) {
-                missingParameters.push(rParam.title);
-            }
-        } else if (rParam.type === ParameterTypes.SharedFileSystem) {
-            // tslint:disable-next-line: no-string-literal
-            if (!parameterValue["fileSystemId"]) {
                 missingParameters.push(rParam.title);
             }
         }

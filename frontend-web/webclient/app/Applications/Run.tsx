@@ -108,7 +108,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             previousRuns: emptyPage,
             reservation: React.createRef(),
             unknownParameters: [],
-            sharedFileSystems: {mounts: []},
             useCow: true
         };
     }
@@ -448,7 +447,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                         "Connect to job".
                                                 </BaseLink>
                                                     {" "}
-                                                    These services include networking and shared application file systems.
+                                                    This includes networking.
                                             </>
                                             )}
                                     </Box>

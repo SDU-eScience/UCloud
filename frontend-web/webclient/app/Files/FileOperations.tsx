@@ -247,39 +247,5 @@ export const defaultFileOperations: FileOperation[] = [
             isAnySharedFs(files),
         icon: "trash",
         color: "red"
-    },
-
-    // Shared File Systems
-    {
-        text: "Delete",
-        onClick: (files, cb) => {
-            addStandardDialog({
-                title: "Delete application file systems",
-                message: `Do you want to delete ${files.length} shared file systems? The files cannot be recovered.`,
-                confirmText: "Delete",
-
-                onConfirm: () => {
-                    cb.invokeAsyncWork(async () => {
-                        const promises: Array<{status?: number; response?: string}> =
-                            await Promise
-                                .all(files.map(it => Client.delete(`/app/fs/${it.fileId}`, {})))
-                                .then(it => it)
-                                .catch(it => it);
-
-                        const failures = promises.filter(it => it.status).length;
-                        if (failures > 0) {
-                            snackbarStore.addFailure(promises.filter(it => it.response).map(it => it).join(", "));
-                        } else {
-                            snackbarStore.addSnack({message: "File systems deleted", type: SnackType.Success});
-                        }
-
-                        cb.requestReload();
-                    });
-                }
-            });
-        },
-        disabled: files => files.some(it => it.fileType !== "SHARED_FS"),
-        icon: "trash",
-        color: "red"
     }
 ];

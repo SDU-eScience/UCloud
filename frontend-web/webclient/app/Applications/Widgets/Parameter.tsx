@@ -4,7 +4,6 @@ import {EnumerationParameter} from "Applications/Widgets/EnumerationParameter";
 import {InputDirectoryParameter, InputFileParameter} from "Applications/Widgets/FileParameter";
 import {FloatingParameter, IntegerParameter} from "Applications/Widgets/NumberParameter";
 import {PeerParameter} from "Applications/Widgets/PeerParameter";
-import {SharedFileSystemParameter} from "Applications/Widgets/SharedFileSystemParameter";
 import {TextParameter} from "Applications/Widgets/TextParameter";
 import * as React from "react";
 import * as Types from "../index";
@@ -82,16 +81,6 @@ export const Parameter = (props: ParameterProps): JSX.Element => {
         case Types.ParameterTypes.Peer:
             component = (
                 <PeerParameter
-                    parameter={props.parameter}
-                    initialSubmit={props.initialSubmit}
-                    parameterRef={props.parameterRef}
-                    application={props.application}
-                />
-            );
-            break;
-        case Types.ParameterTypes.SharedFileSystem:
-            component = (
-                <SharedFileSystemParameter
                     parameter={props.parameter}
                     initialSubmit={props.initialSubmit}
                     parameterRef={props.parameterRef}

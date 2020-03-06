@@ -353,12 +353,8 @@ export default class HttpClient {
         return `${this.homeFolder}Favorites`;
     }
 
-    public get appFsFolder(): string {
-        return `${this.homeFolder}App File Systems`;
-    }
-
     public get fakeFolders(): [string, string, string] {
-        return [this.sharesFolder, this.favoritesFolder, this.appFsFolder];
+        return [this.sharesFolder, this.favoritesFolder];
     }
 
     public get isLoggedIn(): boolean {
