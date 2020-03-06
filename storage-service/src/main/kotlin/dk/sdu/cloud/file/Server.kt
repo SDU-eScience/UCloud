@@ -12,6 +12,8 @@ import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.http.MetadataController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
+import dk.sdu.cloud.file.migration.ImportFavorites
+import dk.sdu.cloud.file.migration.ImportShares
 import dk.sdu.cloud.file.migration.PermissionMigration
 import dk.sdu.cloud.file.migration.WorkspaceMigration
 import dk.sdu.cloud.file.processors.UserProcessor
@@ -106,7 +108,27 @@ class Server(
 
         if (micro.commandLineArguments.contains("--migrate-permissions")) {
             try {
-                PermissionMigration(db, metadataDao).runDataMigration()
+                PermissionMigration(db, metadataDao).runMigration()
+            } catch (ex: Throwable) {
+                log.error(ex.stackTraceToString())
+                exitProcess(1)
+            }
+            exitProcess(0)
+        }
+
+        if (micro.commandLineArguments.contains("--migrate-shares")) {
+            try {
+                ImportShares(db, metadataDao).runMigration()
+            } catch (ex: Throwable) {
+                log.error(ex.stackTraceToString())
+                exitProcess(1)
+            }
+            exitProcess(0)
+        }
+
+        if (micro.commandLineArguments.contains("--migrate-favorites")) {
+            try {
+                ImportFavorites(db, metadataDao).runMigration()
             } catch (ex: Throwable) {
                 log.error(ex.stackTraceToString())
                 exitProcess(1)

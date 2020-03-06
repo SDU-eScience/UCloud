@@ -80,7 +80,7 @@ class WorkspaceMigration(
             return
         }
 
-        val finalDestination = File(cephfsMount, "/home/${username}/WorkspaceRecovery/${workspace.name}")
+        val finalDestination = File(cephfsMount, "/home/${username}/ApplicationWorkspaceRecovery/${workspace.name}")
         log.debug("Workspace destination is $finalDestination")
 
         if (!dryRun) {
@@ -92,7 +92,8 @@ class WorkspaceMigration(
                 val readMe = File(parentFile, "README.txt")
                 readMe.writeText(
                     """
-                        TODO Explain why these files were moved
+                        We have recently changed the internal systems in UCloud. The files placed in this directory are
+                        left overs from previous application runs which had not been moved to UCloud.
                     """.trimIndent()
                 )
 

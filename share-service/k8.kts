@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "share"
-    version = "1.7.0-storage-events.1"
+    version = "1.7.0-storage-events.2"
 
     withAmbassador(null) {
         services.add(

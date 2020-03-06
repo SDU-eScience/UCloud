@@ -13,8 +13,11 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.asEnumSet
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.share.api.ShareState
+import dk.sdu.cloud.share.services.InternalShare
 import kotlinx.coroutines.delay
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
@@ -135,7 +138,22 @@ class MetadataMigration(
         file.writeText(
             defaultMapper.writeValueAsString(shares.map { share ->
                 val path = fileIdToPath[share.fileId] ?: share.path
-                share.copy(path = path)
+                path to InternalShare(
+                    share.owner,
+                    share.sharedWith,
+                    when (share.state) {
+                        0 -> ShareState.REQUEST_SENT
+                        1 -> ShareState.ACCEPTED
+                        2 -> ShareState.UPDATING
+                        3 -> ShareState.REQUEST_SENT
+                        else -> throw IllegalStateException("Unknown share state: ${share.state}")
+                    },
+                    share.rights.asEnumSet(),
+                    share.ownerToken,
+                    share.recipientToken,
+                    share.createdAt,
+                    share.modifiedAt
+                )
             })
         )
 

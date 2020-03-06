@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.7.0-storage-events.1'
+version '1.7.0-storage-events.2'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.share.MainKt"

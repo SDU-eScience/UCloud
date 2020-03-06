@@ -19,7 +19,7 @@ class ImportFavorites(
         val isFavorite: Boolean
     )
 
-    suspend fun runDataMigration() {
+    suspend fun runMigration() {
         val inputFile = File("/tmp/input.txt")
         log.info("Waiting for file at '${inputFile.absolutePath}'")
         while (!inputFile.exists()) {

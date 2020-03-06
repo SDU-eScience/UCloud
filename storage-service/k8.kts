@@ -142,6 +142,30 @@ bundle { ctx ->
         }
     )
 
+    withAdHocJob(
+        deployment,
+        nameSuffix = "migrate-permissions",
+        additionalArgs = {
+            listOf("--migrate-permissions")
+        }
+    )
+
+    withAdHocJob(
+        deployment,
+        nameSuffix = "migrate-favorites",
+        additionalArgs = {
+            listOf("--migrate-favorites")
+        }
+    )
+
+    withAdHocJob(
+        deployment,
+        nameSuffix = "migrate-shares",
+        additionalArgs = {
+            listOf("--migrate-shares")
+        }
+    )
+
     withConfigMap("storage-config") {
         val mountLocation = when (ctx.environment) {
             Environment.PRODUCTION -> "/mnt/cephfs"

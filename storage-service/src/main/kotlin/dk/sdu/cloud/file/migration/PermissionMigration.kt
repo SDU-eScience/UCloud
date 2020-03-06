@@ -16,7 +16,7 @@ class PermissionMigration(
         val permissions: Set<AccessRight>
     )
 
-    suspend fun runDataMigration() {
+    suspend fun runMigration() {
         val permissions = ArrayList<PermissionRow>()
 
         db.withTransaction { session ->
