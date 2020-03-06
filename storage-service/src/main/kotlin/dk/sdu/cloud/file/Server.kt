@@ -12,6 +12,7 @@ import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.http.MetadataController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
+import dk.sdu.cloud.file.migration.WorkspaceMigration
 import dk.sdu.cloud.file.processors.UserProcessor
 import dk.sdu.cloud.file.services.ACLWorker
 import dk.sdu.cloud.file.services.CoreFileSystemService
@@ -40,10 +41,12 @@ import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
+import kotlin.system.exitProcess
 
 class Server(
     private val config: StorageConfiguration,
@@ -89,6 +92,16 @@ class Server(
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
 
         log.info("Core services constructed!")
+
+        if (micro.commandLineArguments.contains("--migrate-workspaces")) {
+            try {
+                WorkspaceMigration(fsRootFile, true).runMigration()
+            } catch (ex: Throwable) {
+                log.error(ex.stackTraceToString())
+                exitProcess(1)
+            }
+            exitProcess(0)
+        }
 
         UserProcessor(
             streams,

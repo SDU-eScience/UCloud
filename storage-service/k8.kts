@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "3.2.13"
+    version = "4.0.0-storage-events.4"
 
     withAmbassador(null) {
         services.add(
@@ -136,9 +136,9 @@ bundle { ctx ->
 
     withAdHocJob(
         deployment,
-        nameSuffix = "scan",
+        nameSuffix = "migrate-workspaces",
         additionalArgs = {
-            listOf("--scan") + remainingArgs
+            listOf("--migrate-workspaces") + remainingArgs
         }
     )
 
