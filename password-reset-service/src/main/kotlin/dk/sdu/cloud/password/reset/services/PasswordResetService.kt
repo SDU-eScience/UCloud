@@ -61,9 +61,9 @@ class PasswordResetService<Session>(
                 "[UCloud] Reset of Password",
                 """<p>Hello ${lookup.firstNames},</p>
                 |
-                |<p>We received a request to reset your UCloud account password. To proceed, follow the link below.</p>
+                |<p>We have received a request to reset your UCloud account password. To proceed, follow the link below.</p>
                 |
-                |<p>https://cloud.sdu.dk/app/login?password-reset=true&token=${token}</p>
+                |<p><a href="https://cloud.sdu.dk/app/login?password-reset=true&token=${token}">https://cloud.sdu.dk/app/login?password-reset=true&token=${token}</a></p>
                 |
                 |<p>If you did not initiate this request, feel free to disregard this email, or reply to this email for support.</p>
                 """.trimMargin()

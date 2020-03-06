@@ -8,6 +8,8 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import io.ktor.http.HttpStatusCode
+import java.io.File
+import java.nio.file.Files
 import javax.mail.*
 import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeBodyPart
@@ -19,6 +21,22 @@ class MailService(
     private val fromAddress: String,
     private val whitelist: List<String>
 ) {
+    private val escienceLogoFile: File by lazy {
+        val file = Files.createTempFile("", ".png").toFile()
+        file.outputStream().use {
+            javaClass.classLoader.getResourceAsStream("sdu_escience_logo.png")!!.copyTo(it)
+        }
+        return@lazy file
+    }
+
+    private val ucloudLogoFile: File by lazy {
+        val file = Files.createTempFile("", ".png").toFile()
+        file.outputStream().use {
+            javaClass.classLoader.getResourceAsStream("ucloud_logo.png")!!.copyTo(it)
+        }
+        return@lazy file
+    }
+
     suspend fun send(principal: SecurityPrincipal, recipient: String, subject: String, text: String) {
         if (principal.username !in whitelist) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
@@ -46,18 +64,34 @@ class MailService(
 
             val multipart = MimeMultipart()
 
+            // style paragraphs (not a good solution, but with best support)
+            val finalText = text.replace("<p>", "<p style=\"line-height: 1.2em; margin:0 0 1em 0;\">")
+
             val bodyPart = MimeBodyPart()
             val template = """
                 <!DOCTYPE HTML>
                 <html>
-                    <body style='margin:0; padding:0; font-family: "IBM Plex Sans", sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Oxygen, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";'>
+                    <head>
+                        <style type="text/css" media="screen">
+                            a {
+                                color: #0069FD;
+                                text-decoration: none;
+                            }
+                            a:hover {
+                                text-decoration: underline;
+                            }               
+                        </style>
+                    </head> 
+                    <body style='margin:0; padding:0; font-family: "IBM Plex Sans", sans-serif, system-ui, -apple-system,
+                        Segoe UI, Roboto, Ubuntu, Cantarell, Oxygen, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+                        "Segoe UI Symbol", "Noto Color Emoji";'>
                         <div style="padding: .4em .3em .1em 2em; background: #0069FD;">
                             <a href="https://cloud.sdu.dk">
                                 <img style="margin-right: .2em;" src="cid:ucloud_logo">
                             </a>
                         </div>
                         <div style="padding: 2em 4em 2em 4em; max-width: 600px; margin-left: auto; margin-right: auto;">
-                            $text
+                            $finalText
                             
                             <p>Best regards,</p>
                             <p>
@@ -65,7 +99,7 @@ class MailService(
                             </p>
                         </div> 
                         <div style="text-align: right; padding: 1em;">
-                            <img src="cid:escience_logo">
+                            <a href="https://escience.sdu.dk"><img src="cid:escience_logo"></a>
                         </div>
                     </body>
                 </html> 
@@ -77,13 +111,13 @@ class MailService(
             val escienceLogo = MimeBodyPart()
             escienceLogo.disposition = MimeBodyPart.INLINE
             escienceLogo.contentID = "escience_logo"
-            escienceLogo.attachFile("sdu_escience_logo.png")
+            escienceLogo.attachFile(escienceLogoFile)
             multipart.addBodyPart(escienceLogo)
 
             val ucloudLogo = MimeBodyPart()
             ucloudLogo.disposition = MimeBodyPart.INLINE
             ucloudLogo.contentID = "ucloud_logo"
-            ucloudLogo.attachFile("ucloud_logo.png")
+            ucloudLogo.attachFile(ucloudLogoFile)
             multipart.addBodyPart(ucloudLogo)
 
             message.setContent(multipart)
