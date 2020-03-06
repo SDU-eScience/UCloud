@@ -33,8 +33,4 @@ interface ActivityEventDao {
     fun countEvents(
         filter: ActivityEventFilter
     ): Long
-
-    fun deleteOldActivity(
-        numberOfDaysInPast: Long
-    )
 }

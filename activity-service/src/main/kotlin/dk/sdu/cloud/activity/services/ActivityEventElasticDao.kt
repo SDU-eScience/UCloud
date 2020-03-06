@@ -24,6 +24,7 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.share.api.Shares
 import org.elasticsearch.action.search.SearchRequest
+import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilders
@@ -113,56 +114,102 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
     }
 
-    override fun deleteOldActivity(numberOfDaysInPast: Long) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
     override fun findByFilePath(pagination: NormalizedPaginationRequest, filePath: String): Page<ActivityEvent> {
         val normalizedFilePath = filePath.normalize()
         val folderOfFile = normalizedFilePath.parent()
-        val request = SearchRequest(*ALL_RELEVATE_INDCIES)
-        val source = SearchSourceBuilder().query(
-            QueryBuilders.boolQuery()
-                //App.start
-                .should(
-                    QueryBuilders.multiMatchQuery(
-                        folderOfFile,
-                        "requestJson.mounts.source",
-                        "requestJson.parameters.*.source"
+        val request = SearchRequest(*ALL_RELEVATE_INDCIES).apply {
+            SearchSourceBuilder().query(
+                QueryBuilders.boolQuery()
+                    //App.start
+                    .should(
+                        QueryBuilders.multiMatchQuery(
+                            folderOfFile,
+                            "requestJson.mounts.source",
+                            "requestJson.parameters.*.source"
+                        )
                     )
-                )
-                .should(
-                    QueryBuilders.multiMatchQuery(
-                        normalizedFilePath,
-                        "requestJson.mounts.source",
-                        "requestJson.parameters.*.source"
+                    .should(
+                        QueryBuilders.multiMatchQuery(
+                            normalizedFilePath,
+                            "requestJson.mounts.source",
+                            "requestJson.parameters.*.source"
+                        )
                     )
-                )
-                //SimpleUpload, download, updateAcl, SimpleBulkUpload, reclassify, move, copy, delete
-                //createDirectory, create share, Toggle Favorite
+                    //SimpleUpload, download, updateAcl, SimpleBulkUpload, reclassify, move, copy, delete
+                    //createDirectory, create share, Toggle Favorite
 
-                .should(
-                    QueryBuilders.multiMatchQuery(
-                        normalizedFilePath,
-                        "requestJson.request.path",
-                        "requestJson.files.path",
-                        "requestJson.path"
+                    .should(
+                        QueryBuilders.multiMatchQuery(
+                            normalizedFilePath,
+                            "requestJson.request.path",
+                            "requestJson.files.path",
+                            "requestJson.path"
+                        )
                     )
-                )
-                .filter(
-                    QueryBuilders.matchQuery(
-                        "responseCode", 200
+                    .filter(
+                        QueryBuilders.matchQuery(
+                            "responseCode", 200
+                        )
                     )
-                )
-        ).from(pagination.itemsPerPage*pagination.page)
-            .size(pagination.itemsPerPage)
-            .sort("@timestamp", SortOrder.DESC)
+            ).from(pagination.itemsPerPage * pagination.page)
+                .size(pagination.itemsPerPage)
+                .sort("@timestamp", SortOrder.DESC)
+        }
 
-        request.source(source)
         val searchResponse = client.search(request, RequestOptions.DEFAULT)
 
-        val activityEventList = arrayListOf<ActivityEvent>()
+        val activityEventList = mapEventsBasedOnIndex(
+            searchResponse,
+            isFileSearch = true,
+            folderOfFile = folderOfFile,
+            normalizedFilePath = normalizedFilePath
+        )
 
+        val numberOfItems = searchResponse.hits.totalHits?.value?.toInt()!!
+        return Page(numberOfItems, pagination.itemsPerPage, pagination.page, activityEventList)
+    }
+
+    override fun findByUser(pagination: NormalizedPaginationRequest, user: String): Page<ActivityEvent> {
+        val request = SearchRequest(*ALL_RELEVATE_INDCIES).apply {
+            SearchSourceBuilder().query(
+                QueryBuilders.boolQuery()
+                    //App.start
+                    .should(
+                        QueryBuilders.multiMatchQuery(
+                            user,
+                            "token.principal.username"
+                        )
+                    )
+                    .filter(
+                        QueryBuilders.matchQuery(
+                            "responseCode", 200
+                        )
+                    )
+            ).from(pagination.itemsPerPage * pagination.page)
+                .size(pagination.itemsPerPage)
+                .sort("@timestamp", SortOrder.DESC)
+        }
+
+        val searchResponse = client.search(request, RequestOptions.DEFAULT)
+
+        val activityEventList = mapEventsBasedOnIndex(searchResponse, isUserSearch = true)
+
+        val numberOfItems = searchResponse.hits.totalHits?.value?.toInt()!!
+        return Page(numberOfItems, pagination.itemsPerPage, pagination.page, activityEventList)
+    }
+
+    override fun findEvents(items: Int, filter: ActivityEventFilter): List<ActivityEvent> {
+        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    }
+
+    private fun mapEventsBasedOnIndex(
+        searchResponse: SearchResponse,
+        isFileSearch: Boolean = false,
+        folderOfFile: String = "",
+        normalizedFilePath: String = "",
+        isUserSearch: Boolean = false,
+    ): List<ActivityEvent> {
+        val activityEventList = arrayListOf<ActivityEvent>()
         searchResponse.hits.hits.forEach { doc ->
             when {
                 doc.index.startsWith(FILES_SIMPLE_UPLOAD.dropLast(1)) -> {
@@ -256,61 +303,80 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                 }
                 doc.index.startsWith(APP_START_INDEX.dropLast(1)) -> {
                     val source = defaultMapper.readValue<UsedInAppActivity>(doc.sourceAsString)
-                    source.requestJson.mounts.forEach { mount ->
-                        val castedMount = mount as? FileTransferDescription
-                        if (castedMount != null) {
-                            if (castedMount.source == folderOfFile || castedMount.source == normalizedFilePath) {
-                                activityEventList.add(
-                                    ActivityEvent.UsedByApplication(
-                                        source.token.username,
-                                        source.timestamp.time,
-                                        castedMount.source,
-                                        source.requestJson.application.name,
-                                        source.requestJson.application.version
+                    if (isFileSearch) {
+                        source.requestJson.mounts.forEach { mount ->
+                            val castedMount = mount as? FileTransferDescription
+                            if (castedMount != null) {
+                                if (castedMount.source == folderOfFile || castedMount.source == normalizedFilePath) {
+                                    activityEventList.add(
+                                        ActivityEvent.SingleFileUsedByApplication(
+                                            source.token.username,
+                                            source.timestamp.time,
+                                            castedMount.source,
+                                            source.requestJson.application.name,
+                                            source.requestJson.application.version
+                                        )
                                     )
-                                )
+                                }
+                            }
+                        }
+                        source.requestJson.parameters.values.forEach { param ->
+                            val castedParam = param as? FileTransferDescription
+                            if (castedParam != null) {
+                                if (param.source == normalizedFilePath || param.source == folderOfFile) {
+                                    activityEventList.add(
+                                        ActivityEvent.SingleFileUsedByApplication(
+                                            source.token.username,
+                                            source.timestamp.time,
+                                            param.source,
+                                            source.requestJson.application.name,
+                                            source.requestJson.application.version
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
-                    source.requestJson.parameters.values.forEach { param ->
-                        val castedParam = param as? FileTransferDescription
-                        if (castedParam != null) {
-                            if (param.source == normalizedFilePath || param.source == folderOfFile) {
-                                activityEventList.add(
-                                    ActivityEvent.UsedByApplication(
-                                        source.token.username,
-                                        source.timestamp.time,
-                                        param.source,
-                                        source.requestJson.application.name,
-                                        source.requestJson.application.version
-                                    )
-                                )
+                    if (isUserSearch) {
+                        var filesUsed = ""
+                        source.requestJson.mounts.forEach { mount ->
+                            val castedMount = mount as? FileTransferDescription
+                            if (castedMount != null) {
+                                filesUsed += "${castedMount.source}, "
                             }
                         }
+                        source.requestJson.parameters.values.forEach { param ->
+                            val castedParam = param as? FileTransferDescription
+                            if (castedParam != null) {
+                                filesUsed += "${castedParam.source}"
+                            }
+                        }
+                        activityEventList.add(
+                            ActivityEvent.AllFilesUsedByApplication(
+                                source.token.username,
+                                source.timestamp.time,
+                                filesUsed,
+                                source.requestJson.application.name,
+                                source.requestJson.application.version
+                            )
+                        )
                     }
                 }
                 doc.index.startsWith(SHARES_CREATED.dropLast(1)) -> {
                     val source = defaultMapper.readValue<SharedActivity>(doc.sourceAsString)
-                    activityEventList.add(ActivityEvent.SharedWith(
-                        source.token.username,
-                        source.timestamp.time,
-                        source.requestJson.path,
-                        source.requestJson.sharedWith,
-                        source.requestJson.rights
-                    ))
+                    activityEventList.add(
+                        ActivityEvent.SharedWith(
+                            source.token.username,
+                            source.timestamp.time,
+                            source.requestJson.path,
+                            source.requestJson.sharedWith,
+                            source.requestJson.rights
+                        )
+                    )
                 }
             }
         }
-        val numberOfItems = searchResponse.hits.totalHits?.value?.toInt()!!
-        return Page(numberOfItems, pagination.itemsPerPage, pagination.page, activityEventList)
-    }
-
-    override fun findByUser(pagination: NormalizedPaginationRequest, user: String): Page<ActivityEvent> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
-    override fun findEvents(items: Int, filter: ActivityEventFilter): List<ActivityEvent> {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+        return activityEventList.toList()
     }
 
     companion object: Loggable {

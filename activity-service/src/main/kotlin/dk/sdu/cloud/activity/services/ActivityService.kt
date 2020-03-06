@@ -20,10 +20,6 @@ class ActivityService(
     private val fileLookupService: FileLookupService
 ) {
 
-    fun deleteOldActivity(numberOfDaysInPast: Long) {
-        activityEventElasticDao.deleteOldActivity(numberOfDaysInPast)
-    }
-
     suspend fun findEventsForPath(
         pagination: NormalizedPaginationRequest,
         path: String,
@@ -33,13 +29,6 @@ class ActivityService(
     ): Page<ActivityEvent> {
         val fileStat = fileLookupService.lookupFile(path, userAccessToken, user, causedBy)
         return activityEventElasticDao.findByFilePath(pagination, fileStat.path)
-    }
-
-    fun findEventsForFilePath(
-        pagination: NormalizedPaginationRequest,
-        filePath: String
-    ): Page<ActivityEvent> {
-        return activityEventElasticDao.findByFilePath(pagination, filePath)
     }
 
     fun findEventsForUser(

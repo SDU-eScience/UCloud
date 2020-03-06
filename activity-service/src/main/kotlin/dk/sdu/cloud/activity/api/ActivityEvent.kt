@@ -28,8 +28,9 @@ enum class ActivityEventType {
     directoryCreated,
     reclassify,
     upload,
-    updatedACL
-
+    updatedACL,
+    sharedWith,
+    appRun
 }
 
 @JsonTypeInfo(
@@ -122,7 +123,15 @@ sealed class ActivityEvent {
         override val filePath: String
     ) : ActivityEvent()
 
-    data class UsedByApplication(
+    data class SingleFileUsedByApplication(
+        override val username: String, //used By
+        override val timestamp: Long,
+        override val filePath: String,
+        val applicationName: String,
+        val applicationVersion: String
+    ) : ActivityEvent()
+
+    data class AllFilesUsedByApplication(
         override val username: String, //used By
         override val timestamp: Long,
         override val filePath: String,
@@ -151,6 +160,8 @@ val ActivityEvent.type: ActivityEventType get() = when (this) {
     is ActivityEvent.Uploaded -> ActivityEventType.upload
     is ActivityEvent.Reclassify -> ActivityEventType.reclassify
     is ActivityEvent.Copy -> ActivityEventType.copy
+    is ActivityEvent.SharedWith -> ActivityEventType.sharedWith
+    is ActivityEvent.AppRun -> ActivityEventType.appRun
 }
 
 data class ActivityEventGroup(

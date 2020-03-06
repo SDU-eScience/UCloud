@@ -13,16 +13,10 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.call
 
-class ActivityController<DBSession>(
-    private val activityService: ActivityService<DBSession>
+class ActivityController(
+    private val activityService: ActivityService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(ActivityDescriptions.listByFileId) {
-            val page = activityService.findEventsForFileId(request.normalize(), request.id)
-
-            ok(page)
-        }
-
         implement(ActivityDescriptions.listByPath) {
             with(ctx as HttpCall) {
                 val page = activityService.findEventsForPath(

@@ -27,28 +27,13 @@ class Server(
 
     override fun start() {
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val db = micro.hibernateDatabase
         val elasticClient = micro.elasticHighLevelClient
 
         log.info("Creating core services")
-        val activityEventDao = HibernateActivityEventDao()
         val activityElasticDao = ActivityEventElasticDao(elasticClient)
         val fileLookupService = FileLookupService(client)
         val activityService = ActivityService(activityElasticDao, fileLookupService)
         log.info("Core services constructed")
-
-        if (micro.commandLineArguments.contains("--deleteOldActivity")) {
-            val numberOfDays = 180L
-            runBlocking {
-                activityService.deleteOldActivity(numberOfDays)
-            }
-            exitProcess(0)
-        }
-
-        log.info("Creating stream processors")
-        StorageAuditProcessor(micro.eventStreamService, activityService).init()
-        StorageEventProcessor(micro.eventStreamService, activityService).init()
-        log.info("Stream processors constructed")
 
         with(micro.server) {
             configureControllers(

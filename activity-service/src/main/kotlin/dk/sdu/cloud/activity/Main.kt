@@ -13,10 +13,9 @@ import dk.sdu.cloud.micro.runScriptHandler
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(ActivityServiceDescription, args)
-        install(HibernateFeature)
         install(RefreshingJWTCloudFeature)
-        install(HealthCheckFeature)
         install(ElasticFeature)
+        install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return
