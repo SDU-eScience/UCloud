@@ -16,26 +16,6 @@ typealias ActivityDescriptions = Activity
 object Activity : CallDescriptionContainer("activity") {
     val baseContext = "/api/activity"
 
-    val listByFileId = call<ListActivityByIdRequest, ListActivityByIdResponse, CommonErrorMessage>("listByFileId") {
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ
-        }
-
-        http {
-            path {
-                using(baseContext)
-                +"by-file-id"
-            }
-
-            params {
-                +boundTo(ListActivityByIdRequest::itemsPerPage)
-                +boundTo(ListActivityByIdRequest::page)
-                +boundTo(ListActivityByIdRequest::id)
-            }
-        }
-    }
-
     val listByPath = call<ListActivityByPathRequest, ListActivityByPathResponse, CommonErrorMessage>("listByPath") {
         auth {
             access = AccessRight.READ
@@ -92,7 +72,6 @@ object Activity : CallDescriptionContainer("activity") {
                 +boundTo(BrowseByUser.Request::user)
                 +boundTo(BrowseByUser.Request::offset)
                 +boundTo(BrowseByUser.Request::scrollSize)
-                +boundTo(BrowseByUser.Request::collapseAt)
                 +boundTo(BrowseByUser.Request::type)
                 +boundTo(BrowseByUser.Request::minTimestamp)
                 +boundTo(BrowseByUser.Request::maxTimestamp)
@@ -103,7 +82,6 @@ object Activity : CallDescriptionContainer("activity") {
     object BrowseByUser {
         data class Request(
             override val user: String?,
-            override val collapseAt: Int?,
             override val type: ActivityEventType?,
             override val minTimestamp: Long?,
             override val maxTimestamp: Long?,
@@ -113,15 +91,14 @@ object Activity : CallDescriptionContainer("activity") {
 
         data class Response(
             override val endOfScroll: Boolean,
-            override val items: List<ActivityEventGroup>,
+            override val items: List<ActivityEvent>,
             override val nextOffset: Int
-        ) : WithScrollResult<ActivityEventGroup, Int>
+        ) : WithScrollResult<ActivityEvent, Int>
     }
 }
 
 interface ActivityFilter {
     val user: String?
-    val collapseAt: Int?
     val type: ActivityEventType?
     val minTimestamp: Long?
     val maxTimestamp: Long?

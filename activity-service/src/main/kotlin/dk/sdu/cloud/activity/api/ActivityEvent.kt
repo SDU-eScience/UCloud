@@ -1,19 +1,9 @@
 package dk.sdu.cloud.activity.api
 
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
-import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
-import org.omg.PortableInterceptor.ACTIVE
-
-private const val TYPE_DOWNLOAD = "download"
-private const val TYPE_DELETED = "deleted"
-private const val TYPE_FAVORITE = "favorite"
-private const val TYPE_INSPECTED = "inspected"
-private const val TYPE_MOVED = "moved"
 
 @Suppress("EnumEntryName") // backwards-compatibility
 enum class ActivityEventType {
@@ -31,18 +21,6 @@ enum class ActivityEventType {
     allUsedInApp
 }
 
-@JsonTypeInfo(
-    use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.PROPERTY,
-    property = TYPE_PROPERTY
-)
-@JsonSubTypes(
-    JsonSubTypes.Type(value = ActivityEvent.Download::class, name = TYPE_DOWNLOAD),
-    JsonSubTypes.Type(value = ActivityEvent.Deleted::class, name = TYPE_DELETED),
-    JsonSubTypes.Type(value = ActivityEvent.Favorite::class, name = TYPE_FAVORITE),
-    JsonSubTypes.Type(value = ActivityEvent.Inspected::class, name = TYPE_INSPECTED),
-    JsonSubTypes.Type(value = ActivityEvent.Moved::class, name = TYPE_MOVED)
-)
 sealed class ActivityEvent {
     // NOTE(Dan): Please consult the README before you add new entries here. This should only contain
     // events related to file activity
@@ -155,28 +133,12 @@ val ActivityEvent.type: ActivityEventType get() = when (this) {
     is ActivityEvent.AllFilesUsedByApplication -> ActivityEventType.allUsedInApp
 }
 
-data class ActivityEventGroup(
-    val type: ActivityEventType,
-    val newestTimestamp: Long,
-    val numberOfHiddenResults: Long?,
-    val items: List<ActivityEvent>
-)
-
-data class ListActivityByIdRequest(
-    val id: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?
-) : WithPaginationRequest
-typealias ListActivityByIdResponse = Page<ActivityEvent>
-
-
 data class ListActivityByPathRequest(
     val path: String,
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
 typealias ListActivityByPathResponse = Page<ActivityEvent>
-
 
 typealias ListActivityByUserRequest = PaginationRequest
 typealias ListActivityByUserResponse = Page<ActivityEvent>

@@ -25,11 +25,7 @@ interface ActivityEventDao {
     ): Page<ActivityEvent>
 
     fun findEvents(
-        items: Int,
+        size: Int,
         filter: ActivityEventFilter = ActivityEventFilter()
     ): List<ActivityEvent>
-
-    fun countEvents(
-        filter: ActivityEventFilter
-    ): Long
 }

@@ -39,7 +39,7 @@ class ActivityController(
             val user = request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEDGED }
                 ?: ctx.securityPrincipal.username
 
-            val result = activityService.browseForUser(request.normalize(), user, request.collapseAt ?: 20, request)
+            val result = activityService.browseForUser(request.normalize(), user, request)
             ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
         }
     }

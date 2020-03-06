@@ -111,10 +111,6 @@ data class SharedActivity(
 )
 
 class ActivityEventElasticDao(private val client: RestHighLevelClient): ActivityEventDao {
-    override fun countEvents(filter: ActivityEventFilter): Long {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-    }
-
     override fun findByFilePath(pagination: NormalizedPaginationRequest, filePath: String): Page<ActivityEvent> {
         val normalizedFilePath = filePath.normalize()
         val folderOfFile = normalizedFilePath.parent()
@@ -198,17 +194,9 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         return Page(numberOfItems, pagination.itemsPerPage, pagination.page, activityEventList)
     }
 
-    override fun findEvents(size: Int, filter: ActivityEventFilter): List<ActivityEvent> {
-        val query = QueryBuilders.boolQuery()
-
-        if (filter.minTimestamp != null) {
-            query.filter(QueryBuilders.rangeQuery("@timestamp").gte(filter.minTimestamp))
-        }
-        if (filter.maxTimestamp != null) {
-            query.filter(QueryBuilders.rangeQuery("@timestamp").lte(filter.maxTimestamp))
-        }
-        val index = if (filter.type != null) {
-            when (filter.type){
+    private fun getIndexByType(type: ActivityEventType?): Array<String> {
+        return if (type != null) {
+            when (type){
                 ActivityEventType.download -> arrayOf(FILES_DOWNLOAD)
                 ActivityEventType.favorite -> arrayOf(FILES_FAVORITE_TOGGLE)
                 ActivityEventType.moved -> arrayOf(FILES_MOVED)
@@ -223,6 +211,19 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                 ActivityEventType.allUsedInApp -> arrayOf(APP_START_INDEX)
             }
         } else ALL_RELEVATE_INDCIES
+    }
+
+
+    override fun findEvents(size: Int, filter: ActivityEventFilter): List<ActivityEvent> {
+        val query = QueryBuilders.boolQuery()
+
+        if (filter.minTimestamp != null) {
+            query.filter(QueryBuilders.rangeQuery("@timestamp").gte(filter.minTimestamp))
+        }
+        if (filter.maxTimestamp != null) {
+            query.filter(QueryBuilders.rangeQuery("@timestamp").lte(filter.maxTimestamp))
+        }
+        val index = getIndexByType(filter.type)
 
         val request = SearchRequest(*index).apply {
             SearchSourceBuilder().query(
