@@ -1,10 +1,15 @@
 import {APICallParameters} from "Authentication/DataHook";
-import {buildQueryString} from "Utilities/URIUtilities";
 
-const baseContext = "/projects/groups";
+const baseContext = "/projects/groups/";
 
 interface CreateGroupRequest {
     group: string;
+}
+
+interface ListGroupMembersRequestProps {
+    group: string;
+    itemsPerPage?: number;
+    page?: number;
 }
 
 export function createGroup(props: CreateGroupRequest): APICallParameters<{}> {
@@ -13,5 +18,15 @@ export function createGroup(props: CreateGroupRequest): APICallParameters<{}> {
         method: "PUT",
         path: baseContext,
         parameters: props,
+    };
+}
+
+export function listGroupMembersRequest(
+    props: ListGroupMembersRequestProps
+): APICallParameters<ListGroupMembersRequestProps> {
+    return {
+        method: "GET",
+        path: `${baseContext}members`,
+        payload: props
     };
 }

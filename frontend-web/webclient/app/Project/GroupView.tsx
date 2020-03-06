@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Card, Icon, Button, Text} from "ui-components";
+import {Card, Icon, Button, Text, Heading} from "ui-components";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
 import {emptyPage} from "DefaultObjects";
@@ -24,46 +24,15 @@ function newGroupWithSummary(): GroupWithSummary {
     };
 }
 
-const baseContext = "/projects/groups/";
-
-function listGroupMembersRequest(props: ListGroupMembersRequestProps): APICallParameters<ListGroupMembersRequestProps> {
-    return {
-        method: "GET",
-        path: `${baseContext}members`,
-        payload: props
-    };
-}
-
-interface ListGroupMembersRequestProps {
-    group: string;
-    itemsPerPage?: number;
-    page?: number;
-}
-
-
-
 function GroupsOverview(): JSX.Element | null {
     // TODO -- Add groups. Remove groups.
     // File imports of users
     const history = useHistory();
     const {group} = useParams<{group?: string}>();
     const [groupSummaries, doFetch, params] = useCloudAPI<Page<GroupWithSummary>>({}, {...emptyPage});
-    const [activeGroup, fetchActiveGroup, activeGroupParams] = useCloudAPI<Page<string>>(
-        listGroupMembersRequest({group: group ?? ""}),
-        {...emptyPage}
-    );
-
-    React.useEffect(() => {
-        if (group)
-            fetchActiveGroup(listGroupMembersRequest({group: group ?? ""}));
-    }, [group]);
 
     if (group) {
-        if (activeGroup.loading) return <LoadingSpinner size={24} />;
-        if (activeGroup.error) return <MainContainer main={
-            <Text fontSize={"24px"}>Could not fetch '{group}'.</Text>
-        } />;
-        return <DetailedGroupView name={group} members={activeGroup.data} />;
+        return <DetailedGroupView name={group} />;
     }
 
     return <MainContainer
@@ -91,7 +60,7 @@ function GroupsOverview(): JSX.Element | null {
                         ))}
                     </ GridCardGroup>
                 }
-                customEmptyPage={<Text></Text>}
+                customEmptyPage={<Heading>You have no groups.</Heading>}
             />
         )}
         header={null}

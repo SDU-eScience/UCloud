@@ -4,15 +4,33 @@ import {Text, Input, Box, Flex} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {defaultAvatar} from "UserSettings/Avataaar";
+import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {Page} from "Types";
+import {useCloudAPI} from "Authentication/DataHook";
+import {emptyPage} from "DefaultObjects";
+import {listGroupMembersRequest} from "./api";
+
 
 interface DetailedGroupViewProps {
-    members: Page<string>;
     name: string;
 }
 
-function DetailedGroupView({members, name}: DetailedGroupViewProps): JSX.Element {
-    const [avatars, setAvatars] = React.useState([]);
+function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
+    const [activeGroup, fetchActiveGroup, params] = useCloudAPI<Page<string>>(
+        listGroupMembersRequest({group: name ?? ""}),
+        emptyPage
+    );
+
+    React.useEffect(() => {
+        if (name)
+            fetchActiveGroup(listGroupMembersRequest({group: name ?? ""}));
+    }, [name]);
+
+    if (activeGroup.loading) return <LoadingSpinner size={24} />;
+    if (activeGroup.error) return <MainContainer main={
+        <Text fontSize={"24px"}>Could not fetch &apos;{name}&apos;.</Text>
+    } />;
+
     return <MainContainer
         main={
             <>
@@ -21,11 +39,11 @@ function DetailedGroupView({members, name}: DetailedGroupViewProps): JSX.Element
                     fontSize="25px"
                     width="100%"
                 >{name}</Text>
-                <Heading.h5>Members: {members.itemsInTotal}</Heading.h5>
+                <Heading.h5>Members: {activeGroup.data.itemsInTotal}</Heading.h5>
                 <Input type="text" />
                 <div>
                     <Box overflowY="scroll">
-                        {members.items.map(member =>
+                        {activeGroup.data.items.map(member =>
                             <Flex key={member}>
                                 <UserAvatar avatar={defaultAvatar} /> <Text mt="10px">{member}</Text>
                             </Flex>
