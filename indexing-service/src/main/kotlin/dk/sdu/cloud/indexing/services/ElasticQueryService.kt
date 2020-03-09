@@ -34,6 +34,7 @@ import org.elasticsearch.search.aggregations.metrics.Max
 import org.elasticsearch.search.aggregations.metrics.Min
 import org.elasticsearch.search.aggregations.metrics.Percentiles
 import org.elasticsearch.search.aggregations.metrics.Sum
+import org.elasticsearch.search.aggregations.metrics.ValueCount
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 
@@ -187,6 +188,10 @@ class ElasticQueryService(
                 builder.size(0)
                 builder.query(searchBasedOnQuery(statisticsRequest.query))
 
+                builder.aggregation(
+                    AggregationBuilders.count("completeCount").field(ElasticIndexedFile.FILE_NAME_KEYWORD)
+                )
+
                 statisticsRequest.size?.let {
                     addNumericAggregations(builder, it, ElasticIndexedFile.SIZE_FIELD)
                 }
@@ -207,12 +212,9 @@ class ElasticQueryService(
         }
 
         return StatisticsResponse(
-            result.hits?.totalHits?.value ?: 0,
+            runCatching { result.aggregations.get<ValueCount>("completeCount").value }.getOrDefault(0L),
             size,
-            fileDepth,
-            TODO(),
-            TODO(),
-            TODO()
+            fileDepth
         )
     }
 

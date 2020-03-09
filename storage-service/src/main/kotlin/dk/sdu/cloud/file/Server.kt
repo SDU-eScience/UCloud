@@ -98,7 +98,7 @@ class Server(
 
         if (micro.commandLineArguments.contains("--migrate-workspaces")) {
             try {
-                WorkspaceMigration(fsRootFile, true).runMigration()
+                WorkspaceMigration(fsRootFile, false).runMigration()
             } catch (ex: Throwable) {
                 log.error(ex.stackTraceToString())
                 exitProcess(1)

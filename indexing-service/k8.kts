@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "indexing"
-    version = "1.15.11"
+    version = "1.16.0-storage-events.14"
 
     withAmbassador {}
 
@@ -13,9 +13,38 @@ bundle { ctx ->
         injectSecret("elasticsearch-credentials")
     }
 
+    val deploymentWithMount = DeploymentResource(
+        name = name,
+        version = version,
+        image = "registry.cloud.sdu.dk/sdu-cloud/indexing-service:${version}"
+    ).apply {
+        this.serviceContainer.args = this.serviceContainer.args
+        this.serviceContainer.livenessProbe = null
+
+        injectDefaults()
+        injectSecret("elasticsearch-credentials")
+        injectConfiguration("ceph-fs-config")
+
+        val cephfsVolume = "cephfs"
+        serviceContainer.volumeMounts.add(VolumeMount().apply {
+            name = cephfsVolume
+            mountPath = "/mnt/cephfs"
+        })
+
+        volumes.add(Volume().apply {
+            name = cephfsVolume
+            persistentVolumeClaim = PersistentVolumeClaimVolumeSource().apply {
+                claimName = cephfsVolume
+            }
+        })
+    }
+
     withPostgresMigration(deployment)
-    withCronJob(deployment, "0 */12 * * *", listOf("--scan")) {}
-    withAdHocJob(deployment, "-scan-now", { listOf("--scan") })
+    withCronJob(deploymentWithMount, "0 */12 * * *", listOf("--scan")) {
+    }
+
+    withAdHocJob(deploymentWithMount, "scan-now", { listOf("--scan") }) {
+    }
 
     val numberOfShards = when (ctx.environment) {
         Environment.DEVELOPMENT -> 5

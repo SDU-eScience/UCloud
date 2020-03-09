@@ -26,6 +26,7 @@ import org.elasticsearch.common.xcontent.XContentType
 import org.slf4j.Logger
 import java.io.File
 import java.util.concurrent.Executors
+import kotlin.math.abs
 
 @Suppress("BlockingMethodInNonBlockingContext")
 class FileSystemScanner(
@@ -53,7 +54,7 @@ class FileSystemScanner(
     suspend fun runScan() {
         withContext(pool) {
             launch {
-                submitScan(File(cephFsRoot, "home"))
+                submitScan(File(cephFsRoot, "home").absoluteFile)
             }.join()
         }
     }
@@ -90,7 +91,7 @@ class FileSystemScanner(
     }
 
     private suspend fun submitScan(path: File, upperLimitOfEntries: Long = Long.MAX_VALUE) {
-        log.debug("Scanning: ${path.toCloudPath()}")
+        log.debug("Scanning: ${path.toCloudPath()} (${path})")
 
         val thisFileInIndex = run {
             val source =
@@ -102,12 +103,17 @@ class FileSystemScanner(
             }
         }
 
-        val rctime = runCatching { stats?.getRecursiveTime(path.absolutePath) }.getOrNull()
-        val (shouldContinue, newUpperLimitOfEntries) = shouldContinue(path, upperLimitOfEntries)
+        var newUpperLimitOfEntries = 1L
+        if (path.isDirectory) {
+            val rctime = runCatching { stats?.getRecursiveTime(path.absolutePath) }.getOrNull()
+            val (shouldContinue, limit) = shouldContinue(path, upperLimitOfEntries)
+            newUpperLimitOfEntries = limit
 
-        // We must continue if rctime does not match ceph
-        if (rctime != null && thisFileInIndex != null && thisFileInIndex.rctime == rctime && shouldContinue) {
-            return
+            // We must continue if rctime does not match ceph
+            if (rctime != null && thisFileInIndex != null && thisFileInIndex.rctime == rctime && !shouldContinue) {
+                log.debug("${path.toCloudPath()} already up-to-date")
+                return
+            }
         }
 
         val fileList = (path.listFiles() ?: emptyArray())
@@ -125,7 +131,7 @@ class FileSystemScanner(
         val bulk = BulkRequestBuilder()
         filesInIndex.values.asSequence()
             .filter { it.path !in files }
-            .map { bulk.add(deleteDocWithFile(it.path)) }
+            .forEach { bulk.add(deleteDocWithFile(it.path)) }
 
         files.values.asSequence()
             .filter { it.path !in filesInIndex }
@@ -137,10 +143,14 @@ class FileSystemScanner(
 
         bulk.flush()
 
-        fileList.map { file ->
+        fileList.mapNotNull { file ->
             withContext(pool) {
-                launch {
-                    submitScan(file, newUpperLimitOfEntries)
+                if (file.isDirectory) {
+                    launch {
+                        submitScan(file, newUpperLimitOfEntries)
+                    }
+                } else {
+                    null
                 }
             }
         }.joinAll()
@@ -158,6 +168,7 @@ class FileSystemScanner(
     data class ShouldContinue(val shouldContinue: Boolean, val newUpperLimitOfEntries: Long)
 
     private fun shouldContinue(path: File, upperLimitOfEntries: Long): ShouldContinue {
+        if (path.isFile) return ShouldContinue(true, 1)
         if (stats == null) return ShouldContinue(true, upperLimitOfEntries)
         if (upperLimitOfEntries < 100) return ShouldContinue(true, upperLimitOfEntries)
         val recursiveEntryCount = stats.getRecursiveEntryCount(path.absolutePath)
@@ -166,32 +177,60 @@ class FileSystemScanner(
         val fileStats = query.statisticsQuery(
             StatisticsRequest(
                 FileQuery(listOf(path.toCloudPath())),
-                size = NumericStatisticsRequest(calculateSum = true),
-                recursiveFiles = true,
-                recursiveSubDirs = true
+                size = NumericStatisticsRequest(calculateSum = true)
+            )
+        )
+
+        val fileCount = query.statisticsQuery(
+            StatisticsRequest(
+                FileQuery(
+                    listOf(path.toCloudPath()),
+                    fileTypes = AnyOf.with(FileType.FILE)
+                )
+            )
+        )
+
+        val dirCount = query.statisticsQuery(
+            StatisticsRequest(
+                FileQuery(
+                    listOf(path.toCloudPath()),
+                    fileTypes = AnyOf.with(FileType.DIRECTORY)
+                )
             )
         )
 
         val size = fileStats.size!!
-        val recursiveFiles = fileStats.recursiveFiles!!
-        val recursiveSubDirs = fileStats.recursiveSubDirs!!
+        val recursiveFiles = fileCount.count
+        val recursiveSubDirs = dirCount.count
 
         if (recursiveEntryCount != recursiveFiles + recursiveSubDirs) {
+            log.info("Entry count is different ($recursiveEntryCount != $recursiveFiles + $recursiveSubDirs")
             return ShouldContinue(true, recursiveEntryCount)
         }
 
         val actualRecursiveSize = stats.getRecursiveSize(path.absolutePath)
-        if (actualRecursiveSize != size.sum!!.toLong()) {
-            return ShouldContinue(true, recursiveEntryCount)
+        if (size.sum!!.toLong() != actualRecursiveSize) {
+            val percentage = if (size.sum.toLong() == 0L) {
+                1.0
+            } else {
+                1 - (actualRecursiveSize / size.sum)
+            }
+
+            if (percentage >= abs(0.05)) {
+                log.info("Size is different $actualRecursiveSize != ${size.sum}")
+                return ShouldContinue(true, recursiveEntryCount)
+            }
         }
 
         val actualRecursiveFiles = stats.getRecursiveFileCount(path.absolutePath)
         val actualRecursiveSubDirs = stats.getRecursiveDirectoryCount(path.absolutePath)
         if (recursiveSubDirs != actualRecursiveSubDirs) {
+            log.info("Sub dirs is different ${recursiveSubDirs} ${actualRecursiveSubDirs}")
             return ShouldContinue(true, recursiveEntryCount)
         }
 
         if (recursiveFiles != actualRecursiveFiles) {
+            log.info("Recursive files is different $recursiveFiles $actualRecursiveFiles")
             return ShouldContinue(true, recursiveEntryCount)
         }
 

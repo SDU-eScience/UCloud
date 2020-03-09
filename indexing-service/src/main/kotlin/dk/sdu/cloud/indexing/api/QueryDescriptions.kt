@@ -201,10 +201,7 @@ data class StatisticsRequest(
 
     // This is currently very limited. We can figure out what we need later.
     val size: NumericStatisticsRequest? = null,
-    val fileDepth: NumericStatisticsRequest? = null,
-    val recursiveEntries: Boolean = false,
-    val recursiveFiles: Boolean = false,
-    val recursiveSubDirs: Boolean = false
+    val fileDepth: NumericStatisticsRequest? = null
 ) : WithFileQuery
 
 /**
@@ -213,10 +210,7 @@ data class StatisticsRequest(
 data class StatisticsResponse(
     val count: Long,
     val size: NumericStatistics?,
-    val fileDepth: NumericStatistics?,
-    val recursiveEntries: Long?,
-    val recursiveFiles: Long?,
-    val recursiveSubDirs: Long?
+    val fileDepth: NumericStatistics?
 )
 
 data class SortRequest(
