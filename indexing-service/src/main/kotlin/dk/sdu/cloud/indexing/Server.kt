@@ -54,7 +54,7 @@ class Server(
         val indexArgIdx = micro.commandLineArguments.indexOf("--create-index")
         if (indexArgIdx != -1) {
             val numberOfShards = micro.commandLineArguments.getOrNull(indexArgIdx + 1)?.toInt() ?: 5
-            val numberOfReplicas = micro.commandLineArguments.getOrNull(indexArgIdx + 1)?.toInt() ?: 2
+            val numberOfReplicas = micro.commandLineArguments.getOrNull(indexArgIdx + 2)?.toInt() ?: 2
             try {
                 FilesIndex.create(elastic, numberOfShards, numberOfReplicas)
                 exitProcess(0)

@@ -353,7 +353,7 @@ export default class HttpClient {
         return `${this.homeFolder}Favorites`;
     }
 
-    public get fakeFolders(): [string, string, string] {
+    public get fakeFolders(): [string, string] {
         return [this.sharesFolder, this.favoritesFolder];
     }
 

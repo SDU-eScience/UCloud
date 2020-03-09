@@ -426,7 +426,7 @@ class MetadataDao {
             """
                 delete from metadata
                 where
-                    path like (?path || '/%) or
+                    path like (?path || '/%') or
                     (?includeFile and path = ?path)
             """
         )

@@ -54,11 +54,15 @@ class MetadataRecoveryService<Ctx : FSUserContext>(
                 paths.forEach { path ->
                     val stat = fs.statOrNull(ctx, path, setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE))
                     if (stat == null) {
-                        log.debug("File not found! $path")
+                        log.info("Metadata no longer exists for $path")
                         dao.deleteByPrefix(session, path)
                     } else {
                         if (stat.fileType == FileType.DIRECTORY) {
-                            dao.deleteByPrefix(session, path, includeFile = false)
+                            dao.findByPrefix(session, path, null, null).forEach { metadata ->
+                                if (!fs.exists(ctx, path)) {
+                                    dao.deleteByPrefix(session, path)
+                                }
+                            }
                         }
                     }
                 }
