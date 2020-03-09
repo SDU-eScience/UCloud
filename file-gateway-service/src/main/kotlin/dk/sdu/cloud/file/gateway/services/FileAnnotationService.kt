@@ -43,7 +43,7 @@ class FileAnnotationService {
         return files.map {
             StorageFileWithMetadata(
                 delegate = it,
-                favorited = favoriteStatusResponse?.favorited?.get(it.fileId)
+                favorited = favoriteStatusResponse?.favorited?.get(it.path)
             )
         }
     }

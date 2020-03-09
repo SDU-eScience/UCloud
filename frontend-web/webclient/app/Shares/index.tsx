@@ -75,6 +75,7 @@ export const acceptShare = (path: string): APICallParameters => ({
     method: "POST",
     path: `/shares/accept`,
     parameters: {path},
+    payload: {path},
     reloadId: Math.random()
 });
 

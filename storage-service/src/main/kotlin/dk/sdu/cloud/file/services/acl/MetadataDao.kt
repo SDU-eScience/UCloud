@@ -190,6 +190,7 @@ class MetadataDao {
         username: String?,
         type: String?
     ) {
+        log.debug("removeEntry $path $username $type")
         session
             .sendPreparedStatement(
                 {

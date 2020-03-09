@@ -10,7 +10,6 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.FindByPrefixRequest
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.file.api.FindMetadataRequest

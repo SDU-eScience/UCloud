@@ -134,7 +134,7 @@ class AclService(
 
     suspend fun revokePermission(path: String, username: String) {
         val normalizedPath = path.normalize()
-        metadataService.removeEntries(listOf(FindMetadataRequest(normalizedPath, username, METADATA_TYPE)))
+        metadataService.removeEntries(listOf(FindMetadataRequest(normalizedPath, METADATA_TYPE, username)))
     }
 
     companion object : Loggable {
