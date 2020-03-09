@@ -1,6 +1,6 @@
 group 'dk.sdu.cloud'
 
-version '2.0.0-storage-events.1'
+version '2.0.0-storage-events.3'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
