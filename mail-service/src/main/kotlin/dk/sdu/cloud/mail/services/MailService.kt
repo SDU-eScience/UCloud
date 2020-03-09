@@ -108,11 +108,11 @@ class MailService(
             bodyPart.setContent(template, "text/html")
             multipart.addBodyPart(bodyPart)
 
-            val escienceLogo = MimeBodyPart()
-            escienceLogo.disposition = MimeBodyPart.INLINE
-            escienceLogo.contentID = "escience_logo"
-            escienceLogo.attachFile(escienceLogoFile)
-            multipart.addBodyPart(escienceLogo)
+            multipart.addBodyPart(MimeBodyPart().apply {
+                disposition = MimeBodyPart.INLINE
+                contentID = "escience_logo"
+                attachFile(escienceLogoFile)
+            })
 
             val ucloudLogo = MimeBodyPart()
             ucloudLogo.disposition = MimeBodyPart.INLINE
