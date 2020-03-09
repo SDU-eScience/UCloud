@@ -114,11 +114,11 @@ class MailService(
                 attachFile(escienceLogoFile)
             })
 
-            val ucloudLogo = MimeBodyPart()
-            ucloudLogo.disposition = MimeBodyPart.INLINE
-            ucloudLogo.contentID = "ucloud_logo"
-            ucloudLogo.attachFile(ucloudLogoFile)
-            multipart.addBodyPart(ucloudLogo)
+            multipart.addBodyPart(MimeBodyPart().apply {
+                disposition = MimeBodyPart.INLINE
+                contentID = "ucloud_logo"
+                attachFile(ucloudLogoFile)
+            })
 
             message.setContent(multipart)
 
