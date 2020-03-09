@@ -37,6 +37,42 @@ class MailService(
         return@lazy file
     }
 
+    private fun addTemplate(text: String): String {
+        return """
+        <!DOCTYPE HTML>
+        <html>
+            <head>
+                <style type="text/css" media="screen">
+                    a {
+                        color: #0069FD;
+                        text-decoration: none;
+                    }
+                    a:hover {
+                        text-decoration: underline;
+                    }
+                </style>
+            </head>
+            <body style='margin:0; padding:0; font-family: "IBM Plex Sans", sans-serif, system-ui, -apple-system,
+                Segoe UI, Roboto, Ubuntu, Cantarell, Oxygen, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+                "Segoe UI Symbol", "Noto Color Emoji";'>
+                <div style="padding: .4em .3em .1em 2em; background: #0069FD;">
+                    <a href="https://cloud.sdu.dk">
+                        <img style="margin-right: .2em;" src="cid:ucloud_logo">
+                    </a>
+                </div>
+                <div style="padding: 2em 4em 2em 4em; max-width: 600px; margin-left: auto; margin-right: auto;">
+                    $text
+                    <p>Best regards,</p>
+                    <p><strong>The UCloud Team<br>SDU eScience Center</strong></p>
+                </div>
+                <div style="text-align: right; padding: 1em;">
+                    <a href="https://escience.sdu.dk"><img src="cid:escience_logo"></a>
+                </div>
+            </body>
+        </html>
+        """.trimIndent()
+    }
+
     suspend fun send(principal: SecurityPrincipal, recipient: String, subject: String, text: String) {
         if (principal.username !in whitelist) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
@@ -68,44 +104,9 @@ class MailService(
             val finalText = text.replace("<p>", "<p style=\"line-height: 1.2em; margin:0 0 1em 0;\">")
 
             val bodyPart = MimeBodyPart()
-            val template = """
-                <!DOCTYPE HTML>
-                <html>
-                    <head>
-                        <style type="text/css" media="screen">
-                            a {
-                                color: #0069FD;
-                                text-decoration: none;
-                            }
-                            a:hover {
-                                text-decoration: underline;
-                            }               
-                        </style>
-                    </head> 
-                    <body style='margin:0; padding:0; font-family: "IBM Plex Sans", sans-serif, system-ui, -apple-system,
-                        Segoe UI, Roboto, Ubuntu, Cantarell, Oxygen, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-                        "Segoe UI Symbol", "Noto Color Emoji";'>
-                        <div style="padding: .4em .3em .1em 2em; background: #0069FD;">
-                            <a href="https://cloud.sdu.dk">
-                                <img style="margin-right: .2em;" src="cid:ucloud_logo">
-                            </a>
-                        </div>
-                        <div style="padding: 2em 4em 2em 4em; max-width: 600px; margin-left: auto; margin-right: auto;">
-                            $finalText
-                            
-                            <p>Best regards,</p>
-                            <p>
-                                <strong>The UCloud Team<br>SDU eScience Center</strong>
-                            </p>
-                        </div> 
-                        <div style="text-align: right; padding: 1em;">
-                            <a href="https://escience.sdu.dk"><img src="cid:escience_logo"></a>
-                        </div>
-                    </body>
-                </html> 
-            """.trimIndent()
+            val bodyWithTemplate = addTemplate(finalText)
 
-            bodyPart.setContent(template, "text/html")
+            bodyPart.setContent(bodyWithTemplate, "text/html")
             multipart.addBodyPart(bodyPart)
 
             val escienceLogo = MimeBodyPart()
