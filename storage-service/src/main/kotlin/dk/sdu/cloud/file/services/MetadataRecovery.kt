@@ -59,8 +59,8 @@ class MetadataRecoveryService<Ctx : FSUserContext>(
                     } else {
                         if (stat.fileType == FileType.DIRECTORY) {
                             dao.findByPrefix(session, path, null, null).forEach { metadata ->
-                                if (!fs.exists(ctx, path)) {
-                                    dao.deleteByPrefix(session, path)
+                                if (!fs.exists(ctx, metadata.path)) {
+                                    dao.deleteByPrefix(session, metadata.path)
                                 }
                             }
                         }
