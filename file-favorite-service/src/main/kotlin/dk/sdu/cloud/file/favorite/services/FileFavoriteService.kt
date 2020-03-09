@@ -136,7 +136,7 @@ class FileFavoriteService(
             .run {
                 val newItems = items.mapNotNull { metadata ->
                     FileDescriptions.stat.call(
-                        StatRequest(metadata.path, attributes = "${StorageFileAttribute.path}"),
+                        StatRequest(metadata.path),
                         userClient
                     ).orNull()
                 }
