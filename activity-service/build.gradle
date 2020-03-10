@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.4.13'
+version '1.4.14-ElasticDAO'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.activity.MainKt"
