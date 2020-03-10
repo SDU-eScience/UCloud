@@ -1,20 +1,13 @@
 package dk.sdu.cloud.activity.service
 
-import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.services.ActivityEventElasticDao
 import dk.sdu.cloud.activity.services.ActivityService
 import dk.sdu.cloud.activity.services.FileLookupService
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.NormalizedScrollRequest
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -28,6 +21,8 @@ class ActivityServiceTest {
     val path = "/home/$user/file.txt"
     lateinit var micro: Micro
     lateinit var service: ActivityService
+
+
 
     @BeforeTest
     fun setupTest() {
@@ -60,13 +55,14 @@ class ActivityServiceTest {
         }
 
         runBlocking {
-            val results = activityService.findEventsForUser(NormalizedPaginationRequest(10,0), user)
+            val results = activityService.findEventsForUser(NormalizedPaginationRequest(10, 0), user)
             assertEquals(2000, results.itemsInTotal)
         }
 
         runBlocking {
-            val results = activityService.findEventsForPath(NormalizedPaginationRequest(10,0), user, "token", user)
+            val results = activityService.findEventsForPath(NormalizedPaginationRequest(10, 0), user, "token", user)
             assertEquals(2000, results.itemsInTotal)
         }
     }
 }
+

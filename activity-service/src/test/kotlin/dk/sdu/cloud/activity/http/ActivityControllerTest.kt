@@ -1,18 +1,19 @@
 package dk.sdu.cloud.activity.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.Role
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.activity.api.ActivityEvent
-import dk.sdu.cloud.activity.api.ListActivityByPathRequest
 import dk.sdu.cloud.activity.api.ListActivityByPathResponse
+import dk.sdu.cloud.activity.services.ActivityEventElasticDao
 import dk.sdu.cloud.activity.services.ActivityService
-import dk.sdu.cloud.activity.util.setUser
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.ElasticFeature
+import dk.sdu.cloud.micro.elasticHighLevelClient
+import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
-import dk.sdu.cloud.service.paginate
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
+import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
@@ -22,9 +23,6 @@ import io.ktor.server.testing.handleRequest
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
-import io.mockk.verify
-import kotlinx.coroutines.runBlocking
-import org.hibernate.Session
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals

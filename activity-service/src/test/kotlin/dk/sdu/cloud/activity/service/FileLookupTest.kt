@@ -5,7 +5,6 @@ import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.AccessEntry
-import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
@@ -14,7 +13,6 @@ import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.assertEquals
