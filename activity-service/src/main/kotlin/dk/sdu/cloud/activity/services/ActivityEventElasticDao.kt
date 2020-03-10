@@ -2,6 +2,7 @@ package dk.sdu.cloud.activity.services
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.sun.org.apache.xpath.internal.operations.Bool
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.activity.api.ActivityEvent
@@ -116,7 +117,6 @@ data class SharedActivity(
 class ActivityEventElasticDao(private val client: RestHighLevelClient): ActivityEventDao {
     override fun findByFilePath(pagination: NormalizedPaginationRequest, filePath: String): Page<ActivityEvent> {
         val normalizedFilePath = filePath.normalize()
-        println(normalizedFilePath)
         val request = SearchRequest(*ALL_RELEVANT_INDICES)
         val source = SearchSourceBuilder().query(
             QueryBuilders.boolQuery()
@@ -171,10 +171,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
             .size(pagination.itemsPerPage)
             .sort("@timestamp", SortOrder.DESC)
 
-
-
         request.source(source)
-        println(request.source().toString())
 
         val searchResponse = client.search(request, RequestOptions.DEFAULT)
 
@@ -193,24 +190,32 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
     }
 
     override fun findByUser(pagination: NormalizedPaginationRequest, user: String): Page<ActivityEvent> {
-        val request = SearchRequest(*ALL_RELEVANT_INDICES).apply {
-            SearchSourceBuilder().query(
-                QueryBuilders.boolQuery()
-                    .should(
-                        QueryBuilders.multiMatchQuery(
-                            user,
-                            "token.principal.username"
+        val request = SearchRequest(*ALL_RELEVANT_INDICES)
+        val source = SearchSourceBuilder().query(
+            QueryBuilders.boolQuery()
+                .filter(
+                    QueryBuilders.boolQuery()
+                        .must(
+                            QueryBuilders.matchPhraseQuery(
+                                "token.principal.username",
+                                user
+                            )
                         )
-                    )
-                    .filter(
-                        QueryBuilders.matchQuery(
-                            "responseCode", 200
+                )
+                .filter(
+                    QueryBuilders.boolQuery()
+                        .should(
+                            QueryBuilders.rangeQuery(
+                                "responseCode"
+                            ).lte(299)
                         )
-                    )
-            ).from(pagination.itemsPerPage * pagination.page)
-                .size(pagination.itemsPerPage)
-                .sort("@timestamp", SortOrder.DESC)
-        }
+                        .minimumShouldMatch(1)
+                )
+        ).from(pagination.itemsPerPage * pagination.page)
+            .size(pagination.itemsPerPage)
+            .sort("@timestamp", SortOrder.DESC)
+
+        request.source(source)
 
         val searchResponse = client.search(request, RequestOptions.DEFAULT)
 
@@ -408,14 +413,14 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                     if (isUserSearch) {
                         var filesUsed = ""
                         source.requestJson.mounts.forEach { mount ->
-                            val path = checkSource(mount.toString(), normalizedFilePath)
+                            val path = checkSource(mount.toString(), normalizedFilePath, inUserSearch = true)
                             if (path != null) {
                                 filesUsed += "$path, "
                             }
                         }
                         source.requestJson.parameters.forEach { (t, u) ->
                             if (t == "directory") {
-                                val path = checkSource(u.toString(), normalizedFilePath)
+                                val path = checkSource(u.toString(), normalizedFilePath, inUserSearch = true)
                                 if (path != null) {
                                     filesUsed += "$path, "
                                 }
@@ -450,7 +455,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
     }
 
     //Definitely not a good way to check source!!
-    private fun checkSource(element: String, normalizedFilePath: String): String? {
+    private fun checkSource(element: String, normalizedFilePath: String, inUserSearch: Boolean = false): String? {
         val clearElement = element.removePrefix("{").removeSuffix("}")
         if (clearElement.contains("source")) {
             val startIndex = clearElement.indexOf("source=")+"source=".length
@@ -458,7 +463,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
             val path = sourceStartString.substring(0, sourceStartString.indexOf(", ")).normalize()
             println("before mount if")
             println(path)
-            if (path == normalizedFilePath) {
+            if (path == normalizedFilePath || inUserSearch) {
                 return path
             }
         }
