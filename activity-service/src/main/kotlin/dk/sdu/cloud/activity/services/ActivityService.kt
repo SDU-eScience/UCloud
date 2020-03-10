@@ -1,7 +1,6 @@
 package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityEvent
-import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.ActivityFilter
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable

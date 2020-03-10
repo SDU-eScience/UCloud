@@ -21,7 +21,6 @@ import kotlin.test.assertEquals
 class ActivityEventDaoTest {
     lateinit var micro: Micro
 
-/*
     @BeforeTest
     fun setupTest() {
         micro = initializeMicro()
@@ -48,5 +47,5 @@ class ActivityEventDaoTest {
     @Test
     fun `Find events`() {
 
-    }*/
+    }
 }

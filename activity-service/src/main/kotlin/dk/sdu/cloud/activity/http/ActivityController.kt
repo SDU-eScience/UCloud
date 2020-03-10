@@ -11,7 +11,6 @@ import dk.sdu.cloud.calls.server.jobId
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.call
 
 class ActivityController(
     private val activityService: ActivityService

@@ -2,14 +2,10 @@ package dk.sdu.cloud.activity.services
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.sun.org.apache.xpath.internal.operations.Bool
-import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
-import dk.sdu.cloud.app.store.api.ApplicationParameter
-import dk.sdu.cloud.app.store.api.FileTransferDescription
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.BulkFileAudit
@@ -17,17 +13,13 @@ import dk.sdu.cloud.file.api.BulkUploadAudit
 import dk.sdu.cloud.file.api.CopyRequest
 import dk.sdu.cloud.file.api.CreateDirectoryRequest
 import dk.sdu.cloud.file.api.DeleteFileRequest
-import dk.sdu.cloud.file.api.DownloadByURI
 import dk.sdu.cloud.file.api.FindByPath
 import dk.sdu.cloud.file.api.MoveRequest
 import dk.sdu.cloud.file.api.MultiPartUploadAudit
 import dk.sdu.cloud.file.api.ReclassifyRequest
-import dk.sdu.cloud.file.api.SimpleBulkUpload
-import dk.sdu.cloud.file.api.SimpleUploadRequest
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -256,23 +248,33 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         }
         val index = getIndexByType(filter.type)
 
-        val request = SearchRequest(*index).apply {
-            SearchSourceBuilder().query(
-                query.should(
-                        QueryBuilders.multiMatchQuery(
-                            filter.user,
-                            "token.principal.username"
+        val request = SearchRequest(*index)
+        val source = SearchSourceBuilder().query(
+            QueryBuilders.boolQuery()
+                .filter(
+                    QueryBuilders.boolQuery()
+                        .must(
+                            QueryBuilders.matchPhraseQuery(
+                                "token.principal.username",
+                                filter.user
+                            )
                         )
-                    )
-                    .filter(
-                        QueryBuilders.matchQuery(
-                            "responseCode", 200
+                )
+                .filter(
+                    QueryBuilders.boolQuery()
+                        .should(
+                            QueryBuilders.rangeQuery(
+                                "responseCode"
+                            ).lte(299)
                         )
-                    )
+                        .minimumShouldMatch(1)
+                )
+                .filter(query)
             ).from(filter.offset ?: 0)
                 .size(size)
                 .sort("@timestamp", SortOrder.DESC)
-        }
+
+        request.source(source)
         val searchResponse = client.search(request, RequestOptions.DEFAULT)
         return mapEventsBasedOnIndex(searchResponse, isUserSearch = true)
     }
