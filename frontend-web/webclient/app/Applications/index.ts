@@ -144,6 +144,7 @@ export interface JobSchedulingOptionsForInput {
     numberOfNodes: number;
     tasksPerNode: number;
     name: React.RefObject<HTMLInputElement>;
+    url: React.RefObject<HTMLInputElement>;
 }
 
 export interface AdditionalMountedFolder {

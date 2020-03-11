@@ -100,7 +100,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 },
                 numberOfNodes: 1,
                 tasksPerNode: 1,
-                name: React.createRef()
+                name: React.createRef(),
+                url: React.createRef()
             },
             favorite: false,
             favoriteLoading: false,
@@ -700,7 +701,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     maxTime: toolDescription.defaultTimeAllocation,
                     numberOfNodes: toolDescription.defaultNumberOfNodes,
                     tasksPerNode: toolDescription.defaultTasksPerNode,
-                    name: this.state.schedulingOptions.name
+                    name: this.state.schedulingOptions.name,
+                    url: this.state.schedulingOptions.url
                 }
             }));
         } catch (e) {
@@ -818,7 +820,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         maxTime,
                         numberOfNodes,
                         tasksPerNode,
-                        name: this.state.schedulingOptions.name
+                        name: this.state.schedulingOptions.name,
+                        url: this.state.schedulingOptions.url
                     })
                 }));
             } catch (e) {
@@ -916,15 +919,23 @@ interface JobSchedulingOptionsProps {
     reservationRef: React.RefObject<HTMLInputElement>;
 }
 
+function urlify(text: string): string {
+    return encodeURIComponent(text.substr(0, 32)).replace (new RegExp('%20', 'g'), '-').toLowerCase()
+}
+
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
     if (!props.app) return null;
-    const {maxTime, numberOfNodes, tasksPerNode, name} = props.options;
+    const {maxTime, numberOfNodes, tasksPerNode, name, url} = props.options;
     return (
         <>
             <Flex mb="4px" mt="4px">
                 <Label>
                     Job name
-                    <Input ref={name} placeholder={"Example: Analysis with parameters XYZ"} />
+                    <Input
+                        ref={name}
+                        placeholder={"Example: Analysis with parameters XYZ"}
+                        onChange={(enteredName) => url.current!.value = urlify(enteredName.currentTarget.value)}
+                    />
                 </Label>
             </Flex>
 
@@ -979,6 +990,17 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     inputRef={props.reservationRef}
                 />
             </div>
+
+            <Flex mb="4px" mt="1em">
+                <Label>
+                    Persistent URL
+                    <Flex>
+                        <Box mt={10}>https://app-</Box>
+                        <Input value="hello" ref={url} />
+                        <Box mt={10}>.cloud.sdu.dk</Box>
+                    </Flex>
+                </Label>
+            </Flex>
         </>
     );
 };
@@ -988,7 +1010,8 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
         maxTime: {hours: 0, minutes: 0, seconds: 0},
         numberOfNodes: 1,
         tasksPerNode: 1,
-        name: jobInfo.name
+        name: jobInfo.name,
+        url: jobInfo.url
     };
     const {maxTime, numberOfNodes, tasksPerNode} = jobInfo;
     extractedJobInfo.maxTime.hours = Math.abs(maxTime.hours);
