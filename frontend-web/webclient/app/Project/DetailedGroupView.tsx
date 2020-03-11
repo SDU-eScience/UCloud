@@ -16,6 +16,7 @@ import {GridCardGroup} from "ui-components/Grid";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Spacer} from "ui-components/Spacer";
 import {Avatar} from "AvataaarLib";
+import {addStandardDialog} from "UtilityComponents";
 
 
 interface DetailedGroupViewProps {
@@ -52,10 +53,10 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
 
 
     /* FIXME: Remove before pushing */
-    /* if (inDevEnvironment() && activeGroup.data.items.length === 0) {
-        activeGroup.data.items = memberNames;
-        activeGroup.data.itemsInTotal = memberNames.length;
-    } */
+    // if (inDevEnvironment() && activeGroup.data.items.length === 0) {
+    //     activeGroup.data.items = memberNames;
+    //     activeGroup.data.itemsInTotal = memberNames.length;
+    // }
 
     if (activeGroup.loading) return <MainContainer main={<LoadingSpinner size={48} />} />;
     if (activeGroup.error) return <MainContainer main={
@@ -75,10 +76,10 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
                 page={activeGroup.data}
                 pageRenderer={page =>
                     <GridCardGroup minmax={220}>
-                        {memberNames.map(member =>
+                        {page.items.map(member =>
                             <Card borderRadius="10px" height="auto" minWidth="220px" key={member}>
                                 <Spacer
-                                    left={<Flex ml="88px" width="60px" style={{textAlign: "center"}} alignItems="center" mt="8px" height="48px">
+                                    left={<Flex ml="88px" width="60px" alignItems="center" mt="8px" height="48px">
                                         <Avatar avatarStyle="Circle" {...avatars[member] ?? defaultAvatar} />
                                     </Flex>}
                                     right={
@@ -88,7 +89,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
                                             mr="8px"
                                             color="red"
                                             name="close"
-                                            onClick={() => removeMember(member)} size="20px"
+                                            onClick={() => promptRemoveMember(member)} size="20px"
                                         />
                                     }
                                 />
@@ -114,7 +115,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
                 <Heading.h5>Members: {activeGroup.data.itemsInTotal}</Heading.h5>
                 <form onSubmit={addMember}>
                     <Flex><Input type="text" ref={memberRef} width="300px" />
-                    <Button disabled={loading || activeGroup.loading} attached>Add</Button></Flex>
+                        <Button disabled={loading || activeGroup.loading} attached>Add</Button></Flex>
                 </form>
             </Box>
         </>}
@@ -138,6 +139,16 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to add member."));
         }
+    }
+
+    function promptRemoveMember(member: string): void {
+        addStandardDialog({
+            title: "Remove member?",
+            message: `Do you want to remove ${member} from the group ${name}?`,
+            onConfirm: () => removeMember(member),
+            cancelText: "Cancel",
+            confirmText: "Remove"
+        });
     }
 
     async function removeMember(member: string): Promise<void> {
