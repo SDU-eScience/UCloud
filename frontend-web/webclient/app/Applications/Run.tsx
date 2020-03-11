@@ -996,7 +996,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     Persistent URL
                     <Flex>
                         <Box mt={10}>https://app-</Box>
-                        <Input value="hello" ref={url} />
+                        <Input placeholder="Unique persistent URL identifier" ref={url} />
                         <Box mt={10}>.cloud.sdu.dk</Box>
                     </Flex>
                 </Label>
