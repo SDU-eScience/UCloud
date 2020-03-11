@@ -6,7 +6,6 @@ import java.util.*
 bundle { ctx ->
     name = "integration"
     version = "0.2.4"
-
     val userLetters = listOf("a", "b")
 
     val deployment =

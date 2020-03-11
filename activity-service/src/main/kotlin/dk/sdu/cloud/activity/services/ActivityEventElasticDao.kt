@@ -337,12 +337,14 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                 }
                 doc.index.startsWith(FILES_FAVORITE_TOGGLE.dropLast(1)) -> {
                     val source = defaultMapper.readValue<FavoriteActivity>(doc.sourceAsString)
-                    activityEventList.add(ActivityEvent.Favorite(
-                        source.token.principal.username,
-                        source.requestJson.files.single().newStatus!!,
-                        source.timestamp.time,
-                        source.requestJson.files.single().path
-                    ))
+                    if (source.requestJson.files.single().newStatus != null) {
+                        activityEventList.add(ActivityEvent.Favorite(
+                            source.token.principal.username,
+                            source.requestJson.files.single().newStatus!!,
+                            source.timestamp.time,
+                            source.requestJson.files.single().path
+                        ))
+                    }
                 }
                 doc.index.startsWith(FILES_DOWNLOAD.dropLast(1)) -> {
                     val source = defaultMapper.readValue<DownloadActivity>(doc.sourceAsString)

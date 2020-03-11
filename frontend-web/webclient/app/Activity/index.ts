@@ -1,13 +1,20 @@
 import {ActivityReduxObject} from "DefaultObjects";
 import {ScrollRequest} from "Scroll";
+import {AccessRight} from "Utilities/FileUtilities";
 
 export enum ActivityType {
     DOWNLOAD = "download",
-    UPDATED = "updated",
     DELETED = "deleted",
     FAVORITE = "favorite",
-    INSPECTED = "inspected",
-    MOVED = "moved"
+    MOVED = "moved",
+    COPIED = "copy",
+    USEDINAPP = "usedInApp",
+    DIRECTORYCREATED = "directoryCreated",
+    RECLASSIFIED = "reclassify",
+    UPLOADED = "upload",
+    UPDATEDACL = "updatedACL",
+    SHAREDWITH = "sharedWith",
+    ALLUSEDINAPP = "allUsedInApp"
 }
 
 export interface ActivityGroup {
@@ -20,9 +27,8 @@ export interface ActivityGroup {
 export interface Activity {
     type: ActivityType;
     timestamp: number;
-    fileId: string;
+    filePath: string;
     username: string;
-    originalFilePath: string;
 }
 
 export interface ActivityFilter {
@@ -33,11 +39,37 @@ export interface ActivityFilter {
 }
 
 export interface FavoriteActivity extends Activity {
-    favorite: boolean;
+    isFavorite: boolean;
 }
 
 export interface MovedActivity extends Activity {
     newName: string;
+}
+
+export interface ReclassifyActivity extends Activity {
+    newSensitivity: string;
+}
+
+export interface CopyActivity extends Activity {
+    copyFilePath: string;
+}
+
+export interface UpdatedACLActivity extends Activity {
+    rightsAndUser: {first: Set<AccessRight>, second: string}[];
+}
+
+export interface MovedActivity extends Activity {
+    newName: string;
+}
+
+export interface SingleFileUsedActivity extends Activity{
+    applicationName: string;
+    applicationVersion: string;
+}
+
+export interface AllFilesUsedActivity extends Activity{
+    applicationName: string;
+    applicationVersion: string;
 }
 
 
