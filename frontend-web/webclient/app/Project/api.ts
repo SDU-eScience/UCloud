@@ -6,10 +6,10 @@ interface CreateGroupRequest {
     group: string;
 }
 
-interface ListGroupMembersRequestProps {
+export interface ListGroupMembersRequestProps {
     group: string;
-    itemsPerPage?: number;
-    page?: number;
+    itemsPerPage: number;
+    page: number;
 }
 
 export function createGroup(props: CreateGroupRequest): APICallParameters<{}> {

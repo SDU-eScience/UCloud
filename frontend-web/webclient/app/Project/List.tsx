@@ -106,9 +106,7 @@ const ProjectSummary: React.FunctionComponent<ProjectSummaryProps> = props => (
         right={
             <Box pt="6px" mr="6px">
                 {props.isSelected ? <Icon mr="44px" mt="9px" name="check" color="green" /> : (
-                    <Button onClick={() => props.setProject(props.summary.id)}>
-                        Mark active
-                    </Button>
+                    <Button onClick={() => props.setProject(props.summary.id)}>Set active</Button>
                 )}
             </Box>
         }

@@ -95,7 +95,7 @@ class DetailedPage extends React.Component<DetailedPageProps> {
 const mapDispatchToProps = (dispatch: Dispatch<Actions.Type | SetRefreshFunction>, ownProps: OwnProps): Operations => ({
     refresh: () => {
         const {resource, subResource} = ownProps.match.params;
-        const fetch = async () => {
+        const fetch = async (): Promise<void> => {
             dispatch(Actions.clearResource(resource, subResource));
             dispatch(await Actions.fetchEvents(resource, subResource));
             dispatch(await Actions.fetchChart(resource, subResource));
