@@ -34,7 +34,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             ServerAccessRight.READ -> {
                 session.criteria<PermissionEntry> {
                     allOf(
-                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.principal.username) and
+                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id) and
                                 (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type) and
                                 ((entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ) or
                                         (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE))
@@ -44,7 +44,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             ServerAccessRight.READ_WRITE -> {
                 session.criteria<PermissionEntry> {
                     allOf(
-                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.principal.username),
+                        (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id),
                         (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type),
                         (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
                     )
@@ -62,7 +62,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ) {
         val permissionEntry = PermissionEntry(
             PermissionEntry.Key(
-                userEntity.principal.username,
+                userEntity.id,
                 userEntity.type,
                 serverId,
                 permissions
@@ -79,7 +79,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ) {
         session.deleteCriteria<PermissionEntry> {
             (entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal serverId) and
-                    (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal userEntity.principal.username) and
+                    (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal userEntity.id) and
                     (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal userEntity.type)
         }.executeUpdate()
     }

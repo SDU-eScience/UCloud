@@ -12,7 +12,7 @@ enum class ServerAccessRight {
 }
 
 data class UserEntity(
-    val principal: SecurityPrincipal,
+    val id: String,
     val type: EntityType
 )
 

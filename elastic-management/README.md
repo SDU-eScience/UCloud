@@ -38,4 +38,44 @@ Elastic-management uses different arguments to handle different jobs:
   Intended to be a cron job run each 3rd month. This has a dependency on the --monthlyReduce, since 
   it requires the indices it reduces to contain the "monthly" keyword. 
 - *"--deleteEmptyIndices"*  
-  Used for deleting all empty indices in the cluster. 
+  Used for deleting all empty indices in the cluster.
+  
+## Shrinking
+When running *"--cleanup"* the shrinking process takes place. The reason that we shrink each day are multiple:
+- There are a small overhead in storage usage in having multiple shards per index
+- Shards are usually used for faster write and search. Since we make daily indices we no longer have a need for larger 
+write capacity and we rarely have a need for searching.
+- The cluster has a hard limit of shards per node. If this limit is exceeded the cluster will not write new shards even 
+if there is plenty of storage left. The limit is optimal when between 2-5000 per node. By reducing the number of shards '
+in unused indices we can easier keep each node beneath the limit.
+
+The procedure of shrinking requires multiple steps. 
+1. Preparing source index: 
+  The source index needs to be on the same node before a shrink can happen. The index also needs to be blocked from further 
+  writes.
+  The process of moving all data of the index to a single node can be time consuming and there for we need to wait for the
+  cluster to finish moving before we can continue the process.
+2. Shrinking:
+  When shrinking a new index is created. This uses the same name, but postfixes it with \"\_small\" and only has a single 
+  primary shard and a single replica. This greatly reduces the number of shards overall since we create 100+ indices of 
+  logs each day.  
+  Once the new index has been created a merge operation can be made which reduces the number of segmentes the index uses.
+  This is not a requirement, but it reduces the storage consumption of the index.
+3. Deletion:
+  Once the shrink has completed we are left with duplicate data. The original index and the new smaller (shardswise) index.
+  To finish the shrink we delete the old index from the cluster.
+  
+### Potential errors and how they are handled
+When doing the daily reduction of shards multiple things can happen:
+- Allocation to single node not done: Even if we allocate all the shards to one node in a seperate step, there could have 
+  been a short instance where the number of reallocating shards was 0, but in fact not done yet. If this is the case,
+  Elasticsearch will throw a internal error. In this case we attempt to wait once more for reallocation before we retry 
+  the shrink.
+- Index already exists: In the case that the cleanup job crashes between a shrink has started and the old index is not 
+  yet deleted, the old index would be added to the list of indices to shrink when the cron job restarts.
+  When trying to shrink this index Elasticsearch would complain that the index is already there and fail the job.
+  If this error is thrown we catch it and makes a check to see if the number of documents in both indices match. 
+  If they do match we delete the old index, otherwise we delete the new index and do retry the shrink.
+- Timeout when merging: Since the elastic-management code does not use the async API a timeout can happen if the merge 
+  operation takes longer than 60s. In this case we catch the exception and writes the event to log and waits for a few seconds.
+  There is no need to try to redo the operation since the operation has started, and will continue eventhough a timeout happen.

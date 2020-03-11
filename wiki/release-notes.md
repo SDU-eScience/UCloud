@@ -7,6 +7,15 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8/` folders of each microservice.
 
+## 02-03-20
+
+Bug fix in elastic-management. During shrinking process source and target index 
+should now have same amount of doc before attempt to delete source index is made.
+
+| Deployment | Image |
+| ---------- | ----- |
+| elastic-management | elastic-management-service:1.0.24 |
+
 ## 21-02-20
 
 Bug fix via new storage version. Added more names to GPU whitelist.

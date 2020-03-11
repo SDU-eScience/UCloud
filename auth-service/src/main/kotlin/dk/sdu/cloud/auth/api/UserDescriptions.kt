@@ -20,6 +20,9 @@ data class LookupUsersResponse(val results: Map<String, UserLookup?>)
 data class LookupEmailRequest(val userId: String)
 data class LookupEmailResponse(val email: String)
 
+data class LookupUserWithEmailRequest(val email: String)
+data class LookupUserWithEmailResponse(val userId: String, val firstNames: String)
+
 typealias CreateUserAudit = List<CreateSingleUserAudit>
 
 data class CreateSingleUserAudit(val username: String, val role: Role?)
@@ -38,6 +41,8 @@ class ChangePasswordAudit
 data class ChangePasswordRequest(val currentPassword: String, val newPassword: String) {
     override fun toString() = "ChangePasswordRequest()"
 }
+
+data class ChangePasswordWithResetRequest(val userId: String, val newPassword: String)
 
 data class LookupUIDRequest(val uids: List<Long>)
 data class LookupUIDResponse(val users: Map<Long, UserLookup?>)
@@ -83,6 +88,26 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
         }
     }
 
+    val changePasswordWithReset = call<ChangePasswordWithResetRequest, Unit, CommonErrorMessage>("changePasswordWithReset") {
+        audit<ChangePasswordAudit>()
+
+        auth {
+            roles = setOf(Role.SERVICE)
+            access = AccessRight.READ_WRITE
+        }
+
+      http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"password"
+                +"reset"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
     val lookupUsers = call<LookupUsersRequest, LookupUsersResponse, CommonErrorMessage>("lookupUsers") {
         auth {
             roles = Roles.PRIVILEDGED
@@ -112,6 +137,24 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
                 using(baseContext)
                 +"lookup"
                 +"email"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val lookupUserWithEmail = call<LookupUserWithEmailRequest, LookupUserWithEmailResponse, CommonErrorMessage>("lookupUserWithEmail") {
+        auth {
+            roles = setOf(Role.SERVICE)
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"lookup"
+                +"with-email"
             }
 
             body { bindEntireRequestFromBody() }
