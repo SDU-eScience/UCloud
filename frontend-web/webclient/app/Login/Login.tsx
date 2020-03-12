@@ -4,15 +4,16 @@ import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink} from "ui-components";
+import {Absolute, Box, Button, Flex, Icon, Image, Input, Text, ExternalLink, Link} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DropdownContent, Dropdown} from "ui-components/Dropdown";
 import {TextSpan} from "ui-components/Text";
-import {getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
+import {getQueryParamOrElse, RouterLocationProps, getQueryParam} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {Instructions} from "WebDav/Instructions";
 import {PRODUCT_NAME, SITE_DOCUMENTATION_URL, SUPPORT_EMAIL} from "../../site.config.json";
 import {BG1} from "./BG1";
+import {SnackType} from "Snackbar/Snackbars.js";
 
 const bg2 = require("Assets/Images/bg2.svg");
 const wayfLogo = require("Assets/Images/WAYFLogo.svg");
@@ -33,6 +34,10 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
     const verificationInput = useRef<HTMLInputElement>(null);
     const usernameInput = useRef<HTMLInputElement>(null);
     const passwordInput = useRef<HTMLInputElement>(null);
+    const resetEmailInput = useRef<HTMLInputElement>(null);
+    const resetPasswordInput = useRef<HTMLInputElement>(null);
+    const resetPasswordRepeatInput = useRef<HTMLInputElement>(null);
+
     const [promises] = useState(new PromiseKeeper());
     const [loading, setLoading] = useState(false);
 
@@ -44,7 +49,9 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
     }, []);
 
     const isWebDav = getQueryParamOrElse(props, "dav", "false") === "true";
+    const isPasswordReset = getQueryParamOrElse(props, "password-reset", "false") === "true";
     const service = isWebDav ? "dav" : (inDevEnvironment ? "dev-web" : "web");
+    const resetToken = getQueryParam(props, "token");
 
     if (webDavInstructionToken !== null) {
         return <Instructions token={webDavInstructionToken} />;
@@ -91,6 +98,67 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
             setLoading(false);
         }
     }
+
+    async function attemptSaveNewPassword(e: {preventDefault(): void}): Promise<void> {
+        e.preventDefault();
+
+        if (!(resetPasswordInput.current?.value) || !(resetPasswordRepeatInput.current?.value)) {
+            snackbarStore.addFailure("Invalid password");
+            return;
+        }
+
+        if (resetPasswordInput.current?.value !== resetPasswordRepeatInput.current?.value) {
+            snackbarStore.addFailure("Passwords does not match");
+            return;
+        }
+
+        if (resetToken == null) {
+            return;
+        }
+
+        try {
+            setLoading(true);
+
+            const body = {
+                token: resetToken,
+                newPassword: resetPasswordInput.current!.value
+            };
+            const response = await promises.makeCancelable(
+                fetch(Client.computeURL("/api/password/reset", `/new`), {
+                    method: "POST",
+                    headers: {
+                        Accept: "application/json"
+                    },
+                    body: JSON.stringify(body)
+                })
+            ).promise;
+
+            resetPasswordInput.current.value = ""
+            resetPasswordRepeatInput.current.value = ""
+
+            if (!response.ok) {
+                throw response;
+            }
+
+            setLoading(false);
+
+            snackbarStore.addSnack({
+                type: SnackType.Success,
+                message: `Your password was changed successfully`,
+                lifetime: 15_000
+            });
+
+            props.history.push("/login");
+        } catch (e) {
+            setLoading(false);
+
+            snackbarStore.addFailure(
+                e.statusText
+            );
+        }
+    }
+
+
 
     function handleCompleteLogin(result: any): void {
         if (isWebDav) {
@@ -139,6 +207,37 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
         }
     }
 
+    async function submitResetPassword(e: {preventDefault(): void}): Promise<void> {
+        e.preventDefault();
+        setLoading(true);
+
+        const body = {
+            email: resetEmailInput.current!.value
+        };
+
+        const response = await promises.makeCancelable(
+            fetch("/api/password/reset", {
+                method: "POST",
+                headers: {
+                    "Accept": "application/json",
+                    "Content-type": "application/json"
+                },
+                body: JSON.stringify(body)
+            })
+        ).promise;
+
+        resetEmailInput.current!.value = "";
+        setLoading(false);
+        snackbarStore.addSnack({
+            type: SnackType.Success,
+            message: `If an account exists with the entered email address, you will receive an email shortly.
+                Please check your inbox and follow the instructions.`,
+            lifetime: 15_000
+        });
+    }
+
+
+
     return (
         <>
             <Absolute right="1em" top=".5em">
@@ -183,7 +282,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                 You must re-authenticate with {PRODUCT_NAME} to use your files locally.
                             </LoginBox>
                         )}
-                        {enabledWayf && !challengeId ? (
+                        {enabledWayf && !challengeId && !isPasswordReset ? (
                             <a href={`/auth/saml/login?service=${service}`}>
                                 <Button disabled={loading} fullWidth color="wayfGreen">
                                     <Image width="100px" src={wayfLogo} />
@@ -191,44 +290,138 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                 </Button>
                             </a>
                         ) : null}
-                        {!challengeId ? (
-                            <DropdownContentWrapper>
-                                <ClickableDropdown
-                                    colorOnHover={false}
-                                    keepOpenOnClick
-                                    keepOpenOnOutsideClick
-                                    top="30px"
-                                    width="315px"
-                                    left="0px"
-                                    trigger={(
-                                        <LoginText
-                                            fontSize={1}
-                                            mt="5px"
-                                        >
-                                            More login options
-                                    </LoginText>
-                                    )}
-                                >
-                                    <LoginBox color="red" width="100%">
-                                        <form onSubmit={preventDefault}>
-                                            <Login
-                                                enabled2fa={!!challengeId}
-                                                usernameRef={usernameInput}
-                                                passwordRef={passwordInput}
-                                            />
-                                            <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
+                        {(!challengeId) ? (
+                            !isPasswordReset ? (
+                                <DropdownContentWrapper>
+                                    <ClickableDropdown
+                                        colorOnHover={false}
+                                        keepOpenOnClick
+                                        keepOpenOnOutsideClick
+                                        top="30px"
+                                        width="315px"
+                                        left="0px"
+                                        trigger={(
+                                            <LoginText
+                                                fontSize={1}
+                                                mt="5px"
+                                            >
+                                                More login options
+                                        </LoginText>
+                                        )}
+                                    >
+                                        <LoginBox color="red" width="100%">
+                                            <form onSubmit={preventDefault}>
+                                                <Login
+                                                    enabled2fa={!!challengeId}
+                                                    usernameRef={usernameInput}
+                                                    passwordRef={passwordInput}
+                                                />
+                                                <TwoFactor enabled2fa={challengeId} inputRef={verificationInput} />
 
-                                            <LoginButton
+                                                <LoginButton
+                                                    fullWidth
+                                                    disabled={loading}
+                                                    onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                                                >
+                                                    Login
+                                                </LoginButton>
+                                            </form>
+                                            <Box mt={20}>
+                                                <Link to="/login?password-reset=true" mt={20}>
+                                                    <BlackLoginText fontSize={1}>Forgot your password?</BlackLoginText>
+                                                </Link>
+                                            </Box>
+                                        </LoginBox>
+                                    </ClickableDropdown>
+                                </DropdownContentWrapper>
+                            ) : (
+                                resetToken == null ? (
+                                <>
+                                    <LoginText fontSize={1} mt="5px">
+                                        To reset your password, enter your email address
+                                    </LoginText>
+                                    <LoginDropdownContent
+                                        overflow="visible"
+                                        squareTop={false}
+                                        cursor="pointer"
+                                        width="315px"
+                                        hover={false}
+                                        colorOnHover={false}
+                                        visible
+                                    >
+                                        <LoginBox width="100%">
+                                            <form onSubmit={(e) => submitResetPassword(e)}>
+                                                <Input
+                                                    placeholder="Email address"
+                                                    name="email"
+                                                    type="email"
+                                                    ref={resetEmailInput}
+                                                    autoFocus required
+                                                />
+                                                <Button
+                                                    fullWidth
+                                                    disabled={loading}
+                                                    marginTop={10}
+                                                >
+                                                    Reset password
+                                                    </Button>
+                                            </form>
+                                            <Box mt={20}>
+                                                <Link to="/login">
+                                                    <BlackLoginText fontSize={1}>Return to Login page</BlackLoginText>
+                                                </Link>
+                                            </Box>
+                                        </LoginBox>
+                                    </LoginDropdownContent>
+                                </>
+                            ) : (
+                            <LoginBox width="315px">
+                                <LoginText fontSize={1} mt="5px">
+                                    Please enter a new password
+                                </LoginText>
+                                <LoginDropdownContent
+                                    overflow="visible"
+                                    squareTop={false}
+                                    cursor="pointer"
+                                    width="315px"
+                                    hover={false}
+                                    colorOnHover={false}
+                                    visible
+                                >
+                                    <LoginBox width="100%">
+                                        <form onSubmit={(e) => attemptSaveNewPassword(e)}>
+                                            <Input
+                                                mb={10}
+                                                type="password"
+                                                placeholder="New password"
+                                                ref={resetPasswordInput}
+                                                autoFocus
+                                            />
+
+                                            <Input
+                                                type="password"
+                                                placeholder="Repeat new password"
+                                                ref={resetPasswordRepeatInput}
+                                            />
+                                            <Button
                                                 fullWidth
                                                 disabled={loading}
-                                                onClick={() => challengeId ? submit2FA() : attemptLogin()}
+                                                marginTop={10}
                                             >
-                                                Login
-                                            </LoginButton>
+                                                Save new password
+                                                </Button>
                                         </form>
+                                        <Box mt={20}>
+                                            <Link to="/login">
+                                                <BlackLoginText fontSize={1}>Return to Login page</BlackLoginText>
+                                            </Link>
+                                        </Box>
                                     </LoginBox>
-                                </ClickableDropdown>
-                            </DropdownContentWrapper>
+                                </LoginDropdownContent>
+                            </LoginBox>
+
+                            )
+                            )
                         ) : (
                                 <>
                                     <LoginText fontSize={1} mt="5px">
@@ -343,4 +536,8 @@ const LoginBox = styled(Box)`
 
 const LoginButton = styled(Button)`
     color: white;
+`;
+
+const BlackLoginText = styled(Text)`
+    color: black;
 `;

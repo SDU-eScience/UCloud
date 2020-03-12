@@ -15,10 +15,10 @@ class AppLicenseService<Session>(
     private val aclService: AclService<Session>,
     private val appLicenseDao: AppLicenseDao<Session>
 ) {
-    suspend fun getLicenseServer(serverId: String, entity: UserEntity): LicenseServerWithId? {
+    suspend fun getLicenseServer(securityPrincipal: SecurityPrincipal, serverId: String, entity: UserEntity): LicenseServerWithId? {
         if (
             !aclService.hasPermission(serverId, entity, ServerAccessRight.READ) &&
-            !Roles.PRIVILEDGED.contains(entity.principal.role)
+            securityPrincipal.role !in Roles.PRIVILEDGED
         ) {
             throw RPCException("Unauthorized request to license server", HttpStatusCode.Unauthorized)
         }
@@ -66,6 +66,7 @@ class AppLicenseService<Session>(
             request.license
         }
         val serverId = UUID.randomUUID().toString()
+
         if (0 > request.port || 65535 < request.port) {
             throw RPCException("Invalid port number", HttpStatusCode.BadRequest)
         }
@@ -88,10 +89,10 @@ class AppLicenseService<Session>(
         return serverId
     }
 
-    suspend fun updateLicenseServer(request: UpdateServerRequest, entity: UserEntity): String {
+    suspend fun updateLicenseServer(securityPrincipal: SecurityPrincipal, request: UpdateServerRequest, entity: UserEntity): String {
         if (
             aclService.hasPermission(request.withId, entity, ServerAccessRight.READ_WRITE) ||
-            Roles.PRIVILEDGED.contains(entity.principal.role)
+            securityPrincipal.role in Roles.PRIVILEDGED
         ) {
             // Save information for existing license server
             db.withTransaction { session ->
@@ -113,10 +114,10 @@ class AppLicenseService<Session>(
         }
     }
 
-    suspend fun deleteLicenseServer(request: DeleteServerRequest, entity: UserEntity) {
+    suspend fun deleteLicenseServer(securityPrincipal: SecurityPrincipal, request: DeleteServerRequest, entity: UserEntity) {
         if (
             aclService.hasPermission(request.id, entity, ServerAccessRight.READ_WRITE) ||
-            Roles.PRIVILEDGED.contains(entity.principal.role)
+            securityPrincipal.role in Roles.PRIVILEDGED
         ) {
             db.withTransaction { session ->
                 // Delete Acl entries for the license server

@@ -29,7 +29,11 @@ class ConcurrentArchiveTest(private val userA: UserAndClient, private val concur
                     launch {
                         createDir(testId, tId.toString())
                         val archiveFile = Files.createTempFile("", ".tar.gz").toFile()
-                        javaClass.classLoader.getResourceAsStream("many.tar.gz")!!.copyTo(archiveFile.outputStream())
+                        javaClass.classLoader.getResourceAsStream("many.tar.gz")!!.use { ins ->
+                            archiveFile.outputStream().use { outs ->
+                                ins.copyTo(outs)
+                            }
+                        }
                         MultiPartUploadDescriptions.simpleBulkUpload.call(
                             SimpleBulkUpload(
                                 location = joinPath(

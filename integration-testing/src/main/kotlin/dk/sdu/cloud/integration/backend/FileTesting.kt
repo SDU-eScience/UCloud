@@ -7,7 +7,24 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.api.CopyRequest
+import dk.sdu.cloud.file.api.DeleteFileRequest
+import dk.sdu.cloud.file.api.DownloadByURI
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.MoveRequest
+import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.file.api.ReclassifyRequest
+import dk.sdu.cloud.file.api.SensitivityLevel
+import dk.sdu.cloud.file.api.SimpleBulkUpload
+import dk.sdu.cloud.file.api.SimpleUploadRequest
+import dk.sdu.cloud.file.api.StatRequest
+import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.file.trash.api.FileTrashDescriptions
 import dk.sdu.cloud.file.trash.api.TrashRequest
 import dk.sdu.cloud.service.Loggable
@@ -339,7 +356,11 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
         run {
             log.info("Uploading zip file")
             val zipFile = Files.createTempFile("", ".zip").toFile()
-            javaClass.classLoader.getResourceAsStream("simple.zip").copyTo(zipFile.outputStream())
+            javaClass.classLoader.getResourceAsStream("simple.zip").use { ins ->
+                zipFile.outputStream().use { outs ->
+                    ins!!.copyTo(outs)
+                }
+            }
 
             MultiPartUploadDescriptions.simpleBulkUpload.call(
                 SimpleBulkUpload(
@@ -361,7 +382,11 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
         run {
             log.info("Uploading tgz file")
             val tgzFile = Files.createTempFile("", ".tar.gz").toFile()
-            javaClass.classLoader.getResourceAsStream("simple.tar.gz").copyTo(tgzFile.outputStream())
+            javaClass.classLoader.getResourceAsStream("simple.tar.gz").use { ins ->
+                tgzFile.outputStream().use { outs ->
+                    ins!!.copyTo(outs)
+                }
+            }
 
             MultiPartUploadDescriptions.simpleBulkUpload.call(
                 SimpleBulkUpload(
@@ -424,7 +449,11 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
         run {
             log.info("Uploading zip file")
             val zipFile = Files.createTempFile("", ".zip").toFile()
-            javaClass.classLoader.getResourceAsStream("complex.zip").copyTo(zipFile.outputStream())
+            javaClass.classLoader.getResourceAsStream("complex.zip").use { ins ->
+                zipFile.outputStream().use { outs ->
+                    ins!!.copyTo(outs)
+                }
+            }
 
             MultiPartUploadDescriptions.simpleBulkUpload.call(
                 SimpleBulkUpload(
@@ -446,7 +475,11 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
         run {
             log.info("Uploading tgz file")
             val tgzFile = Files.createTempFile("", ".tar.gz").toFile()
-            javaClass.classLoader.getResourceAsStream("complex.tar.gz").copyTo(tgzFile.outputStream())
+            javaClass.classLoader.getResourceAsStream("complex.tar.gz").use { ins ->
+                tgzFile.outputStream().use { outs ->
+                    ins!!.copyTo(outs)
+                }
+            }
 
             MultiPartUploadDescriptions.simpleBulkUpload.call(
                 SimpleBulkUpload(

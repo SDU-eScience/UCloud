@@ -81,7 +81,8 @@ class UserTest {
                 userDao,
                 userCreationService,
                 mockk(relaxed = true),
-                tokenService
+                tokenService,
+                listOf("password-reset-service")
             )
         )
     }
