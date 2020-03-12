@@ -27,7 +27,6 @@ data class JobCompletedRequest(
 data class SubmitComputationResult(
     val jobId: String,
     val filePath: String,
-    val needsExtraction: Boolean?,
     @JsonIgnore val fileData: BinaryStream
 )
 
@@ -102,7 +101,6 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
             headers {
                 +boundTo("JobSubmit-Id", SubmitComputationResult::jobId)
                 +boundTo("JobSubmit-Path", SubmitComputationResult::filePath)
-                +boundTo("JobSubmit-Extraction", SubmitComputationResult::needsExtraction)
             }
 
             body { bindToSubProperty(SubmitComputationResult::fileData) }

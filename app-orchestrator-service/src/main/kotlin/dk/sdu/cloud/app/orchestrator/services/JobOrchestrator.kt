@@ -2,19 +2,12 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
-import dk.sdu.cloud.app.orchestrator.api.CancelInternalRequest
-import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
-import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
-import dk.sdu.cloud.app.orchestrator.api.JobCompletedEvent
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobStateChange
-import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.rpc.JOB_MAX_TIME
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
@@ -24,9 +17,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.events.EventProducer
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.MetadataDescriptions
-import dk.sdu.cloud.file.api.VerifyRequest
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -247,7 +238,8 @@ class JobOrchestrator<DBSession>(
         securityPrincipal: SecurityPrincipal
     ) {
         withJobExceptionHandler(jobId) {
-            val (job) = findJobForId(jobId)
+            val jobWithToken = findJobForId(jobId)
+            val job = jobWithToken.job
             computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
 
             val actualDuration = if (wallDuration != null) {
@@ -262,6 +254,8 @@ class JobOrchestrator<DBSession>(
             }
 
             log.debug("Job completed $jobId took $actualDuration")
+
+            jobFileService.cleanupAfterMounts(jobWithToken)
 
             handleProposedStateChange(
                 JobStateChange(jobId, if (success) JobState.SUCCESS else JobState.FAILURE),
@@ -288,14 +282,13 @@ class JobOrchestrator<DBSession>(
         securityPrincipal: SecurityPrincipal,
         filePath: String,
         length: Long,
-        data: ByteReadChannel,
-        needsExtraction: Boolean
+        data: ByteReadChannel
     ) {
         withJobExceptionHandler(jobId) {
             val jobWithToken = findJobForId(jobId)
             computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
 
-            jobFileService.acceptFile(jobWithToken, filePath, length, data, needsExtraction)
+            jobFileService.acceptFile(jobWithToken, filePath, length, data)
         }
     }
 

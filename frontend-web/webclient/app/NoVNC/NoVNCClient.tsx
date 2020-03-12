@@ -109,7 +109,8 @@ function NoVNCClient(props: RouterLocationProps): JSX.Element {
             setRFB(rfbClient);
             setConnected(true);
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "And error ocurred connecting"));
+            console.warn(e);
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error ocurred connecting"));
         }
     }
 
