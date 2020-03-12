@@ -240,6 +240,7 @@ export const isExtPreviewSupported = (ext: string): boolean => {
         case "json":
         case "csv":
         case "yml":
+        case "yaml":
         case "plist":
         case "pdf":
         case "wav":
