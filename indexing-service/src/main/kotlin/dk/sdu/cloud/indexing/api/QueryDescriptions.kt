@@ -9,7 +9,6 @@ import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
@@ -229,6 +228,9 @@ enum class SortDirection {
     DESCENDING
 }
 
+data class SizeRequest(val paths: Set<String>)
+data class SizeResponse(val size: Long)
+
 /**
  * REST interface for queries of indexing data.
  *
@@ -266,6 +268,24 @@ object QueryDescriptions : CallDescriptionContainer("indexing") {
             path {
                 using(baseContext)
                 +"statistics"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val size = call<SizeRequest, SizeResponse, CommonErrorMessage>("size") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEDGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"size"
             }
 
             body { bindEntireRequestFromBody() }

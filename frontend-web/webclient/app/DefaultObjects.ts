@@ -168,11 +168,9 @@ export const initStatus = (): StatusReduxObject => ({
 
 export const initDashboard = (): DashboardStateProps => ({
     favoriteFiles: [],
-    recentFiles: [],
     recentAnalyses: [],
     notifications: [],
     favoriteLoading: false,
-    recentLoading: false,
     analysesLoading: false
 });
 
