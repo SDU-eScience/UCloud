@@ -8,29 +8,22 @@ import dk.sdu.cloud.accounting.storage.Configuration
 import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.indexing.api.AllOf
-import dk.sdu.cloud.indexing.api.FileQuery
-import dk.sdu.cloud.indexing.api.NumericStatisticsRequest
-import dk.sdu.cloud.indexing.api.QueryDescriptions
-import dk.sdu.cloud.indexing.api.StatisticsRequest
+import dk.sdu.cloud.indexing.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import org.slf4j.Logger
 import java.math.BigDecimal
-import kotlin.math.roundToLong
 
 val FIRST_PAGE = NormalizedPaginationRequest(null, null)
 
@@ -44,28 +37,14 @@ class StorageAccountingService<DBSession>(
     private val currencyName = Currencies.DKK
 
     suspend fun calculateUsage(
-        directory: String,
-        owner: String,
-        causedById: String? = null
+        directory: String
     ): List<BillableItem> {
-        val result = QueryDescriptions.statistics.call(
-            StatisticsRequest(
-                query = FileQuery(
-                    listOf(directory),
-                    owner = AllOf.with(owner)
-                ),
-                size = NumericStatisticsRequest(
-                    calculateSum = true
-                )
-            ),
+        val result = QueryDescriptions.size.call(
+            SizeRequest(setOf(directory)),
             serviceCloud
         ).orThrow()
 
-        val usedStorage = result.size?.sum?.roundToLong() ?: run {
-            log.warn("Could not retrieve sum from file index!")
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        }
-
+        val usedStorage = result.size
         return listOf(
             BillableItem("Storage Used", usedStorage, SerializedMoney(pricePerUnit, currencyName))
         )
@@ -83,7 +62,7 @@ class StorageAccountingService<DBSession>(
                                 val home =
                                     FileDescriptions.findHomeFolder.call(FindHomeFolderRequest(it.id), serviceCloud)
                                         .orThrow()
-                                val usage = calculateUsage(home.path, it.id).first().units
+                                val usage = calculateUsage(home.path).first().units
                                 dao.insert(session, it, usage)
                             }
                         }.awaitAll()
