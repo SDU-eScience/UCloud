@@ -23,23 +23,9 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, prettierString} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
 
-function newProjectMember(): ProjectMember {
-    return {
-        role: Object.values(ProjectRole)[(Math.random() * 4) | 0],
-        username: "Frank"
-    };
-}
-
 const View: React.FunctionComponent = () => {
     const {id} = useParams<{id: string}>();
     const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
-    /* const project = {
-        data: emptyProject("Hello"),
-        loading: false,
-        error: {} as {why?: string}
-    }; */
-
-    // for (let i = 0; i < 10; i++) project.data.members.push(newProjectMember());
 
     const role = roleInProject(project.data);
     const allowManagement = role === ProjectRole.PI || Client.userIsAdmin;
@@ -71,28 +57,28 @@ const View: React.FunctionComponent = () => {
 
     return (
         <LoadingMainContainer
+            headerSize={124}
             header={(
-                <Heading.h3>
-                    Project {project.data.title}
-                </Heading.h3>
+                <>
+                    <Heading.h3>
+                        Project {project.data.title}
+                    </Heading.h3>
+                    <form onSubmit={onSubmit}>
+                        <Label htmlFor={"new-project-member"}>Add new member</Label>
+                        <Input
+                            id="new-project-member"
+                            placeholder="Username"
+                            ref={newMemberRef}
+                            disabled={isCreatingNewMember}
+                        />
+                    </form>
+                </>
             )}
             sidebar={null}
             loading={project.loading && project.data.members.length === 0}
             error={project.error ? project.error.why : undefined}
             main={(
                 <>
-                    <div>
-                        <form onSubmit={onSubmit}>
-                            <Label htmlFor={"new-project-member"}>Add new member</Label>
-                            <Input
-                                id="new-project-member"
-                                placeholder="Username"
-                                ref={newMemberRef}
-                                disabled={isCreatingNewMember}
-                            />
-                        </form>
-                    </div>
-
                     {project.data.members.map((e, idx) => (
                         <ViewMember
                             key={idx}

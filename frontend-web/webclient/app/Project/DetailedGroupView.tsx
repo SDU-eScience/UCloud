@@ -1,29 +1,27 @@
 import * as React from "react";
 import {MainContainer} from "MainContainer/MainContainer";
-import {Text, Input, Box, Flex, Button, Card, Truncate, Icon} from "ui-components";
+import {Text, Input, Box, Flex, Button, Card, Icon} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {defaultAvatar, AvatarType} from "UserSettings/Avataaar";
 import * as Pagination from "Pagination";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {Page} from "Types";
 import {useCloudAPI} from "Authentication/DataHook";
-import {emptyPage} from "DefaultObjects";
 import {listGroupMembersRequest, addGroupMember, removeGroupMemberRequest, ListGroupMembersRequestProps} from "./api";
 import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault, inDevEnvironment} from "UtilityFunctions";
+import {errorMessageOrDefault} from "UtilityFunctions";
 import {GridCardGroup} from "ui-components/Grid";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Spacer} from "ui-components/Spacer";
 import {Avatar} from "AvataaarLib";
 import {addStandardDialog} from "UtilityComponents";
+import {emptyPage} from "DefaultObjects";
 
 
 interface DetailedGroupViewProps {
     name: string;
 }
-
-const memberNames = ["Jenny the Long-named person", "Emiliano Molinaro", "Tom", "Hello", "What", "Is", "This"];
 
 function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     const [activeGroup, fetchActiveGroup,] = useCloudAPI<Page<string>, ListGroupMembersRequestProps>(
@@ -44,19 +42,11 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
         ).catch(it => console.warn(it));
     }, [activeGroup.data.items.length, activeGroup.data.pageNumber]);
 
-
     const memberRef = React.useRef<HTMLInputElement>(null);
 
     React.useEffect(() => {
         if (name) fetchActiveGroup(listGroupMembersRequest({group: name ?? "", itemsPerPage: 25, page: 0}));
     }, [name]);
-
-
-    /* FIXME: Remove before pushing */
-    // if (inDevEnvironment() && activeGroup.data.items.length === 0) {
-    //     activeGroup.data.items = memberNames;
-    //     activeGroup.data.itemsInTotal = memberNames.length;
-    // }
 
     if (activeGroup.loading) return <MainContainer main={<LoadingSpinner size={48} />} />;
     if (activeGroup.error) return <MainContainer main={
@@ -135,9 +125,12 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
 
         const {path, payload} = addGroupMember({group: name, memberUsername: member});
         try {
+            setLoading(true);
             Client.put(path!, payload);
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to add member."));
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -154,9 +147,12 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     async function removeMember(member: string): Promise<void> {
         const {path, payload} = removeGroupMemberRequest({group: name, memberUsername: member});
         try {
+            setLoading(true);
             Client.delete(path!, payload);
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to remove member."));
+        } finally {
+            setLoading(false);
         }
     }
 }

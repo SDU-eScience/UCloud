@@ -76,7 +76,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             sidebar={(
                 <VerticalButtonGroup>
                     <Link to="/projects/create"><Button>Create</Button></Link>
-                    <Button color="red" onClick={() => props.setProject(undefined)}>Clear selection</Button>
+                    <Button disabled={!props.project} color="red" onClick={() => props.setProject(undefined)}>Clear selection</Button>
                 </VerticalButtonGroup>
             )}
         />
@@ -105,6 +105,7 @@ const ProjectSummary: React.FunctionComponent<ProjectSummaryProps> = props => (
         }
         right={
             <Box pt="6px" mr="6px">
+                {props.isSelected ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
                 {props.isSelected ? <Icon mr="44px" mt="9px" name="check" color="green" /> : (
                     <Button onClick={() => props.setProject(props.summary.id)}>Set active</Button>
                 )}

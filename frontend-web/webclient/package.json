@@ -20,7 +20,7 @@
         "date-fns": "^2.10.0",
         "fuse.js": "^3.4.6",
         "jsonwebtoken": "8.5.1",
-        "rc-slider": "^9.2.2",
+        "rc-slider": "^9.2.3",
         "react": "16.13.0",
         "react-datepicker": "2.14.0",
         "react-dom": "16.13.0",
