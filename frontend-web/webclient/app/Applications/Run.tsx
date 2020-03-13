@@ -101,6 +101,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 numberOfNodes: 1,
                 tasksPerNode: 1,
                 name: React.createRef(),
+                useUrl: false,
                 url: React.createRef()
             },
             favorite: false,
@@ -136,6 +137,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     }
 
     public toggleCow = (): void => {
+        console.log(this.state.schedulingOptions.url);
         this.setState(state => ({useCow: !state.useCow}));
     };
 
@@ -289,6 +291,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
                                     reservationRef={this.state.reservation}
+                                    useUrlRef={this.state.schedulingOptions.useUrl}
+                                    urlRef={this.state.schedulingOptions.url}
                                     app={application}
                                 />
                             </RunSection>
@@ -702,6 +706,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     numberOfNodes: toolDescription.defaultNumberOfNodes,
                     tasksPerNode: toolDescription.defaultTasksPerNode,
                     name: this.state.schedulingOptions.name,
+                    useUrl: this.state.schedulingOptions.useUrl,
                     url: this.state.schedulingOptions.url
                 }
             }));
@@ -821,6 +826,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         numberOfNodes,
                         tasksPerNode,
                         name: this.state.schedulingOptions.name,
+                        useUrl: this.state.schedulingOptions.useUrl,
                         url: this.state.schedulingOptions.url
                     })
                 }));
@@ -911,12 +917,36 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
     </Label>
 );
 
+const ApplicationUrl: React.FunctionComponent<{inputRef: React.RefObject<HTMLInputElement>;}> = props => {
+    const [enabled, setEnabled] = React.useState<boolean>(false);
+
+    return (
+        <Label>
+            <Checkbox size={28} checked={enabled} onClick={() => setEnabled(!enabled)} />
+            <TextSpan>Persistent URL</TextSpan>
+
+            { enabled ? (
+                <Flex>
+                    <Box mt={10}>https://app-</Box>
+                    <Input placeholder="Unique persistent URL identifier" ref={props.inputRef} />
+                    <Box mt={10}>.cloud.sdu.dk</Box>
+                </Flex>
+            ) : ( <></> )}
+
+        </Label>
+    );
+};
+
+
+
 interface JobSchedulingOptionsProps {
     /* FIXME: add typesafety */
     onChange: (a, b, c) => void;
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
     reservationRef: React.RefObject<HTMLInputElement>;
+    useUrlRef: boolean;
+    urlRef: React.RefObject<HTMLInputElement>;
 }
 
 function urlify(text: string): string {
@@ -925,7 +955,7 @@ function urlify(text: string): string {
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
     if (!props.app) return null;
-    const {maxTime, numberOfNodes, tasksPerNode, name, url} = props.options;
+    const {maxTime, numberOfNodes, tasksPerNode, name, useUrl, url} = props.options;
     return (
         <>
             <Flex mb="4px" mt="4px">
@@ -992,18 +1022,14 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
             </div>
 
             <Flex mb="4px" mt="1em">
-                <Label>
-                    Persistent URL
-                    <Flex>
-                        <Box mt={10}>https://app-</Box>
-                        <Input placeholder="Unique persistent URL identifier" ref={url} />
-                        <Box mt={10}>.cloud.sdu.dk</Box>
-                    </Flex>
-                </Label>
+                <ApplicationUrl
+                    inputRef={props.urlRef}
+                />
             </Flex>
         </>
     );
 };
+
 
 function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOptionsForInput {
     const extractedJobInfo = {
@@ -1011,6 +1037,7 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
         numberOfNodes: 1,
         tasksPerNode: 1,
         name: jobInfo.name,
+        useUrl: jobInfo.useUrl,
         url: jobInfo.url
     };
     const {maxTime, numberOfNodes, tasksPerNode} = jobInfo;
