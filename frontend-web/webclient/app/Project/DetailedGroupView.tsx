@@ -6,6 +6,7 @@ import {defaultAvatar, AvatarType} from "UserSettings/Avataaar";
 import * as Pagination from "Pagination";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {Page} from "Types";
+import * as ReactModal from "react-modal";
 import {useCloudAPI} from "Authentication/DataHook";
 import {listGroupMembersRequest, addGroupMember, removeGroupMemberRequest, ListGroupMembersRequestProps} from "./api";
 import {Client} from "Authentication/HttpClientInstance";
@@ -17,6 +18,8 @@ import {Spacer} from "ui-components/Spacer";
 import {Avatar} from "AvataaarLib";
 import {addStandardDialog} from "UtilityComponents";
 import {emptyPage} from "DefaultObjects";
+import {defaultModalStyle} from "Utilities/ModalUtilities";
+import {SnackType} from "Snackbar/Snackbars";
 
 
 interface DetailedGroupViewProps {
@@ -24,12 +27,15 @@ interface DetailedGroupViewProps {
 }
 
 function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
-    const [activeGroup, fetchActiveGroup,] = useCloudAPI<Page<string>, ListGroupMembersRequestProps>(
+    const [activeGroup, fetchActiveGroup] = useCloudAPI<Page<string>, ListGroupMembersRequestProps>(
         listGroupMembersRequest({group: name ?? "", itemsPerPage: 25, page: 0}),
         emptyPage
     );
 
+    const history = useHistory();
+
     const [loading, setLoading] = React.useState(false);
+    const [modalOpen, setModalOpen] = React.useState(false);
 
     const promises = usePromiseKeeper();
     const [avatars, setAvatars] = React.useState<AvatarType[]>([]);
@@ -43,6 +49,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     }, [activeGroup.data.items.length, activeGroup.data.pageNumber]);
 
     const memberRef = React.useRef<HTMLInputElement>(null);
+    const renameRef = React.useRef<HTMLInputElement>(null);
 
     React.useEffect(() => {
         if (name) fetchActiveGroup(listGroupMembersRequest({group: name ?? "", itemsPerPage: 25, page: 0}));
@@ -91,8 +98,8 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
             />
         }
         sidebar={<Box>
-            <Button width="100%" mb="5px">Rename group</Button>
-            <Button width="100%" color="red">Delete group</Button>
+            <Button onClick={() => setModalOpen(true)} width="100%" mb="5px">Rename group</Button>
+            <Button onClick={promptDeleteGroup} width="100%" color="red">Delete group</Button>
         </Box>}
         headerSize={120}
         header={<>
@@ -109,7 +116,61 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
                 </form>
             </Box>
         </>}
+        additional={<ReactModal isOpen={modalOpen} shouldCloseOnEsc shouldCloseOnOverlayClick onRequestClose={() => setModalOpen(false)} style={defaultModalStyle}>
+            <Heading.h2>New group</Heading.h2>
+            <form onSubmit={renameGroup}>
+                <Flex>
+                    <Input placeholder="Group name..." ref={renameRef} />
+                    <Button ml="5px">Rename</Button>
+                </Flex>
+            </form>
+        </ReactModal>}
     />;
+
+    async function renameGroup(e: React.SyntheticEvent): Promise<void> {
+        e.preventDefault();
+        const newGroupName = renameRef.current?.value;
+        if (!newGroupName) {
+            snackbarStore.addFailure("New group name cannot be empty");
+            return;
+        }
+        try {
+            promises.makeCancelable(Client.post("/projects/groups/update-name", {oldGroupName: name, newGroupName}));
+            snackbarStore.addSnack({
+                message: "Group renamed",
+                type: SnackType.Success
+            });
+        } catch (e) {
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred renaming group"));
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function promptDeleteGroup(): void {
+        addStandardDialog({
+            title: "Delete group?",
+            message: `Do you want to delete ${name}`,
+            onConfirm: () => deleteGroup(),
+            confirmText: "Delete"
+        });
+    }
+
+    async function deleteGroup(): Promise<void> {
+        setLoading(true);
+        try {
+            promises.makeCancelable(Client.delete("/projects/groups", {groups: name}));
+            snackbarStore.addSnack({
+                type: SnackType.Success,
+                message: `Group '${name}' deleted`
+            });
+            history.push("/projects/groups/");
+        } catch (e) {
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred deleting group"));
+        } finally {
+            setLoading(false);
+        }
+    }
 
     async function addMember(e: React.FormEvent): Promise<void> {
         e.preventDefault();
