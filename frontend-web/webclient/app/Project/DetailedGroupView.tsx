@@ -20,6 +20,7 @@ import {addStandardDialog} from "UtilityComponents";
 import {emptyPage} from "DefaultObjects";
 import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {SnackType} from "Snackbar/Snackbars";
+import {useHistory} from "react-router";
 
 
 interface DetailedGroupViewProps {
@@ -140,8 +141,8 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
                 message: "Group renamed",
                 type: SnackType.Success
             });
-        } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred renaming group"));
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred renaming group"));
         } finally {
             setLoading(false);
         }
