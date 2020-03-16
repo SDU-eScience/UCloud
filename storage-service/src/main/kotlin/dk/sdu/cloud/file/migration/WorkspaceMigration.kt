@@ -7,7 +7,9 @@ import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import java.io.File
+import java.nio.file.FileVisitOption
 import java.nio.file.Files
+import java.nio.file.LinkOption
 
 /*
 // Old copy-backend
@@ -102,7 +104,7 @@ class WorkspaceMigration(
 
             workspace.renameTo(finalDestination)
 
-            Files.walk(finalDestination.toPath()).forEach { path ->
+            Files.walk(finalDestination.toPath(), FileVisitOption.FOLLOW_LINKS).forEach { path ->
                 Chown.setOwner(path, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
             }
         }

@@ -14,6 +14,14 @@ interface CLibrary : Library {
     fun removexattr(path: String, name: String): Int
     fun setfsuid(uid: Long): Int
     fun setfsgid(uid: Long): Int
+    fun mkdirat(dirfd: Int, pathName: String, mode: Int): Int
+    fun open(path: String, oflag: Int, mode: Int): Int
+    fun openat(fd: Int, path: String, oflag: Int, mode: Int): Int
+    fun close(fd: Int): Int
+    fun renameat(oldFd: Int, oldName: String, newFd: Int, newName: String): Int
+    fun write(fd: Int, buffer: ByteArray, bufferSize: Long): Long
+    fun read(fd: Int, buffer: ByteArray, size: Long): Long
+    fun lseek(fd: Int, offset: Long, whence: Int): Long
 
     companion object {
         val INSTANCE =

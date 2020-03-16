@@ -153,9 +153,7 @@ enum class StorageFileAttribute {
     acl,
     sensitivityLevel,
     ownSensitivityLevel,
-    fileId,
-    creator,
-    canonicalPath
+    creator
 }
 
 data class ListDirectoryRequest(

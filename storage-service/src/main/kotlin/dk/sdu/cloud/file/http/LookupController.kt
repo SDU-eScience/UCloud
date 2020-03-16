@@ -33,8 +33,6 @@ class LookupController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, request))
 
             commandRunnerFactory.withCtx(this) { ctx ->
-                val stat = fileLookupService.stat(ctx, request.path, listOf(StorageFileAttribute.fileId))
-
                 val attributes = attributesOrDefault(request.attributes)
 
                 val result = fileLookupService.listDirectory(
@@ -47,7 +45,7 @@ class LookupController<Ctx : FSUserContext>(
                     request.type
                 )
 
-                audit(SingleFileAudit(stat.fileId, request))
+                audit(SingleFileAudit(request.path, request))
                 ok(result)
             }
         }
@@ -78,14 +76,13 @@ class LookupController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, request))
 
             commandRunnerFactory.withCtx(this) { ctx ->
-                val attributes = attributesOrDefault(request.attributes) +
-                        setOf(StorageFileAttribute.fileId) // needed for audit
+                val attributes = attributesOrDefault(request.attributes)
                 val result = fileLookupService.stat(
                     ctx,
                     request.path,
                     attributes = attributes
                 )
-                audit(SingleFileAudit(result.fileId, request))
+                audit(SingleFileAudit(request.path, request))
                 ok(result)
             }
         }

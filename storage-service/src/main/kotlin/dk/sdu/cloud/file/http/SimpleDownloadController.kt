@@ -75,13 +75,12 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                 ) { ctx ->
                     val mode = setOf(
                         FileAttribute.PATH,
-                        FileAttribute.INODE,
                         FileAttribute.SIZE,
                         FileAttribute.FILE_TYPE
                     )
 
                     stat = fs.stat(ctx, request.path, mode)
-                    filesDownloaded.add(stat.inode)
+                    filesDownloaded.add(request.path)
 
                     // Check file sensitivity
                     val sensitivity = fileLookupService.lookupInheritedSensitivity(ctx, request.path, sensitivityCache)
@@ -116,7 +115,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                             val tree = fs.tree(
                                                 ctx,
                                                 stat.path,
-                                                setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.INODE)
+                                                setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH)
                                             )
 
                                             for (item in tree) {
@@ -140,7 +139,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
 
                                                     try {
                                                         fs.read(ctx, item.path) { copyTo(os) }
-                                                        filesDownloaded.add(item.inode)
+                                                        filesDownloaded.add(item.path)
                                                         os.closeEntry()
                                                     } catch (ex: FSException.PermissionException) {
                                                         // Skip files we don't have permissions for

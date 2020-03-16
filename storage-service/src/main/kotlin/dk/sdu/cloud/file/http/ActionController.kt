@@ -59,9 +59,8 @@ class ActionController<Ctx : FSUserContext>(
             audit(SingleFileAudit(null, request))
 
             commandRunnerFactory.withCtxAndTimeout(this) {
-                val stat = coreFs.stat(it, request.path, setOf(FileAttribute.INODE))
                 coreFs.delete(it, request.path)
-                audit(SingleFileAudit(stat.inode, request))
+                audit(SingleFileAudit(request.path, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }

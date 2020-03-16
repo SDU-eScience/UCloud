@@ -20,7 +20,6 @@ import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
 import dk.sdu.cloud.file.services.XATTR_BIRTH
-import dk.sdu.cloud.file.services.XATTR_ID
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
@@ -33,22 +32,11 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.task.api.TaskContext
 import kotlinx.coroutines.runBlocking
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
-import java.nio.channels.Channels
-import java.nio.channels.FileChannel
-import java.nio.file.DirectoryNotEmptyException
-import java.nio.file.FileAlreadyExistsException
-import java.nio.file.Files
-import java.nio.file.InvalidPathException
-import java.nio.file.LinkOption
-import java.nio.file.NoSuchFileException
-import java.nio.file.OpenOption
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
+import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.nio.file.attribute.PosixFilePermissions
@@ -79,33 +67,38 @@ class LinuxFS(
         copyPreAuthorized(ctx, from, to, writeConflictPolicy)
     }
 
-    private suspend fun copyPreAuthorized(
+    private fun copyPreAuthorized(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
         writeConflictPolicy: WriteConflictPolicy
     ) {
-        val opts =
-            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
-
         val systemFrom = File(translateAndCheckFile(ctx, from))
         val systemTo = File(translateAndCheckFile(ctx, to))
 
-        if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
-            try {
-                Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
-            } catch (e: DirectoryNotEmptyException) {
-                systemFrom.listFiles()?.forEach {
-                    copyPreAuthorized(
-                        ctx,
-                        Paths.get(from, it.name).toString(),
-                        Paths.get(to, it.name).toString(),
-                        writeConflictPolicy
-                    )
+        if (from.normalize() == to.normalize() && writeConflictPolicy == WriteConflictPolicy.OVERWRITE) {
+            // Do nothing (The code below would truncate the file and then copy the remaining 0 bytes)
+            return
+        }
+
+        if (Files.isDirectory(systemFrom.toPath(), LinkOption.NOFOLLOW_LINKS)) {
+            if (Files.exists(systemTo.toPath(), LinkOption.NOFOLLOW_LINKS)) {
+                if (Files.isDirectory(systemTo.toPath(), LinkOption.NOFOLLOW_LINKS)) {
+                    if (!writeConflictPolicy.allowsOverwrite()) {
+                        throw FSException.AlreadyExists()
+                    }
+                } else {
+                    throw FSException.BadRequest("File types do not match")
                 }
+            } else {
+                NativeFS.createDirectories(systemTo)
             }
         } else {
-            Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+            NativeFS.openForReading(systemFrom).use { ins ->
+                NativeFS.openForWriting(systemTo, writeConflictPolicy.allowsOverwrite()).use { outs ->
+                    ins.copyTo(outs)
+                }
+            }
         }
     }
 
@@ -164,9 +157,7 @@ class LinuxFS(
     ) {
         val systemFrom = File(translateAndCheckFile(ctx, from))
         val systemTo = File(translateAndCheckFile(ctx, to))
-
-        val opts =
-            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+        val replaceExisting = writeConflictPolicy.allowsOverwrite()
 
         if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
             if (systemFrom.isDirectory) {
@@ -179,11 +170,11 @@ class LinuxFS(
                     )
                 }
             } else {
-                Files.createDirectories(systemTo.toPath().parent)
-                Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+                NativeFS.createDirectories(systemTo.parentFile)
+                NativeFS.move(systemFrom, systemTo, replaceExisting)
             }
         } else {
-            Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+            NativeFS.move(systemFrom, systemTo, replaceExisting)
         }
     }
 
@@ -357,7 +348,6 @@ class LinuxFS(
                 var fileType: FileType? = null
                 var timestamps: Timestamps? = null
                 var path: String? = null
-                var inode: String? = null
                 var size: Long? = null
                 var shares: List<AccessEntry>? = null
                 var sensitivityLevel: SensitivityLevel? = null
@@ -374,7 +364,6 @@ class LinuxFS(
                     // UNIX file attributes
                     val attributes = run {
                         val opts = ArrayList<String>()
-                        if (FileAttribute.INODE in mode) opts.add("ino")
                         if (FileAttribute.CREATOR in mode) opts.add("uid")
 
                         if (opts.isEmpty()) {
@@ -383,11 +372,6 @@ class LinuxFS(
                             Files.readAttributes(systemPath, "unix:${opts.joinToString(",")}", *linkOpts)
                         }
                     } ?: return@run
-
-                    if (FileAttribute.INODE in mode) {
-                        inode = runCatching { getExtendedAttributeInternal(systemFile, XATTR_ID) }.getOrNull()
-                            ?: (attributes.getValue("ino") as Long).toString()
-                    }
                 }
 
                 run {
@@ -492,7 +476,6 @@ class LinuxFS(
                     realOwner,
                     timestamps,
                     path,
-                    inode,
                     size,
                     shares,
                     sensitivityLevel,
@@ -555,30 +538,8 @@ class LinuxFS(
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
         if (ctx.outputStream == null) {
-            val options = HashSet<OpenOption>()
-            options.add(StandardOpenOption.TRUNCATE_EXISTING)
-            options.add(StandardOpenOption.WRITE)
-            if (!allowOverwrite) {
-                options.add(StandardOpenOption.CREATE_NEW)
-            } else {
-                options.add(StandardOpenOption.CREATE)
-            }
-
-            try {
-                val systemPath = systemFile.toPath()
-                ctx.outputStream = Channels.newOutputStream(
-                    Files.newByteChannel(systemPath, options, PosixFilePermissions.asFileAttribute(DEFAULT_FILE_MODE))
-                )
-                ctx.outputSystemFile = systemFile
-            } catch (ex: FileAlreadyExistsException) {
-                throw FSException.AlreadyExists()
-            } catch (ex: java.nio.file.FileSystemException) {
-                if (ex.message?.contains("Is a directory") == true) {
-                    throw FSException.BadRequest("Upload target is a not a directory")
-                } else {
-                    throw ex
-                }
-            }
+            ctx.outputStream = BufferedOutputStream(NativeFS.openForWriting(systemFile, allowOverwrite))
+            ctx.outputSystemFile = systemFile
         } else {
             log.warn("openForWriting called twice without closing old file!")
             throw FSException.CriticalException("Internal error")
@@ -616,7 +577,7 @@ class LinuxFS(
         aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
         val systemFile = File(translateAndCheckFile(ctx, path))
-        Files.walk(systemFile.toPath())
+        Files.walk(systemFile.toPath(), FileVisitOption.FOLLOW_LINKS)
             .toList()
             .mapNotNull {
                 if (Files.isSymbolicLink(it)) return@mapNotNull null
@@ -631,7 +592,7 @@ class LinuxFS(
     ) = ctx.submit {
         val systemFile = File(translateAndCheckFile(ctx, path))
         aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
-        Files.createDirectory(systemFile.toPath(), PosixFilePermissions.asFileAttribute(DEFAULT_DIRECTORY_MODE))
+        NativeFS.createDirectories(systemFile)
         Unit
     }
 
@@ -712,7 +673,7 @@ class LinuxFS(
         }
 
         val systemFile = File(translateAndCheckFile(ctx, path))
-        ctx.inputStream = FileChannel.open(systemFile.toPath(), StandardOpenOption.READ)
+        ctx.inputStream = NativeFS.openForReading(systemFile)
         ctx.inputSystemFile = systemFile
     }
 
@@ -731,10 +692,10 @@ class LinuxFS(
         }
 
         val convertedToStream: InputStream = if (range != null) {
-            stream.position(range.first)
-            CappedInputStream(Channels.newInputStream(stream), range.last - range.first)
+            stream.skip(range.first)
+            CappedInputStream(stream, range.last - range.first)
         } else {
-            Channels.newInputStream(stream)
+            stream
         }
 
         try {

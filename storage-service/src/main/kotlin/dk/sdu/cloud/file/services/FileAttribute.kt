@@ -22,11 +22,6 @@ enum class FileAttribute(val value: Long) {
     PATH(1 shl 8),
 
     /**
-     * The file ID (inode)
-     */
-    INODE(1 shl 10),
-
-    /**
      * The file size (in bytes)
      */
     SIZE(1 shl 11),

@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "0.36.0-storage-events.4",
+    "version": "0.36.0-storage-events.5",
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {

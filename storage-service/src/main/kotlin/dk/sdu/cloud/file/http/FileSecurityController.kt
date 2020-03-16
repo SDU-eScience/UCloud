@@ -32,8 +32,7 @@ class FileSecurityController<Ctx : FSUserContext>(
 
             val user = ctx.securityPrincipal.username
             commandRunnerFactory.withCtx(this, user = user) { ctx ->
-                val stat = coreFs.stat(ctx, request.path, setOf(FileAttribute.INODE))
-                audit(SingleFileAudit(stat.inode, request))
+                audit(SingleFileAudit(request.path, request))
 
                 val sensitivity = request.sensitivity
                 if (sensitivity != null) {

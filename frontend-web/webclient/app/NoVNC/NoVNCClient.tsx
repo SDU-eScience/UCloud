@@ -12,69 +12,6 @@ import {cancelJobDialog, cancelJobQuery} from "Utilities/ApplicationUtilities";
 import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import {errorMessageOrDefault, requestFullScreen} from "UtilityFunctions";
 
-declare class RFB {
-    constructor(el: Element, address: string, {credentials: {password: string}});
-
-    // Properties
-    viewOnly: boolean;
-    focusOnClick: boolean;
-    touchButton: number;
-    clipViewPort: boolean;
-    dragViewPort: boolean;
-    scaleViewPort: boolean;
-    resizeSession: boolean;
-    showDotCursor: boolean;
-    background: string;
-    readonly capabilities: {};
-
-    // Methods
-    /**
-     * Disconnect from the server.
-     */
-    disconnect: () => void;
-    /**
-     * Send credentials to server. Should be called after the credentialsrequired event has fired.
-     */
-    sendCredentials: (credentials: any) => void;
-    /**
-     * Send a key event.
-     */
-    sendKey: (keysym: number, code: number, down?: boolean) => void;
-    /**
-     * Send Ctrl-Alt-Del key sequence.
-     */
-    sendCtrlAltDel: () => void;
-    /**
-     * Move keyboard focus to the remote session.
-     */
-    focus: () => void;
-    /**
-     * Remove keyboard focus from the remote session.
-     */
-    blur: () => void;
-    /**
-     * Request a shutdown of the remote machine.
-     */
-    machineShutdown: () => void;
-    /**
-     * Request a reboot of the remote machine.
-     */
-    machineReboot: () => void;
-    /**
-     * Request a reset of the remote machine.
-     */
-    machineReset: () => void;
-    /**
-     * Send clipboard contents to server.
-     */
-    clipboardPasteFrom: (text: string) => void;
-    /**
-     * Adds event listener for specific event. As we don't use anythin other than "disconnect",
-     * that's currently the only thing allowed.
-     */
-    addEventListener: (event: "disconnect", action: () => void) => void
-}
-
 function NoVNCClient(props: RouterLocationProps): JSX.Element {
     const [isConnected, setConnected] = React.useState(false);
     const [isCancelled, setCancelled] = React.useState(false);
