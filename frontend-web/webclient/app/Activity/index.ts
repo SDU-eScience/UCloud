@@ -17,18 +17,17 @@ export enum ActivityType {
     ALLUSEDINAPP = "allUsedInApp"
 }
 
-export interface ActivityGroup {
-    type: ActivityType;
-    newestTimestamp: number;
-    numberOfHiddenResults: number | null;
-    items: Activity[];
-}
-
 export interface Activity {
     type: ActivityType;
     timestamp: number;
     filePath: string;
     username: string;
+}
+
+export interface ActivityForFrontend {
+    type: ActivityType;
+    timestamp: number;
+    activityEvent: Activity;
 }
 
 export interface ActivityFilter {
@@ -62,16 +61,20 @@ export interface MovedActivity extends Activity {
     newName: string;
 }
 
-export interface SingleFileUsedActivity extends Activity{
+export interface SingleFileUsedActivity extends Activity {
     applicationName: string;
     applicationVersion: string;
 }
 
-export interface AllFilesUsedActivity extends Activity{
+export interface AllFilesUsedActivity extends Activity {
     applicationName: string;
     applicationVersion: string;
 }
 
+export interface SharedWithActivity extends Activity {
+    sharedWith: string;
+    status: Set<AccessRight>;
+}
 
 export interface ActivityDispatchProps {
     onMount: () => void;

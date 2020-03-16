@@ -15,7 +15,6 @@ export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTab
             <TableHeader>
                 <TFRow>
                     <TableHeaderCell width="12em" />
-                    <TableHeaderCell width="10.5em" />
                     <TableHeaderCell width="99%" />
                 </TFRow>
             </TableHeader>
@@ -26,19 +25,19 @@ export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTab
     );
 };
 
-export const ActivityFeed = ({activity}: {activity: Module.Activity[]}) => (
+export const ActivityFeed = ({activity}: {activity: Module.ActivityForFrontend[]}) => (
     <ActivityFeedFrame>
-        {groupActivity(activity).map((a, i) => <ActivityFeedItem key={i} activity={a} />)}
+        { activity.map ((a,i) => <ActivityFeedItem key={i} activity={a} />)}
     </ActivityFeedFrame>
 );
 
 // Performance note: Don't use styled components here.
-const ActivityEvent: React.FunctionComponent<{event: Module.Activity}> = props => (
+const ActivityEvent: React.FunctionComponent<{event: Module.ActivityForFrontend}> = props => (
     <div>
         <b>
-            <ReactRouterLink to={fileInfoPage(props.event.originalFilePath)}>
+            <ReactRouterLink to={fileInfoPage(props.event.activityEvent.filePath)}>
                 <div className="ellipsis">
-                    <Text color="black">{getFilenameFromPath(props.event.originalFilePath)}</Text>
+                    <Text color="black">{getFilenameFromPath(props.event.activityEvent.filePath)}</Text>
                 </div>
             </ReactRouterLink>
         </b>
@@ -48,7 +47,7 @@ const ActivityEvent: React.FunctionComponent<{event: Module.Activity}> = props =
 );
 
 // Performance note: Don't use styled components here.
-const OperationText: React.FunctionComponent<{event: Module.Activity}> = props => {
+const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}> = props => {
     switch (props.event.type) {
         case Module.ActivityType.MOVED: {
             return (
@@ -56,10 +55,10 @@ const OperationText: React.FunctionComponent<{event: Module.Activity}> = props =
                     was moved to
                 {" "}
                     <b>
-                        <ReactRouterLink to={fileInfoPage((props.event as Module.MovedActivity).newName)}>
+                        <ReactRouterLink to={fileInfoPage((props.event.activityEvent as Module.MovedActivity).newName)}>
                             <div className="ellipsis">
                                 <Text color="black">
-                                    {replaceHomeFolder((props.event as Module.MovedActivity).newName, Client.homeFolder)}
+                                    {replaceHomeFolder((props.event.activityEvent as Module.MovedActivity).newName, Client.homeFolder)}
                                 </Text>
                             </div>
                         </ReactRouterLink>
@@ -69,12 +68,49 @@ const OperationText: React.FunctionComponent<{event: Module.Activity}> = props =
         }
 
         case Module.ActivityType.FAVORITE: {
-            const isFavorite = (props.event as Module.FavoriteActivity).favorite;
+            const isFavorite = (props.event.activityEvent as Module.FavoriteActivity).isFavorite;
             if (isFavorite) {
                 return <span>was <b>added to favorites</b></span>;
             } else {
                 return <span>was <b>removed from favorites</b></span>;
             }
+        }
+
+        case Module.ActivityType.SHAREDWITH: {
+            const share = (props.event.activityEvent as Module.SharedWithActivity);
+            return <span> was <b>shared with {share.sharedWith} with rights({share.status})</b></span>;
+        }
+
+        case Module.ActivityType.UPDATEDACL: {
+            const update = (props.event.activityEvent as Module.UpdatedACLActivity);
+            return <span> had ACL for {update.rightsAndUser[0].second} updated to {update.rightsAndUser[0].first}</span>
+        }
+
+        case Module.ActivityType.USEDINAPP: {
+            const used = (props.event.activityEvent as Module.SingleFileUsedActivity);
+            if (used.filePath == "") {
+                return <span> No files where used in {used.applicationName}:{used.applicationVersion}</span>
+            }
+            else {
+                return <span> where used in {used.applicationName}:{used.applicationVersion}</span>
+            }        }
+        case Module.ActivityType.ALLUSEDINAPP: {
+            const used = (props.event.activityEvent as Module.AllFilesUsedActivity);
+            if (used.filePath == "") {
+                return <span> No files were used in {used.applicationName}:{used.applicationVersion}</span>
+            }
+            else {
+                return <span> were used in {used.applicationName}:{used.applicationVersion}</span>
+            }
+        }
+        case Module.ActivityType.RECLASSIFIED: {
+            const reclassify = (props.event.activityEvent as Module.ReclassifyActivity);
+            return <span> changed sensitivity to {reclassify.newSensitivity} </span>
+        }
+
+        case Module.ActivityType.COPIED: {
+            const copy = (props.event.activityEvent as Module.CopyActivity);
+            return <span> was copied. Copy name: {copy.copyFilePath}</span>
         }
 
         default: {
@@ -88,12 +124,12 @@ export const ActivityFeedSpacer = (props: {height: number}): JSX.Element => (
 );
 
 interface ActivityFeedProps {
-    activity: Module.ActivityGroup;
+    activity: Module.ActivityForFrontend;
 }
 
 export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
     public shouldComponentUpdate(nextProps: ActivityFeedProps): boolean {
-        return this.props.activity.newestTimestamp !== nextProps.activity.newestTimestamp;
+        return this.props.activity.timestamp !== nextProps.activity.timestamp;
     }
 
     public render(): JSX.Element {
@@ -102,27 +138,16 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
             <TFRow>
                 <TableCell>
                     <Text fontSize={1} color="text">
-                        {formatDistanceToNow(new Date(activity.newestTimestamp))}
+                        {formatDistanceToNow(new Date(activity.timestamp))}
                         <br />
-                        {format(new Date(activity.newestTimestamp), "d LLL yyyy HH:mm")}
+                        {format(new Date(activity.timestamp), "d LLL yyyy HH:mm")}
                     </Text>
                 </TableCell>
                 <TableCell>
                     <Flex>
                         <Icon mr="0.5em" name={eventIcon(activity.type).icon} />
-                        <Text fontSize={2}>{`Files ${operationToPastTense(activity.type)}`}</Text>
+                        <ActivityEvent key={activity.type} event={activity} />
                     </Flex>
-                </TableCell>
-                <TableCell>
-                    {activity.items.map((item, idx) =>
-                        <ActivityEvent key={idx} event={item} />
-                    )}
-
-                    {!!activity.numberOfHiddenResults ? (
-                        <Box mt={16}>
-                            <Text bold>{activity.numberOfHiddenResults} similar results were hidden</Text>
-                        </Box>
-                    ) : null}
                 </TableCell>
             </TFRow>
         );
@@ -135,14 +160,20 @@ const operationToPastTense = (operation: Module.ActivityType): string => {
             return "deleted";
         case Module.ActivityType.DOWNLOAD:
             return "downloaded";
-        case Module.ActivityType.FAVORITE:
-            return "favorited";
-        case Module.ActivityType.INSPECTED:
-            return "inspected";
         case Module.ActivityType.MOVED:
             return "moved";
-        case Module.ActivityType.UPDATED:
-            return "updated";
+        case Module.ActivityType.COPIED:
+            return "copied";
+        case Module.ActivityType.ALLUSEDINAPP:
+            return "used";
+        case Module.ActivityType.DIRECTORYCREATED:
+            return "directory was created";
+        case Module.ActivityType.UPLOADED:
+            return "uploaded";
+        case Module.ActivityType.USEDINAPP:
+            return "used";
+        default:
+            return "DEFUALTAJDJILWA"
     }
 };
 
@@ -156,54 +187,30 @@ const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
             return {icon: "starFilled"};
         case Module.ActivityType.DOWNLOAD:
             return {icon: "download"};
-        case Module.ActivityType.UPDATED:
-            return {icon: "refresh"};
         case Module.ActivityType.DELETED:
             return {icon: "close"};
         case Module.ActivityType.MOVED:
             return {icon: "move"};
+        case Module.ActivityType.UPLOADED:
+            return {icon: "upload"};
+        case Module.ActivityType.COPIED:
+            return {icon: "copy"};
+        case Module.ActivityType.USEDINAPP:
+            return {icon: "favIcon"};
+        case Module.ActivityType.ALLUSEDINAPP:
+            return {icon: "favIcon"};
+        case Module.ActivityType.DIRECTORYCREATED:
+            return {icon: "files"}
+        case Module.ActivityType.UPDATEDACL:
+            return {icon: "key"}
+        case Module.ActivityType.SHAREDWITH:
+            return {icon: "share"}
+        case Module.ActivityType.RECLASSIFIED:
+            return {icon: "sensitivity"}
         default:
             return {icon: "ellipsis"};
     }
 };
-
-function groupActivity(items: Module.Activity[] = []): Module.ActivityGroup[] {
-    const result: Module.ActivityGroup[] = [];
-    let currentGroup: Module.ActivityGroup | null = null;
-
-    const pushGroup = () => {
-        if (currentGroup != null) {
-            result.push(currentGroup);
-            currentGroup = null;
-        }
-    };
-
-    const initializeGroup = (item: Module.Activity) => {
-        currentGroup = {
-            type: item.type,
-            newestTimestamp: item.timestamp,
-            items: [item],
-            numberOfHiddenResults: null
-        };
-    };
-
-    items.forEach(item => {
-        if (currentGroup === null) {
-            initializeGroup(item);
-        } else {
-            if (currentGroup.type !== item.type ||
-                Math.abs(item.timestamp - currentGroup.newestTimestamp) > (1000 * 60 * 15)) {
-                pushGroup();
-                initializeGroup(item);
-            } else {
-                currentGroup.items.push(item);
-            }
-        }
-    });
-
-    pushGroup();
-    return result;
-}
 
 const TFRow = styled(TableRow)`
     vertical-align: top;
