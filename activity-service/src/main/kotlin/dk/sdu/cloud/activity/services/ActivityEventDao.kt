@@ -2,6 +2,7 @@ package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
+import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 
@@ -17,7 +18,7 @@ interface ActivityEventDao {
     fun findByFilePath(
         pagination: NormalizedPaginationRequest,
         filePath: String
-    ): Page<ActivityEvent>
+    ): Page<ActivityForFrontend>
 
     fun findByUser(
         pagination: NormalizedPaginationRequest,

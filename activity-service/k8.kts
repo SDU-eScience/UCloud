@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "activity"
-    version = "1.4.14-ElasticDAO1"
+    version = "1.4.14-ElasticDAO6"
 
     withAmbassador {}
 
@@ -14,5 +14,4 @@ bundle {
     }
 
     withPostgresMigration(deployment)
-    withCronJob(deployment, "* 1 * * 1", listOf("--deleteOldActivity")) {}
 }

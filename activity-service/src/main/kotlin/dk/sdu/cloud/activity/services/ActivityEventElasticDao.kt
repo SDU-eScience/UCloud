@@ -5,6 +5,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
+import dk.sdu.cloud.activity.api.ActivityForFrontend
+import dk.sdu.cloud.activity.api.type
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.AccessRight
@@ -107,7 +109,7 @@ data class SharedActivity(
 )
 
 class ActivityEventElasticDao(private val client: RestHighLevelClient): ActivityEventDao {
-    override fun findByFilePath(pagination: NormalizedPaginationRequest, filePath: String): Page<ActivityEvent> {
+    override fun findByFilePath(pagination: NormalizedPaginationRequest, filePath: String): Page<ActivityForFrontend> {
         val normalizedFilePath = filePath.normalize()
         val request = SearchRequest(*ALL_RELEVANT_INDICES)
         val source = SearchSourceBuilder().query(
@@ -171,11 +173,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
             searchResponse,
             isFileSearch = true,
             normalizedFilePath = normalizedFilePath
-        )
-
-        searchResponse.hits.hits.forEach {
-            println(it)
-        }
+        ).map { ActivityForFrontend(it.type, it.timestamp, it) }
 
         val numberOfItems = searchResponse.hits.totalHits?.value?.toInt()!!
         return Page(numberOfItems, pagination.itemsPerPage, pagination.page, activityEventList)
@@ -439,6 +437,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                                 source.requestJson.application.version
                             )
                         )
+
                     }
                 }
                 doc.index.startsWith(SHARES_CREATED.dropLast(1)) -> {

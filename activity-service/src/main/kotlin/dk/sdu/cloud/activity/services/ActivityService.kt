@@ -2,6 +2,8 @@ package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityFilter
+import dk.sdu.cloud.activity.api.ActivityForFrontend
+import dk.sdu.cloud.activity.api.type
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -20,7 +22,7 @@ class ActivityService(
         userAccessToken: String,
         user: String,
         causedBy: String? = null
-    ): Page<ActivityEvent> {
+    ): Page<ActivityForFrontend> {
         val fileStat = fileLookupService.lookupFile(path, userAccessToken, user, causedBy)
         return activityEventElasticDao.findByFilePath(pagination, fileStat.path)
     }
@@ -36,7 +38,7 @@ class ActivityService(
         scroll: NormalizedScrollRequest<Int>,
         user: String,
         userFilter: ActivityFilter? = null
-    ): ScrollResult<ActivityEvent, Int> {
+    ): ScrollResult<ActivityForFrontend, Int> {
         val filter = ActivityEventFilter(
             offset = scroll.offset,
             user = user,
@@ -50,9 +52,11 @@ class ActivityService(
             filter
         )
 
+        val results = allEvents.map { ActivityForFrontend(it.type, it.timestamp, it) }
+
         val nextOffset = allEvents.size + (scroll.offset ?: 0)
 
-        return ScrollResult(allEvents, nextOffset, endOfScroll = allEvents.size < scroll.scrollSize)
+        return ScrollResult(results, nextOffset, endOfScroll = allEvents.size < scroll.scrollSize)
     }
 
     companion object : Loggable {

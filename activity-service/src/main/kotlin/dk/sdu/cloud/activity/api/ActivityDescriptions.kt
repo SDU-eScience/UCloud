@@ -90,9 +90,9 @@ object Activity : CallDescriptionContainer("activity") {
 
         data class Response(
             override val endOfScroll: Boolean,
-            override val items: List<ActivityEvent>,
+            override val items: List<ActivityForFrontend>,
             override val nextOffset: Int
-        ) : WithScrollResult<ActivityEvent, Int>
+        ) : WithScrollResult<ActivityForFrontend, Int>
     }
 }
 

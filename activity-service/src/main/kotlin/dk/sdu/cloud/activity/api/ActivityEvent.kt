@@ -133,12 +133,18 @@ val ActivityEvent.type: ActivityEventType get() = when (this) {
     is ActivityEvent.AllFilesUsedByApplication -> ActivityEventType.allUsedInApp
 }
 
+data class ActivityForFrontend(
+    val type: ActivityEventType,
+    val timestamp: Long,
+    val activityEvent: ActivityEvent
+)
+
 data class ListActivityByPathRequest(
     val path: String,
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
-typealias ListActivityByPathResponse = Page<ActivityEvent>
+typealias ListActivityByPathResponse = Page<ActivityForFrontend>
 
 typealias ListActivityByUserRequest = PaginationRequest
 typealias ListActivityByUserResponse = Page<ActivityEvent>
