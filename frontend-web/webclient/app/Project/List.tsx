@@ -16,34 +16,12 @@ import {List, Flex} from "ui-components";
 import {Spacer} from "ui-components/Spacer";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
 
-function newUserInProject(): UserInProject {
-    return {
-        id: `${Math.random() * 600 | 0}`,
-        title: "Archeology Photogrammetry on Abacus 2.0",
-        whoami: newProjectMember()
-    };
-}
-
-function newProjectMember(): ProjectMember {
-    return {
-        role: Object.values(ProjectRole)[(Math.random() * 4) | 0],
-        username: "Frank"
-    };
-}
-
-const dummyProjects: UserInProject[] = [];
-for (let i = 0; i < 10; i++) {
-    dummyProjects.push(newUserInProject());
-}
-
-const useDummyData = false;
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
     const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 50}),
-        useDummyData ? emptyPage :
-            {items: dummyProjects, itemsPerPage: 25, itemsInTotal: 10, pageNumber: 0, pagesInTotal: 1}
+        emptyPage
     );
 
     React.useEffect(() => {
