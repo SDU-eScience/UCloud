@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Card, Icon, Button, Text, Input, Flex} from "ui-components";
+import {Card, Icon, Button, Text, Input, Flex, Checkbox, Label} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
@@ -16,6 +16,9 @@ import {errorMessageOrDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Client} from "Authentication/HttpClientInstance";
 import {SnackType} from "Snackbar/Snackbars";
+import {Spacer} from "ui-components/Spacer";
+import {History} from "history";
+import {addStandardDialog} from "UtilityComponents";
 
 interface GroupWithSummary {
     group: string;
@@ -39,23 +42,50 @@ interface PaginationRequest {
 }
 
 function GroupsOverview(): JSX.Element | null {
-    // TODO -- Add groups. Remove groups.
-    // File imports of users
     const history = useHistory();
     const {group} = useParams<{group?: string}>();
     const [creatingGroup, setCreatingGroup] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const createGroupRef = React.useRef<HTMLInputElement>(null);
+    const [selectedGroups, setSelectedGroups] = React.useState<Set<string>>(new Set());
     const promises = usePromiseKeeper();
     const [groupSummaries, fetchSummaries, params] = useCloudAPI<Page<GroupWithSummary>>(groupSummaryRequest({
         page: 0,
         itemsPerPage: 25
     }), emptyPage);
+    const promptDeleteGroups = React.useCallback(async () => {
+        const groups = [...selectedGroups];
+        if (groups.length === 0) {
+            snackbarStore.addFailure("You haven't selected any groups.");
+            return;
+        }
+        addStandardDialog({
+            title: "Delete groups?",
+            message: <>
+                <Text mb="5px">Selected groups:</Text>
+                {groups.map(g => <Text key={g} fontSize="12px">{g}</Text>)}
+            </>,
+            onConfirm: async () => {
+                try {
+                    setLoading(true);
+                    await Client.delete(baseContext, {groups});
+                } catch (err) {
+                    snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred deleting groups"));
+                } finally {
+                    setLoading(false);
+                }
+            },
+            confirmText: "Delete"
+        });
+    }, [selectedGroups.size]);
 
     if (group) return <DetailedGroupView name={group} />;
 
     return <MainContainer
-        sidebar={<Button disabled={loading} onClick={() => setCreatingGroup(true)} width="100%">New Group</Button>}
+        sidebar={<>
+            <Button disabled={loading} mb="5px" onClick={() => setCreatingGroup(true)} width="100%">New Group</Button>
+            <Button color="red" onClick={promptDeleteGroups} width="100%">Delete groups</Button>
+        </>}
         main={(
             <Pagination.List
                 loading={groupSummaries.loading}
@@ -64,20 +94,31 @@ function GroupsOverview(): JSX.Element | null {
                 page={groupSummaries.data}
                 pageRenderer={page =>
                     <GridCardGroup minmax={300}>
-                        {page.items.map(g => (
-                            <Card
-                                onClick={() => history.push(`/projects/groups/${encodeURI(g.group)}`)}
-                                key={g.group}
-                                overflow="hidden"
-                                p="8px"
-                                width={1}
-                                boxShadow="sm"
-                                borderWidth={1}
-                                borderRadius={6}
-                            >
-                                <SimpleGroupView group={g} />
-                            </Card>
-                        ))}
+                        {page.items.map(g => {
+                            const isSelected = selectedGroups.has(g.group);
+                            return (
+                                <Card
+                                    key={g.group}
+                                    overflow="hidden"
+                                    p="8px"
+                                    width={1}
+                                    boxShadow="sm"
+                                    borderWidth={1}
+                                    borderRadius={6}
+                                >
+                                    <SimpleGroupView
+                                        group={g}
+                                        history={history}
+                                        isSelected={isSelected}
+                                        setSelected={() => {
+                                            if (selectedGroups.has(g.group)) selectedGroups.delete(g.group);
+                                            else selectedGroups.add(g.group);
+                                            setSelectedGroups(selectedGroups);
+                                        }}
+                                    />
+                                </Card>
+                            );
+                        })}
                     </ GridCardGroup>
                 }
                 customEmptyPage={<Heading.h3>You have no groups to manage.</Heading.h3>}
@@ -119,17 +160,25 @@ function GroupsOverview(): JSX.Element | null {
 
 interface GroupViewProps {
     group: GroupWithSummary;
+    setSelected: () => void;
+    isSelected?: boolean;
+    history: History;
 }
 
-function SimpleGroupView({group}: GroupViewProps): JSX.Element {
+function SimpleGroupView({group, setSelected, isSelected, history}: GroupViewProps): JSX.Element {
+    const [checked, setChecked] = React.useState(isSelected);
+    React.useEffect(() => {
+        setChecked(isSelected);
+    }, [isSelected]);
     return (
         <>
-            <Text mb="8px" fontSize="25px" style={{wordBreak: "break-word"}}>{group.group}</Text>
+            <Spacer
+                left={<Text cursor="pointer" width="auto" onClick={() => history.push(`/projects/groups/${encodeURI(group.group)}`)} mb="8px" fontSize="25px" style={{wordBreak: "break-word"}}>{group.group}</Text>}
+                right={<Label ml="20px" width="30px"><Checkbox onClick={() => {setSelected(); setChecked(!checked);}} checked={checked} /></Label>}
+            />
             <Icon name="projects" /> {group.numberOfMembers}
         </>
     );
 }
-
-
 
 export default GroupsOverview;
