@@ -8,16 +8,12 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FSCommandRunnerFactory
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
-import dk.sdu.cloud.file.services.withContext
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Controller
 import io.ktor.http.HttpStatusCode
@@ -26,19 +22,14 @@ import kotlinx.coroutines.launch
 class ExtractController<Ctx : FSUserContext>(
     private val serviceCloud: AuthenticatedClient,
     private val coreFs: CoreFileSystemService<Ctx>,
-    private val fileLookupService: FileLookupService<Ctx>,
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val backgroundScope: BackgroundScope
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileDescriptions.extract) {
-            audit(SingleFileAudit(null, request))
+            audit(SingleFileAudit(request))
             val user = ctx.securityPrincipal.username
-            commandRunnerFactory.withCtx(this, user) { ctx ->
-                val fileId = fileLookupService.stat(ctx, request.path).fileId
-                audit(SingleFileAudit(fileId, request))
-            }
 
             val extractor = when {
                 request.path.endsWith(".tar.gz") -> BulkUploader.fromFormat("tgz", commandRunnerFactory.type)

@@ -12,7 +12,6 @@ import io.ktor.http.HttpStatusCode
 
 class FileSecurityController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
-    private val coreFs: CoreFileSystemService<Ctx>,
     private val aclWorker: ACLWorker,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val filePermissionsAcl: Set<String> = emptySet()
@@ -20,7 +19,7 @@ class FileSecurityController<Ctx : FSUserContext>(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.updateAcl) {
             // We cannot supply a list of file IDs since this call is async
-            audit(BulkFileAudit(emptyList(), request))
+            audit(BulkFileAudit(request))
             requirePermissionToChangeFilePermissions()
 
             aclWorker.updateAcl(request, ctx.securityPrincipal.username)
@@ -28,12 +27,10 @@ class FileSecurityController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.reclassify) {
-            audit(SingleFileAudit(null, request))
+            audit(SingleFileAudit(request))
 
             val user = ctx.securityPrincipal.username
             commandRunnerFactory.withCtx(this, user = user) { ctx ->
-                audit(SingleFileAudit(request.path, request))
-
                 val sensitivity = request.sensitivity
                 if (sensitivity != null) {
                     sensitivityService.setSensitivityLevel(ctx, request.path, sensitivity)

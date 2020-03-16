@@ -85,7 +85,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     const favoriteOrUnfavorite = (file: File): void => {
         favoriteFile(file, Client);
-        props.receiveFavorites(favoriteFiles.filter(f => f.fileId !== file.fileId));
+        props.receiveFavorites(favoriteFiles.filter(f => f.path !== file.path));
     };
 
     const {
@@ -156,7 +156,7 @@ const DashboardFavoriteFiles = ({
             <Error error={error} />
             <List>
                 {files.map(file => (
-                    <Flex alignItems="center" key={file.fileId!} pt="0.5em" pb="6.4px">
+                    <Flex alignItems="center" key={file.path} pt="0.5em" pb="6.4px">
                         <ListFileContent file={file} pixelsWide={200} />
                         <Icon
                             ml="auto"

@@ -7,14 +7,12 @@ import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.withKtorTest
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
-import dk.sdu.cloud.micro.BackgroundScope
 import io.ktor.http.HttpStatusCode
 import io.mockk.mockk
 import org.junit.Test
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
-import kotlin.test.*
 
 class ExtractTest : WithBackgroundScope() {
    private fun fsForTest(): File {
@@ -50,7 +48,6 @@ class ExtractTest : WithBackgroundScope() {
                     ExtractController(
                         it.authenticatedClient,
                         it.coreFs,
-                        it.lookupService,
                         CommandRunnerFactoryForCalls(it.runner, mockk(relaxed = true)),
                         FileSensitivityService(it.fs, it.eventProducer),
                         backgroundScope

@@ -17,7 +17,6 @@ import dk.sdu.cloud.service.paginate
  * - Lookup file in directory
  * - Sorting of files
  * - Pagination
- * - Mapping to public API format (i.e. [StorageFile])
  *
  * All service methods in this class can throw exceptions of type [FSException].
  */
@@ -46,15 +45,18 @@ class FileLookupService<Ctx : FSUserContext>(
         pagination: NormalizedPaginationRequest? = null,
         type: FileType? = null
     ): Page<StorageFile> {
-        val nativeAttributes = translateToNativeAttributes(attributes, sortBy)
+        val nativeAttributes = addSortingAttributes(attributes, sortBy)
 
-        val cache = HashMap<String, SensitivityLevel>()
-
-        return coreFs.listDirectorySorted(
-            ctx, path, nativeAttributes, sortBy, order, pagination, type
-        ).mapItemsNotNull {
-            readStorageFile(ctx, it, cache, nativeAttributes.toList())
-        }
+        return coreFs
+            .listDirectorySorted(
+                ctx,
+                path,
+                nativeAttributes,
+                sortBy,
+                order,
+                pagination,
+                type
+            ).mapItemsNotNull { readStorageFile(it, nativeAttributes.toList()) }
     }
 
     private inline fun <T, R : Any> Page<T>.mapItemsNotNull(mapper: (T) -> R?): Page<R> {
@@ -67,40 +69,21 @@ class FileLookupService<Ctx : FSUserContext>(
         )
     }
 
-    private fun translateToNativeAttributes(
+    private fun addSortingAttributes(
         attributes: List<StorageFileAttribute>,
         sortBy: FileSortBy? = null
-    ): HashSet<FileAttribute> {
-        val result = HashSet<FileAttribute>()
-        for (attrib in attributes) {
-            result.addAll(
-                when (attrib) {
-                    StorageFileAttribute.fileType -> listOf(FileAttribute.FILE_TYPE)
-                    StorageFileAttribute.path -> listOf(FileAttribute.PATH)
-                    StorageFileAttribute.createdAt -> listOf(FileAttribute.TIMESTAMPS)
-                    StorageFileAttribute.modifiedAt -> listOf(FileAttribute.TIMESTAMPS)
-                    StorageFileAttribute.ownerName -> listOf(FileAttribute.OWNER, FileAttribute.CREATOR)
-                    StorageFileAttribute.size -> listOf(FileAttribute.SIZE)
-                    StorageFileAttribute.acl -> listOf(FileAttribute.SHARES)
-                    StorageFileAttribute.sensitivityLevel -> listOf(
-                        FileAttribute.SENSITIVITY,
-                        FileAttribute.PATH
-                    )
-                    StorageFileAttribute.ownSensitivityLevel -> listOf(FileAttribute.SENSITIVITY)
-                    StorageFileAttribute.creator -> listOf(FileAttribute.CREATOR)
-                }
-            )
-        }
+    ): HashSet<StorageFileAttribute> {
+        val result = HashSet<StorageFileAttribute>()
+        result.addAll(attributes)
 
         result.addAll(
             when (sortBy) {
-                FileSortBy.TYPE -> listOf(FileAttribute.FILE_TYPE, FileAttribute.PATH)
-                FileSortBy.PATH -> listOf(FileAttribute.PATH)
-                FileSortBy.CREATED_AT -> listOf(FileAttribute.TIMESTAMPS)
-                FileSortBy.MODIFIED_AT -> listOf(FileAttribute.TIMESTAMPS)
-                FileSortBy.SIZE -> listOf(FileAttribute.SIZE)
-//                FileSortBy.ACL -> listOf(FileAttribute.SHARES)
-                FileSortBy.SENSITIVITY -> listOf(FileAttribute.SENSITIVITY, FileAttribute.PATH)
+                FileSortBy.TYPE -> listOf(StorageFileAttribute.fileType, StorageFileAttribute.path)
+                FileSortBy.PATH -> listOf(StorageFileAttribute.path)
+                FileSortBy.CREATED_AT -> listOf(StorageFileAttribute.createdAt)
+                FileSortBy.MODIFIED_AT -> listOf(StorageFileAttribute.modifiedAt)
+                FileSortBy.SIZE -> listOf(StorageFileAttribute.size)
+                FileSortBy.SENSITIVITY -> listOf(StorageFileAttribute.sensitivityLevel, StorageFileAttribute.path)
                 null -> emptyList()
             }
         )
@@ -135,12 +118,12 @@ class FileLookupService<Ctx : FSUserContext>(
                     ctx,
                     cloudPath,
                     setOf(
-                        FileAttribute.PATH,
-                        FileAttribute.SENSITIVITY
+                        StorageFileAttribute.path,
+                        StorageFileAttribute.sensitivityLevel
                     )
                 )
 
-                stat.sensitivityLevel ?: lookupInheritedSensitivity(stat.path.parent())
+                stat.ownSensitivityLevelOrNull ?: lookupInheritedSensitivity(stat.path.parent())
             }
         }
 
@@ -150,39 +133,31 @@ class FileLookupService<Ctx : FSUserContext>(
 
 
     private suspend fun readStorageFile(
-        ctx: Ctx,
-        row: FileRow,
-        cache: MutableMap<String, SensitivityLevel>,
-        attributes: List<FileAttribute>
+        row: StorageFile,
+        attributes: List<StorageFileAttribute>
     ): StorageFile? {
-        val owner = row._owner?.takeIf { it.isNotBlank() } ?: row._creator
-        val creator = row._creator
+        val owner = row.ownerNameOrNull?.takeIf { it.isNotBlank() }
 
-        if (FileAttribute.OWNER in attributes && owner == null) {
-            return null
-        }
-        if (FileAttribute.CREATOR in attributes && creator == null) {
+        if (StorageFileAttribute.ownerName in attributes && owner == null) {
             return null
         }
 
         return StorageFileImpl(
-            fileTypeOrNull = row._fileType,
-            pathOrNull = row._path,
-            createdAtOrNull = row._timestamps?.created,
-            modifiedAtOrNull = row._timestamps?.modified,
+            fileTypeOrNull = row.fileTypeOrNull,
+            pathOrNull = row.pathOrNull,
+            createdAtOrNull = row.createdAtOrNull,
+            modifiedAtOrNull = row.modifiedAtOrNull,
             ownerNameOrNull = owner,
-            sizeOrNull = row._size,
-            aclOrNull = row._shares,
+            sizeOrNull = row.sizeOrNull,
+            aclOrNull = row.aclOrNull,
             sensitivityLevelOrNull = run {
-                if (FileAttribute.SENSITIVITY in attributes) {
-                    row.sensitivityLevel ?: lookupInheritedSensitivity(row.path.parent())
+                if (StorageFileAttribute.sensitivityLevel in attributes) {
+                    row.ownSensitivityLevelOrNull ?: lookupInheritedSensitivity(row.path.parent())
                 } else {
                     null
                 }
             },
-            ownSensitivityLevelOrNull = row._sensitivityLevel,
-            fileIdOrNull = row._path,
-            creatorOrNull = creator
+            ownSensitivityLevelOrNull = row.ownSensitivityLevelOrNull
         )
     }
 
@@ -212,11 +187,9 @@ class FileLookupService<Ctx : FSUserContext>(
         path: String,
         attributes: List<StorageFileAttribute> = StorageFileAttribute.values().toList()
     ): StorageFile {
-        val mode = translateToNativeAttributes(attributes)
+        val mode = addSortingAttributes(attributes)
         return readStorageFile(
-            ctx,
             coreFs.stat(ctx, path, mode),
-            HashMap(),
             mode.toList()
         ) ?: throw FSException.NotFound()
     }

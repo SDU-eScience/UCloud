@@ -237,7 +237,7 @@ private object BasicUploader : Loggable {
                             return@forEach
                         }
 
-                        val existing = fs.statOrNull(ctx, entry.path, setOf(FileAttribute.FILE_TYPE))
+                        val existing = fs.statOrNull(ctx, entry.path, setOf(StorageFileAttribute.fileType))
 
                         writeln("Extracting file to ${entry.path}")
 

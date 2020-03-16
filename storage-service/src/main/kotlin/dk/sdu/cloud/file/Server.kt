@@ -174,7 +174,6 @@ class Server(
 
                 FileSecurityController(
                     commandRunnerForCalls,
-                    coreFileSystem,
                     aclService,
                     sensitivityService,
                     config.filePermissionAcl
@@ -204,7 +203,6 @@ class Server(
                 ExtractController(
                     client,
                     coreFileSystem,
-                    fileLookupService,
                     commandRunnerForCalls,
                     sensitivityService,
                     micro.backgroundScope

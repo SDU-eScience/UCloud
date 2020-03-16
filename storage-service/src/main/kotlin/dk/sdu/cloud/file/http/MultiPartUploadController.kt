@@ -5,16 +5,10 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.file.api.BulkUploadAudit
-import dk.sdu.cloud.file.api.BulkUploadErrorMessage
-import dk.sdu.cloud.file.api.MultiPartUploadAudit
-import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.file.api.UploadRequestAudit
-import dk.sdu.cloud.file.api.WriteConflictPolicy
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.micro.BackgroundScope
@@ -60,7 +54,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
 
                 //handles cancellation of uploads
                 if (ingoingRequest.length != null) {
-                    val stat = fs.statOrNull(ctx, location, setOf(FileAttribute.SIZE))
+                    val stat = fs.statOrNull(ctx, location, setOf(StorageFileAttribute.size))
                     if (ingoingRequest.length != stat?.size) {
                         fs.delete(ctx, location)
                         throw FSException.BadRequest("File upload aborted")

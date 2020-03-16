@@ -10,7 +10,6 @@ import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StorageFileAttribute
-import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.HomeFolderService
@@ -30,7 +29,7 @@ class LookupController<Ctx : FSUserContext>(
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.listAtPath) {
-            audit(SingleFileAudit(null, request))
+            audit(SingleFileAudit(request))
 
             commandRunnerFactory.withCtx(this) { ctx ->
                 val attributes = attributesOrDefault(request.attributes)
@@ -45,13 +44,12 @@ class LookupController<Ctx : FSUserContext>(
                     request.type
                 )
 
-                audit(SingleFileAudit(request.path, request))
                 ok(result)
             }
         }
 
         implement(FileDescriptions.lookupFileInDirectory) {
-            audit(SingleFileAudit(null, request))
+            audit(SingleFileAudit(request))
 
             commandRunnerFactory.withCtx(this) { ctx ->
                 val attributes =
@@ -66,14 +64,12 @@ class LookupController<Ctx : FSUserContext>(
                     attributes = attributes
                 )
 
-                val fileId = fileLookupService.stat(ctx, request.path).fileId
-                audit(SingleFileAudit(fileId, request))
                 ok(result)
             }
         }
 
         implement(FileDescriptions.stat) {
-            audit(SingleFileAudit(null, request))
+            audit(SingleFileAudit(request))
 
             commandRunnerFactory.withCtx(this) { ctx ->
                 val attributes = attributesOrDefault(request.attributes)
@@ -82,7 +78,6 @@ class LookupController<Ctx : FSUserContext>(
                     request.path,
                     attributes = attributes
                 )
-                audit(SingleFileAudit(request.path, request))
                 ok(result)
             }
         }
