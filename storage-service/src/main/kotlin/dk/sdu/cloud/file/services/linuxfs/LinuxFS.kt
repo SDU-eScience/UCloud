@@ -23,6 +23,9 @@ import java.io.OutputStream
 import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
+import java.util.*
+import kotlin.Comparator
+import kotlin.collections.ArrayList
 import kotlin.math.min
 import kotlin.streams.toList
 
@@ -144,7 +147,7 @@ class LinuxFS(
 
         if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
             if (systemFrom.isDirectory) {
-                systemFrom.listFiles()?.forEach {
+                NativeFS.listFiles(systemFrom).map { File(systemFrom, it) }.forEach {
                     movePreAuthorized(
                         ctx,
                         Paths.get(from, it.name).toString(),
@@ -176,8 +179,8 @@ class LinuxFS(
             val file = File(translateAndCheckFile(ctx, directory))
             val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
-            (requestedDirectory.listFiles() ?: throw FSException.PermissionException())
-                .toList()
+            (NativeFS.listFiles(requestedDirectory) ?: throw FSException.PermissionException())
+                .map { File(requestedDirectory, it) }
                 .filter { fileInDirectory ->
                     when (type) {
                         FileType.DIRECTORY -> fileInDirectory.isDirectory
@@ -447,20 +450,19 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         path: String,
         task: TaskContext
-    ) =
-        ctx.submit {
-            aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
-            aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
+    ) = ctx.submit {
+        aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
+        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
-            val systemFile = File(translateAndCheckFile(ctx, path))
+        val systemFile = File(translateAndCheckFile(ctx, path))
 
-            if (!Files.exists(systemFile.toPath(), LinkOption.NOFOLLOW_LINKS)) throw FSException.NotFound()
-            traverseAndDelete(ctx, systemFile.toPath())
-        }
+        if (!Files.exists(systemFile.toPath(), LinkOption.NOFOLLOW_LINKS)) throw FSException.NotFound()
+        traverseAndDelete(ctx, systemFile.toPath())
+    }
 
     private fun delete(path: Path) {
         try {
-            Files.delete(path)
+            NativeFS.delete(path.toFile())
         } catch (ex: NoSuchFileException) {
             log.debug("File at $path does not exists any more. Ignoring this error.")
         }
@@ -476,7 +478,7 @@ class LinuxFS(
         }
 
         if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
-            path.toFile().listFiles()?.forEach {
+            NativeFS.listFiles(path.toFile()).map { File(path.toFile(), it) }.forEach {
                 traverseAndDelete(ctx, it.toPath())
             }
         }
@@ -533,13 +535,26 @@ class LinuxFS(
         aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
         val systemFile = File(translateAndCheckFile(ctx, path))
-        Files.walk(systemFile.toPath(), FileVisitOption.FOLLOW_LINKS)
-            .toList()
-            .mapNotNull {
-                if (Files.isSymbolicLink(it)) return@mapNotNull null
+        val queue = LinkedList<File>()
+        queue.add(systemFile)
 
-                stat(ctx, it.toFile(), mode, hasPerformedPermissionCheck = true)
-            }
+        val result = ArrayList<StorageFile>()
+
+        while (queue.isNotEmpty()) {
+            val next = queue.pop()
+            NativeFS.listFiles(next)
+                .map { File(next, it) }
+                .forEach {
+                    if (Files.isSymbolicLink(it.toPath())) {
+                        return@forEach
+                    }
+
+                    if (it.isDirectory) queue.add(it)
+                    result.add(stat(ctx, it, mode, hasPerformedPermissionCheck = true))
+                }
+        }
+
+        result
     }
 
     override suspend fun makeDirectory(
@@ -614,11 +629,12 @@ class LinuxFS(
         Unit
     }
 
-    override suspend fun stat(ctx: LinuxFSRunner, path: String, mode: Set<StorageFileAttribute>): StorageFile = ctx.submit {
-        val systemFile = File(translateAndCheckFile(ctx, path))
-        aclService.requirePermission(path, ctx.user, AccessRight.READ)
-        stat(ctx, systemFile, mode, hasPerformedPermissionCheck = true)
-    }
+    override suspend fun stat(ctx: LinuxFSRunner, path: String, mode: Set<StorageFileAttribute>): StorageFile =
+        ctx.submit {
+            val systemFile = File(translateAndCheckFile(ctx, path))
+            aclService.requirePermission(path, ctx.user, AccessRight.READ)
+            stat(ctx, systemFile, mode, hasPerformedPermissionCheck = true)
+        }
 
     override suspend fun openForReading(ctx: LinuxFSRunner, path: String) = ctx.submit {
         aclService.requirePermission(path, ctx.user, AccessRight.READ)

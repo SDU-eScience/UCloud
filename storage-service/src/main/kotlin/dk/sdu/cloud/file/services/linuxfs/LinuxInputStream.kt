@@ -8,8 +8,7 @@ import kotlin.math.min
 private const val SEEK_CUR = 1
 private const val EINTR = 4
 
-class LinuxInputStream(private val fds: IntArray) : InputStream() {
-    private val fd = fds.last()
+class LinuxInputStream(private val fd: Int) : InputStream() {
     private var pos = 0L
 
     override fun read(): Int {
@@ -50,6 +49,6 @@ class LinuxInputStream(private val fds: IntArray) : InputStream() {
     }
 
     override fun close() {
-        fds.forEach { CLibrary.INSTANCE.close(it) }
+        CLibrary.INSTANCE.close(fd)
     }
 }

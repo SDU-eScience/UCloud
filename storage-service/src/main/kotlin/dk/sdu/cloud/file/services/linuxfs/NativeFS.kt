@@ -21,10 +21,22 @@ object NativeFS : Loggable {
     private const val O_WRONLY = 0x1
     private const val O_RDONLY = 0x0
     private const val ENOENT = 2
+    private const val ENOTDIR = 20
+    private const val ENOTEMPTY = 39
     private const val DEFAULT_MODE = 504 // 0770
+    private const val DT_BLK = 6
+    private const val DT_CHR = 2
+    private const val DT_DIR = 4
+    private const val DT_FIFO = 1
+    private const val DT_LNK = 10
+    private const val DT_REG = 8
+    private const val DT_SOCK = 12
+    private const val DT_UNKNOWN = 0
+    private const val AT_REMOVEDIR = 0x200
+
     override val log = logger()
 
-    private fun openFile(path: String, flag: Int = 0): IntArray {
+    private fun openFile(path: String, flag: Int = 0): Int {
         with(CLibrary.INSTANCE) {
             val components = path.components()
             val fileDescriptors = IntArray(components.size) { -1 }
@@ -40,13 +52,14 @@ object NativeFS : Loggable {
                         if (i == fileDescriptors.lastIndex) O_NOFOLLOW or flag
                         else O_NOFOLLOW
                     fileDescriptors[i] = openat(fileDescriptors[i - 1], components[i], opts, DEFAULT_MODE)
+                    close(previousFd)
                 }
             } catch (ex: Throwable) {
                 fileDescriptors.closeAll()
                 throw ex
             }
 
-            return fileDescriptors
+            return fileDescriptors.last()
         }
     }
 
@@ -106,13 +119,10 @@ object NativeFS : Loggable {
 
     fun move(from: File, to: File, replaceExisting: Boolean) {
         if (Platform.isLinux()) {
-            val fromFds = openFile(from.parentFile.absolutePath)
-            val toFds = openFile(to.parentFile.absolutePath)
+            val fromParent = openFile(from.parentFile.absolutePath)
+            val toParent = openFile(to.parentFile.absolutePath)
 
             try {
-                val fromParent = fromFds.last()
-                val toParent = toFds.last()
-
                 if (fromParent == -1 || toParent == -1) {
                     throw FSException.NotFound()
                 }
@@ -138,8 +148,8 @@ object NativeFS : Loggable {
                     throw FSException.NotFound()
                 }
             } finally {
-                fromFds.closeAll()
-                toFds.closeAll()
+                CLibrary.INSTANCE.close(fromParent)
+                CLibrary.INSTANCE.close(toParent)
             }
         } else {
             val opts = run {
@@ -162,8 +172,8 @@ object NativeFS : Loggable {
             }
 
             val fd = openFile(path.absolutePath, opts)
-            if (fd.any { it < 0 }) {
-                fd.closeAll()
+            if (fd < 0) {
+                CLibrary.INSTANCE.close(fd)
                 throw FSException.NotFound()
             }
 
@@ -205,6 +215,54 @@ object NativeFS : Loggable {
             LinuxInputStream(openFile(path.absolutePath, O_RDONLY)).buffered()
         } else {
             FileInputStream(path)
+        }
+    }
+
+    fun listFiles(path: File): List<String> {
+        if (Platform.isLinux()) {
+            with (CLibrary.INSTANCE) {
+                val fd = openFile(path.absolutePath)
+                if (fd < 0) {
+                    close(fd)
+                    throw FSException.NotFound()
+                }
+
+                val dir = fdopendir(fd)
+                val result = ArrayList<String>()
+                while (true) {
+                    val ent = readdir(dir) ?: break
+                    val name = ent.name
+                    if (name == "." || name == "..") continue
+                    result.add(name)
+                }
+
+                closedir(dir) // no need for close(fd) since closedir(dir) already does this
+                return result
+            }
+        } else {
+            return path.list()?.toList() ?: emptyList()
+        }
+    }
+
+    fun delete(path: File) {
+        if (Platform.isLinux()) {
+            val fd = openFile(path.parentFile.absolutePath)
+            if (fd < 0) throw FSException.NotFound()
+            try {
+                if (CLibrary.INSTANCE.unlinkat(fd, path.name, AT_REMOVEDIR) < 0) {
+                    if (CLibrary.INSTANCE.unlinkat(fd, path.name, 0) < 0) {
+                        if (Native.getLastError() == ENOTEMPTY) {
+                            throw FSException.BadRequest()
+                        }
+
+                        throw FSException.NotFound()
+                    }
+                }
+            } finally {
+                CLibrary.INSTANCE.close(fd)
+            }
+        } else {
+            Files.delete(path.toPath())
         }
     }
 }

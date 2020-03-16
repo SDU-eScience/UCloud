@@ -14,7 +14,6 @@ import dk.sdu.cloud.task.api.Progress
 import dk.sdu.cloud.task.api.runTask
 import java.io.InputStream
 import java.io.OutputStream
-import java.util.*
 
 class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,

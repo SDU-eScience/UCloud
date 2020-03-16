@@ -1,10 +1,13 @@
 package dk.sdu.cloud.file.services.linuxfs
 
-import com.sun.jna.Library
-import com.sun.jna.Native
-import com.sun.jna.Platform
-import com.sun.jna.Pointer
-import com.sun.jna.PointerType
+import com.sun.jna.*
+
+val dirent.name: String
+    get() {
+        val size = d_name.indexOf(0)
+        if (size == -1) throw IllegalStateException("End of file name not found!")
+        return String(d_name, 0, size, Charsets.UTF_8)
+    }
 
 interface CLibrary : Library {
     fun realpath(path: String, destination: ByteArray?): String?
@@ -22,6 +25,10 @@ interface CLibrary : Library {
     fun write(fd: Int, buffer: ByteArray, bufferSize: Long): Long
     fun read(fd: Int, buffer: ByteArray, size: Long): Long
     fun lseek(fd: Int, offset: Long, whence: Int): Long
+    fun readdir(dirp: Pointer?): dirent?
+    fun fdopendir(fd: Int): Pointer?
+    fun closedir(dirp: Pointer?): Int
+    fun unlinkat(fd: Int, path: String, flag: Int): Int
 
     companion object {
         val INSTANCE =
@@ -42,4 +49,3 @@ interface XAttrOSX : Library {
         val INSTANCE = Native.load("c", XAttrOSX::class.java) as XAttrOSX
     }
 }
-

@@ -20,7 +20,6 @@ enum class FileResource(val text: String, internal val backend: String) {
 
     FILE_TYPE("fileType", STORAGE_BACKEND),
     PATH("path", STORAGE_BACKEND),
-    CREATED_AT("createdAt", STORAGE_BACKEND),
     MODIFIED_AT("modifiedAt", STORAGE_BACKEND),
     OWNER_NAME("ownerName", STORAGE_BACKEND),
     SIZE("size", STORAGE_BACKEND),
@@ -28,8 +27,6 @@ enum class FileResource(val text: String, internal val backend: String) {
     SENSITIVITY_LEVEL("sensitivityLevel", STORAGE_BACKEND),
     OWN_SENSITIVITY_LEVEL("ownSensitivityLevel", STORAGE_BACKEND),
     LINK("link", STORAGE_BACKEND),
-    FILE_ID("fileId", STORAGE_BACKEND),
-    CREATOR("creator", STORAGE_BACKEND),
     CANONICAL_PATH("canonicalPath", STORAGE_BACKEND)
 }
 
@@ -65,7 +62,7 @@ class StorageFileWithMetadataDeserializer : StdDeserializer<StorageFileWithMetad
 private fun Set<FileResource>.normalize(): Set<FileResource> {
     val result = HashSet(this)
     if (FileResource.FAVORITES in result) {
-        result += FileResource.FILE_ID
+        result += FileResource.PATH
     }
     return result
 }

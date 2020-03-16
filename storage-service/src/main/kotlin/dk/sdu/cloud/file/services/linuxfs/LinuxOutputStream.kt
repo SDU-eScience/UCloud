@@ -2,9 +2,7 @@ package dk.sdu.cloud.file.services.linuxfs
 
 import java.io.OutputStream
 
-class LinuxOutputStream(private val fds: IntArray) : OutputStream() {
-    private val fd = fds.last()
-
+class LinuxOutputStream(private val fd: Int) : OutputStream() {
     override fun write(b: Int) {
         write(byteArrayOf(b.toByte()))
     }
@@ -22,6 +20,6 @@ class LinuxOutputStream(private val fds: IntArray) : OutputStream() {
     }
 
     override fun close() {
-        fds.forEach { CLibrary.INSTANCE.close(it) }
+        CLibrary.INSTANCE.close(fd)
     }
 }
