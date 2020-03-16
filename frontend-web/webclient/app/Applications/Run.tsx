@@ -924,6 +924,16 @@ const ApplicationUrl: React.FunctionComponent<{
     const [enabled, setEnabled] = React.useState<boolean>(false);
     const [url, setUrl] = React.useState<string>("");
 
+    React.useEffect(() => {
+        if (!props.inputRef) return;
+
+        const current = props.inputRef.current;
+        if (current === null) return;
+
+        current.value = url;
+    }, [props.inputRef, url]);
+
+
     return (
         <>
             <div>
@@ -943,7 +953,7 @@ const ApplicationUrl: React.FunctionComponent<{
                     <Label>
                         <Flex>
                             <TextSpan mt={10}>https://app-</TextSpan>
-                            <Input placeholder="Unique persistent URL identifier" ref={props.inputRef} value={url} />
+                            <Input placeholder="Unique persistent URL identifier" ref={props.inputRef} />
                             <TextSpan mt={10}>.cloud.sdu.dk</TextSpan>
                         </Flex>
                     </Label>
