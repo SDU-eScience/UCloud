@@ -917,23 +917,39 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
     </Label>
 );
 
-const ApplicationUrl: React.FunctionComponent<{inputRef: React.RefObject<HTMLInputElement>;}> = props => {
+const ApplicationUrl: React.FunctionComponent<{
+    inputRef: React.RefObject<HTMLInputElement>;
+    jobName: React.RefObject<HTMLInputElement>;
+}> = props => {
     const [enabled, setEnabled] = React.useState<boolean>(false);
+    const [url, setUrl] = React.useState<string>("");
 
     return (
-        <Label>
-            <Checkbox size={28} checked={enabled} onClick={() => setEnabled(!enabled)} />
-            <TextSpan>Persistent URL</TextSpan>
+        <>
+            <div>
+                <Label>
+                    <Checkbox size={28} checked={enabled} onClick={() => {
+                        setEnabled(!enabled);
+                        if (!enabled && props.jobName.current !== null) {
+                            setUrl(urlify(props.jobName.current!.value));
+                        }
+                    }} />
+                        <TextSpan>Persistent URL</TextSpan>
+                </Label>
+            </div>
 
-            { enabled ? (
-                <Flex>
-                    <Box mt={10}>https://app-</Box>
-                    <Input placeholder="Unique persistent URL identifier" ref={props.inputRef} />
-                    <Box mt={10}>.cloud.sdu.dk</Box>
-                </Flex>
-            ) : ( <></> )}
-
-        </Label>
+            <div>
+                { enabled ? (
+                    <Label>
+                        <Flex>
+                            <TextSpan mt={10}>https://app-</TextSpan>
+                            <Input placeholder="Unique persistent URL identifier" ref={props.inputRef} value={url} />
+                            <TextSpan mt={10}>.cloud.sdu.dk</TextSpan>
+                        </Flex>
+                    </Label>
+                ) : ( <></> )}
+            </div>    
+        </>
     );
 };
 
@@ -1021,11 +1037,12 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                 />
             </div>
 
-            <Flex mb="4px" mt="1em">
+            <Box mb="4px" mt="1em">
                 <ApplicationUrl
                     inputRef={props.urlRef}
+                    jobName={name}
                 />
-            </Flex>
+            </Box>
         </>
     );
 };
