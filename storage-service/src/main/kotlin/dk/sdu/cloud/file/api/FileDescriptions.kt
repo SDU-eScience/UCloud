@@ -172,7 +172,9 @@ data class FindHomeFolderResponse(val path: String)
 
 val DOWNLOAD_FILE_SCOPE = FileDescriptions.download.requiredAuthScope
 
-data class DownloadByURI(val path: String, val token: String?)
+data class DownloadByURI(val path: String, val token: String?) {
+    override fun toString(): String = "DownloadByURI($path)"
+}
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
