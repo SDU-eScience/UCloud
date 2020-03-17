@@ -30,10 +30,6 @@ class ActivityController(
             }
         }
 
-        implement(ActivityDescriptions.listByUser) {
-            ok(activityService.findEventsForUser(request.normalize(), ctx.securityPrincipal.username))
-        }
-
         implement(ActivityDescriptions.browseByUser) {
             val user = request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEDGED }
                 ?: ctx.securityPrincipal.username

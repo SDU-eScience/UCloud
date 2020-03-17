@@ -27,13 +27,6 @@ class ActivityService(
         return activityEventElasticDao.findByFilePath(pagination, fileStat.path)
     }
 
-    fun findEventsForUser(
-        pagination: NormalizedPaginationRequest,
-        user: String
-    ): Page<ActivityEvent> {
-        return activityEventElasticDao.findByUser(pagination, user)
-    }
-
     fun browseForUser(
         scroll: NormalizedScrollRequest<Int>,
         user: String,

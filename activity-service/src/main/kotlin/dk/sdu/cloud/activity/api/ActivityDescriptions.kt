@@ -34,25 +34,6 @@ object Activity : CallDescriptionContainer("activity") {
         }
     }
 
-    val listByUser = call<ListActivityByUserRequest, ListActivityByUserResponse, CommonErrorMessage>("listByUser") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-            }
-
-            params {
-                +boundTo(ListActivityByUserRequest::itemsPerPage)
-                +boundTo(ListActivityByUserRequest::page)
-            }
-        }
-    }
-
     val browseByUser = call<BrowseByUser.Request, BrowseByUser.Response, CommonErrorMessage>("browseByUser") {
         auth {
             access = AccessRight.READ

@@ -145,6 +145,3 @@ data class ListActivityByPathRequest(
     override val page: Int?
 ) : WithPaginationRequest
 typealias ListActivityByPathResponse = Page<ActivityForFrontend>
-
-typealias ListActivityByUserRequest = PaginationRequest
-typealias ListActivityByUserResponse = Page<ActivityEvent>

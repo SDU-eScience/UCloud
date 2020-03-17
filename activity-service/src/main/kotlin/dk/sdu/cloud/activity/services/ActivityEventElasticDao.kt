@@ -179,42 +179,6 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         return Page(numberOfItems, pagination.itemsPerPage, pagination.page, activityEventList)
     }
 
-    override fun findByUser(pagination: NormalizedPaginationRequest, user: String): Page<ActivityEvent> {
-        val request = SearchRequest(*ALL_RELEVANT_INDICES)
-        val source = SearchSourceBuilder().query(
-            QueryBuilders.boolQuery()
-                .filter(
-                    QueryBuilders.boolQuery()
-                        .must(
-                            QueryBuilders.matchPhraseQuery(
-                                "token.principal.username",
-                                user
-                            )
-                        )
-                )
-                .filter(
-                    QueryBuilders.boolQuery()
-                        .should(
-                            QueryBuilders.rangeQuery(
-                                "responseCode"
-                            ).lte(299)
-                        )
-                        .minimumShouldMatch(1)
-                )
-        ).from(pagination.itemsPerPage * pagination.page)
-            .size(pagination.itemsPerPage)
-            .sort("@timestamp", SortOrder.DESC)
-
-        request.source(source)
-
-        val searchResponse = client.search(request, RequestOptions.DEFAULT)
-
-        val activityEventList = mapEventsBasedOnIndex(searchResponse, isUserSearch = true)
-
-        val numberOfItems = searchResponse.hits.totalHits?.value?.toInt()!!
-        return Page(numberOfItems, pagination.itemsPerPage, pagination.page, activityEventList)
-    }
-
     private fun getIndexByType(type: ActivityEventType?): Array<String> {
         return if (type != null) {
             when (type){

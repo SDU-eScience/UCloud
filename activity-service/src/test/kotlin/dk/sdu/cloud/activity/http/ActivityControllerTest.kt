@@ -3,6 +3,8 @@ package dk.sdu.cloud.activity.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.activity.api.ActivityEvent
+import dk.sdu.cloud.activity.api.ActivityEventType
+import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.activity.api.ListActivityByPathResponse
 import dk.sdu.cloud.activity.services.ActivityEventElasticDao
 import dk.sdu.cloud.activity.services.ActivityService
@@ -11,6 +13,7 @@ import dk.sdu.cloud.micro.ElasticFeature
 import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.ScrollResult
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
 import dk.sdu.cloud.service.test.initializeMicro
@@ -26,6 +29,7 @@ import io.mockk.mockk
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class ActivityControllerTest {
     private fun TestApplicationRequest.addJobID() {
@@ -41,10 +45,15 @@ class ActivityControllerTest {
             setup = {listOf(controller)},
             test = {
                 val path = "/file"
-                val expectedResult = listOf(ActivityEvent.Download(
+                val event = ActivityEvent.Deleted(
                     TestUsers.user.username,
                     0L,
-                    "file"
+                    "path"
+                )
+                val expectedResult = listOf(ActivityForFrontend(
+                    ActivityEventType.deleted,
+                    0L,
+                    event
                 ))
 
                 coEvery{
@@ -66,10 +75,7 @@ class ActivityControllerTest {
 
                 response.assertSuccess()
 
-                val parsedResult =
-                    defaultMapper.readValue<ListActivityByPathResponse>(response.response.content!!)
-
-                assertEquals(expectedResult, parsedResult.items)
+                assertTrue(response.response.content?.contains("\"itemsInTotal\":1")!!)
 
                 coVerify(exactly = 1) { activityService.findEventsForPath(any(), path, any(), any(), any()) }
             }
@@ -93,6 +99,34 @@ class ActivityControllerTest {
                     assertEquals(HttpStatusCode.Unauthorized, response.response.status())
                 }
             }
+        )
+    }
+
+    @Test
+    fun `test browse`() {
+        val activityService = mockk<ActivityService>()
+        val controller = ActivityController(activityService)
+
+        withKtorTest(
+            setup = { listOf(controller) },
+            test = {
+                val user = TestUsers.user.username
+
+                coEvery { activityService.browseForUser(any(),any(),any()) } answers {
+                    val items = emptyList<ActivityForFrontend>()
+                    ScrollResult(items, 0, true)
+                }
+
+                val response = sendRequest(
+                    method = HttpMethod.Get,
+                    path = "/api/activity/browse/user",
+                    user = TestUsers.user,
+                    params = mapOf("scrollSize" to 250)
+                ) {addHeader("Job-Id", UUID.randomUUID().toString())}
+
+                response.assertSuccess()
+            }
+
         )
     }
 }

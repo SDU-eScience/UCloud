@@ -20,11 +20,6 @@ interface ActivityEventDao {
         filePath: String
     ): Page<ActivityForFrontend>
 
-    fun findByUser(
-        pagination: NormalizedPaginationRequest,
-        user: String
-    ): Page<ActivityEvent>
-
     fun findEvents(
         size: Int,
         filter: ActivityEventFilter = ActivityEventFilter()
