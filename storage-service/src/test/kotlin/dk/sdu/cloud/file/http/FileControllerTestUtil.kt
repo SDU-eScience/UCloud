@@ -11,18 +11,12 @@ import dk.sdu.cloud.file.api.ListDirectoryRequest
 import dk.sdu.cloud.file.api.LookupFileInDirectoryRequest
 import dk.sdu.cloud.file.api.SortOrder
 import dk.sdu.cloud.file.api.StatRequest
-import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.api.homeDirectory
-import dk.sdu.cloud.file.services.ACLWorker
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileSensitivityService
-import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.StorageEventProducer
-import dk.sdu.cloud.file.services.WSFileSessionService
+import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.acl.MetadataService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
@@ -59,7 +53,6 @@ data class FileControllerContext(
     val runner: LinuxFSRunnerFactory,
     val fs: LinuxFS,
     val coreFs: CoreFileSystemService<LinuxFSRunner>,
-    val eventProducer: StorageEventProducer,
     val lookupService: FileLookupService<LinuxFSRunner>,
     val sensitivityService: FileSensitivityService<LinuxFSRunner>
 )
@@ -73,15 +66,10 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
     val fsRoot = fsRootInitializer()
     val (runner, fs, aclService) = linuxFSWithRelaxedMocks(fsRoot.absolutePath, scope)
     micro.install(HibernateFeature)
-    val eventProducer =
-        StorageEventProducer(
-            micro.eventStreamService.createProducer(StorageEvents.events),
-            scope,
-            { it.printStackTrace() }
-        )
-    val fileSensitivityService = FileSensitivityService(fs, eventProducer)
-    val coreFs = CoreFileSystemService(fs, eventProducer, fileSensitivityService, ClientMock.authenticatedClient, scope)
-    val sensitivityService = FileSensitivityService(fs, eventProducer)
+    val fileSensitivityService = FileSensitivityService(fs)
+    val coreFs =
+        CoreFileSystemService(fs, fileSensitivityService, ClientMock.authenticatedClient, scope, mockedMetadataService)
+    val sensitivityService = FileSensitivityService(fs)
 
     val aclWorker = ACLWorker(aclService)
     val homeFolderService = mockk<HomeFolderService>()
@@ -94,10 +82,9 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
         fsRoot = fsRoot.absolutePath,
         runner = runner,
         fs = fs,
-        eventProducer = eventProducer,
         coreFs = coreFs,
         lookupService = FileLookupService(runner, coreFs),
-        sensitivityService = FileSensitivityService(fs, eventProducer)
+        sensitivityService = FileSensitivityService(fs)
     )
 
     with(ctx) {

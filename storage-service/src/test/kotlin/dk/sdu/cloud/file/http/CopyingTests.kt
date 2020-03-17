@@ -4,6 +4,8 @@ import dk.sdu.cloud.file.api.WriteConflictPolicy
 import dk.sdu.cloud.file.services.WithBackgroundScope
 import dk.sdu.cloud.file.services.successfulTaskMock
 import dk.sdu.cloud.micro.BackgroundScope
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpStatusCode
 import kotlin.test.AfterTest

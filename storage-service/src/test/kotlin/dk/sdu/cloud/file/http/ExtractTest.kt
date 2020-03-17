@@ -49,7 +49,7 @@ class ExtractTest : WithBackgroundScope() {
                         it.authenticatedClient,
                         it.coreFs,
                         CommandRunnerFactoryForCalls(it.runner, mockk(relaxed = true)),
-                        FileSensitivityService(it.fs, it.eventProducer),
+                        FileSensitivityService(it.fs),
                         backgroundScope
                     )
                 )

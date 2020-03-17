@@ -236,7 +236,6 @@ test("Download allowed", () =>
 const highSensitivityFile = newMockFile({
     type: "FILE",
     path: "SensitiveFile",
-    createdAt: new Date().getMilliseconds() - 3600 * 24,
     modifiedAt: new Date().getMilliseconds(),
     acl: [],
     ownerName: "user@user3.dk",

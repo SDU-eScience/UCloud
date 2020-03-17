@@ -80,9 +80,9 @@ class BulkUploadTest : WithBackgroundScope() {
             CoreFileSystemService(
                 fs,
                 mockk(relaxed = true),
-                fileSensitivityService,
                 ClientMock.authenticatedClient,
-                backgroundScope
+                backgroundScope,
+                mockedMetadataService
             )
         return Pair(runner, coreFs)
     }

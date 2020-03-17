@@ -21,13 +21,11 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.*
-import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
 import java.util.*
 import kotlin.Comparator
 import kotlin.collections.ArrayList
 import kotlin.math.min
-import kotlin.streams.toList
 
 class LinuxFS(
     fsRoot: File,
@@ -156,7 +154,11 @@ class LinuxFS(
                     )
                 }
             } else {
-                NativeFS.createDirectories(systemTo.parentFile)
+                try {
+                    NativeFS.createDirectories(systemTo.parentFile)
+                } catch (ignored: FSException.AlreadyExists) {
+                    // Ignored
+                }
                 NativeFS.move(systemFrom, systemTo, replaceExisting)
             }
         } else {
@@ -179,7 +181,7 @@ class LinuxFS(
             val file = File(translateAndCheckFile(ctx, directory))
             val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
-            (NativeFS.listFiles(requestedDirectory) ?: throw FSException.PermissionException())
+            NativeFS.listFiles(requestedDirectory)
                 .map { File(requestedDirectory, it) }
                 .filter { fileInDirectory ->
                     when (type) {
@@ -332,68 +334,7 @@ class LinuxFS(
                     aclService.requirePermission(systemFile.path.toCloudPath(), ctx.user, AccessRight.READ)
                 }
 
-                var fileType: FileType? = null
-                var modifiedAt: Long? = null
-                var path: String? = null
-                var size: Long? = null
-                var shares: List<AccessEntry>? = null
-                var sensitivityLevel: SensitivityLevel? = null
-
-                val systemPath = try {
-                    systemFile.toPath()
-                } catch (ex: InvalidPathException) {
-                    throw FSException.BadRequest()
-                }
-
-                val linkOpts = arrayOf(LinkOption.NOFOLLOW_LINKS)
-
-                run {
-                    // Basic file attributes and symlinks
-                    val basicAttributes = run {
-                        val opts = ArrayList<String>()
-
-                        // We always add SIZE. This will make sure we always get a stat executed and thus throw if the
-                        // file doesn't actually exist.
-                        opts.add("size")
-
-                        if (StorageFileAttribute.createdAt in mode || StorageFileAttribute.modifiedAt in mode) {
-                            opts.add("lastModifiedTime")
-                        }
-
-                        if (StorageFileAttribute.fileType in mode) {
-                            opts.add("isDirectory")
-                        }
-
-                        if (opts.isEmpty()) {
-                            null
-                        } else {
-                            Files.readAttributes(systemPath, opts.joinToString(","), *linkOpts)
-                        }
-                    }
-
-                    if (StorageFileAttribute.path in mode) path = systemFile.absolutePath.toCloudPath()
-
-                    if (basicAttributes != null) {
-                        // We need to always ask if this file is a link to correctly resolve target file type.
-
-                        if (StorageFileAttribute.size in mode) size = basicAttributes.getValue("size") as Long
-
-                        if (StorageFileAttribute.fileType in mode) {
-                            val isDirectory = basicAttributes.getValue("isDirectory") as Boolean
-
-                            fileType = if (isDirectory) {
-                                FileType.DIRECTORY
-                            } else {
-                                FileType.FILE
-                            }
-                        }
-
-                        if (StorageFileAttribute.createdAt in mode || StorageFileAttribute.modifiedAt in mode) {
-                            val lastModified = basicAttributes.getValue("lastModifiedTime") as FileTime
-                            modifiedAt = lastModified.toMillis()
-                        }
-                    }
-                }
+                val stat = NativeFS.stat(systemFile)
 
                 val realOwner = if (StorageFileAttribute.ownerName in mode) {
                     val toCloudPath = systemFile.absolutePath.toCloudPath()
@@ -411,34 +352,25 @@ class LinuxFS(
                     null
                 }
 
-                if (StorageFileAttribute.sensitivityLevel in mode || StorageFileAttribute.ownSensitivityLevel in mode) {
-                    // This will only ever get the own sensitivity level
-                    sensitivityLevel =
-                        runCatching {
-                            getExtendedAttributeInternal(
-                                systemFile,
-                                "sensitivity"
-                            )?.let { SensitivityLevel.valueOf(it) }
-                        }.getOrNull()
-                }
-
-                if (StorageFileAttribute.acl in mode) {
+                val shares = if (StorageFileAttribute.acl in mode) {
                     val cloudPath = systemFile.path.toCloudPath()
-                    shares = shareLookup.getOrDefault(cloudPath, emptyList()).map {
+                    shareLookup.getOrDefault(cloudPath, emptyList()).map {
                         AccessEntry(it.username, it.permissions)
                     }
+                } else {
+                    null
                 }
 
                 StorageFileImpl(
-                    fileType,
-                    path,
-                    modifiedAt,
-                    modifiedAt,
+                    stat.fileType,
+                    systemFile.absolutePath.toCloudPath(),
+                    stat.modifiedAt,
+                    stat.modifiedAt,
                     realOwner,
-                    size,
+                    stat.size,
                     shares,
                     null,
-                    sensitivityLevel
+                    stat.ownSensitivityLevel
                 )
             } catch (ex: NoSuchFileException) {
                 null
@@ -572,7 +504,7 @@ class LinuxFS(
         attribute: String
     ): String? {
         return try {
-            StandardCLib.getxattr(systemFile.absolutePath, "user.$attribute")
+            NativeFS.getExtendedAttribute(systemFile, "user.$attribute")
         } catch (ex: NativeException) {
             if (ex.statusCode == 61) return null
             if (ex.statusCode == 2) return null
@@ -600,8 +532,8 @@ class LinuxFS(
         // TODO Should this be owner only?
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
-        val status = StandardCLib.setxattr(
-            translateAndCheckFile(ctx, path),
+        val status = NativeFS.setExtendedAttribute(
+            File(translateAndCheckFile(ctx, path)),
             "user.$attribute",
             value,
             allowOverwrite
@@ -612,12 +544,6 @@ class LinuxFS(
         Unit
     }
 
-    override suspend fun listExtendedAttribute(ctx: LinuxFSRunner, path: String): List<String> = ctx.submit {
-        // TODO Should this be owner only?
-        aclService.requirePermission(path, ctx.user, AccessRight.READ)
-        StandardCLib.listxattr(translateAndCheckFile(ctx, path)).map { it.removePrefix("user.") }
-    }
-
     override suspend fun deleteExtendedAttribute(
         ctx: LinuxFSRunner,
         path: String,
@@ -625,7 +551,7 @@ class LinuxFS(
     ) = ctx.submit {
         // TODO Should this be owner only?
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
-        StandardCLib.removexattr(translateAndCheckFile(ctx, path), "user.$attribute")
+        NativeFS.removeExtendedAttribute(File(translateAndCheckFile(ctx, path)), "user.$attribute")
         Unit
     }
 
@@ -680,7 +606,7 @@ class LinuxFS(
     }
 
     override suspend fun onFileCreated(ctx: LinuxFSRunner, path: String) {
-        Chown.setOwner(File(translateAndCheckFile(ctx, path)).toPath(), LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+        NativeFS.chown(File(translateAndCheckFile(ctx, path)), LINUX_FS_USER_UID, LINUX_FS_USER_UID)
     }
 
     private fun String.toCloudPath(): String {
