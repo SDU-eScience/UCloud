@@ -3,7 +3,7 @@ package dk.sdu.cloud.file.migration
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
-import dk.sdu.cloud.file.services.linuxfs.Chown
+import dk.sdu.cloud.file.services.linuxfs.NativeFS
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import java.io.File
@@ -89,7 +89,7 @@ class WorkspaceMigration(
             val parentFile = finalDestination.parentFile
             if (!parentFile.exists()) {
                 parentFile.mkdirs()
-                Chown.setOwner(parentFile.toPath(), LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+                NativeFS.chown(parentFile, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
 
                 val readMe = File(parentFile, "README.txt")
                 readMe.writeText(
@@ -99,13 +99,13 @@ class WorkspaceMigration(
                     """.trimIndent()
                 )
 
-                Chown.setOwner(readMe.toPath(), LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+                NativeFS.chown(readMe, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
             }
 
             workspace.renameTo(finalDestination)
 
             Files.walk(finalDestination.toPath(), FileVisitOption.FOLLOW_LINKS).forEach { path ->
-                Chown.setOwner(path, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+                NativeFS.chown(path.toFile(), LINUX_FS_USER_UID, LINUX_FS_USER_UID)
             }
         }
     }
