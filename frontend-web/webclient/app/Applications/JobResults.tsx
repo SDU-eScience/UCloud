@@ -16,14 +16,11 @@ import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import Box from "ui-components/Box";
-import Button from "ui-components/Button";
-import Checkbox from "ui-components/Checkbox";
+import {Box, Button, Checkbox, Label, List as ItemList, Flex, Text, Icon, Truncate} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import InputGroup from "ui-components/InputGroup";
-import Label from "ui-components/Label";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import {Table, TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
@@ -102,39 +99,63 @@ function JobResults(props: AnalysesProps & {history: History}): React.ReactEleme
             customEmptyPage={<Heading.h1>No jobs found.</Heading.h1>}
             loading={loading}
             pageRenderer={page => (
-                <Table>
-                    <Header
-                        hide={hide}
-                        masterCheckbox={masterCheckbox}
-                        sortBy={sortBy}
-                        sortOrder={sortOrder}
-                        fetchJobs={sortBy => fetchJobs({
-                            itemsPerPage,
-                            pageNumber,
-                            sortOrder: sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING,
-                            sortBy
+                <>
+                    <ItemList>
+                        {page.items.map(it => {
+                            const isExpired = isRunExpired(it);
+                            return (
+                                <Flex key={it.jobId}>
+                                    <Box>
+                                        <Truncate width={1} mb="-4px" fontSize={20}>
+                                            {it.name ? it.name : shortUUID(it.jobId)}
+                                        </Truncate>
+                                        <Text color="gray" fontSize="12px">{it.metadata.title} v{it.metadata.version}</Text>
+                                    </Box>
+                                    <Box ml="auto" />
+                                    <Icon mt="4px" mr="8px" name="chrono" />
+                                    <Text mr="10px">{capitalized(formatRelative(it.createdAt, new Date(), {locale: enGB}))}</Text>
+                                    <ExpandingFlex>
+                                        <JobStateIcon state={it.state} isExpired={isExpired} mr="8px" />
+                                        <Flex width={0}>{isExpired ? "Expired" : capitalized(it.state)}</Flex>
+                                    </ExpandingFlex>
+                                </Flex>
+                            );
                         })}
-                    />
-                    <tbody>
-                        {page.items.map((a, i) => (
-                            <Row
-                                hide={hide}
-                                to={() => history.push(`/applications/results/${a.jobId}`)}
-                                analysis={a}
-                                key={i}
-                            >
-                                <div>
-                                    <Label>
-                                        <Checkbox
-                                            checked={a.checked}
-                                            onChange={e => props.checkAnalysis(a.jobId, e.target.checked)}
-                                        />
-                                    </Label>
-                                </div>
-                            </Row>
-                        ))}
-                    </tbody>
-                </Table>
+                    </ItemList>
+                    <Table>
+                        <Header
+                            hide={hide}
+                            masterCheckbox={masterCheckbox}
+                            sortBy={sortBy}
+                            sortOrder={sortOrder}
+                            fetchJobs={sortBy => fetchJobs({
+                                itemsPerPage,
+                                pageNumber,
+                                sortOrder: sortOrder === SortOrder.ASCENDING ? SortOrder.DESCENDING : SortOrder.ASCENDING,
+                                sortBy
+                            })}
+                        />
+                        <tbody>
+                            {page.items.map((a, i) => (
+                                <Row
+                                    hide={hide}
+                                    to={() => history.push(`/applications/results/${a.jobId}`)}
+                                    analysis={a}
+                                    key={i}
+                                >
+                                    <div>
+                                        <Label>
+                                            <Checkbox
+                                                checked={a.checked}
+                                                onChange={e => props.checkAnalysis(a.jobId, e.target.checked)}
+                                            />
+                                        </Label>
+                                    </div>
+                                </Row>
+                            ))}
+                        </tbody>
+                    </Table>
+                </>
             )}
             page={page}
             onPageChanged={pageNumber => fetchJobs({pageNumber})}
@@ -275,8 +296,9 @@ interface AnalysisOperationsProps {
     onFinished: () => void;
 }
 
-const AnalysisOperations = ({cancelableAnalyses, onFinished}: AnalysisOperationsProps) =>
-    cancelableAnalyses.length === 0 ? null : (
+function AnalysisOperations({cancelableAnalyses, onFinished}: AnalysisOperationsProps): JSX.Element | null {
+    if (cancelableAnalyses.length === 0) return null;
+    return (
         <Button
             fullWidth
             color="red"
@@ -295,9 +317,19 @@ const AnalysisOperations = ({cancelableAnalyses, onFinished}: AnalysisOperations
                 }
             })}
         >
-            Cancel selected ({cancelableAnalyses.length}) jobs
-        </Button>
+            Cancel selected({cancelableAnalyses.length}) jobs
+        </Button >
     );
+}
+
+const ExpandingFlex = styled(Flex)`
+    &:hover {
+        & > ${Flex} {
+            transition: width 0.5s;
+            width: 45px;
+        }
+    }
+`;
 
 interface HeaderProps {
     hide: boolean;
@@ -307,7 +339,7 @@ interface HeaderProps {
     fetchJobs: (sortBy: RunsSortBy) => void;
 }
 
-const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProps) => (
+const Header = ({hide, sortBy, sortOrder, masterCheckbox, fetchJobs}: HeaderProps): JSX.Element => (
     <TableHeader>
         <TableRow>
             <JobResultsHeaderCell width="4%" textAlign="center">
