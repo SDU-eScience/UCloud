@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-favorite"
-    version = "1.4.7"
+    version = "1.5.0-storage-events.4"
 
     // /api/avatar is added by default
     withAmbassador(null) {
@@ -50,4 +50,10 @@ bundle {
     }
 
     withPostgresMigration(deployment)
+
+    withAdHocJob(
+        deployment,
+        nameSuffix = "migrate-metadata",
+        additionalArgs = { listOf("--migrate-metadata") }
+    )
 }

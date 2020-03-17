@@ -4,7 +4,6 @@ import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.orchestrator.api.JobSortBy
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.SortOrder
-import dk.sdu.cloud.file.api.CowWorkspace
 
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -27,13 +26,6 @@ interface JobDao<Session> {
         session: Session,
         systemId: String,
         status: String
-    )
-
-    fun updateWorkspace(
-        session: Session,
-        systemId: String,
-        workspace: String,
-        cow: CowWorkspace?
     )
 
     suspend fun find(

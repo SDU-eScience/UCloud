@@ -6,7 +6,7 @@ import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 
-class ACLWorker(private val aclService: AclService<*>) {
+class ACLWorker(private val aclService: AclService) {
     suspend fun updateAcl(request: UpdateAclRequest, user: String) {
         log.debug("Executing ACL update request: $request")
 

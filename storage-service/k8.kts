@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "3.2.13"
+    version = "4.0.0-storage-events.30"
 
     withAmbassador(null) {
         services.add(
@@ -61,24 +61,6 @@ bundle { ctx ->
                 """.trimIndent()
             )
         )
-
-        services.add(
-            AmbassadorMapping(
-                """
-                    ---
-                    apiVersion: ambassador/v1
-                    kind: Mapping
-                    name: storage_list_4
-                    timeout_ms: 0
-                    rewrite: ""
-                    prefix: ^/api/files/workspaces(/)?${'$'}
-                    prefix_regex: true
-                    service: storage:8080
-                    use_websocket: true                
-                    
-                """.trimIndent()
-            )
-        )
     }
 
     val deployment = withDeployment {
@@ -101,44 +83,37 @@ bundle { ctx ->
         })
     }
 
-    resources.add(
-        DeploymentResource(
-            name = "storage-workspace-queue",
-            version = version,
-            image = "registry.cloud.sdu.dk/sdu-cloud/storage-service:${version}"
-        ).apply {
-            this.deployment.spec.replicas = 3
-            this.serviceContainer.args = this.serviceContainer.args + listOf("--workspace-queue")
-            this.serviceContainer.livenessProbe = null
-
-            injectConfiguration("token-validation")
-            injectSecret("storage-refresh-token")
-            injectSecret("storage-psql")
-            injectConfiguration("storage-config")
-            injectConfiguration("ceph-fs-config")
-
-            val cephfsVolume = "cephfs"
-            serviceContainer.volumeMounts.add(VolumeMount().apply {
-                name = cephfsVolume
-                mountPath = "/mnt/cephfs"
-            })
-
-            volumes.add(Volume().apply {
-                name = cephfsVolume
-                persistentVolumeClaim = PersistentVolumeClaimVolumeSource().apply {
-                    claimName = cephfsVolume
-                }
-            })
-        }
-    )
-
     withPostgresMigration(deployment)
 
     withAdHocJob(
         deployment,
-        nameSuffix = "scan",
+        nameSuffix = "migrate-workspaces",
         additionalArgs = {
-            listOf("--scan") + remainingArgs
+            listOf("--migrate-workspaces") + remainingArgs
+        }
+    )
+
+    withAdHocJob(
+        deployment,
+        nameSuffix = "migrate-permissions",
+        additionalArgs = {
+            listOf("--migrate-permissions")
+        }
+    )
+
+    withAdHocJob(
+        deployment,
+        nameSuffix = "migrate-favorites",
+        additionalArgs = {
+            listOf("--migrate-favorites")
+        }
+    )
+
+    withAdHocJob(
+        deployment,
+        nameSuffix = "migrate-shares",
+        additionalArgs = {
+            listOf("--migrate-shares")
         }
     )
 

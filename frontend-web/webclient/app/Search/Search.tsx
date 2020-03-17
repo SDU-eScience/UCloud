@@ -233,10 +233,6 @@ export function fileSearchBody(
     const fileTypes: [FileType?, FileType?] = [];
     if (fileSearch.allowFiles) fileTypes.push("FILE");
     if (fileSearch.allowFolders) fileTypes.push("DIRECTORY");
-    const createdAt = {
-        after: !!fileSearch.createdAfter ? fileSearch.createdAfter.valueOf() : undefined,
-        before: !!fileSearch.createdBefore ? fileSearch.createdBefore.valueOf() : undefined,
-    };
     const modifiedAt = {
         after: !!fileSearch.modifiedAfter ? fileSearch.modifiedAfter.valueOf() : undefined,
         before: !!fileSearch.modifiedBefore ? fileSearch.modifiedBefore.valueOf() : undefined,
@@ -246,8 +242,6 @@ export function fileSearchBody(
         fileName,
         extensions: [...fileSearch.extensions],
         fileTypes,
-        createdAt: typeof createdAt.after === "number" ||
-            typeof createdAt.before === "number" ? createdAt : undefined,
         modifiedAt: typeof modifiedAt.after === "number" ||
             typeof modifiedAt.before === "number" ? modifiedAt : undefined,
         includeShares: fileSearch.includeShares,

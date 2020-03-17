@@ -79,41 +79,6 @@ function DetailedFileSearch(props: DetailedFileSearchProps): JSX.Element {
                             <Heading.h5 pb="0.3em" pt="0.5em">Filename</Heading.h5>
                             <Input value={props.search} onChange={e => props.setSearch(e.target.value)} />
                         </Hide>
-                        <Heading.h5 pb="0.3em" pt="0.5em">Created at</Heading.h5>
-                        <InputGroup>
-                            <DatePicker
-                                pb="6px"
-                                pt="8px"
-                                mt="-2px"
-                                placeholderText="After"
-                                selected={props.createdAfter}
-                                startDate={props.createdAfter}
-                                endDate={props.createdBefore}
-                                onChange={d => validateAndSetDate(d, "createdAfter")}
-                                showTimeSelect
-                                timeIntervals={15}
-                                isClearable
-                                selectsStart
-                                timeFormat="HH:mm"
-                                dateFormat="dd/MM/yy HH:mm"
-                            />
-                            <DatePicker
-                                pb="6px"
-                                pt="8px"
-                                mt="-2px"
-                                selectsEnd
-                                placeholderText="Before"
-                                selected={props.createdBefore}
-                                startDate={props.createdAfter}
-                                endDate={props.createdBefore}
-                                onChange={d => validateAndSetDate(d, "createdBefore")}
-                                showTimeSelect
-                                timeIntervals={15}
-                                isClearable
-                                timeFormat="HH:mm"
-                                dateFormat="dd/MM/yy HH:mm"
-                            />
-                        </InputGroup>
                         <Heading.h5 pb="0.3em" pt="0.5em">Modified at</Heading.h5>
                         <InputGroup>
                             <DatePicker
@@ -234,47 +199,27 @@ function DetailedFileSearch(props: DetailedFileSearchProps): JSX.Element {
     }
 
     function validateAndSetDate(m: Date | null, property: PossibleTime): void {
-        const {setTimes, createdBefore, modifiedBefore, createdAfter, modifiedAfter} = props;
+        const {setTimes, modifiedBefore, modifiedAfter} = props;
         if (m == null) {
             setTimes({[property]: undefined});
             return;
         }
         const before = property.includes("Before");
-        if (property.includes("created")) {
-            if (before && createdAfter) {
-                if (m.getTime() > createdAfter.getTime()) {
-                    setTimes({createdBefore: m});
-                    return;
-                } else {
-                    snackbarStore.addFailure("Invalid date range");
-                    return;
-                }
-            } else if (!before && createdBefore) {
-                if (m.getTime() < createdBefore.getTime()) {
-                    setTimes({createdAfter: m});
-                    return;
-                } else {
-                    snackbarStore.addFailure("Invalid date range");
-                    return;
-                }
+        if (before && modifiedAfter) {
+            if (m.getTime() > modifiedAfter.getTime()) {
+                setTimes({modifiedBefore: m});
+                return;
+            } else {
+                snackbarStore.addFailure("Invalid date range");
+                return;
             }
-        } else { // includes Modified
-            if (before && modifiedAfter) {
-                if (m.getTime() > modifiedAfter.getTime()) {
-                    setTimes({modifiedBefore: m});
-                    return;
-                } else {
-                    snackbarStore.addFailure("Invalid date range");
-                    return;
-                }
-            } else if (!before && modifiedBefore) {
-                if (m.getTime() < modifiedBefore.getTime()) {
-                    setTimes({modifiedAfter: m});
-                    return;
-                } else {
-                    snackbarStore.addFailure("Invalid date range");
-                    return;
-                }
+        } else if (!before && modifiedBefore) {
+            if (m.getTime() < modifiedBefore.getTime()) {
+                setTimes({modifiedAfter: m});
+                return;
+            } else {
+                snackbarStore.addFailure("Invalid date range");
+                return;
             }
         }
         setTimes({[property]: m});

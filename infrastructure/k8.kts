@@ -35,12 +35,13 @@ bundle { ctx ->
         Environment.TEST -> "staging"
     }
 
-    withConfigMap("ceph-fs-config") {
+    withConfigMap("ceph-fs-config", version = "3") {
         addConfig(
             "config.yml",
             """
                 ceph:
-                  subfolder: $cephFsSubFolder
+                  subfolder: "$cephFsSubFolder"
+                  useCephDirectoryStats: true
             """.trimIndent()
         )
     }

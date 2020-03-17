@@ -70,7 +70,7 @@ object Shares : CallDescriptionContainer("shares") {
         )
     }
 
-    val create = call<Create.Request, Create.Response, CommonErrorMessage>("create") {
+    val create = call<Create.Request, Unit, CommonErrorMessage>("create") {
         auth {
             access = AuthAccessRight.READ_WRITE
         }
@@ -94,8 +94,6 @@ object Shares : CallDescriptionContainer("shares") {
             val path: String,
             val rights: Set<AccessRight>
         )
-
-        data class Response(val id: ShareId)
     }
 
     val update = call<Update.Request, Unit, CommonErrorMessage>("update") {
@@ -108,6 +106,7 @@ object Shares : CallDescriptionContainer("shares") {
 
             path {
                 using(baseContext)
+                +"update"
             }
 
             body {
@@ -118,12 +117,13 @@ object Shares : CallDescriptionContainer("shares") {
 
     object Update {
         data class Request(
-            val id: ShareId,
+            val path: String,
+            val sharedWith: String,
             val rights: Set<AccessRight>
         )
     }
 
-    val revoke = call<FindByShareId, Unit, CommonErrorMessage>("revoke") {
+    val revoke = call<Revoke.Request, Unit, CommonErrorMessage>("revoke") {
         auth {
             access = AuthAccessRight.READ_WRITE
         }
@@ -134,9 +134,17 @@ object Shares : CallDescriptionContainer("shares") {
             path {
                 using(baseContext)
                 +"revoke"
-                +boundTo(FindByShareId::id)
             }
+
+            body { bindEntireRequestFromBody() }
         }
+    }
+
+    object Revoke {
+        data class Request(
+            val path: String,
+            val sharedWith: String
+        )
     }
 
     val accept = call<Accept.Request, Unit, CommonErrorMessage>("accept") {
@@ -150,18 +158,14 @@ object Shares : CallDescriptionContainer("shares") {
             path {
                 using(baseContext)
                 +"accept"
-                +boundTo(Accept.Request::id)
             }
 
-            params { +boundTo(Accept.Request::createLink) }
+            body { bindEntireRequestFromBody() }
         }
     }
 
     object Accept {
-        data class Request(
-            val id: Long,
-            val createLink: Boolean?
-        )
+        data class Request(val path: String)
     }
 
     val listFiles = call<ListFiles.Request, Page<StorageFile>, CommonErrorMessage>("listFiles") {

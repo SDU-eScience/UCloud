@@ -15,15 +15,11 @@ export type FileType = |
     "SHARESFOLDER" |
     "TRASHFOLDER" |
     "FSFOLDER" |
-    "RESULTFOLDER" |
-    "SHARED_FS";
+    "RESULTFOLDER";
 
 export interface File {
     fileType: FileType;
     path: string;
-    creator: string | null;
-    fileId: string | null;
-    createdAt: number | null;
     modifiedAt: number | null;
     ownerName: string | null;
     size: number | null;
@@ -44,7 +40,6 @@ export interface Acl {
 export enum SortBy {
     FILE_TYPE = "fileType",
     PATH = "path",
-    CREATED_AT = "createdAt",
     MODIFIED_AT = "modifiedAt",
     SIZE = "size",
     ACL = "acl",
@@ -55,15 +50,12 @@ export enum FileResource {
     FAVORITED = "favorited",
     FILE_TYPE = "fileType",
     PATH = "path",
-    CREATED_AT = "createdAt",
     MODIFIED_AT = "modifiedAt",
     OWNER_NAME = "ownerName",
     SIZE = "size",
     ACL = "acl",
     SENSITIVITY_LEVEL = "sensitivityLevel",
     OWN_SENSITIVITY_LEVEL = "ownSensitivityLevel",
-    FILE_ID = "fileId",
-    CREATOR = "creator"
 }
 
 export interface FileSelectorProps {
@@ -127,8 +119,6 @@ export interface DetailedFileSearchReduxState {
     extensions: Set<string>;
     tags: Set<string>;
     sensitivities: Set<SensitivityLevel>;
-    createdBefore?: Date;
-    createdAfter?: Date;
     modifiedBefore?: Date;
     modifiedAfter?: Date;
     includeShares: boolean;
@@ -142,7 +132,6 @@ export interface AdvancedSearchRequest {
     fileName?: string;
     extensions?: string[];
     fileTypes: [FileType?, FileType?];
-    createdAt?: {after?: number; before?: number};
     modifiedAt?: {after?: number; before?: number};
     sensitivity?: SensitivityLevel[];
     includeShares?: boolean;

@@ -117,7 +117,6 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
 
             FileSecurityController(
                 callRunner,
-                coreFs,
                 aclWorker,
                 sensitivityService,
                 fileUpdateAclWhitelist

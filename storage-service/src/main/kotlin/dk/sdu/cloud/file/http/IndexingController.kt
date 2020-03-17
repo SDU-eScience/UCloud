@@ -1,9 +1,6 @@
 package dk.sdu.cloud.file.http
 
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.audit
-import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemAudit
-import dk.sdu.cloud.file.api.DeliverMaterializedFileSystemResponse
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse
@@ -27,13 +24,6 @@ class IndexingController<Ctx : FSUserContext>(
                 val mode = request.mode ?: KnowledgeMode.List()
                 ok(VerifyFileKnowledgeResponse(indexingService.verifyKnowledge(ctx, request.files, mode)))
             }
-        }
-
-        implement(FileDescriptions.deliverMaterializedFileSystem) {
-            audit(DeliverMaterializedFileSystemAudit(request.rootsToMaterialized.keys.toList()))
-
-            val result = indexingService.submitScan(request.rootsToMaterialized)
-            ok(DeliverMaterializedFileSystemResponse(result))
         }
     }
 

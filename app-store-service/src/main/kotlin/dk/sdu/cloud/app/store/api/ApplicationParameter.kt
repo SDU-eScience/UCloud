@@ -13,7 +13,6 @@ private const val TYPE_BOOLEAN = "boolean"
 private const val TYPE_ENUMERATION = "enumeration"
 private const val TYPE_FLOATING_POINT = "floating_point"
 private const val TYPE_PEER = "peer"
-private const val TYPE_SHARED_FILE_SYSTEM = "shared_file_system"
 private const val TYPE_LICENSE_SERVER = "license_server"
 
 @JsonTypeInfo(
@@ -29,7 +28,6 @@ private const val TYPE_LICENSE_SERVER = "license_server"
     JsonSubTypes.Type(value = ApplicationParameter.Bool::class, name = TYPE_BOOLEAN),
     JsonSubTypes.Type(value = ApplicationParameter.FloatingPoint::class, name = TYPE_FLOATING_POINT),
     JsonSubTypes.Type(value = ApplicationParameter.Peer::class, name = TYPE_PEER),
-    JsonSubTypes.Type(value = ApplicationParameter.SharedFileSystem::class, name = TYPE_SHARED_FILE_SYSTEM),
     JsonSubTypes.Type(value = ApplicationParameter.Enumeration::class, name = TYPE_ENUMERATION),
     JsonSubTypes.Type(value = ApplicationParameter.LicenseServer::class, name = TYPE_LICENSE_SERVER)
 )
@@ -66,13 +64,11 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             @Suppress("UNCHECKED_CAST")
             val params = inputParameter as? Map<String, Any> ?: throw IllegalArgumentException("Invalid user input")
             val source = params["source"] as String? ?: throw IllegalArgumentException("Missing source property")
-            val destination =
-                params["destination"] as String? ?: throw IllegalArgumentException("Missing destination property")
 
-            return FileTransferDescription(source, destination)
+            return FileTransferDescription(source)
         }
 
-        override fun toInvocationArgument(entry: FileTransferDescription): String = entry.destination
+        override fun toInvocationArgument(entry: FileTransferDescription): String = entry.invocationParameter
     }
 
     data class InputDirectory(
@@ -86,15 +82,10 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             @Suppress("UNCHECKED_CAST")
             val params = inputParameter as? Map<String, Any> ?: throw IllegalArgumentException("Invalid user input")
             val source = params["source"] as String? ?: throw IllegalArgumentException("Missing source property")
-            val destination =
-                params["destination"] as String? ?: throw IllegalArgumentException("Missing destination property")
-            val readOnly = params["readOnly"] as? Boolean ?: false
-
-            return FileTransferDescription(source, destination, readOnly)
+            return FileTransferDescription(source)
         }
 
-        override fun toInvocationArgument(entry: FileTransferDescription): String =
-            entry.destination.removeSuffix("/") + "/"
+        override fun toInvocationArgument(entry: FileTransferDescription): String = entry.invocationParameter
     }
 
     data class Text(
@@ -214,28 +205,6 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
         }
     }
 
-    data class SharedFileSystem(
-        override var name: String = "",
-        override val title: String,
-        override val description: String,
-        val fsType: SharedFileSystemType,
-        val mountLocation: String,
-        val exportToPeers: Boolean = true
-    ) : ApplicationParameter<SharedFileSystemApplicationParameter>(TYPE_SHARED_FILE_SYSTEM) {
-        override val defaultValue: SharedFileSystemApplicationParameter? = null
-        override val optional: Boolean = false
-
-        override fun internalMap(inputParameter: Any): SharedFileSystemApplicationParameter {
-            @Suppress("UNCHECKED_CAST")
-            val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad peer value")
-            val fileSystemId =
-                asMap["fileSystemId"] as? String? ?: throw IllegalArgumentException("Missing 'fileSystemId'")
-            return SharedFileSystemApplicationParameter(fileSystemId)
-        }
-
-        override fun toInvocationArgument(entry: SharedFileSystemApplicationParameter): String = mountLocation
-    }
-
     data class LicenseServer(
         override var name: String = "",
         override var title: String,
@@ -249,10 +218,17 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             @Suppress("UNCHECKED_CAST")
             val asMap = (inputParameter as? Map<String, Any>) ?: throw IllegalArgumentException("Bad license server")
             val licenseServerId = asMap["id"] as? String? ?: throw IllegalArgumentException("Missing 'licenseServerId'")
-            val licenseServerAddress = asMap["address"] as? String? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerAddress'")
-            val licenseServerPort = asMap["port"] as? Int? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerPort'")
+            val licenseServerAddress = asMap["address"] as? String?
+                ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerAddress'")
+            val licenseServerPort =
+                asMap["port"] as? Int? ?: throw java.lang.IllegalArgumentException("Missing 'licenseServerPort'")
             val licenseServerKey = asMap["license"] as? String?  // Allowed to be null
-            return LicenseServerApplicationParameter(licenseServerId, licenseServerAddress, licenseServerPort, licenseServerKey)
+            return LicenseServerApplicationParameter(
+                licenseServerId,
+                licenseServerAddress,
+                licenseServerPort,
+                licenseServerKey
+            )
         }
 
         override fun toInvocationArgument(entry: LicenseServerApplicationParameter): String {
@@ -263,11 +239,6 @@ sealed class ApplicationParameter<V : ParsedApplicationParameter>(val type: Stri
             }
         }
     }
-}
-
-enum class SharedFileSystemType {
-    EPHEMERAL,
-    PERSISTENT
 }
 
 @JsonTypeInfo(
@@ -283,7 +254,6 @@ enum class SharedFileSystemType {
     JsonSubTypes.Type(value = DoubleApplicationParameter::class, name = TYPE_FLOATING_POINT),
     JsonSubTypes.Type(value = StringApplicationParameter::class, name = TYPE_TEXT),
     JsonSubTypes.Type(value = PeerApplicationParameter::class, name = TYPE_PEER),
-    JsonSubTypes.Type(value = SharedFileSystemApplicationParameter::class, name = TYPE_SHARED_FILE_SYSTEM),
     JsonSubTypes.Type(value = LicenseServerApplicationParameter::class, name = TYPE_LICENSE_SERVER)
 )
 sealed class ParsedApplicationParameter {
@@ -292,8 +262,7 @@ sealed class ParsedApplicationParameter {
 
 data class FileTransferDescription(
     val source: String,
-    val destination: String,
-    val readOnly: Boolean = false
+    val invocationParameter: String = source
 ) : ParsedApplicationParameter() {
     override val type = "file"
 }
@@ -320,12 +289,6 @@ data class StringApplicationParameter(val value: String) : ParsedApplicationPara
 
 data class PeerApplicationParameter(val peerJobId: String) : ParsedApplicationParameter() {
     override val type = TYPE_PEER
-}
-
-data class SharedFileSystemApplicationParameter(
-    val fileSystemId: String
-) : ParsedApplicationParameter() {
-    override val type = TYPE_SHARED_FILE_SYSTEM
 }
 
 data class LicenseServerApplicationParameter(

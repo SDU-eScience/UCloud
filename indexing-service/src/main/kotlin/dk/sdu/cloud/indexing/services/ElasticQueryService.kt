@@ -1,15 +1,8 @@
 package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.ownSensitivityLevel
-import dk.sdu.cloud.file.api.parents
-import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.Comparison
 import dk.sdu.cloud.indexing.api.ComparisonOperator
@@ -22,15 +15,10 @@ import dk.sdu.cloud.indexing.api.SortRequest
 import dk.sdu.cloud.indexing.api.SortableField
 import dk.sdu.cloud.indexing.api.StatisticsRequest
 import dk.sdu.cloud.indexing.api.StatisticsResponse
-import dk.sdu.cloud.indexing.util.mapped
-import dk.sdu.cloud.indexing.util.parent
 import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
-import dk.sdu.cloud.service.mapItems
-import io.ktor.http.HttpStatusCode
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.range
@@ -46,64 +34,34 @@ import org.elasticsearch.search.aggregations.metrics.Max
 import org.elasticsearch.search.aggregations.metrics.Min
 import org.elasticsearch.search.aggregations.metrics.Percentiles
 import org.elasticsearch.search.aggregations.metrics.Sum
+import org.elasticsearch.search.aggregations.metrics.ValueCount
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 
-/**
- * An implementation of [IndexQueryService] and [ReverseLookupService] using an Elasticsearch backend.
- */
 class ElasticQueryService(
-    private val elasticClient: RestHighLevelClient
-) : IndexQueryService, ReverseLookupService {
+    private val elasticClient: RestHighLevelClient,
+    private val fastDirectoryStats: FastDirectoryStats?
+) {
     private val mapper = defaultMapper
 
-    override fun findFileByIdOrNull(id: String): StorageFile? {
+    fun findFileByIdOrNull(id: String): StorageFile? {
         return elasticClient[GetRequest(FILES_INDEX, id), RequestOptions.DEFAULT]
             ?.takeIf { it.isExists }
             ?.let { mapper.readValue<ElasticIndexedFile>(it.sourceAsString) }
             ?.toMaterializedFile()
     }
 
-    override fun reverseLookup(fileId: String): String {
-        return reverseLookupBatch(listOf(fileId)).single() ?: throw RPCException("Not found", HttpStatusCode.BadRequest)
-    }
-
-    override fun reverseLookupBatch(fileIds: List<String>): List<String?> {
-        return reverseLookupFileBatch(fileIds).map { it?.path }
-    }
-
-    override fun reverseLookupFileBatch(fileIds: List<String>): List<StorageFile?> {
-        if (fileIds.size > MAX_FILES_IN_REVERSE_BATCH_LOOKUP) throw RPCException(
-            "Bad request. Too many file IDs",
-            HttpStatusCode.BadRequest
-        )
-
-        val req = PaginationRequest(MAX_FILES_IN_REVERSE_BATCH_LOOKUP, 0).normalize()
-        val files = elasticClient.search<ElasticIndexedFile>(mapper, req, FILES_INDEX) {
-            bool {
-                filter {
-                    terms { ElasticIndexedFile.ID_FIELD to fileIds }
-                }
-            }
-        }.items.associateBy<ElasticIndexedFile, String> { file: ElasticIndexedFile ->
-            file.id
-        }
-        return fileIds.map { files[it]?.toMaterializedFile() }
-    }
-
-    override fun query(
+    fun query(
         query: FileQuery,
-        paging: NormalizedPaginationRequest,
-        sorting: SortRequest?
-    ): Page<StorageFile> {
+        paging: NormalizedPaginationRequest? = null,
+        sorting: SortRequest? = null
+    ): Page<ElasticIndexedFile> {
         return elasticClient.search<ElasticIndexedFile>(mapper, paging, FILES_INDEX) {
             if (sorting != null) {
                 val field = when (sorting.field) {
                     SortableField.FILE_NAME -> ElasticIndexedFile.FILE_NAME_KEYWORD
                     SortableField.FILE_TYPE -> ElasticIndexedFile.FILE_TYPE_FIELD
                     SortableField.SIZE -> ElasticIndexedFile.SIZE_FIELD
-                    SortableField.CREATED_AT -> ElasticIndexedFile.TIMESTAMP_CREATED_FIELD
-                    SortableField.MODIFIED_AT -> ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD
                 }
 
                 val direction = when (sorting.direction) {
@@ -117,41 +75,23 @@ class ElasticQueryService(
             searchBasedOnQuery(query).also {
                 log.debug(it.toString())
             }
-        }.mapItems { it.toMaterializedFile() }
+        }
     }
 
-    override fun lookupInheritedSensitivity(results: List<StorageFile>): List<StorageFile> {
-        val allParents =
-            results.flatMap { it.path.parents() }.map { it.normalize() }.filter { it.components().size > 2 }.toSet()
-        val allParentFiles = elasticClient
-            .search(FILES_INDEX) {
-                source(SearchSourceBuilder().apply {
-                    size(allParents.size)
-                    query(
-                        bool {
-                            filter {
-                                terms {
-                                    ElasticIndexedFile.PATH_KEYWORD to allParents.toList()
-                                }
-                            }
-                        }
-                    )
-                })
-
-                log.debug(source().toString())
+    fun calculateSize(paths: Set<String>): Long {
+        return if (fastDirectoryStats != null) {
+            var sum = 0L
+            for (path in paths) {
+                sum += fastDirectoryStats.getRecursiveSize(path)
             }
-            .mapped<ElasticIndexedFile>(mapper)
-            .map { it.path to it.sensitivity }
-            .toMap()
-
-        fun lookupSensitivity(path: String): SensitivityLevel {
-            if (path.components().size <= 2) return SensitivityLevel.PRIVATE
-            return allParentFiles[path.normalize()] ?: lookupSensitivity(path.parent())
-        }
-
-        return results.map {
-            val sensitivity = it.ownSensitivityLevel ?: lookupSensitivity(it.path.parent())
-            it.withSensitivity(sensitivity)
+            sum
+        } else {
+            statisticsQuery(
+                StatisticsRequest(
+                    FileQuery(paths.toList()),
+                    size = NumericStatisticsRequest(calculateSum = true)
+                )
+            ).size!!.sum!!.toLong()
         }
     }
 
@@ -177,15 +117,10 @@ class ElasticQueryService(
                         list.add(terms { ElasticIndexedFile.PATH_FIELD to filteredRoots })
                     }
 
-                    id.addClausesIfExists(list, ElasticIndexedFile.ID_FIELD)
-                    owner.addClausesIfExists(list, ElasticIndexedFile.OWNER_FIELD)
                     fileNameExact.addClausesIfExists(list, ElasticIndexedFile.FILE_NAME_FIELD)
                     extensions.addClausesIfExists(list, ElasticIndexedFile.FILE_NAME_EXTENSION)
                     fileTypes.addClausesIfExists(list, ElasticIndexedFile.FILE_TYPE_FIELD)
                     fileDepth.addClausesIfExists(list, ElasticIndexedFile.FILE_DEPTH_FIELD)
-                    createdAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_CREATED_FIELD)
-                    modifiedAt.addClausesIfExists(list, ElasticIndexedFile.TIMESTAMP_MODIFIED_FIELD)
-                    sensitivity.addClausesIfExists(list, ElasticIndexedFile.SENSITIVITY_FIELD)
                     size.addClausesIfExists(list, ElasticIndexedFile.SIZE_FIELD)
                 }
             }.also {
@@ -262,11 +197,15 @@ class ElasticQueryService(
         }
     }
 
-    override fun statisticsQuery(statisticsRequest: StatisticsRequest): StatisticsResponse {
+    fun statisticsQuery(statisticsRequest: StatisticsRequest): StatisticsResponse {
         val result = elasticClient.search(FILES_INDEX) {
             source(SearchSourceBuilder().also { builder ->
                 builder.size(0)
                 builder.query(searchBasedOnQuery(statisticsRequest.query))
+
+                builder.aggregation(
+                    AggregationBuilders.count("completeCount").field(ElasticIndexedFile.FILE_NAME_KEYWORD)
+                )
 
                 statisticsRequest.size?.let {
                     addNumericAggregations(builder, it, ElasticIndexedFile.SIZE_FIELD)
@@ -288,7 +227,7 @@ class ElasticQueryService(
         }
 
         return StatisticsResponse(
-            result.hits.totalHits.value,
+            runCatching { result.aggregations.get<ValueCount>("completeCount").value }.getOrDefault(0L),
             size,
             fileDepth
         )
@@ -397,9 +336,7 @@ class ElasticQueryService(
     companion object : Loggable {
         override val log = logger()
 
-        private const val FILES_INDEX = ElasticIndexingService.FILES_INDEX
-
-        private const val MAX_FILES_IN_REVERSE_BATCH_LOOKUP = 100
+        private const val FILES_INDEX = FileSystemScanner.FILES_INDEX
 
         private const val FILE_NAME_QUERY_MAX_EXPANSIONS = 10
     }

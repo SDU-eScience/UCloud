@@ -467,9 +467,7 @@ parameters:
 #### `type: peer`
 
 A peer is a different application which this application should 'connect' to.
-This means that a hostname entry will be created and any shared file systems
-(which are exported) will automatically be mounted at the same location as
-the peer.
+This means that a hostname entry will be created.
 
 Additional fields:
 
@@ -486,52 +484,6 @@ parameters:
   spark_cluster:
     type: peer
     suggestedApplication: spark
-```
-
-#### `type: shared_file_system`
-
-Shared file systems allow running jobs to share a file system between
-themselves. Changes within the file system is visible immediately. A user
-cannot view the files inside of a shared file system, however, they can be
-presented with a list of their shared file systems.
-
-The only way to move a file in and out of a shared file system is through
-applications.
-
-Additional fields:
-
-- `fsType`: Type of FS. Currently we only support `PERSISTENT`.
-- `mountLocation`: Specifies where this file system should be mounted in the
-container.
-- `exportToPeers`: (Optional, default `true`): Specifies if peers
-of a different application type should automatically mount this file system.
-
-##### Examples
-
-__Simple example:__
-
-```yaml
-parameters:
-  my_file_system:
-    type: shared_file_system
-    fsType: PERSISTENT
-    mountLocation: /mnt/shared
-```
-
-__Advanced example:__
-
-In this example we have a file system which is not exported to its peers
-automatically. This means that other instances of this job will mount it.
-However, applications of a different type which connects to this job will not
-mount it.
-
-```yaml
-parameters:
-  my_file_system:
-    type: shared_file_system
-    fsType: PERSISTENT
-    mountLocation: /mnt/shared
-    exportToPeers: false
 ```
 
 #### `type: license_server`

@@ -4,14 +4,12 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusRequest
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
 import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.gateway.api.FileResource
 import dk.sdu.cloud.file.gateway.api.StorageFileWithMetadata
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -43,7 +41,7 @@ class FileAnnotationService {
         return files.map {
             StorageFileWithMetadata(
                 delegate = it,
-                favorited = favoriteStatusResponse?.favorited?.get(it.fileId)
+                favorited = favoriteStatusResponse?.favorited?.get(it.path)
             )
         }
     }

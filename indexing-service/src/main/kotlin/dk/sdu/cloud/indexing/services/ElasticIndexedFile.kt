@@ -4,84 +4,59 @@ import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.Timestamps
+import dk.sdu.cloud.file.api.components
 import dk.sdu.cloud.file.api.createdAt
 import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.modifiedAt
+import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.ownSensitivityLevel
 import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.api.size
+import dk.sdu.cloud.indexing.util.depth
+import dk.sdu.cloud.indexing.util.fileName
 
 /**
  * An [StorageFile] as it is represented in elasticsearch
  *
- * @see dk.sdu.cloud.indexing.services.IndexingService
  * @see dk.sdu.cloud.indexing.services.IndexQueryService
  */
 data class ElasticIndexedFile(
-    val id: String,
     val path: String,
-    val fileName: String,
-    val owner: String,
-
     /**
      * Depth in the file hierarchy
      *
      * Example: /a/b/c will have a depth of 3 and /a/b/c/d will have a depth of 4 and / will have a depth of 0
      */
-    val fileDepth: Int,
-
-    val fileType: FileType,
-
     val size: Long,
-    val fileTimestamps: Timestamps,
-
-    val sensitivity: SensitivityLevel?
+    val fileType: FileType,
+    val rctime: String? = null,
+    val fileName: String = path.normalize().fileName(),
+    val fileDepth: Int = path.normalize().depth()
 ) {
     fun toMaterializedFile(): StorageFile = StorageFile(
-        fileId = id,
+        fileId = path,
         path = path,
-        ownerName = owner,
+        ownerName = path.components().getOrElse(1) { "unknown" },
         fileType = fileType,
-        createdAt = fileTimestamps.created,
-        modifiedAt = fileTimestamps.modified,
+        createdAt = 0L,
+        modifiedAt = 0L,
         size = size,
-        ownSensitivityLevel = sensitivity
+        ownSensitivityLevel = SensitivityLevel.PRIVATE
     )
 
     @Suppress("unused")
     companion object {
         // Refactoring safe without most of the performance penalty
-        val ID_FIELD = ElasticIndexedFile::id.name
         val PATH_FIELD = ElasticIndexedFile::path.name
         val PATH_KEYWORD = ElasticIndexedFile::path.name + ".keyword"
         val FILE_NAME_FIELD = ElasticIndexedFile::fileName.name
         val FILE_NAME_KEYWORD = ElasticIndexedFile::fileName.name + ".keyword"
         val FILE_NAME_EXTENSION = ElasticIndexedFile::fileName.name + ".extension"
-        val OWNER_FIELD = ElasticIndexedFile::owner.name
         val FILE_DEPTH_FIELD = ElasticIndexedFile::fileDepth.name
 
         val FILE_TYPE_FIELD = ElasticIndexedFile::fileType.name
         val SIZE_FIELD = ElasticIndexedFile::size.name
-        val FILE_TIMESTAMPS_FIELD = ElasticIndexedFile::fileTimestamps.name
-        val TIMESTAMP_CREATED_FIELD = FILE_TIMESTAMPS_FIELD + "." + Timestamps::created.name
-        val TIMESTAMP_MODIFIED_FIELD = FILE_TIMESTAMPS_FIELD + "." + Timestamps::modified.name
-        val TIMESTAMP_ACCESSED_FIELD = FILE_TIMESTAMPS_FIELD + "." + Timestamps::accessed.name
-
-        val SENSITIVITY_FIELD = ElasticIndexedFile::sensitivity.name
-
     }
 }
-
-fun StorageFile.withSensitivity(level: SensitivityLevel): StorageFile = StorageFile(
-    fileId = fileId,
-    path = path,
-    ownerName = ownerName,
-    fileType = fileType,
-    createdAt = createdAt,
-    modifiedAt = modifiedAt,
-    size = size,
-    ownSensitivityLevel = ownSensitivityLevel,
-    sensitivityLevel = level
-)

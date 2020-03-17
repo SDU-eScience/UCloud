@@ -1,40 +1,30 @@
 package dk.sdu.cloud.share.services
 
+import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withoutAuthentication
-import dk.sdu.cloud.file.api.AccessEntry
-import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.FindByPrefixRequest
+import dk.sdu.cloud.file.api.FindHomeFolderRequest
+import dk.sdu.cloud.file.api.FindMetadataRequest
+import dk.sdu.cloud.file.api.MetadataDescriptions
+import dk.sdu.cloud.file.api.MetadataUpdate
 import dk.sdu.cloud.file.api.StatRequest
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.createdAt
-import dk.sdu.cloud.file.api.creator
-import dk.sdu.cloud.file.api.fileId
-import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.modifiedAt
-import dk.sdu.cloud.file.api.ownSensitivityLevel
-import dk.sdu.cloud.file.api.ownerName
-import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.file.api.sensitivityLevel
-import dk.sdu.cloud.file.api.size
-import dk.sdu.cloud.indexing.api.LookupDescriptions
-import dk.sdu.cloud.indexing.api.ReverseLookupFilesRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.paginate
 import dk.sdu.cloud.share.api.MinimalShare
 import dk.sdu.cloud.share.api.SharesByPath
-import kotlinx.coroutines.runBlocking
+import io.ktor.http.HttpStatusCode
 
-class ShareQueryService<Session>(
-    private val db: DBSessionFactory<Session>,
-    private val dao: ShareDAO<Session>,
+class ShareQueryService(
     private val client: AuthenticatedClient
 ) {
     suspend fun list(
@@ -42,20 +32,55 @@ class ShareQueryService<Session>(
         sharedByMe: Boolean,
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
     ): Page<SharesByPath> {
-        val page = db.withTransaction {
-            dao.list(
-                it,
-                AuthRequirements(user, ShareRole.PARTICIPANT),
-                ShareRelationQuery(user, sharedByMe),
-                paging = paging
-            )
+        if (sharedByMe) {
+            val homeFolder = FileDescriptions.findHomeFolder.call(FindHomeFolderRequest(user), client).orThrow().path
+            val metadata = MetadataDescriptions.findByPrefix.call(
+                FindByPrefixRequest(
+                    homeFolder,
+                    null,
+                    METADATA_TYPE_SHARES
+                ),
+                client
+            ).orThrow().metadata
+
+            return metadataToSharesByPath(metadata, user, paging)
+        } else {
+            val metadata = MetadataDescriptions.findMetadata.call(
+                FindMetadataRequest(null, METADATA_TYPE_SHARES, user),
+                client
+            ).orThrow().metadata
+            return metadataToSharesByPath(metadata, user, paging)
         }
+    }
+
+    private fun metadataToSharesByPath(
+        metadata: List<MetadataUpdate>,
+        user: String,
+        paging: NormalizedPaginationRequest
+    ): Page<SharesByPath> {
+        val metadataByPath = metadata
+            .asSequence()
+            .map { it.path to defaultMapper.readValue<InternalShare>(it.jsonPayload) }
+            .groupBy { it.first }
+
+        val sharesByPath = metadataByPath
+            .mapValues { (path, shares) ->
+                SharesByPath(
+                    path,
+                    shares.first().second.sharedBy,
+                    shares.first().second.sharedBy == user,
+                    shares.map { (_, share) -> MinimalShare(share.sharedWith, share.rights, share.state) }
+                )
+            }
+
+        val keysToKeep = sharesByPath.keys.toList().paginate(paging).items.toSet()
+        val items = sharesByPath.filter { it.key in keysToKeep }
 
         return Page(
-            page.groupCount,
+            sharesByPath.size,
             paging.itemsPerPage,
             paging.page,
-            page.allSharesForPage.groupByPath(user)
+            items.values.toList()
         )
     }
 
@@ -64,93 +89,34 @@ class ShareQueryService<Session>(
         path: String,
         userAccessToken: String
     ): SharesByPath {
-        val userCloud = client.withoutAuthentication().bearerAuth(userAccessToken)
+        val userClient = client.withoutAuthentication().bearerAuth(userAccessToken)
+        val stat = FileDescriptions.stat.call(StatRequest(path), userClient).orThrow()
 
-        val stat =
-            runBlocking {
-                FileDescriptions.stat.call(
-                    StatRequest(path),
-                    userCloud
-                ).orThrow()
-            }
+        val metadata = MetadataDescriptions.findMetadata.call(
+            FindMetadataRequest(path, METADATA_TYPE_SHARES, null),
+            client
+        ).orThrow().metadata
 
-        return db
-            .withTransaction {
-                dao.findAllByPath(it, AuthRequirements(user, ShareRole.PARTICIPANT), stat.path)
-            }
-            .groupByPath(user)
-            .single()
+        return metadataToSharesByPath(metadata, user, NormalizedPaginationRequest(null, null))
+            .items
+            .singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
     suspend fun listFiles(
         user: String,
-        paging: NormalizedPaginationRequest
+        paging: NormalizedPaginationRequest,
+        userToken: String
     ): Page<StorageFile> {
-        val page = db.withTransaction { dao.listSharedToMe(it, user, paging) }
-        val fileIds = page.items.map { it.fileId }
-        if (fileIds.isEmpty()) return Page(0, paging.itemsPerPage, 0, emptyList())
-
-        val lookupResponse = LookupDescriptions.reverseLookupFiles.call(
-            ReverseLookupFilesRequest(fileIds),
-            client
-        ).orThrow()
-
-        val itemsWithAcl = lookupResponse.files.mapIndexed { idx, file ->
-            val fileId = fileIds[idx]
-            val acl = page.items[idx].rights.toAcl(user)
-            if (file != null) {
-                StorageFile(
-                    file.fileType,
-                    file.path,
-                    file.createdAt,
-                    file.modifiedAt,
-                    file.ownerName,
-                    file.size,
-                    acl,
-                    file.sensitivityLevel,
-                    emptySet(),
-                    file.fileId,
-                    file.creator,
-                    file.ownSensitivityLevel
-                )
-            } else {
-                val path = page.items[idx].path
-                val owner = path.components().takeIf { it.size >= 2 && it.firstOrNull() == "home" }?.get(1)
-                StorageFile(
-                    FileType.DIRECTORY,
-                    path,
-                    System.currentTimeMillis(),
-                    System.currentTimeMillis(),
-                    owner ?: "Unknown",
-                    0L,
-                    acl,
-                    fileId = fileId
-                )
-            }
+        val userClient = client.withoutAuthentication().bearerAuth(userToken)
+        val page = list(user, false, paging)
+        val newItems = page.items.mapNotNull { item ->
+            FileDescriptions.stat.call(
+                StatRequest(item.path),
+                userClient
+            ).orNull()
         }
 
-        return Page(
-            page.itemsInTotal,
-            page.itemsPerPage,
-            page.pageNumber,
-            itemsWithAcl
-        )
-    }
-
-    private fun List<InternalShare>.groupByPath(user: String): List<SharesByPath> {
-        val byPath = groupBy { it.path }
-        return byPath.map { (path, sharesForPath) ->
-            val owner = sharesForPath.first().owner
-            val sharedByMe = owner == user
-
-            SharesByPath(path, owner, sharedByMe, sharesForPath.map {
-                MinimalShare(it.id, it.sharedWith, it.rights, it.state)
-            })
-        }
-    }
-
-    private fun Set<AccessRight>.toAcl(username: String): List<AccessEntry> {
-        return listOf(AccessEntry(username, this))
+        return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, newItems)
     }
 }
 

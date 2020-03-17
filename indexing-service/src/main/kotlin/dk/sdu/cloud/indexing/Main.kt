@@ -10,8 +10,11 @@ import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.runScriptHandler
-import java.net.InetAddress
-import java.net.UnknownHostException
+
+data class CephConfiguration(
+    val subfolder: String = "",
+    val useCephDirectoryStats: Boolean = false
+)
 
 fun main(args: Array<String>) {
     val micro = Micro().apply {
@@ -24,5 +27,6 @@ fun main(args: Array<String>) {
 
     if (micro.runScriptHandler()) return
 
-    Server(micro).start()
+    val cephConfig = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
+    Server(micro, cephConfig).start()
 }

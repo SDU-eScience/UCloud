@@ -12,8 +12,6 @@ import dk.sdu.cloud.app.store.api.Tool
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.tokenValidation
-import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro

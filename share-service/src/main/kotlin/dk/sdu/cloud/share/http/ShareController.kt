@@ -13,8 +13,8 @@ import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
 
 class ShareController(
-    private val shareService: ShareService<*>,
-    private val shareQueryService: ShareQueryService<*>,
+    private val shareService: ShareService,
+    private val shareQueryService: ShareQueryService,
     private val serviceClient: AuthenticatedClient
 ) : Controller {
     private val clientAndBackend = serviceClient.withoutAuthentication()
@@ -29,16 +29,15 @@ class ShareController(
                 clientAndBackend.bearerAuth(bearer)
             )
 
-            ok(Shares.Create.Response(id))
+            ok(Unit)
         }
 
         implement(Shares.accept) {
             val bearer = ctx.bearer!!
             shareService.acceptShare(
                 ctx.securityPrincipal.username,
-                request.id,
-                bearer,
-                request.createLink ?: true
+                request.path,
+                bearer
             )
 
             ok(Unit)
@@ -47,7 +46,8 @@ class ShareController(
         implement(Shares.revoke) {
             shareService.deleteShare(
                 ctx.securityPrincipal.username,
-                request.id
+                request.path,
+                request.sharedWith
             )
 
             ok(Unit)
@@ -56,7 +56,8 @@ class ShareController(
         implement(Shares.update) {
             shareService.updateRights(
                 ctx.securityPrincipal.username,
-                request.id,
+                request.path,
+                request.sharedWith,
                 request.rights
             )
 
@@ -87,7 +88,8 @@ class ShareController(
             ok(
                 shareQueryService.listFiles(
                     ctx.securityPrincipal.username,
-                    request.normalize()
+                    request.normalize(),
+                    ctx.bearer!!
                 )
             )
         }

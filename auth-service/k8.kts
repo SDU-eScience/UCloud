@@ -340,7 +340,7 @@ bundle { ctx ->
         )
     }
 
-    withConfigMap("auth-config") {
+    withConfigMap("auth-config", version = "3") {
         val trustedOrigins: List<String> = when (ctx.environment) {
             Environment.TEST, Environment.DEVELOPMENT -> listOf("localhost", host(ctx.environment))
             Environment.PRODUCTION -> listOf(host(ctx.environment))
@@ -369,15 +369,6 @@ bundle { ctx ->
 
         val tokenExtension = listOf(
             TokenExtension(
-                "_app", listOf(
-                    "files.upload:write",
-                    "files.download:write",
-                    "files.createDirectory:write",
-                    "files.stat:read",
-                    "files.extract:write"
-                )
-            ),
-            TokenExtension(
                 "_activity", listOf(
                     "files:read"
                 )
@@ -397,8 +388,7 @@ bundle { ctx ->
                     "files.download:write",
                     "files.createDirectory:write",
                     "files.stat:read",
-                    "files.extract:write",
-                    "app.fs:read"
+                    "files.deleteFile:write"
                 )
             )
         )

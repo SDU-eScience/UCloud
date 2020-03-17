@@ -143,7 +143,7 @@ class EnhancedPreparedStatement(statement: String) {
     }
 
     suspend fun sendPreparedStatement(session: AsyncDBConnection, release: Boolean = false): QueryResult {
-        check(boundValues.size == parameters.size) {
+        check(boundValues.size == parameterNamesToIndex.keys.size) {
             "boundValues.size != parameters.size. " +
                     "boundValues: ${boundValues}, " +
                     "parameters: ${parameterNamesToIndex.keys}"

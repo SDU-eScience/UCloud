@@ -9,7 +9,6 @@ import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
@@ -107,16 +106,6 @@ data class FileQuery(
     val roots: List<String>,
 
     /**
-     * Predicates for [StorageFile.fileId]
-     */
-    val id: PredicateCollection<String>? = null,
-
-    /**
-     * Predicates for [StorageFile.ownerName]
-     */
-    val owner: PredicateCollection<String>? = null,
-
-    /**
      * Query for file names. Only the file name is considered.
      *
      * The query is allowed to do expansions, making it useful for end-user queries.
@@ -142,21 +131,6 @@ data class FileQuery(
      * Predicate for file depth. Only exact matches are considered.
      */
     val fileDepth: PredicateCollection<Comparison<Int>>? = null,
-
-    /**
-     * Predicate for created at. Only exact matches are considered.
-     */
-    val createdAt: PredicateCollection<Comparison<Long>>? = null,
-
-    /**
-     * Predicate for modified at. Only exact matches are considered.
-     */
-    val modifiedAt: PredicateCollection<Comparison<Long>>? = null,
-
-    /**
-     * Predicate for sensitivity. Only exact matches are considered.
-     */
-    val sensitivity: PredicateCollection<SensitivityLevel>? = null,
 
     /**
      * Predicate for [StorageFile.size]. Only exact matches are considered.
@@ -246,17 +220,16 @@ data class SortRequest(
 enum class SortableField {
     FILE_NAME,
     FILE_TYPE,
-
-    SIZE,
-
-    CREATED_AT,
-    MODIFIED_AT
+    SIZE
 }
 
 enum class SortDirection {
     ASCENDING,
     DESCENDING
 }
+
+data class SizeRequest(val paths: Set<String>)
+data class SizeResponse(val size: Long)
 
 /**
  * REST interface for queries of indexing data.
@@ -295,6 +268,24 @@ object QueryDescriptions : CallDescriptionContainer("indexing") {
             path {
                 using(baseContext)
                 +"statistics"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val size = call<SizeRequest, SizeResponse, CommonErrorMessage>("size") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEDGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"size"
             }
 
             body { bindEntireRequestFromBody() }

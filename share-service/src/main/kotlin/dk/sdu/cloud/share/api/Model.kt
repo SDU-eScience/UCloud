@@ -1,20 +1,14 @@
 package dk.sdu.cloud.share.api
 
-import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.file.api.AccessRight
 
 enum class ShareState {
     REQUEST_SENT,
-    ACCEPTED,
     UPDATING,
-    FAILURE
+    ACCEPTED
 }
 
-typealias ShareId = Long
-typealias FindByShareId = FindByLongId
-
 data class Share(
-    val id: ShareId,
     val state: ShareState,
 
     val owner: String,
@@ -35,7 +29,6 @@ data class SharesByPath(
 )
 
 data class MinimalShare(
-    val id: ShareId,
     val sharedWith: String,
     val rights: Set<AccessRight>,
     val state: ShareState

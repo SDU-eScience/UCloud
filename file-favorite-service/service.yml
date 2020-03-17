@@ -5,5 +5,4 @@ namespaces:
   - files.favorite
 
 dependencies:
-  - indexing
   - files

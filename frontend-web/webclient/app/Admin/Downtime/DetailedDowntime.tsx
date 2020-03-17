@@ -9,7 +9,7 @@ import {Box, Flex, Heading} from "ui-components";
 import Markdown from "ui-components/Markdown";
 import {displayErrorMessageOrDefault} from "UtilityFunctions";
 
-export function DetailedDowntime() {
+export function DetailedDowntime(): JSX.Element {
     const [downtime, setDowntime] = React.useState<Downtime>({
         id: -1, start: new Date().getTime(), end: new Date().getTime(), text: "`Downtime could not be fetched`"
     });

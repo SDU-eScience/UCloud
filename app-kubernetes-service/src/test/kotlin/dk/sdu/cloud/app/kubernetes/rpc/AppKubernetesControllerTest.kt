@@ -10,7 +10,6 @@ import dk.sdu.cloud.app.kubernetes.services.VncService
 import dk.sdu.cloud.app.kubernetes.services.WebService
 import dk.sdu.cloud.app.kubernetes.wrongSharedFileSystem
 import dk.sdu.cloud.app.orchestrator.api.InternalStdStreamsResponse
-import dk.sdu.cloud.app.orchestrator.api.SharedFileSystemMount
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
@@ -101,14 +100,7 @@ class AppKubernetesControllerTest {
                     method = HttpMethod.Post,
                     path = "/api/app/compute/kubernetes/job-verified",
                     user = TestUsers.admin,
-                    request = jobVerifiedRequest.copy(
-                        _sharedFileSystemMounts = listOf(
-                            SharedFileSystemMount(
-                                wrongSharedFileSystem,
-                                "mountedAt"
-                            )
-                        )
-                    )
+                    request = jobVerifiedRequest
                 )
 
                 request.assertStatus(HttpStatusCode.BadRequest)

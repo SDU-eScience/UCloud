@@ -14,9 +14,7 @@ import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileRow
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -45,8 +43,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileDescriptions.download) {
             with(ctx as HttpCall) {
-                val filesDownloaded = ArrayList<String?>()
-                audit(BulkFileAudit(filesDownloaded, FindByPath(request.path)))
+                audit(BulkFileAudit(FindByPath(request.path)))
 
                 val hasTokenFromUrl = request.token != null
                 val bearer = request.token ?: ctx.bearer ?: return@implement error(
@@ -66,7 +63,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                     ctx.audit.securityPrincipalTokenToAudit = principal.toSecurityToken()
                 }
 
-                lateinit var stat: FileRow
+                lateinit var stat: StorageFile
                 val sensitivityCache = HashMap<String, SensitivityLevel>()
                 commandRunnerFactory.withCtx(
                     this@implement,
@@ -74,14 +71,12 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                     principalToVerify = principal.toSecurityToken().principal
                 ) { ctx ->
                     val mode = setOf(
-                        FileAttribute.PATH,
-                        FileAttribute.INODE,
-                        FileAttribute.SIZE,
-                        FileAttribute.FILE_TYPE
+                        StorageFileAttribute.path,
+                        StorageFileAttribute.size,
+                        StorageFileAttribute.fileType
                     )
 
                     stat = fs.stat(ctx, request.path, mode)
-                    filesDownloaded.add(stat.inode)
 
                     // Check file sensitivity
                     val sensitivity = fileLookupService.lookupInheritedSensitivity(ctx, request.path, sensitivityCache)
@@ -116,7 +111,7 @@ class SimpleDownloadController<Ctx : FSUserContext>(
                                             val tree = fs.tree(
                                                 ctx,
                                                 stat.path,
-                                                setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.INODE)
+                                                setOf(StorageFileAttribute.fileType, StorageFileAttribute.path)
                                             )
 
                                             for (item in tree) {
@@ -140,7 +135,6 @@ class SimpleDownloadController<Ctx : FSUserContext>(
 
                                                     try {
                                                         fs.read(ctx, item.path) { copyTo(os) }
-                                                        filesDownloaded.add(item.inode)
                                                         os.closeEntry()
                                                     } catch (ex: FSException.PermissionException) {
                                                         // Skip files we don't have permissions for

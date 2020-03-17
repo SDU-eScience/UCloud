@@ -1,88 +1,27 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.file.api.FileSortBy
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SortOrder
-import dk.sdu.cloud.file.api.StorageEvent
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.api.relativize
-import dk.sdu.cloud.file.api.withNewId
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.services.acl.MetadataService
 import dk.sdu.cloud.file.util.FSException
-import dk.sdu.cloud.file.util.STORAGE_EVENT_MODE
 import dk.sdu.cloud.file.util.retryWithCatch
-import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
-import dk.sdu.cloud.file.util.toCreatedEvent
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.task.api.MeasuredSpeedInteger
 import dk.sdu.cloud.task.api.Progress
-import dk.sdu.cloud.task.api.SimpleSpeed
 import dk.sdu.cloud.task.api.runTask
-import kotlinx.coroutines.delay
 import java.io.InputStream
 import java.io.OutputStream
-import java.util.*
-import kotlin.random.Random
-
-const val XATTR_BIRTH = "birth"
-const val XATTR_ID = "fid"
 
 class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
-    private val eventProducer: StorageEventProducer,
     private val sensitivityService: FileSensitivityService<Ctx>,
     private val wsServiceClient: AuthenticatedClient,
-    private val backgroundScope: BackgroundScope
+    private val backgroundScope: BackgroundScope,
+    private val metadataService: MetadataService
 ) {
-    internal data class NewFileData(
-        val fileId: String
-    )
-
-    internal suspend fun handlePotentialFileCreation(
-        ctx: Ctx,
-        path: String,
-        preAllocatedCreation: Long? = null,
-        preAllocatedFileId: String? = null
-    ): NewFileData? {
-        // Note: We don't unwrap as this is expected to fail due to it already being present.
-        val newFile = fs.setExtendedAttribute(
-            ctx,
-            path,
-            XATTR_BIRTH,
-            ((preAllocatedCreation ?: System.currentTimeMillis()) / 1000).toString(),
-            allowOverwrite = false
-        ).statusCode == 0
-
-        if (newFile) {
-            val newFileId = preAllocatedFileId ?: UUID.randomUUID().toString()
-            val success = fs.setExtendedAttribute(
-                ctx,
-                path,
-                XATTR_ID,
-                newFileId,
-                allowOverwrite = false
-            ).statusCode == 0
-
-            return if (success) NewFileData(newFileId)
-            else null
-        }
-        return null
-    }
-
-    internal suspend fun emitUpdateEvent(ctx: Ctx, path: String) {
-        eventProducer.produce(
-            fs.stat(ctx, path, STORAGE_EVENT_MODE).unwrap().toCreatedEvent()
-        )
-    }
-
     suspend fun write(
         ctx: Ctx,
         path: String,
@@ -93,9 +32,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val targetPath =
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
-        fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite()).emitAll()
-        handlePotentialFileCreation(ctx, targetPath)
-        fs.write(ctx, writer).emitAll()
+        fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite())
+        fs.write(ctx, writer)
         return targetPath
     }
 
@@ -105,7 +43,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         range: LongRange? = null,
         consumer: suspend InputStream.() -> R
     ): R {
-        fs.openForReading(ctx, path).unwrap()
+        fs.openForReading(ctx, path)
         return fs.read(ctx, range, consumer)
     }
 
@@ -117,14 +55,13 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         conflictPolicy: WriteConflictPolicy
     ): String {
         val normalizedFrom = from.normalize()
-        val fromStat = stat(ctx, from, setOf(FileAttribute.FILE_TYPE, FileAttribute.SIZE))
+        val fromStat = stat(ctx, from, setOf(StorageFileAttribute.fileType, StorageFileAttribute.size))
         if (fromStat.fileType != FileType.DIRECTORY) {
             runTask(wsServiceClient, backgroundScope, "File copy", ctx.user) {
                 status = "Copying file from '$from' to '$to'"
 
                 val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
-                fs.copy(ctx, from, targetPath, conflictPolicy, this).emitAll()
-                handlePotentialFileCreation(ctx, targetPath)
+                fs.copy(ctx, from, targetPath, conflictPolicy, this)
                 setSensitivity(ctx, targetPath, sensitivityLevel)
 
                 return targetPath
@@ -141,7 +78,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                     makeDirectory(ctx, newRoot)
                 }
 
-                val tree = tree(ctx, from, setOf(FileAttribute.PATH, FileAttribute.SIZE))
+                val tree = tree(ctx, from, setOf(StorageFileAttribute.path, StorageFileAttribute.size))
                 val progress = Progress("Number of files", 0, tree.size)
                 this.progress = progress
 
@@ -157,9 +94,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                             val desired = joinPath(newRoot, relativeFile).normalize()
                             if (desired == newRoot) return@forEach
                             val targetPath = renameAccordingToPolicy(ctx, desired, conflictPolicy)
-                            fs.copy(ctx, currentPath, targetPath, conflictPolicy, this).emitAll()
-
-                            handlePotentialFileCreation(ctx, targetPath)
+                            fs.copy(ctx, currentPath, targetPath, conflictPolicy, this)
                         }
                     )
 
@@ -177,22 +112,26 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         ctx: Ctx,
         path: String
     ) {
-        fs.delete(ctx, path).emitAll()
+        // Require permission up-front to ensure metadata is not updated without permissions
+        fs.requirePermission(ctx, path, AccessRight.WRITE)
+        metadataService.runDeleteAction(listOf(path)) {
+            fs.delete(ctx, path)
+        }
     }
 
     suspend fun stat(
         ctx: Ctx,
         path: String,
-        mode: Set<FileAttribute>
-    ): FileRow {
-        return fs.stat(ctx, path, mode).unwrap()
+        mode: Set<StorageFileAttribute>
+    ): StorageFile {
+        return fs.stat(ctx, path, mode)
     }
 
     suspend fun statOrNull(
         ctx: Ctx,
         path: String,
-        mode: Set<FileAttribute>
-    ): FileRow? {
+        mode: Set<StorageFileAttribute>
+    ): StorageFile? {
         return try {
             stat(ctx, path, mode)
         } catch (ex: FSException.NotFound) {
@@ -203,21 +142,21 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     suspend fun listDirectory(
         ctx: Ctx,
         path: String,
-        mode: Set<FileAttribute>,
+        mode: Set<StorageFileAttribute>,
         type: FileType? = null
-    ): List<FileRow> {
-        return fs.listDirectory(ctx, path, mode, type = type).unwrap()
+    ): List<StorageFile> {
+        return fs.listDirectory(ctx, path, mode, type = type)
     }
 
     suspend fun listDirectorySorted(
         ctx: Ctx,
         path: String,
-        mode: Set<FileAttribute>,
+        mode: Set<StorageFileAttribute>,
         sortBy: FileSortBy,
         order: SortOrder,
         paginationRequest: NormalizedPaginationRequest? = null,
         type: FileType? = null
-    ): Page<FileRow> {
+    ): Page<StorageFile> {
         return fs.listDirectoryPaginated(
             ctx,
             path,
@@ -226,28 +165,22 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             paginationRequest,
             order,
             type = type
-        ).unwrap()
+        )
     }
 
     suspend fun tree(
         ctx: Ctx,
         path: String,
-        mode: Set<FileAttribute>
-    ): List<FileRow> {
-        return fs.tree(ctx, path, mode).unwrap()
+        mode: Set<StorageFileAttribute>
+    ): List<StorageFile> {
+        return fs.tree(ctx, path, mode)
     }
 
     suspend fun makeDirectory(
         ctx: Ctx,
         path: String
     ) {
-        val events = fs.makeDirectory(ctx, path).unwrap()
-        val newFileData = handlePotentialFileCreation(ctx, path)
-        if (newFileData != null) {
-            eventProducer.produce(events.map { it.copy(file = it.file.withNewId(newFileData.fileId)) })
-        } else {
-            eventProducer.produce(events)
-        }
+        fs.makeDirectory(ctx, path)
     }
 
     suspend fun move(
@@ -257,7 +190,11 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         writeConflictPolicy: WriteConflictPolicy
     ): String {
         val targetPath = renameAccordingToPolicy(ctx, to, writeConflictPolicy)
-        fs.move(ctx, from, targetPath, writeConflictPolicy).emitAll()
+        fs.requirePermission(ctx, from.normalize(), AccessRight.WRITE)
+        fs.requirePermission(ctx, targetPath.normalize(), AccessRight.WRITE)
+        metadataService.runMoveAction(from.normalize(), targetPath.normalize()) {
+            fs.move(ctx, from, targetPath, writeConflictPolicy)
+        }
         return targetPath
     }
 
@@ -266,14 +203,14 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         path: String
     ): Boolean {
         return try {
-            stat(ctx, path, setOf(FileAttribute.PATH))
+            stat(ctx, path, setOf(StorageFileAttribute.path))
             true
         } catch (ex: FSException.NotFound) {
             false
         }
     }
 
-    suspend fun renameAccordingToPolicy(
+    private suspend fun renameAccordingToPolicy(
         ctx: Ctx,
         desiredTargetPath: String,
         conflictPolicy: WriteConflictPolicy
@@ -300,31 +237,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
-    suspend fun dummyTask(ctx: Ctx) {
-        val range = 0 until 100
-
-        runTask(wsServiceClient, backgroundScope, "Storage Test", ctx.user, updateFrequencyMs = 50) {
-            val progress = Progress("Progress", 0, range.last)
-            val taskSpeed = SimpleSpeed("Speeed!", 0.0, "Foo")
-            val tasksPerSecond = MeasuredSpeedInteger("Tasks", "T/s")
-
-            speeds = listOf(taskSpeed, tasksPerSecond)
-            this.progress = progress
-
-            for (iteration in range) {
-                status = "Working on step $iteration"
-                if (iteration % 10 == 0) {
-                    taskSpeed.speed = Random.nextDouble()
-                }
-                progress.current = iteration
-                writeln("Started work on $iteration")
-                delay(100)
-                tasksPerSecond.increment(1)
-                writeln("Work on $iteration complete!")
-            }
-        }
-    }
-
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
     private suspend fun findFreeNameForNewFile(ctx: Ctx, desiredPath: String): String {
         fun findFileNameNoExtension(fileName: String): String {
@@ -341,7 +253,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val extension = findExtension(fileName)
 
         val parentPath = desiredPath.parent()
-        val listDirectory = listDirectory(ctx, parentPath, setOf(FileAttribute.PATH))
+        val listDirectory = listDirectory(ctx, parentPath, setOf(StorageFileAttribute.path))
         val paths = listDirectory.map { it.path }
         val names = listDirectory.map { it.path.fileName() }
 
@@ -377,29 +289,13 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     }
 
     private suspend fun setSensitivity(ctx: Ctx, targetPath: String, sensitivityLevel: SensitivityLevel) {
-        val newSensitivity = stat(ctx, targetPath, setOf(FileAttribute.SENSITIVITY))
+        val newSensitivity = stat(ctx, targetPath, setOf(StorageFileAttribute.sensitivityLevel))
         if (sensitivityLevel != newSensitivity.sensitivityLevel) {
             sensitivityService.setSensitivityLevel(
                 ctx,
                 targetPath,
-                sensitivityLevel,
-                ctx.user
+                sensitivityLevel
             )
-        }
-    }
-
-    private suspend fun <T : StorageEvent> FSResult<List<T>>.emitAll(): List<T> {
-        val result = unwrap()
-
-        eventProducer.produce(result)
-        return result
-    }
-
-    private fun <T> FSResult<T>.unwrap(): T {
-        if (statusCode != 0) {
-            throwExceptionBasedOnStatus(statusCode)
-        } else {
-            return value
         }
     }
 

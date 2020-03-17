@@ -5,7 +5,6 @@ import dk.sdu.cloud.app.orchestrator.api.JobSortBy
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobWithStatus
 import dk.sdu.cloud.app.orchestrator.api.SortOrder
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page

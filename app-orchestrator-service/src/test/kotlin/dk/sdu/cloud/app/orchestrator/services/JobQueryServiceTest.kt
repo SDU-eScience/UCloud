@@ -1,14 +1,11 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.app.orchestrator.api.JobSortBy
-import dk.sdu.cloud.app.orchestrator.api.JobWithStatus
 import dk.sdu.cloud.app.orchestrator.api.SortOrder
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJob
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install

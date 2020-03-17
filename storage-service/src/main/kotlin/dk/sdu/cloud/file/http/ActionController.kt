@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.http
 
-import com.github.jasync.sql.db.util.length
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
@@ -10,13 +9,11 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileAttribute
 import dk.sdu.cloud.file.services.FileLookupService
 import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.util.CallResult
@@ -37,7 +34,7 @@ class ActionController<Ctx : FSUserContext>(
                 commandRunnerFactory.withCtxAndTimeout(this, user = owner) {
                     coreFs.makeDirectory(it, request.path)
                     if (sensitivity != null) {
-                        sensitivityService.setSensitivityLevel(it, request.path, sensitivity, null)
+                        sensitivityService.setSensitivityLevel(it, request.path, sensitivity)
                     }
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
@@ -48,8 +45,7 @@ class ActionController<Ctx : FSUserContext>(
                         sensitivityService.setSensitivityLevel(
                             it,
                             request.path,
-                            sensitivity,
-                            ctx.securityPrincipal.username
+                            sensitivity
                         )
                     }
                     CallResult.Success(Unit, HttpStatusCode.OK)
@@ -58,18 +54,16 @@ class ActionController<Ctx : FSUserContext>(
         }
 
         implement(FileDescriptions.deleteFile) {
-            audit(SingleFileAudit(null, request))
+            audit(SingleFileAudit(request))
 
             commandRunnerFactory.withCtxAndTimeout(this) {
-                val stat = coreFs.stat(it, request.path, setOf(FileAttribute.INODE))
                 coreFs.delete(it, request.path)
-                audit(SingleFileAudit(stat.inode, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
 
         implement(FileDescriptions.move) {
-            audit(SingleFileAudit(null, request))
+            audit(SingleFileAudit(request))
             commandRunnerFactory.withCtxAndTimeout(this) {
                 val stat = fileLookupService.stat(it, request.path)
                 val targetPath = coreFs.move(
@@ -86,18 +80,16 @@ class ActionController<Ctx : FSUserContext>(
                     sensitivityService.setSensitivityLevel(
                         it,
                         targetPath,
-                        stat.sensitivityLevel,
-                        ctx.securityPrincipal.username
+                        stat.sensitivityLevel
                     )
                 }
 
-                audit(SingleFileAudit(stat.fileId, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }
 
         implement(FileDescriptions.copy) {
-            audit(SingleFileAudit(null, request))
+            audit(SingleFileAudit(request))
             commandRunnerFactory.withCtxAndTimeout(this) {
                 val stat = fileLookupService.stat(it, request.path)
                 val pathNormalized = request.path.normalize()
@@ -118,7 +110,6 @@ class ActionController<Ctx : FSUserContext>(
                     stat.sensitivityLevel,
                     request.policy ?: WriteConflictPolicy.OVERWRITE
                 )
-                audit(SingleFileAudit(stat.fileId, request))
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
         }

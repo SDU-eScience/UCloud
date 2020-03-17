@@ -26,8 +26,6 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.backgroundScope
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.tokenValidation
-import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock

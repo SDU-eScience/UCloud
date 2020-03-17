@@ -30,7 +30,7 @@ import * as Favorites from "./Redux/FavoriteActions";
 
 
 export const ShowAllTagItem: React.FunctionComponent<{tag?: string}> = props => (
-    <Link to={!!props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
+    <Link to={props.tag ? Pages.browseByTag(props.tag) : Pages.browse()}>{props.children}</Link>
 );
 
 export interface ApplicationsOperations {
@@ -164,12 +164,12 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         );
     }
 
-    private fetchFeatured() {
+    private fetchFeatured(): void {
         const featured = this.props.applications.get("Featured") ?? emptyPage;
         this.props.receiveAppsByKey(featured.itemsPerPage, featured.pageNumber, "Featured");
     }
 
-    private fetch() {
+    private fetch(): void {
         this.fetchFeatured();
         this.state.defaultTags.forEach(tag => {
             const page = this.props.applications.get(tag) ?? emptyPage;
@@ -231,7 +231,8 @@ const ToolImage = styled.img`
     width: 100%;
 `;
 
-// tslint:disable-next-line: variable-name
+
+// eslint-disable-next-line no-underscore-dangle
 const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}) => {
     const allTags = props.page.items.map(it => it.tags);
     const tags = new Set<string>();
@@ -297,7 +298,7 @@ const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: st
 
 
 
-function removeTagFromTitle(tag: string, title: string) {
+function removeTagFromTitle(tag: string, title: string): string {
     if (title.startsWith(tag)) {
         const titlenew = title.replace(/homerTools/g, "");
         if (titlenew.endsWith("pl")) {
@@ -358,8 +359,8 @@ function getColorFromName(name: string): [string, string, string] {
 }
 
 const mapStateToProps = ({applicationsBrowse, applicationsFavorite}: ReduxObject): ReduxType & {
-    mapSize: number,
-    favorites: Page<FullAppInfo>
+    mapSize: number;
+    favorites: Page<FullAppInfo>;
 } => {
     return {
         ...applicationsBrowse,
