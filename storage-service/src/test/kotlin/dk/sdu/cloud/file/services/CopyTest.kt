@@ -1,9 +1,6 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageEvents
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.fileName
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock
@@ -11,7 +8,7 @@ import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
-import dk.sdu.cloud.micro.BackgroundScope
+import io.mockk.mockk
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.*
@@ -30,16 +27,14 @@ class CopyTest : WithBackgroundScope() {
 
     private fun initTest(root: File): TestContext<FSUserContext> {
         val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath, backgroundScope)
-        val storageEventProducer =
-            StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope) {}
         val sensitivityService =
-            FileSensitivityService(fs, storageEventProducer)
+            FileSensitivityService(fs)
         val coreFs = CoreFileSystemService(
             fs,
-            storageEventProducer,
             sensitivityService,
             ClientMock.authenticatedClient,
-            backgroundScope
+            backgroundScope,
+            mockedMetadataService
         )
         val fileLookupService = FileLookupService(runner, coreFs)
 
@@ -75,7 +70,7 @@ class CopyTest : WithBackgroundScope() {
                     SensitivityLevel.PRIVATE,
                     WriteConflictPolicy.REJECT
                 )
-                val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
+                val mode = setOf(StorageFileAttribute.path, StorageFileAttribute.fileType)
                 val listing =
                     coreFs.listDirectory(ctx, "/home/user/folder2", mode)
 
@@ -119,7 +114,7 @@ class CopyTest : WithBackgroundScope() {
                     SensitivityLevel.PRIVATE,
                     WriteConflictPolicy.RENAME
                 )
-                val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
+                val mode = setOf(StorageFileAttribute.path, StorageFileAttribute.fileType)
 
                 val rootListing = coreFs.listDirectory(ctx, "/home/user", mode)
                 assertThatInstance(rootListing) { it.size == 2 }
@@ -162,7 +157,7 @@ class CopyTest : WithBackgroundScope() {
             }
 
             runner.withBlockingContext(user) { ctx ->
-                val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
+                val mode = setOf(StorageFileAttribute.path, StorageFileAttribute.fileType)
                 val listing =
                     coreFs.listDirectory(ctx, "/home/user/one2", mode)
 
@@ -223,7 +218,7 @@ class CopyTest : WithBackgroundScope() {
                     SensitivityLevel.PRIVATE,
                     WriteConflictPolicy.MERGE
                 )
-                val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
+                val mode = setOf(StorageFileAttribute.path, StorageFileAttribute.fileType)
 
                 val rootListing = coreFs.listDirectory(ctx, "/home/user", mode)
                 assertEquals(2, rootListing.size)
@@ -286,7 +281,7 @@ class CopyTest : WithBackgroundScope() {
                     SensitivityLevel.PRIVATE,
                     WriteConflictPolicy.MERGE
                 )
-                val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
+                val mode = setOf(StorageFileAttribute.path, StorageFileAttribute.fileType)
 
                 val rootListing = coreFs.listDirectory(ctx, "/home/user", mode)
                 assertEquals(2, rootListing.size)

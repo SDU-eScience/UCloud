@@ -47,13 +47,13 @@ class CreateDirectoryTests : WithBackgroundScope() {
                 val path = "/home/user1/folder/newDir/newnew"
 
                 val response = engine.makeDir(path)
-                assertEquals(HttpStatusCode.NotFound, response.status())
+                assertEquals(HttpStatusCode.OK, response.status())
 
                 val response2 = engine.stat(path)
-                assertEquals(HttpStatusCode.NotFound, response2.status())
+                assertEquals(HttpStatusCode.OK, response2.status())
 
                 val response3 = engine.stat("/home/user1/folder/newDir")
-                assertEquals(HttpStatusCode.NotFound, response3.status())
+                assertEquals(HttpStatusCode.OK, response3.status())
             }
         )
     }
