@@ -2,7 +2,6 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersRequest
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.QueryWebParametersResponse
-import dk.sdu.cloud.app.orchestrator.services.JobDao
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "share"
-    version = "1.6.8"
+    version = "1.7.0-storage-events.2"
 
     withAmbassador(null) {
         services.add(
@@ -49,4 +49,12 @@ bundle {
     }
 
     withPostgresMigration(deployment)
+
+    withAdHocJob(
+        deployment,
+        nameSuffix = "migrate-metadata",
+        additionalArgs = {
+            listOf("--migrate-metadata")
+        }
+    )
 }

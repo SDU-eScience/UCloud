@@ -168,11 +168,9 @@ export const initStatus = (): StatusReduxObject => ({
 
 export const initDashboard = (): DashboardStateProps => ({
     favoriteFiles: [],
-    recentFiles: [],
     recentAnalyses: [],
     notifications: [],
     favoriteLoading: false,
-    recentLoading: false,
     analysesLoading: false
 });
 
@@ -248,8 +246,6 @@ export const initFilesDetailedSearch = (): DetailedFileSearchReduxState => ({
     extensions: new Set(),
     tags: new Set(),
     sensitivities: new Set(),
-    createdBefore: undefined,
-    createdAfter: undefined,
     modifiedBefore: undefined,
     modifiedAfter: undefined,
     includeShares: false,

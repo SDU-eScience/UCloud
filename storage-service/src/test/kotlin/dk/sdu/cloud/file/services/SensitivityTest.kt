@@ -10,7 +10,6 @@ import dk.sdu.cloud.file.api.sensitivityLevel
 import dk.sdu.cloud.file.util.linuxFSWithRelaxedMocks
 import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
-import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.test.*
 import org.slf4j.Logger
@@ -62,13 +61,12 @@ class SensitivityTest : WithBackgroundScope() {
             }
 
             runner.withBlockingContext(user) { ctx ->
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/private", SensitivityLevel.PRIVATE, null)
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/sensitive", SensitivityLevel.SENSITIVE, null)
+                sensitivityService.setSensitivityLevel(ctx, "/home/user/private", SensitivityLevel.PRIVATE)
+                sensitivityService.setSensitivityLevel(ctx, "/home/user/sensitive", SensitivityLevel.SENSITIVE)
                 sensitivityService.setSensitivityLevel(
                     ctx,
                     "/home/user/confidential",
-                    SensitivityLevel.CONFIDENTIAL,
-                    null
+                    SensitivityLevel.CONFIDENTIAL
                 )
 
                 val lookup = lookupService.listDirectory(ctx, "/home/user", NormalizedPaginationRequest(null, null))

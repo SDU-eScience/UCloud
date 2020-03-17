@@ -1,11 +1,11 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
+import dk.sdu.cloud.app.license.api.LicenseServerRequest
 import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
-import dk.sdu.cloud.app.orchestrator.api.FileForUploadArchiveType
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.MachineReservation
-import dk.sdu.cloud.app.orchestrator.api.MountMode
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
 import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
@@ -17,15 +17,16 @@ import dk.sdu.cloud.app.store.api.FileTransferDescription
 import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
-import dk.sdu.cloud.app.license.api.LicenseServerRequest
-import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.KnowledgeMode
 import dk.sdu.cloud.file.api.StatRequest
+import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.fileType
+import dk.sdu.cloud.file.api.parent
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -33,8 +34,6 @@ import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
-import java.io.File
-import java.net.URI
 import java.util.*
 
 data class UnverifiedJob(
@@ -55,10 +54,9 @@ class JobVerificationService<Session>(
     private val appStore: AppStoreService,
     private val toolStore: ToolStoreService,
     private val defaultBackend: String,
-    private val sharedMountVerificationService: SharedMountVerificationService,
     private val db: DBSessionFactory<Session>,
     private val dao: JobDao<Session>,
-    private val authenticatedClient: AuthenticatedClient,
+    private val serviceClient: AuthenticatedClient,
     private val machines: List<MachineReservation> = listOf(MachineReservation.BURST)
 ) {
     suspend fun verifyOrThrow(
@@ -74,18 +72,10 @@ class JobVerificationService<Session>(
             else (machines.find { it.name == unverifiedJob.request.reservation }
                 ?: throw JobException.VerificationError("Bad machine reservation"))
         val verifiedParameters = verifyParameters(application, unverifiedJob)
-        val workDir = URI("/$jobId")
-        val files = collectFiles(application, verifiedParameters, workDir, userClient).map {
-            it.copy(
-                destinationPath = "./" + it.destinationPath.removePrefix(workDir.path)
-            )
-        }
+        val username = unverifiedJob.decodedToken.principal.username
 
-        val mounts = collectCloudFiles(verifyMounts(unverifiedJob), workDir, userClient).map {
-            it.copy(
-                destinationPath = "./" + it.destinationPath.removePrefix(workDir.path)
-            )
-        }
+        val files = findAndCollectFromInput(username, application, verifiedParameters, userClient)
+        val mounts = findAndCollectFromMounts(username, unverifiedJob, userClient)
 
         val numberOfJobs = unverifiedJob.request.numberOfNodes ?: tool.description.defaultNumberOfNodes
         val tasksPerNode = unverifiedJob.request.tasksPerNode ?: tool.description.defaultTasksPerNode
@@ -93,7 +83,7 @@ class JobVerificationService<Session>(
 
         val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
 
-        val (allPeers, resolvedPeers) = run {
+        val (allPeers, _) = run {
             // TODO we should enforce in the app store that the parameter is a valid hostname
             val parameterPeers = application.invocation.parameters
                 .filterIsInstance<ApplicationParameter.Peer>()
@@ -128,60 +118,26 @@ class JobVerificationService<Session>(
             Pair(allPeers, resolvedPeers)
         }
 
-        val sharedMounts = run {
-            val additionalSharedMounts =
-                sharedMountVerificationService.verifyMounts(unverifiedJob.request.sharedFileSystemMounts, userClient)
-
-            val parameterSharedMounts =
-                sharedMountVerificationService.verifyMounts(
-                    application.invocation.parameters,
-                    verifiedParameters,
-                    userClient
-                )
-
-            val peerMounts =
-                resolvedPeers.flatMap { peer -> peer.job.sharedFileSystemMounts.filter { it.exportToPeers } }
-
-            val allMounts = additionalSharedMounts + parameterSharedMounts + peerMounts
-
-            val duplicateMountLocations = allMounts
-                .groupBy { it.mountedAt }
-                .filter { it.value.size > 1 }
-
-            if (duplicateMountLocations.isNotEmpty()) {
-                throw JobException.VerificationError(
-                    "Duplicate mounts detected at " +
-                            duplicateMountLocations.keys.joinToString()
-                )
-            }
-
-            allMounts
-        }
-
         return VerifiedJobWithAccessToken(
             VerifiedJob(
-                application = application,
-                files = files,
                 id = jobId,
                 name = name,
-                owner = unverifiedJob.decodedToken.realUsername(),
-                nodes = numberOfJobs,
-                tasksPerNode = tasksPerNode,
-                maxTime = allocatedTime,
-                jobInput = verifiedParameters,
+                owner = unverifiedJob.decodedToken.principal.username,
+                application = application,
                 backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
+                nodes = numberOfJobs,
+                maxTime = allocatedTime,
+                tasksPerNode = tasksPerNode,
+                reservation = reservation,
+                jobInput = verifiedParameters,
+                files = files,
+                _mounts = mounts,
+                _peers = allPeers.toSet(),
                 currentState = JobState.VALIDATED,
                 failedState = null,
                 status = "Validated",
                 archiveInCollection = archiveInCollection,
-                _mounts = mounts,
-                startedAt = null,
-                user = unverifiedJob.decodedToken.principal.username,
-                project = unverifiedJob.decodedToken.projectOrNull(),
-                _sharedFileSystemMounts = sharedMounts,
-                _peers = allPeers,
-                reservation = reservation,
-                mountMode = unverifiedJob.request.mountMode ?: MountMode.COPY_FILES
+                startedAt = null
             ),
             null,
             unverifiedJob.refreshToken
@@ -216,7 +172,7 @@ class JobVerificationService<Session>(
                             val lookupLicenseServer = runBlocking {
                                 AppLicenseDescriptions.get.call(
                                     LicenseServerRequest(licenseServerId.toString()),
-                                    authenticatedClient
+                                    serviceClient
                                 )
                             }.orThrow()
 
@@ -240,13 +196,13 @@ class JobVerificationService<Session>(
                     }
                 }
                 .map { paramWithValue ->
-                    // Fix path for InputFiles with MountMode.COPY_ON_WRITE
+                    // Fix path for InputFiles
                     val (param, value) = paramWithValue
-                    if (job.request.mountMode != MountMode.COPY_ON_WRITE || value == null) return@map paramWithValue
-
                     if (param is ApplicationParameter.InputFile) {
                         value as FileTransferDescription
-                        param to value.copy(destination = "${value.destination.fileName()}/${value.destination}")
+                        param to value.copy(
+                            invocationParameter = "${value.source.parent().fileName()}/${value.source.fileName()}"
+                        )
                     } else {
                         paramWithValue
                     }
@@ -258,21 +214,24 @@ class JobVerificationService<Session>(
         )
     }
 
-    private fun verifyMounts(
-        job: UnverifiedJob
-    ): List<ParameterWithTransfer> {
+    private suspend fun findAndCollectFromMounts(
+        username: String,
+        job: UnverifiedJob,
+        userClient: AuthenticatedClient
+    ): Set<ValidatedFileForUpload> {
         val fakeParameter = ApplicationParameter.InputDirectory(name = "mount", optional = false)
-        return job.request.mounts
+        val transfers = job.request.mounts
             .mapNotNull { fakeParameter.map(it) }
             .mapIndexed { i, transfer -> Pair(fakeParameter.copy(name = "mount-$i"), transfer) }
+        return collectAllFromTransfers(username, transfers, userClient)
     }
 
-    private suspend fun collectFiles(
+    private suspend fun findAndCollectFromInput(
+        username: String,
         application: Application,
         verifiedParameters: VerifiedJobInput,
-        workDir: URI,
-        cloud: AuthenticatedClient
-    ): List<ValidatedFileForUpload> {
+        userClient: AuthenticatedClient
+    ): Set<ValidatedFileForUpload> {
         return coroutineScope {
             val transfersFromParameters = application.invocation.parameters
                 .asSequence()
@@ -285,29 +244,29 @@ class JobVerificationService<Session>(
                 }
                 .toList()
 
-            collectCloudFiles(transfersFromParameters, workDir, cloud)
+            collectAllFromTransfers(username, transfersFromParameters, userClient)
         }
     }
 
-    private suspend fun collectCloudFiles(
+    private suspend fun collectAllFromTransfers(
+        username: String,
         transfers: List<ParameterWithTransfer>,
-        workDir: URI,
-        cloud: AuthenticatedClient
-    ): List<ValidatedFileForUpload> {
+        userClient: AuthenticatedClient
+    ): Set<ValidatedFileForUpload> {
         return coroutineScope {
             transfers
                 .map { (parameter, transfer) ->
-                    async { collectSingleFile(transfer, workDir, cloud, parameter) }
+                    async { collectSingleFile(username, transfer, userClient, parameter) }
                 }
-                .toList()
                 .mapNotNull { it.await() }
+                .toSet()
         }
     }
 
     private suspend fun collectSingleFile(
+        username: String,
         transferDescription: FileTransferDescription,
-        workDir: URI,
-        cloud: AuthenticatedClient,
+        userClient: AuthenticatedClient,
         fileAppParameter: ApplicationParameter<FileTransferDescription>
     ): ValidatedFileForUpload? {
         val desiredFileType = when (fileAppParameter) {
@@ -316,9 +275,9 @@ class JobVerificationService<Session>(
         }
 
         val sourcePath = transferDescription.source
-        val stat = FileDescriptions.stat.call(StatRequest(sourcePath), cloud)
+        val stat = FileDescriptions.stat.call(StatRequest(sourcePath), userClient)
             .orThrowOnError {
-                throw JobException.VerificationError("Missing file in storage: $sourcePath. Are you sure it exists?")
+                throw JobException.VerificationError("File not found or permission denied: $sourcePath")
             }
             .result
 
@@ -329,25 +288,30 @@ class JobVerificationService<Session>(
             )
         }
 
-        // Resolve relative path against working directory. Ensure that file is still inside of
-        // the working directory.
-        val destinationPath = File(workDir.path, transferDescription.destination).normalize().path
-        if (!destinationPath.startsWith(workDir.path)) {
-            throw JobException.VerificationError(
-                "Not allowed to leave working directory via relative paths. Please avoid using '..' in paths."
-            )
+        val fileToMount = when (desiredFileType) {
+            FileType.DIRECTORY -> stat
+            FileType.FILE -> {
+                val parent = sourcePath.parent()
+                FileDescriptions.stat
+                    .call(StatRequest(parent), userClient)
+                    .orThrowOnError { throw JobException.VerificationError("Permission denied: $parent") }
+                    .result
+            }
+            else -> throw IllegalStateException()
         }
 
-        val name = destinationPath.split("/").last()
+        val res = FileDescriptions.verifyFileKnowledge.call(
+            VerifyFileKnowledgeRequest(username, listOf(fileToMount.path), KnowledgeMode.Permission(true)),
+            serviceClient
+        ).orThrow()
+
+        val hasWritePermission = res.responses.single()
 
         return ValidatedFileForUpload(
             fileAppParameter.name,
-            stat,
-            name,
-            destinationPath,
-            sourcePath,
-            if (desiredFileType == FileType.DIRECTORY) FileForUploadArchiveType.ZIP else null,
-            readOnly = transferDescription.readOnly
+            fileToMount,
+            fileToMount.path,
+            readOnly = !hasWritePermission
         )
     }
 

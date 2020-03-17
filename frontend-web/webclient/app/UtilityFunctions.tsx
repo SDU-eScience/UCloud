@@ -87,8 +87,6 @@ export function sortingColumnToValue(sortBy: SortBy, file: File): string {
             return prettierString(file.fileType);
         case SortBy.PATH:
             return getFilenameFromPath(file.path);
-        case SortBy.CREATED_AT:
-            return dateToString(file.createdAt!);
         case SortBy.MODIFIED_AT:
             return dateToString(file.modifiedAt!);
         case SortBy.SIZE:
@@ -268,10 +266,6 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
     const icon: FtIconProps = {type: "FILE"};
 
     switch (type) {
-        case "SHARED_FS":
-            icon.type = "SHARED_FS";
-            return icon;
-
         case "DIRECTORY":
             const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
             switch (homeFolderReplaced) {
@@ -374,8 +368,6 @@ export function sortByToPrettierString(sortBy: SortBy): string {
             return "Members";
         case SortBy.FILE_TYPE:
             return "File Type";
-        case SortBy.CREATED_AT:
-            return "Created at";
         case SortBy.MODIFIED_AT:
             return "Modified at";
         case SortBy.PATH:

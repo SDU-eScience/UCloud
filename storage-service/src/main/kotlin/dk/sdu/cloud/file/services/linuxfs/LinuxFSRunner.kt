@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.withContext
 import org.slf4j.Logger
 import java.io.File
+import java.io.InputStream
 import java.io.OutputStream
 import java.nio.channels.FileChannel
 import java.nio.file.AccessDeniedException
@@ -21,7 +22,7 @@ import java.nio.file.NotDirectoryException
 import java.nio.file.NotLinkException
 
 class LinuxFSRunner(override val user: String, private val serviceScope: CoroutineScope) : CommandRunner, Loggable {
-    internal var inputStream: FileChannel? = null
+    internal var inputStream: InputStream? = null
     internal var inputSystemFile: File? = null
 
     internal var outputStream: OutputStream? = null
@@ -34,7 +35,7 @@ class LinuxFSRunner(override val user: String, private val serviceScope: Corouti
     }
 
     suspend fun <T> submit(job: suspend () -> T): T {
-        val context = if (user == SERVICE_USER) serviceScope.coroutineContext else LinuxFSScope.coroutineContext
+        val context = serviceScope.coroutineContext
         return withContext(context) {
             runAndRethrowNIOExceptions { job() }
         }

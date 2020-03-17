@@ -34,8 +34,7 @@ class StorageUsedController<DBSession>(
             val list = ArrayList<StorageUsedEvent>()
 
             val currentUsage = storageAccountingService.calculateUsage(
-                homeFolder,
-                ctx.securityPrincipal.username
+                homeFolder
             ).first().units
             list.add(
                 StorageUsedEvent(Date().time, currentUsage, Long.MAX_VALUE, ctx.securityPrincipal.username)
@@ -65,14 +64,12 @@ class StorageUsedController<DBSession>(
                 when {
                     request.until == null -> {
                         storageAccountingService.calculateUsage(
-                            homeFolder,
-                            ctx.securityPrincipal.username
+                            homeFolder
                         ).first().units
                     }
                     request.until!!.toLong() > Date().time - 1000 * 60 * 60 * 3 -> {
                         storageAccountingService.calculateUsage(
-                            homeFolder,
-                            ctx.securityPrincipal.username
+                            homeFolder
                         ).first().units
                     }
                     else -> {

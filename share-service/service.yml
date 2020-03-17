@@ -7,4 +7,3 @@ namespaces:
 dependencies:
   - files
   - notifications
-  - indexing

@@ -1,4 +1,3 @@
-import {SharedFileSystemMount} from "Applications/FileSystems";
 import {AnalysisReduxObject, ResponsiveReduxObject} from "DefaultObjects";
 import {File, SortOrder} from "Files";
 import {History} from "history";
@@ -148,7 +147,6 @@ export interface JobSchedulingOptionsForInput {
 }
 
 export interface AdditionalMountedFolder {
-    readOnly: boolean;
     ref: React.RefObject<HTMLInputElement>;
     defaultValue?: string;
 }
@@ -175,11 +173,9 @@ export interface RunAppState {
     mountedFolders: AdditionalMountedFolder[];
     additionalPeers: AdditionalPeer[];
     fsShown: boolean;
-    sharedFileSystems: {mounts: SharedFileSystemMount[]};
     previousRuns: Page<File>;
     unknownParameters: string[];
     reservation: React.RefObject<HTMLInputElement>;
-    useCow: boolean;
 }
 
 export interface RunOperations extends SetStatusLoading {
@@ -244,13 +240,6 @@ export interface PeerParameter extends BaseParameter {
     type: ParameterTypes.Peer;
 }
 
-export interface SharedFileSystemParameter extends BaseParameter {
-    fsType: "EPHEMERAL" | "PERSISTENT";
-    mountLocation: string;
-    exportToPeers: boolean;
-    type: ParameterTypes.SharedFileSystem;
-}
-
 export interface LicenseServerParameter extends BaseParameter {
     type: ParameterTypes.LicenseServer;
     tagged: string[];
@@ -274,7 +263,6 @@ export type ApplicationParameter =
     TextParameter |
     RangeParameter |
     PeerParameter |
-    SharedFileSystemParameter |
     LicenseServerParameter |
     EnumerationParameter;
 
@@ -305,7 +293,6 @@ export enum ParameterTypes {
     Enumeration = "enumeration",
     Range = "range",
     Peer = "peer",
-    SharedFileSystem = "shared_file_system",
     LicenseServer = "license_server"
 }
 

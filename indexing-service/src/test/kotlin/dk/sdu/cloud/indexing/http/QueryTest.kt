@@ -6,8 +6,6 @@ import dk.sdu.cloud.indexing.api.NumericStatisticsRequest
 import dk.sdu.cloud.indexing.api.StatisticsRequest
 import dk.sdu.cloud.indexing.api.StatisticsResponse
 import dk.sdu.cloud.indexing.http.QueryController
-import dk.sdu.cloud.indexing.http.setUser
-import dk.sdu.cloud.indexing.services.IndexQueryService
 import dk.sdu.cloud.indexing.utils.eventMatStorFile
 import dk.sdu.cloud.indexing.utils.fileQuery
 import dk.sdu.cloud.indexing.utils.queryRequest

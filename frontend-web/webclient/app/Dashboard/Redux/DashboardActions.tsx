@@ -5,25 +5,22 @@ import {Action} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page, PayloadAction, SetLoadingAction} from "Types";
 import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
-import {favoritesQuery, recentFilesQuery} from "Utilities/FileUtilities";
+import {favoritesQuery} from "Utilities/FileUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {
     DASHBOARD_FAVORITE_ERROR,
-    DASHBOARD_RECENT_FILES_ERROR,
     DASHBOARD_RECENT_JOBS_ERROR,
     RECEIVE_DASHBOARD_FAVORITES,
-    RECEIVE_RECENT_FILES,
     RECEIVE_RECENT_JOBS,
     SET_ALL_LOADING,
 } from "./DashboardReducer";
 
-export type DashboardActions = DashboardErrorAction | ReceiveFavoritesProps | ReceiveRecentFilesProps |
+export type DashboardActions = DashboardErrorAction | ReceiveFavoritesProps |
     SetLoadingAction<typeof SET_ALL_LOADING> | ReceiveRecentAnalyses;
 
 type DashboardError =
     typeof DASHBOARD_FAVORITE_ERROR |
-    typeof DASHBOARD_RECENT_JOBS_ERROR |
-    typeof DASHBOARD_RECENT_FILES_ERROR;
+    typeof DASHBOARD_RECENT_JOBS_ERROR;
 
 type DashboardErrorAction = PayloadAction<DashboardError, {error?: string}>;
 
@@ -63,30 +60,6 @@ type ReceiveFavoritesProps = PayloadAction<typeof RECEIVE_DASHBOARD_FAVORITES, {
  */
 export const receiveFavorites = (content: File[]): ReceiveFavoritesProps => ({
     type: RECEIVE_DASHBOARD_FAVORITES,
-    payload: {content}
-});
-
-
-type ReceiveRecentFilesProps = PayloadAction<typeof RECEIVE_RECENT_FILES, {content: File[]}>;
-/**
- * Fetches the contents of the users homefolder and returns 10 of them.
- */
-export const fetchRecentFiles = async (): Promise<ReceiveRecentFilesProps | Action<DashboardError>> => {
-    try {
-        const {response} = await Client.get(recentFilesQuery);
-        return receiveRecentFiles(response.recentFiles);
-    } catch (err) {
-        snackbarStore.addFailure("Failed to fetch recent files. Please try again later.");
-        return setErrorMessage(DASHBOARD_RECENT_FILES_ERROR, errorMessageOrDefault(err, "An error ocurred fetching recent files."));
-    }
-};
-
-/**
- * Returns an action containing recently used files
- * @param {File[]} content The list of recently used files retrieved
- */
-export const receiveRecentFiles = (content: File[]): ReceiveRecentFilesProps => ({
-    type: RECEIVE_RECENT_FILES,
     payload: {content}
 });
 

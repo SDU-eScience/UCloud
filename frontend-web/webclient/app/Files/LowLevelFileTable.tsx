@@ -54,7 +54,7 @@ import {
     filePreviewQuery,
     getFilenameFromPath,
     getParentPath,
-    isAnyMockFile, isAnySharedFs,
+    isAnyMockFile,
     isDirectory,
     isFilePreviewSupported,
     isInvalidPathName,
@@ -141,7 +141,7 @@ const twoPhaseLoadFiles = async (
 ): Promise<void> => {
     const promise = callAPI<Page<File>>(listDirectory({
         ...request,
-        attrs: [FileResource.FILE_ID, FileResource.PATH, FileResource.FILE_TYPE]
+        attrs: [FileResource.PATH, FileResource.FILE_TYPE]
     })).then(result => {
         if (!promises.canceledKeeper) callback(result);
         return result;
@@ -198,7 +198,7 @@ function useApiForComponent(
         submitPageLoaderJob(async () => {
             await twoPhaseLoadFiles(
                 [
-                    FileResource.ACL, FileResource.FILE_ID, FileResource.OWNER_NAME, FileResource.FAVORITED,
+                    FileResource.ACL, FileResource.OWNER_NAME, FileResource.FAVORITED,
                     FileResource.SENSITIVITY_LEVEL
                 ],
                 it => setManagedPage(it),
@@ -352,21 +352,20 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         },
         requestFolderCreation: () => {
             if (props.path === undefined) return;
-            const fileId = "newFolderId";
+            const path = `${props.path}/newFolder`;
             setInjectedViaState([
                 mockFile({
-                    path: `${props.path}/newFolder`,
-                    fileId,
+                    path,
                     tag: MOCK_RENAME_TAG,
                     type: "DIRECTORY"
                 })
             ]
             );
-            setFileBeingRenamed(fileId);
+            setFileBeingRenamed(path);
 
             if (!isEmbedded) window.scrollTo({top: 0});
         },
-        startRenaming: file => setFileBeingRenamed(file.fileId!),
+        startRenaming: file => setFileBeingRenamed(file.path),
         requestFileSelector: async (allowFolders: boolean, canOnlySelectFolders: boolean) => {
             if (props.requestFileSelector) return await props.requestFileSelector(allowFolders, canOnlySelectFolders);
             return null;
@@ -401,11 +400,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     const allFiles = injectedViaState.concat(props.injectedFiles ? props.injectedFiles : []).concat(page.items)
         .filter(fileFilter);
     const isMasterChecked = allFiles.filter(f => !f.mockTag).length > 0 &&
-        allFiles.every(f => checkedFiles.has(f.fileId!) || f.mockTag !== undefined);
+        allFiles.every(f => checkedFiles.has(f.path) || f.mockTag !== undefined);
     const isMasterDisabled = allFiles.every(f => f.mockTag !== undefined);
     const isAnyLoading = workLoading || pageLoading;
     const checkedFilesWithInfo = allFiles
-        .filter(f => f.fileId && checkedFiles.has(f.fileId) && f.mockTag === undefined);
+        .filter(f => f.path && checkedFiles.has(f.path) && f.mockTag === undefined);
     const onFileNavigation = (path: string): void => {
         setCheckedFiles(new Set());
         setFileBeingRenamed(null);
@@ -594,12 +593,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             checked.clear();
         } else {
             updatedFiles.forEach(file => {
-                const fileId = file.fileId!;
                 if (checkStatus === true) {
-                    checked.add(fileId);
+                    checked.add(file.path);
                 } else {
-                    if (checked.has(fileId)) checked.delete(fileId);
-                    else checked.add(fileId);
+                    if (checked.has(file.path)) checked.delete(file.path);
+                    else checked.add(file.path);
                 }
             });
         }
@@ -612,7 +610,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             setInjectedViaState([]);
             setFileBeingRenamed(null);
         } else if (key === KeyCode.ENTER) {
-            const file = allFiles.find(f => f.fileId === fileBeingRenamed);
+            const file = allFiles.find(f => f.path === fileBeingRenamed);
             if (file === undefined) return;
             const fileNames = allFiles.map(f => getFilenameFromPath(f.path));
             if (isInvalidPathName({path: name, filePaths: fileNames})) return;
@@ -641,7 +639,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             <List>
                 {items.map(f => (
                     <Flex
-                        backgroundColor={checkedFiles.has(f.fileId!) ? "lightBlue" : "white"}
+                        backgroundColor={checkedFiles.has(f.path) ? "lightBlue" : "white"}
                         onClick={() => {
                             if (!isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
                         }}
@@ -861,7 +859,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         </Flex>
     );
 
-    const beingRenamed = props.file.fileId !== null && props.file.fileId === props.fileBeingRenamed;
+    const beingRenamed = props.file.path !== null && props.file.path === props.fileBeingRenamed;
     const fileName = beingRenamed ? (
         <Input
             placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
@@ -890,7 +888,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     return (
         <Flex maxWidth="calc(100% - 210px)">
             <Flex mx="10px" alignItems="center" >
-                {isAnyMockFile([props.file]) || isAnySharedFs([props.file]) ? <Box width="24px" /> : (
+                {isAnyMockFile([props.file]) ? <Box width="24px" /> : (
                     <Icon
                         cursor="pointer"
                         size="24"
@@ -941,12 +939,6 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                             <Text title="Modified at" fontSize={0} mr="12px" color="gray">
                                 <Icon size="10" mr="3px" name="edit" />
                                 {format(props.file.modifiedAt, "HH:mm:ss dd/MM/yyyy")}
-                            </Text>
-                        )}
-                        {!props.file.createdAt ? null : (
-                            <Text title="Created at" fontSize={0} mr="12px" color="gray">
-                                <Icon size="10" mr="3px" name="copy" />
-                                {format(props.file.createdAt, "HH:mm:ss dd/MM/yyyy")}
                             </Text>
                         )}
                         {!((props.file.acl?.length ?? 0) > 1) ? null : (

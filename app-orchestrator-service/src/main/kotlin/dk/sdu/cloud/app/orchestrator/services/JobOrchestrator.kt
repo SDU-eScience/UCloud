@@ -2,19 +2,12 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
-import dk.sdu.cloud.app.orchestrator.api.CancelInternalRequest
-import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
-import dk.sdu.cloud.app.orchestrator.api.ComputationDescriptions
-import dk.sdu.cloud.app.orchestrator.api.JobCompletedEvent
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobStateChange
-import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.rpc.JOB_MAX_TIME
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
@@ -24,10 +17,9 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.events.EventProducer
-import dk.sdu.cloud.file.api.CowWorkspace
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
@@ -45,7 +37,7 @@ import kotlinx.coroutines.runBlocking
  * updates (e.g. state change). In reaction to life-time events the orchestrator will update
  * its internal state and potentially send new updates to the relevant computation backends.
  *
- * Below is a description of how a [VerifiedJob] moves between its states ([VerifiedJob.currentState]):
+ * Below is a description of how a [VerifiedJob] moves between its states ([currentState]):
  *
  * - A user starts an application (see [startJob])
  *   - Sets state to [JobState.VALIDATED]. Backends notified via [ComputationDescriptions.jobVerified]
@@ -147,21 +139,23 @@ class JobOrchestrator<DBSession>(
                 throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "Job with same parameters already running")
             }
         }
-        val initialState = JobStateChange(jobWithToken.job.id, JobState.VALIDATED)
-        log.debug("Notifying compute")
-        backend.jobVerified.call(jobWithToken.job, serviceClient).orThrow()
-
         log.debug("Switching state and preparing job...")
-        val (jobFolderPath, folderId) = jobFileService.initializeResultFolder(jobWithToken)
-        jobFileService.exportParameterFile(jobFolderPath, jobWithToken, req.parameters)
+        val (outputFolder) = jobFileService.initializeResultFolder(jobWithToken)
+        jobFileService.exportParameterFile(outputFolder, jobWithToken, req.parameters)
+        val jobWithOutputFolder = jobWithToken.job.copy(outputFolder = outputFolder)
+        val jobWithTokenAndFolder = jobWithToken.copy(job = jobWithOutputFolder)
+
+        log.debug("Notifying compute")
+        val initialState = JobStateChange(jobWithToken.job.id, JobState.PREPARED)
+        backend.jobVerified.call(jobWithOutputFolder, serviceClient).orThrow()
 
         db.withTransaction { session ->
             jobDao.create(
                 session,
-                jobWithToken.copy(job = jobWithToken.job.copy(folderId = folderId))
+                jobWithTokenAndFolder
             )
         }
-        handleStateChange(jobWithToken, initialState)
+        handleStateChange(jobWithTokenAndFolder, initialState)
 
         return initialState.systemId
     }
@@ -244,7 +238,8 @@ class JobOrchestrator<DBSession>(
         securityPrincipal: SecurityPrincipal
     ) {
         withJobExceptionHandler(jobId) {
-            val (job) = findJobForId(jobId)
+            val jobWithToken = findJobForId(jobId)
+            val job = jobWithToken.job
             computationBackendService.getAndVerifyByName(job.backend, securityPrincipal)
 
             val actualDuration = if (wallDuration != null) {
@@ -259,6 +254,8 @@ class JobOrchestrator<DBSession>(
             }
 
             log.debug("Job completed $jobId took $actualDuration")
+
+            jobFileService.cleanupAfterMounts(jobWithToken)
 
             handleProposedStateChange(
                 JobStateChange(jobId, if (success) JobState.SUCCESS else JobState.FAILURE),
@@ -285,14 +282,13 @@ class JobOrchestrator<DBSession>(
         securityPrincipal: SecurityPrincipal,
         filePath: String,
         length: Long,
-        data: ByteReadChannel,
-        needsExtraction: Boolean
+        data: ByteReadChannel
     ) {
         withJobExceptionHandler(jobId) {
             val jobWithToken = findJobForId(jobId)
             computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
 
-            jobFileService.acceptFile(jobWithToken, filePath, length, data, needsExtraction)
+            jobFileService.acceptFile(jobWithToken, filePath, length, data)
         }
     }
 
@@ -316,41 +312,17 @@ class JobOrchestrator<DBSession>(
 
             val (job) = jobWithToken
             val backend = computationBackendService.getAndVerifyByName(job.backend)
-            val backendConfig = backend.config
 
             when (event.newState) {
                 JobState.VALIDATED -> {
-                    var workspace: String? = null
-                    var cow: CowWorkspace? = null
-
                     db.withTransaction(autoFlush = true) {
                         jobDao.updateStateAndStatus(
                             it,
                             event.systemId,
-                            JobState.VALIDATED,
-                            "Transferring files from UCloud to your application. This could take a while."
+                            JobState.PREPARED,
+                            "Your job is currently in the process of being scheduled."
                         )
                     }
-
-                    if (!backendConfig.useWorkspaces) {
-                        jobFileService.transferFilesToBackend(jobWithToken, backend)
-                    } else {
-                        val (workspacePath, cowWorkspace) = jobFileService.createWorkspace(jobWithToken)
-                        workspace = workspacePath
-                        cow = cowWorkspace
-                        db.withTransaction(autoFlush = true) {
-                            jobDao.updateWorkspace(it, event.systemId, workspace, cow)
-                        }
-                    }
-
-                    val jobWithNewState = job.copy(currentState = JobState.PREPARED, workspace = workspace, cow = cow)
-                    val jobWithTokenAndNewState = jobWithToken.copy(job = jobWithNewState)
-
-                    handleStateChange(
-                        jobWithTokenAndNewState,
-                        JobStateChange(jobWithNewState.id, JobState.PREPARED),
-                        "Your job is currently in the process of being scheduled."
-                    )
                 }
 
                 JobState.PREPARED -> {
@@ -361,20 +333,11 @@ class JobOrchestrator<DBSession>(
                     // Do nothing (apart from updating state).
                 }
 
-                JobState.CANCELING, JobState.TRANSFER_SUCCESS -> {
-                    if (backendConfig.useWorkspaces) {
-                        scope.launch {
-                            jobFileService.transferWorkspace(jobWithToken, isReplay)
-                        }
-                    }
-
-                    if (event.newState == JobState.CANCELING) {
-                        backend.cancel.call(CancelInternalRequest(job), serviceClient).orThrow()
-                    }
+                JobState.CANCELING -> {
+                    backend.cancel.call(CancelInternalRequest(job), serviceClient).orThrow()
                 }
 
                 JobState.SUCCESS, JobState.FAILURE -> {
-
                     if (job.currentState == JobState.CANCELING) {
                         db.withTransaction(autoFlush = true) {
                             jobDao.updateStateAndStatus(
@@ -392,6 +355,13 @@ class JobOrchestrator<DBSession>(
                             serviceClient.withoutAuthentication().bearerAuth(jobWithToken.refreshToken)
                         ).throwIfInternal()
                     }
+
+                    MetadataDescriptions.verify.call(
+                        VerifyRequest(
+                            job.files.map { it.sourcePath } + job.mounts.map { it.sourcePath }
+                        ),
+                        serviceClient
+                    ).orThrow()
 
                     // This one should _NEVER_ throw an exception
                     val resp = backend.cleanup.call(job, serviceClient)

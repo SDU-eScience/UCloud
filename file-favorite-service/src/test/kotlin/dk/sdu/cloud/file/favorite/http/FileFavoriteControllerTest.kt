@@ -8,7 +8,6 @@ import dk.sdu.cloud.file.favorite.api.ToggleFavoriteResponse
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 import dk.sdu.cloud.file.favorite.storageFile
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
@@ -25,7 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class FileFavoriteControllerTest {
-    private val service = mockk<FileFavoriteService<HibernateSession>>()
+    private val service = mockk<FileFavoriteService>()
     private val cloud = ClientMock.authenticatedClient
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         listOf(FileFavoriteController(service, cloud))

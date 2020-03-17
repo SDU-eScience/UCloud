@@ -33,8 +33,7 @@ class StorageAccountingController<DBSession>(
                 return@implement ok(
                     BuildReportResponse(
                         storageUsed.calculateUsage(
-                            homefolder,
-                            request.user
+                            homefolder
                         )
                     )
                 )

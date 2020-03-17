@@ -24,15 +24,11 @@ class ApplicationTest {
         assertEquals("input_directory", input.type)
         assertEquals(false, input.optional)
         assertEquals("source", input.defaultValue?.source)
-        assertEquals("destination/", input.defaultValue?.destination)
 
         input.toInvocationArgument(input.defaultValue!!)
 
-        assertEquals("destination/", input.defaultValue?.destination)
-
-        val results = input.map(mapOf(Pair("source", "anotherSource"), Pair("destination", "anotherDestination")))
+        val results = input.map(mapOf(Pair("source", "anotherSource")))
         assertEquals("anotherSource", results?.source)
-        assertEquals("anotherDestination", results?.destination)
     }
 
     @Test
@@ -52,11 +48,8 @@ class ApplicationTest {
         assertEquals("title", input.title)
         assertEquals("description", input.description)
         assertEquals("source", input.defaultValue?.source)
-        assertEquals("destination", input.defaultValue?.destination)
 
         input.toInvocationArgument(input.defaultValue!!)
-
-        assertEquals("destination", input.defaultValue?.destination)
     }
 
     @Test

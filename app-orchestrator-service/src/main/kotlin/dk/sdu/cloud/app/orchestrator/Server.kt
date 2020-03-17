@@ -33,7 +33,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val appStoreService = AppStoreService(serviceClient)
         val toolStoreService = ToolStoreService(serviceClient)
         val jobHibernateDao = JobHibernateDao(appStoreService, toolStoreService)
-        val sharedMountVerificationService = SharedMountVerificationService()
         val computationBackendService = ComputationBackendService(config.backends, micro.developmentModeEnabled)
         val userClientFactory: (String?, String?) -> AuthenticatedClient = { accessToken, refreshToken ->
             when {
@@ -65,7 +64,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
             appStoreService,
             toolStoreService,
             config.defaultBackend,
-            sharedMountVerificationService,
             db,
             jobHibernateDao,
             serviceClient,

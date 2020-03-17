@@ -36,7 +36,6 @@ import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
 import {
     fetchFavorites,
     fetchRecentAnalyses,
-    fetchRecentFiles,
     receiveFavorites,
     setAllLoading
 } from "./Redux/DashboardActions";
@@ -68,7 +67,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     function reload(loading: boolean): void {
         props.setAllLoading(loading);
         props.fetchFavorites();
-        props.fetchRecentFiles();
         props.fetchRecentAnalyses();
         props.fetchUsage();
     }
@@ -87,19 +85,16 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     const favoriteOrUnfavorite = (file: File): void => {
         favoriteFile(file, Client);
-        props.receiveFavorites(favoriteFiles.filter(f => f.fileId !== file.fileId));
+        props.receiveFavorites(favoriteFiles.filter(f => f.path !== file.path));
     };
 
     const {
         favoriteFiles,
-        recentFiles,
         recentAnalyses,
         notifications,
         favoriteLoading,
-        recentLoading,
         analysesLoading,
         favoritesError,
-        recentFilesError,
         recentJobsError
     } = props;
 
@@ -111,12 +106,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                     files={favoriteFiles}
                     isLoading={favoriteLoading}
                     favorite={favoriteOrUnfavorite}
-                />
-
-                <DashboardRecentFiles
-                    error={recentFilesError}
-                    files={recentFiles}
-                    isLoading={recentLoading}
                 />
 
                 <DashboardAnalyses
@@ -167,7 +156,7 @@ const DashboardFavoriteFiles = ({
             <Error error={error} />
             <List>
                 {files.map(file => (
-                    <Flex alignItems="center" key={file.fileId!} pt="0.5em" pb="6.4px">
+                    <Flex alignItems="center" key={file.path} pt="0.5em" pb="6.4px">
                         <ListFileContent file={file} pixelsWide={200} />
                         <Icon
                             ml="auto"
@@ -209,34 +198,6 @@ const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): 
         </Flex>
     );
 };
-
-const DashboardRecentFiles = ({
-    files,
-    isLoading,
-    error,
-}: {files: File[]; isLoading: boolean; error?: string}): JSX.Element => (
-        <DashboardCard title="Recently Used Files" isLoading={isLoading}>
-            {files.length || error ? null : (
-                <NoEntries
-                    text="No recently used files"
-                    to={fileTablePage(Client.homeFolder)}
-                    buttonText="Explore files"
-                />
-            )}
-            <Error error={error} />
-            <List>
-                {files.map((file, i) => (
-                    <Flex key={i} alignItems="center" pt="0.5em" pb="0.3em">
-                        <ListFileContent file={file} pixelsWide={130} />
-                        <Box ml="auto" />
-                        <Text fontSize={1} color="grey">{formatDistanceToNow(new Date(file.modifiedAt!), {
-                            addSuffix: true
-                        })}</Text>
-                    </Flex>
-                ))}
-            </List>
-        </DashboardCard>
-    );
 
 const DashboardAnalyses = ({
     analyses,
@@ -315,7 +276,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     setAllLoading: loading => dispatch(setAllLoading(loading)),
     fetchFavorites: async () => dispatch(await fetchFavorites()),
-    fetchRecentFiles: async () => dispatch(await fetchRecentFiles()),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     fetchUsage: async () => {
         dispatch(await fetchUsage("storage", "bytesUsed"));

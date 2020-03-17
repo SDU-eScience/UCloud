@@ -13,12 +13,6 @@ import io.ktor.http.HttpMethod
 data class UsageRequest(val path: String? = null)
 data class UsageResponse(val bytes: Long, val path: String)
 
-typealias RecentFilesRequest = Unit
-
-data class RecentFilesResponse(
-    val recentFiles: List<SearchResult>
-)
-
 data class DirectorySizesRequest(
     val paths: List<String>
 )
@@ -30,7 +24,7 @@ data class DirectorySizesResponse(
 typealias SearchResult = StorageFile
 
 object FileStatsDescriptions : CallDescriptionContainer("files.stats") {
-    val baseContext = "/api/files/stats"
+    private val baseContext = "/api/files/stats"
 
     val usage = call<UsageRequest, UsageResponse, CommonErrorMessage>("usage") {
         auth {
@@ -47,21 +41,6 @@ object FileStatsDescriptions : CallDescriptionContainer("files.stats") {
 
             params {
                 +boundTo(UsageRequest::path)
-            }
-        }
-    }
-
-    val recent = call<RecentFilesRequest, RecentFilesResponse, CommonErrorMessage>("recent") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"recent"
             }
         }
     }

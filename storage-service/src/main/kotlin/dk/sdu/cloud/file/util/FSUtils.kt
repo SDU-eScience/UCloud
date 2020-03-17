@@ -2,19 +2,10 @@ package dk.sdu.cloud.file.util
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.services.FSResult
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.slf4j.LoggerFactory
 import kotlin.math.absoluteValue
-
-fun <T> FSResult<T>.unwrap(): T {
-    if (statusCode != 0) {
-        throwExceptionBasedOnStatus(statusCode)
-    } else {
-        return value
-    }
-}
 
 private const val OPERATION_NOT_PERMITED = 1
 private const val NO_SUCH_FILE_OR_DIR = 2

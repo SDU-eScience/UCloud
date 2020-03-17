@@ -1,8 +1,0 @@
----
-name: app-fs-kubernetes
-
-namespaces:
-  - app.fs.kubernetes
-
-dependencies:
-  - app.fs

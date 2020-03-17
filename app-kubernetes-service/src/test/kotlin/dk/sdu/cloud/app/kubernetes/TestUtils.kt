@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.kubernetes
 import dk.sdu.cloud.app.fs.api.SharedFileSystem
 import dk.sdu.cloud.app.orchestrator.api.InternalFollowStdStreamsRequest
 import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.SharedFileSystemMount
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
 import dk.sdu.cloud.app.store.api.Application
@@ -89,11 +88,7 @@ val verifiedJob = VerifiedJob(
     modifiedAt = 123456789
 )
 
-val jobVerifiedRequest = verifiedJob.copy(
-    _sharedFileSystemMounts = listOf(SharedFileSystemMount(
-        SharedFileSystem("1", "owner", "kubernetes", "title", 123456), "mountedAt")
-    )
-)
+val jobVerifiedRequest = verifiedJob
 
 val wrongSharedFileSystem = SharedFileSystem("1", "owner", "blabla", "title", 12345)
 
