@@ -255,8 +255,6 @@ describe("sortingColumnToValue", () => {
 
     test("TYPE", () => expect(UF.sortingColumnToValue(SortBy.FILE_TYPE, file)).toBe(UF.capitalized(file.fileType)));
     test("PATH", () => expect(UF.sortingColumnToValue(SortBy.PATH, file)).toBe(getFilenameFromPath(file.path)));
-    test("CREATED_AT", () =>
-        expect(UF.sortingColumnToValue(SortBy.CREATED_AT, file)).toBe(dateToString(file.createdAt as number)));
     test("MODIFIED_AT", () =>
         expect(UF.sortingColumnToValue(SortBy.MODIFIED_AT, file)).toBe(dateToString(file.modifiedAt as number)));
     test("SIZE", () => expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(sizeToString(file.size as number)));
@@ -303,7 +301,6 @@ describe("Themes", () => {
 describe("Sort by prettier string", () => {
     test("ACL", () => expect(UF.sortByToPrettierString(SortBy.ACL)).toBe("Members"));
     test("File Type", () => expect(UF.sortByToPrettierString(SortBy.FILE_TYPE)).toBe("File Type"));
-    test("Created at", () => expect(UF.sortByToPrettierString(SortBy.CREATED_AT)).toBe("Created at"));
     test("Modified at", () => expect(UF.sortByToPrettierString(SortBy.MODIFIED_AT)).toBe("Modified at"));
     test("Path", () => expect(UF.sortByToPrettierString(SortBy.PATH)).toBe("Filename"));
     test("Size", () => expect(UF.sortByToPrettierString(SortBy.SIZE)).toBe("Size"));
