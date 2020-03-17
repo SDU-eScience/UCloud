@@ -58,7 +58,6 @@ import {
     isDirectory,
     isFilePreviewSupported,
     isInvalidPathName,
-    mergeFilePages,
     MOCK_RELATIVE,
     MOCK_RENAME_TAG,
     mockFile,
@@ -219,9 +218,8 @@ function useApiForComponent(
             reload: (): void => {
                 if (props.onReloadRequested) props.onReloadRequested();
             },
-            onPageChanged: (pageNumber: number, itemsPerPage: number): void => {
-                if (props.onPageChanged) props.onPageChanged(pageNumber, itemsPerPage);
-            }
+            onPageChanged: (pageNumber: number, itemsPerPage: number): void =>
+                props.onPageChanged?.(pageNumber, itemsPerPage)
         };
     } else {
         // TODO Some of these callbacks should use "useCallback"?
