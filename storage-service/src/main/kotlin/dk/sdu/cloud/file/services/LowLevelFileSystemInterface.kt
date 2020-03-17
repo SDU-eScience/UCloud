@@ -221,17 +221,6 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     )
 
     /**
-     * Returns a list of attribute keys for the file at [path].
-     *
-     * @throws FSException.NotFound
-     * @throws FSException.PermissionException
-     */
-    suspend fun listExtendedAttribute(
-        ctx: Ctx,
-        path: String
-    ): List<String>
-
-    /**
      * Deletes [attribute] at [path].
      *
      * @throws FSException.NotFound if [path] does not exist.

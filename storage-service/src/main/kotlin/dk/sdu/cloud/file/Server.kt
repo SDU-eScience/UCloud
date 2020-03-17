@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file
 
+import com.sun.jna.Platform
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.OutgoingWSCall
@@ -28,7 +29,6 @@ import dk.sdu.cloud.file.services.WSFileSessionService
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.MetadataDao
 import dk.sdu.cloud.file.services.acl.MetadataService
-import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
@@ -65,7 +65,9 @@ class Server(
 
         log.info("Creating core services")
 
-        Chown.isDevMode = micro.developmentModeEnabled
+        require(Platform.isLinux() || micro.developmentModeEnabled) {
+            "This service is only able to run on GNU/Linux in production mode"
+        }
 
         // FS root
         val fsRootFile =
