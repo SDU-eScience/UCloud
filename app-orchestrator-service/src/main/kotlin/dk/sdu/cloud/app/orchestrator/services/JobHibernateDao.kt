@@ -156,7 +156,9 @@ data class JobInformationEntity(
 
     var reservedGpus: Int?,
 
-    var outputFolder: String?
+    var outputFolder: String?,
+
+    var url: String?
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -197,7 +199,8 @@ class JobHibernateDao(
             reservedCpus = job.reservation.cpu,
             reservedMemoryInGigs = job.reservation.memoryInGigs,
             reservedGpus = job.reservation.gpu,
-            outputFolder = job.outputFolder
+            outputFolder = job.outputFolder,
+            url = job.url
         )
 
         session.save(entity)

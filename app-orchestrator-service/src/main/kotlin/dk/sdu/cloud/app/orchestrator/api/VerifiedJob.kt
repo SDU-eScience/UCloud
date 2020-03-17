@@ -108,7 +108,12 @@ data class VerifiedJob(
     /**
      * Timestamp for when this job started execution.
      */
-    val startedAt: Long? = null
+    val startedAt: Long? = null,
+
+    /**
+     * Persistent url to application
+     */
+    val url: String? = null
 ) {
     @get:JsonIgnore val mounts: Set<ValidatedFileForUpload>
         get() = _mounts ?: emptySet()
