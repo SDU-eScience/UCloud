@@ -22,6 +22,10 @@ import io.fabric8.kubernetes.api.model.VolumeMount
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.PodResource
 import kotlinx.coroutines.launch
+import java.io.InputStreamReader
+import java.io.BufferedReader
+
+
 
 const val WORKING_DIRECTORY = "/work"
 const val MULTI_NODE_DIRECTORY = "/etc/ucloud"
@@ -323,17 +327,25 @@ class K8JobCreationService(
         container: String? = null,
         append: Boolean = false
     ) {
-        val operator = if (append) ">>" else ">"
-        val (_, _, ins) = podResource.execWithDefaultListener(
-            listOf("sh", "-c", "cat $operator $path"),
-            attachStdout = true,
-            attachStdin = true,
-            container = container
-        )
-
-        ins!!.use {
-            it.write(contents.toByteArray())
-        }
+        log.debug("Writing to file: $path in ${podResource.get().metadata.name} with $container")
+        val contentToFileCommand = if (append) "echo $contents >> $path" else "echo $contents > $path"
+        ProcessBuilder().apply {
+            command(
+                listOf(
+                    "kubectl",
+                    "-n",
+                    "app-kubernetes",
+                    "exec",
+                    podResource.get().metadata.name,
+                    "-c",
+                    container,
+                    "--",
+                    "sh",
+                    "-c",
+                    contentToFileCommand
+                )
+            )
+        }.start().waitFor()
     }
 
     private suspend fun runPostSubmissionHandlers(verifiedJob: VerifiedJob) {
@@ -367,7 +379,7 @@ class K8JobCreationService(
                     writeToFile(
                         podResource,
                         "$MULTI_NODE_DIRECTORY/node-$rank.txt",
-                        ip + "\n",
+                        ip,
                         container = MULTI_NODE_CONTAINER
                     )
                 }
@@ -375,21 +387,21 @@ class K8JobCreationService(
                 writeToFile(
                     podResource,
                     "$MULTI_NODE_DIRECTORY/rank.txt",
-                    pod.metadata.labels[K8NameAllocator.RANK_LABEL]!! + "\n",
+                    pod.metadata.labels[K8NameAllocator.RANK_LABEL]!!,
                     container = MULTI_NODE_CONTAINER
                 )
 
                 writeToFile(
                     podResource,
                     "$MULTI_NODE_DIRECTORY/number_of_nodes.txt",
-                    verifiedJob.nodes.toString() + "\n",
+                    verifiedJob.nodes.toString(),
                     container = MULTI_NODE_CONTAINER
                 )
 
                 writeToFile(
                     podResource,
                     "$MULTI_NODE_DIRECTORY/job_id.txt",
-                    verifiedJob.id + "\n",
+                    verifiedJob.id,
                     container = MULTI_NODE_CONTAINER
                 )
             }

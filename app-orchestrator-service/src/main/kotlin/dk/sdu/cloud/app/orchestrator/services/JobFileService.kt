@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -7,19 +8,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.CreateDirectoryRequest
-import dk.sdu.cloud.file.api.ExtractRequest
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SimpleUploadRequest
-import dk.sdu.cloud.file.api.StatRequest
-import dk.sdu.cloud.file.api.StorageFileAttribute
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.api.sensitivityLevel
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
@@ -115,8 +104,7 @@ class JobFileService(
 
         filePath: String,
         length: Long,
-        fileData: ByteReadChannel,
-        needsExtraction: Boolean
+        fileData: ByteReadChannel
     ) {
         val userClient = run {
             val (_, accessToken, refreshToken) = jobWithToken
@@ -155,16 +143,6 @@ class JobFileService(
             ),
             userClient
         ).orThrow()
-
-        if (needsExtraction) {
-            FileDescriptions.extract.call(
-                ExtractRequest(
-                    destPath.path,
-                    removeOriginalArchive = true
-                ),
-                userClient
-            ).orThrow()
-        }
     }
 
     private val jobFolderCache = HashMap<String, String>()
@@ -260,6 +238,26 @@ class JobFileService(
             ).also { cacheJobFolder(job.id, it) }
         }
     }
+
+    suspend fun cleanupAfterMounts(jobWithToken: VerifiedJobWithAccessToken) {
+        // Some minor cleanup #1358 (TODO This probably needs to be more centralized)
+        val job = jobWithToken.job
+        if (job.outputFolder == null) return
+
+        val mounts = job.mounts.map { it.toMountName() } + job.files.map { it.toMountName() }
+        val userClient = userClientFactory(jobWithToken.accessToken, jobWithToken.refreshToken)
+        log.debug("access" + jobWithToken.accessToken)
+        log.debug("refresh" + jobWithToken.refreshToken)
+
+        mounts.forEach { mountName ->
+            FileDescriptions.deleteFile.call(
+                DeleteFileRequest(joinPath(job.outputFolder, mountName)),
+                userClient
+            )
+        }
+    }
+
+    private fun ValidatedFileForUpload.toMountName(): String = sourcePath.normalize().fileName()
 
     companion object : Loggable {
         override val log = logger()

@@ -211,11 +211,11 @@ export function machineTypes(): APICallParameters {
     };
 }
 
-export interface listLicenseServersProps {
+export interface ListLicenseServersProps {
     tags: string[];
 }
 
-export function licenseServers(props: listLicenseServersProps): APICallParameters {
+export function licenseServers(props: ListLicenseServersProps): APICallParameters {
     return {
         reloadId: Math.random(),
         method: "GET",

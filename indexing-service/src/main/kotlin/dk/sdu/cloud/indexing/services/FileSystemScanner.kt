@@ -31,11 +31,10 @@ import kotlin.math.abs
 @Suppress("BlockingMethodInNonBlockingContext")
 class FileSystemScanner(
     private val elastic: RestHighLevelClient,
-    private val query: IndexQueryService,
+    private val query: ElasticQueryService,
     private val cephFsRoot: String,
-    useCephStats: Boolean
+    private val stats: FastDirectoryStats?
 ) {
-    private val stats: FastDirectoryStats? = if (useCephStats) CephFsFastDirectoryStats else null
     private val pool = Executors.newFixedThreadPool(16).asCoroutineDispatcher()
 
     private fun updateDocWithNewFile(file: ElasticIndexedFile): UpdateRequest {
@@ -124,8 +123,7 @@ class FileSystemScanner(
                 fileDepth = AnyOf.with(
                     Comparison(path.toCloudPath().depth() + 1, ComparisonOperator.EQUALS)
                 )
-            ),
-            null
+            )
         ).items.associateBy { it.path }
 
         val bulk = BulkRequestBuilder()

@@ -19,25 +19,22 @@ import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {AccessRight, Page} from "Types";
+import {Page} from "Types";
 import {
     Box,
     Button,
-    Checkbox,
     ContainerForText,
     Flex,
     Label,
     OutlineButton,
-    theme,
-    VerticalButtonGroup
+    VerticalButtonGroup,
+    Checkbox
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
-import ClickableDropdown from "ui-components/ClickableDropdown";
 import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import Input, {HiddenInputField} from "ui-components/Input";
 import Link from "ui-components/Link";
-import {TextSpan} from "ui-components/Text";
 import {
     checkForMissingParameters,
     extractValuesFromWidgets,
@@ -49,12 +46,10 @@ import {
 } from "Utilities/ApplicationUtilities";
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {
-    allFilesHasAccessRight,
     checkIfFileExists,
     expandHomeFolder,
     fetchFileContent,
     fileTablePage, getFilenameFromPath,
-    statFileOrNull,
     statFileQuery
 } from "Utilities/FileUtilities";
 import {addStandardDialog} from "UtilityComponents";
@@ -76,6 +71,7 @@ import {AppHeader} from "./View";
 import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
 import {concatScrolls} from "Scroll";
+import {TextSpan} from "ui-components/Text";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -110,8 +106,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             fsShown: false,
             previousRuns: emptyPage,
             reservation: React.createRef(),
-            unknownParameters: [],
-            useCow: true
+            unknownParameters: []
         };
     }
 
@@ -136,11 +131,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             this.fetchPreviousRuns();
         }
     }
-
-    public toggleCow = (): void => {
-        console.log(this.state.schedulingOptions.url);
-        this.setState(state => ({useCow: !state.useCow}));
-    };
 
     public render(): JSX.Element {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
@@ -278,15 +268,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                 />
                             )}
 
-                            <Box mb={8} mt={8}>
-                                <Label>
-                                    <Checkbox size={28} checked={this.state.useCow} onClick={this.toggleCow} />
-                                    <TextSpan color={theme.colors.green}>BETA:</TextSpan>{" "}
-                                    Enable new file transfer method.
-                                    This should make data transfer significantly faster.
-                                </Label>
-                            </Box>
-
                             <RunSection>
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
@@ -334,14 +315,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                             {this.state.mountedFolders.length !== 0 ? (
                                                 <>
                                                     Your files will be available at <code>/work/</code>.
-                                                    You can view changes to your {" "}
-                                                    <Link
-                                                        to={fileTablePage(Client.homeFolder)}
-                                                        target="_blank"
-                                                    >
-                                                        files
-                                                    </Link> {" "}
-                                                    at the end of the job.
                                                 </>
                                             ) : (
                                                     <>
@@ -370,9 +343,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                 )}
                                         </Box>
 
-                                        {this.state.useCow || this.state.mountedFolders.every(it => it.readOnly) ? "" :
-                                            "Note: Giving folders read/write access will make the startup and shutdown of the application longer."}
-
                                         {this.state.mountedFolders.map((entry, i) => (
                                             <Box key={i} mb="7px">
                                                 <InputDirectoryParameter
@@ -394,25 +364,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                         description: "",
                                                         defaultValue: "",
                                                         visible: true,
-                                                        unitName: (
-                                                            this.state.useCow ? null : (
-                                                                <ClickableDropdown
-                                                                    chevron
-                                                                    width="180px"
-                                                                    onChange={key => {
-                                                                        const {mountedFolders} = this.state;
-                                                                        mountedFolders[i].readOnly = key === "READ";
-                                                                        this.setState(() => ({mountedFolders}));
-                                                                    }}
-                                                                    trigger={entry.readOnly ?
-                                                                        "Read only" : "Read/Write"}
-                                                                    options={[
-                                                                        {text: "Read only", value: "READ"},
-                                                                        {text: "Read/Write", value: "READ/WRITE"}
-                                                                    ]}
-                                                                />
-                                                            )
-                                                        ),
                                                     }}
                                                 />
                                             </Box>
@@ -498,7 +449,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 itemsPerPage: 25,
                 attrs: [FileResource.PATH],
                 order: SortOrder.DESCENDING,
-                sortBy: SortBy.CREATED_AT
+                sortBy: SortBy.PATH
             }));
             this.setState(() => ({previousRuns}));
         } catch {
@@ -542,29 +493,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const expandedValue = expandHomeFolder(it.ref.current!.value, Client.homeFolder);
             return {
                 source: expandedValue,
-                destination: removeTrailingSlash(expandedValue).split("/").pop()!,
-                readOnly: it.readOnly
+                destination: removeTrailingSlash(expandedValue).split("/").pop()!
             };
         });
-
-        {
-            // Validate additional mounts
-            for (const mount of mounts) {
-                if (!mount.readOnly) {
-                    const stat = await statFileOrNull(mount.source);
-                    if (stat !== null) {
-                        if (!allFilesHasAccessRight(AccessRight.WRITE, [stat])) {
-                            snackbarStore.addFailure(
-                                `Cannot mount ${mount.source} as read/write because share is read-only`,
-                                5000
-                            );
-
-                            return;
-                        }
-                    }
-                }
-            }
-        }
 
         const peers = [] as Array<{name: string; jobId: string}>;
         {
@@ -622,7 +553,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             reservation,
             type: "start",
             name: jobName !== "" ? jobName : null,
-            mountMode: this.state.useCow ? "COPY_ON_WRITE" : "COPY_FILES",
             acceptSameDataRetry: false
         };
 
@@ -790,7 +720,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     for (let i = 0; i < mountedFolders.length; i++) {
                         if (await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Client.homeFolder), Client)) {
                             const ref = React.createRef<HTMLInputElement>();
-                            validMountFolders.push({ref, readOnly: mountedFolders[i].readOnly});
+                            validMountFolders.push({ref});
                         }
                     }
 
@@ -869,8 +799,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.setState(s => ({
             mountedFolders: s.mountedFolders.concat([
                 {
-                    ref: React.createRef<HTMLInputElement>(),
-                    readOnly: true
+                    ref: React.createRef<HTMLInputElement>()
                 }
             ])
         }));

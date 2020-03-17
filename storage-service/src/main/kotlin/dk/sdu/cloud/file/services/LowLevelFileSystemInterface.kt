@@ -54,7 +54,7 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     /**
      * Lists the file at the path given by [directory].
      *
-     * The attributes included in the [FileRow] depends on the [mode] parameter.
+     * The attributes included in the [StorageFile] depends on the [mode] parameter.
      *
      * @throws FSException.PermissionException
      * @throws FSException.NotFound If the file at [directory] does not exist.
@@ -62,21 +62,21 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     suspend fun listDirectoryPaginated(
         ctx: Ctx,
         directory: String,
-        mode: Set<FileAttribute>,
+        mode: Set<StorageFileAttribute>,
         sortBy: FileSortBy? = null,
         paginationRequest: NormalizedPaginationRequest? = null,
         order: SortOrder? = null,
         type: FileType? = null
-    ): Page<FileRow>
+    ): Page<StorageFile>
 
     suspend fun listDirectory(
         ctx: Ctx,
         directory: String,
-        mode: Set<FileAttribute>,
+        mode: Set<StorageFileAttribute>,
         sortBy: FileSortBy? = null,
         paginationRequest: NormalizedPaginationRequest? = null,
         type: FileType? = null
-    ): List<FileRow> {
+    ): List<StorageFile> {
         val res = listDirectoryPaginated(ctx, directory, mode, sortBy, paginationRequest, type = type)
         return res.items
     }
@@ -176,8 +176,8 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     suspend fun tree(
         ctx: Ctx,
         path: String,
-        mode: Set<FileAttribute>
-    ): List<FileRow>
+        mode: Set<StorageFileAttribute>
+    ): List<StorageFile>
 
     /**
      * Creates a directory at [path].
@@ -253,8 +253,8 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     suspend fun stat(
         ctx: Ctx,
         path: String,
-        mode: Set<FileAttribute>
-    ): FileRow
+        mode: Set<StorageFileAttribute>
+    ): StorageFile
 
     suspend fun onFileCreated(ctx: Ctx, path: String)
 

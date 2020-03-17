@@ -2,6 +2,8 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.StorageFileAttribute
+import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.services.acl.MetadataDao
 import dk.sdu.cloud.file.util.FSException
@@ -52,7 +54,7 @@ class MetadataRecoveryService<Ctx : FSUserContext>(
         db.withTransaction { session ->
             fsRunner.withContext(SERVICE_USER) { ctx ->
                 paths.forEach { path ->
-                    val stat = fs.statOrNull(ctx, path, setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE))
+                    val stat = fs.statOrNull(ctx, path, setOf(StorageFileAttribute.path, StorageFileAttribute.fileType))
                     if (stat == null) {
                         log.info("Metadata no longer exists for $path")
                         dao.deleteByPrefix(session, path)
@@ -85,13 +87,13 @@ class MetadataRecoveryService<Ctx : FSUserContext>(
                             fsRunner.withContext(SERVICE_USER) { ctx ->
                                 metadata.forEach { (path, pathMovingTo) ->
                                     val beforeMovement = try {
-                                        fs.stat(ctx, path, setOf(FileAttribute.PATH))
+                                        fs.stat(ctx, path, setOf(StorageFileAttribute.path))
                                     } catch (ex: FSException.NotFound) {
                                         null
                                     }
 
                                     val movingTo = try {
-                                        fs.stat(ctx, pathMovingTo, setOf(FileAttribute.PATH))
+                                        fs.stat(ctx, pathMovingTo, setOf(StorageFileAttribute.path))
                                     } catch (ex: FSException.NotFound) {
                                         null
                                     }

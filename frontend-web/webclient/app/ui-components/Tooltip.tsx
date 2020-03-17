@@ -124,7 +124,7 @@ const Tooltip = ({
 const VisibleOnHover = styled(Box)`
   & > ${Flex}:hover + ${Relative} > ${TooltipContent} {
     opacity: 1;
-    transition: opacity  0s linear 1s;
+    transition: opacity 0s linear 1s;
   }
 `;
 

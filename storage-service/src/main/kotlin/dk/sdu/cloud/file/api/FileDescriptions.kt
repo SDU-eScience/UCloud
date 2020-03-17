@@ -119,28 +119,15 @@ data class ReclassifyRequest(val path: String, val sensitivity: SensitivityLevel
  * Audit entry for operations that work with a single file
  *
  * The original request is stored in [SingleFileAudit.request].
- *
- * The ID of the file is stored in [SingleFileAudit.fileId], this ID will correspond to the file targeted by this
- * operation. This file is typically found via some kind of query (for example, by path).
  */
-data class SingleFileAudit<Request>(
-    val fileId: String?,
-    val request: Request
-)
+data class SingleFileAudit<Request>(val request: Request)
 
 /**
  * Audit entry for operations that work with bulk files
  *
  * The original request is stored in [BulkFileAudit.request].
- *
- * The IDs of the files are stored in [BulkFileAudit.fileIds]. These IDs will correspond to the files targeted by the
- * operation. There will be an entry per query. It is assumed that the query is ordered, the IDs will be returned
- * in the same order. Files that cannot be resolved have an ID of null.
  */
-data class BulkFileAudit<Request>(
-    val fileIds: List<String?>,
-    val request: Request
-)
+data class BulkFileAudit<Request>(val request: Request)
 
 @Suppress("EnumEntryName")
 enum class StorageFileAttribute {
@@ -153,9 +140,7 @@ enum class StorageFileAttribute {
     acl,
     sensitivityLevel,
     ownSensitivityLevel,
-    fileId,
-    creator,
-    canonicalPath
+    creator
 }
 
 data class ListDirectoryRequest(

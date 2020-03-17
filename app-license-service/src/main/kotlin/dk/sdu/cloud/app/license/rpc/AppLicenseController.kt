@@ -18,11 +18,11 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppLicenseDescriptions.get) {
             val entity = UserEntity(
-                ctx.securityPrincipal,
+                ctx.securityPrincipal.username,
                 EntityType.USER
             )
 
-            val licenseServer = licenseService.getLicenseServer(request.serverId, entity)
+            val licenseServer = licenseService.getLicenseServer(ctx.securityPrincipal, request.serverId, entity)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             ok(
@@ -38,7 +38,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.updateAcl) {
             val entity = UserEntity(
-                ctx.securityPrincipal,
+                ctx.securityPrincipal.username,
                 EntityType.USER
             )
 
@@ -51,7 +51,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.list)  {
             val entity = UserEntity(
-                ctx.securityPrincipal,
+                ctx.securityPrincipal.username,
                 EntityType.USER
             )
 
@@ -65,25 +65,25 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
         implement(AppLicenseDescriptions.update) {
             val entity = UserEntity(
-                ctx.securityPrincipal,
+                ctx.securityPrincipal.username,
                 EntityType.USER
             )
 
-            ok(UpdateServerResponse(licenseService.updateLicenseServer(request, entity)))
+            ok(UpdateServerResponse(licenseService.updateLicenseServer(ctx.securityPrincipal, request, entity)))
         }
 
         implement(AppLicenseDescriptions.delete) {
             val entity = UserEntity(
-                ctx.securityPrincipal,
+                ctx.securityPrincipal.username,
                 EntityType.USER
             )
 
-            ok(licenseService.deleteLicenseServer(request, entity))
+            ok(licenseService.deleteLicenseServer(ctx.securityPrincipal, request, entity))
         }
 
         implement(AppLicenseDescriptions.new) {
             val entity = UserEntity(
-                ctx.securityPrincipal,
+                ctx.securityPrincipal.username,
                 EntityType.USER
             )
 

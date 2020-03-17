@@ -36,7 +36,6 @@ const UIGlobalStyle = css`
     --headerIconColor: #fff;
     --headerIconColor2: #c9d3df;
     --borderGray: var(--midGray, #f00);
-    --paginationHoverColor: #f7f7f7;
     --paginationHoverColor: var(--lightBlue, #f00);
     --paginationDisabled: var(--lightGray, #f00);
     --iconColor: var(--darkGray, #f00);

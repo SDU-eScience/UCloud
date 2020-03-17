@@ -162,7 +162,6 @@ function FileView({file}: FileViewProps): JSX.Element | null {
     return !file ? null : (
         <Flex flexDirection="row" justifyContent="center" flexWrap="wrap">
             <AttributeBox>
-                <Attribute name="Created at" value={dateToString(file.createdAt!)} />
                 <Attribute name="Modified at" value={dateToString(file.modifiedAt!)} />
                 <Attribute name="Favorite">
                     <Icon

@@ -156,7 +156,7 @@ const Sidebar: React.FunctionComponent<MainContentProps> = props => (
     <VerticalButtonGroup>
         <ActionButton
             fullWidth
-            onClick={() => {if (!!props.onFavorite) props.onFavorite();}}
+            onClick={() => props.onFavorite?.()}
             loadable={props.favorite as LoadableContent}
             color="blue"
         >

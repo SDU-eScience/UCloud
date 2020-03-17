@@ -234,7 +234,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
-            {Client.userRole === "ADMIN" ? <ContextSwitcher maxSize={140} /> : null}
+            {Client.userIsAdmin ? <ContextSwitcher maxSize={140} /> : null}
             {!Client.isLoggedIn ? null : (
                 <SidebarTextLabel
                     height="25px"

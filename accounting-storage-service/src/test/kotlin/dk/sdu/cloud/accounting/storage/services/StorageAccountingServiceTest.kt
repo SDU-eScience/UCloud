@@ -29,7 +29,6 @@ import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import java.util.*
-import kotlin.collections.ArrayList
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -64,7 +63,7 @@ class StorageAccountingServiceTest {
         )
 
         runBlocking {
-            val usedStorage = storageAccountService.calculateUsage("/home", "user")
+            val usedStorage = storageAccountService.calculateUsage("/home")
             assertEquals("0.1", usedStorage.first().unitPrice.amount)
             assertEquals(150, usedStorage.first().units)
             val totalPrice =
@@ -86,7 +85,7 @@ class StorageAccountingServiceTest {
         )
 
         runBlocking {
-            storageAccountService.calculateUsage("/home", "user")
+            storageAccountService.calculateUsage("/home")
         }
     }
 

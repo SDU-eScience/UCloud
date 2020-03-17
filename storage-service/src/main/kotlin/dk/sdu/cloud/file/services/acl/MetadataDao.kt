@@ -346,7 +346,7 @@ class MetadataDao {
                     from metadata p
                     where p.path in (
                         select p.path
-                        from (select unnest(?paths::text[] as path)) as t
+                        from (select unnest(?paths::text[]) as path) as t
                         where 
                             p.path = t.path or
                             p.path like (t.path || '/%')

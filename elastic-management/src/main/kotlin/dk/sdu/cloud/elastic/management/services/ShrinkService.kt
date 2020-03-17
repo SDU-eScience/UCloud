@@ -2,17 +2,17 @@ package dk.sdu.cloud.elastic.management.services
 
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
-import mbuhot.eskotlin.query.term.exists
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
-import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
-import org.elasticsearch.action.admin.indices.get.GetIndexRequest
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.elasticsearch.action.admin.indices.shrink.ResizeRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.ResponseException
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.client.core.CountRequest
+import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.index.query.QueryBuilders
 import org.slf4j.Logger
 import java.io.IOException
 import java.net.SocketTimeoutException
@@ -68,7 +68,17 @@ class ShrinkService(
                     // index but failed before it could delete the original index
                     is ElasticsearchStatusException -> {
                         log.warn(ex.stackTraceToString())
-                        deleteIndex(targetIndex, elastic)
+                        //If both exists
+                        if (elastic.indices().exists(GetIndexRequest(sourceIndex), RequestOptions.DEFAULT)
+                            && elastic.indices().exists(GetIndexRequest(targetIndex), RequestOptions.DEFAULT)) {
+                            log.info("Both Indices exists: $targetIndex, $sourceIndex")
+                            if (isSameSize(sourceIndex, targetIndex, elastic)) {
+                                log.info("They are same size")
+                                return
+                            } else {
+                                deleteIndex(targetIndex, elastic)
+                            }
+                        }
                     }
                     else -> throw Exception("Another error has occured: ${ex.message}")
                 }
@@ -79,7 +89,11 @@ class ShrinkService(
                 mergeIndex(elastic, targetIndex)
             } catch (ex: Exception) {
                 when (ex) {
-                    is SocketTimeoutException -> log.info("Caught TimeoutException - It is okay - merge still happening")
+                    is SocketTimeoutException -> {
+                        log.info("Caught TimeoutException - It is okay - merge still happening")
+                        //giving elastic time to finish some task that might be the result of Timeout
+                        Thread.sleep(2000)
+                    }
                     else -> {
                         log.info("Caught other exception - should still be okay but:")
                         ex.printStackTrace()
@@ -136,7 +150,9 @@ class ShrinkService(
             prepareSourceIndex(it)
             waitForRelocation(it)
             shrinkIndex(it)
-            deleteIndex(it, elastic)
+            if (isSameSize(it, it+"_small", elastic)) {
+                deleteIndex(it, elastic)
+            }
         }
     }
 

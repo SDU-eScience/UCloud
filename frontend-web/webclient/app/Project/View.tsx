@@ -12,18 +12,23 @@ import {
     roleInProject,
     viewProject
 } from "Project/index";
+import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router";
 import {Box, Button, Flex, Input, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {defaultAvatar} from "UserSettings/Avataaar";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {errorMessageOrDefault, prettierString} from "UtilityFunctions";
+import {Client} from "Authentication/HttpClientInstance";
 
 const View: React.FunctionComponent = () => {
     const {id} = useParams<{id: string}>();
     const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
+
     const role = roleInProject(project.data);
-    const allowManagement = role === ProjectRole.PI;
+    const allowManagement = role === ProjectRole.PI || Client.userIsAdmin;
     const newMemberRef = useRef<HTMLInputElement>(null);
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
 
@@ -35,50 +40,54 @@ const View: React.FunctionComponent = () => {
         e.preventDefault();
         const inputField = newMemberRef.current!;
         const username = inputField.value;
-
-        await createNewMember(addMemberInProject({
-            projectId: id,
-            member: {
-                username,
-                role: ProjectRole.USER
-            }
-        }));
-
-        inputField.value = "";
-        reload();
+        try {
+            await createNewMember(addMemberInProject({
+                projectId: id,
+                member: {
+                    username,
+                    role: ProjectRole.USER
+                }
+            }));
+            inputField.value = "";
+            reload();
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed adding new member"));
+        }
     };
 
     return (
         <LoadingMainContainer
-            headerSize={0}
-            header={null}
+            headerSize={124}
+            header={(
+                <>
+                    <Heading.h3>
+                        Project {project.data.title}
+                    </Heading.h3>
+                    <form onSubmit={onSubmit}>
+                        <Label htmlFor={"new-project-member"}>Add new member</Label>
+                        <Input
+                            id="new-project-member"
+                            placeholder="Username"
+                            ref={newMemberRef}
+                            disabled={isCreatingNewMember}
+                        />
+                    </form>
+                </>
+            )}
             sidebar={null}
             loading={project.loading && project.data.members.length === 0}
             error={project.error ? project.error.why : undefined}
             main={(
                 <>
-                    <div>
-                        <form onSubmit={onSubmit}>
-                            <Label htmlFor={"new-project-member"}>Add new member</Label>
-                            <Input
-                                id="new-project-member"
-                                placeholder="Username"
-                                ref={newMemberRef}
-                                disabled={isCreatingNewMember}
-                            />
-                        </form>
-                    </div>
-
                     {project.data.members.map((e, idx) => (
                         <ViewMember
                             key={idx}
                             project={project.data}
                             member={e}
                             allowManagement={allowManagement}
-                            onActionComplete={() => reload()}
+                            onActionComplete={() => undefined/* reload() */}
                         />
-                    ))
-                    }
+                    ))}
                 </>
             )}
         />
@@ -103,16 +112,18 @@ const ViewMember: React.FunctionComponent<{
         props.onActionComplete();
     };
 
+    const prettierRole = prettierString(role);
+
     return (
         <Box mt={16}>
             <Flex>
                 <UserAvatar avatar={defaultAvatar} />
                 <Box flexGrow={1}>
                     {props.member.username} <br />
-                    {!props.allowManagement ? role : (
+                    {!props.allowManagement ? prettierRole : (
                         <ClickableDropdown
                             chevron
-                            trigger={role}
+                            trigger={prettierRole}
                             onChange={async value => {
                                 setRole(value);
 

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.indexing
 
 import dk.sdu.cloud.indexing.http.QueryController
+import dk.sdu.cloud.indexing.services.CephFsFastDirectoryStats
 import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.indexing.services.FileSystemScanner
 import dk.sdu.cloud.indexing.services.FilesIndex
@@ -29,7 +30,8 @@ class Server(
 
     override fun start() {
         elastic = micro.elasticHighLevelClient
-        val queryService = ElasticQueryService(elastic)
+        val stats = if (cephConfig.useCephDirectoryStats) CephFsFastDirectoryStats else null
+        val queryService = ElasticQueryService(elastic, stats)
 
         if (micro.commandLineArguments.contains("--scan")) {
             runBlocking {
@@ -41,7 +43,7 @@ class Server(
                             if (micro.developmentModeEnabled) TODO()
                             else "/mnt/cephfs/" + cephConfig.subfolder
                         },
-                        cephConfig.useCephDirectoryStats
+                        stats
                     ).runScan()
                 } catch (ex: Throwable) {
                     log.error(ex.stackTraceToString())

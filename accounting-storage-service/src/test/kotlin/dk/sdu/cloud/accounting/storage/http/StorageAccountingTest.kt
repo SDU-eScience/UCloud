@@ -33,7 +33,7 @@ class StorageAccountingTest {
         val micro = initializeMicro()
         val cloud = ClientMock.authenticatedClient
         val storageAccountingService = mockk<StorageAccountingService<Session>>(relaxed = true)
-        coEvery { storageAccountingService.calculateUsage(any(), any(), any()) } answers {
+        coEvery { storageAccountingService.calculateUsage(any()) } answers {
             val invoice = listOf(BillableItem("Used Storage", 150, SerializedMoney(BigDecimal("0.1"), Currencies.DKK)))
             invoice
         }

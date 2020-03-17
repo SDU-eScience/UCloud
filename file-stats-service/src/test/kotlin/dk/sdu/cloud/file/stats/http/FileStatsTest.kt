@@ -4,14 +4,9 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
-import dk.sdu.cloud.file.api.fileId
-import dk.sdu.cloud.file.stats.api.RecentFilesResponse
 import dk.sdu.cloud.file.stats.api.UsageResponse
 import dk.sdu.cloud.file.stats.services.DirectorySizeService
-import dk.sdu.cloud.file.stats.services.RecentFilesService
 import dk.sdu.cloud.file.stats.services.UsageService
-import dk.sdu.cloud.file.stats.storageFile
-import dk.sdu.cloud.file.stats.storageFile2
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
@@ -31,14 +26,10 @@ class FileStatsTest {
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
         val micro = initializeMicro()
         val usageService = mockk<UsageService>()
-        val recentFilesService = mockk<RecentFilesService>()
         val directorySizeService = mockk<DirectorySizeService>()
-        coEvery { usageService.calculateUsage(any(), any(), any()) } returns 200
-        coEvery { recentFilesService.queryRecentFiles(any(), any()) } answers {
-            listOf(storageFile, storageFile2)
-        }
+        coEvery { usageService.calculateUsage(any(), any()) } returns 200
 
-        listOf(FileStatsController(recentFilesService, usageService, directorySizeService, ClientMock.authenticatedClient))
+        listOf(FileStatsController(usageService, directorySizeService, ClientMock.authenticatedClient))
     }
 
     @Test
@@ -80,27 +71,6 @@ class FileStatsTest {
                 val response = defaultMapper.readValue<UsageResponse>(request.response.content!!)
                 assertEquals(200, response.bytes)
                 assertEquals("/home/user/", response.path)
-            }
-        )
-    }
-
-    @Test
-    fun `test recent`() {
-        withKtorTest(
-            setup,
-
-            test = {
-                val request = sendRequest(
-                    method = HttpMethod.Get,
-                    path = "/api/files/stats/recent",
-                    user = TestUsers.user
-                )
-                request.assertSuccess()
-
-                val response = defaultMapper.readValue<RecentFilesResponse>(request.response.content!!)
-                assertEquals(2, response.recentFiles.size)
-                assertEquals("id", response.recentFiles.first().fileId)
-                assertEquals("id2", response.recentFiles.last().fileId)
             }
         )
     }

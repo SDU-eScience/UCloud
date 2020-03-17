@@ -92,7 +92,7 @@ class JobController(
                         FileDescriptions.download.requiredAuthScope.toString(),
                         FileDescriptions.createDirectory.requiredAuthScope.toString(),
                         FileDescriptions.stat.requiredAuthScope.toString(),
-                        FileDescriptions.extract.requiredAuthScope.toString()
+                        FileDescriptions.deleteFile.requiredAuthScope.toString()
                     ),
                     1000L * 60 * 60 * 5,
                     allowRefreshes = true

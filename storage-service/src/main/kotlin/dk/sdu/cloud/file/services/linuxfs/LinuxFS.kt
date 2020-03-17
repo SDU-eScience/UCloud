@@ -3,28 +3,11 @@
 package dk.sdu.cloud.file.services.linuxfs
 
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.AccessEntry
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.FileSortBy
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.SortOrder
-import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.services.FileAttribute
-import dk.sdu.cloud.file.services.FileRow
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.LowLevelFileSystemInterface
-import dk.sdu.cloud.file.services.XATTR_BIRTH
-import dk.sdu.cloud.file.services.XATTR_ID
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.requirePermission
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS.Companion.PATH_MAX
-import dk.sdu.cloud.file.services.mergeWith
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
@@ -33,25 +16,16 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.task.api.TaskContext
 import kotlinx.coroutines.runBlocking
+import java.io.BufferedOutputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
-import java.nio.channels.Channels
-import java.nio.channels.FileChannel
-import java.nio.file.DirectoryNotEmptyException
-import java.nio.file.FileAlreadyExistsException
-import java.nio.file.Files
-import java.nio.file.InvalidPathException
-import java.nio.file.LinkOption
-import java.nio.file.NoSuchFileException
-import java.nio.file.OpenOption
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
+import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermission
-import java.nio.file.attribute.PosixFilePermissions
+import java.util.*
+import kotlin.Comparator
+import kotlin.collections.ArrayList
 import kotlin.math.min
 import kotlin.streams.toList
 
@@ -79,33 +53,38 @@ class LinuxFS(
         copyPreAuthorized(ctx, from, to, writeConflictPolicy)
     }
 
-    private suspend fun copyPreAuthorized(
+    private fun copyPreAuthorized(
         ctx: LinuxFSRunner,
         from: String,
         to: String,
         writeConflictPolicy: WriteConflictPolicy
     ) {
-        val opts =
-            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
-
         val systemFrom = File(translateAndCheckFile(ctx, from))
         val systemTo = File(translateAndCheckFile(ctx, to))
 
-        if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
-            try {
-                Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
-            } catch (e: DirectoryNotEmptyException) {
-                systemFrom.listFiles()?.forEach {
-                    copyPreAuthorized(
-                        ctx,
-                        Paths.get(from, it.name).toString(),
-                        Paths.get(to, it.name).toString(),
-                        writeConflictPolicy
-                    )
+        if (from.normalize() == to.normalize() && writeConflictPolicy == WriteConflictPolicy.OVERWRITE) {
+            // Do nothing (The code below would truncate the file and then copy the remaining 0 bytes)
+            return
+        }
+
+        if (Files.isDirectory(systemFrom.toPath(), LinkOption.NOFOLLOW_LINKS)) {
+            if (Files.exists(systemTo.toPath(), LinkOption.NOFOLLOW_LINKS)) {
+                if (Files.isDirectory(systemTo.toPath(), LinkOption.NOFOLLOW_LINKS)) {
+                    if (!writeConflictPolicy.allowsOverwrite()) {
+                        throw FSException.AlreadyExists()
+                    }
+                } else {
+                    throw FSException.BadRequest("File types do not match")
                 }
+            } else {
+                NativeFS.createDirectories(systemTo)
             }
         } else {
-            Files.copy(systemFrom.toPath(), systemTo.toPath(), *opts)
+            NativeFS.openForReading(systemFrom).use { ins ->
+                NativeFS.openForWriting(systemTo, writeConflictPolicy.allowsOverwrite()).use { outs ->
+                    ins.copyTo(outs)
+                }
+            }
         }
     }
 
@@ -127,7 +106,7 @@ class LinuxFS(
         val fromStat = stat(
             ctx,
             systemFrom,
-            setOf(FileAttribute.FILE_TYPE, FileAttribute.PATH, FileAttribute.FILE_TYPE),
+            setOf(StorageFileAttribute.fileType, StorageFileAttribute.path, StorageFileAttribute.fileType),
             hasPerformedPermissionCheck = true
         )
 
@@ -136,7 +115,7 @@ class LinuxFS(
                 stat(
                     ctx,
                     systemTo,
-                    setOf(FileAttribute.FILE_TYPE),
+                    setOf(StorageFileAttribute.fileType),
                     hasPerformedPermissionCheck = true
                 )
             }.getOrNull()?.fileType
@@ -164,13 +143,11 @@ class LinuxFS(
     ) {
         val systemFrom = File(translateAndCheckFile(ctx, from))
         val systemTo = File(translateAndCheckFile(ctx, to))
-
-        val opts =
-            if (writeConflictPolicy.allowsOverwrite()) arrayOf(StandardCopyOption.REPLACE_EXISTING) else emptyArray()
+        val replaceExisting = writeConflictPolicy.allowsOverwrite()
 
         if (writeConflictPolicy == WriteConflictPolicy.MERGE) {
             if (systemFrom.isDirectory) {
-                systemFrom.listFiles()?.forEach {
+                NativeFS.listFiles(systemFrom).map { File(systemFrom, it) }.forEach {
                     movePreAuthorized(
                         ctx,
                         Paths.get(from, it.name).toString(),
@@ -179,36 +156,36 @@ class LinuxFS(
                     )
                 }
             } else {
-                Files.createDirectories(systemTo.toPath().parent)
-                Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+                NativeFS.createDirectories(systemTo.parentFile)
+                NativeFS.move(systemFrom, systemTo, replaceExisting)
             }
         } else {
-            Files.move(systemFrom.toPath(), systemTo.toPath(), *opts)
+            NativeFS.move(systemFrom, systemTo, replaceExisting)
         }
     }
 
     override suspend fun listDirectoryPaginated(
         ctx: LinuxFSRunner,
         directory: String,
-        mode: Set<FileAttribute>,
+        mode: Set<StorageFileAttribute>,
         sortBy: FileSortBy?,
         paginationRequest: NormalizedPaginationRequest?,
         order: SortOrder?,
         type: FileType?
-    ): Page<FileRow> = ctx.submit {
+    ): Page<StorageFile> = ctx.submit {
         aclService.requirePermission(directory, ctx.user, AccessRight.READ)
 
         val systemFiles = run {
             val file = File(translateAndCheckFile(ctx, directory))
             val requestedDirectory = file.takeIf { it.exists() } ?: throw FSException.NotFound()
 
-            (requestedDirectory.listFiles() ?: throw FSException.PermissionException())
-                .toList()
+            (NativeFS.listFiles(requestedDirectory) ?: throw FSException.PermissionException())
+                .map { File(requestedDirectory, it) }
                 .filter { fileInDirectory ->
                     when (type) {
                         FileType.DIRECTORY -> fileInDirectory.isDirectory
                         FileType.FILE -> fileInDirectory.isFile
-                        null, FileType.LINK -> true
+                        null -> true
                     }
                 }
         }.filter { !Files.isSymbolicLink(it.toPath()) }
@@ -230,18 +207,19 @@ class LinuxFS(
             // first step and gathering a list of files to be included in the result.
 
             val sortingAttribute = when (sortBy) {
-                FileSortBy.TYPE -> FileAttribute.FILE_TYPE
-                FileSortBy.PATH -> FileAttribute.PATH
-                FileSortBy.CREATED_AT, FileSortBy.MODIFIED_AT -> FileAttribute.TIMESTAMPS
-                FileSortBy.SIZE -> FileAttribute.SIZE
-                FileSortBy.SENSITIVITY -> FileAttribute.SENSITIVITY
-                null -> FileAttribute.PATH
+                FileSortBy.TYPE -> StorageFileAttribute.fileType
+                FileSortBy.PATH -> StorageFileAttribute.path
+                FileSortBy.CREATED_AT -> StorageFileAttribute.createdAt
+                FileSortBy.MODIFIED_AT -> StorageFileAttribute.modifiedAt
+                FileSortBy.SIZE -> StorageFileAttribute.size
+                FileSortBy.SENSITIVITY -> StorageFileAttribute.sensitivityLevel
+                null -> StorageFileAttribute.path
             }
 
             val statsForSorting = stat(
                 ctx,
                 systemFiles,
-                setOf(FileAttribute.PATH, sortingAttribute),
+                setOf(StorageFileAttribute.path, sortingAttribute),
                 hasPerformedPermissionCheck = true
             ).filterNotNull()
 
@@ -253,7 +231,7 @@ class LinuxFS(
             // with first lookup.
             val relevantFiles = relevantFileRows.map { File(translateAndCheckFile(ctx, it.path)) }
 
-            val desiredMode = mode - setOf(sortingAttribute) + setOf(FileAttribute.PATH)
+            val desiredMode = mode - setOf(sortingAttribute) + setOf(StorageFileAttribute.path)
 
             val statsForRelevantRows = stat(
                 ctx,
@@ -295,27 +273,27 @@ class LinuxFS(
     private fun comparatorForFileRows(
         sortBy: FileSortBy,
         order: SortOrder
-    ): Comparator<FileRow> {
-        val naturalComparator: Comparator<FileRow> = when (sortBy) {
-            FileSortBy.CREATED_AT -> Comparator.comparingLong { it.timestamps.created }
+    ): Comparator<StorageFile> {
+        val naturalComparator: Comparator<StorageFile> = when (sortBy) {
+            FileSortBy.CREATED_AT -> Comparator.comparingLong { it.createdAt }
 
-            FileSortBy.MODIFIED_AT -> Comparator.comparingLong { it.timestamps.modified }
+            FileSortBy.MODIFIED_AT -> Comparator.comparingLong { it.modifiedAt }
 
-            FileSortBy.TYPE -> Comparator.comparing<FileRow, String> {
+            FileSortBy.TYPE -> Comparator.comparing<StorageFile, String> {
                 it.fileType.name
-            }.thenComparing(Comparator.comparing<FileRow, String> {
+            }.thenComparing(Comparator.comparing<StorageFile, String> {
                 it.path.fileName().toLowerCase()
             })
 
-            FileSortBy.PATH -> Comparator.comparing<FileRow, String> {
+            FileSortBy.PATH -> Comparator.comparing<StorageFile, String> {
                 it.path.fileName().toLowerCase()
             }
 
             FileSortBy.SIZE -> Comparator.comparingLong { it.size }
 
             // TODO This should be resolved before sorting
-            FileSortBy.SENSITIVITY -> Comparator.comparing<FileRow, String> {
-                (it.sensitivityLevel?.name?.toLowerCase()) ?: "inherit"
+            FileSortBy.SENSITIVITY -> Comparator.comparing<StorageFile, String> {
+                (it.ownSensitivityLevelOrNull?.name?.toLowerCase()) ?: "inherit"
             }
         }
 
@@ -328,9 +306,9 @@ class LinuxFS(
     private suspend fun stat(
         ctx: LinuxFSRunner,
         systemFile: File,
-        mode: Set<FileAttribute>,
+        mode: Set<StorageFileAttribute>,
         hasPerformedPermissionCheck: Boolean
-    ): FileRow {
+    ): StorageFile {
         return stat(ctx, listOf(systemFile), mode, hasPerformedPermissionCheck).first()
             ?: throw FSException.NotFound()
     }
@@ -338,11 +316,11 @@ class LinuxFS(
     private suspend fun stat(
         ctx: LinuxFSRunner,
         systemFiles: List<File>,
-        mode: Set<FileAttribute>,
+        mode: Set<StorageFileAttribute>,
         hasPerformedPermissionCheck: Boolean
-    ): List<FileRow?> {
+    ): List<StorageFile?> {
         // The 'shareLookup' contains a mapping between cloud paths and their ACL
-        val shareLookup = if (FileAttribute.SHARES in mode) {
+        val shareLookup = if (StorageFileAttribute.acl in mode) {
             aclService.listAcl(systemFiles.map { it.path.toCloudPath().normalize() })
         } else {
             emptyMap()
@@ -355,9 +333,8 @@ class LinuxFS(
                 }
 
                 var fileType: FileType? = null
-                var timestamps: Timestamps? = null
+                var modifiedAt: Long? = null
                 var path: String? = null
-                var inode: String? = null
                 var size: Long? = null
                 var shares: List<AccessEntry>? = null
                 var sensitivityLevel: SensitivityLevel? = null
@@ -371,26 +348,6 @@ class LinuxFS(
                 val linkOpts = arrayOf(LinkOption.NOFOLLOW_LINKS)
 
                 run {
-                    // UNIX file attributes
-                    val attributes = run {
-                        val opts = ArrayList<String>()
-                        if (FileAttribute.INODE in mode) opts.add("ino")
-                        if (FileAttribute.CREATOR in mode) opts.add("uid")
-
-                        if (opts.isEmpty()) {
-                            null
-                        } else {
-                            Files.readAttributes(systemPath, "unix:${opts.joinToString(",")}", *linkOpts)
-                        }
-                    } ?: return@run
-
-                    if (FileAttribute.INODE in mode) {
-                        inode = runCatching { getExtendedAttributeInternal(systemFile, XATTR_ID) }.getOrNull()
-                            ?: (attributes.getValue("ino") as Long).toString()
-                    }
-                }
-
-                run {
                     // Basic file attributes and symlinks
                     val basicAttributes = run {
                         val opts = ArrayList<String>()
@@ -399,12 +356,11 @@ class LinuxFS(
                         // file doesn't actually exist.
                         opts.add("size")
 
-                        if (FileAttribute.TIMESTAMPS in mode) {
-                            // Note we don't rely on the creationTime due to not being available in all file systems.
-                            opts.addAll(listOf("lastAccessTime", "lastModifiedTime"))
+                        if (StorageFileAttribute.createdAt in mode || StorageFileAttribute.modifiedAt in mode) {
+                            opts.add("lastModifiedTime")
                         }
 
-                        if (FileAttribute.FILE_TYPE in mode) {
+                        if (StorageFileAttribute.fileType in mode) {
                             opts.add("isDirectory")
                         }
 
@@ -415,14 +371,14 @@ class LinuxFS(
                         }
                     }
 
-                    if (FileAttribute.PATH in mode) path = systemFile.absolutePath.toCloudPath()
+                    if (StorageFileAttribute.path in mode) path = systemFile.absolutePath.toCloudPath()
 
                     if (basicAttributes != null) {
                         // We need to always ask if this file is a link to correctly resolve target file type.
 
-                        if (FileAttribute.SIZE in mode) size = basicAttributes.getValue("size") as Long
+                        if (StorageFileAttribute.size in mode) size = basicAttributes.getValue("size") as Long
 
-                        if (FileAttribute.FILE_TYPE in mode) {
+                        if (StorageFileAttribute.fileType in mode) {
                             val isDirectory = basicAttributes.getValue("isDirectory") as Boolean
 
                             fileType = if (isDirectory) {
@@ -432,28 +388,14 @@ class LinuxFS(
                             }
                         }
 
-                        if (FileAttribute.TIMESTAMPS in mode) {
-                            val lastAccess = basicAttributes.getValue("lastAccessTime") as FileTime
+                        if (StorageFileAttribute.createdAt in mode || StorageFileAttribute.modifiedAt in mode) {
                             val lastModified = basicAttributes.getValue("lastModifiedTime") as FileTime
-
-                            // The extended attribute is set by CoreFS
-                            // Old setup would ignore errors. This is required for createLink to work
-                            val creationTime =
-                                runCatching {
-                                    getExtendedAttributeInternal(systemFile, XATTR_BIRTH)?.toLongOrNull()
-                                        ?.let { it * 1000 }
-                                }.getOrNull() ?: lastModified.toMillis()
-
-                            timestamps = Timestamps(
-                                lastAccess.toMillis(),
-                                creationTime,
-                                lastModified.toMillis()
-                            )
+                            modifiedAt = lastModified.toMillis()
                         }
                     }
                 }
 
-                val realOwner = if (FileAttribute.OWNER in mode || FileAttribute.CREATOR in mode) {
+                val realOwner = if (StorageFileAttribute.ownerName in mode) {
                     val toCloudPath = systemFile.absolutePath.toCloudPath()
                     val realPath = toCloudPath.normalize()
 
@@ -469,8 +411,8 @@ class LinuxFS(
                     null
                 }
 
-                if (FileAttribute.SENSITIVITY in mode) {
-                    // Old setup would ignore errors.
+                if (StorageFileAttribute.sensitivityLevel in mode || StorageFileAttribute.ownSensitivityLevel in mode) {
+                    // This will only ever get the own sensitivity level
                     sensitivityLevel =
                         runCatching {
                             getExtendedAttributeInternal(
@@ -480,23 +422,23 @@ class LinuxFS(
                         }.getOrNull()
                 }
 
-                if (FileAttribute.SHARES in mode) {
+                if (StorageFileAttribute.acl in mode) {
                     val cloudPath = systemFile.path.toCloudPath()
                     shares = shareLookup.getOrDefault(cloudPath, emptyList()).map {
                         AccessEntry(it.username, it.permissions)
                     }
                 }
 
-                FileRow(
+                StorageFileImpl(
                     fileType,
-                    realOwner,
-                    timestamps,
                     path,
-                    inode,
+                    modifiedAt,
+                    modifiedAt,
+                    realOwner,
                     size,
                     shares,
-                    sensitivityLevel,
-                    realOwner
+                    null,
+                    sensitivityLevel
                 )
             } catch (ex: NoSuchFileException) {
                 null
@@ -508,20 +450,19 @@ class LinuxFS(
         ctx: LinuxFSRunner,
         path: String,
         task: TaskContext
-    ) =
-        ctx.submit {
-            aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
-            aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
+    ) = ctx.submit {
+        aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
+        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
-            val systemFile = File(translateAndCheckFile(ctx, path))
+        val systemFile = File(translateAndCheckFile(ctx, path))
 
-            if (!Files.exists(systemFile.toPath(), LinkOption.NOFOLLOW_LINKS)) throw FSException.NotFound()
-            traverseAndDelete(ctx, systemFile.toPath())
-        }
+        if (!Files.exists(systemFile.toPath(), LinkOption.NOFOLLOW_LINKS)) throw FSException.NotFound()
+        traverseAndDelete(ctx, systemFile.toPath())
+    }
 
     private fun delete(path: Path) {
         try {
-            Files.delete(path)
+            NativeFS.delete(path.toFile())
         } catch (ex: NoSuchFileException) {
             log.debug("File at $path does not exists any more. Ignoring this error.")
         }
@@ -537,7 +478,7 @@ class LinuxFS(
         }
 
         if (Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) {
-            path.toFile().listFiles()?.forEach {
+            NativeFS.listFiles(path.toFile()).map { File(path.toFile(), it) }.forEach {
                 traverseAndDelete(ctx, it.toPath())
             }
         }
@@ -555,30 +496,8 @@ class LinuxFS(
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
         if (ctx.outputStream == null) {
-            val options = HashSet<OpenOption>()
-            options.add(StandardOpenOption.TRUNCATE_EXISTING)
-            options.add(StandardOpenOption.WRITE)
-            if (!allowOverwrite) {
-                options.add(StandardOpenOption.CREATE_NEW)
-            } else {
-                options.add(StandardOpenOption.CREATE)
-            }
-
-            try {
-                val systemPath = systemFile.toPath()
-                ctx.outputStream = Channels.newOutputStream(
-                    Files.newByteChannel(systemPath, options, PosixFilePermissions.asFileAttribute(DEFAULT_FILE_MODE))
-                )
-                ctx.outputSystemFile = systemFile
-            } catch (ex: FileAlreadyExistsException) {
-                throw FSException.AlreadyExists()
-            } catch (ex: java.nio.file.FileSystemException) {
-                if (ex.message?.contains("Is a directory") == true) {
-                    throw FSException.BadRequest("Upload target is a not a directory")
-                } else {
-                    throw ex
-                }
-            }
+            ctx.outputStream = BufferedOutputStream(NativeFS.openForWriting(systemFile, allowOverwrite))
+            ctx.outputSystemFile = systemFile
         } else {
             log.warn("openForWriting called twice without closing old file!")
             throw FSException.CriticalException("Internal error")
@@ -611,18 +530,31 @@ class LinuxFS(
     override suspend fun tree(
         ctx: LinuxFSRunner,
         path: String,
-        mode: Set<FileAttribute>
-    ): List<FileRow> = ctx.submit {
+        mode: Set<StorageFileAttribute>
+    ): List<StorageFile> = ctx.submit {
         aclService.requirePermission(path, ctx.user, AccessRight.READ)
 
         val systemFile = File(translateAndCheckFile(ctx, path))
-        Files.walk(systemFile.toPath())
-            .toList()
-            .mapNotNull {
-                if (Files.isSymbolicLink(it)) return@mapNotNull null
+        val queue = LinkedList<File>()
+        queue.add(systemFile)
 
-                stat(ctx, it.toFile(), mode, hasPerformedPermissionCheck = true)
-            }
+        val result = ArrayList<StorageFile>()
+
+        while (queue.isNotEmpty()) {
+            val next = queue.pop()
+            NativeFS.listFiles(next)
+                .map { File(next, it) }
+                .forEach {
+                    if (Files.isSymbolicLink(it.toPath())) {
+                        return@forEach
+                    }
+
+                    if (it.isDirectory) queue.add(it)
+                    result.add(stat(ctx, it, mode, hasPerformedPermissionCheck = true))
+                }
+        }
+
+        result
     }
 
     override suspend fun makeDirectory(
@@ -631,7 +563,7 @@ class LinuxFS(
     ) = ctx.submit {
         val systemFile = File(translateAndCheckFile(ctx, path))
         aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
-        Files.createDirectory(systemFile.toPath(), PosixFilePermissions.asFileAttribute(DEFAULT_DIRECTORY_MODE))
+        NativeFS.createDirectories(systemFile)
         Unit
     }
 
@@ -697,11 +629,12 @@ class LinuxFS(
         Unit
     }
 
-    override suspend fun stat(ctx: LinuxFSRunner, path: String, mode: Set<FileAttribute>): FileRow = ctx.submit {
-        val systemFile = File(translateAndCheckFile(ctx, path))
-        aclService.requirePermission(path, ctx.user, AccessRight.READ)
-        stat(ctx, systemFile, mode, hasPerformedPermissionCheck = true)
-    }
+    override suspend fun stat(ctx: LinuxFSRunner, path: String, mode: Set<StorageFileAttribute>): StorageFile =
+        ctx.submit {
+            val systemFile = File(translateAndCheckFile(ctx, path))
+            aclService.requirePermission(path, ctx.user, AccessRight.READ)
+            stat(ctx, systemFile, mode, hasPerformedPermissionCheck = true)
+        }
 
     override suspend fun openForReading(ctx: LinuxFSRunner, path: String) = ctx.submit {
         aclService.requirePermission(path, ctx.user, AccessRight.READ)
@@ -712,7 +645,7 @@ class LinuxFS(
         }
 
         val systemFile = File(translateAndCheckFile(ctx, path))
-        ctx.inputStream = FileChannel.open(systemFile.toPath(), StandardOpenOption.READ)
+        ctx.inputStream = NativeFS.openForReading(systemFile)
         ctx.inputSystemFile = systemFile
     }
 
@@ -731,10 +664,10 @@ class LinuxFS(
         }
 
         val convertedToStream: InputStream = if (range != null) {
-            stream.position(range.first)
-            CappedInputStream(Channels.newInputStream(stream), range.last - range.first)
+            stream.skip(range.first)
+            CappedInputStream(stream, range.last - range.first)
         } else {
-            Channels.newInputStream(stream)
+            stream
         }
 
         try {

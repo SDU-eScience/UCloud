@@ -38,25 +38,23 @@ import org.elasticsearch.search.aggregations.metrics.ValueCount
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 
-/**
- * An implementation of [IndexQueryService] using an Elasticsearch backend.
- */
 class ElasticQueryService(
-    private val elasticClient: RestHighLevelClient
-) : IndexQueryService {
+    private val elasticClient: RestHighLevelClient,
+    private val fastDirectoryStats: FastDirectoryStats?
+) {
     private val mapper = defaultMapper
 
-    override fun findFileByIdOrNull(id: String): StorageFile? {
+    fun findFileByIdOrNull(id: String): StorageFile? {
         return elasticClient[GetRequest(FILES_INDEX, id), RequestOptions.DEFAULT]
             ?.takeIf { it.isExists }
             ?.let { mapper.readValue<ElasticIndexedFile>(it.sourceAsString) }
             ?.toMaterializedFile()
     }
 
-    override fun query(
+    fun query(
         query: FileQuery,
-        paging: NormalizedPaginationRequest?,
-        sorting: SortRequest?
+        paging: NormalizedPaginationRequest? = null,
+        sorting: SortRequest? = null
     ): Page<ElasticIndexedFile> {
         return elasticClient.search<ElasticIndexedFile>(mapper, paging, FILES_INDEX) {
             if (sorting != null) {
@@ -77,6 +75,23 @@ class ElasticQueryService(
             searchBasedOnQuery(query).also {
                 log.debug(it.toString())
             }
+        }
+    }
+
+    fun calculateSize(paths: Set<String>): Long {
+        return if (fastDirectoryStats != null) {
+            var sum = 0L
+            for (path in paths) {
+                sum += fastDirectoryStats.getRecursiveSize(path)
+            }
+            sum
+        } else {
+            statisticsQuery(
+                StatisticsRequest(
+                    FileQuery(paths.toList()),
+                    size = NumericStatisticsRequest(calculateSum = true)
+                )
+            ).size!!.sum!!.toLong()
         }
     }
 
@@ -182,7 +197,7 @@ class ElasticQueryService(
         }
     }
 
-    override fun statisticsQuery(statisticsRequest: StatisticsRequest): StatisticsResponse {
+    fun statisticsQuery(statisticsRequest: StatisticsRequest): StatisticsResponse {
         val result = elasticClient.search(FILES_INDEX) {
             source(SearchSourceBuilder().also { builder ->
                 builder.size(0)

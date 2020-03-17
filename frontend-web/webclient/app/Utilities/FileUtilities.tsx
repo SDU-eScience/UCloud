@@ -175,7 +175,7 @@ export function mergeFilePages(
     attributesToCopy: FileResource[]
 ): Page<File> {
     const items = basePage.items.map(base => {
-        const additionalFile = additionalPage.items.find(it => it.fileId === base.fileId);
+        const additionalFile = additionalPage.items.find(it => it.path === base.path);
         if (additionalFile !== undefined) {
             return mergeFile(base, additionalFile, attributesToCopy);
         } else {
@@ -199,9 +199,6 @@ export function mergeFile(base: File, additional: File, attributesToCopy: FileRe
             case FileResource.PATH:
                 result.path = additional.path;
                 break;
-            case FileResource.CREATED_AT:
-                result.createdAt = additional.createdAt;
-                break;
             case FileResource.MODIFIED_AT:
                 result.modifiedAt = additional.modifiedAt;
                 break;
@@ -219,12 +216,6 @@ export function mergeFile(base: File, additional: File, attributesToCopy: FileRe
                 break;
             case FileResource.OWN_SENSITIVITY_LEVEL:
                 result.ownSensitivityLevel = additional.ownSensitivityLevel;
-                break;
-            case FileResource.FILE_ID:
-                result.fileId = additional.fileId;
-                break;
-            case FileResource.CREATOR:
-                result.creator = additional.creator;
                 break;
         }
     });
@@ -284,15 +275,12 @@ export function mockFile(props: {path: string; type: FileType; fileId?: string; 
     return {
         fileType: props.type,
         path: props.path,
-        creator: username,
         ownerName: username,
-        createdAt: new Date().getTime(),
         modifiedAt: new Date().getTime(),
         size: 0,
         acl: [],
         favorited: false,
         sensitivityLevel: SensitivityLevelMap.PRIVATE,
-        fileId: props.fileId ? props.fileId : "fileId" + new Date(),
         ownSensitivityLevel: null,
         mockTag: props.tag
     };
@@ -628,10 +616,6 @@ export const inTrashDir = (path: string, client: HttpClient): boolean => getPare
 
 export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);
-}
-
-export function isAnySharedFs(files: File[]): boolean {
-    return files.some(it => it.fileType === "SHARED_FS");
 }
 
 export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {

@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.4.0-storage-events.0'
+version '1.4.0-storage-events.1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.gateway.MainKt"
@@ -12,7 +12,7 @@ repositories {
 
 buildscript {
     ext.serviceCommonVersion = "1.13.0-storage-events.1"
-    ext.fileApiVersion = "4.0.0-storage-events.8"
+    ext.fileApiVersion = "4.0.0-storage-events.21"
     ext.authApiVersion = "1.27.0"
 }
 

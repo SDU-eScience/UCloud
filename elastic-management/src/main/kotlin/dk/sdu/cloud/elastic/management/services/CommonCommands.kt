@@ -11,8 +11,10 @@ import org.elasticsearch.client.Request
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.client.core.CountRequest
 import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.index.query.QueryBuilders
 import java.net.SocketTimeoutException
 
 internal fun deleteIndex(index: String, elastic: RestHighLevelClient) {
@@ -116,4 +118,19 @@ internal fun getAllEmptyIndices(elastic: RestHighLevelClient, lowClient: RestCli
         throw ex
     }
     return emptyIndices
+}
+
+internal fun isSameSize(index: String, otherIndex: String, elastic: RestHighLevelClient): Boolean {
+    val countRequestSource = CountRequest(index).apply {
+        query(QueryBuilders.matchAllQuery())
+    }
+
+    val countRequestTarget = CountRequest(otherIndex).apply {
+        query(QueryBuilders.matchAllQuery())
+    }
+
+    val sourceCount = elastic.count(countRequestSource, RequestOptions.DEFAULT)
+    val targetCount = elastic.count(countRequestTarget, RequestOptions.DEFAULT)
+
+    return sourceCount.count == targetCount.count
 }

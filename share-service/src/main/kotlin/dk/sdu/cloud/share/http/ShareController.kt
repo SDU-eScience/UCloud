@@ -3,17 +3,14 @@ package dk.sdu.cloud.share.http
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.bearerAuth
 import dk.sdu.cloud.calls.client.withoutAuthentication
-import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.calls.server.securityToken
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.share.api.Shares
 import dk.sdu.cloud.share.services.ShareQueryService
 import dk.sdu.cloud.share.services.ShareService
-import io.ktor.application.call
 
 class ShareController(
     private val shareService: ShareService,

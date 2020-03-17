@@ -29,8 +29,7 @@ class CallbackController<DBSession>(
                         ctx.securityPrincipal,
                         request.filePath,
                         length,
-                        request.fileData.asIngoing().channel,
-                        request.needsExtraction == true
+                        request.fileData.asIngoing().channel
                     )
                     ok(Unit)
                 } else {
