@@ -21,10 +21,10 @@ class MakeDirectoryTest : WithBackgroundScope() {
             runner,
             CoreFileSystemService(
                 fs,
-                mockk(relaxed = true),
                 fileSensitivityService,
                 ClientMock.authenticatedClient,
-                backgroundScope
+                backgroundScope,
+                mockedMetadataService
             )
         )
     }
