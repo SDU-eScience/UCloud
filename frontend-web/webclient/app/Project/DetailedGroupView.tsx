@@ -121,7 +121,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
             <Heading.h2>New group</Heading.h2>
             <form onSubmit={renameGroup}>
                 <Flex>
-                    <Input placeholder="Group name..." ref={renameRef} />
+                    <Input maxLength={500} placeholder="Group name..." ref={renameRef} />
                     <Button ml="5px">Rename</Button>
                 </Flex>
             </form>
