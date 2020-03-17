@@ -75,6 +75,7 @@ import {PRODUCT_NAME} from "../../site.config.json";
 import {AppHeader} from "./View";
 import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
+import {concatScrolls} from "Scroll";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -603,6 +604,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const jobName = name.current?.value;
         let reservation = this.state.reservation.current ? this.state.reservation.current.value : null;
         if (reservation === "") reservation = null;
+        const urlName = this.state.schedulingOptions.url.current == null ? null : this.state.schedulingOptions.url.current.value;
+        const fullUrl = urlName == null ? null : "https://app-".concat(urlName, ".cloud.sdu.dk");
 
         const job = {
             application: {
@@ -610,6 +613,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 version: this.state.application!.metadata.version
             },
             parameters,
+            url: fullUrl,
             numberOfNodes: this.state.schedulingOptions.numberOfNodes,
             tasksPerNode: this.state.schedulingOptions.tasksPerNode,
             maxTime,
