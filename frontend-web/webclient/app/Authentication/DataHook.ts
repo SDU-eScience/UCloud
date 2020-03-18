@@ -1,6 +1,7 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {useEffect, useReducer, useState} from "react";
 import {defaultErrorHandler} from "UtilityFunctions";
+import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 
 function dataFetchReducer(state, action) {
     switch (action.type) {
@@ -195,6 +196,8 @@ export function useAsyncWork(): AsyncWorker {
                 let why = "Internal Server Error";
                 if (!!e.response && e.response.why) {
                     why = e.response.why;
+                } else {
+                    why = e.request.statusText;
                 }
                 setError(why);
             } else if (typeof e === "string") {
