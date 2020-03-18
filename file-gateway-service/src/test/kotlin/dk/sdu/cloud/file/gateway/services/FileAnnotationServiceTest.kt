@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.gateway.services
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.fileId
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.ownerName
 import dk.sdu.cloud.file.api.path
@@ -24,14 +23,12 @@ class FileAnnotationServiceTest {
     private lateinit var micro: Micro
 
     private val fileA = StorageFile(
-        fileId = "fileA",
         fileType = FileType.FILE,
         path = "/home/user/fileA.txt",
         ownerName = "user"
     )
 
     private val fileB = StorageFile(
-        fileId = "fileB",
         fileType = FileType.FILE,
         path = "/home/user/fileB.txt",
         ownerName = "user"
@@ -67,8 +64,8 @@ class FileAnnotationServiceTest {
             FileFavoriteDescriptions.favoriteStatus,
             FavoriteStatusResponse(
                 favorited = mapOf(
-                    fileA.fileId to true,
-                    fileB.fileId to false
+                    fileA.path to true,
+                    fileB.path to false
                 )
             )
         )
