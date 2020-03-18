@@ -49,27 +49,6 @@ typealias ListResponse = Page<StorageFile>
 object FileFavoriteDescriptions : CallDescriptionContainer("${FileDescriptions.namespace}.favorite") {
     val baseContext = "/api/files/favorite"
 
-    internal val toggleFavoriteDelete =
-        call<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage>("toggleFavoriteDelete") {
-            audit<ToggleFavoriteAudit>()
-
-            auth {
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Delete
-
-                path {
-                    using(baseContext)
-                }
-
-                params {
-                    +boundTo(ToggleFavoriteRequest::path)
-                }
-            }
-        }
-
     val toggleFavorite =
         call<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage>("toggleFavorite") {
             audit<ToggleFavoriteAudit>()
@@ -82,6 +61,7 @@ object FileFavoriteDescriptions : CallDescriptionContainer("${FileDescriptions.n
 
                 path {
                     using(baseContext)
+                    +"toggle"
                 }
 
                 params {
@@ -117,15 +97,12 @@ object FileFavoriteDescriptions : CallDescriptionContainer("${FileDescriptions.n
 
             path {
                 using(baseContext)
+                +"list"
             }
 
             params {
                 +boundTo(ListRequest::itemsPerPage)
                 +boundTo(ListRequest::page)
-            }
-
-            headers {
-                +"X-No-Load"
             }
         }
     }

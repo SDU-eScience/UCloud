@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-gateway"
-    version = "1.4.0-storage-events.1"
+    version = "1.4.0-storage-events.4"
 
     withAmbassador(null) {
         services.add(

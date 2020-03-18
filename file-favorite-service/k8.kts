@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-favorite"
-    version = "1.5.0-storage-events.4"
+    version = "1.5.0-storage-events.6"
 
     // /api/avatar is added by default
     withAmbassador(null) {
@@ -13,28 +13,8 @@ bundle {
                     ---
                     apiVersion: ambassador/v1
                     kind: Mapping
-                    name: file_fav_list
-                    prefix: ^/api/files/favorite${'$'}
-                    prefix_regex: true
-                    rewrite: ""
-                    service: file-favorite:8080
-                    method: GET
-                    precedence: 10
-                    headers:
-                      x-no-load: true
-                      
-                """.trimIndent()
-            )
-        )
-
-        services.add(
-            AmbassadorMapping(
-                """
-                    ---
-                    apiVersion: ambassador/v1
-                    kind: Mapping
                     name: file_fav
-                    prefix: ^/api/files/favorite(/.*)?${'$'}
+                    prefix: ^/api/files/favorite/(.*)?${'$'}
                     prefix_regex: true
                     rewrite: ""
                     service: file-favorite:8080

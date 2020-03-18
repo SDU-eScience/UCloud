@@ -343,7 +343,7 @@ export const favoriteFile = async (file: File, client: HttpClient): Promise<File
     return file;
 };
 
-const favoriteFileQuery = (path: string): string => `/files/favorite?path=${encodeURIComponent(path)}`;
+const favoriteFileQuery = (path: string): string => `/files/favorite/toggle?path=${encodeURIComponent(path)}`;
 
 interface ReclassifyFile {
     file: File;

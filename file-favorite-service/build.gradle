@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.5.0-storage-events.4'
+version '1.5.0-storage-events.6'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.favorite.MainKt"
