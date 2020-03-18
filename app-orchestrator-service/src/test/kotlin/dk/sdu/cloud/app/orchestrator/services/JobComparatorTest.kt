@@ -1,26 +1,19 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.app.fs.api.SharedFileSystem
 import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
 import dk.sdu.cloud.app.orchestrator.api.MachineReservation
-import dk.sdu.cloud.app.orchestrator.api.MountMode
-import dk.sdu.cloud.app.orchestrator.api.SharedFileSystemMount
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
 import dk.sdu.cloud.app.orchestrator.utils.validatedFileForUpload
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJob
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobForTestGenerator
 import dk.sdu.cloud.app.store.api.BooleanApplicationParameter
-import dk.sdu.cloud.app.store.api.SharedFileSystemType
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.StringApplicationParameter
 import org.junit.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
-import kotlin.test.assertTrue
 
 class JobComparatorTest {
-
     @Test
     fun `compare same job`() {
         assertEquals(verifiedJob, verifiedJob)
@@ -28,7 +21,6 @@ class JobComparatorTest {
 
     @Test
     fun `compare different jobs`() {
-
         //Test compare with different maxTime, nodes, tasksPerNode.
         run {
             val jobNodes = verifiedJobForTestGenerator(nodes = 2)
@@ -38,15 +30,6 @@ class JobComparatorTest {
             assertNotEquals(verifiedJob, jobNodes)
             assertNotEquals(verifiedJob, jobTasksPerNode)
             assertNotEquals(verifiedJob, jobTime)
-        }
-
-        //Test compare with different mount modes.
-        run {
-            val jobCopy = verifiedJobForTestGenerator(mountMode = MountMode.COPY_FILES)
-            val jobCOW = verifiedJobForTestGenerator(mountMode = MountMode.COPY_ON_WRITE)
-            assertNotEquals(verifiedJob, jobCOW)
-            assertNotEquals(verifiedJob, jobCopy)
-            assertNotEquals(jobCOW, jobCopy)
         }
 
         //Test compare with different reservations.
@@ -60,13 +43,6 @@ class JobComparatorTest {
             assertNotEquals(jobReservation, jobReservation2)
             assertNotEquals(jobReservation, jobReservation3)
             assertNotEquals(jobReservation, jobReservation4)
-        }
-
-        //Test compare with different workspace and project.
-        run {
-            val jobProject = verifiedJobForTestGenerator(project = "thisProject")
-            assertEquals(jobProject, jobProject)
-            assertNotEquals(verifiedJob, jobProject)
         }
 
         //Test compare with different upload files.
@@ -118,69 +94,6 @@ class JobComparatorTest {
             assertEquals(newJobDoublePeers, newJobDoublePeers)
         }
 
-        //Test compare with different system mounts
-        run {
-            val newJobMounts = verifiedJobForTestGenerator(
-                sharedFileSystemMounts = listOf(SharedFileSystemMount(
-                    SharedFileSystem(
-                        "systemId",
-                        "owner",
-                        "backend",
-                        "title",
-                        1234567
-                    ),
-                    "mounted/at/path",
-                    SharedFileSystemType.EPHEMERAL,
-                    false
-                ))
-            )
-            val newJobMounts2 = verifiedJobForTestGenerator(
-                sharedFileSystemMounts = listOf(SharedFileSystemMount(
-                    SharedFileSystem(
-                        "systemId2",
-                        "owner",
-                        "backend",
-                        "title",
-                        1234567
-                    ),
-                    "mounted/at/path",
-                    SharedFileSystemType.EPHEMERAL,
-                    false
-                ))
-            )
-            val newJobDoubleMount = verifiedJobForTestGenerator(
-                sharedFileSystemMounts = listOf(SharedFileSystemMount(
-                    SharedFileSystem(
-                        "systemId",
-                        "owner",
-                        "backend",
-                        "title",
-                        1234567
-                    ),
-                    "mounted/at/path",
-                    SharedFileSystemType.EPHEMERAL,
-                    false
-                ),
-                SharedFileSystemMount(
-                    SharedFileSystem(
-                        "systemId2",
-                        "owner",
-                        "backend",
-                        "title",
-                        1234567
-                    ),
-                    "mounted/at/path",
-                    SharedFileSystemType.EPHEMERAL,
-                    false
-                ))
-            )
-
-            assertEquals(newJobMounts, newJobMounts)
-            assertNotEquals(newJobMounts, newJobMounts2)
-            assertNotEquals(newJobMounts2, newJobDoubleMount)
-            assertEquals(newJobDoubleMount, newJobDoubleMount)
-        }
-
         //Test compare with different job input
         run {
             val newJobInput = verifiedJobForTestGenerator(
@@ -227,8 +140,6 @@ class JobComparatorTest {
             assertNotEquals(newJobInput2, newJobInput3)
             assertEquals(newJobInput3, newJobInput4)
             assertNotEquals(newJobInput, newJobInput5)
-
         }
     }
-
 }

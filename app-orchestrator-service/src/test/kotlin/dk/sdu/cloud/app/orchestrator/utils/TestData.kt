@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.orchestrator.utils
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.VerifiedJobWithAccessToken
-import dk.sdu.cloud.file.api.CowWorkspace
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
@@ -107,24 +106,17 @@ fun verifiedJobForTestGenerator(
     status: String = currentState.name,
     failedState: JobState? = null,
     archiveInCollection: String = normAppDesc.metadata.title,
-    workspace: String? = null,
     createdAt: Long = 12345678,
     modifiedAt: Long = 123456789,
     mounts: List<ValidatedFileForUpload>? = null,
     startedAt: Long = 123456789,
-    timeLeft: Long = 123456790,
-    user: String = owner,
-    project: String? = null,
-    folderId: String? = null,
-    sharedFileSystemMounts: List<SharedFileSystemMount>? = null,
     peers: List<ApplicationPeer>? = null,
-    reservation: MachineReservation = MachineReservation.BURST,
-    mountMode: MountMode? = null
+    reservation: MachineReservation = MachineReservation.BURST
 ):VerifiedJob {
     return VerifiedJob(
         application = application ?: normAppDesc,
         name = name,
-        files = files,
+        files = files.toSet(),
         id = id,
         owner = owner,
         nodes = nodes,
@@ -136,19 +128,12 @@ fun verifiedJobForTestGenerator(
         status = status,
         failedState = failedState,
         archiveInCollection = archiveInCollection,
-        workspace = workspace,
         createdAt = createdAt,
         modifiedAt = modifiedAt,
-        _mounts = mounts,
+        _mounts = mounts?.toSet(),
         startedAt = startedAt,
-        timeLeft = timeLeft,
-        user = user,
-        project = project,
-        folderId = folderId,
-        _sharedFileSystemMounts = sharedFileSystemMounts,
-        _peers = peers,
-        reservation = reservation,
-        mountMode = mountMode
+        _peers = peers?.toSet(),
+        reservation = reservation
 
     )
 }
@@ -183,8 +168,6 @@ val jobStateChangeCancelling = JobStateChange(
     JobState.CANCELING
 )
 
-val sharedFileSystemMountDescription = SharedFileSystemMountDescription("systemID", "path/to/mnt")
-
 val jobWithStatus = JobWithStatus(
     "jobId",
     "nameOfJob",
@@ -209,17 +192,11 @@ val storageFile = StorageFile(
     12,
     emptyList(),
     SensitivityLevel.PRIVATE,
-    emptySet(),
-    "fileID",
-    "creator",
     SensitivityLevel.PRIVATE
 )
 
 val validatedFileForUpload = ValidatedFileForUpload(
     "fileId",
     storageFile,
-    "destinationFileName",
-    "destination/path",
-    "source/path",
-    null
+    "source/path"
 )

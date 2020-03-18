@@ -3,11 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
-import dk.sdu.cloud.app.orchestrator.api.JobSortBy
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.SortOrder
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc2
 import dk.sdu.cloud.app.orchestrator.utils.normTool
@@ -101,8 +97,11 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
+                    MachineReservation.BURST,
                     VerifiedJobInput(emptyMap()),
-                    emptyList(),
+                    emptySet(),
+                    emptySet(),
+                    emptySet(),
                     JobState.VALIDATED,
                     null,
                     "Unknown",
@@ -175,8 +174,11 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
+                    MachineReservation.BURST,
                     VerifiedJobInput(emptyMap()),
-                    emptyList(),
+                    emptySet(),
+                    emptySet(),
+                    emptySet(),
                     JobState.VALIDATED,
                     null,
                     "Unknown",
@@ -199,8 +201,11 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
+                    MachineReservation.BURST,
                     VerifiedJobInput(emptyMap()),
-                    emptyList(),
+                    emptySet(),
+                    emptySet(),
+                    emptySet(),
                     JobState.VALIDATED,
                     null,
                     "Unknown",
@@ -263,8 +268,11 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
+                    MachineReservation.BURST,
                     VerifiedJobInput(emptyMap()),
-                    emptyList(),
+                    emptySet(),
+                    emptySet(),
+                    emptySet(),
                     JobState.VALIDATED,
                     null,
                     "Unknown",
@@ -287,8 +295,11 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
+                    MachineReservation.BURST,
                     VerifiedJobInput(emptyMap()),
-                    emptyList(),
+                    emptySet(),
+                    emptySet(),
+                    emptySet(),
                     JobState.VALIDATED,
                     null,
                     "Unknown",
@@ -425,21 +436,6 @@ class JobHibernateDaoTest {
         }
     }
 
-    @Test(expected = JobException::class)
-    fun `Update Workspace - not found test`() = runBlocking {
-        db.withTransaction {
-            jobHibDao.updateWorkspace(it, "systemId", "workspace", null)
-        }
-    }
-
-    @Test
-    fun `Update Workspace`() = runBlocking {
-        db.withTransaction {
-            addJob(it)
-            jobHibDao.updateWorkspace(it, systemId, "workspace", null)
-        }
-    }
-
     @Test
     fun `test different sort by and order`() = runBlocking {
         val extraID = UUID.randomUUID().toString()
@@ -451,20 +447,22 @@ class JobHibernateDaoTest {
                 session,
                 VerifiedJobWithAccessToken(
                     VerifiedJob(
-                        normAppDesc2,
-                        "NewName",
-                        emptyList(),
                         extraID,
+                        "NewName",
                         user.username,
-                        1,
+                        normAppDesc2,
+                        "abacus",
                         1,
                         SimpleDuration(0, 1, 0),
+                        1,
+                        MachineReservation.BURST,
                         VerifiedJobInput(emptyMap()),
-                        "abacus",
+                        emptySet(),
+                        emptySet(),
+                        emptySet(),
                         JobState.RUNNING,
-                        "Unknown",
                         null,
-                        project = "project1",
+                        "Unknown",
                         archiveInCollection = normAppDesc.metadata.title
                     ),
                     "token1",
@@ -559,8 +557,11 @@ class JobHibernateDaoTest {
                 1,
                 SimpleDuration(0, 1, 0),
                 1,
+                MachineReservation.BURST,
                 VerifiedJobInput(emptyMap()),
-                emptyList(),
+                emptySet(),
+                emptySet(),
+                emptySet(),
                 JobState.VALIDATED,
                 null,
                 "Unknown",

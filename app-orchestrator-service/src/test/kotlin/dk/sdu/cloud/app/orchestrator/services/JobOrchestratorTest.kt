@@ -10,15 +10,7 @@ import dk.sdu.cloud.app.orchestrator.utils.startJobRequest
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.FindHomeFolderResponse
-import dk.sdu.cloud.file.api.LongRunningResponse
-import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.indexing.api.LookupDescriptions
-import dk.sdu.cloud.indexing.api.ReverseLookupResponse
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.BackgroundScopeFeature
 import dk.sdu.cloud.micro.DeinitFeature
 import dk.sdu.cloud.micro.HibernateFeature
@@ -72,8 +64,6 @@ class JobOrchestratorTest {
                 7891234,
                 emptyList(),
                 SensitivityLevel.PRIVATE,
-                emptySet(), "123",
-                "user",
                 SensitivityLevel.PRIVATE
             )
         )
@@ -81,11 +71,6 @@ class JobOrchestratorTest {
         ClientMock.mockCallSuccess(
             MultiPartUploadDescriptions.simpleUpload,
             Unit
-        )
-
-        ClientMock.mockCallSuccess(
-            LookupDescriptions.reverseLookup,
-            ReverseLookupResponse(listOf("/home/Jobs/title/testfolder"))
         )
 
         ClientMock.mockCallSuccess(
@@ -113,7 +98,7 @@ class JobOrchestratorTest {
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
-            JobVerificationService(appDao, toolDao, backendName, SharedMountVerificationService(), db, jobDao, client),
+            JobVerificationService(appDao, toolDao, backendName, db, jobDao, client),
             compBackend,
             jobFileService,
             jobDao,
@@ -232,6 +217,7 @@ class JobOrchestratorTest {
 
     @Test
     fun `orchestrator handle job complete fail and success test`() {
+        ClientMock.mockCallSuccess(MetadataDescriptions.verify, VerifyResponse)
         val orchestrator = setup()
 
         //Success
@@ -325,8 +311,7 @@ class JobOrchestratorTest {
                 TestUsers.user,
                 "path/to/file",
                 1234,
-                ByteReadChannel.Empty,
-                true
+                ByteReadChannel.Empty
             )
         }
     }
@@ -387,7 +372,7 @@ class JobOrchestratorTest {
 
     @Test
     fun `Handle cancel of successful job test`() {
-
+        ClientMock.mockCallSuccess(MetadataDescriptions.verify, VerifyResponse)
 
         val orchestrator = setup()
         val returnedID =
