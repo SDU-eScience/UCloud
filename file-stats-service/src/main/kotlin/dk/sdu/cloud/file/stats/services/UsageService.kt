@@ -14,7 +14,9 @@ import kotlin.math.roundToLong
 class UsageService(private val serviceCloud: AuthenticatedClient) {
     suspend fun calculateUsage(directory: String, owner: String): Long {
         val normalizedDirectory = directory.normalize()
-        if (!normalizedDirectory.startsWith("/home/$owner/")) throw RPCException("Not found", HttpStatusCode.NotFound)
+        if (normalizedDirectory != "/home/$owner" && !normalizedDirectory.startsWith("/home/$owner/")) {
+            throw RPCException("Not found", HttpStatusCode.NotFound)
+        }
 
         return QueryDescriptions.size.call(SizeRequest(setOf(normalizedDirectory)), serviceCloud).orThrow().size
     }
