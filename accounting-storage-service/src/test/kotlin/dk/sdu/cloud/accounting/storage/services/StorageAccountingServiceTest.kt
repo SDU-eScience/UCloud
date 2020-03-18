@@ -13,6 +13,7 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.QueryDescriptions
+import dk.sdu.cloud.indexing.api.SizeResponse
 import dk.sdu.cloud.indexing.api.StatisticsResponse
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -54,12 +55,8 @@ class StorageAccountingServiceTest {
         val storageAccountService = setupService()
 
         ClientMock.mockCallSuccess(
-            QueryDescriptions.statistics,
-            StatisticsResponse(
-                22,
-                NumericStatistics(null, null, null, 150.4, emptyList()),
-                NumericStatistics(null, null, null, null, emptyList())
-            )
+            QueryDescriptions.size,
+            SizeResponse(150L)
         )
 
         runBlocking {
@@ -76,12 +73,10 @@ class StorageAccountingServiceTest {
     @Test(expected = RPCException::class)
     fun `test calculation - NaN`() {
         val storageAccountService = setupService()
-        val statisticResponse = mockk<StatisticsResponse>()
-        every { statisticResponse.size?.sum } returns null
-
-        ClientMock.mockCallSuccess(
-            QueryDescriptions.statistics,
-            statisticResponse
+        ClientMock.mockCallError(
+            QueryDescriptions.size,
+            null,
+            HttpStatusCode.InternalServerError
         )
 
         runBlocking {
@@ -119,12 +114,8 @@ class StorageAccountingServiceTest {
         )
 
         ClientMock.mockCallSuccess(
-            QueryDescriptions.statistics,
-            StatisticsResponse(
-                22,
-                NumericStatistics(null, null, null, 150.4, emptyList()),
-                NumericStatistics(null, null, null, null, emptyList())
-            )
+            QueryDescriptions.size,
+            SizeResponse(150L)
         )
 
         ClientMock.mockCallSuccess(
