@@ -2,6 +2,7 @@ package dk.sdu.cloud.activity.services
 
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
+import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 
@@ -9,49 +10,18 @@ data class ActivityEventFilter(
     val minTimestamp: Long? = null,
     val maxTimestamp: Long? = null,
     val type: ActivityEventType? = null,
-    val fileId: String? = null,
     val user: String? = null,
     val offset: Int? = null
 )
 
-interface ActivityEventDao<Session> {
-    fun findByFileId(
-        session: Session,
+interface ActivityEventDao {
+    fun findByFilePath(
         pagination: NormalizedPaginationRequest,
-        fileId: String
-    ): Page<ActivityEvent>
-
-    fun findByUser(
-        session: Session,
-        pagination: NormalizedPaginationRequest,
-        user: String
-    ): Page<ActivityEvent>
+        filePath: String
+    ): Page<ActivityForFrontend>
 
     fun findEvents(
-        session: Session,
-        items: Int,
+        size: Int,
         filter: ActivityEventFilter = ActivityEventFilter()
     ): List<ActivityEvent>
-
-    fun countEvents(
-        session: Session,
-        filter: ActivityEventFilter
-    ): Long
-
-    fun insertBatch(
-        session: Session,
-        events: List<ActivityEvent>
-    ) {
-        events.forEach { insert(session, it) }
-    }
-
-    fun insert(
-        session: Session,
-        event: ActivityEvent
-    )
-
-    fun deleteOldActivity(
-        session: Session,
-        numberOfDaysInPast: Long
-    )
 }

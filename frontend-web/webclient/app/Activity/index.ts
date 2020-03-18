@@ -1,28 +1,33 @@
 import {ActivityReduxObject} from "DefaultObjects";
 import {ScrollRequest} from "Scroll";
+import {AccessRight} from "Utilities/FileUtilities";
 
 export enum ActivityType {
     DOWNLOAD = "download",
-    UPDATED = "updated",
     DELETED = "deleted",
     FAVORITE = "favorite",
-    INSPECTED = "inspected",
-    MOVED = "moved"
-}
-
-export interface ActivityGroup {
-    type: ActivityType;
-    newestTimestamp: number;
-    numberOfHiddenResults: number | null;
-    items: Activity[];
+    MOVED = "moved",
+    COPIED = "copy",
+    USEDINAPP = "usedInApp",
+    DIRECTORYCREATED = "directoryCreated",
+    RECLASSIFIED = "reclassify",
+    UPLOADED = "upload",
+    UPDATEDACL = "updatedACL",
+    SHAREDWITH = "sharedWith",
+    ALLUSEDINAPP = "allUsedInApp"
 }
 
 export interface Activity {
     type: ActivityType;
     timestamp: number;
-    fileId: string;
+    filePath: string;
     username: string;
-    originalFilePath: string;
+}
+
+export interface ActivityForFrontend {
+    type: ActivityType;
+    timestamp: number;
+    activityEvent: Activity;
 }
 
 export interface ActivityFilter {
@@ -33,13 +38,43 @@ export interface ActivityFilter {
 }
 
 export interface FavoriteActivity extends Activity {
-    favorite: boolean;
+    isFavorite: boolean;
 }
 
 export interface MovedActivity extends Activity {
     newName: string;
 }
 
+export interface ReclassifyActivity extends Activity {
+    newSensitivity: string;
+}
+
+export interface CopyActivity extends Activity {
+    copyFilePath: string;
+}
+
+export interface UpdatedACLActivity extends Activity {
+    rightsAndUser: {rights: Set<AccessRight>, user: string}[];
+}
+
+export interface MovedActivity extends Activity {
+    newName: string;
+}
+
+export interface SingleFileUsedActivity extends Activity {
+    applicationName: string;
+    applicationVersion: string;
+}
+
+export interface AllFilesUsedActivity extends Activity {
+    applicationName: string;
+    applicationVersion: string;
+}
+
+export interface SharedWithActivity extends Activity {
+    sharedWith: string;
+    status: Set<AccessRight>;
+}
 
 export interface ActivityDispatchProps {
     onMount: () => void;

@@ -1,4 +1,4 @@
-import {ActivityFilter, ActivityGroup} from "Activity";
+import {Activity, ActivityFilter, ActivityForFrontend} from "Activity";
 import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {ScrollRequest, ScrollResult} from "Scroll/Types";
@@ -39,8 +39,8 @@ export const setLoading = (loading: boolean): SetActivityLoading => ({
 });
 
 export const RECEIVE_ACTIVITY = "RECEIVE_ACTIVITY";
-type ReceiveActivityAction = PayloadAction<typeof RECEIVE_ACTIVITY, {page: ScrollResult<ActivityGroup, number>}>;
-const receiveActivity = (page: ScrollResult<ActivityGroup, number>): ReceiveActivityAction => ({
+type ReceiveActivityAction = PayloadAction<typeof RECEIVE_ACTIVITY, {page: ScrollResult<ActivityForFrontend, number>}>;
+const receiveActivity = (page: ScrollResult<ActivityForFrontend, number>): ReceiveActivityAction => ({
     type: RECEIVE_ACTIVITY,
     payload: {page}
 });

@@ -3,14 +3,15 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "activity"
-    version = "1.4.13"
+    version = "1.4.14-ElasticDAO11"
 
     withAmbassador {}
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1
+
+        injectSecret("elasticsearch-credentials")
     }
 
     withPostgresMigration(deployment)
-    withCronJob(deployment, "* 1 * * 1", listOf("--deleteOldActivity")) {}
 }

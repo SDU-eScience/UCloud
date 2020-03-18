@@ -1,104 +1,55 @@
 package dk.sdu.cloud.activity.service
 
-import dk.sdu.cloud.activity.services.HibernateActivityEventDao
-import dk.sdu.cloud.activity.util.deletedEvent
-import dk.sdu.cloud.activity.util.downloadEvent
+import dk.sdu.cloud.activity.services.ActivityEventElasticDao
+import dk.sdu.cloud.activity.services.ActivityEventFilter
+import dk.sdu.cloud.activity.services.ActivityService
+import dk.sdu.cloud.activity.services.FileLookupService
 import dk.sdu.cloud.activity.util.favoriteEvent
-import dk.sdu.cloud.activity.util.inspectedEvent
-import dk.sdu.cloud.activity.util.movedEvent
-import dk.sdu.cloud.activity.util.updatedEvent
-import dk.sdu.cloud.micro.HibernateFeature
+import dk.sdu.cloud.micro.ElasticFeature
 import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.hibernateDatabase
+import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
-import dk.sdu.cloud.service.test.withDatabase
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
+import org.apache.lucene.search.TotalHits
+import org.elasticsearch.action.search.SearchResponse
+import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.search.SearchHit
+import org.elasticsearch.search.SearchHits
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 
 class ActivityEventDaoTest {
-    lateinit var micro: Micro
+    @Test
+    fun `Find By Path test`() {
+        val elasticClient = mockk<RestHighLevelClient>()
+        val elasticDao = ActivityEventElasticDao(elasticClient)
+        val path = "path/to/file"
 
-    @BeforeTest
-    fun setupTest() {
-        micro = initializeMicro()
-        micro.install(HibernateFeature)
+        every { elasticClient.search(any(), any()) } answers {
+            val response = mockk<SearchResponse>(relaxed = true)
+            response
+        }
+        elasticDao.findByFilePath(NormalizedPaginationRequest(10, 0), path)
+
+
     }
 
     @Test
-    fun `insert Test and find by user`() {
-        val db = micro.hibernateDatabase
+    fun `Find events`() {
+        val elasticClient = mockk<RestHighLevelClient>()
+        val elasticDao = ActivityEventElasticDao(elasticClient)
 
-        runBlocking {
-            val dao = HibernateActivityEventDao()
-            val results = db.withTransaction {
-                dao.insert(it, downloadEvent)
-                dao.insert(it, updatedEvent)
-                dao.findByUser(
-                    it,
-                    NormalizedPaginationRequest(10, 0),
-                    TestUsers.user.username
-                )
-            }
-
-            assertEquals(2, results.itemsInTotal)
-            assertEquals(downloadEvent, results.items.first())
-            assertEquals(updatedEvent, results.items.last())
+        every { elasticClient.search(any(), any()) } answers {
+            val response = mockk<SearchResponse>(relaxed = true)
+            response
         }
-    }
 
-    @Test
-    fun `insert batch and find by user Test`() {
-        val db = micro.hibernateDatabase
-        runBlocking {
-            val dao = HibernateActivityEventDao()
-            val results = db.withTransaction {
-                dao.insertBatch(it, listOf(favoriteEvent, inspectedEvent))
-                dao.findByUser(
-                    it,
-                    NormalizedPaginationRequest(10, 0),
-                    TestUsers.user.username
-                )
-            }
-
-            assertEquals(2, results.itemsInTotal)
-            assertEquals(inspectedEvent, results.items.first())
-            assertEquals(favoriteEvent, results.items.last())
-        }
-    }
-
-    @Test
-    fun `insert and find by fileID Test`() {
-        val db = micro.hibernateDatabase
-        runBlocking {
-            val dao = HibernateActivityEventDao()
-            var results = db.withTransaction {
-                dao.insertBatch(it, listOf(movedEvent, deletedEvent))
-                dao.findByFileId(
-                    it,
-                    NormalizedPaginationRequest(10, 0),
-                    "5"
-                )
-            }
-
-            assertEquals(1, results.itemsInTotal)
-            assertEquals(movedEvent, results.items.first())
-
-            results = db.withTransaction {
-                dao.findByFileId(
-                    it,
-                    NormalizedPaginationRequest(10, 0),
-                    "6"
-                )
-            }
-
-            assertEquals(1, results.itemsInTotal)
-            assertEquals(deletedEvent, results.items.first())
-        }
+        elasticDao.findEvents(250, ActivityEventFilter(user = "user"))
     }
 }

@@ -24,9 +24,14 @@ const dropdownOptions: Array<{text: string; value: string}> = [
     {value: Module.ActivityType.DELETED, text: "Deletions"},
     {value: Module.ActivityType.DOWNLOAD, text: "Downloads"},
     {value: Module.ActivityType.FAVORITE, text: "Favorites"},
-    {value: Module.ActivityType.INSPECTED, text: "Inspections"},
     {value: Module.ActivityType.MOVED, text: "Moves"},
-    {value: Module.ActivityType.UPDATED, text: "Updates"},
+    {value: Module.ActivityType.COPIED, text: "Copies"},
+    {value: Module.ActivityType.ALLUSEDINAPP, text: "Files Used By App"},
+    {value: Module.ActivityType.DIRECTORYCREATED, text: "Directory Creation"},
+    {value: Module.ActivityType.RECLASSIFIED, text: "Reclassifications"},
+    {value: Module.ActivityType.UPLOADED, text: "Uploads"},
+    {value: Module.ActivityType.UPDATEDACL, text: "ACL Updates"},
+    {value: Module.ActivityType.SHAREDWITH, text: "Shares"}
 ];
 
 function Activity(props: ActivityProps) {
