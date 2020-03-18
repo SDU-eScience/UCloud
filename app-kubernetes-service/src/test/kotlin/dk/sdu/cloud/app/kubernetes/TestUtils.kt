@@ -1,10 +1,6 @@
 package dk.sdu.cloud.app.kubernetes
 
-import dk.sdu.cloud.app.fs.api.SharedFileSystem
-import dk.sdu.cloud.app.orchestrator.api.InternalFollowStdStreamsRequest
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
 import dk.sdu.cloud.app.store.api.ApplicationMetadata
@@ -70,27 +66,28 @@ val verifiedJobInput = VerifiedJobInput(
 )
 
 val verifiedJob = VerifiedJob(
-    application,
-    null,
-    emptyList(),
-    "verifiedId",
-    "owner",
-    1,
-    1,
-    SimpleDuration(0, 1, 0),
-    VerifiedJobInput(emptyMap()),
-    "backend",
-    JobState.SCHEDULED,
-    "scheduled",
-    failedState = null,
+    id = "verifiedId",
+    name = null,
+    owner = "owner",
+    application = application,
+    backend = "backend",
+    nodes = 1,
+    maxTime = SimpleDuration(0, 1, 0),
+    tasksPerNode = 1,
+    reservation = MachineReservation.BURST,
+    jobInput = VerifiedJobInput(emptyMap()),
+    files = emptySet(),
+    _mounts = emptySet(),
+    _peers = emptySet(),
+    currentState = JobState.SCHEDULED,
+    status = "status",
     archiveInCollection = application.metadata.title,
+    failedState = null,
     createdAt = 12345678,
     modifiedAt = 123456789
 )
 
 val jobVerifiedRequest = verifiedJob
-
-val wrongSharedFileSystem = SharedFileSystem("1", "owner", "blabla", "title", 12345)
 
 val internalFollowStdStreamsRequest = InternalFollowStdStreamsRequest(
     verifiedJob,
