@@ -25,6 +25,7 @@ import org.elasticsearch.client.Response
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.client.indices.CreateIndexResponse
+import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
 import org.junit.Ignore
@@ -116,6 +117,9 @@ class ContactBookElasticDAOTest{
             }
             response
         }
+        every { client.indices().exists(any<GetIndexRequest>(), any()) } answers {
+            true
+        }
         elasticDao.insertContact("fromUser", "toUser", "shareService")
     }
 
@@ -139,6 +143,10 @@ class ContactBookElasticDAOTest{
         every { client.index(any(), any()) } answers {
             val response = mockk<IndexResponse>()
             response
+        }
+
+        every { client.indices().exists(any<GetIndexRequest>(), any()) } answers {
+            true
         }
 
         elasticDao.insertContact("fromUser", "toUser", "shareService")
@@ -166,6 +174,9 @@ class ContactBookElasticDAOTest{
             response
         }
 
+        every { client.indices().exists(any<GetIndexRequest>(), any()) } answers {
+            true
+        }
         elasticDao.insertContact("fromUser", "toUser", "shareService")
     }
 
@@ -217,6 +228,14 @@ class ContactBookElasticDAOTest{
             val response = mockk<FlushResponse>()
             response
         }
+        every { client.exists(any(), any()) } answers {
+            false
+        }
+
+        every { client.indices().exists(any<GetIndexRequest>(), any()) } answers {
+            false
+        }
+
         elasticDAO.createIndex()
     }
 
