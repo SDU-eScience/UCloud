@@ -19,7 +19,7 @@ dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
-    compile 'dk.sdu.cloud:file-api:4.0.0-storage-events.1'
+    compile 'dk.sdu.cloud:file-api:4.0.0-storage-events.31'
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 
