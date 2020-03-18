@@ -259,6 +259,11 @@ object NativeFS : Loggable {
                 }
 
                 val dir = fdopendir(fd)
+                if (dir == null) {
+                    close(fd)
+                    throw FSException.IsDirectoryConflict()
+                }
+
                 val result = ArrayList<String>()
                 while (true) {
                     val ent = readdir(dir) ?: break

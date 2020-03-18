@@ -472,19 +472,20 @@ class LinuxFS(
         queue.add(systemFile)
 
         val result = ArrayList<StorageFile>()
+        if (systemFile.isDirectory) {
+            while (queue.isNotEmpty()) {
+                val next = queue.pop()
+                NativeFS.listFiles(next)
+                    .map { File(next, it) }
+                    .forEach {
+                        if (Files.isSymbolicLink(it.toPath())) {
+                            return@forEach
+                        }
 
-        while (queue.isNotEmpty()) {
-            val next = queue.pop()
-            NativeFS.listFiles(next)
-                .map { File(next, it) }
-                .forEach {
-                    if (Files.isSymbolicLink(it.toPath())) {
-                        return@forEach
+                        if (it.isDirectory) queue.add(it)
+                        result.add(stat(ctx, it, mode, hasPerformedPermissionCheck = true))
                     }
-
-                    if (it.isDirectory) queue.add(it)
-                    result.add(stat(ctx, it, mode, hasPerformedPermissionCheck = true))
-                }
+            }
         }
 
         result

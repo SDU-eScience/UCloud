@@ -60,7 +60,7 @@ class CronJobResource(
 
     override fun DeploymentContext.isUpToDate(): Boolean {
         val existingJob =
-            client.batch().jobs().inNamespace(resourceNamespace(job)).withName(this@CronJobResource.name).get() ?: return false
+            client.batch().cronjobs().inNamespace(resourceNamespace(job)).withName(this@CronJobResource.name).get() ?: return false
         val k8Version = existingJob.metadata.annotations[UCLOUD_VERSION_ANNOTATION]
         return k8Version == version
     }
