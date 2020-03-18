@@ -14,8 +14,5 @@ internal val storageFile = StorageFileImpl(
     1234,
     emptyList(),
     SensitivityLevel.PRIVATE,
-    emptySet(),
-    "fileId",
-    TestUsers.user.username,
     SensitivityLevel.PRIVATE
 )

@@ -58,7 +58,6 @@ import {
     isDirectory,
     isFilePreviewSupported,
     isInvalidPathName,
-    mergeFilePages,
     MOCK_RELATIVE,
     MOCK_RENAME_TAG,
     mockFile,
@@ -133,26 +132,19 @@ export const listDirectory = ({
     reloadId: Math.random()
 });
 
-const twoPhaseLoadFiles = async (
+const loadFiles = async (
     attributes: FileResource[],
     callback: (page: Page<File>) => void,
     request: ListDirectoryRequest,
     promises: PromiseKeeper
 ): Promise<void> => {
-    const promise = callAPI<Page<File>>(listDirectory({
-        ...request,
-        attrs: [FileResource.PATH, FileResource.FILE_TYPE]
-    })).then(result => {
-        if (!promises.canceledKeeper) callback(result);
-        return result;
-    });
     try {
-        const [phaseOne, phaseTwo] = await Promise.all([
-            promise,
-            callAPI<Page<File>>(listDirectory({...request, attrs: attributes}))
-        ]);
+        const response = await callAPI<Page<File>>(listDirectory({
+            ...request,
+            attrs: [FileResource.PATH, FileResource.FILE_TYPE].concat(attributes)
+        }));
         if (promises.canceledKeeper) return;
-        callback(mergeFilePages(phaseOne, phaseTwo, attributes));
+        callback(response);
     } catch (e) {
         if (promises.canceledKeeper) return;
         callback(emptyPage); // Set empty page to avoid rendering of this folder
@@ -196,7 +188,7 @@ function useApiForComponent(
     const loadManaged = (request: ListDirectoryRequest): void => {
         setPageParameters(request);
         submitPageLoaderJob(async () => {
-            await twoPhaseLoadFiles(
+            await loadFiles(
                 [
                     FileResource.ACL, FileResource.OWNER_NAME, FileResource.FAVORITED,
                     FileResource.SENSITIVITY_LEVEL
@@ -226,9 +218,8 @@ function useApiForComponent(
             reload: (): void => {
                 if (props.onReloadRequested) props.onReloadRequested();
             },
-            onPageChanged: (pageNumber: number, itemsPerPage: number): void => {
-                if (props.onPageChanged) props.onPageChanged(pageNumber, itemsPerPage);
-            }
+            onPageChanged: (pageNumber: number, itemsPerPage: number): void =>
+                props.onPageChanged?.(pageNumber, itemsPerPage)
         };
     } else {
         // TODO Some of these callbacks should use "useCallback"?

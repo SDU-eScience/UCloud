@@ -12,7 +12,7 @@ buildscript {
     ext.authApiVersion = "1.27.0"
     ext.appStoreApiVersion = "0.13.0-storage-events.0"
     ext.appLicenseApiVersion = "0.1.5"
-    ext.fileApiVersion = "4.0.0-storage-events.3"
+    ext.fileApiVersion = "4.0.0-storage-events.31"
 }
 
 repositories {

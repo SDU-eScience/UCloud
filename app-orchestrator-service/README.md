@@ -31,12 +31,11 @@ all are the input values required by the application.
 | `maxTime`                | Maximum time allocated for this job. The job should be terminated shortly after this deadline.           |
 | `backend`                | The requested backend for this job.                                                                      |
 | `mounts`                 | A list of UCloud mounts. See below.                                                                    |
-| `sharedFileSystemMounts` | A list of shared file systems to mount. See below.                                                       |
 | `peers`                  | A list of networking peers. See below                                                                    |
 
 ## Container Environment
 
-TODO: Write this section
+See [app-kubernetes](../app-kubernetes-service) for more information.
 
 ## Multi-Node Applications
 
@@ -63,30 +62,7 @@ contents:
 
 A user can chose to mount files directly from UCloud. A mount is a simple
 tuple containing the UCloud path and container path. The files from the
-UCloud directory will be visible inside of the container. A user can request
-that the directory be mounted as read only.
-
-Changes to the mounted directory is not visible from UCloud immediately.
-This is because the job is working on a 'view' of the file system rather than
-the actual file system. The backend implementation is required to
-semantically work like a copy-on-write filesystem (but can be implemented
-differently). As a result the changes are pushed to UCloud at the end of
-the job. This is required to account due to the container environment. The
-container environment allows the container to run as any UID, this includes
-root. The files are sanitized before being moved into the UCloud system.
-The sanitization step normalizes ACLs, file owners, and file permissions.
-This also triggers any relevant [storage events](../storage-service).
-
-## Shared File Systems
-
-Some applications require changes to be visible immediately on other node.
-This is, for example, common with multi node applications. Because of this we
-support provisioning of file systems on demand. These file systems can be
-mounted by one or more jobs. The files stored in these file systems are not
-managed by UCloud. Files in shared file systems can be imported and exported 
-through applications.
-
-<!-- You can read more about this feature [here](../app-fs-service). -->
+UCloud directory will be visible inside of the container.
 
 ## Networking and Peering with Other Applications
 

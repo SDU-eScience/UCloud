@@ -24,7 +24,6 @@ import kotlin.test.Test
 class APITest {
     val items = listOf(
         StorageFile(
-            fileId = "fileA",
             fileType = FileType.FILE,
             path = "/home/user/f",
             ownerName = "user"

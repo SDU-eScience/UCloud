@@ -1,8 +1,6 @@
 package dk.sdu.cloud.indexing.utils
 
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.indexing.api.AllOf
 import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.Comparison
@@ -16,8 +14,6 @@ val fileQuery = FileQuery(
     listOf("/home/jonas@hinchely.dk"),
     null,
     AllOf(listOf(AnyOf(listOf("jonas@hinchely.dk"), negate = false))),
-    listOf("d"),
-    null,
     null,
     AllOf(listOf(AnyOf(listOf(FileType.FILE, FileType.DIRECTORY), negate = false))),
     null,
@@ -36,17 +32,12 @@ val queryRequest = QueryRequest(fileQuery, itemsPerPage = 25, page = 0)
 val minimumStatisticRequest = StatisticsRequest(fileQuery)
 
 val elasticFile = ElasticIndexedFile(
-    "id of doc",
     "/path/to/d",
-    "d",
-    "owner of file",
     2,
     FileType.FILE,
-    22,
-    Timestamps(12345678, 1234567, 12345678),
-    SensitivityLevel.CONFIDENTIAL
+    "12345678"
 )
 
-val eventMatStorFile = elasticFile.toMaterializedFile()
+val eventMatStorFile = elasticFile
 
 

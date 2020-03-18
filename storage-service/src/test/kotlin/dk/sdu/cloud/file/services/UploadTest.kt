@@ -30,9 +30,9 @@ class UploadTest : WithBackgroundScope() {
         coreFs = CoreFileSystemService(
             fs,
             mockk(relaxed = true),
-            mockk(relaxed = true),
             ClientMock.authenticatedClient,
-            backgroundScope
+            backgroundScope,
+            mockedMetadataService
         )
     }
 
@@ -45,7 +45,7 @@ class UploadTest : WithBackgroundScope() {
         }
     }
 
-    @Test(expected = FSException.BadRequest::class)
+    @Test(expected = FSException.IsDirectoryConflict::class)
     fun `test uploading file to file`() {
         runner.withBlockingContext(TestUsers.user.username) { ctx ->
             coreFs.write(ctx, "/home/user/folder", WriteConflictPolicy.OVERWRITE) {

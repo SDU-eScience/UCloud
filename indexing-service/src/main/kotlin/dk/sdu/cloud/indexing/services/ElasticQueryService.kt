@@ -24,6 +24,7 @@ import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.range
 import mbuhot.eskotlin.query.term.terms
 import org.elasticsearch.action.get.GetRequest
+import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.index.query.QueryBuilder
@@ -43,13 +44,6 @@ class ElasticQueryService(
     private val fastDirectoryStats: FastDirectoryStats?
 ) {
     private val mapper = defaultMapper
-
-    fun findFileByIdOrNull(id: String): StorageFile? {
-        return elasticClient[GetRequest(FILES_INDEX, id), RequestOptions.DEFAULT]
-            ?.takeIf { it.isExists }
-            ?.let { mapper.readValue<ElasticIndexedFile>(it.sourceAsString) }
-            ?.toMaterializedFile()
-    }
 
     fun query(
         query: FileQuery,
@@ -217,6 +211,8 @@ class ElasticQueryService(
             })
             println(source().toString())
         }
+
+        println(result)
 
         val size = statisticsRequest.size?.let {
             retrieveNumericAggregate(result.aggregations, it, ElasticIndexedFile.SIZE_FIELD)

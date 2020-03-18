@@ -38,9 +38,6 @@ never restart and it will never attempt to run two copies at the same time.
 Environment variables are set as specified by the
 [app-service](../app-orchestrator-service).
 
-Volumes are setup to make [transferring of files](#transferring-files)
-possible.
-
 ## Transferring Files
 
 The microservice will mount the same persistent volume (PV) as the
@@ -48,13 +45,9 @@ The microservice will mount the same persistent volume (PV) as the
 the internal settings of the mount to a separate PV which can be used in the
 namespace dedicated for running applications.
 
-The [workspace](../storage-service/wiki/workspaces.md) feature is used for
-storing input files for applications in the same FS as UCloud. Special care
-is taken to make sure the volume is mounted correctly. For example, all
-read-only mounts (as defined by workspaces) are mounted as read-only in the
-jobs. Additionally, we only mount the workspace not the entire volume. It is
-_very_ important that we do this since users would otherwise have full access
-to the entire file system.
+The storage is mounted directly into the applications. A sub-mount is used 
+with the appropriate permissions. The ACLs are verified through the 
+[storage-service](../storage-service).
 
 ## Security Model
 
@@ -71,15 +64,14 @@ We grant no special privileges to the container. This ensures that user jobs
 cannot change settings which would affect the physical host.
 
 We don't put any special restrictions on the UID a user's container can run
-as. We do support the UID changing behavior as specified in
-[app-service](../app-store-service/wiki/apps.md). As a result we can force a
-container to run as root or run as the real UCloud UID.
-
-This means that we must assume that all jobs can run as root within the
-container. This is okay since containers are meant to be a secure sandbox.
-This does mean that we have to be careful when transferring files back. This
-sanitization step is further discussed in the [workspaces
-feature](../storage-service/wiki/workspaces.md).
+as. We encourage that all applications run as UID/GID 11042 (same as 
+[storage-service](../storage-service)). `sudo` should be used if `root` 
+access is needed. This means that we must assume that all jobs can run 
+as root within the container. This is okay since containers are meant to 
+be a secure sandbox. Root containers should be scheduled on a more secure 
+container run-time, for example: Kata containers. This micro-service 
+achieves this through a Kubernetes annotations. It is up to the sysadmin 
+to configure the system correctly to _use_ this annotations.
 
 A
 [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/)

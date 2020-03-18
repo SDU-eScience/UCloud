@@ -11,7 +11,6 @@ export const shares: Page<SharesByPath> = {
             sharedBy: "j@h.com",
             sharedByMe: true,
             shares: [{
-                id: "3",
                 sharedWith: "user3@test.dk",
                 rights: [AccessRight.WRITE],
                 state: ShareState.ACCEPTED

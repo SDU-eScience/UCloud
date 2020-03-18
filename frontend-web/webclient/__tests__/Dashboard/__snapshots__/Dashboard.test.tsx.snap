@@ -428,61 +428,6 @@ exports[`Dashboard Dashboard mount 1`] = `
             cursor="inherit"
             fontSize={3}
           >
-            Recently Used Files
-          </h4>
-        </div>
-        <div
-          className="c7"
-        >
-          <div
-            className="c8"
-          />
-          <div
-            className="c9"
-          >
-            <div
-              className="c10"
-              cursor="inherit"
-              fontSize="16px"
-            >
-              No recently used files
-            </div>
-            <a
-              className="c11"
-              color="text"
-              hoverColor="textHighlight"
-              href="/files?path=%2Fhome%2Ftest%40test.dk"
-              onClick={[Function]}
-            >
-              <button
-                className="c12"
-                color="blue"
-              >
-                Explore files
-              </button>
-            </a>
-          </div>
-          <div
-            className="c13"
-            fontSize="large"
-          />
-        </div>
-      </div>
-      <div
-        className="c4"
-        height="auto"
-        overflow="hidden"
-        width={1}
-      >
-        <div
-          className="c5"
-          color="darkGray"
-        >
-          <h4
-            className="c6"
-            cursor="inherit"
-            fontSize={3}
-          >
             Recent Jobs
           </h4>
         </div>

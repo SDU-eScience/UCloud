@@ -82,7 +82,7 @@ sealed class FSException(why: String, httpStatusCode: HttpStatusCode) : RPCExcep
         FSException("Internal server error (IO)", HttpStatusCode.InternalServerError)
 
     class IsDirectoryConflict(override val cause: Throwable? = null) :
-        FSException("File cannot overwrite directory.", HttpStatusCode.Conflict)
+        FSException("Invalid file type", HttpStatusCode.Conflict)
 }
 
 sealed class CallResult<S, E>(val status: HttpStatusCode) {

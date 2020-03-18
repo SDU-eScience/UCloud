@@ -6,10 +6,9 @@ import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.file.api.LINUX_FS_USER_UID
-import dk.sdu.cloud.file.services.CommandRunner
 import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.linuxfs.Chown
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
+import dk.sdu.cloud.file.services.linuxfs.NativeFS
 import dk.sdu.cloud.service.Loggable
 import java.io.File
 import java.nio.file.Files
@@ -55,7 +54,7 @@ class UserProcessor(
             } catch (ignored: java.nio.file.FileAlreadyExistsException) {
                 // Ignored
             }
-            Chown.setOwner(path, LINUX_FS_USER_UID, LINUX_FS_USER_UID)
+            NativeFS.chown(path.toFile(), LINUX_FS_USER_UID, LINUX_FS_USER_UID)
         }
     }
 

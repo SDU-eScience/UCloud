@@ -160,7 +160,6 @@ class JobTest{
                         null,
                         emptyList(),
                         emptyList(),
-                        emptyList(),
                         "ReservationName"
                     )
                 )

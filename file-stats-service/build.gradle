@@ -20,7 +20,7 @@ dependencies {
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
     compile "dk.sdu.cloud:indexing-api:1.16.0-storage-events.15"
-    compile "dk.sdu.cloud:file-api:4.0.0-storage-events.3"
+    compile "dk.sdu.cloud:file-api:4.0.0-storage-events.31"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 

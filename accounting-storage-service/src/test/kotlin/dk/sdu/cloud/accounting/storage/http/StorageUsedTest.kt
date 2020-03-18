@@ -12,6 +12,7 @@ import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.indexing.api.NumericStatistics
 import dk.sdu.cloud.indexing.api.QueryDescriptions
+import dk.sdu.cloud.indexing.api.SizeResponse
 import dk.sdu.cloud.indexing.api.StatisticsResponse
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
@@ -187,12 +188,8 @@ class StorageUsedTest {
             test = {
                 with(engine) {
                     ClientMock.mockCallSuccess(
-                        QueryDescriptions.statistics,
-                        StatisticsResponse(
-                            22,
-                            NumericStatistics(null, null, null, 150.4, emptyList()),
-                            NumericStatistics(null, null, null, null, emptyList())
-                        )
+                        QueryDescriptions.size,
+                        SizeResponse(150L)
                     )
 
                     ClientMock.mockCallSuccess(

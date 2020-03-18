@@ -8,11 +8,9 @@ describe("Initialize Redux Objects", () => {
     test("Dashboard", () => {
         expect(Defaults.initDashboard()).toEqual({
             favoriteFiles: [],
-            recentFiles: [],
             recentAnalyses: [],
             notifications: [],
             favoriteLoading: false,
-            recentLoading: false,
             analysesLoading: false,
         } as DashboardStateProps);
     });

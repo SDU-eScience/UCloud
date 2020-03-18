@@ -8,7 +8,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 
 buildscript {
     ext.serviceCommonVersion = "1.12.0"
-    ext.authApiVersion = "1.27.4-MAIL-TEST-6"
+    ext.authApiVersion = "1.27.4"
     ext.mailApiVersion = "0.1.0-PASSWORD-RESET-TEST-11"
 }
 

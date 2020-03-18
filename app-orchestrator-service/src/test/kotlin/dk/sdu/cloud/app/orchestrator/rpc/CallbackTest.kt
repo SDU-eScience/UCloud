@@ -87,7 +87,7 @@ class CallbackTest{
             setup = {
                 val orchestrator = mockk<JobOrchestrator<Session>>()
 
-                coEvery { orchestrator.handleIncomingFile(any(), any(), any(), any(), any(), any()) } just runs
+                coEvery { orchestrator.handleIncomingFile(any(), any(), any(), any(), any()) } just runs
 
                 configureCallbackServer(orchestrator)
 

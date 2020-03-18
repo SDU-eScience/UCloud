@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.favorite.http
 
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusRequest
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
@@ -27,7 +28,7 @@ class FileFavoriteControllerTest {
     private val service = mockk<FileFavoriteService>()
     private val cloud = ClientMock.authenticatedClient
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
-        listOf(FileFavoriteController(service, cloud))
+        listOf(FileFavoriteController(service, cloud.withoutAuthentication()))
     }
 
     @Test
@@ -35,7 +36,7 @@ class FileFavoriteControllerTest {
         withKtorTest(
             setup,
             test = {
-                coEvery { service.toggleFavorite(any(), any(), any(), any()) } answers {
+                coEvery { service.toggleFavorite(any(), any(), any()) } answers {
                     emptyList()
                 }
 
@@ -59,7 +60,7 @@ class FileFavoriteControllerTest {
         withKtorTest(
             setup,
             test = {
-                coEvery { service.toggleFavorite(any(), any(), any(), any()) } answers {
+                coEvery { service.toggleFavorite(any(), any(), any()) } answers {
                     listOf("/home/user/1")
                 }
 
@@ -99,7 +100,7 @@ class FileFavoriteControllerTest {
                     request = FavoriteStatusRequest(
                         listOf(
                             storageFile,
-                            storageFile.copy(pathOrNull = "/home/user/5", fileIdOrNull = "fileId2")
+                            storageFile.copy(pathOrNull = "/home/user/5")
                         )
                     )
                 )

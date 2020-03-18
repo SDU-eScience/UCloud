@@ -3,17 +3,8 @@ package dk.sdu.cloud.indexing.services
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.Timestamps
 import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.createdAt
-import dk.sdu.cloud.file.api.fileId
-import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.modifiedAt
 import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.ownSensitivityLevel
-import dk.sdu.cloud.file.api.ownerName
-import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.file.api.size
 import dk.sdu.cloud.indexing.util.depth
 import dk.sdu.cloud.indexing.util.fileName
 
@@ -36,7 +27,6 @@ data class ElasticIndexedFile(
     val fileDepth: Int = path.normalize().depth()
 ) {
     fun toMaterializedFile(): StorageFile = StorageFile(
-        fileId = path,
         path = path,
         ownerName = path.components().getOrElse(1) { "unknown" },
         fileType = fileType,

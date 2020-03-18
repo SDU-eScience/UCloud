@@ -38,7 +38,6 @@ class FileSystemScanner(
     private val pool = Executors.newFixedThreadPool(16).asCoroutineDispatcher()
 
     private fun updateDocWithNewFile(file: ElasticIndexedFile): UpdateRequest {
-        // TODO We have changed this to index by path and not by file ID
         return UpdateRequest(FILES_INDEX, file.path).apply {
             val writeValueAsBytes = defaultMapper.writeValueAsBytes(file)
             doc(writeValueAsBytes, XContentType.JSON)
