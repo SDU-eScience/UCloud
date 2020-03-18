@@ -425,27 +425,16 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
 
     //Definitely not a good way to check source!!
     private fun checkSource(element: String, normalizedFilePath: String, inUserSearch: Boolean = false): String? {
-        val tree = defaultMapper.readTree(element)
-        if (tree["source"] != null ) {
-            val path = tree["source"].toString().normalize()
-            if (path == normalizedFilePath || inUserSearch) {
-                return path
-            }
-        }
-        return null
-        /*val clearElement = element.removePrefix("{").removeSuffix("}")
+        val clearElement = element.removePrefix("{").removeSuffix("}")
         if (clearElement.contains("source")) {
             val startIndex = clearElement.indexOf("source=")+"source=".length
             val sourceStartString = clearElement.substring(startIndex)
             val path = sourceStartString.substring(0, sourceStartString.indexOf(", ")).normalize()
-            println("before mount if")
-            println(path)
             if (path == normalizedFilePath || inUserSearch) {
                 return path
             }
         }
         return null
-        */
     }
 
     companion object: Loggable {
