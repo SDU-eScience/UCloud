@@ -1,8 +1,6 @@
 package dk.sdu.cloud.file.services
 
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.joinPath
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunnerFactory
 import dk.sdu.cloud.file.util.FSException
@@ -30,10 +28,10 @@ class MoveTest : WithBackgroundScope() {
             runner,
             CoreFileSystemService(
                 fs,
-                mockk(relaxed = true),
                 fileSensitivityService,
                 ClientMock.authenticatedClient,
-                backgroundScope
+                backgroundScope,
+                mockedMetadataService
             )
         )
     }
@@ -299,7 +297,7 @@ class MoveTest : WithBackgroundScope() {
                 )
             }
 
-            val mode = setOf(FileAttribute.PATH, FileAttribute.FILE_TYPE)
+            val mode = setOf(StorageFileAttribute.path, StorageFileAttribute.fileType)
             runner.withBlockingContext("user") {
                 val rootListing = service.listDirectory(it, "/home/user", mode)
                 assertThatInstance(rootListing) { it.any { it.path.fileName() == "one1" } }

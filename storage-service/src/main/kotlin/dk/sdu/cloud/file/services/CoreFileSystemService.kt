@@ -290,7 +290,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
     private suspend fun setSensitivity(ctx: Ctx, targetPath: String, sensitivityLevel: SensitivityLevel) {
         val newSensitivity = stat(ctx, targetPath, setOf(StorageFileAttribute.sensitivityLevel))
-        if (sensitivityLevel != newSensitivity.sensitivityLevel) {
+        if (sensitivityLevel != newSensitivity.sensitivityLevelOrNull) {
             sensitivityService.setSensitivityLevel(
                 ctx,
                 targetPath,

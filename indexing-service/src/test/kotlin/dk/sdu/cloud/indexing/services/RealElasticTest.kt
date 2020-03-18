@@ -1,7 +1,6 @@
 package dk.sdu.cloud.indexing.services
 
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.indexing.api.AllOf
 import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.Comparison
@@ -26,7 +25,8 @@ class RealElasticTest {
     private val service = ElasticQueryService(
         RestHighLevelClient(
             RestClient.builder(HttpHost("localhost", 9200, "http"))
-        )
+        ),
+        null
     )
 
     @Test
@@ -95,7 +95,7 @@ class RealElasticTest {
         fun listDirectory(
             dir: String,
             page: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-        ): Page<StorageFile> {
+        ): Page<ElasticIndexedFile> {
             return service.query(
                 FileQuery(
                     roots = listOf(dir),
@@ -115,7 +115,7 @@ class RealElasticTest {
         fun tree(
             dir: String,
             page: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
-        ): Page<StorageFile> {
+        ): Page<ElasticIndexedFile> {
             return service.query(
                 FileQuery(
                     roots = listOf(dir),
@@ -137,24 +137,6 @@ class RealElasticTest {
             FileQuery(
                 roots = listOf("/home/jonas@hinchely.dk/"),
                 fileNameQuery = listOf("stdout", "stderr")
-            ),
-            NormalizedPaginationRequest(null, null)
-        )
-
-        println(result)
-    }
-
-    @Test
-    fun `files created in the last week`() {
-        val result = service.query(
-            FileQuery(
-                roots = listOf("/"),
-                createdAt = AnyOf.with(
-                    Comparison(
-                        System.currentTimeMillis() - (1000 * 60 * 60 * 24 * 7L),
-                        ComparisonOperator.GREATER_THAN_EQUALS
-                    )
-                )
             ),
             NormalizedPaginationRequest(null, null)
         )

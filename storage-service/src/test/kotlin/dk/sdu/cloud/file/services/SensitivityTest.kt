@@ -1,7 +1,6 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageEvents
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.ownSensitivityLevel
@@ -12,6 +11,7 @@ import dk.sdu.cloud.file.util.mkdir
 import dk.sdu.cloud.file.util.touch
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.test.*
+import io.mockk.mockk
 import org.slf4j.Logger
 import java.io.File
 import java.nio.file.Files
@@ -30,16 +30,14 @@ class SensitivityTest : WithBackgroundScope() {
 
     private fun initTest(root: String): TestContext<FSUserContext> {
         val (runner, fs) = linuxFSWithRelaxedMocks(root, backgroundScope)
-        val storageEventProducer =
-            StorageEventProducer(EventServiceMock.createProducer(StorageEvents.events), backgroundScope, {})
         val sensitivityService =
-            FileSensitivityService(fs, storageEventProducer)
+            FileSensitivityService(fs)
         val coreFs = CoreFileSystemService(
             fs,
-            storageEventProducer,
             sensitivityService,
             ClientMock.authenticatedClient,
-            backgroundScope
+            backgroundScope,
+            mockedMetadataService
         )
         val fileLookupService = FileLookupService(runner, coreFs)
 

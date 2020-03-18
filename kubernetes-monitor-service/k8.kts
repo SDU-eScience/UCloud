@@ -8,8 +8,10 @@ bundle {
     withAmbassador("/api/kubernetes/monitor") {}
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = 1
         deployment.spec.template.spec.serviceAccountName = this@bundle.name
+
+        injectSecret("alerting-tokens")
     }
 
     withPostgresMigration(deployment)

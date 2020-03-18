@@ -70,7 +70,6 @@ class JobVerificationTest {
                 appDao,
                 toolDao,
                 "abacus",
-                SharedMountVerificationService(),
                 db,
                 JobHibernateDao(appDao, toolDao),
                 cloud

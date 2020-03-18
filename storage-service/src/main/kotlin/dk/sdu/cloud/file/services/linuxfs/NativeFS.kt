@@ -4,6 +4,7 @@ import com.sun.jna.Native
 import com.sun.jna.Platform
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.util.FSException
+import dk.sdu.cloud.file.util.throwExceptionBasedOnStatus
 import dk.sdu.cloud.service.Loggable
 import kotlinx.io.pool.useInstance
 import java.io.File
@@ -39,6 +40,8 @@ object NativeFS : Loggable {
     private const val AT_REMOVEDIR = 0x200
     private const val S_ISREG = 0x8000
 
+    var disableChown = false
+
     override val log = logger()
 
     private fun openFile(path: String, flag: Int = 0): Int {
@@ -62,6 +65,10 @@ object NativeFS : Loggable {
             } catch (ex: Throwable) {
                 fileDescriptors.closeAll()
                 throw ex
+            }
+
+            if (fileDescriptors.last() < 0) {
+                throwExceptionBasedOnStatus(Native.getLastError())
             }
 
             return fileDescriptors.last()
@@ -109,11 +116,11 @@ object NativeFS : Loggable {
                     }
 
                     val finalFd = fileDescriptors.last()
-                    if (finalFd < 0) throw FSException.NotFound()
+                    if (finalFd < 0) throwExceptionBasedOnStatus(Native.getLastError())
 
                     val error = mkdirat(finalFd, components.last(), DEFAULT_DIR_MODE)
                     if (error != 0) {
-                        throw FSException.NotFound()
+                        throwExceptionBasedOnStatus(Native.getLastError())
                     }
 
                     if (owner != null) {
@@ -162,7 +169,7 @@ object NativeFS : Loggable {
 
                 val err = CLibrary.INSTANCE.renameat(fromParent, from.name, toParent, to.name)
                 if (err < 0) {
-                    throw FSException.NotFound()
+                    throwExceptionBasedOnStatus(Native.getLastError())
                 }
             } finally {
                 CLibrary.INSTANCE.close(fromParent)
@@ -412,7 +419,7 @@ object NativeFS : Loggable {
     }
 
     fun chown(path: File, uid: Int, gid: Int) {
-        if (!Platform.isLinux()) return
+        if (!Platform.isLinux() || disableChown) return
         val fd = openFile(path.absolutePath)
         try {
             CLibrary.INSTANCE.fchown(fd, uid, gid)

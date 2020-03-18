@@ -154,7 +154,11 @@ class LinuxFS(
                     )
                 }
             } else {
-                NativeFS.createDirectories(systemTo.parentFile)
+                try {
+                    NativeFS.createDirectories(systemTo.parentFile)
+                } catch (ignored: FSException.AlreadyExists) {
+                    // Ignored
+                }
                 NativeFS.move(systemFrom, systemTo, replaceExisting)
             }
         } else {

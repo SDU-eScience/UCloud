@@ -209,7 +209,7 @@ class JobFileService(
                                     jobsFolder,
                                     job.archiveInCollection,
                                     folderName
-                                ), StorageFileAttribute.fileId.name
+                                )
                             ),
                             userClient
                         ).statusCode == HttpStatusCode.NotFound

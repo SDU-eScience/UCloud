@@ -91,7 +91,6 @@ class ListAtPathTests : WithBackgroundScope() {
                     user = "user1",
                     role = Role.USER,
                     attributes = setOf(
-                        StorageFileAttribute.fileId,
                         StorageFileAttribute.modifiedAt,
                         StorageFileAttribute.size
                     ),

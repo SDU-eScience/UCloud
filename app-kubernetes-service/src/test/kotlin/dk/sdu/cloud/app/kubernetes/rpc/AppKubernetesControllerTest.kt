@@ -8,7 +8,6 @@ import dk.sdu.cloud.app.kubernetes.services.K8JobMonitoringService
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
 import dk.sdu.cloud.app.kubernetes.services.VncService
 import dk.sdu.cloud.app.kubernetes.services.WebService
-import dk.sdu.cloud.app.kubernetes.wrongSharedFileSystem
 import dk.sdu.cloud.app.orchestrator.api.InternalStdStreamsResponse
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Controller
@@ -87,23 +86,6 @@ class AppKubernetesControllerTest {
                 )
 
                 request.assertSuccess()
-            }
-        )
-    }
-
-    @Test
-    fun `Test jobVerified wrong backend mount`() {
-        withKtorTest(
-            setup,
-            test = {
-                val request = sendJson(
-                    method = HttpMethod.Post,
-                    path = "/api/app/compute/kubernetes/job-verified",
-                    user = TestUsers.admin,
-                    request = jobVerifiedRequest
-                )
-
-                request.assertStatus(HttpStatusCode.BadRequest)
             }
         )
     }
