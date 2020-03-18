@@ -434,7 +434,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                 <Pagination.EntriesPerPageSelector
                                     content="Files per page"
                                     entriesPerPage={page.itemsPerPage}
-                                    onChange={(amount): void => onPageChanged(0, amount)}
+                                    onChange={amount => onPageChanged(0, amount)}
                                 />
                             )}
                         </>
