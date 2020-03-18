@@ -66,11 +66,16 @@ sealed class ActivityEvent {
         override val filePath: String
     ) : ActivityEvent()
 
+    data class RightsAndUser(
+        val rights: Set<AccessRight>,
+        val user: String
+    )
+
     data class UpdatedAcl(
         override val username: String,
         override val timestamp: Long,
         override val filePath: String,
-        val rightsAndUser: List<Pair<Set<AccessRight>, String>>
+        val rightsAndUser: List<RightsAndUser>
     ) : ActivityEvent()
 
     data class Favorite(

@@ -195,11 +195,13 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                 ActivityEventType.sharedWith -> arrayOf(SHARES_CREATED)
                 ActivityEventType.allUsedInApp -> arrayOf(APP_START_INDEX)
             }
-        } else ALL_RELEVANT_INDICES
+        } else {
+            ALL_RELEVANT_INDICES
+        }
     }
 
 
-    override fun findEvents(size: Int, filter: ActivityEventFilter): List<ActivityEvent> {
+    override fun findEvents(scrollSize: Int, filter: ActivityEventFilter): List<ActivityEvent> {
         val query = QueryBuilders.boolQuery()
 
         if (filter.minTimestamp != null) {
@@ -233,7 +235,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                 )
                 .filter(query)
             ).from(filter.offset ?: 0)
-                .size(size)
+                .size(scrollSize)
                 .sort("@timestamp", SortOrder.DESC)
 
         request.source(source)
@@ -268,9 +270,9 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                 }
                 doc.index.startsWith(FILES_UPDATEDACL.dropLast(1)) -> {
                     val source = defaultMapper.readValue<UpdateACLActivity>(doc.sourceAsString)
-                    val changes = ArrayList<Pair<Set<AccessRight>, String>>()
+                    val changes = ArrayList<ActivityEvent.RightsAndUser>()
                     source.requestJson.request.changes.forEach { update ->
-                        changes.add(Pair(update.rights, update.entity))
+                        changes.add(ActivityEvent.RightsAndUser(update.rights, update.entity))
                     }
                     activityEventList.add(ActivityEvent.UpdatedAcl(
                         source.token.principal.username,
@@ -423,7 +425,15 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
 
     //Definitely not a good way to check source!!
     private fun checkSource(element: String, normalizedFilePath: String, inUserSearch: Boolean = false): String? {
-        val clearElement = element.removePrefix("{").removeSuffix("}")
+        val tree = defaultMapper.readTree(element)
+        if (tree["source"] != null ) {
+            val path = tree["source"].toString().normalize()
+            if (path == normalizedFilePath || inUserSearch) {
+                return path
+            }
+        }
+        return null
+        /*val clearElement = element.removePrefix("{").removeSuffix("}")
         if (clearElement.contains("source")) {
             val startIndex = clearElement.indexOf("source=")+"source=".length
             val sourceStartString = clearElement.substring(startIndex)
@@ -435,6 +445,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
             }
         }
         return null
+        */
     }
 
     companion object: Loggable {

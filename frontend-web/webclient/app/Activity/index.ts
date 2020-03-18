@@ -54,7 +54,7 @@ export interface CopyActivity extends Activity {
 }
 
 export interface UpdatedACLActivity extends Activity {
-    rightsAndUser: {first: Set<AccessRight>, second: string}[];
+    rightsAndUser: {rights: Set<AccessRight>, user: string}[];
 }
 
 export interface MovedActivity extends Activity {

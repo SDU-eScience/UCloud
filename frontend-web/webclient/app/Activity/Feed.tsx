@@ -27,7 +27,7 @@ export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTab
 
 export const ActivityFeed = ({activity}: {activity: Module.ActivityForFrontend[]}) => (
     <ActivityFeedFrame>
-        { activity.map ((a,i) => <ActivityFeedItem key={i} activity={a} />)}
+        {activity.map((a,i) => <ActivityFeedItem key={i} activity={a} />)}
     </ActivityFeedFrame>
 );
 
@@ -78,29 +78,29 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
 
         case Module.ActivityType.SHAREDWITH: {
             const share = (props.event.activityEvent as Module.SharedWithActivity);
-            return <span> was <b>shared with {share.sharedWith} with rights({share.status})</b></span>;
+            return <span> was <b>shared with {share.sharedWith} with rights: {share.status}</b></span>;
         }
 
         case Module.ActivityType.UPDATEDACL: {
             const update = (props.event.activityEvent as Module.UpdatedACLActivity);
-            return <span> had ACL for {update.rightsAndUser[0].second} updated to {update.rightsAndUser[0].first}</span>
+            return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights}</span>
         }
 
         case Module.ActivityType.USEDINAPP: {
             const used = (props.event.activityEvent as Module.SingleFileUsedActivity);
             if (used.filePath == "") {
-                return <span> No files where used in {used.applicationName}:{used.applicationVersion}</span>
+                return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>
             }
             else {
-                return <span> where used in {used.applicationName}:{used.applicationVersion}</span>
+                return <span> were used in {used.applicationName} v{used.applicationVersion}</span>
             }        }
         case Module.ActivityType.ALLUSEDINAPP: {
             const used = (props.event.activityEvent as Module.AllFilesUsedActivity);
             if (used.filePath == "") {
-                return <span> No files were used in {used.applicationName}:{used.applicationVersion}</span>
+                return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>
             }
             else {
-                return <span> were used in {used.applicationName}:{used.applicationVersion}</span>
+                return <span> were used in {used.applicationName} v{used.applicationVersion}</span>
             }
         }
         case Module.ActivityType.RECLASSIFIED: {
@@ -156,6 +156,14 @@ export class ActivityFeedItem extends React.Component<ActivityFeedProps> {
 
 const operationToPastTense = (operation: Module.ActivityType): string => {
     switch (operation) {
+        case Module.ActivityType.FAVORITE:
+            return "favorited";
+        case Module.ActivityType.RECLASSIFIED:
+            return "reclassified";
+        case Module.ActivityType.UPDATEDACL:
+            return "updated ACL";
+        case Module.ActivityType.SHAREDWITH:
+            return "shared";
         case Module.ActivityType.DELETED:
             return "deleted";
         case Module.ActivityType.DOWNLOAD:
@@ -173,7 +181,7 @@ const operationToPastTense = (operation: Module.ActivityType): string => {
         case Module.ActivityType.USEDINAPP:
             return "used";
         default:
-            return "DEFUALTAJDJILWA"
+            return ""
     }
 };
 
