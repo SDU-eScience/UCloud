@@ -282,7 +282,8 @@ export function mockFile(props: {path: string; type: FileType; fileId?: string; 
         favorited: false,
         sensitivityLevel: SensitivityLevelMap.PRIVATE,
         ownSensitivityLevel: null,
-        mockTag: props.tag
+        mockTag: props.tag,
+        permissionAlert: false
     };
 }
 

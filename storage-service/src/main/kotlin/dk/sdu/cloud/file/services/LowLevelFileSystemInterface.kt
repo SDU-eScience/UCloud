@@ -248,4 +248,6 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     suspend fun onFileCreated(ctx: Ctx, path: String)
 
     suspend fun requirePermission(ctx: Ctx, path: String, permission: AccessRight)
+
+    suspend fun normalizePermissions(ctx: Ctx, path: String)
 }

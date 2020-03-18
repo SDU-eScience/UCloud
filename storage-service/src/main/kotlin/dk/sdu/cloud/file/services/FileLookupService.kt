@@ -157,7 +157,8 @@ class FileLookupService<Ctx : FSUserContext>(
                     null
                 }
             },
-            ownSensitivityLevelOrNull = row.ownSensitivityLevelOrNull
+            ownSensitivityLevelOrNull = row.ownSensitivityLevelOrNull,
+            permissionAlert = row.permissionAlert
         )
     }
 

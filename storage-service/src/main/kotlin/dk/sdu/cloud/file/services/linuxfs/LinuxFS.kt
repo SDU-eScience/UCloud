@@ -370,7 +370,8 @@ class LinuxFS(
                     stat.size,
                     shares,
                     null,
-                    stat.ownSensitivityLevel
+                    stat.ownSensitivityLevel,
+                    stat.ownerUid != LINUX_FS_USER_UID
                 )
             } catch (ex: NoSuchFileException) {
                 null
@@ -605,6 +606,18 @@ class LinuxFS(
         }
     }
 
+    override suspend fun normalizePermissions(ctx: LinuxFSRunner, path: String) {
+        aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
+        val file = File(translateAndCheckFile(ctx, path))
+        val stat = NativeFS.stat(file)
+        NativeFS.changeFilePermissions(
+            file,
+            if (stat.fileType == FileType.DIRECTORY) NativeFS.DEFAULT_DIR_MODE else NativeFS.DEFAULT_FILE_MODE,
+            LINUX_FS_USER_UID,
+            LINUX_FS_USER_UID
+        )
+    }
+
     override suspend fun onFileCreated(ctx: LinuxFSRunner, path: String) {
         NativeFS.chown(File(translateAndCheckFile(ctx, path)), LINUX_FS_USER_UID, LINUX_FS_USER_UID)
     }
@@ -667,8 +680,6 @@ fun translateAndCheckFile(
     if (!path.startsWith(root) && path.removeSuffix("/") != root.removeSuffix("/")) {
         throw FSException.BadRequest("path is not in user-root")
     }
-
-    if (path.contains("\n")) throw FSException.BadRequest("Path cannot contain new-lines")
 
     if (path.length >= PATH_MAX) {
         throw FSException.BadRequest("Path is too long ${path.length} '$path'")

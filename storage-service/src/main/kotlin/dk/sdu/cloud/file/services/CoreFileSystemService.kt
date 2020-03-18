@@ -210,6 +210,13 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
+    suspend fun normalizePermissions(ctx: Ctx, path: String) {
+        fs.normalizePermissions(ctx, path)
+        fs.tree(ctx, path, setOf(StorageFileAttribute.path)).forEach { file ->
+            fs.normalizePermissions(ctx, file.path)
+        }
+    }
+
     private suspend fun renameAccordingToPolicy(
         ctx: Ctx,
         desiredTargetPath: String,
@@ -236,8 +243,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             }
         }
     }
-
     private val duplicateNamingRegex = Regex("""\((\d+)\)""")
+
     private suspend fun findFreeNameForNewFile(ctx: Ctx, desiredPath: String): String {
         fun findFileNameNoExtension(fileName: String): String {
             return fileName.substringBefore('.')

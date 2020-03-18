@@ -28,6 +28,7 @@ export interface File {
     sensitivityLevel: SensitivityLevelMap | null;
     ownSensitivityLevel: SensitivityLevelMap | null;
     mockTag?: string;
+    permissionAlert: boolean | null;
 }
 
 export interface Acl {
