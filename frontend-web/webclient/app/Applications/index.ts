@@ -56,7 +56,7 @@ export interface JobWithStatus {
     checked?: boolean;
 }
 
-export type AnalysesStateProps = AnalysisReduxObject & {responsive: ResponsiveReduxObject};
+export type AnalysesStateProps = AnalysisReduxObject;
 export type AnalysesProps = AnalysesStateProps & AnalysesOperations;
 
 type FetchJobsOperation = (
