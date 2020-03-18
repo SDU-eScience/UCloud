@@ -9,8 +9,7 @@ buildscript {
     ext.authApiVersion = "1.27.0"
 }
 
-//apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"
-apply from: "/tmp/sdu-cloud.gradle"
+apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"
 
 dependencies {
     implementation group: 'org.kamranzafar', name: 'jtar', version: '2.3'

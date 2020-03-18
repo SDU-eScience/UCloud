@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "activity"
-    version = "1.4.14-ElasticDAO11"
+    version = "1.4.14-ElasticDAO13"
 
     withAmbassador {}
 

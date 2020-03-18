@@ -287,7 +287,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                         source.token.principal.username,
                         source.timestamp.time,
                         source.requestJson.request.path,
-                        source.requestJson.request.sensitivity?.name!!
+                        source.requestJson.request.sensitivity?.name ?: "Inherit"
                     ))
                 }
                 doc.index.startsWith(FILES_MOVED.dropLast(1)) -> {
