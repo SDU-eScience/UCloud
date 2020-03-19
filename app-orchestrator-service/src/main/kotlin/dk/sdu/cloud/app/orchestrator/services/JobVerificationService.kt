@@ -198,7 +198,7 @@ class JobVerificationService<Session>(
                 .map { paramWithValue ->
                     // Fix path for InputFiles
                     val (param, value) = paramWithValue
-                    if (param is ApplicationParameter.InputFile) {
+                    if (param is ApplicationParameter.InputFile && value != null) {
                         value as FileTransferDescription
                         param to value.copy(
                             invocationParameter = "${value.source.parent().fileName()}/${value.source.fileName()}"

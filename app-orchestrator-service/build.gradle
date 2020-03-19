@@ -1,6 +1,6 @@
 group 'dk.sdu.cloud'
 
-version '2.0.0-storage-events.7'
+version '2.0.0-storage-events.9'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
@@ -10,7 +10,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 buildscript {
     ext.serviceCommonVersion = "1.13.0-storage-events.1"
     ext.authApiVersion = "1.27.0"
-    ext.appStoreApiVersion = "0.13.0-storage-events.0"
+    ext.appStoreApiVersion = "0.13.0-storage-events.1"
     ext.appLicenseApiVersion = "0.1.5"
     ext.fileApiVersion = "4.0.0-storage-events.31"
 }

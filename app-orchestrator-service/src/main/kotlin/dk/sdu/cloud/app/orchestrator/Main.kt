@@ -9,7 +9,8 @@ import dk.sdu.cloud.micro.*
 data class Configuration(
     val backends: List<ApplicationBackend> = emptyList(),
     val defaultBackend: String = "kubernetes",
-    val machines: List<MachineReservation> = listOf(MachineReservation.BURST)
+    val machines: List<MachineReservation> = listOf(MachineReservation.BURST),
+    val gpuWhitelist: List<String> = emptyList()
 )
 
 fun main(args: Array<String>) {
