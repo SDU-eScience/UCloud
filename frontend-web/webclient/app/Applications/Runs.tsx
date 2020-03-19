@@ -167,11 +167,11 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                                     <Box mx="8px" mt="4px"><AppToolLogo size="36px" type="APPLICATION" name={it.metadata.name} /></Box>
                                     <Box mb="4px" onClick={e => {e.stopPropagation(); history.push(`/applications/results/${it.jobId}`);}}>
                                         <Truncate width={1} mb="-4px" fontSize={20}>
-                                            {it.metadata.title} v{it.metadata.version}
+                                        {it.name ? it.name : shortUUID(it.jobId)}
                                         </Truncate>
                                         <Flex>
                                             <Icon color="gray" mr="5px" mt="4px" size="10px" name="id" />
-                                            <Text color="gray" fontSize="12px">{it.name ? it.name : shortUUID(it.jobId)}</Text>
+                                            <Text color="gray" fontSize="12px">{it.metadata.title} v{it.metadata.version}</Text>
                                             <Icon color="gray" ml="4px" mr="2px" mt="4px" size="10px" name="chrono" />
                                             <Text color="gray" fontSize="12px">Started {formatRelative(it.createdAt, new Date(), {locale: enGB})}</Text>
                                         </Flex>
