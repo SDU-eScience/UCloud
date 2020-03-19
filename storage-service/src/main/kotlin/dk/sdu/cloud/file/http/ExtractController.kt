@@ -65,7 +65,7 @@ class ExtractController<Ctx : FSUserContext>(
                 }
             }
 
-            ok(Unit)
+            ok(Unit, HttpStatusCode.Accepted)
         }
     }
 }

@@ -385,7 +385,7 @@ export const extractArchive = async ({files, client, onFinished}: ExtractArchive
     for (const f of files) {
         try {
             await client.post(extractFilesQuery, {path: f.path});
-            snackbarStore.addSnack({message: "File extracted", type: SnackType.Success});
+            snackbarStore.addSnack({message: "File(s) being extracted", type: SnackType.Success});
         } catch (e) {
             snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred extracting the file."));
         }
