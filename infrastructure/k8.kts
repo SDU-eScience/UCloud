@@ -9,303 +9,291 @@ bundle { ctx ->
     name = "ceph"
     version = "1"
 
-    val cephMonitors = when (ctx.environment) {
-        Environment.DEVELOPMENT, Environment.TEST -> "10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789"
-        Environment.PRODUCTION -> "172.26.3.1:6789,172.26.3.2:6789,172.26.3.3:6789"
-    }
-
-    val cephFsUser = when (ctx.environment) {
-        Environment.PRODUCTION -> {
-            TODO()
+    if (ctx.environment != Environment.PRODUCTION) {
+        val cephMonitors = when (ctx.environment) {
+            Environment.DEVELOPMENT, Environment.TEST -> "10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789"
+            Environment.PRODUCTION -> "172.26.3.1:6789,172.26.3.2:6789,172.26.3.3:6789"
         }
 
-        Environment.TEST, Environment.DEVELOPMENT -> {
-            "snaptest"
-        }
-    }
-
-    val cephFsSecret = when (ctx.environment) {
-        Environment.DEVELOPMENT, Environment.TEST -> "snaptest"
-        Environment.PRODUCTION -> TODO()
-    }
-
-    val cephFsSubFolder = when (ctx.environment) {
-        Environment.DEVELOPMENT -> ""
-        Environment.PRODUCTION -> ""
-        Environment.TEST -> "staging"
-    }
-
-    withConfigMap("ceph-fs-config", version = "3") {
-        addConfig(
-            "config.yml",
-            """
-                ceph:
-                  subfolder: "$cephFsSubFolder"
-                  useCephDirectoryStats: true
-            """.trimIndent()
-        )
-    }
-
-    withSecret(name = cephFsSecret, namespace = "default") {
-        val scanner = Scanner(System.`in`)
-        println("Please enter ceph fs key: ")
-        val adminKey = scanner.nextLine()
-        secret.stringData = mapOf("key" to adminKey)
-    }
-
-    withSecret(name = "ceph-secret", namespace = "kube-system") {
-        val scanner = Scanner(System.`in`)
-        println("Please enter ceph admin key: ")
-        val adminKey = scanner.nextLine()
-        secret.stringData = mapOf("key" to adminKey)
-    }
-
-    withSecret(name = "ceph-secret-kube", namespace = "kube-system") {
-        val scanner = Scanner(System.`in`)
-        println("Please enter key for ceph user (kube pool): ")
-        val userKey = scanner.nextLine()
-        secret.stringData = mapOf("key" to userKey)
-    }
-
-    val cephfsVolumes = mapOf(
-        "app-cephfs" to "app-kubernetes/cephfs",
-        "app-fs-cephfs" to "default/app-fs-k8s",
-        "cephfs" to "default/cephfs"
-    )
-    cephfsVolumes.forEach { (volName, pvc) ->
-        withPersistentVolume(volName) {
-            resource.spec.cephfs = CephFSPersistentVolumeSource().apply {
-                this.monitors = cephMonitors.split(",")
-                this.user = cephFsUser
-                this.secretRef = SecretReference().apply {
-                    this.name = cephFsSecret
-                    this.namespace = "default"
-                }
+        val cephFsUser = when (ctx.environment) {
+            Environment.PRODUCTION -> {
+                TODO()
             }
-            resource.spec.accessModes = listOf("ReadWriteMany")
-            resource.spec.capacity = mapOf("storage" to Quantity("9223372036854775807"))
-            resource.spec.persistentVolumeReclaimPolicy = "Retain"
+
+            Environment.TEST, Environment.DEVELOPMENT -> {
+                "snaptest"
+            }
         }
 
-        val (ns, pvcName) = pvc.split("/")
-        withPersistentVolumeClaim(pvcName) {
-            resource.metadata.namespace = ns
-            resource.spec.accessModes = listOf("ReadWriteMany")
-            resource.spec.volumeName = volName
+        val cephFsSecret = when (ctx.environment) {
+            Environment.DEVELOPMENT, Environment.TEST -> "snaptest"
+            Environment.PRODUCTION -> TODO()
         }
-    }
 
-    withSecret(name = "cow-lower", namespace = "app-kubernetes", version = "1") {
-        val scanner = Scanner(System.`in`)
-        println("Please enter ceph fs key: ")
-        val adminKey = scanner.nextLine()
+        val cephFsSubFolder = when (ctx.environment) {
+            Environment.DEVELOPMENT -> ""
+            Environment.PRODUCTION -> ""
+            Environment.TEST -> "staging"
+        }
 
-        secret.type = "ucloud/cow"
+        withConfigMap("ceph-fs-config", version = "3") {
+            addConfig(
+                "config.yml",
+                """
+                    ceph:
+                      subfolder: "$cephFsSubFolder"
+                      useCephDirectoryStats: true
+                """.trimIndent()
+            )
+        }
 
-        secret.stringData = mapOf(
-            "cephKey" to adminKey,
-            "cephMon" to cephMonitors,
-            "cephUser" to cephFsUser
+        withSecret(name = cephFsSecret, namespace = "default") {
+            val scanner = Scanner(System.`in`)
+            println("Please enter ceph fs key: ")
+            val adminKey = scanner.nextLine()
+            secret.stringData = mapOf("key" to adminKey)
+        }
+
+        withSecret(name = "ceph-secret", namespace = "kube-system") {
+            val scanner = Scanner(System.`in`)
+            println("Please enter ceph admin key: ")
+            val adminKey = scanner.nextLine()
+            secret.stringData = mapOf("key" to adminKey)
+        }
+
+        withSecret(name = "ceph-secret-kube", namespace = "kube-system") {
+            val scanner = Scanner(System.`in`)
+            println("Please enter key for ceph user (kube pool): ")
+            val userKey = scanner.nextLine()
+            secret.stringData = mapOf("key" to userKey)
+        }
+
+        val cephfsVolumes = mapOf(
+            "app-cephfs" to "app-kubernetes/cephfs",
+            "app-fs-cephfs" to "default/app-fs-k8s",
+            "cephfs" to "default/cephfs"
         )
-    }
+        cephfsVolumes.forEach { (volName, pvc) ->
+            withPersistentVolume(volName) {
+                resource.spec.cephfs = CephFSPersistentVolumeSource().apply {
+                    this.monitors = cephMonitors.split(",")
+                    this.user = cephFsUser
+                    this.secretRef = SecretReference().apply {
+                        this.name = cephFsSecret
+                        this.namespace = "default"
+                    }
+                }
+                resource.spec.accessModes = listOf("ReadWriteMany")
+                resource.spec.capacity = mapOf("storage" to Quantity("9223372036854775807"))
+                resource.spec.persistentVolumeReclaimPolicy = "Retain"
+            }
 
-    resources.add(
-        object : KubernetesResource {
-            override val phase = DeploymentPhase.DEPLOY
-            override fun toString() = "RBD-Provisioner"
-            val cm = ConfigMapResource("rbd-provisioner-version", "1")
+            val (ns, pvcName) = pvc.split("/")
+            withPersistentVolumeClaim(pvcName) {
+                resource.metadata.namespace = ns
+                resource.spec.accessModes = listOf("ReadWriteMany")
+                resource.spec.volumeName = volName
+            }
+        }
 
-            override fun DeploymentContext.create() {
-                YamlResource(
-                    """
-                        apiVersion: apps/v1
-                        kind: Deployment
-                        metadata:
-                          annotations:
-                            deployment.kubernetes.io/revision: "1"
-                          labels:
-                            app: rbd-provisioner
-                          name: rbd-provisioner
-                          namespace: kube-system
-                        spec:
-                          progressDeadlineSeconds: 2147483647
-                          replicas: 1
-                          revisionHistoryLimit: 2147483647
-                          selector:
-                            matchLabels:
-                              app: rbd-provisioner
-                          strategy:
-                            type: Recreate
-                          template:
+        resources.add(
+            object : KubernetesResource {
+                override val phase = DeploymentPhase.DEPLOY
+                override fun toString() = "RBD-Provisioner"
+                val cm = ConfigMapResource("rbd-provisioner-version", "1")
+
+                override fun DeploymentContext.create() {
+                    YamlResource(
+                        """
+                            apiVersion: apps/v1
+                            kind: Deployment
                             metadata:
-                              creationTimestamp: null
+                              annotations:
+                                deployment.kubernetes.io/revision: "1"
                               labels:
                                 app: rbd-provisioner
+                              name: rbd-provisioner
+                              namespace: kube-system
                             spec:
-                              containers:
-                              - env:
-                                - name: PROVISIONER_NAME
-                                  value: ceph.com/rbd
-                                image: quay.io/external_storage/rbd-provisioner:latest
-                                imagePullPolicy: Always
-                                name: rbd-provisioner
-                                resources: {}
-                                securityContext:
-                                  allowPrivilegeEscalation: true
-                                terminationMessagePath: /dev/termination-log
-                                terminationMessagePolicy: File
-                              dnsPolicy: ClusterFirst
-                              imagePullSecrets:
-                              - name: esci-docker
-                              restartPolicy: Always
-                              schedulerName: default-scheduler
-                              securityContext: {}
-                              serviceAccount: rbd-provisioner
-                              serviceAccountName: rbd-provisioner
-                              terminationGracePeriodSeconds: 30
-                                   
-                    """.trimIndent()
-                ).apply { create() }
+                              progressDeadlineSeconds: 2147483647
+                              replicas: 1
+                              revisionHistoryLimit: 2147483647
+                              selector:
+                                matchLabels:
+                                  app: rbd-provisioner
+                              strategy:
+                                type: Recreate
+                              template:
+                                metadata:
+                                  creationTimestamp: null
+                                  labels:
+                                    app: rbd-provisioner
+                                spec:
+                                  containers:
+                                  - env:
+                                    - name: PROVISIONER_NAME
+                                      value: ceph.com/rbd
+                                    image: quay.io/external_storage/rbd-provisioner:latest
+                                    imagePullPolicy: Always
+                                    name: rbd-provisioner
+                                    resources: {}
+                                    securityContext:
+                                      allowPrivilegeEscalation: true
+                                    terminationMessagePath: /dev/termination-log
+                                    terminationMessagePolicy: File
+                                  dnsPolicy: ClusterFirst
+                                  imagePullSecrets:
+                                  - name: esci-docker
+                                  restartPolicy: Always
+                                  schedulerName: default-scheduler
+                                  securityContext: {}
+                                  serviceAccount: rbd-provisioner
+                                  serviceAccountName: rbd-provisioner
+                                  terminationGracePeriodSeconds: 30
+                                       
+                        """.trimIndent()
+                    ).apply { create() }
 
-                YamlResource(
-                    """
-                        apiVersion: storage.k8s.io/v1
-                        kind: StorageClass
-                        metadata:
-                          name: rbd
-                        parameters:
-                          adminId: admin
-                          adminSecretName: ceph-secret
-                          adminSecretNamespace: kube-system
-                          imageFeatures: layering
-                          imageFormat: "2"
-                          monitors: $cephMonitors
-                          pool: kube
-                          userId: kube
-                          userSecretName: ceph-secret-kube
-                          userSecretNamespace: kube-system
-                        provisioner: ceph.com/rbd
-                        reclaimPolicy: Delete
-                        volumeBindingMode: Immediate
+                    YamlResource(
+                        """
+                            apiVersion: storage.k8s.io/v1
+                            kind: StorageClass
+                            metadata:
+                              name: rbd
+                            parameters:
+                              adminId: admin
+                              adminSecretName: ceph-secret
+                              adminSecretNamespace: kube-system
+                              imageFeatures: layering
+                              imageFormat: "2"
+                              monitors: $cephMonitors
+                              pool: kube
+                              userId: kube
+                              userSecretName: ceph-secret-kube
+                              userSecretNamespace: kube-system
+                            provisioner: ceph.com/rbd
+                            reclaimPolicy: Delete
+                            volumeBindingMode: Immediate
 
-                    """.trimIndent()
-                ).apply { create() }
+                        """.trimIndent()
+                    ).apply { create() }
 
-                YamlResource(
-                    """
-                        apiVersion: rbac.authorization.k8s.io/v1
-                        kind: ClusterRole
-                        metadata:
-                          name: rbd-provisioner
-                        rules:
-                        - apiGroups:
-                          - ""
-                          resources:
-                          - secrets
-                          verbs:
-                          - get
-                          - list
-                        - apiGroups:
-                          - ""
-                          resources:
-                          - persistentvolumes
-                          verbs:
-                          - get
-                          - list
-                          - watch
-                          - create
-                          - delete
-                        - apiGroups:
-                          - ""
-                          resources:
-                          - persistentvolumeclaims
-                          verbs:
-                          - get
-                          - list
-                          - watch
-                          - update
-                        - apiGroups:
-                          - storage.k8s.io
-                          resources:
-                          - storageclasses
-                          verbs:
-                          - get
-                          - list
-                          - watch
-                        - apiGroups:
-                          - ""
-                          resources:
-                          - events
-                          verbs:
-                          - get
-                          - create
-                          - list
-                          - update
-                          - patch
-                        - apiGroups:
-                          - ""
-                          resourceNames:
-                          - kube-dns
-                          - coredns
-                          resources:
-                          - services
-                          verbs:
-                          - list
-                          - get
-                        - apiGroups:
-                          - ""
-                          resources:
-                          - endpoints
-                          verbs:
-                          - get
-                          - list
-                          - watch
-                          - create
-                          - update
-                          - patch
+                    YamlResource(
+                        """
+                            apiVersion: rbac.authorization.k8s.io/v1
+                            kind: ClusterRole
+                            metadata:
+                              name: rbd-provisioner
+                            rules:
+                            - apiGroups:
+                              - ""
+                              resources:
+                              - secrets
+                              verbs:
+                              - get
+                              - list
+                            - apiGroups:
+                              - ""
+                              resources:
+                              - persistentvolumes
+                              verbs:
+                              - get
+                              - list
+                              - watch
+                              - create
+                              - delete
+                            - apiGroups:
+                              - ""
+                              resources:
+                              - persistentvolumeclaims
+                              verbs:
+                              - get
+                              - list
+                              - watch
+                              - update
+                            - apiGroups:
+                              - storage.k8s.io
+                              resources:
+                              - storageclasses
+                              verbs:
+                              - get
+                              - list
+                              - watch
+                            - apiGroups:
+                              - ""
+                              resources:
+                              - events
+                              verbs:
+                              - get
+                              - create
+                              - list
+                              - update
+                              - patch
+                            - apiGroups:
+                              - ""
+                              resourceNames:
+                              - kube-dns
+                              - coredns
+                              resources:
+                              - services
+                              verbs:
+                              - list
+                              - get
+                            - apiGroups:
+                              - ""
+                              resources:
+                              - endpoints
+                              verbs:
+                              - get
+                              - list
+                              - watch
+                              - create
+                              - update
+                              - patch
 
-                    """.trimIndent()
-                ).apply { create() }
+                        """.trimIndent()
+                    ).apply { create() }
 
-                YamlResource(
-                    """
-                        apiVersion: rbac.authorization.k8s.io/v1
-                        kind: ClusterRoleBinding
-                        metadata:
-                          name: rbd-provisioner
-                        roleRef:
-                          apiGroup: rbac.authorization.k8s.io
-                          kind: ClusterRole
-                          name: rbd-provisioner
-                        subjects:
-                        - kind: ServiceAccount
-                          name: rbd-provisioner
-                          namespace: kube-system
+                    YamlResource(
+                        """
+                            apiVersion: rbac.authorization.k8s.io/v1
+                            kind: ClusterRoleBinding
+                            metadata:
+                              name: rbd-provisioner
+                            roleRef:
+                              apiGroup: rbac.authorization.k8s.io
+                              kind: ClusterRole
+                              name: rbd-provisioner
+                            subjects:
+                            - kind: ServiceAccount
+                              name: rbd-provisioner
+                              namespace: kube-system
 
-                    """.trimIndent()
-                ).apply { create() }
+                        """.trimIndent()
+                    ).apply { create() }
 
-                YamlResource(
-                    """
-                        apiVersion: v1
-                        kind: ServiceAccount
-                        metadata:
-                          name: rbd-provisioner
-                          namespace: kube-system
+                    YamlResource(
+                        """
+                            apiVersion: v1
+                            kind: ServiceAccount
+                            metadata:
+                              name: rbd-provisioner
+                              namespace: kube-system
 
-                    """.trimIndent()
-                ).apply { create() }
+                        """.trimIndent()
+                    ).apply { create() }
 
-                with(cm) { create() }
+                    with(cm) { create() }
+                }
+
+                override fun DeploymentContext.delete() {
+                    // Not implemented
+                }
+
+                override fun DeploymentContext.isUpToDate(): Boolean = with(cm) { isUpToDate() }
             }
-
-            override fun DeploymentContext.delete() {
-                // Not implemented
-            }
-
-            override fun DeploymentContext.isUpToDate(): Boolean = with(cm) { isUpToDate() }
-        }
-    )
+        )
+    }
 }
 
 bundle { ctx ->
