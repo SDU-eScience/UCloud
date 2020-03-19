@@ -4,13 +4,7 @@ import dk.sdu.cloud.activity.services.FileLookupService
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.api.AccessEntry
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse
-import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestUsers
 import kotlinx.coroutines.runBlocking
@@ -38,8 +32,7 @@ class FileLookupTest {
                 "user",
                 1234,
                 listOf(AccessEntry("entity", emptySet())),
-                SensitivityLevel.PRIVATE,
-                fileId = "1"
+                SensitivityLevel.PRIVATE
             )
         )
 
@@ -52,7 +45,7 @@ class FileLookupTest {
             fileLookUp.lookupFile("path/to/file", "token", TestUsers.user.username, null)
         }
 
-        assertEquals("1", result.fileId)
+        assertEquals("path/to/file", result.path)
     }
 
     @Test (expected = RPCException::class)

@@ -45,9 +45,6 @@ class ActivityServiceTest {
                 123,
                 null,
                 SensitivityLevel.PRIVATE,
-                emptySet(),
-                "1",
-                user,
                 SensitivityLevel.PRIVATE
             )
         }
@@ -89,9 +86,6 @@ class ActivityServiceTest {
                 123,
                 null,
                 SensitivityLevel.PRIVATE,
-                emptySet(),
-                "1",
-                user,
                 SensitivityLevel.PRIVATE
             )
         }
