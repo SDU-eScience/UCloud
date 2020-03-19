@@ -48,7 +48,7 @@ const StickyBox = styled(Box)`
     z-index: 50;
 `;
 
-function JobResults(props: AnalysesProps & {history: History}): React.ReactElement {
+function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
 
     React.useEffect(() => {
         props.onInit();
@@ -160,7 +160,7 @@ function JobResults(props: AnalysesProps & {history: History}): React.ReactEleme
                                 <Flex
                                     cursor="pointer"
                                     onClick={() => props.checkAnalysis(it.jobId, !it.checked)}
-                                    mt="4px"
+                                    pt="4px"
                                     key={it.jobId}
                                     backgroundColor={it.checked ? "lightBlue" : "white"}
                                 >
@@ -170,9 +170,9 @@ function JobResults(props: AnalysesProps & {history: History}): React.ReactEleme
                                             {it.metadata.title} v{it.metadata.version}
                                         </Truncate>
                                         <Flex>
-                                            <Icon mr="5px" mt="4px" color="black" size="10px" name="id" />
+                                            <Icon color="gray" mr="5px" mt="4px" size="10px" name="id" />
                                             <Text color="gray" fontSize="12px">{it.name ? it.name : shortUUID(it.jobId)}</Text>
-                                            <Icon ml="4px" mr="2px" mt="4px" color="black" size="10px" name="chrono" />
+                                            <Icon color="gray" ml="4px" mr="2px" mt="4px" size="10px" name="chrono" />
                                             <Text color="gray" fontSize="12px">Started {formatRelative(it.createdAt, new Date(), {locale: enGB})}</Text>
                                         </Flex>
                                     </Box>
@@ -375,4 +375,4 @@ const mapDispatchToProps = (dispatch: Dispatch): AnalysesOperations => ({
 });
 
 const mapStateToProps = ({analyses}: ReduxObject): AnalysesStateProps => analyses;
-export default connect(mapStateToProps, mapDispatchToProps)(JobResults);
+export default connect(mapStateToProps, mapDispatchToProps)(Runs);

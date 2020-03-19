@@ -9,7 +9,7 @@ import {dispatchUserAction, onLogin} from "App";
 import ApplicationsBrowse from "Applications/Browse";
 import DetailedResult from "Applications/DetailedResult";
 import * as ApplicationsInstalled from "Applications/Installed";
-import JobResults from "Applications/JobResults";
+import Runs from "Applications/Runs";
 import ApplicationsOverview from "Applications/Overview";
 import Run from "Applications/Run";
 import AppStudioApps from "Applications/Studio/App";
@@ -87,7 +87,7 @@ const Core = (): JSX.Element => (
                     path="/applications/details/:appName/:appVersion"
                     component={requireAuth(ApplicationView)}
                 />
-                <Route exact path="/applications/results" component={requireAuth(JobResults)} />
+                <Route exact path="/applications/results" component={requireAuth(Runs)} />
                 <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)} />
                 <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Run)} />
 

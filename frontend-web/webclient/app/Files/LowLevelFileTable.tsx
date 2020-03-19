@@ -276,7 +276,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     const [sortByColumn, setSortByColumn] = useState<SortBy>(getSortingColumn());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, , invokeWork] = useAsyncWork();
-    const [applications, setApplications] = useState(new Map<string, QuickLaunchApp[]>());
+    const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map());
     const history = useHistory();
 
     const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
@@ -372,9 +372,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     };
 
     // Register refresh hook
-    if (props.refreshHook !== undefined) {
-        props.refreshHook(true, () => callbacks.requestReload());
-    }
+    React.useEffect(() => {
+        if (props.refreshHook !== undefined) {
+            props.refreshHook(true, () => callbacks.requestReload());
+        }
+    }, [props.refreshHook, callbacks.requestReload]);
 
     useEffect(() => {
         return (): void => {
@@ -651,7 +653,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                         <Box ml="auto" />
                         {(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
                             <Flex alignItems="center" onClick={UF.stopPropagation}>
-                                {props.permissionAlertEnabled !== true || f.permissionAlert !== true ? null :(
+                                {props.permissionAlertEnabled !== true || f.permissionAlert !== true ? null : (
                                     <Tooltip
                                         wrapperOffsetLeft="0"
                                         wrapperOffsetTop="4px"
