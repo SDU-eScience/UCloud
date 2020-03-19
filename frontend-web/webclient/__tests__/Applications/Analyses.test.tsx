@@ -4,7 +4,7 @@ import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";
 import {create} from "react-test-renderer";
 import {ThemeProvider} from "styled-components";
-import JobResults from "../../app/Applications/JobResults";
+import Runs from "../../app/Applications/Runs";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
 import {analyses as analysesPage} from "../mock/Analyses";
@@ -17,7 +17,7 @@ describe("Analyses component", () => {
             <Provider store={storeCopy}>
                 <ThemeProvider theme={theme}>
                     <MemoryRouter>
-                        <JobResults history={createMemoryHistory()} />
+                        <Runs history={createMemoryHistory()} />
                     </MemoryRouter>
                 </ThemeProvider>
             </Provider>).toJSON()).toMatchSnapshot();
