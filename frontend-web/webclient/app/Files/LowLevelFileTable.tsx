@@ -408,7 +408,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     };
 
     // Loading state
-    if (props.onLoadingState) props.onLoadingState(isAnyLoading);
+    React.useEffect(() => {
+        props.onLoadingState?.(isAnyLoading);
+    }, [isAnyLoading]);
 
     return (
         <Shell
