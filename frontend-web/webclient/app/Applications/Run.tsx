@@ -536,7 +536,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         let reservation = this.state.reservation.current ? this.state.reservation.current.value : null;
         if (reservation === "") reservation = null;
         const urlName = this.state.schedulingOptions.url.current == null ? null : this.state.schedulingOptions.url.current.value;
-        const fullUrl = urlName == null ? null : "https://app-".concat(urlName, ".cloud.sdu.dk");
 
         const job = {
             application: {
@@ -544,7 +543,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 version: this.state.application!.metadata.version
             },
             parameters,
-            url: fullUrl,
+            url: urlName,
             numberOfNodes: this.state.schedulingOptions.numberOfNodes,
             tasksPerNode: this.state.schedulingOptions.tasksPerNode,
             maxTime,
