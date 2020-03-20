@@ -39,7 +39,7 @@ detekt {
 }
 
 group "dk.sdu.cloud"
-version '1.13.0-storage-events.1'
+version '1.14.0-projects.2'
 
 apply plugin: "kotlin"
 apply plugin: "maven-publish"

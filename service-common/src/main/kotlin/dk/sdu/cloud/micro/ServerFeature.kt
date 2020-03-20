@@ -1,13 +1,7 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.calls.server.AuditToEventStream
-import dk.sdu.cloud.calls.server.AuthInterceptor
-import dk.sdu.cloud.calls.server.ClientInfoInterceptor
-import dk.sdu.cloud.calls.server.IngoingHttpInterceptor
-import dk.sdu.cloud.calls.server.IngoingWebSocketInterceptor
-import dk.sdu.cloud.calls.server.JobIdInterceptor
-import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.installDefaultFeatures
 import io.ktor.server.engine.ApplicationEngine
@@ -26,6 +20,7 @@ class ServerFeature : MicroFeature {
         JobIdInterceptor(!ctx.developmentModeEnabled).register(server)
         AuditToEventStream(ctx.serviceInstance, ctx.eventStreamService, ctx.tokenValidation).register(server)
         AuthInterceptor(ctx.tokenValidation).register(server)
+        ProjectInterceptor().register(server)
 
         val serverConfig = ctx.rpcConfiguration?.server
         val installHttp = serverConfig?.http != false

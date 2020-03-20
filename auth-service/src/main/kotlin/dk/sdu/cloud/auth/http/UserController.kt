@@ -42,7 +42,6 @@ class UserController<DBSession>(
                 val principals: List<Principal> = request.map { user ->
                     when (user.role) {
                         Role.SERVICE -> ServicePrincipal(user.username, Role.SERVICE)
-                        Role.PROJECT_PROXY -> ProjectProxy(user.username, Role.PROJECT_PROXY)
 
                         null, Role.ADMIN, Role.USER -> {
                             personService.createUserByPassword(
@@ -129,8 +128,6 @@ class UserController<DBSession>(
             ok(
                 db.withTransaction { session ->
                     val user = userDAO.findByEmail(session, request.email)
-                        ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "User not found")
-
                     LookupUserWithEmailResponse(
                         user.userId,
                         user.firstNames

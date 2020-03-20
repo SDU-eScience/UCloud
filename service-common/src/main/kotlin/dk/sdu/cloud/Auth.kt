@@ -26,11 +26,6 @@ enum class Role {
     USER,
 
     /**
-     * A user acting on behalf of a project. This is typically a end-user.
-     */
-    PROJECT_PROXY,
-
-    /**
      * The security principal is an administrator of the system.
      *
      * Very few users should have this role.
@@ -61,8 +56,8 @@ enum class Role {
 }
 
 object Roles {
-    val AUTHENTICATED = setOf(Role.USER, Role.ADMIN, Role.SERVICE, Role.THIRD_PARTY_APP, Role.PROJECT_PROXY)
-    val END_USER = setOf(Role.USER, Role.ADMIN, Role.PROJECT_PROXY)
+    val AUTHENTICATED = setOf(Role.USER, Role.ADMIN, Role.SERVICE, Role.THIRD_PARTY_APP)
+    val END_USER = setOf(Role.USER, Role.ADMIN)
     val PRIVILEDGED = setOf(Role.ADMIN, Role.SERVICE)
     val ADMIN = setOf(Role.ADMIN)
     val THIRD_PARTY_APP = setOf(Role.THIRD_PARTY_APP)

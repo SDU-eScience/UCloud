@@ -58,3 +58,6 @@ fun <T> List<T>.paginate(request: NormalizedPaginationRequest): Page<T> {
 
     return Page(size, request.itemsPerPage, request.page, items)
 }
+
+val NormalizedPaginationRequest.offset: Int
+    get() = itemsPerPage * page

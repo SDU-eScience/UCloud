@@ -146,7 +146,7 @@ class CoreAuthController<DBSession>(
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
 
                 log.debug("Validating extender role versus input token")
-                if (token.principal.role != Role.PROJECT_PROXY && securityPrincipal.role !in Roles.PRIVILEDGED) {
+                if (securityPrincipal.role !in Roles.PRIVILEDGED) {
                     throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                 }
 
