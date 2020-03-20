@@ -42,7 +42,8 @@ class JobController(
     private val serviceClient: AuthenticatedClient,
     private val vncService: VncService<*>,
     private val webService: WebService<*>,
-    private val machineTypes: List<MachineReservation> = listOf(MachineReservation.BURST)
+    private val machineTypes: List<MachineReservation> = listOf(MachineReservation.BURST),
+    private val gpuWhitelist: List<String> = emptyList()
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(JobDescriptions.findById) {
@@ -69,6 +70,13 @@ class JobController(
 
         implement(JobDescriptions.start) {
             verifyPrincipal()
+            val canAccessGpu =
+                ctx.securityPrincipal.email in gpuWhitelist || ctx.securityPrincipal.role in Roles.PRIVILEDGED
+            val reservation = machineTypes.find { it.name == request.reservation }
+            if (reservation?.gpu != null && reservation.gpu != 0 && !canAccessGpu) {
+                throw RPCException("You do not have GPU access!", HttpStatusCode.Forbidden)
+            }
+
             log.debug("Extending token")
             val maxTime = request.maxTime
             if (maxTime != null && maxTime.toMillis() > JOB_MAX_TIME) {
@@ -148,7 +156,9 @@ class JobController(
 
         implement(JobDescriptions.machineTypes) {
             verifyPrincipal()
-            ok(machineTypes)
+            val canAccessGpu =
+                ctx.securityPrincipal.email in gpuWhitelist || ctx.securityPrincipal.role in Roles.PRIVILEDGED
+            ok(if (canAccessGpu) machineTypes else machineTypes.filter { it.gpu == null })
         }
     }
 

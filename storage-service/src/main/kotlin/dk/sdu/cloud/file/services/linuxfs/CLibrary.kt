@@ -2,13 +2,6 @@ package dk.sdu.cloud.file.services.linuxfs
 
 import com.sun.jna.*
 
-val dirent.name: String
-    get() {
-        val size = d_name.indexOf(0)
-        if (size == -1) throw IllegalStateException("End of file name not found!")
-        return String(d_name, 0, size, Charsets.UTF_8)
-    }
-
 @Suppress("SpellCheckingInspection", "FunctionName")
 interface CLibrary : Library {
     fun fgetxattr(fd: Int, name: String, value: ByteArray, size: Int): Int

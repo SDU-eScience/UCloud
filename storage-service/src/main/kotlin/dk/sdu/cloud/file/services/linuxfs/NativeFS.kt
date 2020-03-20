@@ -15,7 +15,6 @@ import java.nio.channels.Channels
 import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermissions
-import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 
@@ -267,7 +266,9 @@ object NativeFS : Loggable {
                 val result = ArrayList<String>()
                 while (true) {
                     val ent = readdir(dir) ?: break
-                    val name = ent.name
+                    // Read unsized string at end of struct. The ABI for this function leaves the size completely
+                    // undefined.
+                    val name = ent.pointer.getString(19)
                     if (name == "." || name == "..") continue
                     result.add(name)
                 }

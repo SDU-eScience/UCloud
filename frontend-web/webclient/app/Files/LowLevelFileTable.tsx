@@ -320,10 +320,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
     useEffect(() => {
         if (!props.embedded) {
-            const {pageNumber, itemsPerPage} = page;
-            props.setUploaderCallback(() => onPageChanged(pageNumber, itemsPerPage));
+            props.setUploaderCallback(() => reload());
         }
-    }, [page.pageNumber, page.itemsPerPage]);
+    }, [reload]);
 
     useEffect(() => {
         return () => props.setUploaderCallback();
@@ -408,7 +407,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     };
 
     // Loading state
-    if (props.onLoadingState) props.onLoadingState(isAnyLoading);
+    React.useEffect(() => {
+        props.onLoadingState?.(isAnyLoading);
+    }, [isAnyLoading]);
 
     return (
         <Shell
