@@ -12,13 +12,16 @@ import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {UserCreationState} from ".";
+import has = Reflect.has;
 
 const initialState: UserCreationState = {
     username: "",
     password: "",
     repeatedPassword: "",
+    email: "",
     usernameError: false,
-    passwordError: false
+    passwordError: false,
+    emailError: false
 };
 
 function UserCreation(props: UserCreationOperations): JSX.Element | null {
@@ -36,9 +39,11 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
     const {
         usernameError,
         passwordError,
+        emailError,
         username,
         password,
-        repeatedPassword
+        repeatedPassword,
+        email
     } = state;
 
     return (
@@ -79,6 +84,16 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
                                 placeholder="Repeat password..."
                             />
                         </Label>
+                        <Label mb="1em">
+                            Email
+                            <Input
+                                value={email}
+                                type="email"
+                                error={emailError}
+                                onChange={e => updateField("email", e.target.value)}
+                                placeholder="Email..."
+                            />
+                        </Label>
                         <Button
                             type="submit"
                             color="green"
@@ -95,6 +110,7 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
     function updateField(field: keyof UserCreationState, value: string) {
         if (field === "username") state.usernameError = false;
         else if (field === "password" || field === "repeatedPassword") state.passwordError = false;
+        else if (field === "email") state.emailError = false
         setState({...state, [field]: value});
     }
 
@@ -103,19 +119,24 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
 
         let hasUsernameError = false;
         let hasPasswordError = false;
-        const {username, password, repeatedPassword} = state;
+        let hasEmailError = false;
+        const {username, password, repeatedPassword, email} = state;
         if (!username) hasUsernameError = true;
         if (!password || password !== repeatedPassword) {
             hasPasswordError = true;
             snackbarStore.addFailure("Passwords do not match.");
         }
-        setState({...state, usernameError: hasUsernameError, passwordError: hasPasswordError});
-        if (!hasUsernameError && !hasPasswordError) {
+        if (!email) {
+            hasEmailError = true;
+            snackbarStore.addFailure("Email is required")
+        }
+        setState({...state, usernameError: hasUsernameError, passwordError: hasPasswordError, emailError: hasEmailError});
+        if (!hasUsernameError && !hasPasswordError && !hasEmailError) {
             try {
                 props.setLoading(true);
                 setSubmitted(true);
                 await promiseKeeper.makeCancelable(
-                    Client.post("/auth/users/register", {username, password}, "")
+                    Client.post("/auth/users/register", {username, password, email}, "")
                 ).promise;
                 snackbarStore.addSnack({message: `User '${username}' successfully created`, type: SnackType.Success});
                 setState(initialState);
