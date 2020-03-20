@@ -24,7 +24,6 @@ class FileFavoriteController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         handleFavoriteToggle(FileFavoriteDescriptions.toggleFavorite)
-        handleFavoriteToggle(FileFavoriteDescriptions.toggleFavoriteDelete)
 
         implement(FileFavoriteDescriptions.favoriteStatus) {
             ok(

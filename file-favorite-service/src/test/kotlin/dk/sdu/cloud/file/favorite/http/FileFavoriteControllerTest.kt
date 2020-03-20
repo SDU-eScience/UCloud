@@ -42,7 +42,7 @@ class FileFavoriteControllerTest {
 
                 val request = sendRequest(
                     method = HttpMethod.Post,
-                    path = "/api/files/favorite",
+                    path = "/api/files/favorite/toggle",
                     user = TestUsers.user,
                     params = mapOf(
                         "path" to "/home/user/1,/home/user/2"
@@ -66,7 +66,7 @@ class FileFavoriteControllerTest {
 
                 val request = sendRequest(
                     method = HttpMethod.Post,
-                    path = "/api/files/favorite",
+                    path = "/api/files/favorite/toggle",
                     user = TestUsers.user,
                     params = mapOf(
                         "path" to "/home/user/1,/home/user/2"

@@ -44,13 +44,15 @@ internal data class WSRequest<T>(
     val streamId: String,
     val payload: T,
     val bearer: String? = null,
-    val causedBy: String? = null
+    val causedBy: String? = null,
+    val project: String? = null
 ) {
     companion object {
         val CALL_FIELD = WSRequest<*>::call.name
         val STREAM_ID_FIELD = WSRequest<*>::streamId.name
         val PAYLOAD_FIELD = WSRequest<*>::payload.name
         val CAUSED_BY_FIELD = WSRequest<*>::causedBy.name
+        val PROJECT_FIELD = WSRequest<*>::project.name
     }
 }
 

@@ -75,7 +75,9 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
         }
     }
 
-    props.setGlobalLoading(page.loading);
+    React.useEffect(() => {
+        props.setGlobalLoading(page.loading);
+    }, [page.loading]);
 
     const refresh = (): void => setFetchParams({...params, reloadId: Math.random()});
 

@@ -221,6 +221,9 @@ sealed class KnowledgeMode {
 data class VerifyFileKnowledgeRequest(val user: String, val files: List<String>, val mode: KnowledgeMode? = null)
 data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 
+data class NormalizePermissionsRequest(val path: String)
+typealias NormalizePermissionsResponse = Unit
+
 object FileDescriptions : CallDescriptionContainer("files") {
     val baseContext = "/api/files"
     val wsBaseContext = "$baseContext/ws"
@@ -531,4 +534,22 @@ object FileDescriptions : CallDescriptionContainer("files") {
             }
         }
     }
+
+    val normalizePermissions =
+        call<NormalizePermissionsRequest, NormalizePermissionsResponse, CommonErrorMessage>("normalizePermissions") {
+            auth {
+                access = AccessRight.READ_WRITE
+                roles = Roles.AUTHENTICATED
+            }
+
+            http {
+                method = HttpMethod.Post
+                path {
+                    using(baseContext)
+                    +"normalize-permissions"
+                }
+
+                body { bindEntireRequestFromBody() }
+            }
+        }
 }

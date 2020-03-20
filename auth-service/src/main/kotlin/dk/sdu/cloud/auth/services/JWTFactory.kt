@@ -4,7 +4,6 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTCreator
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
-import dk.sdu.cloud.auth.api.ProjectProxy
 import dk.sdu.cloud.auth.api.ServiceAgreementText
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import java.util.*
@@ -61,7 +60,6 @@ class JWTFactory(
             is Person.ByWAYF -> "wayf"
             is Person.ByPassword -> "password"
             is ServicePrincipal -> "service"
-            is ProjectProxy -> "project"
         }
         withClaim("principalType", type)
     }

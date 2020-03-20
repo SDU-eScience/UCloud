@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "webclient"
-    version = "0.36.0-storage-events.6"
+    version = "0.36.0-storage-events.10"
 
     withAmbassador(null) {
         services.add(

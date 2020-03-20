@@ -18,8 +18,7 @@ data class Configuration(
     val prefix: String = "app-",
     val domain: String = "cloud.sdu.dk",
     val performAuthentication: Boolean = true,
-    val toleration: TolerationKeyAndValue? = null,
-    val hostTemporaryStorage: String = "/mnt/ofs"
+    val toleration: TolerationKeyAndValue? = null
 )
 
 data class CephConfiguration(

@@ -51,6 +51,9 @@ interface StorageFile {
 
     @get:JsonProperty("ownSensitivityLevel")
     val ownSensitivityLevelOrNull: SensitivityLevel?
+
+    val permissionAlert: Boolean
+        get() = false
 }
 
 val StorageFile.fileType: FileType
@@ -89,7 +92,8 @@ data class StorageFileImpl(
     override val sizeOrNull: Long?,
     override val aclOrNull: List<AccessEntry>? = emptyList(),
     override val sensitivityLevelOrNull: SensitivityLevel? = SensitivityLevel.PRIVATE,
-    override val ownSensitivityLevelOrNull: SensitivityLevel?
+    override val ownSensitivityLevelOrNull: SensitivityLevel?,
+    override val permissionAlert: Boolean = false
 ) : StorageFile
 
 fun StorageFile.mergeWith(other: StorageFile): StorageFile {
@@ -102,7 +106,8 @@ fun StorageFile.mergeWith(other: StorageFile): StorageFile {
         sizeOrNull = sizeOrNull ?: other.sizeOrNull,
         aclOrNull = aclOrNull ?: other.aclOrNull,
         sensitivityLevelOrNull = sensitivityLevelOrNull ?: other.sensitivityLevelOrNull,
-        ownSensitivityLevelOrNull = ownSensitivityLevelOrNull ?: other.ownSensitivityLevelOrNull
+        ownSensitivityLevelOrNull = ownSensitivityLevelOrNull ?: other.ownSensitivityLevelOrNull,
+        permissionAlert = permissionAlert || other.permissionAlert
     )
 }
 
@@ -115,7 +120,8 @@ fun StorageFile(
     size: Long = 0,
     acl: List<AccessEntry>? = emptyList(),
     sensitivityLevel: SensitivityLevel = SensitivityLevel.PRIVATE,
-    ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE
+    ownSensitivityLevel: SensitivityLevel? = SensitivityLevel.PRIVATE,
+    permissionAlert: Boolean = false
 ): StorageFileImpl {
     return StorageFileImpl(
         fileTypeOrNull = fileType,

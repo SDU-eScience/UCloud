@@ -15,7 +15,6 @@ import java.nio.channels.Channels
 import java.nio.file.*
 import java.nio.file.attribute.FileTime
 import java.nio.file.attribute.PosixFilePermissions
-import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 
@@ -23,7 +22,8 @@ data class NativeStat(
     val size: Long,
     val modifiedAt: Long,
     val fileType: FileType,
-    val ownSensitivityLevel: SensitivityLevel?
+    val ownSensitivityLevel: SensitivityLevel?,
+    val ownerUid: Int
 )
 
 object NativeFS : Loggable {
@@ -35,8 +35,8 @@ object NativeFS : Loggable {
     private const val O_RDONLY = 0x0
     private const val ENOENT = 2
     private const val ENOTEMPTY = 39
-    private const val DEFAULT_DIR_MODE = 488 // 0750
-    private const val DEFAULT_FILE_MODE = 416 // 0640
+    const val DEFAULT_DIR_MODE = 488 // 0750
+    const val DEFAULT_FILE_MODE = 416 // 0640
     private const val AT_REMOVEDIR = 0x200
     private const val S_ISREG = 0x8000
 
@@ -258,10 +258,17 @@ object NativeFS : Loggable {
                 }
 
                 val dir = fdopendir(fd)
+                if (dir == null) {
+                    close(fd)
+                    throw FSException.IsDirectoryConflict()
+                }
+
                 val result = ArrayList<String>()
                 while (true) {
                     val ent = readdir(dir) ?: break
-                    val name = ent.name
+                    // Read unsized string at end of struct. The ABI for this function leaves the size completely
+                    // undefined.
+                    val name = ent.pointer.getString(19)
                     if (name == "." || name == "..") continue
                     result.add(name)
                 }
@@ -381,7 +388,8 @@ object NativeFS : Loggable {
                 st.st_size,
                 (st.m_sec * 1000) + (st.m_nsec / 1_000_000),
                 if (st.st_mode and S_ISREG == 0) FileType.DIRECTORY else FileType.FILE,
-                ownSensitivityLevel
+                ownSensitivityLevel,
+                st.st_uid
             )
         } else {
             if (Files.isSymbolicLink(path.toPath())) throw FSException.NotFound()
@@ -404,7 +412,7 @@ object NativeFS : Loggable {
             }
 
             val modifiedAt = (basicAttributes.getValue("lastModifiedTime") as FileTime).toMillis()
-            return NativeStat(size, modifiedAt, fileType, ownSensitivityLevel)
+            return NativeStat(size, modifiedAt, fileType, ownSensitivityLevel, LINUX_FS_USER_UID)
         }
     }
 

@@ -5,13 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SingleFileAudit
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.sensitivityLevel
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
@@ -112,6 +106,14 @@ class ActionController<Ctx : FSUserContext>(
                 )
                 CallResult.Success(Unit, HttpStatusCode.OK)
             }
+        }
+
+        implement(FileDescriptions.normalizePermissions) {
+            commandRunnerFactory.withCtx(this) { ctx ->
+                coreFs.normalizePermissions(ctx, request.path)
+            }
+
+            ok(Unit)
         }
     }
 }

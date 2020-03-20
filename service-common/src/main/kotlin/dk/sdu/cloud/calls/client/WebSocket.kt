@@ -100,7 +100,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             streamId,
             request,
             bearer = ctx.attributes.outgoingAuthToken,
-            causedBy = ctx.causedBy
+            causedBy = ctx.causedBy,
+            project = ctx.project
         )
         val writer = defaultMapper.writerFor(
             defaultMapper.typeFactory.constructParametricType(

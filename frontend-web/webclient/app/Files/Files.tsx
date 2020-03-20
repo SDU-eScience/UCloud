@@ -32,6 +32,7 @@ const Files: React.FunctionComponent<FilesOperations> = props => {
             onFileNavigation={navigation}
             path={urlPath}
             previewEnabled
+            permissionAlertEnabled
             onLoadingState={props.setLoading}
             refreshHook={props.refreshHook}
         />

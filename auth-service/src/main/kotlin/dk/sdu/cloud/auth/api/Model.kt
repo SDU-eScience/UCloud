@@ -18,8 +18,7 @@ import dk.sdu.cloud.service.TYPE_PROPERTY
 @JsonSubTypes(
     JsonSubTypes.Type(value = Person.ByWAYF::class, name = "wayf"),
     JsonSubTypes.Type(value = Person.ByPassword::class, name = "password"),
-    JsonSubTypes.Type(value = ServicePrincipal::class, name = "service"),
-    JsonSubTypes.Type(value = ProjectProxy::class, name = "project_proxy")
+    JsonSubTypes.Type(value = ServicePrincipal::class, name = "service")
 )
 sealed class Principal {
     /**
@@ -156,17 +155,6 @@ sealed class Person : Principal() {
                     "lastName='$lastName', phoneNumber=$phoneNumber, orcId=$orcId, " +
                     "email='$email')"
         }
-    }
-}
-
-data class ProjectProxy(
-    override val id: String,
-    override val role: Role,
-    override val uid: Long = 0
-) : Principal() {
-    init {
-        validate()
-        require(role == Role.PROJECT_PROXY) { "Invalid role" }
     }
 }
 

@@ -17,6 +17,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.SENSITIVE,
+            permissionAlert: null
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/AABA",
@@ -26,7 +27,8 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             acl: [{entity: "user3@test.dk", rights: ["WRITE", "EXECUTE"], group: false}],
             favorited: true,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            ownSensitivityLevel: SensitivityLevelMap.SENSITIVE
+            ownSensitivityLevel: SensitivityLevelMap.SENSITIVE,
+            permissionAlert: null
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/Favorites",
@@ -36,7 +38,8 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
+            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
+            permissionAlert: null
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/Jobs",
@@ -46,7 +49,8 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
+            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
+            permissionAlert: null
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/A folder the sequel",
@@ -56,7 +60,8 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
+            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
+            permissionAlert: null
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/B",
@@ -66,7 +71,8 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             acl: [],
             favorited: true,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
+            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
+            permissionAlert: null
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/rehjoerijhoerijh",
@@ -77,6 +83,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
+            permissionAlert: null
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/Test",
@@ -86,7 +93,8 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
+            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
+            permissionAlert: null
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/somefolder-60D6DAD4-DCF1-415E-B4D6-9BCEF028369E",
@@ -96,7 +104,8 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
+            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
+            permissionAlert: null
         }, {
             fileType: "DIRECTORY",
             path: "/home/user@user.telecity/somefolder-24ACCA0C-2FAA-4B6C-8F31-7F1E633A54DB",
@@ -106,7 +115,8 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             acl: [],
             favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
-            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL
+            ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
+            permissionAlert: null
         }],
     pagesInTotal: 2
 };
@@ -129,9 +139,10 @@ export const newMockFile = ({
     ownSensitivityLevel: sensitivityLevel,
     ownerName,
     favorited,
-    sensitivityLevel
+    sensitivityLevel,
+    permissionAlert: null
 });
 
-test("Error silencer", () =>
+/* test("Error silencer", () =>
     expect(1).toBe(1)
-);
+); */

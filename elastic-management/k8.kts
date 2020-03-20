@@ -8,7 +8,6 @@ bundle {
     val deployment = withDeployment {
         injectSecret("elasticsearch-credentials")
     }
-
     resources.remove(deployment)
 
     withCronJob(deployment, "0 1 * * *", listOf("--cleanup")) {}

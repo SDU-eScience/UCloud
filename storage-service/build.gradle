@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '4.0.0-storage-events.31'
+version '4.0.0-storage-events.44'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"
@@ -16,6 +16,7 @@ dependencies {
     implementation "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     implementation "dk.sdu.cloud:auth-api:${authApiVersion}"
     implementation "dk.sdu.cloud:task-api:0.2.2"
+    implementation "dk.sdu.cloud:notification-api:1.2.6"
 
     implementation 'net.java.dev.jna:jna:5.2.0'
     implementation group: 'com.h2database', name: 'h2', version: '1.4.196'

@@ -1,12 +1,7 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.calls.client.FixedOutgoingHostResolver
-import dk.sdu.cloud.calls.client.HostInfo
-import dk.sdu.cloud.calls.client.OutgoingHostResolver
-import dk.sdu.cloud.calls.client.OutgoingHttpRequestInterceptor
-import dk.sdu.cloud.calls.client.OutgoingWSRequestInterceptor
-import dk.sdu.cloud.calls.client.RpcClient
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.DevelopmentOutgoingHostResolver
 import dk.sdu.cloud.service.Loggable
 
@@ -36,6 +31,8 @@ class ClientFeature : MicroFeature {
         }
 
         this.hostResolver = hostResolver
+
+        client.attachFilter(OutgoingProject())
 
         if (installHttp) {
             OutgoingHttpRequestInterceptor()

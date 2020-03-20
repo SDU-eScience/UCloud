@@ -1,5 +1,5 @@
 import * as AccountingRedux from "Accounting/Redux";
-import {Activity, ActivityFilter, ActivityGroup} from "Activity";
+import {Activity, ActivityFilter, ActivityForFrontend} from "Activity";
 import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
 import * as ApplicationRedux from "Applications/Redux";
 import {TaskReduxState} from "BackgroundTasks/redux";
@@ -61,7 +61,7 @@ export interface ResponsiveReduxObject {
 
 export interface FileInfoReduxObject {
     error?: string;
-    activity: Page<Activity>;
+    activity: Page<ActivityForFrontend>;
     loading: boolean;
 }
 
@@ -94,7 +94,7 @@ export interface HeaderSearchReduxObject {
     refresh?: () => void;
 }
 
-export type ActivityReduxObject = ComponentWithScroll<ActivityGroup, number> & ActivityFilter;
+export type ActivityReduxObject = ComponentWithScroll<ActivityForFrontend, number> & ActivityFilter;
 
 export type HeaderSearchType = "files" | "applications" | "projects";
 

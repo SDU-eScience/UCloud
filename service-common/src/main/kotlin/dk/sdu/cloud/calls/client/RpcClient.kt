@@ -146,6 +146,20 @@ fun AuthenticatedClient.withFixedHost(hostInfo: HostInfo): AuthenticatedClient {
     )
 }
 
+fun AuthenticatedClient.withProject(project: String): AuthenticatedClient {
+    return AuthenticatedClient(
+        client,
+        companion,
+        authenticator = {
+            authenticator(it)
+            it.project = project
+        },
+        afterFilters = {
+            afterFilters?.invoke(it)
+        }
+    )
+}
+
 fun AuthenticatedClient.withoutAuthentication(): ClientAndBackend = ClientAndBackend(client, companion)
 
 suspend fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.call(

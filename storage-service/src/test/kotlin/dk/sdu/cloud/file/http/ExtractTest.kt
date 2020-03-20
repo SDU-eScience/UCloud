@@ -65,7 +65,7 @@ class ExtractTest : WithBackgroundScope() {
             test = {
                 val path = "/home/user1/another-one/a.tar.gz"
                 val response = engine.extract(path)
-                assertEquals(HttpStatusCode.OK, response.status())
+                assertEquals(HttpStatusCode.Accepted, response.status())
             }
         )
     }
@@ -78,7 +78,7 @@ class ExtractTest : WithBackgroundScope() {
             test = {
                 val path = "/home/user1/folder/a.zip"
                 val response = engine.extract(path)
-                assertEquals(HttpStatusCode.OK, response.status())
+                assertEquals(HttpStatusCode.Accepted, response.status())
             }
         )
     }

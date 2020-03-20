@@ -92,6 +92,7 @@ export interface LowLevelFileTableProps {
 
     omitQuickLaunch?: boolean;
     previewEnabled?: boolean;
+    permissionAlertEnabled?: boolean;
 
     asyncWorker?: AsyncWorker;
 }
@@ -275,7 +276,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     const [sortByColumn, setSortByColumn] = useState<SortBy>(getSortingColumn());
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, , invokeWork] = useAsyncWork();
-    const [applications, setApplications] = useState(new Map<string, QuickLaunchApp[]>());
+    const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map());
     const history = useHistory();
 
     const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
@@ -319,10 +320,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
     useEffect(() => {
         if (!props.embedded) {
-            const {pageNumber, itemsPerPage} = page;
-            props.setUploaderCallback(() => onPageChanged(pageNumber, itemsPerPage));
+            props.setUploaderCallback(() => reload());
         }
-    }, [page.pageNumber, page.itemsPerPage]);
+    }, [reload]);
 
     useEffect(() => {
         return () => props.setUploaderCallback();
@@ -371,9 +371,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     };
 
     // Register refresh hook
-    if (props.refreshHook !== undefined) {
-        props.refreshHook(true, () => callbacks.requestReload());
-    }
+    React.useEffect(() => {
+        if (props.refreshHook !== undefined) {
+            props.refreshHook(true, () => callbacks.requestReload());
+        }
+    }, [props.refreshHook, callbacks.requestReload]);
 
     useEffect(() => {
         return (): void => {
@@ -405,7 +407,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     };
 
     // Loading state
-    if (props.onLoadingState) props.onLoadingState(isAnyLoading);
+    React.useEffect(() => {
+        props.onLoadingState?.(isAnyLoading);
+    }, [isAnyLoading]);
 
     return (
         <Shell
@@ -434,7 +438,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                 <Pagination.EntriesPerPageSelector
                                     content="Files per page"
                                     entriesPerPage={page.itemsPerPage}
-                                    onChange={(amount): void => onPageChanged(0, amount)}
+                                    onChange={amount => onPageChanged(0, amount)}
                                 />
                             )}
                         </>
@@ -650,8 +654,40 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                         <Box ml="auto" />
                         {(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
                             <Flex alignItems="center" onClick={UF.stopPropagation}>
-                                {/* Show members as icons */}
-                                {/* {!f.acl ? null : <ACLAvatars members={f.acl.map(it => it.entity)} />} */}
+                                {props.permissionAlertEnabled !== true || f.permissionAlert !== true ? null : (
+                                    <Tooltip
+                                        wrapperOffsetLeft="0"
+                                        wrapperOffsetTop="4px"
+                                        right="0"
+                                        top="1"
+                                        mb="50px"
+                                        trigger={(
+                                            <BaseLink href={"#"} onClick={e => {
+                                                e.preventDefault();
+                                                addStandardDialog({
+                                                    title: "Non-standard metadata",
+                                                    message: "This file has some non-standard metadata. This can cause problems in some applications. Do you wish to resolve this issue?",
+                                                    confirmText: "Resolve issue",
+                                                    onConfirm: async () => {
+                                                        await Client.post("/files/normalize-permissions", {path: f.path});
+                                                        callbacks.requestReload();
+                                                    }
+                                                })
+                                            }}>
+                                                <Icon
+                                                    cursor="pointer"
+                                                    size="24px"
+                                                    mr="8px"
+                                                    color="midGray"
+                                                    hoverColor="gray"
+                                                    name="warning"
+                                                />
+                                            </BaseLink>
+                                        )}
+                                    >
+                                        Non-standard metadata
+                                    </Tooltip>
+                                )}
                                 {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
                                     f.size != null
                                         && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
@@ -1073,7 +1109,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
                 {...props}
             >
                 <AppToolLogo name={quickLaunchApp.metadata.name} size="20px" type="APPLICATION" />
-                <span>{quickLaunchApp.metadata.title}</span>
+                <span style={{marginLeft: "5px"}}>{quickLaunchApp.metadata.title}</span>
             </Flex>
         );
     };

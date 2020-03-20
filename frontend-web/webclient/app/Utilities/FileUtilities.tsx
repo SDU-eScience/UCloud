@@ -282,7 +282,8 @@ export function mockFile(props: {path: string; type: FileType; fileId?: string; 
         favorited: false,
         sensitivityLevel: SensitivityLevelMap.PRIVATE,
         ownSensitivityLevel: null,
-        mockTag: props.tag
+        mockTag: props.tag,
+        permissionAlert: false
     };
 }
 
@@ -343,7 +344,7 @@ export const favoriteFile = async (file: File, client: HttpClient): Promise<File
     return file;
 };
 
-const favoriteFileQuery = (path: string): string => `/files/favorite?path=${encodeURIComponent(path)}`;
+const favoriteFileQuery = (path: string): string => `/files/favorite/toggle?path=${encodeURIComponent(path)}`;
 
 interface ReclassifyFile {
     file: File;
@@ -384,7 +385,7 @@ export const extractArchive = async ({files, client, onFinished}: ExtractArchive
     for (const f of files) {
         try {
             await client.post(extractFilesQuery, {path: f.path});
-            snackbarStore.addSnack({message: "File extracted", type: SnackType.Success});
+            snackbarStore.addSnack({message: "File(s) being extracted", type: SnackType.Success});
         } catch (e) {
             snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred extracting the file."));
         }

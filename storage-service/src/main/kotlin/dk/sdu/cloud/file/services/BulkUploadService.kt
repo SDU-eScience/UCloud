@@ -1,15 +1,21 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.services.BasicUploader.log
 import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.CappedInputStream
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.micro.BackgroundScope
+import dk.sdu.cloud.notification.api.CreateNotification
+import dk.sdu.cloud.notification.api.Notification
+import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.task.api.MeasuredSpeedInteger
 import dk.sdu.cloud.task.api.runTask
+import kotlinx.coroutines.runBlocking
 import org.kamranzafar.jtar.TarEntry
 import org.kamranzafar.jtar.TarInputStream
 import org.slf4j.Logger
@@ -17,6 +23,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.util.zip.GZIPInputStream
 import java.util.zip.ZipEntry
+import java.util.zip.ZipException
 import java.util.zip.ZipInputStream
 import kotlin.reflect.KClass
 
@@ -94,7 +101,7 @@ object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class
                                 yield(ArchiveEntry.File(
                                     path = initialTargetPath,
                                     stream = zipStream,
-                                    dispose = { zipStream.closeEntry() }
+                                    dispose = {zipStream.closeEntry()}
                                 ))
                             }
                             entry = zipStream.nextEntry
@@ -175,7 +182,8 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
                         entry = it.nextEntry
                     }
                 }
-            })
+            }
+        )
     }
 }
 
@@ -270,18 +278,36 @@ private object BasicUploader : Loggable {
                                     }
 
                                     is ArchiveEntry.File -> {
-                                        val newFile = fs.write(ctx, targetPath, conflictPolicy) {
-                                            entry.stream.copyToWithTracking(
-                                                bytesPerSecond,
-                                                this
-                                            )
-                                        }
+                                        try {
+                                            val newFile = fs.write(ctx, targetPath, conflictPolicy) {
+                                                entry.stream.copyToWithTracking(
+                                                    bytesPerSecond,
+                                                    this
+                                                )
+                                            }
 
-                                        if (sensitivity != null) sensitivityService.setSensitivityLevel(
-                                            ctx,
-                                            newFile,
-                                            sensitivity
-                                        )
+                                            if (sensitivity != null) sensitivityService.setSensitivityLevel(
+                                                ctx,
+                                                newFile,
+                                                sensitivity
+                                            )
+                                        } catch (ex: ZipException) {
+                                            NotificationDescriptions.create.call(
+                                                CreateNotification(
+                                                    targetPath.split("/")[2],
+                                                    Notification(
+                                                        "EXTRACT_FAILED",
+                                                        "Extraction failed.\n " +
+                                                                "This might be due to the zip file was created " +
+                                                                "on mac using compress or just corrupted. " +
+                                                                "Try recreate the file using zip or " +
+                                                                "tar from terminal"
+                                                    )
+                                                ),
+                                                serviceCloud
+                                            )
+                                            throw ex
+                                        }
                                     }
                                 }
 
@@ -312,7 +338,16 @@ private object BasicUploader : Loggable {
         } finally {
             runCatching { ctx.close() }
         }
-
+        NotificationDescriptions.create.call(
+            CreateNotification(
+                path.split("/")[2],
+                Notification(
+                    "EXTRACTION_SUCCESS",
+                    "Extraction completed"
+                )
+            ),
+            serviceCloud
+        )
         return rejectedFiles
     }
 }
@@ -329,7 +364,6 @@ fun InputStream.copyToWithTracking(
         out.write(buffer, 0, bytes)
         bytesCopied += bytes
         bytes = read(buffer)
-
         if (bytes > 0) speed.increment(bytes.toLong())
     }
     return bytesCopied
