@@ -29,7 +29,7 @@ data class CreateSingleUserAudit(val username: String, val role: Role?)
 
 typealias CreateUserRequest = List<CreateSingleUserRequest>
 
-data class CreateSingleUserRequest(val username: String, val password: String?, val role: Role?) {
+data class CreateSingleUserRequest(val username: String, val password: String?, val email: String, val role: Role?) {
     override fun toString() = "CreateUserRequest(username = $username, role = $role)"
 }
 

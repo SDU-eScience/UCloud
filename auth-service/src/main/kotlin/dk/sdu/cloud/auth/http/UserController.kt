@@ -49,7 +49,8 @@ class UserController<DBSession>(
                                 lastName = "N/A",
                                 username = user.username,
                                 role = user.role ?: Role.USER,
-                                password = user.password ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                                password = user.password ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
+                                email = user.email
                             )
                         }
 

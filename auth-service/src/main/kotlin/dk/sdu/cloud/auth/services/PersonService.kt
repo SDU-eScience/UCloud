@@ -15,7 +15,7 @@ class PersonService(
         username: String,
         role: Role,
         password: String,
-        email: String? = null,
+        email: String,
         twoFactorAuthentication: Boolean = false
     ): Person.ByPassword {
         val (hashed, salt) = passwordHashingService.hashPassword(password)
