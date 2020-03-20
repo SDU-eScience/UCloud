@@ -30,9 +30,15 @@ class ApplicationProxyService(
         lock.withLock {
             if (entries.containsKey(tunnel.jobId)) return
 
+            val fullDomain = if (tunnel.urlId == null) {
+                prefix + tunnel.jobId + "." + domain
+            } else {
+                prefix + tunnel.urlId + "." + domain
+            }
+
             entries[tunnel.jobId] = RouteAndCluster(
                 EnvoyRoute(
-                    prefix + tunnel.jobId + "." + domain,
+                    fullDomain,
                     tunnel.jobId
                 ),
 
@@ -89,7 +95,7 @@ class ApplicationProxyService(
     private suspend fun createOrUseExistingTunnel(incomingId: String): Tunnel {
         val job = jobCache.findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val remotePort = job.application.invocation.web?.port ?: 80
-        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort)
+        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort, job.url)
     }
 
     companion object : Loggable {
