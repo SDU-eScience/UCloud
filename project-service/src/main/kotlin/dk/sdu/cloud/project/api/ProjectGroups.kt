@@ -1,5 +1,6 @@
 package dk.sdu.cloud.project.api
 
+import com.github.jasync.sql.db.util.size
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.CallDescriptionContainer
@@ -17,6 +18,7 @@ data class CreateGroupRequest(val group: String) {
     init {
         if (group.isEmpty()) throw RPCException("Group cannot be empty", HttpStatusCode.BadRequest)
         if (group.contains('\n')) throw RPCException("Group cannot contain new lines", HttpStatusCode.BadRequest)
+        if (group.size > 500) throw RPCException("Group name too long", HttpStatusCode.BadRequest)
     }
 }
 typealias CreateGroupResponse = Unit
@@ -40,7 +42,13 @@ typealias AddGroupMemberResponse = Unit
 data class RemoveGroupMemberRequest(val group: String, val memberUsername: String)
 typealias RemoveGroupMemberResponse = Unit
 
-data class UpdateGroupNameRequest(val oldGroupName: String, val newGroupName: String)
+data class UpdateGroupNameRequest(val oldGroupName: String, val newGroupName: String) {
+    init {
+        if (newGroupName.isEmpty()) throw RPCException("Group cannot be empty", HttpStatusCode.BadRequest)
+        if (newGroupName.contains('\n')) throw RPCException("Group cannot contain new lines", HttpStatusCode.BadRequest)
+        if (newGroupName.size > 500) throw RPCException("Group name too long", HttpStatusCode.BadRequest)
+    }
+}
 typealias UpdateGroupNameResponse = Unit
 
 data class ListGroupMembersRequest(

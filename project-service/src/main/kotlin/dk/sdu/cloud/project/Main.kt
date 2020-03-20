@@ -16,10 +16,5 @@ fun main(args: Array<String>) {
     }
 
     if (micro.runScriptHandler()) return
-
-    micro.feature(LogFeature).configureLevels(mapOf(
-        "com.github.jasync" to Level.DEBUG
-    ))
-
     Server(micro).start()
 }
