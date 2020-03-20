@@ -18,15 +18,7 @@ import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.KnowledgeMode
-import dk.sdu.cloud.file.api.StatRequest
-import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.parent
-import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -202,6 +194,18 @@ class JobVerificationService<Session>(
                         value as FileTransferDescription
                         param to value.copy(
                             invocationParameter = "/work/${value.source.parent().removeSuffix("/").fileName()}/${value.source.fileName()}"
+                        )
+                    } else {
+                        paramWithValue
+                    }
+                }
+                .map { paramWithValue ->
+                    // Fix path for InputDirectory
+                    val (param, value) = paramWithValue
+                    if (param is ApplicationParameter.InputDirectory && value != null) {
+                        value as FileTransferDescription
+                        param to value.copy(
+                            invocationParameter = "/work/${value.source.normalize().fileName()}/"
                         )
                     } else {
                         paramWithValue
