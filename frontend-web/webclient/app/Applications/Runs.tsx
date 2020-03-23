@@ -15,7 +15,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Box, Button, Checkbox, Label, List as ItemList, Flex, Text, Icon, Truncate, Divider} from "ui-components";
+import {Box, Button, Checkbox, Label, List as ItemList, Flex, Text, Icon, Divider} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
@@ -26,11 +26,20 @@ import {TextSpan} from "ui-components/Text";
 import {cancelJob, cancelJobDialog, inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
 import {prettierString} from "UtilityFunctions";
 import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions";
-import {AnalysesOperations, AnalysesProps, AnalysesStateProps, JobState, JobWithStatus, RunsSortBy, isJobStateFinal} from ".";
+import {
+    AnalysesOperations,
+    AnalysesProps,
+    AnalysesStateProps,
+    JobState,
+    JobWithStatus,
+    RunsSortBy,
+    isJobStateFinal
+} from ".";
 import {JobStateIcon} from "./JobStateIcon";
 import {checkAllAnalyses, checkAnalysis, fetchAnalyses, setLoading} from "./Redux/AnalysesActions";
 import {AppToolLogo} from "./AppToolLogo";
 import styled from "styled-components";
+import {ListRow} from "ui-components/List";
 
 interface FetchJobsOptions {
     itemsPerPage?: number;
@@ -157,27 +166,20 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                         {items.map(it => {
                             const isExpired = isRunExpired(it);
                             return (
-                                <Flex
-                                    cursor="pointer"
-                                    onClick={() => props.checkAnalysis(it.jobId, !it.checked)}
-                                    pt="4px"
+                                <ListRow
                                     key={it.jobId}
-                                    backgroundColor={it.checked ? "lightBlue" : "white"}
-                                >
-                                    <Box mx="8px" mt="4px"><AppToolLogo size="36px" type="APPLICATION" name={it.metadata.name} /></Box>
-                                    <Box mb="4px" onClick={e => {e.stopPropagation(); history.push(`/applications/results/${it.jobId}`);}}>
-                                        <Truncate width={1} mb="-4px" fontSize={20}>
-                                        {it.name ? it.name : shortUUID(it.jobId)}
-                                        </Truncate>
-                                        <Flex>
-                                            <Icon color="gray" mr="5px" mt="4px" size="10px" name="id" />
-                                            <Text color="gray" fontSize="12px">{it.metadata.title} v{it.metadata.version}</Text>
-                                            <Icon color="gray" ml="4px" mr="2px" mt="4px" size="10px" name="chrono" />
-                                            <Text color="gray" fontSize="12px">Started {formatRelative(it.createdAt, new Date(), {locale: enGB})}</Text>
-                                        </Flex>
-                                    </Box>
-                                    <Box ml="auto" />
-                                    <Flex mt="10px" mr="8px">
+                                    navigate={() => history.push(`/applications/results/${it.jobId}`)}
+                                    icon={<AppToolLogo size="36px" type="APPLICATION" name={it.metadata.name} />}
+                                    isSelected={it.checked!}
+                                    select={() => props.checkAnalysis(it.jobId, !it.checked)}
+                                    left={it.name ? it.name : shortUUID(it.jobId)}
+                                    leftSub={<>
+                                        <Icon color="gray" mr="5px" mt="4px" size="10px" name="id" />
+                                        <Text color="gray" fontSize="12px">{it.metadata.title} v{it.metadata.version}</Text>
+                                        <Icon color="gray" ml="4px" mr="2px" mt="4px" size="10px" name="chrono" />
+                                        <Text color="gray" fontSize="12px">Started {formatRelative(it.createdAt, new Date(), {locale: enGB})}</Text>
+                                    </>}
+                                    right={<>
                                         {isExpired || isJobStateFinal(it.state) ? null : (
                                             <Text mr="25px">
                                                 Expires {formatRelative(it.expiresAt ?? 0, new Date(), {locale: enGB})}
@@ -187,12 +189,13 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                                             <JobStateIcon state={it.state} isExpired={isExpired} mr="8px" />
                                             <Flex mt="-3px">{isExpired ? "Expired" : capitalized(it.state)}</Flex>
                                         </Flex>
-                                    </Flex>
-                                </Flex>
+                                    </>}
+                                />
                             );
                         })}
                     </ItemList>
-                )}
+                )
+                }
                 page={page}
                 onPageChanged={pageNumber => fetchJobs({pageNumber})}
             />
