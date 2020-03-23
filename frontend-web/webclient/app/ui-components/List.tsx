@@ -58,8 +58,8 @@ export function ListRow(props: ListRowProps): JSX.Element {
         <HoverColorFlex
             isSelected={props.isSelected}
             onClick={props.select}
-            pt="4px"
-            pb="4px"
+            pt="5px"
+            pb="5px"
             width="100%"
             alignItems="center"
         >

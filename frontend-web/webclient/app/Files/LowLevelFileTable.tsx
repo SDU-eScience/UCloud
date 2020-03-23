@@ -69,6 +69,7 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
+import {ListRow} from "ui-components/List";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -228,7 +229,7 @@ function useApiForComponent(
         const error = pageError;
         const loading = pageLoading;
 
-        const setSorting = (sortBy: SortBy, order: SortOrder, updateColumn?: boolean): void => {
+        const setSorting = React.useCallback((sortBy: SortBy, order: SortOrder, updateColumn?: boolean): void => {
             let sortByToUse = sortBy;
             if (sortBy === SortBy.ACL) sortByToUse = pageParameters.sortBy;
 
@@ -243,7 +244,7 @@ function useApiForComponent(
                 order,
                 page: 0
             });
-        };
+        }, []);
 
         const reload = (): void => loadManaged(pageParameters);
         const sortBy = pageParameters.sortBy;
@@ -504,7 +505,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                             <Checkbox
                                                 size={27}
                                                 data-tag="masterCheckbox"
-                                                onClick={(): void => setChecked(
+                                                onClick={() => setChecked(
                                                     allFiles.filter(it => !isAnyMockFile([it])), !isMasterChecked
                                                 )}
                                                 checked={isMasterChecked}
@@ -633,165 +634,162 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         return (
             <List>
                 {items.map(f => (
-                    <Flex
-                        backgroundColor={checkedFiles.has(f.path) ? "lightBlue" : "white"}
-                        onClick={() => {
+                    <ListRow
+                        key={f.path}
+                        isSelected={checkedFiles.has(f.path)}
+                        select={() => {
                             if (!isAnyMockFile([f]) && !isEmbedded) setChecked([f]);
                         }}
-                        py="5px"
-                        width="100%"
-                        alignItems="center"
-                        key={f.path}
-                    >
-                        <NameBox
+                        navigate={() => onFileNavigation(f.path)}
+                        left={<NameBox
                             file={f}
                             onRenameFile={onRenameFile}
                             onNavigate={onFileNavigation}
                             callbacks={callbacks}
                             fileBeingRenamed={fileBeingRenamed}
                             previewEnabled={props.previewEnabled}
-                        />
-                        <Box ml="auto" />
-                        {(f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
-                            <Flex alignItems="center" onClick={UF.stopPropagation}>
-                                {props.permissionAlertEnabled !== true || f.permissionAlert !== true ? null : (
-                                    <Tooltip
-                                        wrapperOffsetLeft="0"
-                                        wrapperOffsetTop="4px"
-                                        right="0"
-                                        top="1"
-                                        mb="50px"
-                                        trigger={(
-                                            <BaseLink href={"#"} onClick={e => {
-                                                e.preventDefault();
-                                                addStandardDialog({
-                                                    title: "Non-standard metadata",
-                                                    message: "This file has some non-standard metadata. This can cause problems in some applications. Do you wish to resolve this issue?",
-                                                    confirmText: "Resolve issue",
-                                                    onConfirm: async () => {
-                                                        await Client.post("/files/normalize-permissions", {path: f.path});
-                                                        callbacks.requestReload();
-                                                    }
-                                                })
-                                            }}>
-                                                <Icon
-                                                    cursor="pointer"
-                                                    size="24px"
-                                                    mr="8px"
-                                                    color="midGray"
-                                                    hoverColor="gray"
-                                                    name="warning"
-                                                />
-                                            </BaseLink>
-                                        )}
-                                    >
-                                        Non-standard metadata
-                                    </Tooltip>
-                                )}
-                                {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
-                                    f.size != null
-                                        && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
-                                            <Tooltip
-                                                wrapperOffsetLeft="0"
-                                                wrapperOffsetTop="4px"
-                                                right="0"
-                                                top="1"
-                                                mb="50px"
-                                                trigger={(
-                                                    <Link to={filePreviewQuery(f.path)}>
-                                                        <Icon
-                                                            cursor="pointer"
-                                                            size="24px"
-                                                            mr="8px"
-                                                            color="midGray"
-                                                            hoverColor="gray"
-                                                            name="preview"
-                                                        />
-                                                    </Link>
-                                                )}
-                                            >
-                                                Preview available
-                                            </Tooltip>
-                                        ) : (
-                                            <Tooltip
-                                                wrapperOffsetLeft="0"
-                                                wrapperOffsetTop="4px"
-                                                tooltipContentWidth="85px"
-                                                right="0"
-                                                top="1"
-                                                mb="50px"
-                                                trigger={(
+                        />}
+                        right={
+                            (f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
+                                <Flex alignItems="center" onClick={UF.stopPropagation}>
+                                    {props.permissionAlertEnabled !== true || f.permissionAlert !== true ? null : (
+                                        <Tooltip
+                                            wrapperOffsetLeft="0"
+                                            wrapperOffsetTop="4px"
+                                            right="0"
+                                            top="1"
+                                            mb="50px"
+                                            trigger={(
+                                                <BaseLink href={"#"} onClick={e => {
+                                                    e.preventDefault();
+                                                    addStandardDialog({
+                                                        title: "Non-standard metadata",
+                                                        message: "This file has some non-standard metadata. This can cause problems in some applications. Do you wish to resolve this issue?",
+                                                        confirmText: "Resolve issue",
+                                                        onConfirm: async () => {
+                                                            await Client.post("/files/normalize-permissions", {path: f.path});
+                                                            callbacks.requestReload();
+                                                        }
+                                                    })
+                                                }}>
                                                     <Icon
-                                                        opacity="0.5"
-                                                        cursor="default"
+                                                        cursor="pointer"
                                                         size="24px"
                                                         mr="8px"
                                                         color="midGray"
-                                                        name="preview"
+                                                        hoverColor="gray"
+                                                        name="warning"
+                                                    />
+                                                </BaseLink>
+                                            )}
+                                        >
+                                            Non-standard metadata
+                                        </Tooltip>
+                                    )}
+                                    {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
+                                        f.size != null
+                                            && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
+                                                <Tooltip
+                                                    wrapperOffsetLeft="0"
+                                                    wrapperOffsetTop="4px"
+                                                    right="0"
+                                                    top="1"
+                                                    mb="50px"
+                                                    trigger={(
+                                                        <Link to={filePreviewQuery(f.path)}>
+                                                            <Icon
+                                                                cursor="pointer"
+                                                                size="24px"
+                                                                mr="8px"
+                                                                color="midGray"
+                                                                hoverColor="gray"
+                                                                name="preview"
+                                                            />
+                                                        </Link>
+                                                    )}
+                                                >
+                                                    Preview available
+                                                </Tooltip>
+                                            ) : (
+                                                <Tooltip
+                                                    wrapperOffsetLeft="0"
+                                                    wrapperOffsetTop="4px"
+                                                    tooltipContentWidth="85px"
+                                                    right="0"
+                                                    top="1"
+                                                    mb="50px"
+                                                    trigger={(
+                                                        <Icon
+                                                            opacity="0.5"
+                                                            cursor="default"
+                                                            size="24px"
+                                                            mr="8px"
+                                                            color="midGray"
+                                                            name="preview"
+                                                        />
+                                                    )}
+                                                >
+                                                    {(f.size ?? 0) > 0 ? "File too large for preview" : "File is empty"}
+                                                </Tooltip>
+                                            )}
+                                    {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
+                                        ((applications.get(f.path) ?? []).length < 1) ? null : (
+                                            <ClickableDropdown
+                                                width="175px"
+                                                left="-160px"
+                                                trigger={<Icon mr="8px" name="play" size="1em" color="midGray" hoverColor="gray" style={{display: "block"}} />}
+                                            >
+                                                <QuickLaunchApps
+                                                    file={f}
+                                                    applications={applications.get(f.path)}
+                                                    history={history}
+                                                    ml="-17px"
+                                                    mr="-17px"
+                                                    pl="15px"
+                                                />
+                                            </ClickableDropdown>
+                                        )
+                                    }
+                                    <SensitivityIcon sensitivity={f.sensitivityLevel} />
+                                    {checkedFiles.size !== 0 ? <Box width="38px" /> : fileOperations.length > 1 ? (
+                                        <Box>
+                                            <ClickableDropdown
+                                                width="175px"
+                                                left="-160px"
+                                                trigger={(
+                                                    <Icon
+                                                        onClick={UF.preventDefault}
+                                                        ml="10px"
+                                                        mr="10px"
+                                                        name="ellipsis"
+                                                        size="1em"
+                                                        rotation={90}
                                                     />
                                                 )}
                                             >
-                                                {(f.size ?? 0) > 0 ? "File too large for preview" : "File is empty"}
-                                            </Tooltip>
-                                        )}
-                                {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
-                                    ((applications.get(f.path) ?? []).length < 1) ? null : (
-                                        <ClickableDropdown
-                                            width="175px"
-                                            left="-160px"
-                                            trigger={<Icon mr="8px" name="play" size="1em" color="midGray" hoverColor="gray" style={{display: "block"}} />}
-                                        >
-                                            <QuickLaunchApps
-                                                file={f}
-                                                applications={applications.get(f.path)}
-                                                history={history}
-                                                ml="-17px"
-                                                mr="-17px"
-                                                pl="15px"
-                                            />
-                                        </ClickableDropdown>
-                                    )
-                                }
-                                <SensitivityIcon sensitivity={f.sensitivityLevel} />
-                                {checkedFiles.size !== 0 ? <Box width="38px" /> : fileOperations.length > 1 ? (
-                                    <Box>
-                                        <ClickableDropdown
-                                            width="175px"
-                                            left="-160px"
-                                            trigger={(
-                                                <Icon
-                                                    onClick={UF.preventDefault}
-                                                    ml="10px"
-                                                    mr="10px"
-                                                    name="ellipsis"
-                                                    size="1em"
-                                                    rotation={90}
+                                                <FileOperations
+                                                    files={[f]}
+                                                    fileOperations={fileOperations}
+                                                    inDropdown
+                                                    ml="-17px"
+                                                    mr="-17px"
+                                                    pl="15px"
+                                                    callback={callbacks}
                                                 />
-                                            )}
-                                        >
-                                            <FileOperations
-                                                files={[f]}
-                                                fileOperations={fileOperations}
-                                                inDropdown
-                                                ml="-17px"
-                                                mr="-17px"
-                                                pl="15px"
-                                                callback={callbacks}
-                                            />
-                                        </ClickableDropdown>
-                                    </Box>
-                                ) : (
-                                        <Box mt="-2px" ml="5px">
-                                            <FileOperations
-                                                files={[f]}
-                                                fileOperations={fileOperations}
-                                                callback={callbacks}
-                                            />
+                                            </ClickableDropdown>
                                         </Box>
-                                    )}
-                            </Flex>
-                        )}
-                    </Flex>
+                                    ) : (
+                                            <Box mt="-2px" ml="5px">
+                                                <FileOperations
+                                                    files={[f]}
+                                                    fileOperations={fileOperations}
+                                                    callback={callbacks}
+                                                />
+                                            </Box>
+                                        )}
+                                </Flex>
+                            )}
+                    />
                 ))}
             </List>
         );

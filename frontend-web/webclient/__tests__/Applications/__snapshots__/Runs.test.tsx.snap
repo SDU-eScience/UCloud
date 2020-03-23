@@ -304,8 +304,8 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  padding-top: 4px;
-  padding-bottom: 4px;
+  padding-top: 5px;
+  padding-bottom: 5px;
   width: 100%;
   -webkit-align-items: center;
   -webkit-box-align: center;
