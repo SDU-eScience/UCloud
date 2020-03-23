@@ -137,7 +137,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   display: -ms-flexbox;
   display: flex;
   padding-top: 4px;
+  padding-bottom: 4px;
+  width: 100%;
   background-color: #fff;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
 }
 
 .c38 {
@@ -145,7 +151,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  margin-top: 10px;
   margin-right: 8px;
 }
 
@@ -979,6 +984,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         className="c31"
         cursor="pointer"
         onClick={[Function]}
+        width="100%"
       >
         <div
           className="c0 c32"
@@ -1124,6 +1130,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         className="c31"
         cursor="pointer"
         onClick={[Function]}
+        width="100%"
       >
         <div
           className="c0 c32"
@@ -1269,6 +1276,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         className="c31"
         cursor="pointer"
         onClick={[Function]}
+        width="100%"
       >
         <div
           className="c0 c32"
@@ -1414,6 +1422,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         className="c31"
         cursor="pointer"
         onClick={[Function]}
+        width="100%"
       >
         <div
           className="c0 c32"
