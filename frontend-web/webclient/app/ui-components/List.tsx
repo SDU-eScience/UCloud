@@ -74,9 +74,10 @@ export function ListRow(props: ListRowProps): JSX.Element {
 }
 
 const HoverColorFlex = styled(Flex)<{isSelected: boolean}>`
+    transition: background-color 0.3s;
     background-color: var(--${p => p.isSelected ? "lightBlue" : "white"});
     &:hover {
-        filter: saturate(2);
+        background-color: var(--lightBlue, #f00);
     }
 `;
 
