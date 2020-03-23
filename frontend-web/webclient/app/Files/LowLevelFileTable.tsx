@@ -379,7 +379,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     }, [props.refreshHook, callbacks.requestReload]);
 
     useEffect(() => {
-        return (): void => {
+        return () => {
             if (props.refreshHook) props.refreshHook(false);
         };
     }, [props.refreshHook]);
@@ -399,13 +399,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     const isAnyLoading = workLoading || pageLoading;
     const checkedFilesWithInfo = allFiles
         .filter(f => f.path && checkedFiles.has(f.path) && f.mockTag === undefined);
-    const onFileNavigation = (path: string): void => {
+    const onFileNavigation = React.useCallback((path: string): void => {
         setCheckedFiles(new Set());
         setFileBeingRenamed(null);
         setInjectedViaState([]);
         if (!isEmbedded) window.scrollTo({top: 0});
         props.onFileNavigation(path);
-    };
+    }, [props.onFileNavigation]);
 
     // Loading state
     React.useEffect(() => {
@@ -623,7 +623,6 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                     oldPath: file.path,
                     newPath: fullPath,
                     client: Client,
-                    setLoading: () => 42, // TODO
                     onSuccess: () => callbacks.requestReload()
                 });
             }

@@ -583,12 +583,10 @@ interface MoveFile {
     oldPath: string;
     newPath: string;
     client: HttpClient;
-    setLoading: () => void;
     onSuccess: () => void;
 }
 
-export async function moveFile({oldPath, newPath, client, setLoading, onSuccess}: MoveFile): Promise<void> {
-    setLoading();
+export async function moveFile({oldPath, newPath, client, onSuccess}: MoveFile): Promise<void> {
     try {
         await client.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`);
         onSuccess();
