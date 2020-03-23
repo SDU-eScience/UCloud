@@ -24,7 +24,7 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
 import {TextSpan} from "ui-components/Text";
 import {cancelJob, cancelJobDialog, inCancelableState, isRunExpired} from "Utilities/ApplicationUtilities";
-import {prettierString} from "UtilityFunctions";
+import {prettierString, stopPropagation} from "UtilityFunctions";
 import {capitalized, errorMessageOrDefault, shortUUID} from "UtilityFunctions";
 import {
     AnalysesOperations,
@@ -97,17 +97,18 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
             <StickyBox backgroundColor="white">
                 <Spacer
                     left={(
-                        <Label ml={10}>
+                        <Label ml={10} width="auto">
                             <Checkbox
                                 size={27}
                                 onClick={() => props.checkAllAnalyses(!allChecked)}
                                 checked={allChecked}
+                                onChange={stopPropagation}
                             />
                             <Box as={"span"}>Select all</Box>
                         </Label>
                     )}
                     right={(
-                        <Box width="235px">
+                        <Box>
                             <ClickableDropdown
                                 trigger={(
                                     <>
@@ -172,7 +173,7 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                                     icon={<AppToolLogo size="36px" type="APPLICATION" name={it.metadata.name} />}
                                     isSelected={it.checked!}
                                     select={() => props.checkAnalysis(it.jobId, !it.checked)}
-                                    left={it.name ? it.name : shortUUID(it.jobId)}
+                                    left={<Text cursor="pointer">{it.name ? it.name : shortUUID(it.jobId)}</Text>}
                                     leftSub={<>
                                         <Icon color="gray" mr="5px" mt="4px" size="10px" name="id" />
                                         <Text color="gray" fontSize="12px">{it.metadata.title} v{it.metadata.version}</Text>

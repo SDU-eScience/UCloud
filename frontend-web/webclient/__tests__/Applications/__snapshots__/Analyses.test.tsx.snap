@@ -131,7 +131,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
 }
 
 .c31 {
-  cursor: pointer;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -884,7 +883,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               checked={false}
               className="c26"
               disabled={false}
-              onClick={[Function]}
+              onChange={[Function]}
               size={27}
               type="checkbox"
             />
@@ -982,7 +981,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
     >
       <div
         className="c31"
-        cursor="pointer"
         onClick={[Function]}
         width="100%"
       >
@@ -1128,7 +1126,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
       </div>
       <div
         className="c31"
-        cursor="pointer"
         onClick={[Function]}
         width="100%"
       >
@@ -1274,7 +1271,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
       </div>
       <div
         className="c31"
-        cursor="pointer"
         onClick={[Function]}
         width="100%"
       >
@@ -1420,7 +1416,6 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
       </div>
       <div
         className="c31"
-        cursor="pointer"
         onClick={[Function]}
         width="100%"
       >
