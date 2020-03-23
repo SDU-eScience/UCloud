@@ -2,11 +2,19 @@ import styled from "styled-components";
 import Box from "./Box";
 import * as React from "react";
 import Flex from "./Flex";
-import Icon, {IconName} from "./Icon";
 import Truncate from "./Truncate";
 
-const useChildPadding = ({childPadding}: {childPadding?: string | number}) =>
-    childPadding ? {marginBottom: childPadding, marginTop: childPadding} : null;
+type StringOrNumber = string | number;
+
+interface UseChildPaddingProps {
+    childPadding?: StringOrNumber;
+}
+
+function useChildPadding(
+    props: UseChildPaddingProps
+): null | {marginBottom: StringOrNumber; marginTop: StringOrNumber} {
+    return props.childPadding ? {marginBottom: props.childPadding, marginTop: props.childPadding} : null;
+}
 
 const List = styled(Box) <{fontSize?: string; childPadding?: string | number; bordered?: boolean}>`
     font-size: ${props => props.fontSize};
@@ -47,9 +55,8 @@ export function ListRow(props: ListRowProps): JSX.Element {
         </Box>
     ) : props.left;
     return (
-        <Flex
-            cursor="pointer"
-            backgroundColor={props.isSelected ? "lightBlue" : "white"}
+        <HoverColorFlex
+            isSelected={props.isSelected}
             onClick={props.select}
             pt="4px"
             pb="4px"
@@ -62,8 +69,15 @@ export function ListRow(props: ListRowProps): JSX.Element {
             <Flex mr="8px">
                 {props.right}
             </Flex>
-        </Flex>
+        </HoverColorFlex>
     );
 }
+
+const HoverColorFlex = styled(Flex)<{isSelected: boolean}>`
+    background-color: var(--${p => p.isSelected ? "lightBlue" : "white"});
+    &:hover {
+        filter: saturate(2);
+    }
+`;
 
 export default List;
