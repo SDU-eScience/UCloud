@@ -10,7 +10,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 
 class ProjectController(
-    private val service: ProjectService<*>
+    private val service: ProjectService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {

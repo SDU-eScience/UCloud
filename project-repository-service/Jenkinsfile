@@ -1,0 +1,26 @@
+def initialize() {
+  try {
+    stage('build project-repository-service') {
+      sh '''cd project-repository-service
+      ./gradlew clean
+      ./gradlew build -x test'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return currentBuild.result ?: 'FAILURE'
+  } finally {
+    publishHTML([allowmissing: false, alwaysLinkToLastBuild: false, keepAll: true, reportDir: 'project-repository-service/build/reports/detekt', reportFiles: 'detekt.html', reportName: 'project-repository-service-detekt-Report', reportTitles: ''])
+  }
+  try {
+    stage('test project-repository-service') {
+      sh '''cd project-repository-service
+      ./gradlew test'''
+    }
+  } catch (e) {
+    echo "Test FAILED"
+    return 'UNSTABLE'
+  }
+  return 'SUCCESS'
+}
+
+return this

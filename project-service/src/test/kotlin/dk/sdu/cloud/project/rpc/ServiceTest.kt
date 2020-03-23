@@ -23,7 +23,7 @@ import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
 import dk.sdu.cloud.project.api.ViewProjectResponse
-import dk.sdu.cloud.project.services.ProjectAsyncDao
+import dk.sdu.cloud.project.services.ProjectDao
 import dk.sdu.cloud.project.services.ProjectService
 import dk.sdu.cloud.project.services.UniqueNameService
 import dk.sdu.cloud.service.test.ClientMock
@@ -147,7 +147,7 @@ class ServiceTest {
 
     private fun setupServer(): KtorApplicationTestSetupContext.() -> List<ProjectController> {
         return {
-            val projectDao = ProjectAsyncDao()
+            val projectDao = ProjectDao()
             listOf(
                 ProjectController(
                     ProjectService(

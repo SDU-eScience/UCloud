@@ -358,13 +358,15 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
                                                     ref={resetEmailInput}
                                                     autoFocus required
                                                 />
-                                                <Button
-                                                    fullWidth
-                                                    disabled={loading}
-                                                    marginTop={10}
-                                                >
-                                                    Reset password
+                                                {!inDevEnvironment ? null : (
+                                                    <Button
+                                                        fullWidth
+                                                        disabled={loading}
+                                                        marginTop={10}
+                                                    >
+                                                        Reset password
                                                     </Button>
+                                                )}
                                             </form>
                                             <Box mt={20}>
                                                 <Link to="/login">

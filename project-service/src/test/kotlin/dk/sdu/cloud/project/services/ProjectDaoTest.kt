@@ -20,7 +20,7 @@ import kotlin.test.Test
 @Ignore
 class ProjectDaoTest {
     private lateinit var micro: Micro
-    private val projectDao = ProjectAsyncDao()
+    private val projectDao = ProjectDao()
     private lateinit var db: DBSessionFactory<AsyncDBConnection>
 
     @BeforeTest

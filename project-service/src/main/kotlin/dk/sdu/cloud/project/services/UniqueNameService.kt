@@ -4,15 +4,16 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 import org.slf4j.Logger
 import java.security.SecureRandom
 import kotlin.math.absoluteValue
 
-class UniqueNameService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val dao: ProjectDao<DBSession>
+class UniqueNameService(
+    private val db: DBSessionFactory<AsyncDBConnection>,
+    private val dao: ProjectDao
 ) {
     /**
      * Attempts to generate a unique username based on existing users.
