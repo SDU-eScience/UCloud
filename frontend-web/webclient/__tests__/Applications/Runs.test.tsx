@@ -7,12 +7,12 @@ import {ThemeProvider} from "styled-components";
 import Runs from "../../app/Applications/Runs";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
-import {analyses as analysesPage} from "../mock/Analyses";
+import {runs} from "../mock/Runs";
 
-describe("Analyses component", () => {
+describe("Runs component", () => {
     test("Mount component with non-empty page", () => {
         const storeCopy = {...store};
-        storeCopy.getState().analyses.page = analysesPage;
+        storeCopy.getState().analyses.page = runs;
         expect(create(
             <Provider store={storeCopy}>
                 <ThemeProvider theme={theme}>
