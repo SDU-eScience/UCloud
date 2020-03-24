@@ -6,7 +6,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "auth"
-    version = "1.27.4-email"
+    version = "1.27.4-email-userinfo"
 
     fun host(environment: Environment): String {
         return when (environment) {

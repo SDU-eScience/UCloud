@@ -36,6 +36,22 @@ data class CreateSingleUserRequest(val username: String, val password: String?, 
 typealias CreateUserResponse = List<CreateSingleUserResponse>
 typealias CreateSingleUserResponse = AuthenticationTokens
 
+data class UpdateUserInfoRequest(
+    val email: String?,
+    val firstNames: String?,
+    val lastName: String?,
+    val phoneNumber: String?
+)
+typealias UpdateUserInfoResponse = Unit
+
+typealias GetUserInfoRequest = Unit
+data class GetUserInfoResponse(
+    val email: String?,
+    val firstNames: String?,
+    val lastName: String?,
+    val phoneNumber: String?
+)
+
 class ChangePasswordAudit
 
 data class ChangePasswordRequest(val currentPassword: String, val newPassword: String) {
@@ -66,6 +82,38 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val updateUserInfo = call<UpdateUserInfoRequest, UpdateUserInfoResponse, CommonErrorMessage>("updateUserInfo") {
+        auth {
+            roles = Roles.END_USER
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"updateUserInfo"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val getUserInfo = call<GetUserInfoRequest, GetUserInfoResponse, CommonErrorMessage>("getUserInfo") {
+        auth {
+            roles = Roles.END_USER
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"userInfo"
+            }
         }
     }
 

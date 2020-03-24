@@ -7,6 +7,15 @@ data class HashedPasswordAndSalt(val hashedPassword: ByteArray, val salt: ByteAr
 data class UserIdAndName(val userId: String, val firstNames: String)
 
 interface UserDAO<Session> {
+    fun updateUserInfo(
+        session: Session,
+        username: String,
+        firstNames: String?,
+        lastName: String?,
+        phoneNumber: String?,
+        email: String?
+    )
+    fun getUserInfo(session: Session, username: String): UserInformation
     fun findById(session: Session, id: String): Principal
     fun findByIdOrNull(session: Session, id: String): Principal?
     fun findAllByIds(session: Session, ids: List<String>): Map<String, Principal?>

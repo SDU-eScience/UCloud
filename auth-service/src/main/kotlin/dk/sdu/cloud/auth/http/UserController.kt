@@ -71,6 +71,28 @@ class UserController<DBSession>(
             }
         }
 
+        implement(UserDescriptions.updateUserInfo) {
+            val username = ctx.securityPrincipal.username
+            userCreationService.updateUserInfo(
+                username,
+                request.firstNames,
+                request.lastName,
+                request.phoneNumber,
+                request.email
+            )
+            ok(Unit)
+        }
+        implement(UserDescriptions.getUserInfo) {
+            val username = ctx.securityPrincipal.username
+            val information = userCreationService.getUserInfo(username)
+            ok(GetUserInfoResponse(
+                information.email,
+                information.firstNames,
+                information.lastName,
+                information.phoneNumber
+            ))
+        }
+
         implement(UserDescriptions.changePassword) {
             audit(ChangePasswordAudit())
 

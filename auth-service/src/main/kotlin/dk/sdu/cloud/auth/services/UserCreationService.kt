@@ -1,5 +1,6 @@
 package dk.sdu.cloud.auth.services
 
+import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.auth.api.UserEventProducer
@@ -40,6 +41,32 @@ class UserCreationService<DBSession>(
 
         users.forEach { user ->
             userEventProducer.produce(UserEvent.Created(user.id, user))
+        }
+    }
+
+
+    suspend fun updateUserInfo(
+        username: String,
+        firstNames: String?,
+        lastName: String?,
+        phoneNumber: String?,
+        email: String?
+    ) {
+        db.withTransaction {
+            userDao.updateUserInfo(
+                it,
+                username,
+                firstNames,
+                lastName,
+                phoneNumber,
+                email
+            )
+        }
+    }
+
+    suspend fun getUserInfo(username: String): UserInformation  {
+        return db.withTransaction {
+            userDao.getUserInfo(it, username)
         }
     }
 
