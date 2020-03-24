@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.17.0-storage-events.0'
+version '0.17.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.app.kubernetes.MainKt"
