@@ -4,5 +4,6 @@ name: project
 namespaces:
   - project
   - project.members
+  - project.repositories
 
 dependencies: []

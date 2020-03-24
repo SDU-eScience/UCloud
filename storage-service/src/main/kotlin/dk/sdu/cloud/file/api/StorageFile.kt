@@ -8,7 +8,7 @@ enum class AccessRight {
     WRITE
 }
 
-data class AccessEntry(val entity: String, val rights: Set<AccessRight>)
+data class AccessEntry(val entity: ACLEntity, val rights: Set<AccessRight>)
 
 enum class FileType {
     FILE,

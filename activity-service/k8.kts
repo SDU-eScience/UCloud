@@ -1,16 +1,20 @@
-//DEPS dk.sdu.cloud:k8-resources:0.1.0
+//DEPS dk.sdu.cloud:k8-resources:0.1.1
 package dk.sdu.cloud.k8
 
-bundle {
+bundle { ctx ->
     name = "activity"
-    version = "1.4.14-ElasticDAO13"
+    version = "1.4.14"
 
     withAmbassador {}
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1
 
-        injectSecret("elasticsearch-credentials")
+        if (ctx.environment != Environment.PRODUCTION) {
+            injectSecret("elasticsearch-credentials")
+        } else {
+            injectSecret("elasticsearch-logging-cluster-credentials")
+        }
     }
 
     withPostgresMigration(deployment)

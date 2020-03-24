@@ -15,11 +15,14 @@ data class CreateProjectRequest(
     val principalInvestigator: String
 ) {
     init {
-        if (title.contains("\n")) throw RPCException("Title must not contain spaces!", HttpStatusCode.BadRequest)
+        if (!title.matches(regex)) {
+            throw RPCException("Title must not contain special characters", HttpStatusCode.BadRequest)
+        }
         if (title.length > TITLE_MAX_LENGTH) throw RPCException("Title is too long", HttpStatusCode.BadRequest)
     }
 
     companion object {
+        val regex = Regex("[a-zA-Z0-9 -_]+")
         const val TITLE_MAX_LENGTH = 128
     }
 }

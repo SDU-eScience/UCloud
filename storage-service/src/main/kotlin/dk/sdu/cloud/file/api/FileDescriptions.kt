@@ -32,8 +32,7 @@ import dk.sdu.cloud.file.api.AccessRight as FileAccessRight
 
 data class UpdateAclRequest(
     val path: String,
-    val changes: List<ACLEntryRequest>,
-    val automaticRollback: Boolean? = null
+    val changes: List<ACLEntryRequest>
 ) {
     init {
         if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")

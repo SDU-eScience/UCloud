@@ -3,20 +3,18 @@ package dk.sdu.cloud.project.services
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.events.EventProducer
-import dk.sdu.cloud.project.api.GroupWithSummary
-import dk.sdu.cloud.project.api.Project
-import dk.sdu.cloud.project.api.ProjectEvent
-import dk.sdu.cloud.project.api.UserGroupSummary
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 
-class GroupService<Session>(
-    private val db: DBSessionFactory<Session>,
-    private val groups: GroupDao<Session>,
-    private val projects: ProjectDao<Session>,
+class GroupService(
+    private val db: DBSessionFactory<AsyncDBConnection>,
+    private val groups: GroupDao,
+    private val projects: ProjectDao,
     private val eventProducer: EventProducer<ProjectEvent>
 ) {
     suspend fun createGroup(principal: SecurityPrincipal, projectId: String, group: String) {
@@ -116,5 +114,13 @@ class GroupService<Session>(
         } ?: throw ProjectException.CantChangeGroupMember()
 
         eventProducer.produce(ProjectEvent.GroupRenamed(project, oldGroupName, newGroupName))
+    }
+
+    suspend fun isMemberQuery(
+        queries: List<IsMemberQuery>
+    ): List<Boolean> {
+        return db.withTransaction { session ->
+            groups.isMemberQuery(session, queries)
+        }
     }
 }

@@ -10,7 +10,7 @@ import dk.sdu.cloud.service.Controller
 import io.ktor.http.HttpStatusCode
 
 class MembershipController(
-    private val members: MembershipService<*>
+    private val members: MembershipService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ProjectMembers.userStatus) {

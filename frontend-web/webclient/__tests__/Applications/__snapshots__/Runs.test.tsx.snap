@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Analyses component Mount component with non-empty page 1`] = `
+exports[`Runs component Mount component with non-empty page 1`] = `
 .c1 {
   margin-left: 190px;
   padding-top: 48px;
@@ -40,17 +40,13 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   padding-right: 340px;
 }
 
-.c28 {
-  width: 235px;
-}
-
-.c32 {
+.c31 {
   margin-left: 8px;
   margin-right: 8px;
   margin-top: 4px;
 }
 
-.c33 {
+.c32 {
   margin-bottom: 4px;
 }
 
@@ -71,7 +67,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   cursor: inherit;
 }
 
-.c29 {
+.c28 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -80,7 +76,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   margin-right: .4em;
 }
 
-.c35 {
+.c34 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -91,7 +87,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   color: #8393A7;
 }
 
-.c37 {
+.c36 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -103,7 +99,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   color: #8393A7;
 }
 
-.c40 {
+.c39 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -113,7 +109,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   color: #c00;
 }
 
-.c42 {
+.c41 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -130,14 +126,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   display: flex;
 }
 
-.c31 {
-  cursor: pointer;
+.c37 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  padding-top: 4px;
-  background-color: #fff;
+  margin-right: 8px;
 }
 
 .c38 {
@@ -145,19 +139,10 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  margin-top: 10px;
-  margin-right: 8px;
-}
-
-.c39 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
   width: 110px;
 }
 
-.c41 {
+.c40 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -188,7 +173,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   font-weight: 400;
 }
 
-.c36 {
+.c35 {
   cursor: inherit;
   font-size: 12px;
   color: #8393A7;
@@ -220,7 +205,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   font-size: 14px;
   color: #000;
   font-weight: 700;
-  width: 100%;
+  width: auto;
 }
 
 .c6 {
@@ -259,7 +244,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   box-shadow: none;
 }
 
-.c34 {
+.c33 {
   cursor: inherit;
   width: 100%;
   font-size: 20px;
@@ -302,16 +287,37 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
   position: absolute;
 }
 
-.c30 {
+.c29 {
   font-size: large;
 }
 
-.c30 > * {
+.c29 > * {
   border-bottom: 1px solid lightGrey;
 }
 
-.c30 > *:last-child {
+.c29 > *:last-child {
   border-bottom: 0px;
+}
+
+.c30 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  width: 100%;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-transition: background-color 0.3s;
+  transition: background-color 0.3s;
+  background-color: var(--white);
+}
+
+.c30:hover {
+  background-color: var(--lightBlue,#f00);
 }
 
 .c2 {
@@ -869,7 +875,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           color="black"
           fontSize={1}
           fontWeight="bold"
-          width="100%"
+          width="auto"
         >
           <div
             className="c0 c25"
@@ -879,6 +885,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               checked={false}
               className="c26"
               disabled={false}
+              onChange={[Function]}
               onClick={[Function]}
               size={27}
               type="checkbox"
@@ -920,8 +927,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c0 c28"
-          width="235px"
+          className="c0 "
         >
           <div
             className="c6"
@@ -933,7 +939,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               onClick={[Function]}
             >
               <svg
-                className="c29"
+                className="c28"
                 clipRule="evenodd"
                 cursor="pointer"
                 fill="currentcolor"
@@ -972,16 +978,16 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
       </div>
     </div>
     <div
-      className="c0 c30"
+      className="c0 c29"
       fontSize="large"
     >
       <div
-        className="c31"
-        cursor="pointer"
+        className="c30"
         onClick={[Function]}
+        width="100%"
       >
         <div
-          className="c0 c32"
+          className="c0 c31"
         >
           <img
             alt=""
@@ -997,22 +1003,27 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           />
         </div>
         <div
-          className="c0 c33"
+          className="c0 c32"
           onClick={[Function]}
         >
           <div
-            className="c34"
+            className="c33"
             cursor="inherit"
             fontSize={20}
             width={1}
           >
-            Thomas
+            <div
+              className="c7"
+              cursor="pointer"
+            >
+              Thomas
+            </div>
           </div>
           <div
             className="c3"
           >
             <svg
-              className="c35"
+              className="c34"
               clipRule="evenodd"
               color="gray"
               cursor="inherit"
@@ -1029,7 +1040,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c36"
+              className="c35"
               color="gray"
               cursor="inherit"
               fontSize="12px"
@@ -1039,7 +1050,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               
             </div>
             <svg
-              className="c37"
+              className="c36"
               clipRule="evenodd"
               color="gray"
               cursor="inherit"
@@ -1073,7 +1084,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c36"
+              className="c35"
               color="gray"
               cursor="inherit"
               fontSize="12px"
@@ -1087,14 +1098,14 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c38"
+          className="c37"
         >
           <div
-            className="c39"
+            className="c38"
             width="110px"
           >
             <svg
-              className="c40"
+              className="c39"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1113,7 +1124,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c41"
+              className="c40"
             >
               Failure
             </div>
@@ -1121,12 +1132,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         </div>
       </div>
       <div
-        className="c31"
-        cursor="pointer"
+        className="c30"
         onClick={[Function]}
+        width="100%"
       >
         <div
-          className="c0 c32"
+          className="c0 c31"
         >
           <img
             alt=""
@@ -1142,22 +1153,27 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           />
         </div>
         <div
-          className="c0 c33"
+          className="c0 c32"
           onClick={[Function]}
         >
           <div
-            className="c34"
+            className="c33"
             cursor="inherit"
             fontSize={20}
             width={1}
           >
-            Johnny
+            <div
+              className="c7"
+              cursor="pointer"
+            >
+              Johnny
+            </div>
           </div>
           <div
             className="c3"
           >
             <svg
-              className="c35"
+              className="c34"
               clipRule="evenodd"
               color="gray"
               cursor="inherit"
@@ -1174,7 +1190,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c36"
+              className="c35"
               color="gray"
               cursor="inherit"
               fontSize="12px"
@@ -1184,7 +1200,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               
             </div>
             <svg
-              className="c37"
+              className="c36"
               clipRule="evenodd"
               color="gray"
               cursor="inherit"
@@ -1218,7 +1234,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c36"
+              className="c35"
               color="gray"
               cursor="inherit"
               fontSize="12px"
@@ -1232,14 +1248,14 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c38"
+          className="c37"
         >
           <div
-            className="c39"
+            className="c38"
             width="110px"
           >
             <svg
-              className="c40"
+              className="c39"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1258,7 +1274,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c41"
+              className="c40"
             >
               Failure
             </div>
@@ -1266,12 +1282,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         </div>
       </div>
       <div
-        className="c31"
-        cursor="pointer"
+        className="c30"
         onClick={[Function]}
+        width="100%"
       >
         <div
-          className="c0 c32"
+          className="c0 c31"
         >
           <img
             alt=""
@@ -1287,22 +1303,27 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           />
         </div>
         <div
-          className="c0 c33"
+          className="c0 c32"
           onClick={[Function]}
         >
           <div
-            className="c34"
+            className="c33"
             cursor="inherit"
             fontSize={20}
             width={1}
           >
-            Fred
+            <div
+              className="c7"
+              cursor="pointer"
+            >
+              Fred
+            </div>
           </div>
           <div
             className="c3"
           >
             <svg
-              className="c35"
+              className="c34"
               clipRule="evenodd"
               color="gray"
               cursor="inherit"
@@ -1319,7 +1340,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c36"
+              className="c35"
               color="gray"
               cursor="inherit"
               fontSize="12px"
@@ -1329,7 +1350,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               
             </div>
             <svg
-              className="c37"
+              className="c36"
               clipRule="evenodd"
               color="gray"
               cursor="inherit"
@@ -1363,7 +1384,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c36"
+              className="c35"
               color="gray"
               cursor="inherit"
               fontSize="12px"
@@ -1377,14 +1398,14 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c38"
+          className="c37"
         >
           <div
-            className="c39"
+            className="c38"
             width="110px"
           >
             <svg
-              className="c40"
+              className="c39"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1403,7 +1424,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c41"
+              className="c40"
             >
               Failure
             </div>
@@ -1411,12 +1432,12 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
         </div>
       </div>
       <div
-        className="c31"
-        cursor="pointer"
+        className="c30"
         onClick={[Function]}
+        width="100%"
       >
         <div
-          className="c0 c32"
+          className="c0 c31"
         >
           <img
             alt=""
@@ -1432,22 +1453,27 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           />
         </div>
         <div
-          className="c0 c33"
+          className="c0 c32"
           onClick={[Function]}
         >
           <div
-            className="c34"
+            className="c33"
             cursor="inherit"
             fontSize={20}
             width={1}
           >
-            Nathan
+            <div
+              className="c7"
+              cursor="pointer"
+            >
+              Nathan
+            </div>
           </div>
           <div
             className="c3"
           >
             <svg
-              className="c35"
+              className="c34"
               clipRule="evenodd"
               color="gray"
               cursor="inherit"
@@ -1464,7 +1490,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c36"
+              className="c35"
               color="gray"
               cursor="inherit"
               fontSize="12px"
@@ -1474,7 +1500,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               
             </div>
             <svg
-              className="c37"
+              className="c36"
               clipRule="evenodd"
               color="gray"
               cursor="inherit"
@@ -1508,7 +1534,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c36"
+              className="c35"
               color="gray"
               cursor="inherit"
               fontSize="12px"
@@ -1522,14 +1548,14 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c38"
+          className="c37"
         >
           <div
-            className="c39"
+            className="c38"
             width="110px"
           >
             <svg
-              className="c42"
+              className="c41"
               clipRule="evenodd"
               color="#00C05A"
               cursor="inherit"
@@ -1548,7 +1574,7 @@ exports[`Analyses component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c41"
+              className="c40"
             >
               Success
             </div>
