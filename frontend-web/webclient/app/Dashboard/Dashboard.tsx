@@ -15,7 +15,7 @@ import {notificationRead, readAllNotifications} from "Notifications/Redux/Notifi
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Card, Flex, Icon, Link, Text} from "ui-components";
+import {Box, Button, Card, Flex, Icon, Link, Text, Markdown, ButtonGroup, OutlineButton} from "ui-components";
 import Error from "ui-components/Error";
 import {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
@@ -41,6 +41,7 @@ import {
 } from "./Redux/DashboardActions";
 import {JobStateIcon} from "Applications/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
+import {Spacer} from "ui-components/Spacer";
 
 const DashboardCard: React.FunctionComponent<{title: string; isLoading: boolean}> = ({title, isLoading, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
@@ -131,6 +132,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                         </DashboardCard>
                     </Box>
                 </Box>
+                <DashboardMessageOfTheDay />
             </GridCardGroup>
         </>
     );
@@ -268,6 +270,49 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
         </List>
     </Card>
 );
+
+function DashboardMessageOfTheDay(): JSX.Element | null {
+    const [messages, setMessages] = React.useState<{message: string; createdAt: number}[]>([]);
+    const [currentMessage, setCurrentMessage] = React.useState(0);
+
+    React.useEffect(() => {
+        const exampleMessage = "# Hello\n" + "(function(){console.log(\"hello world\")})()\n";
+        setMessages([{message: exampleMessage, createdAt: new Date().getTime()}]);
+    }, []);
+
+
+    const updateCurrentMessage = React.useCallback((nextIndex: number) => {
+        setCurrentMessage(currentMessage + nextIndex);
+    }, [currentMessage]);
+
+    if (messages.length === 0) return null;
+    const message = messages[currentMessage];
+    return (
+        <Card height="auto" width={"200%"} overflow="hidden" boxShadow="sm" borderWidth={1} borderRadius={6}>
+            <Box bg="lightGray" color="darkGray" px={3} py={2}>
+                <Spacer
+                    left={<Heading.h4>Message of the day</Heading.h4>}
+                    right={
+                        <Text color="gray" mr="8px" mt="4px" fontSize={1}>
+                            From {formatDistanceToNow(new Date(message.createdAt), {addSuffix: true})}
+                        </Text>
+                    }
+                />
+            </Box>
+            <Box mx="8px" my="5px">
+                <Link to={`somewhere, something, \${id}`}>
+                    <Markdown>
+                        {message.message}
+                    </Markdown>
+                </Link>
+            </Box>
+            {messages.length <= 1 ? null : <ButtonGroup mx="5px" mb="5px">
+                <OutlineButton disabled={currentMessage === 0} onClick={() => updateCurrentMessage(1)}>⟨</OutlineButton>
+                <OutlineButton disabled={currentMessage + 1 >= messages.length} onClick={() => updateCurrentMessage(-1)}>⟩</OutlineButton>
+            </ButtonGroup>}
+        </Card>
+    );
+}
 
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     onInit: () => {
