@@ -14,12 +14,7 @@ import dk.sdu.cloud.file.http.MetadataController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
 import dk.sdu.cloud.file.processors.UserProcessor
-import dk.sdu.cloud.file.services.CoreFileSystemService
-import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.file.services.IndexingService
-import dk.sdu.cloud.file.services.MetadataRecoveryService
-import dk.sdu.cloud.file.services.WSFileSessionService
+import dk.sdu.cloud.file.services.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.MetadataDao
 import dk.sdu.cloud.file.services.acl.MetadataService
@@ -71,10 +66,11 @@ class Server(
         val db = AsyncDBSessionFactory(micro.databaseConfig)
         val metadataDao = MetadataDao()
         val metadataService = MetadataService(db, metadataDao)
-        val newAclService = AclService(metadataService, homeFolderService, client)
+        val projectCache = ProjectCache(client)
+        val newAclService = AclService(metadataService, homeFolderService, client, projectCache)
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
-        val fs = LinuxFS(fsRootFile, newAclService)
+        val fs = LinuxFS(fsRootFile, newAclService, projectCache)
         val coreFileSystem =
             CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService)
 

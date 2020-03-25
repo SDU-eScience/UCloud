@@ -16,6 +16,7 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.initializeMicro
+import io.mockk.mockk
 import java.io.File
 import java.nio.file.Files
 import kotlin.contracts.ExperimentalContracts
@@ -38,12 +39,14 @@ fun linuxFSWithRelaxedMocks(
             LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
         )
     }
-    val aclService = AclService(mockedMetadataService, homeFolderService, ClientMock.authenticatedClient)
+    val aclService =
+        AclService(mockedMetadataService, homeFolderService, ClientMock.authenticatedClient, mockk(relaxed = true))
     return LinuxTestFS(
         commandRunner,
         LinuxFS(
             File(fsRoot),
-            aclService
+            aclService,
+            mockk(relaxed = true)
         ),
         aclService
     )
