@@ -12,7 +12,6 @@ import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {UserCreationState} from ".";
-import has = Reflect.has;
 
 const initialState: UserCreationState = {
     username: "",

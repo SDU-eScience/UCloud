@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.27.4-email-userinfo'
+version '1.27.4-email-userinfo1'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.auth.MainKt"

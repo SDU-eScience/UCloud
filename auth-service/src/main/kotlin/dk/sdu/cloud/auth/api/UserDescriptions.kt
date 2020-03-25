@@ -29,7 +29,7 @@ data class CreateSingleUserAudit(val username: String, val role: Role?)
 
 typealias CreateUserRequest = List<CreateSingleUserRequest>
 
-data class CreateSingleUserRequest(val username: String, val password: String?, val email: String, val role: Role?) {
+data class CreateSingleUserRequest(val username: String, val password: String?, val email: String?, val role: Role?) {
     override fun toString() = "CreateUserRequest(username = $username, role = $role)"
 }
 
@@ -39,8 +39,7 @@ typealias CreateSingleUserResponse = AuthenticationTokens
 data class UpdateUserInfoRequest(
     val email: String?,
     val firstNames: String?,
-    val lastName: String?,
-    val phoneNumber: String?
+    val lastName: String?
 )
 typealias UpdateUserInfoResponse = Unit
 
@@ -48,8 +47,7 @@ typealias GetUserInfoRequest = Unit
 data class GetUserInfoResponse(
     val email: String?,
     val firstNames: String?,
-    val lastName: String?,
-    val phoneNumber: String?
+    val lastName: String?
 )
 
 class ChangePasswordAudit

@@ -44,14 +44,20 @@ class UserController<DBSession>(
                         Role.SERVICE -> ServicePrincipal(user.username, Role.SERVICE)
 
                         null, Role.ADMIN, Role.USER -> {
-                            personService.createUserByPassword(
-                                firstNames = user.username,
-                                lastName = "N/A",
-                                username = user.username,
-                                role = user.role ?: Role.USER,
-                                password = user.password ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                                email = user.email
-                            )
+                            if (!user.email.isNullOrBlank() && user.email.contains("@")) {
+                                personService.createUserByPassword(
+                                    firstNames = user.username,
+                                    lastName = "N/A",
+                                    username = user.username,
+                                    role = user.role ?: Role.USER,
+                                    password = user.password
+                                        ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
+                                    email = user.email
+                                )
+                            }
+                            else {
+                                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Valid email required")
+                            }
                         }
 
                         else -> {
@@ -77,7 +83,6 @@ class UserController<DBSession>(
                 username,
                 request.firstNames,
                 request.lastName,
-                request.phoneNumber,
                 request.email
             )
             ok(Unit)
@@ -88,8 +93,7 @@ class UserController<DBSession>(
             ok(GetUserInfoResponse(
                 information.email,
                 information.firstNames,
-                information.lastName,
-                information.phoneNumber
+                information.lastName
             ))
         }
 

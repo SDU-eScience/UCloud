@@ -84,7 +84,8 @@ class PasswordTest {
         "lastname",
         "user1",
         Role.ADMIN,
-        "pass1234"
+        "pass1234",
+        "email@email"
     )
 
     @Test

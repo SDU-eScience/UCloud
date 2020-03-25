@@ -12,7 +12,6 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
 
     const userFirstNames = useRef<HTMLInputElement>(null);
     const userLastName = useRef<HTMLInputElement>(null);
-    const userPhoneNumber = useRef<HTMLInputElement>(null);
     const userEmail = useRef<HTMLInputElement>(null);
 
     const [commandLoading, invokeCommand] = useAsyncCommand();
@@ -20,7 +19,6 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
 
     const [placeHolderFirstNames, setPlaceHolderFirstNames] = useState("Enter First Name(s)");
     const [placeHolderLastName, setPlaceHolderLastName] = useState("Enter Last Name");
-    const [placeHolderPhoneNumber, setPlaceHolderPhoneNumber] = useState("Enter Phone Number");
     const [placeHolderEmail, setPlaceHolderEmail] = useState("Enter Email");
 
     const info = useCallback( async () => {
@@ -34,7 +32,6 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
 
         setPlaceHolderFirstNames(user.firstNames ?? "Enter First Name(s)");
         setPlaceHolderLastName(user.lastName ?? "Enter Last Name");
-        setPlaceHolderPhoneNumber(user.phoneNumber ?? "Enter Phone Number");
         setPlaceHolderEmail(user.email ?? "Enter Email");
     },[]);
 
@@ -49,7 +46,6 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
 
         const firstNames = userFirstNames.current;
         const lastName = userLastName.current;
-        const phoneNumber = userPhoneNumber.current;
         const email = userEmail.current;
 
         const wasSuccessful = await invokeCommand({
@@ -60,21 +56,18 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
             payload: {
                 firstNames: firstNames?.value,
                 lastName: lastName?.value,
-                phoneNumber: phoneNumber?.value,
                 email: email?.value
             }
         }) !== null;
 
         if (!wasSuccessful) {
             snackbarStore.addSnack({message: "Failed to update user information", type: SnackType.Failure});
-        }
-
-        else {
+        } else {
             snackbarStore.addSnack({message: "User information updated", type: SnackType.Failure});
         }
 
 
-    }, [commandLoading, userFirstNames.current, userLastName.current, userPhoneNumber.current, userEmail.current]);
+    }, [commandLoading, userFirstNames.current, userLastName.current, userEmail.current]);
 
     if (Client.principalType !== "password") return null;
 
@@ -100,16 +93,6 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
                             ref={userLastName}
                             type="text"
                             placeholder= {placeHolderLastName}
-                        />
-                    </Label>
-                </Box>
-                <Box mt="0.5em" pt="0.5em">
-                    <Label>
-                        Phone number
-                        <Input
-                            ref={userPhoneNumber}
-                            type="text"
-                            placeholder= {placeHolderPhoneNumber}
                         />
                     </Label>
                 </Box>

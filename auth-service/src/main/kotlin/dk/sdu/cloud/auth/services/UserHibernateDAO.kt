@@ -198,8 +198,7 @@ data class PersonEntityByWAYF(
 data class UserInformation(
     val email: String?,
     val firstNames: String?,
-    val lastName: String?,
-    val phoneNumber: String?
+    val lastName: String?
 )
 
 class UserHibernateDAO(
@@ -212,7 +211,7 @@ class UserHibernateDAO(
             .criteria<PersonEntity> { entity[PersonEntity::id] equal username }
             .singleResult
 
-        return UserInformation(user.email, user.firstNames, user.lastName, user.phoneNumber)
+        return UserInformation(user.email, user.firstNames, user.lastName)
     }
 
     override fun updateUserInfo(
@@ -220,7 +219,6 @@ class UserHibernateDAO(
         username: String,
         firstNames: String?,
         lastName: String?,
-        phoneNumber: String?,
         email: String?
     ) {
         val entity = PrincipalEntity[session, username] as? PersonEntityByPassword ?: throw UserException.NotFound()
@@ -230,9 +228,6 @@ class UserHibernateDAO(
         }
         if (!lastName.isNullOrBlank()) {
             entity.lastName = lastName
-        }
-        if (!phoneNumber.isNullOrBlank()) {
-            entity.phoneNumber = phoneNumber
         }
         if (!email.isNullOrBlank()) {
             entity.email = email

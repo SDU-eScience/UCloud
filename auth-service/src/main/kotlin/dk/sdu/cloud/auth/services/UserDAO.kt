@@ -12,7 +12,6 @@ interface UserDAO<Session> {
         username: String,
         firstNames: String?,
         lastName: String?,
-        phoneNumber: String?,
         email: String?
     )
     fun getUserInfo(session: Session, username: String): UserInformation

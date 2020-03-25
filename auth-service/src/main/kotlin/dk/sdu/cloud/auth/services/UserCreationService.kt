@@ -49,7 +49,6 @@ class UserCreationService<DBSession>(
         username: String,
         firstNames: String?,
         lastName: String?,
-        phoneNumber: String?,
         email: String?
     ) {
         db.withTransaction {
@@ -58,7 +57,6 @@ class UserCreationService<DBSession>(
                 username,
                 firstNames,
                 lastName,
-                phoneNumber,
                 email
             )
         }
