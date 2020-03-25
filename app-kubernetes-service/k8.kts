@@ -4,7 +4,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "0.17.0-storage-events.0"
+    version = "0.17.0-issue-1279-19"
 
     withAmbassador(pathPrefix = null) {
         addSimpleMapping("/api/app/compute/kubernetes")

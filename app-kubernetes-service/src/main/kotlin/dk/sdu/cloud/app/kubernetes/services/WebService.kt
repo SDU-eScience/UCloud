@@ -125,7 +125,7 @@ class WebService(
             return false
         }
 
-        if (job.owner != principal.principal.username) {
+        if (job.owner != principal.principal.username && job.url == null) {
             if (sendResponse) {
                 call.respondText(status = HttpStatusCode.Forbidden) { "Unauthorized." }
             }
