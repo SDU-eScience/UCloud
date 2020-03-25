@@ -22,7 +22,6 @@ export const emptyProject = (id: string): Project => ({
 export enum ProjectRole {
     PI = "PI",
     ADMIN = "ADMIN",
-    DATA_STEWARD = "DATA_STEWARD",
     USER = "USER"
 }
 

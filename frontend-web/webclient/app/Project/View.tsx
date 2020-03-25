@@ -137,7 +137,6 @@ const ViewMember: React.FunctionComponent<{
                             }}
                             options={[
                                 {text: "User", value: ProjectRole.USER},
-                                {text: "Data Steward", value: ProjectRole.DATA_STEWARD},
                                 {text: "Admin", value: ProjectRole.ADMIN}
                             ]}
                         />
