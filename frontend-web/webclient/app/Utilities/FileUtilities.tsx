@@ -396,7 +396,7 @@ export const extractArchive = async ({files, client, onFinished}: ExtractArchive
 export const clearTrash = ({client, callback}: {client: HttpClient; callback: () => void}): void =>
     clearTrashDialog({
         onConfirm: async () => {
-            await client.post("/files/trash/clear", {});
+            await client.post("/files/trash/clear", {trashPath: client.trashFolder});
             callback();
             snackbarStore.addSnack({message: "Emptying trash", type: SnackType.Information});
         }
