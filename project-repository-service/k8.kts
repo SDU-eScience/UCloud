@@ -5,7 +5,7 @@ bundle {
     name = "project-repository"
     version = "0.1.0"
 
-    withAmbassador {}
+    withAmbassador("/api/projects/repositories") {}
 
     val deployment = withDeployment {
         deployment.spec.replicas = 2
