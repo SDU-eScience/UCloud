@@ -8,6 +8,8 @@ import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 
+typealias FileRights = dk.sdu.cloud.file.api.AccessRight
+
 private fun verifyRepositoryName(name: String) {
     if (name.isEmpty() || name.isBlank()) throw RPCException("Name cannot be empty", HttpStatusCode.BadRequest)
     if (name.length !in 1..128) throw RPCException("Name too long", HttpStatusCode.BadRequest)
@@ -44,7 +46,7 @@ data class Repository(val name: String)
 data class RepositoryListRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias RepositoryListResponse = Page<Repository>
 
-data class ProjectAclEntry(val group: String, val rights: Set<AccessRight>)
+data class ProjectAclEntry(val group: String, val rights: Set<FileRights>)
 
 data class UpdatePermissionsRequest(
     val repository: String,

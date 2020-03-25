@@ -39,7 +39,7 @@ fun linuxFSWithRelaxedMocks(
             LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
         )
     }
-    val aclService = AclService(mockedMetadataService, homeFolderService)
+    val aclService = AclService(mockedMetadataService, homeFolderService, ClientMock.authenticatedClient)
     return LinuxTestFS(
         commandRunner,
         LinuxFS(

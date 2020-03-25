@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '4.0.0'
+version '4.1.0-projects.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.MainKt"
@@ -7,7 +7,7 @@ mainClassName = "dk.sdu.cloud.file.MainKt"
 buildscript {
     ext.serviceCommonVersion = "1.13.0-storage-events.1"
     ext.authApiVersion = "1.27.0"
-    ext.projectApiVersion = "3.0.0-v.3"
+    ext.projectApiVersion = "3.0.0-v.4"
 }
 
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"

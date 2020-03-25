@@ -4,14 +4,13 @@ import com.fasterxml.jackson.module.kotlin.treeToValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.HomeFolderService
-import dk.sdu.cloud.project.api.IsMemberQuery
-import dk.sdu.cloud.project.api.IsMemberRequest
-import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 
@@ -85,11 +84,22 @@ class AclService(
     }
 
     private suspend fun internalIsOwner(normalizedPath: String, username: String): Boolean {
-        val homeFolder = homeFolderService.findHomeFolder(username).normalize()
-        log.trace("user is '$username' requesting path '$normalizedPath' and home is '$homeFolder'")
-        if (normalizedPath == homeFolder || normalizedPath.startsWith("$homeFolder/")) {
-            log.trace("We are the owner")
-            return true
+        if (normalizedPath.startsWith("/home/")) {
+            val homeFolder = homeFolderService.findHomeFolder(username).normalize()
+            log.trace("user is '$username' requesting path '$normalizedPath' and home is '$homeFolder'")
+            if (normalizedPath == homeFolder || normalizedPath.startsWith("$homeFolder/")) {
+                log.trace("We are the owner")
+                return true
+            }
+        } else if (normalizedPath.startsWith("/projects/")) {
+            val components = normalizedPath.components()
+            if (components.size < 2) return false
+            val projectId = components[1]
+
+            return Projects.viewMemberInProject.call(
+                ViewMemberInProjectRequest(projectId, username),
+                serviceClient
+            ).orNull()?.member?.role?.isAdmin() == true
         }
 
         return false
@@ -117,20 +127,40 @@ class AclService(
         if (hasPermissionAsUser) return true
 
         val queries = metadataService
-            .listMetadata(relevantPaths, username, PROJECT_METADATA_TYPE)
+            .listMetadata(relevantPaths, null, PROJECT_METADATA_TYPE)
             .flatMap { it.value }
             .flatMap { data ->
                 defaultMapper.treeToValue<ProjectAclMetadata>(data.payload).entries.map { data.username to it }
             }
             .filter { (project, entry) -> project != null && permission in entry.permissions }
-            .map { (project, entry) -> IsMemberQuery(project!!, entry.group, username)  }
+            .map { (project, entry) -> IsMemberQuery(project!!, entry.group, username) }
+
+        if (queries.isEmpty()) {
+            return false
+        }
+
+        for (projectId in queries.map { it.project }.toSet()) {
+            val isAdmin = Projects.viewMemberInProject.call(
+                ViewMemberInProjectRequest(projectId, username),
+                serviceClient
+            ).orNull()?.member?.role?.isAdmin() == true
+
+            if (isAdmin) {
+                return true
+            }
+        }
 
         val responses = ProjectGroups.isMember
             .call(
                 IsMemberRequest(queries),
                 serviceClient
             )
-            .orRethrowAs { throw RPCException("Permission denied - Projects unavailable", HttpStatusCode.Forbidden) }
+            .orRethrowAs {
+                throw RPCException(
+                    "Permission denied - Projects unavailable",
+                    HttpStatusCode.Forbidden
+                )
+            }
             .responses
 
         return responses.any { it }
@@ -169,6 +199,29 @@ class AclService(
                         }
                     }
 
+                metadataService
+                    .listMetadata(
+                        normalizedChunk.map { it.second } + allParents,
+                        null,
+                        PROJECT_METADATA_TYPE
+                    )
+                    .forEach { dataList ->
+                        dataList.value.forEach { data ->
+                            if (data.username == null) {
+                                log.warn("Project ACL metadata with null project detected!")
+                            } else {
+                                val aclMetadata = defaultMapper.treeToValue<ProjectAclMetadata>(data.payload)
+                                flatPermissions[data.path] = (flatPermissions[data.path] ?: emptyList()) +
+                                        aclMetadata.entries.map {
+                                            UserWithPermissions(
+                                                ACLEntity.ProjectAndGroup(data.username, it.group),
+                                                it.permissions
+                                            )
+                                        }
+                            }
+                        }
+                    }
+
                 normalizedChunk.map { (originalPath, path) ->
                     val acl = flatPermissions[path] ?: emptyList()
                     val aclEntriesFromParents = path
@@ -191,7 +244,6 @@ class AclService(
     }
 
     suspend fun revokePermission(path: String, entity: ACLEntity) {
-        // TODO This will remove all entries for a single project!
         val normalizedPath = path.normalize()
 
         when (entity) {
@@ -208,7 +260,40 @@ class AclService(
             }
 
             is ACLEntity.ProjectAndGroup -> {
-                TODO()
+                val metadata = metadataService
+                    .findMetadata(
+                        normalizedPath,
+                        entity.projectId,
+                        PROJECT_METADATA_TYPE
+                    )
+                    ?.payload
+                    ?.let { defaultMapper.treeToValue<ProjectAclMetadata>(it) }
+
+                if (metadata == null) {
+                    // Do nothing
+                } else {
+                    val newEntries = metadata.entries.filter { it.group != entity.group }
+                    if (newEntries.isEmpty()) {
+                        metadataService.removeEntries(
+                            listOf(
+                                FindMetadataRequest(
+                                    normalizedPath,
+                                    PROJECT_METADATA_TYPE,
+                                    entity.projectId
+                                )
+                            )
+                        )
+                    } else {
+                        metadataService.updateMetadata(
+                            Metadata(
+                                normalizedPath,
+                                PROJECT_METADATA_TYPE,
+                                entity.projectId,
+                                defaultMapper.valueToTree(ProjectAclMetadata(newEntries))
+                            )
+                        )
+                    }
+                }
             }
         }
 

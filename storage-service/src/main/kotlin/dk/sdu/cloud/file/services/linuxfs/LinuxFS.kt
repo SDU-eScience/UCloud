@@ -355,7 +355,7 @@ class LinuxFS(
                 val shares = if (StorageFileAttribute.acl in mode) {
                     val cloudPath = systemFile.path.toCloudPath()
                     shareLookup.getOrDefault(cloudPath, emptyList()).map {
-                        AccessEntry(it.username, it.permissions)
+                        AccessEntry(it.entity, it.permissions)
                     }
                 } else {
                     null
@@ -666,6 +666,7 @@ fun translateAndCheckFile(
     isDirectory: Boolean = false,
     isServiceUser: Boolean = false
 ): String {
+    val projectRoot = (if (!isServiceUser) File(fsRoot, "projects") else fsRoot).absolutePath.normalize().removeSuffix("/") + "/"
     val root = (if (!isServiceUser) File(fsRoot, "home") else fsRoot).absolutePath.normalize().removeSuffix("/") + "/"
     val systemFile = File(fsRoot, internalPath)
     val path = systemFile
@@ -678,7 +679,9 @@ fun translateAndCheckFile(
         systemFile.delete()
     }
 
-    if (!path.startsWith(root) && path.removeSuffix("/") != root.removeSuffix("/")) {
+    val isOutsideUserRoot = !path.startsWith(root) && path.removeSuffix("/") != root.removeSuffix("/")
+    val isOutsideProjectRoot = !path.startsWith(projectRoot) && path.removeSuffix("/") != projectRoot.removeSuffix("/")
+    if (isOutsideUserRoot && isOutsideProjectRoot) {
         throw FSException.BadRequest("path is not in user-root")
     }
 

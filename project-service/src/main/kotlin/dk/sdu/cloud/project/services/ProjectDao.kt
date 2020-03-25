@@ -226,7 +226,6 @@ class ProjectDao {
         val username = text("username")
         val role = text("role")
         val project = text("project_id")
-        val id = long("id")
         val createdAt = timestamp("created_at")
         val modifiedAt = timestamp("modified_at")
     }

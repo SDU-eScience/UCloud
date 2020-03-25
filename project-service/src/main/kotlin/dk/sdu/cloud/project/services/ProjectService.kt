@@ -29,6 +29,7 @@ class ProjectService(
     suspend fun create(title: String, principalInvestigator: String): Project {
         confirmUserExists(principalInvestigator)
         val id = generateIdFromTitle(title)
+        log.info("Using ID: $id")
 
         return db.withTransaction { session ->
             dao.create(session, id, title, principalInvestigator)

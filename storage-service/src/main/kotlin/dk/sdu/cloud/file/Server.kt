@@ -79,7 +79,7 @@ class Server(
         val db = AsyncDBSessionFactory(micro.databaseConfig)
         val metadataDao = MetadataDao()
         val metadataService = MetadataService(db, metadataDao)
-        val newAclService = AclService(metadataService, homeFolderService)
+        val newAclService = AclService(metadataService, homeFolderService, client)
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
         val fs = LinuxFS(fsRootFile, newAclService)

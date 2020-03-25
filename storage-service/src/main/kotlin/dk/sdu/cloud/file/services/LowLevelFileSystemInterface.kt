@@ -9,8 +9,6 @@ import dk.sdu.cloud.task.api.TaskContext
 import java.io.InputStream
 import java.io.OutputStream
 
-data class FSACLEntity(val user: String)
-
 interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     /**
      * Copies the underlying the file at [from] to the new path at [to].

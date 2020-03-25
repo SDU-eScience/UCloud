@@ -11,6 +11,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
+import dk.sdu.cloud.project.repository.api.ProjectAclEntry
 import dk.sdu.cloud.project.repository.api.Repository
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
@@ -122,6 +123,27 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
                 }
             }
             .map { Repository(it.first) }
+    }
+
+    suspend fun updatePermissions(
+        userClient: AuthenticatedClient,
+        project: String,
+        repository: String,
+        newAcl: List<ProjectAclEntry>
+    ) {
+        FileDescriptions.updateAcl.call(
+            UpdateAclRequest(
+                joinPath(PROJECT_DIR_PREFIX, project, repository),
+                newAcl.map {
+                    ACLEntryRequest(
+                        ACLEntity.ProjectAndGroup(project, it.group),
+                        it.rights,
+                        revoke = false
+                    )
+                }
+            ),
+            userClient
+        ).orThrow()
     }
 
     companion object : Loggable {

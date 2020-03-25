@@ -41,7 +41,7 @@ data class UpdateAclRequest(
 }
 
 data class ACLEntryRequest(
-    val entity: String,
+    val entity: ACLEntity,
     val rights: Set<FileAccessRight>,
     val revoke: Boolean = false
 )

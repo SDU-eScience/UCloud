@@ -4,4 +4,6 @@ name: project-repository
 namespaces:
 - project.repository
 
-dependencies: []
+dependencies:
+- project
+- files
