@@ -82,6 +82,7 @@ class JobVerificationService<Session>(
         val allocatedTime = unverifiedJob.request.maxTime ?: tool.description.defaultTimeAllocation
 
         val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
+        val url = unverifiedJob.request.url
 
         val (allPeers, _) = run {
             // TODO we should enforce in the app store that the parameter is a valid hostname
@@ -137,7 +138,8 @@ class JobVerificationService<Session>(
                 failedState = null,
                 status = "Validated",
                 archiveInCollection = archiveInCollection,
-                startedAt = null
+                startedAt = null,
+                url = url
             ),
             null,
             unverifiedJob.refreshToken

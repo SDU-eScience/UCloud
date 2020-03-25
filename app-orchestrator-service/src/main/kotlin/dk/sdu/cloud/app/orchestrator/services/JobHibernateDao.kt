@@ -410,7 +410,8 @@ class JobHibernateDao(
                 outputFolder = outputFolder,
                 createdAt = createdAt.time,
                 modifiedAt = modifiedAt.time,
-                startedAt = startedAt?.time
+                startedAt = startedAt?.time,
+                url = url
             ),
             accessToken,
             refreshToken
@@ -437,5 +438,22 @@ class JobHibernateDao(
 
     companion object : Loggable {
         override val log: Logger = logger()
+    }
+
+    override suspend fun findFromUrlId(
+        session: HibernateSession,
+        urlId: String,
+        owner: SecurityPrincipalToken?
+    ): VerifiedJobWithAccessToken? {
+        return session.criteria<JobInformationEntity> {
+            val ownerPredicate = if (owner == null) {
+                literal(true).toPredicate()
+            } else {
+                (entity[JobInformationEntity::owner] equal owner.principal.username)
+            }
+
+            (ownerPredicate and (entity[JobInformationEntity::systemId] equal urlId)) or
+            (entity[JobInformationEntity::url] equal urlId)
+        }.singleResult.toModel()
     }
 }

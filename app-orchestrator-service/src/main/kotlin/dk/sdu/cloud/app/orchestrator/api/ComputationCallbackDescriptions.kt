@@ -124,6 +124,23 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
         }
     }
 
+    val lookupUrl = call<FindByStringId, VerifiedJob, CommonErrorMessage>("lookupUrl") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"lookupUrl"
+                +boundTo(FindByStringId::id)
+            }
+        }
+    }
+
     val completed = call<JobCompletedRequest, Unit, CommonErrorMessage>("completed") {
         auth {
             roles = Roles.PRIVILEDGED
