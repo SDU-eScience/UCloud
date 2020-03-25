@@ -5,6 +5,5 @@ namespaces:
   - project
   - project.members
   - project.group
-  - project.repositories
 
 dependencies: []

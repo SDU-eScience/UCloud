@@ -8,7 +8,6 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.trash.api.FileTrashDescriptions
-import dk.sdu.cloud.file.trash.api.TrashResponse
 import dk.sdu.cloud.file.trash.services.TrashService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -34,7 +33,8 @@ class FileTrashController(
             ok(
                 trashService.emptyTrash(
                     ctx.securityPrincipal.username,
-                    userCloudWs()
+                    userCloudWs(),
+                    request.trashPath
                 ),
                 HttpStatusCode.Accepted
             )

@@ -1,9 +1,6 @@
 package dk.sdu.cloud.file.trash.http
 
-import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.trash.api.TrashRequest
-import dk.sdu.cloud.file.trash.api.TrashResponse
 import dk.sdu.cloud.file.trash.services.TrashService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.ClientMock
@@ -15,6 +12,7 @@ import dk.sdu.cloud.service.test.sendJson
 import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
+import io.ktor.server.testing.setBody
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.just
@@ -29,9 +27,9 @@ class FileTrashTest {
         val trashService = mockk<TrashService>()
 
         coEvery { trashService.moveFilesToTrash(any(), any(), any()) } answers {
-            null
+            Unit
         }
-        coEvery { trashService.emptyTrash(any(), any()) } just Runs
+        coEvery { trashService.emptyTrash(any(), any(), any()) } just Runs
 
         listOf(FileTrashController(cloud, trashService))
     }
@@ -60,7 +58,10 @@ class FileTrashTest {
                 sendRequest(
                     method = HttpMethod.Post,
                     path = "/api/files/trash/clear",
-                    user = TestUsers.user
+                    user = TestUsers.user,
+                    configure = {
+                        setBody("{}")
+                    }
                 ).assertSuccess()
             }
         )

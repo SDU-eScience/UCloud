@@ -79,7 +79,7 @@ class TrashTest {
 
         micro = initializeMicro()
         service = TrashService(
-            TrashDirectoryService(ClientMock.authenticatedClient),
+            TrashDirectoryService(),
             ClientMock.authenticatedClient,
             backgroundScope
         )
@@ -95,7 +95,7 @@ class TrashTest {
         mockHomeFolder()
 
         runBlocking {
-            service.emptyTrash(user.username, cloud)
+            service.emptyTrash(user.username, cloud, null)
         }
     }
 
@@ -106,7 +106,7 @@ class TrashTest {
         mockHomeFolder()
 
         runBlocking {
-            service.emptyTrash(user.username, cloud)
+            service.emptyTrash(user.username, cloud, null)
         }
     }
 
@@ -118,7 +118,7 @@ class TrashTest {
         mockHomeFolder()
 
         runBlocking {
-            service.emptyTrash(user.username, cloud)
+            service.emptyTrash(user.username, cloud, null)
         }
     }
 
@@ -133,7 +133,7 @@ class TrashTest {
         )
 
         runBlocking {
-            service.emptyTrash(user.username, cloud)
+            service.emptyTrash(user.username, cloud, null)
         }
     }
 
