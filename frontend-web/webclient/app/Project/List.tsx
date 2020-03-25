@@ -2,7 +2,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage, ReduxObject} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
-import {listProjects, ListProjectsRequest, UserInProject, ProjectMember, ProjectRole} from "Project/index";
+import {listProjects, ListProjectsRequest, UserInProject} from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
@@ -40,9 +40,9 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                             {page.items.map(e =>
                                 <ProjectSummary
                                     summary={e}
-                                    isSelected={e.id === props.project}
+                                    isSelected={e.projectId === props.project}
                                     setProject={props.setProject}
-                                    key={e.id}
+                                    key={e.projectId}
                                 />
                             )}
                         </List>
@@ -71,13 +71,12 @@ const ProjectSummary: React.FunctionComponent<ProjectSummaryProps> = props => (
     <Spacer
         left={
             <Box mb="4px" mx="4px">
-                <Link to={`/projects/view/${props.summary.id}`}><Text fontSize={20}>{props.summary.title}</Text></Link>
+                <Link to={`/projects/view/${encodeURIComponent(props.summary.projectId)}`}><Text fontSize={20}>{props.summary.title}</Text></Link>
                 <Flex>
-                    <Text fontSize={0} pb="3px"><Icon mt="-2px" size="12px" name="id" /> {props.summary.id}</Text>
+                    <Text fontSize={0} pb="3px"><Icon mt="-2px" size="12px" name="id" /> {props.summary.projectId}</Text>
                     <Text fontSize={0} ml="4px"><Icon color="white" color2="black" mt="-2px" size="12px" name="user" />
                         {" "}{prettierString(props.summary.whoami.role)}
                     </Text>
-                    <Text fontSize={0} ml="4px"><Icon mt="-2px" size="12px" name="projects" /> 42</Text>
                 </Flex>
             </Box>
         }
@@ -85,7 +84,7 @@ const ProjectSummary: React.FunctionComponent<ProjectSummaryProps> = props => (
             <Box pt="6px" mr="6px">
                 {props.isSelected ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
                 {props.isSelected ? <Icon mr="44px" mt="9px" name="check" color="green" /> : (
-                    <Button onClick={() => props.setProject(props.summary.id)}>Set active</Button>
+                    <Button onClick={() => props.setProject(props.summary.projectId)}>Set active</Button>
                 )}
             </Box>
         }

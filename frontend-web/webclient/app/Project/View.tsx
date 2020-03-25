@@ -24,7 +24,7 @@ import {errorMessageOrDefault, prettierString} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
 
 const View: React.FunctionComponent = () => {
-    const {id} = useParams<{id: string}>();
+    const id = decodeURIComponent(useParams<{id: string}>().id);
     const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
 
     const role = roleInProject(project.data);

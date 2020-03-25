@@ -26,7 +26,7 @@ export enum ProjectRole {
 }
 
 export interface UserInProject {
-    id: string;
+    projectId: string;
     title: string;
     whoami: ProjectMember;
 }
@@ -42,10 +42,7 @@ export const createProject = (payload: {title: string; principalInvestigator: st
 
 export const viewProject = (payload: {id: string}): APICallParameters => ({
     method: "GET",
-    path: buildQueryString("/projects", payload),
-    parameters: {
-        id: payload.id
-    },
+    path: buildQueryString("/projects/", payload),
     reloadId: Math.random(),
     disallowProjects: true
 });
