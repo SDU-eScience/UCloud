@@ -9,7 +9,7 @@ apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2
 buildscript {
     ext.serviceCommonVersion = "1.14.0-projects.2"
     ext.authApiVersion = "1.27.0"
-    ext.projectApiVersion = "3.0.0-v.2"
+    ext.projectApiVersion = "3.0.0-v.5"
     ext.fileApiVersion = "4.1.0-projects.0"
 }
 

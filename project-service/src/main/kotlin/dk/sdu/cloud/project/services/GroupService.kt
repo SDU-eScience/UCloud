@@ -123,4 +123,14 @@ class GroupService(
             groups.isMemberQuery(session, queries)
         }
     }
+
+    suspend fun exists(
+        project: String,
+        group: String
+    ): Boolean {
+        return db.withTransaction { session ->
+            groups.exists(session, project, group)
+        }
+    }
 }
+
