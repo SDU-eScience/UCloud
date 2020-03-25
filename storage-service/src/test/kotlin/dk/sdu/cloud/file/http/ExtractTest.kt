@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.http
 
-import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.WithBackgroundScope
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
@@ -49,7 +48,6 @@ class ExtractTest : WithBackgroundScope() {
                         it.authenticatedClient,
                         it.coreFs,
                         CommandRunnerFactoryForCalls(it.runner, mockk(relaxed = true)),
-                        FileSensitivityService(it.fs),
                         backgroundScope
                     )
                 )

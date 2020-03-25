@@ -17,7 +17,6 @@ import java.io.OutputStream
 
 class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
-    private val sensitivityService: FileSensitivityService<Ctx>,
     private val wsServiceClient: AuthenticatedClient,
     private val backgroundScope: BackgroundScope,
     private val metadataService: MetadataService
@@ -62,7 +61,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
 
                 val targetPath = renameAccordingToPolicy(ctx, to, conflictPolicy)
                 fs.copy(ctx, from, targetPath, conflictPolicy, this)
-                setSensitivity(ctx, targetPath, sensitivityLevel)
+                setSensitivityLevel(ctx, targetPath, sensitivityLevel)
 
                 return targetPath
             }
@@ -102,7 +101,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                     filesPerSecond.increment(1)
                 }
 
-                setSensitivity(ctx, newRoot, sensitivityLevel)
+                setSensitivityLevel(ctx, newRoot, sensitivityLevel)
                 return newRoot
             }
         }
@@ -217,6 +216,21 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         }
     }
 
+    suspend fun setSensitivityLevel(
+        ctx: Ctx,
+        path: String,
+        sensitivityLevel: SensitivityLevel?
+    ) {
+        fs.setSensitivityLevel(ctx, path, sensitivityLevel)
+    }
+
+    suspend fun getSensitivityLevel(
+        ctx: Ctx,
+        path: String
+    ): SensitivityLevel? {
+        return fs.getSensitivityLevel(ctx, path)
+    }
+
     private suspend fun renameAccordingToPolicy(
         ctx: Ctx,
         desiredTargetPath: String,
@@ -292,17 +306,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
                 val currentMax = namesMappedAsIndices.max() ?: 0
                 "$parentPath/$desiredWithoutExtension(${currentMax + 1})$extension"
             }
-        }
-    }
-
-    private suspend fun setSensitivity(ctx: Ctx, targetPath: String, sensitivityLevel: SensitivityLevel) {
-        val newSensitivity = stat(ctx, targetPath, setOf(StorageFileAttribute.sensitivityLevel))
-        if (sensitivityLevel != newSensitivity.sensitivityLevelOrNull) {
-            sensitivityService.setSensitivityLevel(
-                ctx,
-                targetPath,
-                sensitivityLevel
-            )
         }
     }
 

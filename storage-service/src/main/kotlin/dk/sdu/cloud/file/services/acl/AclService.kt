@@ -43,6 +43,25 @@ class AclService(
     private data class ProjectAclEntity(val group: String, val permissions: Set<AccessRight>)
     private data class ProjectAclMetadata(val entries: List<ProjectAclEntity>)
 
+    suspend fun updateAcl(request: UpdateAclRequest, user: String) {
+        log.debug("Executing ACL update request: $request")
+
+        if (!isOwner(request.path, user)) {
+            throw RPCException("Only the owner can update the ACL", HttpStatusCode.Forbidden)
+        }
+
+        val bulkChanges = ArrayList<UserWithPermissions>()
+        request.changes.forEach { change ->
+            if (change.revoke) {
+                revokePermission(request.path, change.entity)
+            } else {
+                bulkChanges.add(UserWithPermissions(change.entity, change.rights))
+            }
+        }
+
+        updatePermissions(request.path, bulkChanges)
+    }
+
     suspend fun updatePermissions(path: String, entries: List<UserWithPermissions>) {
         val normalizedPath = path.normalize()
         log.debug("updatePermissions($normalizedPath, $entries)")

@@ -118,7 +118,7 @@ class DownloadTests : WithBackgroundScope() {
             setup = {
                 configureWithDownloadController(additional = {
                     it.runner.withBlockingContext("user") { ctx ->
-                        it.sensitivityService.setSensitivityLevel(
+                        it.coreFs.setSensitivityLevel(
                             ctx,
                             "/home/user/folder/a",
                             SensitivityLevel.SENSITIVE
@@ -145,8 +145,8 @@ class DownloadTests : WithBackgroundScope() {
             setup = {
                 configureWithDownloadController(additional = {
                     it.runner.withBlockingContext("user") { ctx ->
-                        it.sensitivityService.setSensitivityLevel(ctx, "/home/user/folder", SensitivityLevel.PRIVATE)
-                        it.sensitivityService.setSensitivityLevel(
+                        it.coreFs.setSensitivityLevel(ctx, "/home/user/folder", SensitivityLevel.PRIVATE)
+                        it.coreFs.setSensitivityLevel(
                             ctx,
                             "/home/user/folder/a",
                             SensitivityLevel.SENSITIVE

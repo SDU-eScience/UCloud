@@ -13,15 +13,9 @@ import dk.sdu.cloud.file.http.LookupController
 import dk.sdu.cloud.file.http.MetadataController
 import dk.sdu.cloud.file.http.MultiPartUploadController
 import dk.sdu.cloud.file.http.SimpleDownloadController
-import dk.sdu.cloud.file.migration.ImportFavorites
-import dk.sdu.cloud.file.migration.ImportShares
-import dk.sdu.cloud.file.migration.PermissionMigration
-import dk.sdu.cloud.file.migration.WorkspaceMigration
 import dk.sdu.cloud.file.processors.UserProcessor
-import dk.sdu.cloud.file.services.ACLWorker
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.IndexingService
 import dk.sdu.cloud.file.services.MetadataRecoveryService
@@ -44,12 +38,10 @@ import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import org.slf4j.Logger
 import java.io.File
-import kotlin.system.exitProcess
 
 class Server(
     private val config: StorageConfiguration,
@@ -75,7 +67,7 @@ class Server(
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
         // Authorization
-        val homeFolderService = HomeFolderService(client)
+        val homeFolderService = HomeFolderService()
         val db = AsyncDBSessionFactory(micro.databaseConfig)
         val metadataDao = MetadataDao()
         val metadataService = MetadataService(db, metadataDao)
@@ -83,10 +75,8 @@ class Server(
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
         val fs = LinuxFS(fsRootFile, newAclService)
-        val aclService = ACLWorker(newAclService)
-        val sensitivityService = FileSensitivityService(fs)
         val coreFileSystem =
-            CoreFileSystemService(fs, sensitivityService, wsClient, micro.backgroundScope, metadataService)
+            CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService)
 
         // Specialized operations (built on high level FS)
         val fileLookupService = FileLookupService(processRunner, coreFileSystem)
@@ -97,46 +87,6 @@ class Server(
         val commandRunnerForCalls = CommandRunnerFactoryForCalls(processRunner, wsService)
 
         log.info("Core services constructed!")
-
-        if (micro.commandLineArguments.contains("--migrate-workspaces")) {
-            try {
-                WorkspaceMigration(fsRootFile, false).runMigration()
-            } catch (ex: Throwable) {
-                log.error(ex.stackTraceToString())
-                exitProcess(1)
-            }
-            exitProcess(0)
-        }
-
-        if (micro.commandLineArguments.contains("--migrate-permissions")) {
-            try {
-                PermissionMigration(db, metadataDao).runMigration()
-            } catch (ex: Throwable) {
-                log.error(ex.stackTraceToString())
-                exitProcess(1)
-            }
-            exitProcess(0)
-        }
-
-        if (micro.commandLineArguments.contains("--migrate-shares")) {
-            try {
-                ImportShares(db, metadataDao).runMigration()
-            } catch (ex: Throwable) {
-                log.error(ex.stackTraceToString())
-                exitProcess(1)
-            }
-            exitProcess(0)
-        }
-
-        if (micro.commandLineArguments.contains("--migrate-favorites")) {
-            try {
-                ImportFavorites(db, metadataDao).runMigration()
-            } catch (ex: Throwable) {
-                log.error(ex.stackTraceToString())
-                exitProcess(1)
-            }
-            exitProcess(0)
-        }
 
         UserProcessor(
             streams,
@@ -164,7 +114,6 @@ class Server(
                 ActionController(
                     commandRunnerForCalls,
                     coreFileSystem,
-                    sensitivityService,
                     fileLookupService
                 ),
 
@@ -176,8 +125,8 @@ class Server(
 
                 FileSecurityController(
                     commandRunnerForCalls,
-                    aclService,
-                    sensitivityService,
+                    newAclService,
+                    coreFileSystem,
                     config.filePermissionAcl
                 ),
 
@@ -198,7 +147,6 @@ class Server(
                     client,
                     commandRunnerForCalls,
                     coreFileSystem,
-                    sensitivityService,
                     micro.backgroundScope
                 ),
 
@@ -206,7 +154,6 @@ class Server(
                     client,
                     coreFileSystem,
                     commandRunnerForCalls,
-                    sensitivityService,
                     micro.backgroundScope
                 ),
 

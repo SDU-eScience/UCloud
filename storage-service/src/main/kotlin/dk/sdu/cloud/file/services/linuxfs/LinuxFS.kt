@@ -514,24 +514,22 @@ class LinuxFS(
         }
     }
 
-    override suspend fun getExtendedAttribute(
+    private suspend fun getExtendedAttribute(
         ctx: LinuxFSRunner,
         path: String,
         attribute: String
     ): String = ctx.submit {
-        // TODO Should this be owner only?
         aclService.requirePermission(path, ctx.user, AccessRight.READ)
         getExtendedAttributeInternal(File(translateAndCheckFile(ctx, path)), attribute) ?: throw FSException.NotFound()
     }
 
-    override suspend fun setExtendedAttribute(
+    private suspend fun setExtendedAttribute(
         ctx: LinuxFSRunner,
         path: String,
         attribute: String,
         value: String,
         allowOverwrite: Boolean
     ) = ctx.submit {
-        // TODO Should this be owner only?
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
         val status = NativeFS.setExtendedAttribute(
@@ -546,15 +544,31 @@ class LinuxFS(
         Unit
     }
 
-    override suspend fun deleteExtendedAttribute(
+    private suspend fun deleteExtendedAttribute(
         ctx: LinuxFSRunner,
         path: String,
         attribute: String
     ) = ctx.submit {
-        // TODO Should this be owner only?
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
         NativeFS.removeExtendedAttribute(File(translateAndCheckFile(ctx, path)), "user.$attribute")
         Unit
+    }
+
+    override suspend fun getSensitivityLevel(ctx: LinuxFSRunner, path: String): SensitivityLevel? {
+        return try {
+            SensitivityLevel.valueOf(getExtendedAttribute(ctx, path, SENSITIVITY_XATTR))
+        } catch (ex: FSException.NotFound) {
+            stat(ctx, path, setOf(StorageFileAttribute.path))
+            return null
+        }
+    }
+
+    override suspend fun setSensitivityLevel(ctx: LinuxFSRunner, path: String, sensitivityLevel: SensitivityLevel?) {
+        if (sensitivityLevel == null) {
+            deleteExtendedAttribute(ctx, path, SENSITIVITY_XATTR)
+        } else {
+            setExtendedAttribute(ctx, path, SENSITIVITY_XATTR, sensitivityLevel.name, true)
+        }
     }
 
     override suspend fun stat(ctx: LinuxFSRunner, path: String, mode: Set<StorageFileAttribute>): StorageFile =
@@ -657,6 +671,8 @@ class LinuxFS(
             PosixFilePermission.GROUP_EXECUTE,
             PosixFilePermission.OTHERS_EXECUTE
         )
+
+        const val SENSITIVITY_XATTR = "sensitivity"
     }
 }
 

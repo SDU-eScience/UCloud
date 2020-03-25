@@ -53,8 +53,7 @@ data class FileControllerContext(
     val runner: LinuxFSRunnerFactory,
     val fs: LinuxFS,
     val coreFs: CoreFileSystemService<LinuxFSRunner>,
-    val lookupService: FileLookupService<LinuxFSRunner>,
-    val sensitivityService: FileSensitivityService<LinuxFSRunner>
+    val lookupService: FileLookupService<LinuxFSRunner>
 )
 
 fun KtorApplicationTestSetupContext.configureServerWithFileController(
@@ -66,12 +65,9 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
     val fsRoot = fsRootInitializer()
     val (runner, fs, aclService) = linuxFSWithRelaxedMocks(fsRoot.absolutePath, scope)
     micro.install(HibernateFeature)
-    val fileSensitivityService = FileSensitivityService(fs)
     val coreFs =
-        CoreFileSystemService(fs, fileSensitivityService, ClientMock.authenticatedClient, scope, mockedMetadataService)
-    val sensitivityService = FileSensitivityService(fs)
+        CoreFileSystemService(fs, ClientMock.authenticatedClient, scope, mockedMetadataService)
 
-    val aclWorker = ACLWorker(aclService)
     val homeFolderService = mockk<HomeFolderService>()
     val callRunner = CommandRunnerFactoryForCalls(runner, WSFileSessionService(runner))
     coEvery { homeFolderService.findHomeFolder(any()) } coAnswers { homeDirectory(it.invocation.args.first() as String) }
@@ -83,8 +79,7 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
         runner = runner,
         fs = fs,
         coreFs = coreFs,
-        lookupService = FileLookupService(runner, coreFs),
-        sensitivityService = FileSensitivityService(fs)
+        lookupService = FileLookupService(runner, coreFs)
     )
 
     with(ctx) {
@@ -92,7 +87,6 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
             ActionController(
                 callRunner,
                 coreFs,
-                sensitivityService,
                 lookupService
             ),
 
@@ -104,8 +98,8 @@ fun KtorApplicationTestSetupContext.configureServerWithFileController(
 
             FileSecurityController(
                 callRunner,
-                aclWorker,
-                sensitivityService,
+                aclService,
+                coreFs,
                 fileUpdateAclWhitelist
             )
         )

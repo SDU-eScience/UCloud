@@ -16,7 +16,6 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.initializeMicro
-import io.mockk.mockk
 import java.io.File
 import java.nio.file.Files
 import kotlin.contracts.ExperimentalContracts
@@ -33,7 +32,7 @@ fun linuxFSWithRelaxedMocks(
     val commandRunner = LinuxFSRunnerFactory(backgroundScope)
     val micro = initializeMicro()
     micro.install(HibernateFeature)
-    val homeFolderService = HomeFolderService(ClientMock.authenticatedClient)
+    val homeFolderService = HomeFolderService()
     ClientMock.mockCall(UserDescriptions.lookupUsers) {
         TestCallResult.Ok(
             LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())

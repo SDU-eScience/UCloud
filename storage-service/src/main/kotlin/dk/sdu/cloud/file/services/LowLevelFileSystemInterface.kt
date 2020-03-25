@@ -191,45 +191,26 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     )
 
     /**
-     * Returns the attribute named [attribute] for the file at [path].
+     * Sets the sensitivity for the file at [path].
      *
-     * @throws FSException.NotFound if [path] does not exist.
-     * @throws FSException.NotFound if [attribute] does not exist.
+     * @throws FSException.NotFound
      * @throws FSException.PermissionException
      */
-    suspend fun getExtendedAttribute(
+    suspend fun setSensitivityLevel(
         ctx: Ctx,
         path: String,
-        attribute: String
-    ): String
-
-    /**
-     * Sets [attribute] to [value] at [path].
-     *
-     * @throws FSException.NotFound if [path] does not exist
-     * @throws FSException.AlreadyExists if [allowOverwrite] is true and [attribute] exists
-     * @throws FSException.PermissionException
-     */
-    suspend fun setExtendedAttribute(
-        ctx: Ctx,
-        path: String,
-        attribute: String,
-        value: String,
-        allowOverwrite: Boolean = true
+        sensitivityLevel: SensitivityLevel?
     )
 
     /**
-     * Deletes [attribute] at [path].
+     * Retrieves the sensitivity for the file at [path].
      *
-     * @throws FSException.NotFound if [path] does not exist.
-     * @throws FSException.NotFound if [attribute] does not exist.
-     * @throws FSException.PermissionException
+     * @throws FSException.NotFound
      */
-    suspend fun deleteExtendedAttribute(
+    suspend fun getSensitivityLevel(
         ctx: Ctx,
-        path: String,
-        attribute: String
-    )
+        path: String
+    ): SensitivityLevel?
 
     /**
      * Returns file attributes specified by [mode] for the file at [path].

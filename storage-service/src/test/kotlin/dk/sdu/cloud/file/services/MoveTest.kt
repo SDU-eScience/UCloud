@@ -23,12 +23,10 @@ import kotlin.test.assertEquals
 class MoveTest : WithBackgroundScope() {
     private fun createService(root: String): Pair<LinuxFSRunnerFactory, CoreFileSystemService<LinuxFSRunner>> {
         val (runner, fs) = linuxFSWithRelaxedMocks(root, backgroundScope)
-        val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
         return Pair(
             runner,
             CoreFileSystemService(
                 fs,
-                fileSensitivityService,
                 ClientMock.authenticatedClient,
                 backgroundScope,
                 mockedMetadataService
