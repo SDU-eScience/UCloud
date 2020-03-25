@@ -20,10 +20,13 @@ import {Box, Button, Flex, Input, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault, prettierString} from "UtilityFunctions";
+import {errorMessageOrDefault} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 
-const View: React.FunctionComponent = () => {
+const View: React.FunctionComponent<ViewOperations> = props => {
     const id = decodeURIComponent(useParams<{id: string}>().id);
     const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
 
@@ -33,6 +36,11 @@ const View: React.FunctionComponent = () => {
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
 
     const reload = (): void => setProjectParams(viewProject({id}));
+
+    useEffect(() => {
+        props.setRefresh(reload);
+        return () => props.setRefresh();
+    }, []);
 
     useEffect(() => reload(), [id]);
 
@@ -112,26 +120,27 @@ const ViewMember: React.FunctionComponent<{
         props.onActionComplete();
     };
 
-    const prettierRole = prettierString(role);
-
     return (
         <Box mt={16}>
             <Flex>
                 <UserAvatar avatar={defaultAvatar} />
                 <Box flexGrow={1}>
                     {props.member.username} <br />
-                    {!props.allowManagement ? prettierRole : (
+                    {!props.allowManagement ? role : (
                         <ClickableDropdown
                             chevron
-                            trigger={prettierRole}
+                            trigger={role}
                             onChange={async value => {
-                                setRole(value);
-
-                                await runCommand(changeRoleInProject({
-                                    projectId: props.project.id,
-                                    member: props.member.username,
-                                    newRole: value
-                                }));
+                                try {
+                                    await runCommand(changeRoleInProject({
+                                        projectId: props.project.id,
+                                        member: props.member.username,
+                                        newRole: value
+                                    }));
+                                    setRole(role);
+                                } catch (err) {
+                                    snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update role."));
+                                }
 
                                 props.onActionComplete();
                             }}
@@ -159,4 +168,12 @@ const ViewMember: React.FunctionComponent<{
     );
 };
 
-export default View;
+interface ViewOperations {
+    setRefresh: (refresh?: () => void) => void;
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): ViewOperations => ({
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+});
+
+export default connect(null, mapDispatchToProps)(View);
