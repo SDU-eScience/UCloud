@@ -331,9 +331,9 @@ export default class HttpClient {
      * @returns {string} the homefolder path for the currently logged in user (with trailing slash).
      */
     public get homeFolder(): string {
-        let username = this.username;
+        const username = this.username;
         if (this.projectId !== undefined) {
-            username = this.projectId;
+            return `/projects/${this.projectId}/`;
         }
         return `/home/${username}/`;
     }
