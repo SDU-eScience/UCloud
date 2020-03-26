@@ -251,10 +251,7 @@ class K8JobCreationService(
 
                                         this@container.withSecurityContext(
                                             SecurityContext().apply {
-                                                if (!disableKataContainers) {
-                                                    runAsNonRoot = !containerConfig.runAsRoot
-                                                }
-
+                                                runAsNonRoot = !containerConfig.runAsRoot
                                                 allowPrivilegeEscalation = containerConfig.runAsRoot
                                             }
                                         )
