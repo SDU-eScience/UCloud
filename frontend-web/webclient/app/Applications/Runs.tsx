@@ -166,6 +166,7 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                     <ItemList>
                         {items.map(it => {
                             const isExpired = isRunExpired(it);
+                            const hideExpiration = isExpired || it.expiresAt === null || isJobStateFinal(it.state);
                             return (
                                 <ListRow
                                     key={it.jobId}
@@ -181,7 +182,7 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                                         <Text color="gray" fontSize="12px">Started {formatRelative(it.createdAt, new Date(), {locale: enGB})}</Text>
                                     </>}
                                     right={<>
-                                        {isExpired || isJobStateFinal(it.state) ? null : (
+                                        {hideExpiration ? null : (
                                             <Text mr="25px">
                                                 Expires {formatRelative(it.expiresAt ?? 0, new Date(), {locale: enGB})}
                                             </Text>
