@@ -83,7 +83,7 @@ class ShareQueryService(
         userAccessToken: String
     ): SharesByPath {
         val userClient = client.withoutAuthentication().bearerAuth(userAccessToken)
-        val stat = FileDescriptions.stat.call(StatRequest(path), userClient).orThrow()
+        FileDescriptions.stat.call(StatRequest(path), userClient).orThrow()
 
         val metadata = MetadataDescriptions.findMetadata.call(
             FindMetadataRequest(path, METADATA_TYPE_SHARES, null),

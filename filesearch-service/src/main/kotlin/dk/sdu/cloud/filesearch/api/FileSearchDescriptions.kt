@@ -30,10 +30,6 @@ data class AdvancedSearchRequest(
     val fileName: String?,
     val extensions: List<String>?,
     val fileTypes: List<FileType>?,
-    val createdAt: TimestampQuery?,
-    val modifiedAt: TimestampQuery?,
-    val sensitivity: List<SensitivityLevel>?,
-    val annotations: List<String>?,
 
     val includeShares: Boolean?,
 

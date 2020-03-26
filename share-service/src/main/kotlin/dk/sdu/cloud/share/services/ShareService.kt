@@ -15,18 +15,7 @@ import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
 import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.ACLEntryRequest
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.CreateMetadataRequest
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindMetadataRequest
-import dk.sdu.cloud.file.api.MetadataDescriptions
-import dk.sdu.cloud.file.api.MetadataUpdate
-import dk.sdu.cloud.file.api.RemoveMetadataRequest
-import dk.sdu.cloud.file.api.StatRequest
-import dk.sdu.cloud.file.api.UpdateAclRequest
-import dk.sdu.cloud.file.api.UpdateMetadataRequest
-import dk.sdu.cloud.file.api.ownerName
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.share.api.ShareState
 import dk.sdu.cloud.share.api.Shares
@@ -39,8 +28,7 @@ import kotlinx.coroutines.launch
 
 class ShareService(
     private val serviceClient: AuthenticatedClient,
-    private val userClientFactory: (refreshToken: String) -> AuthenticatedClient,
-    private val devMode: Boolean = false
+    private val userClientFactory: (refreshToken: String) -> AuthenticatedClient
 ) {
     suspend fun create(
         user: String,
@@ -81,8 +69,7 @@ class ShareService(
 
             // Verify results.
             if (file.ownerName != user) {
-                // We allow invalid shares in dev mode.
-                if (!devMode) throw ShareException.NotAllowed()
+                throw ShareException.NotAllowed()
             }
 
             launch {
@@ -305,7 +292,7 @@ class ShareService(
                 path,
                 listOf(
                     ACLEntryRequest(
-                        existingShare.sharedWith,
+                        ACLEntity.User(existingShare.sharedWith),
                         newRights,
                         revoke = revoke
                     )

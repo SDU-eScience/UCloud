@@ -63,7 +63,7 @@ class ProjectService(
         }
     }
 
-    suspend fun listProjects(user: String, pagination: NormalizedPaginationRequest): Page<UserProjectSummary> {
+    suspend fun listProjects(user: String, pagination: NormalizedPaginationRequest?): Page<UserProjectSummary> {
         return db.withTransaction { session ->
             dao.listProjectsForUser(session, pagination, user)
         }
