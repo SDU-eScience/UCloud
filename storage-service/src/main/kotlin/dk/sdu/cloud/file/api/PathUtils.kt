@@ -2,7 +2,7 @@ package dk.sdu.cloud.file.api
 
 import java.io.File
 
-internal fun homeDirectory(user: String): String = "/home/$user/"
+fun homeDirectory(user: String): String = "/home/$user/"
 
 fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
     val basePath = File(components.joinToString("/") + (if (isDirectory) "/" else "")).normalize().path
