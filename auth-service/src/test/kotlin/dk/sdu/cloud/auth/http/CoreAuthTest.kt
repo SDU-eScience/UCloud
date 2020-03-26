@@ -154,7 +154,8 @@ class CoreAuthTest {
                 "lastname",
                 username,
                 role,
-                password
+                password,
+                "email@email"
             )
         )
     }

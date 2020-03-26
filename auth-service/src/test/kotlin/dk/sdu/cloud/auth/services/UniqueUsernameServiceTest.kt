@@ -38,7 +38,8 @@ class UniqueUsernameServiceTest {
             "Thrane",
             "dthrane@foo.dkl",
             Role.ADMIN,
-            "password"
+            "password",
+            "dthrane@foo.dkl"
         )
     }
 

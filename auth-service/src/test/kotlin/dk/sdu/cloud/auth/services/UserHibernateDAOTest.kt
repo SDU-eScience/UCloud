@@ -47,7 +47,8 @@ class UserHibernateDAOTest {
             "Lastname",
             email,
             Role.ADMIN,
-            "ThisIsMyPassword"
+            "ThisIsMyPassword",
+            email
         )
 
         person2 = personService.createUserByPassword(
@@ -55,7 +56,8 @@ class UserHibernateDAOTest {
             "McLastname",
             email2,
             Role.USER,
-            "Password1234"
+            "Password1234",
+            email2
         )
     }
 

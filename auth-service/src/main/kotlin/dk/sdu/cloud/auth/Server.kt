@@ -247,7 +247,8 @@ class Server(
             "Dev",
             username,
             role,
-            password
+            password,
+            "escience@sdu.dk"
         )
 
         userCreationService.blockingCreateUser(user)

@@ -12,6 +12,7 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {ChangePassword} from "UserSettings/ChangePassword";
 import {Sessions} from "UserSettings/Sessions";
 import {TwoFactorSetup} from "./TwoFactorSetup";
+import {ChangeUserDetails} from "UserSettings/ChangeUserDetails";
 
 interface UserSettingsState {
     headerLoading: boolean;
@@ -42,6 +43,10 @@ const UserSettings: React.FunctionComponent<UserSettingsOperations & UserSetting
                             {mustActivate2fa ? null : (
                                 <>
                                     <ChangePassword
+                                        setLoading={props.setLoading}
+                                    />
+
+                                    <ChangeUserDetails
                                         setLoading={props.setLoading}
                                     />
 

@@ -44,13 +44,20 @@ class UserController<DBSession>(
                         Role.SERVICE -> ServicePrincipal(user.username, Role.SERVICE)
 
                         null, Role.ADMIN, Role.USER -> {
-                            personService.createUserByPassword(
-                                firstNames = user.username,
-                                lastName = "N/A",
-                                username = user.username,
-                                role = user.role ?: Role.USER,
-                                password = user.password ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                            )
+                            if (!user.email.isNullOrBlank() && user.email.contains("@")) {
+                                personService.createUserByPassword(
+                                    firstNames = user.username,
+                                    lastName = "N/A",
+                                    username = user.username,
+                                    role = user.role ?: Role.USER,
+                                    password = user.password
+                                        ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
+                                    email = user.email
+                                )
+                            }
+                            else {
+                                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Valid email required")
+                            }
                         }
 
                         else -> {
@@ -68,6 +75,26 @@ class UserController<DBSession>(
                     )
                 })
             }
+        }
+
+        implement(UserDescriptions.updateUserInfo) {
+            val username = ctx.securityPrincipal.username
+            userCreationService.updateUserInfo(
+                username,
+                request.firstNames,
+                request.lastName,
+                request.email
+            )
+            ok(Unit)
+        }
+        implement(UserDescriptions.getUserInfo) {
+            val username = ctx.securityPrincipal.username
+            val information = userCreationService.getUserInfo(username)
+            ok(GetUserInfoResponse(
+                information.email,
+                information.firstNames,
+                information.lastName
+            ))
         }
 
         implement(UserDescriptions.changePassword) {
