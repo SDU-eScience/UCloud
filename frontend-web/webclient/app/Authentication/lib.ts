@@ -1,7 +1,6 @@
 import {ReduxObject} from "DefaultObjects";
 import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {
     inRange,
@@ -11,7 +10,7 @@ import {
 
 export interface Override {
     path: string;
-    method: {value: string;};
+    method: {value: string};
     destination: {
         scheme?: string;
         host?: string;
@@ -90,7 +89,7 @@ export default class HttpClient {
         }
     }
 
-    public async waitForCloudReady() {
+    public async waitForCloudReady(): Promise<void> {
         if (this.overridesPromise !== null) {
             try {
                 await this.overridesPromise;
@@ -102,7 +101,7 @@ export default class HttpClient {
         }
     }
 
-    public initializeStore(store: Store<ReduxObject>) {
+    public initializeStore(store: Store<ReduxObject>): void {
         store.subscribe(() => {
             const project = store.getState().project.project;
             if (project !== this.projectId) {
@@ -303,12 +302,12 @@ export default class HttpClient {
      * Opens up a new page which contains the login page at the auth service. This login page will automatically
      * redirect back to the correct service (using serviceName).
      */
-    public openBrowserLoginPage() {
+    public openBrowserLoginPage(): void {
         if (window.location.href !== this.context + "/app/login")
             window.location.href = this.context + "/app/login";
     }
 
-    public openLandingPage() {
+    public openLandingPage(): void {
         if (window.location.href !== this.context + "/app/")
             window.location.href = this.context + "/app/";
     }
@@ -576,7 +575,7 @@ export default class HttpClient {
         }
     }
 
-    public async logout() {
+    public async logout(): Promise<void> {
         try {
             const res = await fetch(`${this.context}${this.authContext}/logout/web`, {
                 headers: {
@@ -598,7 +597,7 @@ export default class HttpClient {
         }
     }
 
-    static clearTokens() {
+    static clearTokens(): void {
         HttpClient.storedAccessToken = "";
         HttpClient.storedCsrfToken = "";
     }
@@ -619,7 +618,7 @@ export default class HttpClient {
         window.localStorage.setItem("csrfToken", value);
     }
 
-    private isTokenExpired(disallowProject: boolean) {
+    private isTokenExpired(disallowProject: boolean): boolean {
         const token = this.useProjectToken(disallowProject) ? this.projectDecodedToken : this.decodedToken;
         if (!token || !token.payload) return true;
         const nowInSeconds = Math.floor(Date.now() / 1000);
@@ -627,7 +626,7 @@ export default class HttpClient {
         return token.payload.exp < inOneMinute;
     }
 
-    private missingAuth() {
+    private missingAuth(): 0 | MissingAuthError {
         if (this.redirectOnInvalidTokens) {
             this.openBrowserLoginPage();
             return 0;

@@ -137,7 +137,7 @@ const ViewMember: React.FunctionComponent<{
                                         member: props.member.username,
                                         newRole: value
                                     }));
-                                    setRole(role);
+                                    setRole(value);
                                 } catch (err) {
                                     snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update role."));
                                 }
