@@ -92,7 +92,8 @@ class TokenExtensionTest {
             firstNames = securityPrincipal.firstName,
             lastName = securityPrincipal.lastName,
             role = securityPrincipal.role,
-            password = "asdqwe"
+            password = "asdqwe",
+            email = "email@email"
         )
 
         userCreationService.blockingCreateUser(principal)

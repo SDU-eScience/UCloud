@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.kubernetes.watcher.api.JobCondition
 import dk.sdu.cloud.app.kubernetes.watcher.api.JobEvent
 import dk.sdu.cloud.app.kubernetes.watcher.api.JobEvents
 import dk.sdu.cloud.events.EventStreamService
+import dk.sdu.cloud.service.Loggable
 import io.fabric8.kubernetes.api.model.batch.Job
 import io.fabric8.kubernetes.client.KubernetesClient
 import io.fabric8.kubernetes.client.KubernetesClientException
@@ -40,13 +41,16 @@ class JobWatcher(
     private fun ourJobs() = k8sClient.batch().jobs().inNamespace(namespace).withLabel(ROLE_LABEL, appRole)
 
     private fun handleJobEvent(job: Job): Unit = runBlocking {
-        producer.produce(
-            JobEvent(
-                job.metadata.name,
-                job.status?.conditions?.firstOrNull()?.let { cond ->
-                    JobCondition(cond.type, cond.reason)
-                }
-            )
-        )
+        val jobName = job.metadata.name
+        val condition = job.status?.conditions?.firstOrNull()?.let { cond ->
+            JobCondition(cond.type, cond.reason)
+        }
+
+        log.info("Handling event: $jobName $condition")
+        producer.produce(JobEvent(jobName, condition))
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

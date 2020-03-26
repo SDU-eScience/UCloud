@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.trash.services
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -15,6 +16,7 @@ import dk.sdu.cloud.file.api.fileName
 import dk.sdu.cloud.file.api.fileType
 import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.trash.api.FileTrashDescriptions
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
@@ -30,8 +32,13 @@ class TrashService(
     private val wsServiceClient: AuthenticatedClient,
     private val backgroundScope: BackgroundScope
 ) {
-    suspend fun emptyTrash(username: String, userCloud: AuthenticatedClient) {
-        validateTrashDirectory(username, userCloud)
+    suspend fun emptyTrash(username: String, userCloud: AuthenticatedClient, suggestedTrashFolder: String?) {
+        val actualTrashFolder = suggestedTrashFolder ?: trashDirectoryService.findPersonalTrash(username)
+        if (!trashDirectoryService.isTrashFolder(username, actualTrashFolder)) {
+            throw RPCException("Invalid trash folder", HttpStatusCode.BadRequest)
+        }
+
+        validateTrashDirectory(actualTrashFolder, userCloud)
         backgroundScope.launch {
             runTask(wsServiceClient, backgroundScope, "Emptying trash", username) {
                 runCatching {
@@ -39,7 +46,7 @@ class TrashService(
                     for (attempt in 1..5) {
                         val filesResp = FileDescriptions.listAtPath.call(
                             ListDirectoryRequest(
-                                trashDirectoryService.findTrashDirectory(username),
+                                actualTrashFolder,
                                 itemsPerPage = 100,
                                 page = 0,
                                 order = null,
@@ -72,11 +79,13 @@ class TrashService(
 
     suspend fun moveFilesToTrash(files: List<String>, username: String, userCloud: AuthenticatedClient) {
         try {
-            validateTrashDirectory(username, userCloud)
+            val trashFolders = files.map { trashDirectoryService.findTrashDirectory(username, it) }.toSet()
+            trashFolders.forEach { folder -> validateTrashDirectory(folder, userCloud) }
         } catch (ex: Throwable) {
             log.warn(ex.stackTraceToString())
             throw ex
         }
+
         backgroundScope.launch {
             runTask(wsServiceClient, backgroundScope, "Moving files to trash", username) {
                 this.status = "Moving files to trash"
@@ -86,7 +95,7 @@ class TrashService(
                 files.forEach {
                     launch {
                         try {
-                            moveFileToTrash(it, username, userCloud)
+                            moveFileToTrash(it, trashDirectoryService.findTrashDirectory(username, it), userCloud)
                             progress.current++
                         } catch (ex: Throwable) {
                             log.warn(ex.stackTraceToString())
@@ -97,24 +106,11 @@ class TrashService(
         }
     }
 
-    private suspend fun moveFileToTrash(file: String, username: String, userCloud: AuthenticatedClient): Boolean {
-        val statResult = FileDescriptions.stat.call(
-            StatRequest(
-                path = file
-            ),
-            userCloud
-        )
-
-        val ownerName = if (statResult.statusCode.isSuccess()) {
-            statResult.orThrow().ownerNameOrNull ?: username
-        } else {
-            username
-        }
-
+    private suspend fun moveFileToTrash(file: String, trashFolder: String, userCloud: AuthenticatedClient): Boolean {
         val result = FileDescriptions.move.call(
             MoveRequest(
                 path = file,
-                newPath = joinPath(trashDirectoryService.findTrashDirectory(ownerName), file.fileName()),
+                newPath = joinPath(trashFolder, file.fileName()),
                 policy = WriteConflictPolicy.RENAME
             ),
             userCloud
@@ -123,9 +119,7 @@ class TrashService(
         return result.statusCode.isSuccess()
     }
 
-    private suspend fun validateTrashDirectory(username: String, userCloud: AuthenticatedClient) {
-        val trashDirectoryPath = trashDirectoryService.findTrashDirectory(username)
-
+    private suspend fun validateTrashDirectory(trashDirectoryPath: String, userCloud: AuthenticatedClient) {
         suspend fun createTrashDirectory() {
             FileDescriptions.createDirectory.call(
                 CreateDirectoryRequest(trashDirectoryPath, null),

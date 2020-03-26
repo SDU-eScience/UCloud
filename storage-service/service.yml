@@ -9,3 +9,6 @@ namespaces:
 
 dependencies:
   - task
+  - project
+  - project.group
+  - project.members

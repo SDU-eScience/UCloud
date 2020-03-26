@@ -33,7 +33,8 @@ class RefreshTokenAndUserTest {
                         "Lastname",
                         email,
                         Role.ADMIN,
-                        "ThisIsMyPassword"
+                        "ThisIsMyPassword",
+                        email
                     )
                     UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO()).insert(session, person)
                     val refreshTAU = RefreshTokenAndUser(email, token, "")
@@ -64,7 +65,8 @@ class RefreshTokenAndUserTest {
                     "Lastname",
                     email,
                     Role.ADMIN,
-                    "ThisIsMyPassword"
+                    "ThisIsMyPassword",
+                    email
                 )
                 UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO()).insert(session, person)
                 dao.insert(session, RefreshTokenAndUser(
@@ -113,7 +115,8 @@ class RefreshTokenAndUserTest {
                     "Lastname",
                     email,
                     Role.ADMIN,
-                    "ThisIsMyPassword"
+                    "ThisIsMyPassword",
+                    email
                 )
                 UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO()).insert(session, person)
                 dao.insert(session, RefreshTokenAndUser(email, "token", "csrf"))
