@@ -6,14 +6,15 @@ import dk.sdu.cloud.file.api.BulkFileAudit
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.services.*
+import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 
 class FileSecurityController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
-    private val aclWorker: ACLWorker,
-    private val sensitivityService: FileSensitivityService<Ctx>,
+    private val aclWorker: AclService,
+    private val coreFs: CoreFileSystemService<Ctx>,
     private val filePermissionsAcl: Set<String> = emptySet()
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
@@ -32,11 +33,7 @@ class FileSecurityController<Ctx : FSUserContext>(
             val user = ctx.securityPrincipal.username
             commandRunnerFactory.withCtx(this, user = user) { ctx ->
                 val sensitivity = request.sensitivity
-                if (sensitivity != null) {
-                    sensitivityService.setSensitivityLevel(ctx, request.path, sensitivity)
-                } else {
-                    sensitivityService.clearSensitivityLevel(ctx, request.path)
-                }
+                coreFs.setSensitivityLevel(ctx, request.path, sensitivity)
             }
             ok(Unit)
         }

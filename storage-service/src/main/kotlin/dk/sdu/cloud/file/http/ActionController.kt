@@ -9,7 +9,6 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
-import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.util.CallResult
 import dk.sdu.cloud.service.Controller
 import io.ktor.http.HttpStatusCode
@@ -17,7 +16,6 @@ import io.ktor.http.HttpStatusCode
 class ActionController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>,
-    private val sensitivityService: FileSensitivityService<Ctx>,
     private val fileLookupService: FileLookupService<Ctx>
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
@@ -28,7 +26,7 @@ class ActionController<Ctx : FSUserContext>(
                 commandRunnerFactory.withCtxAndTimeout(this, user = owner) {
                     coreFs.makeDirectory(it, request.path)
                     if (sensitivity != null) {
-                        sensitivityService.setSensitivityLevel(it, request.path, sensitivity)
+                        coreFs.setSensitivityLevel(it, request.path, sensitivity)
                     }
                     CallResult.Success(Unit, HttpStatusCode.OK)
                 }
@@ -36,7 +34,7 @@ class ActionController<Ctx : FSUserContext>(
                 commandRunnerFactory.withCtxAndTimeout(this) {
                     coreFs.makeDirectory(it, request.path)
                     if (sensitivity != null) {
-                        sensitivityService.setSensitivityLevel(
+                        coreFs.setSensitivityLevel(
                             it,
                             request.path,
                             sensitivity
@@ -71,7 +69,7 @@ class ActionController<Ctx : FSUserContext>(
                 // We don't need to change sensitivity of children (if they inherit they will inherit from us).
                 val newSensitivity = fileLookupService.stat(it, targetPath).sensitivityLevel
                 if (stat.sensitivityLevel != newSensitivity) {
-                    sensitivityService.setSensitivityLevel(
+                    coreFs.setSensitivityLevel(
                         it,
                         targetPath,
                         stat.sensitivityLevel

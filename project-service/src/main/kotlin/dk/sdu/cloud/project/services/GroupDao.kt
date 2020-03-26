@@ -424,6 +424,25 @@ class GroupDao {
         return response
     }
 
+    suspend fun exists(session: AsyncDBConnection, project: String, group: String): Boolean {
+        return session
+            .sendPreparedStatement(
+                {
+                    setParameter("group", group)
+                    setParameter("project", project)
+                },
+                """
+                    select *
+                    from groups
+                    where
+                        the_group = ?group and
+                        project = ?project
+                """
+            )
+            .rows
+            .size > 0
+    }
+
     private fun RowData.toUserGroupSummary(): UserGroupSummary =
         UserGroupSummary(
             getField(GroupMembershipTable.project),

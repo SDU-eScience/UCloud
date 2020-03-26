@@ -9,7 +9,6 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Controller
@@ -24,7 +23,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
     private val serviceCloud: AuthenticatedClient,
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val fs: CoreFileSystemService<Ctx>,
-    private val sensitivityService: FileSensitivityService<Ctx>,
     private val backgroundScope: BackgroundScope
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
@@ -64,7 +62,7 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                 log.debug("done writing")
 
                 if (sensitivity != null) {
-                    sensitivityService.setSensitivityLevel(ctx, location, sensitivity)
+                    fs.setSensitivityLevel(ctx, location, sensitivity)
                 }
             }
             ok(Unit)
@@ -98,7 +96,6 @@ class MultiPartUploadController<Ctx : FSUserContext>(
                         policy,
                         temporaryFile.inputStream(),
                         request.sensitivity,
-                        sensitivityService,
                         archiveName,
                         backgroundScope
                     )

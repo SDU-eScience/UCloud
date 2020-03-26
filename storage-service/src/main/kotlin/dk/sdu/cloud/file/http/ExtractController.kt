@@ -13,7 +13,6 @@ import dk.sdu.cloud.file.api.parent
 import dk.sdu.cloud.file.services.BulkUploader
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
-import dk.sdu.cloud.file.services.FileSensitivityService
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Controller
 import io.ktor.http.HttpStatusCode
@@ -23,7 +22,6 @@ class ExtractController<Ctx : FSUserContext>(
     private val serviceCloud: AuthenticatedClient,
     private val coreFs: CoreFileSystemService<Ctx>,
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
-    private val sensitivityService: FileSensitivityService<Ctx>,
     private val backgroundScope: BackgroundScope
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
@@ -53,7 +51,6 @@ class ExtractController<Ctx : FSUserContext>(
                             WriteConflictPolicy.RENAME,
                             fileInputStream,
                             null,
-                            sensitivityService,
                             request.path.fileName(),
                             backgroundScope
                         )

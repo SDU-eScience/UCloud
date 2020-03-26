@@ -10,6 +10,7 @@ import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import kotlin.test.*
 
@@ -25,7 +26,8 @@ class AclTest {
         micro = initializeMicro()
         micro.install(HibernateFeature)
         metadataService = MetadataService(AsyncDBSessionFactory(micro.databaseConfig), MetadataDao())
-        aclService = AclService(metadataService, MockedHomeFolderService, ClientMock.authenticatedClient)
+        aclService =
+            AclService(metadataService, MockedHomeFolderService, ClientMock.authenticatedClient, mockk(relaxed = true))
 
         runBlocking {
             micro.hibernateDatabase.withTransaction {

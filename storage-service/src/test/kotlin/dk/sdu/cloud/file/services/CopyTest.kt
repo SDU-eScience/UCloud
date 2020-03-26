@@ -21,24 +21,20 @@ class CopyTest : WithBackgroundScope() {
         val runner: LinuxFSRunnerFactory,
         val fs: LowLevelFileSystemInterface<Ctx>,
         val coreFs: CoreFileSystemService<Ctx>,
-        val lookupService: FileLookupService<Ctx>,
-        val sensitivityService: FileSensitivityService<Ctx>
+        val lookupService: FileLookupService<Ctx>
     )
 
     private fun initTest(root: File): TestContext<FSUserContext> {
         val (runner, fs) = linuxFSWithRelaxedMocks(root.absolutePath, backgroundScope)
-        val sensitivityService =
-            FileSensitivityService(fs)
         val coreFs = CoreFileSystemService(
             fs,
-            sensitivityService,
             ClientMock.authenticatedClient,
             backgroundScope,
             mockedMetadataService
         )
         val fileLookupService = FileLookupService(runner, coreFs)
 
-        return TestContext(runner, fs, coreFs, fileLookupService, sensitivityService) as TestContext<FSUserContext>
+        return TestContext(runner, fs, coreFs, fileLookupService) as TestContext<FSUserContext>
     }
 
     private fun createRoot(): File = Files.createTempDirectory("sensitivity-test").toFile()

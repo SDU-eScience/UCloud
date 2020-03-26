@@ -9,8 +9,7 @@ import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.repository.api.ProjectAclEntry
 import dk.sdu.cloud.project.repository.api.Repository
 import dk.sdu.cloud.service.Loggable
@@ -131,6 +130,17 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
         repository: String,
         newAcl: List<ProjectAclEntry>
     ) {
+        newAcl.map { it.group }.toSet().forEach { group ->
+            val groupExists = ProjectGroups.groupExists.call(
+                GroupExistsRequest(project, group),
+                serviceClient
+            ).orThrow().exists
+
+            if (!groupExists) {
+                throw RPCException("Group not found", HttpStatusCode.BadRequest)
+            }
+        }
+
         FileDescriptions.updateAcl.call(
             UpdateAclRequest(
                 joinPath(PROJECT_DIR_PREFIX, project, repository),

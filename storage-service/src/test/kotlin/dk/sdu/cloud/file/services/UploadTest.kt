@@ -29,7 +29,6 @@ class UploadTest : WithBackgroundScope() {
         fs = linuxFs.fs
         coreFs = CoreFileSystemService(
             fs,
-            mockk(relaxed = true),
             ClientMock.authenticatedClient,
             backgroundScope,
             mockedMetadataService

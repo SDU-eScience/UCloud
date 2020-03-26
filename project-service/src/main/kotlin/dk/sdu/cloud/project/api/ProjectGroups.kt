@@ -64,6 +64,9 @@ data class IsMemberQuery(val project: String, val group: String, val username: S
 data class IsMemberRequest(val queries: List<IsMemberQuery>)
 data class IsMemberResponse(val responses: List<Boolean>)
 
+data class GroupExistsRequest(val project: String, val group: String)
+data class GroupExistsResponse(val exists: Boolean)
+
 object ProjectGroups : CallDescriptionContainer("project.group") {
     val baseContext = "/api/projects/groups"
 
@@ -214,6 +217,24 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             path {
                 using(baseContext)
                 +"is-member"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val groupExists = call<GroupExistsRequest, GroupExistsResponse, CommonErrorMessage>("groupExists") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"exists"
             }
 
             body { bindEntireRequestFromBody() }

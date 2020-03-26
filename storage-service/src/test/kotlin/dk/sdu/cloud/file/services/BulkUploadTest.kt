@@ -75,11 +75,9 @@ class BulkUploadTest : WithBackgroundScope() {
 
     private fun createService(root: String): Pair<LinuxFSRunnerFactory, CoreFileSystemService<LinuxFSRunner>> {
         val (runner, fs) = linuxFSWithRelaxedMocks(root, backgroundScope)
-        val fileSensitivityService = mockk<FileSensitivityService<LinuxFSRunner>>()
         val coreFs =
             CoreFileSystemService(
                 fs,
-                mockk(relaxed = true),
                 ClientMock.authenticatedClient,
                 backgroundScope,
                 mockedMetadataService
@@ -112,7 +110,6 @@ class BulkUploadTest : WithBackgroundScope() {
                 WriteConflictPolicy.OVERWRITE,
                 tarFile.inputStream(),
                 null,
-                mockk(relaxed = true),
                 "",
                 backgroundScope
             )
@@ -161,7 +158,6 @@ class BulkUploadTest : WithBackgroundScope() {
                     WriteConflictPolicy.RENAME,
                     tarFile.inputStream(),
                     null,
-                    mockk(relaxed = true),
                     "",
                     backgroundScope
                 )
@@ -217,7 +213,6 @@ class BulkUploadTest : WithBackgroundScope() {
                     WriteConflictPolicy.OVERWRITE,
                     tarFile.inputStream(),
                     null,
-                    mockk(relaxed = true),
                     "",
                     backgroundScope
                 )
@@ -268,7 +263,6 @@ class BulkUploadTest : WithBackgroundScope() {
                     WriteConflictPolicy.REJECT,
                     tarFile.inputStream(),
                     null,
-                    mockk(relaxed = true),
                     "",
                     backgroundScope
                 )
@@ -321,7 +315,6 @@ class BulkUploadTest : WithBackgroundScope() {
                     WriteConflictPolicy.OVERWRITE,
                     tarFile.inputStream(),
                     null,
-                    mockk(relaxed = true),
                     "",
                     backgroundScope
                 )
@@ -372,7 +365,6 @@ class BulkUploadTest : WithBackgroundScope() {
                     WriteConflictPolicy.OVERWRITE,
                     tarFile.inputStream(),
                     null,
-                    mockk(relaxed = true),
                     "",
                     backgroundScope
                 )
@@ -419,7 +411,6 @@ class BulkUploadTest : WithBackgroundScope() {
                     WriteConflictPolicy.OVERWRITE,
                     tarFile.inputStream(),
                     null,
-                    mockk(relaxed = true),
                     "",
                     backgroundScope
                 )

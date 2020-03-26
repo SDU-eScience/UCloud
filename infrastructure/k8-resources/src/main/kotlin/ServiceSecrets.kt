@@ -34,13 +34,14 @@ class ServiceSecrets(val name: String) : KubernetesResource {
                         mapOf(
                             "username" to "_$name",
                             "password" to "not-used",
+                            "email" to "not-used@example.com",
                             "role" to "SERVICE"
                         )
                     ), ContentType.Application.Json
                 )
             }
 
-            if (!resp.status.isSuccess()) throw IllegalStateException("User registration failed!")
+            if (!resp.status.isSuccess()) throw IllegalStateException("User registration failed! ${resp.status}")
             val refreshToken =
                 defaultMapper.readValue<List<Map<String, Any?>>>(resp.content.toByteArray())[0]["refreshToken"] as String
 

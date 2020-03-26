@@ -10,6 +10,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.HomeFolderService
+import dk.sdu.cloud.file.services.ProjectCache
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
@@ -37,11 +38,31 @@ import io.ktor.http.HttpStatusCode
 class AclService(
     private val metadataService: MetadataService,
     private val homeFolderService: HomeFolderService,
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
+    private val projectCache: ProjectCache
 ) {
     private data class UserAclMetadata(val permissions: Set<AccessRight>)
     private data class ProjectAclEntity(val group: String, val permissions: Set<AccessRight>)
     private data class ProjectAclMetadata(val entries: List<ProjectAclEntity>)
+
+    suspend fun updateAcl(request: UpdateAclRequest, user: String) {
+        log.debug("Executing ACL update request: $request")
+
+        if (!isOwner(request.path, user)) {
+            throw RPCException("Only the owner can update the ACL", HttpStatusCode.Forbidden)
+        }
+
+        val bulkChanges = ArrayList<UserWithPermissions>()
+        request.changes.forEach { change ->
+            if (change.revoke) {
+                revokePermission(request.path, change.entity)
+            } else {
+                bulkChanges.add(UserWithPermissions(change.entity, change.rights))
+            }
+        }
+
+        updatePermissions(request.path, bulkChanges)
+    }
 
     suspend fun updatePermissions(path: String, entries: List<UserWithPermissions>) {
         val normalizedPath = path.normalize()
@@ -96,10 +117,7 @@ class AclService(
             if (components.size < 2) return false
             val projectId = components[1]
 
-            return Projects.viewMemberInProject.call(
-                ViewMemberInProjectRequest(projectId, username),
-                serviceClient
-            ).orNull()?.member?.role?.isAdmin() == true
+            return projectCache.viewMember(projectId, username)?.role?.isAdmin() == true
         }
 
         return false
@@ -140,11 +158,7 @@ class AclService(
         }
 
         for (projectId in queries.map { it.project }.toSet()) {
-            val isAdmin = Projects.viewMemberInProject.call(
-                ViewMemberInProjectRequest(projectId, username),
-                serviceClient
-            ).orNull()?.member?.role?.isAdmin() == true
-
+            val isAdmin = projectCache.viewMember(projectId, username)?.role?.isAdmin() == true
             if (isAdmin) {
                 return true
             }
