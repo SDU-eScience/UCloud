@@ -411,6 +411,7 @@ export const getParentPath = (path: string): string => {
         parentPath += splitPath[i] + "/";
     }
     /* TODO: Should be equivalent, let's test it for a while and replace if it works. */
+    /* They are not equivalent for the empty string. // and /, respectively. */
     const parentP = `/${path.split("/").filter(it => it).slice(0, -1).join("/")}/`;
     if (window.location.hostname === "localhost" && parentP !== parentPath) {
         throw Error("ParentP and path not equal");

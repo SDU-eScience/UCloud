@@ -65,6 +65,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                             </Text>
                                         </>}
                                         right={<>
+                                            {isSelected ? <Link to="/projects/repositories"><Button mr="6px">Repositories</Button></Link> : null}
                                             {isSelected ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
                                             {isSelected ? <Icon mr="44px" mt="9px" name="check" color="green" /> : (
                                                 <Button onClick={() => props.setProject(e.projectId)}>Set active</Button>

@@ -335,7 +335,7 @@ export default class HttpClient {
     }
 
     public get projectFolder(): string {
-        return `/projects/${this.projectId}/`;
+        return `${this.homeFolder}Projects`;
     }
 
     public get trashFolder(): string {
@@ -350,8 +350,8 @@ export default class HttpClient {
         return `${this.homeFolder}Favorites`;
     }
 
-    public get fakeFolders(): [string, string, string] {
-        return [this.sharesFolder, this.favoritesFolder, this.projectFolder];
+    public get fakeFolders(): string[] {
+        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.projectFolder] : []);
     }
 
     public get isLoggedIn(): boolean {
@@ -487,7 +487,7 @@ export default class HttpClient {
         });
     }
 
-    public async invalidateAccessToken() {
+    public async invalidateAccessToken(): Promise<void> {
         this.accessToken = "invalid-token";
         await this.refresh();
     }
