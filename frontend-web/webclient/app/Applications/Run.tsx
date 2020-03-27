@@ -72,6 +72,7 @@ import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
 import {concatScrolls} from "Scroll";
 import {TextSpan} from "ui-components/Text";
+import Warning from "ui-components/Warning";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -869,7 +870,7 @@ const ApplicationUrl: React.FunctionComponent<{
     return (
         <>
             <div>
-                <Label>
+                <Label mb={10}>
                     <Checkbox size={28} checked={enabled} onClick={() => {
                         setEnabled(!enabled);
                         if (!enabled && props.jobName.current !== null) {
@@ -882,18 +883,23 @@ const ApplicationUrl: React.FunctionComponent<{
 
             <div>
                 { enabled ? (
-                    <Label>
-                        <Flex>
-                            <TextSpan mt={10}>https://app-</TextSpan>
-                            <Input placeholder="Unique persistent URL identifier" ref={props.inputRef} />
-                            <TextSpan mt={10}>.cloud.sdu.dk</TextSpan>
-                        </Flex>
-                    </Label>
+                    <>
+                        <Warning warning="By enabling this setting, anyone with a link can gain access to the application." />
+                        <Label mt={20}>
+                            <Flex>
+                                <TextSpan mt={10}>https://app-</TextSpan>
+                                <Input placeholder="Unique URL identifier" ref={props.inputRef} />
+                                <TextSpan mt={10}>.cloud.sdu.dk</TextSpan>
+                            </Flex>
+                        </Label>
+                    </>
                 ) : ( <></> )}
             </div>    
         </>
     );
 };
+
+
 
 
 
@@ -979,12 +985,15 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                 />
             </div>
 
-            <Box mb="4px" mt="1em">
-                <ApplicationUrl
-                    inputRef={props.urlRef}
-                    jobName={name}
-                />
-            </Box>
+            {props.app.invocation.applicationType == "VNC" || props.app.invocation.applicationType == "WEB" ? (
+                <Box mb="4px" mt="1em">
+                    <ApplicationUrl
+                        inputRef={props.urlRef}
+                        jobName={name}
+                    />
+                </Box>
+            ) : (<></>)}
+
         </>
     );
 };
