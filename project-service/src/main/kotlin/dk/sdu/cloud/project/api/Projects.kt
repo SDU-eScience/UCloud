@@ -7,6 +7,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 
@@ -53,7 +54,11 @@ typealias ChangeUserRoleResponse = Unit
 data class UserProjectSummary(val projectId: String, val title: String, val whoami: ProjectMember)
 data class UserGroupSummary(val projectId: String, val group: String, val username: String)
 
-typealias ListProjectsRequest = PaginationRequest
+data class ListProjectsRequest(
+    val user: String?,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
 typealias ListProjectsResponse = Page<UserProjectSummary>
 
 object Projects : CallDescriptionContainer("project") {
@@ -198,6 +203,7 @@ object Projects : CallDescriptionContainer("project") {
             params {
                 +boundTo(ListProjectsRequest::itemsPerPage)
                 +boundTo(ListProjectsRequest::page)
+                +boundTo(ListProjectsRequest::user)
             }
         }
     }

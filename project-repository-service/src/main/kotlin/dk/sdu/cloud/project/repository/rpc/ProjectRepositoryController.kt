@@ -1,16 +1,14 @@
 package dk.sdu.cloud.project.repository.rpc
 
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.project.repository.api.*
-import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.project.repository.services.RepositoryService
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.paginate
+import dk.sdu.cloud.service.*
 import io.ktor.http.HttpStatusCode
 
 class ProjectRepositoryController(
@@ -48,18 +46,38 @@ class ProjectRepositoryController(
         }
 
         implement(ProjectRepository.list) {
-            ok(
-                service.listRepositories(
-                    ctx.securityPrincipal,
-                    project
-                ).paginate(request.normalize())
+            val username = when(ctx.securityPrincipal.role) {
+                in Roles.PRIVILEDGED -> request.user ?: ctx.securityPrincipal.username
+                else -> ctx.securityPrincipal.username
+            }
+
+            val paging = when {
+                ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.itemsPerPage == null
+                        && request.page == null -> {
+                    null
+                }
+
+                else -> request.normalize()
+            }
+
+            val listRepositories = service.listRepositories(
+                username,
+                project
             )
+
+            val page = if (paging == null) {
+                Page(listRepositories.size, listRepositories.size, 0, listRepositories)
+            } else {
+                listRepositories.paginate(paging)
+            }
+
+            ok(page)
         }
 
         implement(ProjectRepository.listFiles) {
             ok(
                 service
-                    .listRepositories(ctx.securityPrincipal, project)
+                    .listRepositories(ctx.securityPrincipal.username, project)
                     .paginate(request.normalize())
                     .mapItems {
                         StorageFile(

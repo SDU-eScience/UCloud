@@ -2,7 +2,7 @@
 name: project-repository
 
 namespaces:
-- project.repository
+- project.repositories
 
 dependencies:
 - project
