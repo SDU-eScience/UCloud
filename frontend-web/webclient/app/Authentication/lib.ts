@@ -331,11 +331,11 @@ export default class HttpClient {
      * @returns {string} the homefolder path for the currently logged in user (with trailing slash).
      */
     public get homeFolder(): string {
-        const username = this.username;
-        if (this.projectId !== undefined) {
-            return `/projects/${this.projectId}/`;
-        }
-        return `/home/${username}/`;
+        return `/home/${this.username}/`;
+    }
+
+    public get projectFolder(): string {
+        return `/projects/${this.projectId}/`;
     }
 
     public get trashFolder(): string {
@@ -350,12 +350,16 @@ export default class HttpClient {
         return `${this.homeFolder}Favorites`;
     }
 
-    public get fakeFolders(): [string, string] {
-        return [this.sharesFolder, this.favoritesFolder];
+    public get fakeFolders(): [string, string, string] {
+        return [this.sharesFolder, this.favoritesFolder, this.projectFolder];
     }
 
     public get isLoggedIn(): boolean {
         return this.userInfo != null;
+    }
+
+    public get hasActiveProject(): boolean {
+        return this.projectId !== undefined;
     }
 
     /**
