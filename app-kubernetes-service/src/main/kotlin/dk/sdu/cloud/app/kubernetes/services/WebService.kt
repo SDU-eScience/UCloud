@@ -111,6 +111,10 @@ class WebService(
             return false
         }
 
+        if (job.url !== null) {
+            return true
+        }
+
         val token = call.request.cookies[cookieName] ?: run {
             if (sendResponse) {
                 call.respondText(status = HttpStatusCode.Forbidden) { "Unauthorized." }
@@ -125,7 +129,7 @@ class WebService(
             return false
         }
 
-        if (job.owner != principal.principal.username && job.url == null) {
+        if (job.owner != principal.principal.username) {
             if (sendResponse) {
                 call.respondText(status = HttpStatusCode.Forbidden) { "Unauthorized." }
             }
