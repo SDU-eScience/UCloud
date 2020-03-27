@@ -1,13 +1,8 @@
 import {ReduxObject} from "DefaultObjects";
 import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {
-    inRange,
-    inSuccessRange,
-    is5xxStatusCode
-} from "UtilityFunctions";
+import {inRange, inSuccessRange, is5xxStatusCode} from "UtilityFunctions";
 
 export interface Override {
     path: string;
@@ -25,7 +20,6 @@ interface CallParameters {
     body?: object;
     context?: string;
     maxRetries?: number;
-    disallowProjects?: boolean;
     withCredentials?: boolean;
 }
 
@@ -46,8 +40,6 @@ export default class HttpClient {
     private overridesPromise: Promise<void> | null = null;
 
     private projectId: string | undefined = undefined;
-    private projectAccessToken: string | undefined = undefined;
-    private projectDecodedToken: any | undefined = undefined;
 
     private overrides: Override[] = [];
 
@@ -84,13 +76,12 @@ export default class HttpClient {
 
         if (process.env.NODE_ENV === "development") {
             this.overridesPromise = (async () => {
-                const jsonResponse: Override[] = await (await fetch("http://localhost:9900/")).json();
-                this.overrides = jsonResponse;
+                this.overrides = await (await fetch("http://localhost:9900/")).json();
             })();
         }
     }
 
-    public async waitForCloudReady() {
+    public async waitForCloudReady(): Promise<void> {
         if (this.overridesPromise !== null) {
             try {
                 await this.overridesPromise;
@@ -102,13 +93,18 @@ export default class HttpClient {
         }
     }
 
-    public initializeStore(store: Store<ReduxObject>) {
+    public initializeStore(store: Store<ReduxObject>): void {
+        {
+            const project = store.getState().project.project;
+            if (project !== this.projectId) {
+                this.projectId = project;
+            }
+        }
+
         store.subscribe(() => {
             const project = store.getState().project.project;
             if (project !== this.projectId) {
                 this.projectId = project;
-                this.projectDecodedToken = undefined;
-                this.projectAccessToken = undefined;
             }
         });
     }
@@ -128,7 +124,6 @@ export default class HttpClient {
      * @param {object} body - the request body, assumed to be a JS object to be encoded as JSON.
      * @param {string} context - the base of the request (e.g. "/api")
      * @param {number} maxRetries - the amount of times the call should be retried on failure (Default: 5).
-     * @param {disallowProjects} disallowProjects - true if this call should not use the project token (Default: false).
      * @return {Promise} promise
      */
     public async call({
@@ -137,24 +132,23 @@ export default class HttpClient {
         body,
         context = this.apiContext,
         maxRetries = 5,
-        disallowProjects = false,
         withCredentials = false
     }: CallParameters): Promise<any> {
         await this.waitForCloudReady();
 
         if (path.indexOf("/") !== 0) path = "/" + path;
-        return this.receiveAccessTokenOrRefreshIt(disallowProjects)
+        return this.receiveAccessTokenOrRefreshIt()
             .catch(it => {
                 console.warn(it);
                 snackbarStore.addFailure("Could not refresh login token.");
                 if ([401, 403].includes(it.status)) HttpClient.clearTokens();
-            })
-            .then(token => {
+            }).then(token => {
                 return new Promise((resolve, reject) => {
                     const req = new XMLHttpRequest();
                     req.open(method, this.computeURL(context, path));
                     req.setRequestHeader("Authorization", `Bearer ${token}`);
                     req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
+                    if (!!this.projectId) req.setRequestHeader("Project", this.projectId);
                     req.responseType = "text"; // Explicitly set, otherwise issues with empty response
                     if (withCredentials) {
                         req.withCredentials = true;
@@ -216,8 +210,7 @@ export default class HttpClient {
 
     public computeURL(context: string, path: string): string {
         const absolutePath = context + path;
-        for (let i = 0; i < this.overrides.length; i++) {
-            const override = this.overrides[i];
+        for (const override of this.overrides) {
             if (absolutePath.indexOf(override.path) === 0) {
                 const scheme = override.destination.scheme ?
                     override.destination.scheme : "http";
@@ -237,10 +230,9 @@ export default class HttpClient {
      */
     public async get<T = any>(
         path: string,
-        context = this.apiContext,
-        disallowProjects: boolean = false
+        context = this.apiContext
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "GET", path, body: undefined, context, disallowProjects});
+        return this.call({method: "GET", path, body: undefined, context});
     }
 
     /**
@@ -249,10 +241,9 @@ export default class HttpClient {
     public async post<T = any>(
         path: string,
         body?: object,
-        context = this.apiContext,
-        disallowProjects: boolean = false
+        context = this.apiContext
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "POST", path, body, context, disallowProjects});
+        return this.call({method: "POST", path, body, context});
     }
 
     /**
@@ -261,54 +252,64 @@ export default class HttpClient {
     public async put<T = any>(
         path: string,
         body: object,
-        context = this.apiContext,
-        disallowProjects: boolean = false
+        context = this.apiContext
     ): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "PUT", path, body, context, disallowProjects});
+        return this.call({method: "PUT", path, body, context});
     }
 
     /**
      * Calls with the DELETE HTTP method. See call(method, path, body)
      */
-    public async delete<T = void>(path: string, body: object, context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "DELETE", path, body, context, disallowProjects});
+    public async delete<T = void>(
+        path: string,
+        body: object,
+        context = this.apiContext
+    ): Promise<{request: XMLHttpRequest, response: T}> {
+        return this.call({method: "DELETE", path, body, context});
     }
 
     /**
      * Calls with the PATCH HTTP method. See call(method, path, body)
      */
-    public async patch<T = any>(path: string, body: object, context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "PATCH", path, body, context, disallowProjects});
+    public async patch<T = any>(
+        path: string,
+        body: object,
+        context = this.apiContext
+    ): Promise<{request: XMLHttpRequest, response: T}> {
+        return this.call({method: "PATCH", path, body, context});
     }
 
     /**
      * Calls with the OPTIONS HTTP method. See call(method, path, body)
      */
-    public async options<T = any>(path: string, body: object, context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "OPTIONS", path, body, context, disallowProjects});
+    public async options<T = any>(
+        path: string,
+        body: object,
+        context = this.apiContext
+    ): Promise<{request: XMLHttpRequest, response: T}> {
+        return this.call({method: "OPTIONS", path, body, context});
     }
 
     /**
      * Calls with the HEAD HTTP method. See call(method, path, body)
      */
-    public async head<T = any>(path: string, context = this.apiContext,
-        disallowProjects: boolean = false): Promise<{request: XMLHttpRequest, response: T}> {
-        return this.call({method: "HEAD", path, body: undefined, context, disallowProjects});
+    public async head<T = any>(
+        path: string,
+        context = this.apiContext
+    ): Promise<{request: XMLHttpRequest, response: T}> {
+        return this.call({method: "HEAD", path, body: undefined, context});
     }
 
     /**
      * Opens up a new page which contains the login page at the auth service. This login page will automatically
      * redirect back to the correct service (using serviceName).
      */
-    public openBrowserLoginPage() {
+    public openBrowserLoginPage(): void {
         if (window.location.href !== this.context + "/app/login")
             window.location.href = this.context + "/app/login";
     }
 
-    public openLandingPage() {
+    public openLandingPage(): void {
         if (window.location.href !== this.context + "/app/")
             window.location.href = this.context + "/app/";
     }
@@ -323,22 +324,18 @@ export default class HttpClient {
     }
 
     public get activeUsername(): string | undefined {
-        if (this.useProjectToken(false) && !!this.projectDecodedToken) {
-            return this.projectDecodedToken.payload.sub;
-        } else {
-            return this.username;
-        }
+        return this.username;
     }
 
     /**
      * @returns {string} the homefolder path for the currently logged in user (with trailing slash).
      */
     public get homeFolder(): string {
-        let username = this.username;
-        if (this.projectId !== undefined) {
-            username = this.projectId;
-        }
-        return `/home/${username}/`;
+        return `/home/${this.username}/`;
+    }
+
+    public get projectFolder(): string {
+        return `${this.homeFolder}Projects`;
     }
 
     public get trashFolder(): string {
@@ -353,12 +350,16 @@ export default class HttpClient {
         return `${this.homeFolder}Favorites`;
     }
 
-    public get fakeFolders(): [string, string] {
-        return [this.sharesFolder, this.favoritesFolder];
+    public get fakeFolders(): string[] {
+        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.projectFolder] : []);
     }
 
     public get isLoggedIn(): boolean {
         return this.userInfo != null;
+    }
+
+    public get hasActiveProject(): boolean {
+        return this.projectId !== undefined;
     }
 
     /**
@@ -385,21 +386,21 @@ export default class HttpClient {
      *
      * @return {Promise} a promise of an access token
      */
-    public async receiveAccessTokenOrRefreshIt(disallowProjects: boolean = false): Promise<any> {
+    public async receiveAccessTokenOrRefreshIt(): Promise<any> {
         await this.waitForCloudReady();
 
         let tokenPromise: Promise<any> | null = null;
-        if (this.isTokenExpired(disallowProjects) || this.forceRefresh) {
-            tokenPromise = this.refresh(disallowProjects);
+        if (this.isTokenExpired() || this.forceRefresh) {
+            tokenPromise = this.refresh();
             this.forceRefresh = false;
         } else {
-            tokenPromise = new Promise((resolve, reject) => resolve(this.retrieveToken(disallowProjects)));
+            tokenPromise = new Promise((resolve) => resolve(this.retrieveToken()));
         }
         return tokenPromise;
     }
 
-    public createOneTimeTokenWithPermission(permission, disallowProjects: boolean = false): Promise<any> {
-        return this.receiveAccessTokenOrRefreshIt(disallowProjects)
+    public createOneTimeTokenWithPermission(permission): Promise<any> {
+        return this.receiveAccessTokenOrRefreshIt()
             .then(token => {
                 const oneTimeToken = this.computeURL(this.authContext, `/request/?audience=${permission}`);
                 return new Promise((resolve, reject) => {
@@ -441,80 +442,54 @@ export default class HttpClient {
         else return userInfo.principalType;
     }
 
-    private useProjectToken(disallowProjects: boolean): boolean {
-        return this.projectId !== undefined && !disallowProjects;
+    private retrieveToken(): string {
+        return HttpClient.storedAccessToken;
     }
 
-    private retrieveToken(disallowProjects: boolean): string {
-        if (this.useProjectToken(disallowProjects)) {
-            return this.projectAccessToken!;
-        } else {
-            return HttpClient.storedAccessToken;
-        }
-    }
-
-    private async refresh(disallowProjects: boolean): Promise<string> {
-        const project = this.projectId;
-        if (project !== undefined && !disallowProjects) {
-            const result = await this.post("/projects/auth", {project}, undefined, true);
-            if (inSuccessRange(result.request.status)) {
-                const accessToken = result.response.accessToken;
-                this.projectAccessToken = accessToken;
-                this.projectDecodedToken = this.decodeToken(accessToken);
-                return accessToken;
-            } else {
-                if (result.request.status === 401 || result.request.status === 400) {
-                    HttpClient.clearTokens();
-                    this.openBrowserLoginPage();
-                }
-
-                throw Error("Unable to refresh token");
-            }
-        } else {
-            const csrfToken = HttpClient.storedCsrfToken;
-            if (!csrfToken) {
-                return new Promise((resolve, reject) => {
-                    reject(this.missingAuth());
-                });
-            }
-
-            const refreshPath = this.computeURL(this.authContext, "/refresh/web");
+    private async refresh(): Promise<string> {
+        const csrfToken = HttpClient.storedCsrfToken;
+        if (!csrfToken) {
             return new Promise((resolve, reject) => {
-                const req = new XMLHttpRequest();
-                req.open("POST", refreshPath);
-                req.setRequestHeader("X-CSRFToken", csrfToken);
-                if (process.env.NODE_ENV === "development") {
-                    req.withCredentials = true;
-                }
-
-                req.onload = () => {
-                    try {
-                        if (inSuccessRange(req.status)) {
-                            resolve(JSON.parse(req.response));
-                        } else {
-                            if (req.status === 401 || req.status === 400) {
-                                HttpClient.clearTokens();
-                                this.openBrowserLoginPage();
-                            }
-                            reject({status: req.status, response: req.response});
-                        }
-                    } catch (e) {
-                        reject({status: e.status, response: e.response});
-                    }
-                };
-                req.send();
-            }).then((data: any) => {
-                return new Promise(resolve => {
-                    this.setTokens(data.accessToken, data.csrfToken);
-                    resolve(data.accessToken);
-                });
+                reject(this.missingAuth());
             });
         }
+
+        const refreshPath = this.computeURL(this.authContext, "/refresh/web");
+        return new Promise((resolve, reject) => {
+            const req = new XMLHttpRequest();
+            req.open("POST", refreshPath);
+            req.setRequestHeader("X-CSRFToken", csrfToken);
+            if (process.env.NODE_ENV === "development") {
+                req.withCredentials = true;
+            }
+
+            req.onload = () => {
+                try {
+                    if (inSuccessRange(req.status)) {
+                        resolve(JSON.parse(req.response));
+                    } else {
+                        if (req.status === 401 || req.status === 400) {
+                            HttpClient.clearTokens();
+                            this.openBrowserLoginPage();
+                        }
+                        reject({status: req.status, response: req.response});
+                    }
+                } catch (e) {
+                    reject({status: e.status, response: e.response});
+                }
+            };
+            req.send();
+        }).then((data: any) => {
+            return new Promise(resolve => {
+                this.setTokens(data.accessToken, data.csrfToken);
+                resolve(data.accessToken);
+            });
+        });
     }
 
-    public async invalidateAccessToken() {
+    public async invalidateAccessToken(): Promise<void> {
         this.accessToken = "invalid-token";
-        await this.refresh(false);
+        await this.refresh();
     }
 
     /**
@@ -576,7 +551,7 @@ export default class HttpClient {
         }
     }
 
-    public async logout() {
+    public async logout(): Promise<void> {
         try {
             const res = await fetch(`${this.context}${this.authContext}/logout/web`, {
                 headers: {
@@ -598,7 +573,7 @@ export default class HttpClient {
         }
     }
 
-    static clearTokens() {
+    static clearTokens(): void {
         HttpClient.storedAccessToken = "";
         HttpClient.storedCsrfToken = "";
     }
@@ -619,15 +594,15 @@ export default class HttpClient {
         window.localStorage.setItem("csrfToken", value);
     }
 
-    private isTokenExpired(disallowProject: boolean) {
-        const token = this.useProjectToken(disallowProject) ? this.projectDecodedToken : this.decodedToken;
+    private isTokenExpired(): boolean {
+        const token = this.decodedToken;
         if (!token || !token.payload) return true;
         const nowInSeconds = Math.floor(Date.now() / 1000);
         const inOneMinute = nowInSeconds + (60);
         return token.payload.exp < inOneMinute;
     }
 
-    private missingAuth() {
+    private missingAuth(): 0 | MissingAuthError {
         if (this.redirectOnInvalidTokens) {
             this.openBrowserLoginPage();
             return 0;

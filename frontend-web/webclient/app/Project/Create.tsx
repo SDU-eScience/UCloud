@@ -4,16 +4,16 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {createProject} from "Project/index";
 import {useRef} from "react";
 import * as React from "react";
-import Box from "ui-components/Box";
-import Button from "ui-components/Button";
-import ContainerForText from "ui-components/ContainerForText";
-import Input from "ui-components/Input";
-import Label from "ui-components/Label";
+import {Box, Button, ContainerForText, Input, Label} from "ui-components";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {useHistory} from "react-router";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {SnackType} from "Snackbar/Snackbars";
 
 const Create: React.FunctionComponent = () => {
     const [loading, invokeCommand] = useAsyncCommand();
     const title = useRef<HTMLInputElement>(null);
+    const history = useHistory();
 
     const doCreateShare = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
@@ -24,13 +24,20 @@ const Create: React.FunctionComponent = () => {
             snackbarStore.addFailure("Currently requires user is admin in backend.");
             return;
         }
-        await invokeCommand(createProject({
-            title: title.current!.value,
-            principalInvestigator: Client.username!
-        }));
 
-        // TODO Do something when command returns correctly
-        // TODO We need to know if this was successful
+        try {
+            await invokeCommand(createProject({
+                title: title.current!.value,
+                principalInvestigator: Client.username!
+            }));
+            snackbarStore.addSnack({
+                message: "Group created.",
+                type: SnackType.Success
+            });
+            history.push("/projects");
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to create group."));
+        }
     };
 
     return (
@@ -42,7 +49,7 @@ const Create: React.FunctionComponent = () => {
                     <form onSubmit={doCreateShare}>
                         <div>
                             <Label htmlFor="projectName">Title</Label>
-                            <Input width="350px" ref={title} id="projectName" />
+                            <Input required width="350px" ref={title} id="projectName" />
                         </div>
 
                         <Box mt={16}>

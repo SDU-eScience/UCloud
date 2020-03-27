@@ -63,7 +63,7 @@ export function ListRow(props: ListRowProps): JSX.Element {
             width="100%"
             alignItems="center"
         >
-            {props.icon ? <Box mx="8px" mt="4px">{props.icon}</Box> : null}
+            {props.icon ? <Box mx="8px" mt="4px">{props.icon}</Box> : <Box width="4px" />}
             {left}
             <Box ml="auto" />
             <Flex mr="8px">
@@ -73,7 +73,7 @@ export function ListRow(props: ListRowProps): JSX.Element {
     );
 }
 
-const HoverColorFlex = styled(Flex)<{isSelected: boolean}>`
+const HoverColorFlex = styled(Flex) <{isSelected: boolean}>`
     transition: background-color 0.3s;
     background-color: var(--${p => p.isSelected ? "lightBlue" : "white"});
     &:hover {
