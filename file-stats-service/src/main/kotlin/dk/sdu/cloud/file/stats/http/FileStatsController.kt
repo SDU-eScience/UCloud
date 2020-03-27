@@ -1,12 +1,9 @@
 package dk.sdu.cloud.file.stats.http
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
+import dk.sdu.cloud.file.api.homeDirectory
 import dk.sdu.cloud.file.stats.api.DirectorySizesResponse
 import dk.sdu.cloud.file.stats.api.FileStatsDescriptions
 import dk.sdu.cloud.file.stats.api.UsageResponse
@@ -22,10 +19,7 @@ class FileStatsController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(FileStatsDescriptions.usage) {
-            val path = request.path ?: FileDescriptions.findHomeFolder.call(
-                FindHomeFolderRequest(ctx.securityPrincipal.username),
-                cloud
-            ).orThrow().path
+            val path = request.path ?: homeDirectory(ctx.securityPrincipal.username)
 
             ok(UsageResponse(usageService.calculateUsage(path, ctx.securityPrincipal.username), path))
         }

@@ -3,6 +3,7 @@ package dk.sdu.cloud.project.repository.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -45,6 +46,9 @@ data class Repository(val name: String)
 
 data class RepositoryListRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias RepositoryListResponse = Page<Repository>
+
+typealias ListFilesRequest = RepositoryListRequest
+typealias ListFilesResponse = Page<StorageFile>
 
 data class ProjectAclEntry(val group: String, val rights: Set<FileRights>)
 
@@ -126,6 +130,26 @@ object ProjectRepository : CallDescriptionContainer("project.repositories") {
             params {
                 +boundTo(RepositoryListRequest::itemsPerPage)
                 +boundTo(RepositoryListRequest::page)
+            }
+        }
+    }
+
+    val listFiles = call<ListFilesRequest, ListFilesResponse, CommonErrorMessage>("listFiles") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"list-files"
+            }
+
+            params {
+                +boundTo(ListFilesRequest::itemsPerPage)
+                +boundTo(ListFilesRequest::page)
             }
         }
     }

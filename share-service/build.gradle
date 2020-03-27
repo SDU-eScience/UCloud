@@ -18,7 +18,7 @@ buildscript {
 dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
-    compile 'dk.sdu.cloud:file-api:4.0.0-storage-events.31'
+    compile 'dk.sdu.cloud:file-api:4.1.0-projects.2'
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
     compile 'dk.sdu.cloud:notification-api:1.2.6'
     compile 'dk.sdu.cloud:contact-book-api:0.1.12'

@@ -49,12 +49,4 @@ bundle {
     }
 
     withPostgresMigration(deployment)
-
-    withAdHocJob(
-        deployment,
-        nameSuffix = "migrate-metadata",
-        additionalArgs = {
-            listOf("--migrate-metadata")
-        }
-    )
 }

@@ -9,14 +9,7 @@ import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindByPrefixRequest
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.FindMetadataRequest
-import dk.sdu.cloud.file.api.MetadataDescriptions
-import dk.sdu.cloud.file.api.MetadataUpdate
-import dk.sdu.cloud.file.api.StatRequest
-import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.paginate
@@ -33,7 +26,7 @@ class ShareQueryService(
         paging: NormalizedPaginationRequest = NormalizedPaginationRequest(null, null)
     ): Page<SharesByPath> {
         if (sharedByMe) {
-            val homeFolder = FileDescriptions.findHomeFolder.call(FindHomeFolderRequest(user), client).orThrow().path
+            val homeFolder = homeDirectory(user)
             val metadata = MetadataDescriptions.findByPrefix.call(
                 FindByPrefixRequest(
                     homeFolder,
@@ -90,7 +83,7 @@ class ShareQueryService(
         userAccessToken: String
     ): SharesByPath {
         val userClient = client.withoutAuthentication().bearerAuth(userAccessToken)
-        val stat = FileDescriptions.stat.call(StatRequest(path), userClient).orThrow()
+        FileDescriptions.stat.call(StatRequest(path), userClient).orThrow()
 
         val metadata = MetadataDescriptions.findMetadata.call(
             FindMetadataRequest(path, METADATA_TYPE_SHARES, null),

@@ -3,17 +3,9 @@ package dk.sdu.cloud.filesearch.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
-import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.StorageFileImpl
-import dk.sdu.cloud.file.api.Timestamps
-import dk.sdu.cloud.file.api.VerifyFileKnowledgeResponse
-import dk.sdu.cloud.file.api.fileId
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.filesearch.api.AdvancedSearchRequest
 import dk.sdu.cloud.filesearch.api.SearchResult
-import dk.sdu.cloud.filesearch.api.TimestampQuery
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.QueryResponse
 import dk.sdu.cloud.service.Controller
@@ -41,10 +33,8 @@ class SearchTest {
     }
 
     private val file: StorageFileImpl = StorageFileImpl(
-        fileIdOrNull = "1",
         pathOrNull = "path",
         ownerNameOrNull = "owner",
-        creatorOrNull = "owner",
         fileTypeOrNull = FileType.FILE,
         createdAtOrNull = 12342431, modifiedAtOrNull = 12345,
         sizeOrNull = 1234,
@@ -56,7 +46,7 @@ class SearchTest {
         2,
         10,
         0,
-        listOf(file, file.copy(fileIdOrNull = "2"))
+        listOf(file, file.copy(pathOrNull = "path2"))
     )
 
     @Test
@@ -89,8 +79,8 @@ class SearchTest {
                 assertEquals(2, response.itemsInTotal)
                 assertEquals(1, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
-                assertEquals("1", response.items.first().fileId)
-                assertEquals("2", response.items.last().fileId)
+                assertEquals("path", response.items.first().path)
+                assertEquals("path2", response.items.last().path)
             }
         )
     }
@@ -125,7 +115,7 @@ class SearchTest {
                 assertEquals(2, response.itemsInTotal)
                 assertEquals(1, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
-                assertEquals("1", response.items.first().fileId)
+                assertEquals("path", response.items.first().path)
             }
         )
     }
@@ -162,10 +152,6 @@ class SearchTest {
         "name",
         null,
         null,
-        null,
-        TimestampQuery(123, 123456789),
-        null,
-        null,
         false,
         10,
         0
@@ -181,7 +167,7 @@ class SearchTest {
                     method = HttpMethod.Post,
                     path = "/api/file-search/advanced",
                     user = TestUsers.user,
-                    request = req.copy(fileName = null, modifiedAt = null)
+                    request = req.copy(fileName = null)
                 )
                 request.assertSuccess()
                 val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
@@ -216,7 +202,7 @@ class SearchTest {
                     method = HttpMethod.Post,
                     path = "/api/file-search/advanced",
                     user = TestUsers.user,
-                    request = req.copy(modifiedAt = null)
+                    request = req.copy()
                 )
                 request.assertSuccess()
                 val response = defaultMapper.readValue<Page<SearchResult>>(request.response.content!!)
@@ -224,8 +210,8 @@ class SearchTest {
                 assertEquals(2, response.itemsInTotal)
                 assertEquals(1, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
-                assertEquals("1", response.items.first().fileId)
-                assertEquals("2", response.items.last().fileId)
+                assertEquals("path", response.items.first().path)
+                assertEquals("path2", response.items.last().path)
             }
         )
     }
@@ -260,8 +246,8 @@ class SearchTest {
                 assertEquals(2, response.itemsInTotal)
                 assertEquals(1, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
-                assertEquals("1", response.items.first().fileId)
-                assertEquals("2", response.items.last().fileId)
+                assertEquals("path", response.items.first().path)
+                assertEquals("path2", response.items.last().path)
             }
         )
     }
@@ -295,7 +281,7 @@ class SearchTest {
                 assertEquals(2, response.itemsInTotal)
                 assertEquals(1, response.pagesInTotal)
                 assertEquals(0, response.pageNumber)
-                assertEquals("1", response.items.first().fileId)
+                assertEquals("path", response.items.first().path)
             }
         )
     }

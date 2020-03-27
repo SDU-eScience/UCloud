@@ -1,5 +1,6 @@
 package dk.sdu.cloud.project.rpc
 
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.api.CreateProjectResponse
@@ -46,7 +47,14 @@ class ProjectController(
         }
 
         implement(Projects.listProjects) {
-            ok(service.listProjects(ctx.securityPrincipal.username, request.normalize()))
+            val pagination = when {
+                request.itemsPerPage == null && request.page == null &&
+                        ctx.securityPrincipal.role in Roles.PRIVILEDGED -> null
+
+                else -> request.normalize()
+            }
+
+            ok(service.listProjects(ctx.securityPrincipal.username, pagination))
         }
     }
 

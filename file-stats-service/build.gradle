@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '2.0.0'
+version '2.1.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.file.stats.MainKt"
@@ -20,7 +20,7 @@ dependencies {
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
     compile "dk.sdu.cloud:indexing-api:1.16.0-storage-events.15"
-    compile "dk.sdu.cloud:file-api:4.0.0-storage-events.31"
+    compile "dk.sdu.cloud:file-api:4.1.0-projects.2"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 
