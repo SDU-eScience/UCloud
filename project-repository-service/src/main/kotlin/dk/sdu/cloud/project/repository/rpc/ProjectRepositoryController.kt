@@ -3,10 +3,13 @@ package dk.sdu.cloud.project.repository.rpc
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.file.api.FileType
+import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.project.repository.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.project.repository.services.RepositoryService
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
 
@@ -50,6 +53,20 @@ class ProjectRepositoryController(
                     ctx.securityPrincipal,
                     project
                 ).paginate(request.normalize())
+            )
+        }
+
+        implement(ProjectRepository.listFiles) {
+            ok(
+                service
+                    .listRepositories(ctx.securityPrincipal, project)
+                    .paginate(request.normalize())
+                    .mapItems {
+                        StorageFile(
+                            FileType.DIRECTORY,
+                            "/projects/$project/$it"
+                        )
+                    }
             )
         }
 

@@ -3,7 +3,6 @@ package dk.sdu.cloud.file.stats.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.stats.api.UsageResponse
 import dk.sdu.cloud.file.stats.services.DirectorySizeService
 import dk.sdu.cloud.file.stats.services.UsageService
@@ -57,11 +56,6 @@ class FileStatsTest {
             setup,
 
             test = {
-                ClientMock.mockCallSuccess(
-                    FileDescriptions.findHomeFolder,
-                    FindHomeFolderResponse("/home/user/")
-                )
-
                 val request = sendRequest(
                     method = HttpMethod.Get,
                     path = "/api/files/stats/usage",
