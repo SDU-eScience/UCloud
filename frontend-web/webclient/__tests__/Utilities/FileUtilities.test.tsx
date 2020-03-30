@@ -3,6 +3,7 @@ import {
     replaceHomeOrProjectFolder,
     sizeToString
 } from "../../app/Utilities/FileUtilities";
+import {Client} from "../../app/Authentication/HttpClientInstance";
 
 describe("File size to string", () => {
     test("0 bytes to string", () =>
@@ -53,20 +54,19 @@ describe("Get filename from path", () => {
 });
 
 describe("Replace homefolder and project folder", () => {
-
-    const mockHomeFolder = "/home/user@mail.co.uk/";
+    console.warn(Client.homeFolder);
 
     test("Replace homefolder", () =>
-        expect(replaceHomeOrProjectFolder("/home/user@mail.co.uk/", mockHomeFolder, mockHomeFolder)).toBe("Home/")
+        expect(replaceHomeOrProjectFolder("/home/test@test.dk/", Client)).toBe("Home/")
     );
 
     test("Replace homefolder subfolder", () =>
-        expect(replaceHomeOrProjectFolder("/home/user@mail.co.uk/subFolder/withSomething", mockHomeFolder, mockHomeFolder))
+        expect(replaceHomeOrProjectFolder("/home/test@test.dk/subFolder/withSomething", Client))
             .toBe("Home/subFolder/withSomething")
     );
 
     const noHomeFolder = "NotHomeFolder/subfolder/";
     test("Replace homefolder, no homefolder", () =>
-        expect(replaceHomeOrProjectFolder(noHomeFolder, mockHomeFolder, mockHomeFolder)).toBe(`${noHomeFolder}`)
+        expect(replaceHomeOrProjectFolder(noHomeFolder, Client)).toBe(`${noHomeFolder}`)
     );
 });
