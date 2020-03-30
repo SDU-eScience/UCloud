@@ -47,6 +47,13 @@ class ProjectController(
         }
 
         implement(Projects.listProjects) {
+            val user = when (ctx.securityPrincipal.role) {
+                in Roles.PRIVILEDGED -> {
+                    request.user ?: ctx.securityPrincipal.username
+                }
+                else -> ctx.securityPrincipal.username
+            }
+
             val pagination = when {
                 request.itemsPerPage == null && request.page == null &&
                         ctx.securityPrincipal.role in Roles.PRIVILEDGED -> null
@@ -54,7 +61,7 @@ class ProjectController(
                 else -> request.normalize()
             }
 
-            ok(service.listProjects(ctx.securityPrincipal.username, pagination))
+            ok(service.listProjects(user, pagination))
         }
     }
 

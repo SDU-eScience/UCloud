@@ -52,7 +52,6 @@ class AuditProcessor(
 
                     log.debug("Inserting ${batch.size} elements into $indexName")
 
-
                     batch
                         .map { (_, doc) ->
                             IndexRequest(indexName).apply {

@@ -4,34 +4,22 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.dataformat.xml.XmlMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
-import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.types.BinaryStream
-import dk.sdu.cloud.file.api.CopyRequest
-import dk.sdu.cloud.file.api.CreateDirectoryRequest
-import dk.sdu.cloud.file.api.DeleteFileRequest
-import dk.sdu.cloud.file.api.DownloadByURI
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.ListDirectoryRequest
-import dk.sdu.cloud.file.api.MoveRequest
-import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
-import dk.sdu.cloud.file.api.SimpleUploadRequest
-import dk.sdu.cloud.file.api.StatRequest
-import dk.sdu.cloud.file.api.StorageFile
-import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.project.api.ListProjectsRequest
+import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.repository.api.ProjectRepository
+import dk.sdu.cloud.project.repository.api.RepositoryListRequest
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
+import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.webdav.services.CloudToDavConverter
 import dk.sdu.cloud.webdav.services.UserClient
@@ -88,17 +76,12 @@ private val xmlMapper = XmlMapper().also { it.registerKotlinModule() }
 class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
 
-    private val tokenValidation = micro.tokenValidation as TokenValidationJWT
     private val fileConverter = CloudToDavConverter()
 
-    private val userClientFactory = UserClientFactory { token ->
-        RefreshingJWTAuthenticator(
-            micro.client,
-            token,
-            tokenValidation
-        ).authenticateClient(OutgoingHttpCall)
-    }
+    private val userClientFactory =
+        UserClientFactory(ClientAndBackend(micro.client, OutgoingHttpCall), micro.tokenValidation as TokenValidationJWT)
 
+    private val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
     override fun start() {
         val http = micro.feature(ServerFeature).ktorApplicationEngine!!.application
@@ -126,7 +109,7 @@ class Server(override val micro: Micro) : CommonServer {
 
                 method(WebDavMethods.propfind) {
                     handle {
-                        withDavHandler { (client, pathPrefix) ->
+                        withDavHandler { (client, pathPrefix, username) ->
                             val request = run {
                                 // Parse the request
                                 val properties = runCatching {
@@ -140,14 +123,31 @@ class Server(override val micro: Micro) : CommonServer {
                                     }
                                 }.getOrNull() ?: listOf(WebDavProperty.AllProperties)
 
-                                PropfindRequest(pathPrefix + requestPath, depth(), properties)
+                                val path = getRealPath(requestPath, pathPrefix)
+
+                                PropfindRequest(path, depth(), properties)
                             }
 
                             log.info(request.toString())
+                            val components = request.path.components()
 
                             when (request.depth) {
                                 Depth.ZERO -> {
-                                    val file = FileDescriptions.stat.call(StatRequest(request.path), client).orThrow()
+                                    val file = when {
+                                        components.size in 1..2 && components[0].equals(
+                                            "projects",
+                                            ignoreCase = true
+                                        ) -> {
+                                            StorageFile(FileType.DIRECTORY, request.path)
+                                        }
+
+                                        else -> {
+                                            FileDescriptions.stat.call(StatRequest(request.path), client).orThrow()
+                                        }
+                                    }
+
+                                    log.info("Found: $file")
+
                                     call.respondText(
                                         status = HttpStatusCode.MultiStatus,
                                         contentType = ContentType.Application.Xml
@@ -159,15 +159,75 @@ class Server(override val micro: Micro) : CommonServer {
                                 }
 
                                 Depth.ONE -> {
-                                    val files = FileDescriptions.listAtPath.call(
-                                        ListDirectoryRequest(request.path, -1, 0, null, null),
-                                        client
-                                    ).orNull()?.items ?: listOf(
-                                        FileDescriptions.stat.call(
-                                            StatRequest(request.path),
-                                            client
-                                        ).orThrow()
-                                    )
+                                    log.debug("$components")
+                                    val normalFiles = when {
+                                        components.size == 1 && components[0].equals("projects", ignoreCase = true) -> {
+                                            Projects.listProjects
+                                                .call(
+                                                    ListProjectsRequest(
+                                                        user = username,
+                                                        itemsPerPage = null,
+                                                        page = null
+                                                    ),
+                                                    serviceClient
+                                                )
+                                                .orThrow()
+                                                .items
+                                                .map {
+                                                    StorageFile(
+                                                        FileType.DIRECTORY,
+                                                        "/projects/${it.projectId}"
+                                                    )
+                                                }
+                                        }
+
+                                        components.size == 2 && components[0].equals("projects", ignoreCase = true) -> {
+                                            val projectId = components[1]
+                                            ProjectRepository.list
+                                                .call(
+                                                    RepositoryListRequest(
+                                                        username,
+                                                        null,
+                                                        null
+                                                    ),
+                                                    serviceClient.withProject(projectId)
+                                                )
+                                                .orThrow()
+                                                .items
+                                                .map {
+                                                    StorageFile(
+                                                        FileType.DIRECTORY,
+                                                        "/projects/$projectId/${it.name}"
+                                                    )
+                                                }
+                                        }
+
+                                        else -> {
+                                            FileDescriptions.listAtPath.call(
+                                                ListDirectoryRequest(request.path, -1, 0, null, null),
+                                                client
+                                            ).orNull()?.items ?: listOf(
+                                                FileDescriptions.stat.call(
+                                                    StatRequest(request.path),
+                                                    client
+                                                ).orThrow()
+                                            )
+                                        }
+                                    }
+
+                                    val virtualFolders = when {
+                                        request.path.normalize() == pathPrefix.normalize() -> {
+                                            listOf(StorageFile(FileType.DIRECTORY, "$pathPrefix/projects"))
+                                        }
+
+                                        else -> {
+                                            emptyList<StorageFile>()
+                                        }
+                                    }
+
+                                    log.debug("Virtual folders: $virtualFolders")
+
+                                    val files = normalFiles + virtualFolders
 
                                     call.respondText(
                                         status = HttpStatusCode.MultiStatus,
@@ -258,7 +318,7 @@ class Server(override val micro: Micro) : CommonServer {
                     handle {
                         withDavHandler { (client, pathPrefix) ->
                             val file = FileDescriptions.stat.call(
-                                StatRequest(pathPrefix + requestPath),
+                                StatRequest(getRealPath(requestPath, pathPrefix)),
                                 client
                             ).orThrow()
 
@@ -269,7 +329,7 @@ class Server(override val micro: Micro) : CommonServer {
 
                                 val ingoing = client.client.call(
                                     FileDescriptions.download,
-                                    DownloadByURI(pathPrefix + requestPath, null),
+                                    DownloadByURI(getRealPath(requestPath, pathPrefix), null),
                                     OutgoingHttpCall,
                                     beforeFilters = { call ->
                                         client.authenticator(call)
@@ -304,10 +364,12 @@ class Server(override val micro: Micro) : CommonServer {
                 method(HttpMethod.Put) {
                     handle {
                         withDavHandler { (client, pathPrefix) ->
+                            if (isPathVirtual(requestPath)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
                             val channel = call.receiveChannel()
                             MultiPartUploadDescriptions.simpleUpload.call(
                                 SimpleUploadRequest(
-                                    pathPrefix + requestPath,
+                                    getRealPath(requestPath, pathPrefix),
                                     BinaryStream.outgoingFromChannel(
                                         channel,
                                         call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
@@ -324,9 +386,11 @@ class Server(override val micro: Micro) : CommonServer {
                 method(WebDavMethods.mkcol) {
                     handle {
                         withDavHandler { (client, pathPrefix) ->
+                            if (isPathVirtual(requestPath)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
                             FileDescriptions.createDirectory.call(
                                 CreateDirectoryRequest(
-                                    pathPrefix + requestPath,
+                                    getRealPath(requestPath, pathPrefix),
                                     null,
                                     null
                                 ),
@@ -348,8 +412,11 @@ class Server(override val micro: Micro) : CommonServer {
                     handle {
                         withDavHandler { (client, pathPrefix) ->
                             val destination = URL(call.request.header(HttpHeaders.Destination)!!)
-                            val sourcePath = pathPrefix + requestPath
-                            val destinationPath = (pathPrefix + destination.path).urlDecode()
+                            if (isPathVirtual(requestPath)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                            if (isPathVirtual(destination.path)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+                            val sourcePath = getRealPath(requestPath, pathPrefix)
+                            val destinationPath = getRealPath(destination.path.urlDecode(), pathPrefix)
 
                             if (depth() == Depth.ZERO) {
                                 val type = FileDescriptions.stat.call(
@@ -389,11 +456,13 @@ class Server(override val micro: Micro) : CommonServer {
                     handle {
                         withDavHandler { (client, pathPrefix) ->
                             val destination = URL(call.request.header(HttpHeaders.Destination)!!)
+                            if (isPathVirtual(requestPath)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                            if (isPathVirtual(destination.path)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
                             FileDescriptions.move.call(
                                 MoveRequest(
-                                    pathPrefix + requestPath,
-                                    (pathPrefix + destination.path).urlDecode()
+                                    getRealPath(requestPath, pathPrefix),
+                                    getRealPath((destination.path).urlDecode(), pathPrefix)
                                 ),
                                 client
                             ).orThrow()
@@ -467,8 +536,10 @@ class Server(override val micro: Micro) : CommonServer {
                 method(HttpMethod.Delete) {
                     handle {
                         withDavHandler { (client, pathPrefix) ->
+                            if (isPathVirtual(requestPath)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
                             FileDescriptions.deleteFile.call(
-                                DeleteFileRequest(pathPrefix + requestPath),
+                                DeleteFileRequest(getRealPath(requestPath, pathPrefix)),
                                 client
                             ).orThrow()
 
@@ -485,6 +556,31 @@ class Server(override val micro: Micro) : CommonServer {
         }
 
         startServices()
+    }
+
+    private fun getRealPath(
+        requestPath: String,
+        pathPrefix: String
+    ): String {
+        val requestPathComponents = requestPath.components()
+        val path = when {
+            requestPathComponents.isNotEmpty() &&
+                    requestPathComponents[0].equals("projects", ignoreCase = true) -> {
+                requestPath
+            }
+
+            else -> pathPrefix + requestPath
+        }
+        return path
+    }
+
+    private fun isPathVirtual(path: String): Boolean {
+        val components = path.components()
+        if (components.isNotEmpty() && components.size <= 3 && components[0].equals("projects", ignoreCase = true)) {
+            return true
+        }
+
+        return false
     }
 
     private fun PipelineContext<Unit, ApplicationCall>.logCall() {

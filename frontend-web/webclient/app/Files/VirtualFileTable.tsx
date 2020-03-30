@@ -98,6 +98,8 @@ export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
             return (await Client.get<Page<File>>(
                 buildQueryString("/shares/list-files", {page, itemsPerPage}))
             ).response;
+        } else if (folder === Client.projectFolder) {
+            return (await Client.get<Page<File>>(buildQueryString("/projects/repositories/list-files", {page, itemsPerPage}))).response;
         } else {
             return emptyPage;
         }

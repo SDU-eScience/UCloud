@@ -229,7 +229,7 @@ function useApiForComponent(
         const error = pageError;
         const loading = pageLoading;
 
-        const setSorting = React.useCallback((sortBy: SortBy, order: SortOrder, updateColumn?: boolean): void => {
+        const setSorting = (sortBy: SortBy, order: SortOrder, updateColumn?: boolean): void => {
             let sortByToUse = sortBy;
             if (sortBy === SortBy.ACL) sortByToUse = pageParameters.sortBy;
 
@@ -244,7 +244,7 @@ function useApiForComponent(
                 order,
                 page: 0
             });
-        }, []);
+        };
 
         const reload = (): void => loadManaged(pageParameters);
         const sortBy = pageParameters.sortBy;
@@ -399,13 +399,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     const isAnyLoading = workLoading || pageLoading;
     const checkedFilesWithInfo = allFiles
         .filter(f => f.path && checkedFiles.has(f.path) && f.mockTag === undefined);
-    const onFileNavigation = React.useCallback((path: string): void => {
+    const onFileNavigation = (path: string): void => {
         setCheckedFiles(new Set());
         setFileBeingRenamed(null);
         setInjectedViaState([]);
         if (!isEmbedded) window.scrollTo({top: 0});
         props.onFileNavigation(path);
-    }, [props.onFileNavigation]);
+    };
 
     // Loading state
     React.useEffect(() => {

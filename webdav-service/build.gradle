@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.1.12'
+version '0.1.13'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.webdav.MainKt"
@@ -7,9 +7,12 @@ mainClassName = "dk.sdu.cloud.webdav.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.12.3"
-    ext.authApiVersion = "1.26.4"
     ext.miltonVersion = "2.7.4.9"
+    ext.serviceCommonVersion = "1.14.0-projects.2"
+    ext.authApiVersion = "1.27.0"
+    ext.projectApiVersion = "3.0.0-v.6"
+    ext.projectRepositoryVersion = "0.1.2"
+    ext.fileApiVersion = "4.1.0-projects.0"
 }
 
 repositories {
@@ -23,7 +26,9 @@ dependencies {
     compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 
     compile "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.10.0.pr3"
-    compile "dk.sdu.cloud:file-api:3.0.7"
+    compile "dk.sdu.cloud:file-api:$fileApiVersion"
+    compile "dk.sdu.cloud:project-api:$projectApiVersion"
+    compile "dk.sdu.cloud:project-repository-api:$projectRepositoryVersion"
 }
 
 sduCloud.createTasksForApiJar("webdav", [])

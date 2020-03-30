@@ -164,7 +164,7 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
 
     async function fetchAvatar(promises: PromiseKeeper) {
         try {
-            const r = await promises.makeCancelable(Client.get<AvatarType>(findAvatarQuery, undefined, true)).promise;
+            const r = await promises.makeCancelable(Client.get<AvatarType>(findAvatarQuery, undefined)).promise;
             setAvatar(r.response);
         } catch (e) {
             if (!e.isCanceled)

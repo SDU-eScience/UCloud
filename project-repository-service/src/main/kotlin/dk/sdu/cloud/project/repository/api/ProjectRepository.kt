@@ -44,7 +44,11 @@ typealias RepositoryDeleteResponse = Unit
 
 data class Repository(val name: String)
 
-data class RepositoryListRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+data class RepositoryListRequest(
+    val user: String?,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
 typealias RepositoryListResponse = Page<Repository>
 
 typealias ListFilesRequest = RepositoryListRequest
@@ -130,6 +134,7 @@ object ProjectRepository : CallDescriptionContainer("project.repositories") {
             params {
                 +boundTo(RepositoryListRequest::itemsPerPage)
                 +boundTo(RepositoryListRequest::page)
+                +boundTo(RepositoryListRequest::user)
             }
         }
     }
@@ -150,6 +155,7 @@ object ProjectRepository : CallDescriptionContainer("project.repositories") {
             params {
                 +boundTo(ListFilesRequest::itemsPerPage)
                 +boundTo(ListFilesRequest::page)
+                +boundTo(ListFilesRequest::user)
             }
         }
     }

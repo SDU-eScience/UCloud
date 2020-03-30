@@ -4,4 +4,8 @@ name: webdav
 namespaces:
 - webdav
 
-dependencies: []
+dependencies:
+- files
+- files.upload
+- project
+- project.repositories

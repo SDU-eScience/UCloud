@@ -1,11 +1,11 @@
 package dk.sdu.cloud.webdav.services
 
+import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
+import dk.sdu.cloud.calls.client.ClientAndBackend
+import dk.sdu.cloud.service.TokenValidationJWT
+import dk.sdu.cloud.service.validateAndDecodeOrNull
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -13,11 +13,13 @@ import kotlinx.coroutines.sync.withLock
 data class UserClient(
     val client: AuthenticatedClient,
     val homePath: String,
+    val username: String,
     var lastUse: Long = System.currentTimeMillis()
 )
 
 class UserClientFactory(
-    private val clientFactory: (refreshToken: String) -> AuthenticatedClient
+    private val clientAndBackend: ClientAndBackend,
+    private val tokenValidationJWT: TokenValidationJWT
 ) {
     // Maps refreshToken to userClient.
     // DO NOT REPLACE THIS WITH USER TO CLIENT! We need to maintain the correct relationship between request and
@@ -36,9 +38,14 @@ class UserClientFactory(
                 }
             }
 
-            val client = clientFactory(refreshToken)
-            val homePath = FileDescriptions.findHomeFolder.call(FindHomeFolderRequest(""), client).orThrow()
-            val userClient = UserClient(client, homePath.path)
+            val authenticator = RefreshingJWTAuthenticator(clientAndBackend.client, refreshToken, tokenValidationJWT)
+            val accessToken = authenticator.retrieveTokenRefreshIfNeeded()
+            val decodedToken = tokenValidationJWT.validateAndDecodeOrNull(accessToken) ?:
+                throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+
+            val client = authenticator.authenticateClient(clientAndBackend.backend)
+            val homePath = "/home/${decodedToken.principal.username}"
+            val userClient = UserClient(client, homePath, decodedToken.principal.username)
 
             cleanup()
 

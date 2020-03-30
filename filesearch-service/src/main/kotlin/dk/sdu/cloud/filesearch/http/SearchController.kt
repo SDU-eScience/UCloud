@@ -60,7 +60,7 @@ class SearchController(
                 }
 
                 val projects = Projects.listProjects.call(
-                    ListProjectsRequest(itemsPerPage = null, page = null),
+                    ListProjectsRequest(itemsPerPage = null, page = null, user = ctx.securityPrincipal.username),
                     serviceClient
                 ).orNull()?.items ?: emptyList()
 

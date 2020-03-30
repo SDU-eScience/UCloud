@@ -92,11 +92,11 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
     }
 
     suspend fun listRepositories(
-        principal: SecurityPrincipal,
+        username: String,
         project: String
     ): List<Repository> {
         Projects.viewMemberInProject.call(
-            ViewMemberInProjectRequest(project, principal.username),
+            ViewMemberInProjectRequest(project, username),
             serviceClient
         ).orRethrowAs { throw RPCException("Unknown project", HttpStatusCode.NotFound) }
 
