@@ -1,5 +1,6 @@
 package dk.sdu.cloud.activity.http
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.activity.api.Activity
 import dk.sdu.cloud.activity.api.ActivityDescriptions
@@ -8,6 +9,7 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.jobId
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -30,12 +32,17 @@ class ActivityController(
             }
         }
 
-        implement(ActivityDescriptions.browseByUser) {
-            val user = request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEDGED }
-                ?: ctx.securityPrincipal.username
-            
-            val result = activityService.browseForUser(request.normalize(), user, request)
-            ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
+        implement(ActivityDescriptions.activityFeed) {
+            if (ctx.project == null) {
+                val user = request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEDGED }
+                    ?: ctx.securityPrincipal.username
+
+                val result = activityService.browseActivity(request.normalize(), user, request)
+                ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
+            } else {
+                val result = activityService.browseActivity(request.normalize(), null, request, ctx.project)
+                ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
+            }
         }
     }
 

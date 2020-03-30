@@ -31,6 +31,7 @@ import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.index.query.BoolQueryBuilder
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
@@ -200,16 +201,63 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         }
     }
 
-
-    override fun findEvents(scrollSize: Int, filter: ActivityEventFilter): List<ActivityEvent> {
+    private fun applyTimeFilter(filter: ActivityEventFilter): BoolQueryBuilder {
         val query = QueryBuilders.boolQuery()
-
         if (filter.minTimestamp != null) {
             query.filter(QueryBuilders.rangeQuery("@timestamp").gte(filter.minTimestamp))
         }
         if (filter.maxTimestamp != null) {
             query.filter(QueryBuilders.rangeQuery("@timestamp").lte(filter.maxTimestamp))
         }
+
+        return query
+    }
+
+    override fun findProjectEvents(
+        scrollSize: Int,
+        filter: ActivityEventFilter,
+        projectID: String
+    ): List<ActivityEvent> {
+        val query = applyTimeFilter(filter)
+        if (filter.user != null) {
+            query.filter(QueryBuilders.matchPhraseQuery("token.principal.username", filter.user))
+        }
+        val index = getIndexByType(filter.type)
+
+        val request = SearchRequest(*index)
+        val source = SearchSourceBuilder().query(
+            QueryBuilders.boolQuery()
+                .filter(
+                    QueryBuilders.boolQuery()
+                        .must(
+                            QueryBuilders.matchPhraseQuery(
+                                "project",
+                                projectID
+                            )
+                        )
+                )
+                .filter(
+                    QueryBuilders.boolQuery()
+                        .should(
+                            QueryBuilders.rangeQuery(
+                                "responseCode"
+                            ).lte(299)
+                        )
+                        .minimumShouldMatch(1)
+                )
+                .filter(query)
+        ).from(filter.offset ?: 0)
+            .size(scrollSize)
+            .sort("@timestamp", SortOrder.DESC)
+
+        request.source(source)
+        val searchResponse = client.search(request, RequestOptions.DEFAULT)
+        return mapEventsBasedOnIndex(searchResponse, isUserSearch = true)
+
+    }
+
+    override fun findUserEvents(scrollSize: Int, filter: ActivityEventFilter): List<ActivityEvent> {
+        val query = applyTimeFilter(filter)
         val index = getIndexByType(filter.type)
 
         val request = SearchRequest(*index)
@@ -223,6 +271,11 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                                 filter.user
                             )
                         )
+                )
+                .mustNot(
+                    QueryBuilders.existsQuery(
+                        "project"
+                    )
                 )
                 .filter(
                     QueryBuilders.boolQuery()

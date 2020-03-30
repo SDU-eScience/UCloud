@@ -34,7 +34,7 @@ object Activity : CallDescriptionContainer("activity") {
         }
     }
 
-    val browseByUser = call<BrowseByUser.Request, BrowseByUser.Response, CommonErrorMessage>("browseByUser") {
+    val activityFeed = call<BrowseByUser.Request, BrowseByUser.Response, CommonErrorMessage>("activityFeed") {
         auth {
             access = AccessRight.READ
         }
@@ -45,7 +45,6 @@ object Activity : CallDescriptionContainer("activity") {
             path {
                 using(baseContext)
                 +"browse"
-                +"user"
             }
 
             params {

@@ -20,8 +20,14 @@ interface ActivityEventDao {
         filePath: String
     ): Page<ActivityForFrontend>
 
-    fun findEvents(
-        size: Int,
+    fun findUserEvents(
+        scrollSize: Int,
         filter: ActivityEventFilter = ActivityEventFilter()
+    ): List<ActivityEvent>
+
+    fun findProjectEvents(
+        scrollSize: Int,
+        filter: ActivityEventFilter = ActivityEventFilter(),
+        projectID: String
     ): List<ActivityEvent>
 }

@@ -27,10 +27,11 @@ class ActivityService(
         return activityEventElasticDao.findByFilePath(pagination, fileStat.path)
     }
 
-    fun browseForUser(
+    fun browseActivity(
         scroll: NormalizedScrollRequest<Int>,
-        user: String,
-        userFilter: ActivityFilter? = null
+        user: String?,
+        userFilter: ActivityFilter? = null,
+        projectID: String? = null
     ): ScrollResult<ActivityForFrontend, Int> {
         val filter = ActivityEventFilter(
             offset = scroll.offset,
@@ -40,17 +41,25 @@ class ActivityService(
             type = userFilter?.type
         )
 
-        val allEvents = activityEventElasticDao.findEvents(
-            scroll.scrollSize,
-            filter
-        )
-
+        val allEvents = if (!projectID.isNullOrBlank()) {
+            activityEventElasticDao.findProjectEvents(
+                scroll.scrollSize,
+                filter,
+                projectID
+            )
+        } else {
+            activityEventElasticDao.findUserEvents(
+                scroll.scrollSize,
+                filter
+            )
+        }
         val results = allEvents.map { ActivityForFrontend(it.type, it.timestamp, it) }
 
         val nextOffset = allEvents.size + (scroll.offset ?: 0)
 
         return ScrollResult(results, nextOffset, endOfScroll = allEvents.size < scroll.scrollSize)
     }
+
 
     companion object : Loggable {
         override val log = logger()
