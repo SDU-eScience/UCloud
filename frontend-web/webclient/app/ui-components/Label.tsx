@@ -11,10 +11,10 @@ const nowrap = (props: {nowrap?: boolean}): {whiteSpace: "nowrap"} | null =>
   } : null;
 
 type accessiblyHide = {
-  position: "absolute",
-  width: "1px",
-  height: "1px",
-  clip: "rect(1px, 1px, 1px, 1px)"
+  position: "absolute";
+  width: "1px";
+  height: "1px";
+  clip: "rect(1px, 1px, 1px, 1px)";
 } | null;
 const accessiblyHide = (props: {hidden?: boolean}): accessiblyHide =>
   props.hidden ? {

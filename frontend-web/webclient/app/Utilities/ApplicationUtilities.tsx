@@ -247,18 +247,18 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
     return extracted;
 }
 
-/* FIXME: Shouldn't [JobState.Validated, JobState.Prepared, JobState.Scheduled, JobState.Running].includes(state) work? */
-export const inCancelableState = (state: JobState): boolean =>
-    state === JobState.VALIDATED ||
-    state === JobState.PREPARED ||
-    state === JobState.SCHEDULED ||
-    state === JobState.RUNNING;
+export const inCancelableState = (state: JobState): boolean => [
+    JobState.VALIDATED,
+    JobState.PREPARED,
+    JobState.SCHEDULED,
+    JobState.RUNNING
+].includes(state);
 
 export function validateOptionalFields(
     invocation: ApplicationInvocationDescription,
     parameters: ParameterValues
 ): boolean {
-    const optionalErrors = [] as string[];
+    const optionalErrors: string[] = [];
     const optionalParams = invocation.parameters.filter(it => it.optional && it.visible).map(it =>
         ({name: it.name, title: it.title})
     );

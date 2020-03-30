@@ -84,7 +84,7 @@ export class WebSocketConnection {
         closeScript(this);
     }
 
-    public async subscribe<T>({call, payload, handler, disallowProjects = false}: SubscribeParameters<T>) {
+    public async subscribe<T>({call, payload, handler}: SubscribeParameters<T>) {
         const streamId = (this.nextStreamId++).toString();
         this.handlers.set(streamId, (message) => {
             handler(message);
@@ -97,16 +97,15 @@ export class WebSocketConnection {
             call,
             streamId,
             payload,
-            bearer: await this.client.receiveAccessTokenOrRefreshIt(disallowProjects)
+            bearer: await this.client.receiveAccessTokenOrRefreshIt()
         });
     }
 
-    public async call<T>({call, payload, disallowProjects = false}: CallParameters<T>): Promise<WebsocketResponse> {
+    public async call<T>({call, payload}: CallParameters<T>): Promise<WebsocketResponse> {
         return new Promise(async (resolve, reject) => {
             this.subscribe({
                 call,
                 payload,
-                disallowProjects,
                 handler: async (message) => {
                     if (message.type === "response") {
                         const success = message.status !== undefined && message.status <= 399;

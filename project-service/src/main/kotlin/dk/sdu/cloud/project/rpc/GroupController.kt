@@ -4,13 +4,15 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.project.api.GroupExistsResponse
+import dk.sdu.cloud.project.api.IsMemberResponse
 import dk.sdu.cloud.project.api.ProjectGroups
 import dk.sdu.cloud.project.services.GroupService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 
-class GroupController(private val groupService: GroupService<*>) : Controller {
+class GroupController(private val groupService: GroupService) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ProjectGroups.create) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
@@ -59,6 +61,14 @@ class GroupController(private val groupService: GroupService<*>) : Controller {
                     request.normalize()
                 ).mapItems { it.username }
             )
+        }
+
+        implement(ProjectGroups.isMember) {
+            ok(IsMemberResponse(groupService.isMemberQuery(request.queries)))
+        }
+
+        implement(ProjectGroups.groupExists) {
+            ok(GroupExistsResponse(groupService.exists(request.project, request.group)))
         }
     }
 }

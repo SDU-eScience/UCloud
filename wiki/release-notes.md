@@ -5,7 +5,52 @@ hosted at ucloud.dk (cloud.sdu.dk). This page is intended for internal
 use.
 
 Note that each service may have more than one deployment associated with it.
-For details look in the `k8/` folders of each microservice.
+For details look in the `k8.kts` folders of each microservice.
+
+## 23-03-20
+
+Kata container code disabled for app-kubernetes.
+
+| Deployment | Image |
+| ---------- | ----- |
+| app-kubernetes         |  registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.17.1-kata-disabled |
+
+## 23-03-20
+
+New deployment for most services.
+
+
+| Deployment | Image |
+| ---------- | ----- |
+| accounting-compute     |  registry.cloud.sdu.dk/sdu-cloud/accounting-compute-service:1.2.12 |
+| accounting-storage     |  registry.cloud.sdu.dk/sdu-cloud/accounting-storage-service:1.3.0 |
+| activity               |  registry.cloud.sdu.dk/sdu-cloud/activity-service:1.4.14 |
+| alerting               |  registry.cloud.sdu.dk/sdu-cloud/alerting-service:1.1.22 |
+| app-kubernetes         |  registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.17.0 |
+| app-kubernetes-watcher |  registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-watcher-service:0.1.6 |
+| app-license            |  registry.cloud.sdu.dk/sdu-cloud/app-license-service:0.1.8 |
+| app-orchestrator       |  registry.cloud.sdu.dk/sdu-cloud/app-orchestrator-service:2.0.1 |
+| app-store              |  registry.cloud.sdu.dk/sdu-cloud/app-store-service:0.13.0 |
+| audit-ingestion        |  registry.cloud.sdu.dk/sdu-cloud/audit-ingestion-service:0.1.14 |
+| auth                   |  registry.cloud.sdu.dk/sdu-cloud/auth-service:1.27.4 |
+| avatar                 |  registry.cloud.sdu.dk/sdu-cloud/avatar-service:1.3.6 |
+| contact-book           |  registry.cloud.sdu.dk/sdu-cloud/contact-book-service:0.1.16 |
+| downtime-management    |  registry.cloud.sdu.dk/sdu-cloud/downtime-management-service:0.1.6 |
+| file-favorite          |  registry.cloud.sdu.dk/sdu-cloud/file-favorite-service:1.5.0 |
+| file-gateway           |  registry.cloud.sdu.dk/sdu-cloud/file-gateway-service:1.4.0 |
+| file-stats             |  registry.cloud.sdu.dk/sdu-cloud/file-stats-service:2.0.0 |
+| file-trash             |  registry.cloud.sdu.dk/sdu-cloud/file-trash-service:1.3.10 |
+| filesearch             |  registry.cloud.sdu.dk/sdu-cloud/filesearch-service:1.1.11 |
+| indexing               |  registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.16.0 |
+| kubernetes-monitor     |  registry.cloud.sdu.dk/sdu-cloud/kubernetes-monitor-service:0.1.3 |
+| mail                   |  registry.cloud.sdu.dk/sdu-cloud/mail-service:0.1.0-mail-test.10 |
+| notification           |  registry.cloud.sdu.dk/sdu-cloud/notification-service:1.2.12 |
+| share                  |  registry.cloud.sdu.dk/sdu-cloud/share-service:1.7.0 |
+| storage                |  registry.cloud.sdu.dk/sdu-cloud/storage-service:4.0.0 |
+| support                |  registry.cloud.sdu.dk/sdu-cloud/support-service:1.3.4 |
+| task                   |  registry.cloud.sdu.dk/sdu-cloud/task-service:0.2.5 |
+| webclient              |  registry.cloud.sdu.dk/sdu-cloud/webclient:0.36.1 |
+| webdav                 |  registry.cloud.sdu.dk/sdu-cloud/webdav-service:0.1.12 |
 
 ## 02-03-20
 

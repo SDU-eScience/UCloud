@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.1.0-mail-test.11'
+version '0.1.0'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.mail.MainKt"

@@ -1,0 +1,9 @@
+---
+name: project-repository
+
+namespaces:
+- project.repositories
+
+dependencies:
+- project
+- files

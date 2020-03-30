@@ -29,12 +29,26 @@ data class CreateSingleUserAudit(val username: String, val role: Role?)
 
 typealias CreateUserRequest = List<CreateSingleUserRequest>
 
-data class CreateSingleUserRequest(val username: String, val password: String?, val role: Role?) {
+data class CreateSingleUserRequest(val username: String, val password: String?, val email: String?, val role: Role?) {
     override fun toString() = "CreateUserRequest(username = $username, role = $role)"
 }
 
 typealias CreateUserResponse = List<CreateSingleUserResponse>
 typealias CreateSingleUserResponse = AuthenticationTokens
+
+data class UpdateUserInfoRequest(
+    val email: String?,
+    val firstNames: String?,
+    val lastName: String?
+)
+typealias UpdateUserInfoResponse = Unit
+
+typealias GetUserInfoRequest = Unit
+data class GetUserInfoResponse(
+    val email: String?,
+    val firstNames: String?,
+    val lastName: String?
+)
 
 class ChangePasswordAudit
 
@@ -66,6 +80,38 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val updateUserInfo = call<UpdateUserInfoRequest, UpdateUserInfoResponse, CommonErrorMessage>("updateUserInfo") {
+        auth {
+            roles = Roles.END_USER
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"updateUserInfo"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val getUserInfo = call<GetUserInfoRequest, GetUserInfoResponse, CommonErrorMessage>("getUserInfo") {
+        auth {
+            roles = Roles.END_USER
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+            path {
+                using(baseContext)
+                +"userInfo"
+            }
         }
     }
 

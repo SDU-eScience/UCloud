@@ -36,7 +36,6 @@ sealed class BulkUploader<Ctx : FSUserContext>(val format: String, val ctxType: 
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<Ctx>,
         archiveName: String,
         backgroundScope: BackgroundScope
     ): List<String>
@@ -66,7 +65,6 @@ object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<LinuxFSRunner>,
         archiveName: String,
         backgroundScope: BackgroundScope
     ): List<String> {
@@ -77,7 +75,6 @@ object ZipBulkUploader : BulkUploader<LinuxFSRunner>("zip", LinuxFSRunner::class
             contextFactory,
             conflictPolicy,
             sensitivity,
-            sensitivityService,
             archiveName,
             backgroundScope,
             sequence {
@@ -136,7 +133,6 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
         conflictPolicy: WriteConflictPolicy,
         stream: InputStream,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<LinuxFSRunner>,
         archiveName: String,
         backgroundScope: BackgroundScope
     ): List<String> {
@@ -147,7 +143,6 @@ object TarGzUploader : BulkUploader<LinuxFSRunner>("tgz", LinuxFSRunner::class),
             contextFactory,
             conflictPolicy,
             sensitivity,
-            sensitivityService,
             archiveName,
             backgroundScope,
             sequence {
@@ -209,7 +204,6 @@ private object BasicUploader : Loggable {
         contextFactory: suspend () -> Ctx,
         conflictPolicy: WriteConflictPolicy,
         sensitivity: SensitivityLevel?,
-        sensitivityService: FileSensitivityService<Ctx>,
         archiveName: String,
         backgroundScope: BackgroundScope,
         sequence: Sequence<ArchiveEntry>
@@ -273,7 +267,7 @@ private object BasicUploader : Loggable {
                                         createdDirectories += targetPath
                                         fs.makeDirectory(ctx, targetPath)
                                         if (sensitivity != null) {
-                                            sensitivityService.setSensitivityLevel(ctx, targetPath, sensitivity)
+                                            fs.setSensitivityLevel(ctx, targetPath, sensitivity)
                                         }
                                     }
 
@@ -286,11 +280,9 @@ private object BasicUploader : Loggable {
                                                 )
                                             }
 
-                                            if (sensitivity != null) sensitivityService.setSensitivityLevel(
-                                                ctx,
-                                                newFile,
-                                                sensitivity
-                                            )
+                                            if (sensitivity != null) {
+                                                fs.setSensitivityLevel(ctx, newFile, sensitivity)
+                                            }
                                         } catch (ex: ZipException) {
                                             NotificationDescriptions.create.call(
                                                 CreateNotification(

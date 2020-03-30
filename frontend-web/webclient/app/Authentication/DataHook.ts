@@ -1,7 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {useEffect, useReducer, useState} from "react";
 import {defaultErrorHandler} from "UtilityFunctions";
-import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 
 function dataFetchReducer(state, action) {
     switch (action.type) {
@@ -69,7 +68,6 @@ export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
         body: parameters.payload,
         context: parameters.context,
         maxRetries: parameters.maxRetries,
-        disallowProjects: parameters.disallowProjects,
         withCredentials: parameters.withCredentials
     })).response;
 }

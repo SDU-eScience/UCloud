@@ -59,7 +59,8 @@ class TokenTest {
             "Lastname",
             email,
             Role.ADMIN,
-            "ThisIsMyPassword"
+            "ThisIsMyPassword",
+            email
         )
 
         db.withTransaction {

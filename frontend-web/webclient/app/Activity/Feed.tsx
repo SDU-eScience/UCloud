@@ -25,7 +25,7 @@ export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTab
     );
 };
 
-export const ActivityFeed = ({activity}: {activity: Module.ActivityForFrontend[]}) => (
+export const ActivityFeed = ({activity}: {activity: Module.ActivityForFrontend[]}): JSX.Element => (
     <ActivityFeedFrame>
         {activity.map((a,i) => <ActivityFeedItem key={i} activity={a} />)}
     </ActivityFeedFrame>
@@ -83,34 +83,34 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
 
         case Module.ActivityType.UPDATEDACL: {
             const update = (props.event.activityEvent as Module.UpdatedACLActivity);
-            return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights}</span>
+            return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights}</span>;
         }
 
         case Module.ActivityType.USEDINAPP: {
             const used = (props.event.activityEvent as Module.SingleFileUsedActivity);
-            if (used.filePath == "") {
-                return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>
+            if (used.filePath === "") {
+                return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>;
             }
             else {
-                return <span> were used in {used.applicationName} v{used.applicationVersion}</span>
+                return <span> were used in {used.applicationName} v{used.applicationVersion}</span>;
             }        }
         case Module.ActivityType.ALLUSEDINAPP: {
             const used = (props.event.activityEvent as Module.AllFilesUsedActivity);
-            if (used.filePath == "") {
-                return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>
+            if (used.filePath === "") {
+                return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>;
             }
             else {
-                return <span> were used in {used.applicationName} v{used.applicationVersion}</span>
+                return <span> were used in {used.applicationName} v{used.applicationVersion}</span>;
             }
         }
         case Module.ActivityType.RECLASSIFIED: {
             const reclassify = (props.event.activityEvent as Module.ReclassifyActivity);
-            return <span> changed sensitivity to {reclassify.newSensitivity} </span>
+            return <span> changed sensitivity to {reclassify.newSensitivity} </span>;
         }
 
         case Module.ActivityType.COPIED: {
             const copy = (props.event.activityEvent as Module.CopyActivity);
-            return <span> was copied. Copy name: {copy.copyFilePath}</span>
+            return <span> was copied. Copy name: {copy.copyFilePath}</span>;
         }
 
         default: {
@@ -181,7 +181,7 @@ const operationToPastTense = (operation: Module.ActivityType): string => {
         case Module.ActivityType.USEDINAPP:
             return "used";
         default:
-            return ""
+            return "";
     }
 };
 
@@ -208,13 +208,13 @@ const eventIcon = (operation: Module.ActivityType): EventIconAndColor => {
         case Module.ActivityType.ALLUSEDINAPP:
             return {icon: "favIcon"};
         case Module.ActivityType.DIRECTORYCREATED:
-            return {icon: "files"}
+            return {icon: "files"};
         case Module.ActivityType.UPDATEDACL:
-            return {icon: "key"}
+            return {icon: "key"};
         case Module.ActivityType.SHAREDWITH:
-            return {icon: "share"}
+            return {icon: "share"};
         case Module.ActivityType.RECLASSIFIED:
-            return {icon: "sensitivity"}
+            return {icon: "sensitivity"};
         default:
             return {icon: "ellipsis"};
     }
@@ -232,10 +232,8 @@ const TFRow = styled(TableRow)`
     }
 
     & div.ellipsis {
-        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 100%;
         display: inline-block;
         vertical-align: bottom;
     }

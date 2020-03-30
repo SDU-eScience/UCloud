@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-orchestrator"
-    version = "2.0.0-issue-1279-13"
+    version = "2.0.2-issue-1279-13"
 
     withAmbassador(null) {
         addSimpleMapping("/api/hpc/jobs")
@@ -49,6 +49,28 @@ bundle { ctx ->
         val config: Map<String, Any?> = mapOf(
             "app" to mapOf(
                 "defaultBackend" to "kubernetes",
+                "gpuWhitelist" to listOf(
+                    "marin@imada.sdu.dk",
+                    "boegebjerg@imada.sdu.dk",
+                    "tochr15@student.sdu.dk",
+                    "alaks17@student.sdu.dk",
+                    "hmoel15@student.sdu.dk",
+                    "sejr@imada.sdu.dk",
+                    "ruizhang@imada.sdu.dk",
+                    "mehrooz@imada.sdu.dk",
+                    "nomi@imada.sdu.dk",
+                    "andrea.lekkas@outlook.com",
+                    "alfal19@student.sdu.dk",
+                    "fiorenza@imada.sdu.dk",
+                    "veits@bmb.sdu.dk",
+                    "petersk@imada.sdu.dk",
+                    "roettger@imada.sdu.dk",
+                    "pica@cp3.sdu.dk",
+                    "konradk@bmb.sdu.dk",
+                    "vasileios@bmb.sdu.dk",
+                    "svensson@imada.sdu.dk",
+                    "dthrane@imada.sdu.dk"
+                ),
                 "backends" to listOf(
                     ComputeBackend("kubernetes", "k8s", true)
                 ),

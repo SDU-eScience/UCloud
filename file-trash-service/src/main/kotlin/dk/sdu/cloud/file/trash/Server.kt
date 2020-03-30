@@ -19,7 +19,7 @@ class Server(
 
     override fun start() {
         val client = micro.authenticator.authenticateClient(OutgoingWSCall)
-        val trashDirectoryService = TrashDirectoryService(client)
+        val trashDirectoryService = TrashDirectoryService()
         val trashService = TrashService(trashDirectoryService, client, micro.backgroundScope)
         with(micro.server) {
             configureControllers(

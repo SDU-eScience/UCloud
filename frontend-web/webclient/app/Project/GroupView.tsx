@@ -49,10 +49,11 @@ function GroupsOverview(): JSX.Element | null {
     const createGroupRef = React.useRef<HTMLInputElement>(null);
     const [selectedGroups, setSelectedGroups] = React.useState<Set<string>>(new Set());
     const promises = usePromiseKeeper();
-    const [groupSummaries, fetchSummaries, params] = useCloudAPI<Page<GroupWithSummary>>(groupSummaryRequest({
+    const [groupSummaries, fetchSummaries, params] = useCloudAPI<GroupWithSummary[]>(groupSummaryRequest({
         page: 0,
         itemsPerPage: 25
-    }), emptyPage);
+    }), []);
+
     const promptDeleteGroups = React.useCallback(async () => {
         const groups = [...selectedGroups];
         if (groups.length === 0) {
@@ -87,42 +88,34 @@ function GroupsOverview(): JSX.Element | null {
             <Button color="red" onClick={promptDeleteGroups} width="100%">Delete groups</Button>
         </>}
         main={(
-            <Pagination.List
-                loading={groupSummaries.loading}
-                onPageChanged={(newPage, page) =>
-                    fetchSummaries(groupSummaryRequest({page: newPage, itemsPerPage: page.itemsPerPage}))}
-                page={groupSummaries.data}
-                pageRenderer={page =>
-                    <GridCardGroup minmax={300}>
-                        {page.items.map(g => {
-                            const isSelected = selectedGroups.has(g.group);
-                            return (
-                                <Card
-                                    key={g.group}
-                                    overflow="hidden"
-                                    p="8px"
-                                    width={1}
-                                    boxShadow="sm"
-                                    borderWidth={1}
-                                    borderRadius={6}
-                                >
-                                    <SimpleGroupView
-                                        group={g}
-                                        history={history}
-                                        isSelected={isSelected}
-                                        setSelected={() => {
-                                            if (selectedGroups.has(g.group)) selectedGroups.delete(g.group);
-                                            else selectedGroups.add(g.group);
-                                            setSelectedGroups(selectedGroups);
-                                        }}
-                                    />
-                                </Card>
-                            );
-                        })}
-                    </ GridCardGroup>
-                }
-                customEmptyPage={<Heading.h3>You have no groups to manage.</Heading.h3>}
-            />
+            <GridCardGroup minmax={300}>
+                {groupSummaries.data.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
+                {groupSummaries.data.map(g => {
+                    const isSelected = selectedGroups.has(g.group);
+                    return (
+                        <Card
+                            key={g.group}
+                            overflow="hidden"
+                            p="8px"
+                            width={1}
+                            boxShadow="sm"
+                            borderWidth={1}
+                            borderRadius={6}
+                        >
+                            <SimpleGroupView
+                                group={g}
+                                history={history}
+                                isSelected={isSelected}
+                                setSelected={() => {
+                                    if (selectedGroups.has(g.group)) selectedGroups.delete(g.group);
+                                    else selectedGroups.add(g.group);
+                                    setSelectedGroups(selectedGroups);
+                                }}
+                            />
+                        </Card>
+                    );
+                })}
+            </ GridCardGroup>
         )}
         additional={<ReactModal isOpen={creatingGroup} shouldCloseOnEsc shouldCloseOnOverlayClick onRequestClose={() => setCreatingGroup(false)} style={defaultModalStyle}>
             <Heading.h2>New group</Heading.h2>

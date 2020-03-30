@@ -24,24 +24,20 @@ class SensitivityTest : WithBackgroundScope() {
         val runner: FSCommandRunnerFactory<Ctx>,
         val fs: LowLevelFileSystemInterface<Ctx>,
         val coreFs: CoreFileSystemService<Ctx>,
-        val sensitivityService: FileSensitivityService<Ctx>,
         val lookupService: FileLookupService<Ctx>
     )
 
     private fun initTest(root: String): TestContext<FSUserContext> {
         val (runner, fs) = linuxFSWithRelaxedMocks(root, backgroundScope)
-        val sensitivityService =
-            FileSensitivityService(fs)
         val coreFs = CoreFileSystemService(
             fs,
-            sensitivityService,
             ClientMock.authenticatedClient,
             backgroundScope,
             mockedMetadataService
         )
         val fileLookupService = FileLookupService(runner, coreFs)
 
-        return TestContext(runner, fs, coreFs, sensitivityService, fileLookupService) as TestContext<FSUserContext>
+        return TestContext(runner, fs, coreFs, fileLookupService) as TestContext<FSUserContext>
     }
 
     private fun createRoot(): File = Files.createTempDirectory("sensitivity-test").toFile()
@@ -59,9 +55,9 @@ class SensitivityTest : WithBackgroundScope() {
             }
 
             runner.withBlockingContext(user) { ctx ->
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/private", SensitivityLevel.PRIVATE)
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/sensitive", SensitivityLevel.SENSITIVE)
-                sensitivityService.setSensitivityLevel(
+                coreFs.setSensitivityLevel(ctx, "/home/user/private", SensitivityLevel.PRIVATE)
+                coreFs.setSensitivityLevel(ctx, "/home/user/sensitive", SensitivityLevel.SENSITIVE)
+                coreFs.setSensitivityLevel(
                     ctx,
                     "/home/user/confidential",
                     SensitivityLevel.CONFIDENTIAL
@@ -133,20 +129,20 @@ class SensitivityTest : WithBackgroundScope() {
             }
 
             runner.withBlockingContext(user) { ctx ->
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/sensitive", SensitivityLevel.SENSITIVE)
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/sensitive/private", SensitivityLevel.PRIVATE)
+                coreFs.setSensitivityLevel(ctx, "/home/user/sensitive", SensitivityLevel.SENSITIVE)
+                coreFs.setSensitivityLevel(ctx, "/home/user/sensitive/private", SensitivityLevel.PRIVATE)
 
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/private", SensitivityLevel.PRIVATE)
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/private/sensitive", SensitivityLevel.SENSITIVE)
+                coreFs.setSensitivityLevel(ctx, "/home/user/private", SensitivityLevel.PRIVATE)
+                coreFs.setSensitivityLevel(ctx, "/home/user/private/sensitive", SensitivityLevel.SENSITIVE)
 
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/confidential", SensitivityLevel.CONFIDENTIAL)
-                sensitivityService.setSensitivityLevel(
+                coreFs.setSensitivityLevel(ctx, "/home/user/confidential", SensitivityLevel.CONFIDENTIAL)
+                coreFs.setSensitivityLevel(
                     ctx,
                     "/home/user/confidential/sensitive",
                     SensitivityLevel.SENSITIVE
                 )
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/confidential/private", SensitivityLevel.PRIVATE)
-                sensitivityService.setSensitivityLevel(
+                coreFs.setSensitivityLevel(ctx, "/home/user/confidential/private", SensitivityLevel.PRIVATE)
+                coreFs.setSensitivityLevel(
                     ctx,
                     "/home/user/confidential/private/sensitive",
                     SensitivityLevel.SENSITIVE
@@ -272,8 +268,8 @@ class SensitivityTest : WithBackgroundScope() {
             }
 
             runner.withBlockingContext(user) { ctx ->
-                sensitivityService.setSensitivityLevel(ctx, "/home/user/f", SensitivityLevel.PRIVATE)
-                sensitivityService.clearSensitivityLevel(ctx, "/home/user/f")
+                coreFs.setSensitivityLevel(ctx, "/home/user/f", SensitivityLevel.PRIVATE)
+                coreFs.setSensitivityLevel(ctx, "/home/user/f", null)
             }
         }
     }

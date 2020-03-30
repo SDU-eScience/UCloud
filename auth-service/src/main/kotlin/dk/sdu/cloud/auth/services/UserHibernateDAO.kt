@@ -195,10 +195,46 @@ data class PersonEntityByWAYF(
     }
 }
 
+data class UserInformation(
+    val email: String?,
+    val firstNames: String?,
+    val lastName: String?
+)
+
 class UserHibernateDAO(
     private val passwordHashingService: PasswordHashingService,
     private val twoFactorDAO: TwoFactorDAO<HibernateSession>
 ) : UserDAO<HibernateSession> {
+
+    override fun getUserInfo(session: HibernateSession, username: String): UserInformation {
+        val user = session
+            .criteria<PersonEntity> { entity[PersonEntity::id] equal username }
+            .singleResult
+
+        return UserInformation(user.email, user.firstNames, user.lastName)
+    }
+
+    override fun updateUserInfo(
+        session: HibernateSession,
+        username: String,
+        firstNames: String?,
+        lastName: String?,
+        email: String?
+    ) {
+        val entity = PrincipalEntity[session, username] as? PersonEntityByPassword ?: throw UserException.NotFound()
+
+        if (!firstNames.isNullOrBlank()) {
+            entity.firstNames = firstNames
+        }
+        if (!lastName.isNullOrBlank()) {
+            entity.lastName = lastName
+        }
+        if (!email.isNullOrBlank()) {
+            entity.email = email
+        }
+        session.update(entity)
+    }
+
     override fun findById(session: HibernateSession, id: String): Principal {
         val status = twoFactorDAO.findStatusBatched(session, listOf(id))
         return PrincipalEntity[session, id]?.toModel(status.getValue(id)) ?: throw UserException.NotFound()

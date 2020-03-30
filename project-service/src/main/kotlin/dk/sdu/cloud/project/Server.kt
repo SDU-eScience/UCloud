@@ -26,8 +26,8 @@ class Server(
 
         val db = AsyncDBSessionFactory(micro.databaseConfig)
 
-        val projectDao = ProjectAsyncDao()
-        val groupDao = GroupAsyncDao()
+        val projectDao = ProjectDao()
+        val groupDao = GroupDao()
         val eventProducer = eventStreamService.createProducer(ProjectEvents.events)
         val uniqueNameService = UniqueNameService(db, projectDao)
 

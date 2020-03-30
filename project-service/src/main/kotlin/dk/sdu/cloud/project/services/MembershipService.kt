@@ -7,13 +7,14 @@ import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 
-class MembershipService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val groups: GroupDao<DBSession>,
-    private val projects: ProjectDao<DBSession>
+class MembershipService(
+    private val db: DBSessionFactory<AsyncDBConnection>,
+    private val groups: GroupDao,
+    private val projects: ProjectDao
 ) {
     suspend fun summarizeMembershipForUser(username: String): UserStatusResponse {
         return db.withTransaction { session ->

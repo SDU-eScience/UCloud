@@ -45,7 +45,7 @@ export const receiveNotifications = (page: Page<Notification>): ReceiveNotificat
  */
 export async function fetchNotifications(): Promise<ReceiveNotificationAction | SetNotificationError> {
     try {
-        const res = await Client.get<Page<Notification>>(notificationsQuery, undefined, true);
+        const res = await Client.get<Page<Notification>>(notificationsQuery, undefined);
         return receiveNotifications(res.response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to retrieve notifications, please try again later"));

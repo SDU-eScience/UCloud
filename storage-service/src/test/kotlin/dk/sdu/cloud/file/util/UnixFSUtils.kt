@@ -33,18 +33,20 @@ fun linuxFSWithRelaxedMocks(
     val commandRunner = LinuxFSRunnerFactory(backgroundScope)
     val micro = initializeMicro()
     micro.install(HibernateFeature)
-    val homeFolderService = HomeFolderService(ClientMock.authenticatedClient)
+    val homeFolderService = HomeFolderService()
     ClientMock.mockCall(UserDescriptions.lookupUsers) {
         TestCallResult.Ok(
             LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
         )
     }
-    val aclService = AclService(mockedMetadataService, homeFolderService)
+    val aclService =
+        AclService(mockedMetadataService, homeFolderService, ClientMock.authenticatedClient, mockk(relaxed = true))
     return LinuxTestFS(
         commandRunner,
         LinuxFS(
             File(fsRoot),
-            aclService
+            aclService,
+            mockk(relaxed = true)
         ),
         aclService
     )

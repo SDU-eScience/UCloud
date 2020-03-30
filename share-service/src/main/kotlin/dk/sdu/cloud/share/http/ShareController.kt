@@ -22,7 +22,7 @@ class ShareController(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Shares.create) {
             val bearer = ctx.bearer!!
-            val id = shareService.create(
+            shareService.create(
                 ctx.securityPrincipal.username,
                 request,
                 bearer,

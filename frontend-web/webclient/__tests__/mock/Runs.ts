@@ -1,7 +1,7 @@
 import {JobState, JobWithStatus} from "../../app/Applications";
 import {Page} from "../../app/Types";
 
-export const analyses: Page<JobWithStatus> = {
+export const runs: Page<JobWithStatus> = {
     itemsInTotal: 4,
     itemsPerPage: 25,
     pageNumber: 0,

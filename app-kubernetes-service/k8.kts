@@ -1,10 +1,10 @@
 package dk.sdu.cloud.k8
 
-//DEPS dk.sdu.cloud:k8-resources:0.1.1
+//DEPS dk.sdu.cloud:k8-resources:0.1.2
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "0.17.0-issue-1279-26"
+    version = "0.17.1-issue-1279-26"
 
     withAmbassador(pathPrefix = null) {
         addSimpleMapping("/api/app/compute/kubernetes")
@@ -57,7 +57,9 @@ bundle { ctx ->
     withPostgresMigration(deployment)
 
     val networkPolicyPodSelector = mapOf("role" to "sducloud-app")
-    withNetworkPolicy("app-policy") {
+    withNetworkPolicy("app-policy", version = "2") {
+        policy.metadata.namespace = "app-kubernetes"
+
         policy.spec = NetworkPolicySpec().apply {
             podSelector = LabelSelector().apply {
                 matchLabels = networkPolicyPodSelector
@@ -89,12 +91,17 @@ bundle { ctx ->
                 allowEgressTo(listOf(EgressToPolicy("10.144.4.166/32"))),
 
                 // allow tek-comsol0a.tek.c.sdu.dk
-                allowEgressTo(listOf(EgressToPolicy("10.144.4.169/32")))
+                allowEgressTo(listOf(EgressToPolicy("10.144.4.169/32"))),
+
+                // coumputational biology server SDU (requested by Emiliano)
+                allowEgressTo(listOf(EgressToPolicy("10.137.1.93/32")))
             )
         }
     }
 
     withNetworkPolicy("app-allow-proxy") {
+        policy.metadata.namespace = "app-kubernetes"
+
         policy.spec = NetworkPolicySpec().apply {
             podSelector = LabelSelector().apply {
                 matchLabels = networkPolicyPodSelector

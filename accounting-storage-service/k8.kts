@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "accounting-storage"
-    version = "1.3.0-storage-events.0"
+    version = "1.3.0"
 
     withAmbassador("/api/accounting/storage") {}
 

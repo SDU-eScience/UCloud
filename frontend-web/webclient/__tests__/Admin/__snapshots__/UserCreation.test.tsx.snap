@@ -241,6 +241,24 @@ exports[`UserCreation Mount 1`] = `
           width="100%"
         />
       </label>
+      <label
+        className="c5"
+        color="black"
+        fontSize={1}
+        fontWeight="bold"
+        width="100%"
+      >
+        Email
+        <input
+          className="c6"
+          id="default"
+          onChange={[Function]}
+          placeholder="Email..."
+          type="email"
+          value=""
+          width="100%"
+        />
+      </label>
       <button
         className="c7"
         color="green"

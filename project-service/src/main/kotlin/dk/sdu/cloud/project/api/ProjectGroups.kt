@@ -3,6 +3,7 @@ package dk.sdu.cloud.project.api
 import com.github.jasync.sql.db.util.size
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.auth
@@ -58,6 +59,13 @@ data class ListGroupMembersRequest(
 ) : WithPaginationRequest
 
 typealias ListGroupMembersResponse = Page<String>
+
+data class IsMemberQuery(val project: String, val group: String, val username: String)
+data class IsMemberRequest(val queries: List<IsMemberQuery>)
+data class IsMemberResponse(val responses: List<Boolean>)
+
+data class GroupExistsRequest(val project: String, val group: String)
+data class GroupExistsResponse(val exists: Boolean)
 
 object ProjectGroups : CallDescriptionContainer("project.group") {
     val baseContext = "/api/projects/groups"
@@ -196,4 +204,40 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
                 }
             }
         }
+
+    val isMember = call<IsMemberRequest, IsMemberResponse, CommonErrorMessage>("isMember") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"is-member"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val groupExists = call<GroupExistsRequest, GroupExistsResponse, CommonErrorMessage>("groupExists") {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"exists"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
 }

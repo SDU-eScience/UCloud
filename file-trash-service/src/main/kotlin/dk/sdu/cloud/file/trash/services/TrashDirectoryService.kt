@@ -1,28 +1,29 @@
 package dk.sdu.cloud.file.trash.services
 
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
-import dk.sdu.cloud.file.api.joinPath
-import java.util.concurrent.ConcurrentHashMap
+import dk.sdu.cloud.file.api.components
+import dk.sdu.cloud.file.api.normalize
 
-class TrashDirectoryService(
-    private val serviceClient: AuthenticatedClient
-) {
-    private val cachedResults = ConcurrentHashMap<String, String>()
+class TrashDirectoryService {
+    fun findPersonalTrash(username: String): String {
+        return "/home/$username/Trash"
+    }
 
-    suspend fun findTrashDirectory(username: String): String {
-        val cachedResult = cachedResults[username]
-        if (cachedResult != null) return cachedResult
+    fun findTrashDirectory(username: String, targetPath: String): String {
+        val components = targetPath.components()
+        return if (components.size >= 3 && components[0] == "projects") {
+            "/projects/${components[1]}/${components[2]}/Trash"
+        } else {
+            findPersonalTrash(username)
+        }
+    }
 
-        val homeFolder = FileDescriptions.findHomeFolder.call(
-            FindHomeFolderRequest(username),
-            serviceClient
-        ).orThrow().path
-        return joinPath(homeFolder, "Trash").also {
-            cachedResults[username] = it
+    fun isTrashFolder(username: String, path: String): Boolean {
+        val components = path.components()
+        if (components.size < 2) return false
+        return when {
+            components[0] == "home" -> path.normalize() == findPersonalTrash(username)
+            components[1] == "projects" -> components.size > 3 && components[2] == "Trash"
+            else -> false
         }
     }
 }

@@ -106,7 +106,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                     serviceClient,
                     vncService,
                     webService,
-                    config.machines
+                    config.machines,
+                    config.gpuWhitelist
                 ),
                 CallbackController(jobOrchestrator)
             )

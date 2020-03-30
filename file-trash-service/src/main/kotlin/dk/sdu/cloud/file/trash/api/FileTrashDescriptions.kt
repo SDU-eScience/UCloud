@@ -10,7 +10,7 @@ import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
 
 data class TrashRequest(val files: List<String>)
-data class TrashResponse(val failures: List<String>)
+data class ClearRequest(val trashPath: String? = null)
 
 object FileTrashDescriptions : CallDescriptionContainer("files.trash") {
     val baseContext = "/api/files/trash"
@@ -31,7 +31,7 @@ object FileTrashDescriptions : CallDescriptionContainer("files.trash") {
         }
     }
 
-    val clear = call<Unit, Unit, CommonErrorMessage>("clear") {
+    val clear = call<ClearRequest, Unit, CommonErrorMessage>("clear") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -43,6 +43,8 @@ object FileTrashDescriptions : CallDescriptionContainer("files.trash") {
                 using(baseContext)
                 +"clear"
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 }

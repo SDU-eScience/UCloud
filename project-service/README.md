@@ -8,6 +8,11 @@ event stream for receiving updates about changes. Other services extend the
 projects feature and subscribe to these changes to create the full project
 feature.
 
+## Interactions with other features
+
+- [Project Repositories](../project-repository-service/README.md): Learn about
+  how projects interact with the storage of UCloud.
+
 ## Definition
 
 A project in UCloud is a collection of `members` which is uniquely identified
@@ -30,18 +35,10 @@ Such an update will trigger a new message on the event stream. A project can
 also be deleted, this will trigger a cleanup of associated resources (such as
 files).
 
-## Applications
+A project is sub-divided into groups:
 
-Applications started by a member is billed to the project. Only the user who
-started the job will be able to interact with the job. The job is started
-with the UID corresponding to their project user. All project users will be
-able to view the results.
+![](wiki/structure.png)
 
-Applications running for a project will only appear under "My Results" for
-the user who started it. Once the job is complete it will appear for all
-other project users.
-
-It is crucial that only the user can interact with the application to avoid
-privilege escalation.
-
-This could be expanded to allow for cancellation by a PI/ADMIN.
+Each project may have 0 or more groups. The groups can have 0 or more members.
+A group belongs to exactly one project and the members of a group can only
+be from the project it belongs to.

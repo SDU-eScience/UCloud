@@ -32,7 +32,3 @@ interface CommandRunner : Closeable {
 }
 
 typealias FSUserContext = CommandRunner
-
-sealed class FSCommandRunnerException(why: String) : RuntimeException(why) {
-    class DeadChannel : FSCommandRunnerException("Dead channel")
-}

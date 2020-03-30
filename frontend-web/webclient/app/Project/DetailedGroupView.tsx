@@ -40,8 +40,8 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
 
     const promises = usePromiseKeeper();
     const [avatars, setAvatars] = React.useState<AvatarType[]>([]);
+
     React.useEffect(() => {
-        /* FIXME:  */
         promises.makeCancelable(
             Client.post<{avatars: {[key: string]: AvatarType}}>("/avatar/bulk", {usernames: activeGroup.data.items})
         ).promise.then(it =>

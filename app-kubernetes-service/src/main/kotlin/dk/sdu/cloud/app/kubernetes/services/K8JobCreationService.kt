@@ -26,12 +26,13 @@ import java.io.InputStreamReader
 import java.io.BufferedReader
 
 
-
 const val WORKING_DIRECTORY = "/work"
 const val MULTI_NODE_DIRECTORY = "/etc/ucloud"
 const val MULTI_NODE_STORAGE = "multi-node-config"
 const val MULTI_NODE_CONTAINER = "init"
 const val USER_CONTAINER = "user-job"
+
+private const val disableKataContainers = true
 
 /**
  * Creates user jobs in Kubernetes.
@@ -151,12 +152,14 @@ class K8JobCreationService(
                                     )
                                 )
 
-                                if (containerConfig.runAsRoot) {
-                                    withAnnotations(
-                                        mapOf(
-                                            "io.kubernetes.cri.untrusted-workload" to "true"
+                                if (!disableKataContainers) {
+                                    if (containerConfig.runAsRoot) {
+                                        withAnnotations(
+                                            mapOf(
+                                                "io.kubernetes.cri.untrusted-workload" to "true"
+                                            )
                                         )
-                                    )
+                                    }
                                 }
                             }
 

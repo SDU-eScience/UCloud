@@ -5,7 +5,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.FindHomeFolderResponse
 import dk.sdu.cloud.file.api.LongRunningResponse
 import dk.sdu.cloud.file.trash.storageFile
 import dk.sdu.cloud.micro.Micro
@@ -65,13 +64,6 @@ class TrashTest {
         )
     }
 
-    private fun mockHomeFolder() {
-        ClientMock.mockCallSuccess(
-            FileDescriptions.findHomeFolder,
-            FindHomeFolderResponse("/home/user/")
-        )
-    }
-
     @BeforeTest
     fun initTest() {
         backgroundScope = BackgroundScope()
@@ -79,7 +71,7 @@ class TrashTest {
 
         micro = initializeMicro()
         service = TrashService(
-            TrashDirectoryService(ClientMock.authenticatedClient),
+            TrashDirectoryService(),
             ClientMock.authenticatedClient,
             backgroundScope
         )
@@ -92,10 +84,9 @@ class TrashTest {
         mockMove()
         mockCreateDir()
         mockDelete()
-        mockHomeFolder()
 
         runBlocking {
-            service.emptyTrash(user.username, cloud)
+            service.emptyTrash(user.username, cloud, null)
         }
     }
 
@@ -103,10 +94,9 @@ class TrashTest {
     fun `Empty Trash - directory - Test`() {
         mockStat(returnDirectory = true)
         mockDelete()
-        mockHomeFolder()
 
         runBlocking {
-            service.emptyTrash(user.username, cloud)
+            service.emptyTrash(user.username, cloud, null)
         }
     }
 
@@ -115,17 +105,15 @@ class TrashTest {
         mockFailingStat()
         mockCreateDir()
         mockDelete()
-        mockHomeFolder()
 
         runBlocking {
-            service.emptyTrash(user.username, cloud)
+            service.emptyTrash(user.username, cloud, null)
         }
     }
 
     @Test(expected = RPCException::class)
     fun `Empty Trash - creation fails - Test`() {
         mockFailingStat()
-        mockHomeFolder()
         ClientMock.mockCallError(
             FileDescriptions.createDirectory,
             CommonErrorMessage("ERROR"),
@@ -133,7 +121,7 @@ class TrashTest {
         )
 
         runBlocking {
-            service.emptyTrash(user.username, cloud)
+            service.emptyTrash(user.username, cloud, null)
         }
     }
 
@@ -141,7 +129,6 @@ class TrashTest {
     fun `move to trash test`() {
         mockStat(returnDirectory = true)
         mockMove()
-        mockHomeFolder()
         runBlocking {
             val returnList = service.moveFilesToTrash(listOf("file1", "file2"), user.username, cloud)
             println(returnList)

@@ -396,7 +396,7 @@ export const extractArchive = async ({files, client, onFinished}: ExtractArchive
 export const clearTrash = ({client, callback}: {client: HttpClient; callback: () => void}): void =>
     clearTrashDialog({
         onConfirm: async () => {
-            await client.post("/files/trash/clear", {});
+            await client.post("/files/trash/clear", {trashPath: client.trashFolder});
             callback();
             snackbarStore.addSnack({message: "Emptying trash", type: SnackType.Information});
         }
@@ -411,6 +411,7 @@ export const getParentPath = (path: string): string => {
         parentPath += splitPath[i] + "/";
     }
     /* TODO: Should be equivalent, let's test it for a while and replace if it works. */
+    /* They are not equivalent for the empty string. // and /, respectively. */
     const parentP = `/${path.split("/").filter(it => it).slice(0, -1).join("/")}/`;
     if (window.location.hostname === "localhost" && parentP !== parentPath) {
         throw Error("ParentP and path not equal");
@@ -583,12 +584,10 @@ interface MoveFile {
     oldPath: string;
     newPath: string;
     client: HttpClient;
-    setLoading: () => void;
     onSuccess: () => void;
 }
 
-export async function moveFile({oldPath, newPath, client, setLoading, onSuccess}: MoveFile): Promise<void> {
-    setLoading();
+export async function moveFile({oldPath, newPath, client, onSuccess}: MoveFile): Promise<void> {
     try {
         await client.post(`/files/move?path=${encodeURIComponent(oldPath)}&newPath=${encodeURIComponent(newPath)}`);
         onSuccess();
