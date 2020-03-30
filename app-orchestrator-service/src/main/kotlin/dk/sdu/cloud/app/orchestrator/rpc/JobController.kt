@@ -92,6 +92,14 @@ class JobController(
                 }
             }
 
+            if (request.url != null) {
+                val invalidChars = Regex("""([./\\\n])""")
+                if (invalidChars.containsMatchIn(request.url!!) || request.url!!.length < 5) {
+                    error(CommonErrorMessage("Provided url not allowed"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
+            }
+
             val extensionResponse = AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(
                     ctx.bearer!!,
