@@ -6,6 +6,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {dateToString} from "Utilities/DateUtilities";
 import {getFilenameFromPath, isDirectory, replaceHomeOrProjectFolder, sizeToString} from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
+import HttpClient from "Authentication/lib";
 
 export function toggleCssColors(light: boolean): void {
     if (light) {
@@ -265,17 +266,19 @@ export interface FtIconProps {
 export const iconFromFilePath = (
     filePath: string,
     type: FileType,
-    homeFolder: string,
-    currentProjectFolder: string
+    client: HttpClient
 ): FtIconProps => {
     const icon: FtIconProps = {type: "FILE"};
 
     switch (type) {
         case "DIRECTORY":
-            const homeFolderReplaced = replaceHomeOrProjectFolder(filePath, homeFolder, currentProjectFolder);
-            switch (homeFolderReplaced) {
+            const replaced = replaceHomeOrProjectFolder(filePath, client);
+
+            const project = (replaced.startsWith("Projects/") ? replaced.split("/")[1] : "") ?? "";
+
+            switch (replaced) {
                 case "Home/Jobs":
-                case "Projects/Jobs":
+                case `Projects/${project}/Jobs`:
                     icon.type = "RESULTFOLDER";
                     break;
                 case "Home/Favorites":
@@ -288,7 +291,7 @@ export const iconFromFilePath = (
                     icon.type = "FSFOLDER";
                     break;
                 case "Home/Trash":
-                case "Projects/Trash":
+                case `Projects/${project}/Trash`:
                     icon.type = "TRASHFOLDER";
                     break;
                 default:

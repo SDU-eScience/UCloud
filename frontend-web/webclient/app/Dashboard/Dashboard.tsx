@@ -186,13 +186,13 @@ const NoEntries = (props: NoEntriesProps): JSX.Element => (
 );
 
 const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): JSX.Element => {
-    const iconType = UF.iconFromFilePath(file.path, file.fileType, Client.homeFolder, Client.currentProjectFolder);
+    const iconType = UF.iconFromFilePath(file.path, file.fileType, Client);
     return (
         <Flex alignItems="center">
             <FileIcon fileIcon={iconType} />
             <Link ml="0.5em" to={fileTablePage(isDirectory(file) ? file.path : getParentPath(file.path))}>
                 <EllipsedText fontSize={2} width={pixelsWide}>
-                    {getFilenameFromPath(replaceHomeOrProjectFolder(file.path, Client.homeFolder, Client.currentProjectFolder))}
+                    {getFilenameFromPath(replaceHomeOrProjectFolder(file.path, Client))}
                 </EllipsedText>
             </Link>
         </Flex>

@@ -181,7 +181,7 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
                 <TextSpan color="grey" fontSize={1}>
                     {formatDistance(notification.ts, new Date(), {addSuffix: true})}
                 </TextSpan>
-                <TextSpan fontSize={1}>{replaceHomeOrProjectFolder(notification.message, Client.homeFolder, Client.currentProjectFolder)}</TextSpan>
+                <TextSpan fontSize={1}>{replaceHomeOrProjectFolder(notification.message, Client)}</TextSpan>
             </Flex>
         </NotificationWrapper>
     );

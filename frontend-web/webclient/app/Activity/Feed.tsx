@@ -58,7 +58,7 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
                         <ReactRouterLink to={fileInfoPage((props.event.activityEvent as Module.MovedActivity).newName)}>
                             <div className="ellipsis">
                                 <Text color="black">
-                                    {replaceHomeOrProjectFolder((props.event.activityEvent as Module.MovedActivity).newName, Client.homeFolder, Client.currentProjectFolder)}
+                                    {replaceHomeOrProjectFolder((props.event.activityEvent as Module.MovedActivity).newName, Client)}
                                 </Text>
                             </div>
                         </ReactRouterLink>

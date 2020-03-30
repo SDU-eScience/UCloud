@@ -30,7 +30,7 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
 
     const removeButton = props.remove ? (<RemoveButton onClick={() => props.remove!()} />) : null;
     const inputRefValueOrNull = props.inputRef?.current?.value;
-    const inputValue = inputRefValueOrNull ?? replaceHomeOrProjectFolder(path, Client.homeFolder, Client.currentProjectFolder);
+    const inputValue = inputRefValueOrNull ?? replaceHomeOrProjectFolder(path, Client);
 
     return (
         <FileSelector

@@ -326,7 +326,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                 <Box ml="3px" mr="10px">
                     <FileIcon
                         key={fileType}
-                        fileIcon={iconFromFilePath(groupedShare.path, fileType, Client.homeFolder, Client.currentProjectFolder)}
+                        fileIcon={iconFromFilePath(groupedShare.path, fileType, Client)}
                     />
                 </Box>
                 <Heading.h4> {folderLink} </Heading.h4>

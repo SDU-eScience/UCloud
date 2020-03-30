@@ -464,7 +464,7 @@ const UploaderRow = (p: {
             <Icon cursor="pointer" ml="10px" name="info" color="white" color2="black" />
             <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
                 Will be uploaded
-                to: {replaceHomeOrProjectFolder(p.upload.path, Client.homeFolder, Client.currentProjectFolder)}
+                to: {replaceHomeOrProjectFolder(p.upload.path, Client)}
             </DropdownContent>
         </Dropdown>
     );
@@ -595,7 +595,7 @@ const UploaderRow = (p: {
     return (
         <Flex flexDirection="row" data-tag={"uploadRow"}>
             <Box width={0.04} textAlign="center">
-                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Client.homeFolder, Client.currentProjectFolder)} />
+                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Client)} />
             </Box>
             <Flex width="100%">{body}</Flex>
         </Flex>
