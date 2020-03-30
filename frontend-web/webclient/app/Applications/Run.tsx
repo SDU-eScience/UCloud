@@ -442,7 +442,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 itemsPerPage: 25,
                 attrs: [FileResource.PATH],
                 order: SortOrder.DESCENDING,
-                sortBy: SortBy.PATH
+                sortBy: SortBy.MODIFIED_AT
             }));
             this.setState(() => ({previousRuns}));
         } catch {
