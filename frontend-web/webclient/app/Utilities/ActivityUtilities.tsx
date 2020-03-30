@@ -19,7 +19,7 @@ export const activityQuery = (scroll: ScrollRequest<number>, filter?: ActivityFi
         if (filter.minTimestamp !== undefined) params.minTimestamp = filter.minTimestamp.getTime();
     }
 
-    return buildQueryString("/activity/browse/user", params);
+    return buildQueryString("/activity/browse", params);
 };
 
 export const activityStreamByPath = (path: string) =>
