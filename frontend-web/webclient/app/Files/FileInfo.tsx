@@ -72,6 +72,7 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
                             currentPath={file.path}
                             navigate={p => props.history.push(fileTablePage(expandHomeFolder(p, Client.homeFolder)))}
                             homeFolder={Client.homeFolder}
+                            projectFolder={Client.projectFolder}
                         />
                     </Flex>
                     <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>

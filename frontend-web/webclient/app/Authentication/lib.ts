@@ -338,6 +338,10 @@ export default class HttpClient {
         return `${this.homeFolder}Projects`;
     }
 
+    public get currentProjectFolder(): string {
+        return `/projects/${this.projectId}/`;
+    }
+
     public get trashFolder(): string {
         return `${this.homeFolder}Trash/`;
     }

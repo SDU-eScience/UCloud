@@ -13,7 +13,7 @@ import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
 import {UploadPolicy} from "Uploader/api";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
@@ -290,6 +290,7 @@ export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
 interface RewritePolicy {
     path: string;
     homeFolder: string;
+    currentProjectFolder: string;
     filesRemaining: number;
     allowOverwrite: boolean;
 }
@@ -299,6 +300,7 @@ type RewritePolicyResult = {applyToAll: boolean} & ({cancelled: true} | {policy:
 export function rewritePolicyDialog({
     path,
     homeFolder,
+    currentProjectFolder,
     filesRemaining,
     allowOverwrite
 }: RewritePolicy): Promise<RewritePolicyResult> {
@@ -309,7 +311,7 @@ export function rewritePolicyDialog({
             <div>
                 <Heading.h3>File exists</Heading.h3>
                 <Divider />
-                {replaceHomeFolder(path, homeFolder)} already
+                {replaceHomeOrProjectFolder(path, homeFolder, currentProjectFolder)} already
                 exists. {allowOverwrite ? "How would you like to proceed?" :
                     "Do you wish to continue? Folders cannot be overwritten."}
                 <Box mt="10px">

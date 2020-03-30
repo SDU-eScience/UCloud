@@ -1,6 +1,6 @@
 import {
     getFilenameFromPath,
-    replaceHomeFolder,
+    replaceHomeOrProjectFolder,
     sizeToString
 } from "../../app/Utilities/FileUtilities";
 
@@ -52,21 +52,21 @@ describe("Get filename from path", () => {
     });
 });
 
-describe("Replace homefolder", () => {
+describe("Replace homefolder and project folder", () => {
 
     const mockHomeFolder = "/home/user@mail.co.uk/";
 
     test("Replace homefolder", () =>
-        expect(replaceHomeFolder("/home/user@mail.co.uk/", mockHomeFolder)).toBe("Home/")
+        expect(replaceHomeOrProjectFolder("/home/user@mail.co.uk/", mockHomeFolder, mockHomeFolder)).toBe("Home/")
     );
 
     test("Replace homefolder subfolder", () =>
-        expect(replaceHomeFolder("/home/user@mail.co.uk/subFolder/withSomething", mockHomeFolder))
+        expect(replaceHomeOrProjectFolder("/home/user@mail.co.uk/subFolder/withSomething", mockHomeFolder, mockHomeFolder))
             .toBe("Home/subFolder/withSomething")
     );
 
     const noHomeFolder = "NotHomeFolder/subfolder/";
     test("Replace homefolder, no homefolder", () =>
-        expect(replaceHomeFolder(noHomeFolder, mockHomeFolder)).toBe(`${noHomeFolder}`)
+        expect(replaceHomeOrProjectFolder(noHomeFolder, mockHomeFolder, mockHomeFolder)).toBe(`${noHomeFolder}`)
     );
 });

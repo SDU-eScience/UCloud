@@ -80,6 +80,7 @@ export async function copyOrMoveFilesNew(
             const result = await rewritePolicyDialog({
                 path: newPathForFile,
                 homeFolder: Client.homeFolder,
+                currentProjectFolder: Client.currentProjectFolder,
                 filesRemaining: filesToCopy.length - i,
                 allowOverwrite
             });
@@ -366,7 +367,8 @@ export const reclassifyFile = async ({file, sensitivity, client}: ReclassifyFile
 };
 
 export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
-export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
+export const replaceHomeOrProjectFolder = (path: string, homeFolder: string, currentProjectFolder: string): string =>
+    path.replace(homeFolder, "Home/").replace(currentProjectFolder, "Projects/");
 export const expandHomeFolder = (path: string, homeFolder: string): string => {
     if (path.startsWith("/Home/"))
         return path.replace("/Home/", homeFolder);
@@ -434,7 +436,7 @@ const toFileName = (path: string): string => {
 };
 
 export function getFilenameFromPath(path: string): string {
-    const replacedHome = replaceHomeFolder(path, Client.homeFolder);
+    const replacedHome = replaceHomeOrProjectFolder(path, Client.homeFolder, Client.currentProjectFolder);
     const fileName = toFileName(replacedHome);
     if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`;
     if (fileName === ".") return `. (Current folder)`;

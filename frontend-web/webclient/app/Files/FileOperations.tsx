@@ -25,7 +25,7 @@ import {
     isAnyMockFile,
     isArchiveExtension,
     moveToTrash,
-    replaceHomeFolder,
+    replaceHomeOrProjectFolder,
     resolvePath,
     shareFiles,
     updateSensitivity
@@ -82,7 +82,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Copy Path",
         onClick: files => UF.copyToClipboard({
             value: files[0].path,
-            message: `${replaceHomeFolder(files[0].path, Client.homeFolder)} copied to clipboard`
+            message: `${replaceHomeOrProjectFolder(files[0].path, Client.homeFolder, Client.currentProjectFolder)} copied to clipboard`
         }),
         disabled: files => !UF.inDevEnvironment() || files.length !== 1 || isAnyMockFile(files),
         icon: "chat"

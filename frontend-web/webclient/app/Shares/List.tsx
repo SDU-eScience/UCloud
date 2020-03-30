@@ -45,7 +45,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
     const initialFetchParams = props.byPath === undefined ?
         listShares({sharedByMe: false, itemsPerPage: 25, page: 0}) : findShare(props.byPath);
 
-    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<{ avatars: Dictionary<AvatarType> }>(
+    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<{avatars: Dictionary<AvatarType>}>(
         loadAvatars({usernames: new Set([])}), {avatars: {}}
     );
 
@@ -141,7 +141,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
                 <div>
                     No shares for <b>{getFilenameFromPath(props.byPath!)}</b>
                 </div>
-            ) : <NoShares sharedByMe={sharedByMe}/>}
+            ) : <NoShares sharedByMe={sharedByMe} />}
             onPageChanged={(pageNumber, {itemsPerPage}) => setFetchParams(listShares({
                 page: pageNumber,
                 sharedByMe,
@@ -177,9 +177,9 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
     );
 };
 
-function AvatarComponent(p: { username: string; avatars: Dictionary<AvatarType> }): JSX.Element {
+function AvatarComponent(p: {username: string; avatars: Dictionary<AvatarType>}): JSX.Element {
     const avatar = p.avatars[p.username] ?? defaultAvatar;
-    return <UserAvatar avatar={avatar} mr="10px"/>;
+    return <UserAvatar avatar={avatar} mr="10px" />;
 }
 
 function GroupedShareCardWrapper(p: {
@@ -223,10 +223,10 @@ function GroupedShareCardWrapper(p: {
     );
 }
 
-const NoShares = ({sharedByMe}: { sharedByMe: boolean }): JSX.Element => (
+const NoShares = ({sharedByMe}: {sharedByMe: boolean}): JSX.Element => (
     <Heading.h3 textAlign="center">
         No shares
-        <br/>
+        <br />
         {sharedByMe ?
             <small>You can create a new share by clicking 'Share' on one of your files.</small> :
             <small>Files shared will appear here.</small>
@@ -326,11 +326,11 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                 <Box ml="3px" mr="10px">
                     <FileIcon
                         key={fileType}
-                        fileIcon={iconFromFilePath(groupedShare.path, fileType, Client.homeFolder)}
+                        fileIcon={iconFromFilePath(groupedShare.path, fileType, Client.homeFolder, Client.currentProjectFolder)}
                     />
                 </Box>
                 <Heading.h4> {folderLink} </Heading.h4>
-                <Box ml="auto"/>
+                <Box ml="auto" />
                 {groupedShare.sharedByMe ?
                     `${groupedShare.shares.length} ${groupedShare.shares.length > 1 ?
                         "collaborators" : "collaborator"}` : sharePermissionsToText(groupedShare.shares[0].rights)}
@@ -368,7 +368,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                             </Flex>
                             <Box ml={"12px"} width="150px">
                                 <Button fullWidth type="submit">
-                                    <Icon name="share" size="1em" mr=".7em"/>
+                                    <Icon name="share" size="1em" mr=".7em" />
                                     Share
                                 </Button>
                             </Box>
@@ -380,23 +380,23 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
             {!(groupedShare.sharedByMe &&
                 groupedShare.shares.some(it => inCancelableState(it.state)) &&
                 groupedShare.shares.length > 1) ? null : (
-                <Spacer
-                    left={<Box/>}
-                    right={(
-                        <Button
-                            type="button"
-                            onClick={() => props.simple && !confirmRevokeAll ?
-                                setConfirmRevokeAll(true) : revokeAll()}
-                            disabled={isLoading}
-                            color={confirmRevokeAll ? "red" : "blue"}
-                            mb="8px"
-                            mr="16px"
-                        >
-                            {!confirmRevokeAll ? "Remove all" : "Confirm remove all"}
-                        </Button>
-                    )}
-                />
-            )}
+                    <Spacer
+                        left={<Box />}
+                        right={(
+                            <Button
+                                type="button"
+                                onClick={() => props.simple && !confirmRevokeAll ?
+                                    setConfirmRevokeAll(true) : revokeAll()}
+                                disabled={isLoading}
+                                color={confirmRevokeAll ? "red" : "blue"}
+                                mb="8px"
+                                mr="16px"
+                            >
+                                {!confirmRevokeAll ? "Remove all" : "Confirm remove all"}
+                            </Button>
+                        )}
+                    />
+                )}
         </Card>
     );
 };
@@ -451,13 +451,13 @@ export const ShareRow: React.FunctionComponent<{
                         mx="8px"
                         onClick={doRevoke}
                     >
-                        <Icon name="close" size="1em" mr=".7em"/>Reject
+                        <Icon name="close" size="1em" mr=".7em" />Reject
                     </Button>
                     <Button
                         color="green"
                         onClick={doAccept}
                     >
-                        <Icon name="check" size="1em" mr=".7em"/>Accept
+                        <Icon name="check" size="1em" mr=".7em" />Accept
                     </Button>
                 </Box>
             );
@@ -468,7 +468,7 @@ export const ShareRow: React.FunctionComponent<{
                     ml="16px"
                     onClick={doRevoke}
                 >
-                    <Icon name="close" size="1em" mr=".7em"/>Reject
+                    <Icon name="close" size="1em" mr=".7em" />Reject
                 </Button>
             );
         }
@@ -482,8 +482,8 @@ export const ShareRow: React.FunctionComponent<{
                     trigger={sharePermissionsToText(share.rights)}
                 >
                     {share.rights.indexOf(AccessRight.WRITE) !== -1 ?
-                        <OptionItem onClick={() => doUpdate(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT}/> :
-                        <OptionItem onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)} text={CAN_EDIT_TEXT}/>
+                        <OptionItem onClick={() => doUpdate(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT} /> :
+                        <OptionItem onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)} text={CAN_EDIT_TEXT} />
                     }
                 </ClickableDropdown>
                 {props.revokeAsIcon ? (
@@ -500,11 +500,11 @@ export const ShareRow: React.FunctionComponent<{
                         }))}
                     />
                 ) : (
-                    <Button color="red" ml="16px" onClick={doRevoke}>
-                        <Icon name="close" size="1em" mr=".7em"/>
+                        <Button color="red" ml="16px" onClick={doRevoke}>
+                            <Icon name="close" size="1em" mr=".7em" />
                         Revoke
-                    </Button>
-                )}
+                        </Button>
+                    )}
             </>
         );
     }
@@ -515,31 +515,31 @@ export const ShareRow: React.FunctionComponent<{
 
             <div>
                 <Text bold>{sharedByMe ? share.sharedWith : sharedBy}</Text>
-                <ShareStateRow state={share.state}/>
+                <ShareStateRow state={share.state} />
             </div>
 
-            <Box flexGrow={1}/>
+            <Box flexGrow={1} />
 
             {permissionsBlock}
         </Flex>
     );
 };
 
-const OptionItem: React.FunctionComponent<{ onClick: () => void; text: string; color?: string }> = props => (
+const OptionItem: React.FunctionComponent<{onClick: () => void; text: string; color?: string}> = props => (
     <Box cursor="pointer" width="auto" ml="-17px" pl="15px" mr="-17px" onClick={props.onClick}>
         <TextSpan color={props.color}>{props.text}</TextSpan>
     </Box>
 );
 
-const ShareStateRow: React.FunctionComponent<{ state: ShareState }> = props => {
+const ShareStateRow: React.FunctionComponent<{state: ShareState}> = props => {
     let body: JSX.Element = <></>;
 
     switch (props.state) {
         case ShareState.ACCEPTED:
-            body = <><Icon size={20} color={colors.green} name={"check"}/> The share has been accepted.</>;
+            body = <><Icon size={20} color={colors.green} name={"check"} /> The share has been accepted.</>;
             break;
         case ShareState.UPDATING:
-            body = <><Icon size={20} color={colors.blue} name={"refresh"}/> The share is currently updating.</>;
+            body = <><Icon size={20} color={colors.blue} name={"refresh"} /> The share is currently updating.</>;
             break;
         case ShareState.REQUEST_SENT:
             body = <>The share has not yet been accepted.</>;

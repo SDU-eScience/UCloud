@@ -5,7 +5,7 @@ import {useState} from "react";
 import styled from "styled-components";
 import {Button, Flex, Icon} from "ui-components";
 import Input, {InputLabel} from "ui-components/Input";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 
 interface FileInputSelectorProps {
     path: string; // selected file
@@ -30,7 +30,7 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
 
     const removeButton = props.remove ? (<RemoveButton onClick={() => props.remove!()} />) : null;
     const inputRefValueOrNull = props.inputRef?.current?.value;
-    const inputValue = inputRefValueOrNull ?? replaceHomeFolder(path, Client.homeFolder);
+    const inputValue = inputRefValueOrNull ?? replaceHomeOrProjectFolder(path, Client.homeFolder, Client.currentProjectFolder);
 
     return (
         <FileSelector

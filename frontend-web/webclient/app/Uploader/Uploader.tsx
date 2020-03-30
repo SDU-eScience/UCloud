@@ -34,7 +34,7 @@ import {setLoading, setUploaderError, setUploaderVisible, setUploads} from "Uplo
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {
     archiveExtensions, getParentPath,
-    isArchiveExtension, replaceHomeFolder,
+    isArchiveExtension, replaceHomeOrProjectFolder,
     resolvePath, sizeToString, statFileQuery
 } from "Utilities/FileUtilities";
 import {getQueryParamOrElse} from "Utilities/URIUtilities";
@@ -464,7 +464,7 @@ const UploaderRow = (p: {
             <Icon cursor="pointer" ml="10px" name="info" color="white" color2="black" />
             <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
                 Will be uploaded
-                to: {replaceHomeFolder(p.upload.path, Client.homeFolder)}
+                to: {replaceHomeOrProjectFolder(p.upload.path, Client.homeFolder, Client.currentProjectFolder)}
             </DropdownContent>
         </Dropdown>
     );
@@ -595,7 +595,7 @@ const UploaderRow = (p: {
     return (
         <Flex flexDirection="row" data-tag={"uploadRow"}>
             <Box width={0.04} textAlign="center">
-                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Client.homeFolder)} />
+                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Client.homeFolder, Client.currentProjectFolder)} />
             </Box>
             <Flex width="100%">{body}</Flex>
         </Flex>
