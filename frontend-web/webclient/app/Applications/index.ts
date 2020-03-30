@@ -144,8 +144,6 @@ export interface JobSchedulingOptionsForInput {
     numberOfNodes: number;
     tasksPerNode: number;
     name: React.RefObject<HTMLInputElement>;
-    useUrl: boolean;
-    url: React.RefObject<HTMLInputElement>;
 }
 
 export interface AdditionalMountedFolder {
@@ -170,6 +168,8 @@ export interface RunAppState {
     application?: FullAppInfo;
     parameterValues: ParameterValues;
     schedulingOptions: JobSchedulingOptionsForInput;
+    useUrl: boolean;
+    url: React.RefObject<HTMLInputElement>;
     favorite: boolean;
     favoriteLoading: boolean;
     mountedFolders: AdditionalMountedFolder[];

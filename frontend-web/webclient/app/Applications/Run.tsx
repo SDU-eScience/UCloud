@@ -82,6 +82,7 @@ const hostnameRegex = new RegExp(
 class Run extends React.Component<RunAppProps, RunAppState> {
     constructor(props: Readonly<RunAppProps>) {
         super(props);
+
         this.state = {
             promises: new PromiseKeeper(),
             jobSubmitted: false,
@@ -99,9 +100,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 numberOfNodes: 1,
                 tasksPerNode: 1,
                 name: React.createRef(),
-                useUrl: false,
-                url: React.createRef()
             },
+
+            useUrl: false,
+            url: React.createRef(),
             favorite: false,
             favoriteLoading: false,
             fsShown: false,
@@ -274,8 +276,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
                                     reservationRef={this.state.reservation}
-                                    useUrlRef={this.state.schedulingOptions.useUrl}
-                                    urlRef={this.state.schedulingOptions.url}
+                                    urlEnabled={this.state.useUrl}
+                                    setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})}
+                                    url={this.state.url}
                                     app={application}
                                 />
                             </RunSection>
@@ -474,6 +477,26 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const {invocation} = this.state.application;
         this.setState(() => ({initialSubmit: true}));
 
+        if (this.state.useUrl) {
+            if (this.state.url.current == null || this.state.url.current.value == "") {
+                snackbarStore.addFailure(
+                    "Persistent URL is enabled, but not set",
+                    5000
+                );
+                this.setState(() => ({jobSubmitted: false}));
+                return;
+            }
+
+            if (this.state.url.current.value.length < 5) {
+                snackbarStore.addFailure(
+                    "URL identifier should be at least 5 characters",
+                    5000
+                );
+                this.setState(() => ({jobSubmitted: false}));
+                return;
+            }
+        }
+
         const parameters = extractValuesFromWidgets({
             map: this.state.parameterValues,
             appParameters: this.state.application!.invocation.parameters,
@@ -536,7 +559,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const jobName = name.current?.value;
         let reservation = this.state.reservation.current ? this.state.reservation.current.value : null;
         if (reservation === "") reservation = null;
-        const urlName = this.state.schedulingOptions.url.current == null ? null : this.state.schedulingOptions.url.current.value;
+        const urlName = this.state.url.current == null ? null : this.state.url.current.value;
 
         const job = {
             application: {
@@ -640,9 +663,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     numberOfNodes: toolDescription.defaultNumberOfNodes,
                     tasksPerNode: toolDescription.defaultTasksPerNode,
                     name: this.state.schedulingOptions.name,
-                    useUrl: this.state.schedulingOptions.useUrl,
-                    url: this.state.schedulingOptions.url
-                }
+                },
+                useUrl: this.state.useUrl,
+                url: this.state.url
             }));
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, `An error occurred fetching ${name}`));
@@ -760,9 +783,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         numberOfNodes,
                         tasksPerNode,
                         name: this.state.schedulingOptions.name,
-                        useUrl: this.state.schedulingOptions.useUrl,
-                        url: this.state.schedulingOptions.url
-                    })
+                    }),
+                    useUrl: this.state.useUrl,
+                    url: this.state.url
+
                 }));
             } catch (e) {
                 console.warn(e);
@@ -852,9 +876,10 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
 
 const ApplicationUrl: React.FunctionComponent<{
     inputRef: React.RefObject<HTMLInputElement>;
+    enabled: boolean;
+    setEnabled: React.Dispatch<React.SetStateAction<boolean>>;
     jobName: React.RefObject<HTMLInputElement>;
 }> = props => {
-    const [enabled, setEnabled] = React.useState<boolean>(false);
     const [url, setUrl] = React.useState<string>("");
 
     React.useEffect(() => {
@@ -866,14 +891,14 @@ const ApplicationUrl: React.FunctionComponent<{
         current.value = url;
     }, [props.inputRef, url]);
 
-
     return (
         <>
             <div>
                 <Label mb={10}>
-                    <Checkbox size={28} checked={enabled} onClick={() => {
-                        setEnabled(!enabled);
-                        if (!enabled && props.jobName.current !== null) {
+                    <Checkbox size={28} checked={props.enabled} onChange={() => {
+                        props.setEnabled(!props.enabled);
+                        
+                        if (!props.enabled && props.jobName.current !== null) {
                             setUrl(urlify(props.jobName.current!.value));
                         }
                     }} />
@@ -882,13 +907,13 @@ const ApplicationUrl: React.FunctionComponent<{
             </div>
 
             <div>
-                { enabled ? (
+                { props.enabled ? (
                     <>
                         <Warning warning="By enabling this setting, anyone with a link can gain access to the application." />
                         <Label mt={20}>
                             <Flex>
                                 <TextSpan mt={10}>https://app-</TextSpan>
-                                <Input placeholder="Unique URL identifier" ref={props.inputRef} />
+                                <Input placeholder="Unique URL identifier" ref={props.inputRef} required />
                                 <TextSpan mt={10}>.cloud.sdu.dk</TextSpan>
                             </Flex>
                         </Label>
@@ -909,8 +934,9 @@ interface JobSchedulingOptionsProps {
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
     reservationRef: React.RefObject<HTMLInputElement>;
-    useUrlRef: boolean;
-    urlRef: React.RefObject<HTMLInputElement>;
+    urlEnabled: boolean;
+    setUrlEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+    url: React.RefObject<HTMLInputElement>;
 }
 
 function urlify(text: string): string {
@@ -919,7 +945,7 @@ function urlify(text: string): string {
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
     if (!props.app) return null;
-    const {maxTime, numberOfNodes, tasksPerNode, name, useUrl, url} = props.options;
+    const {maxTime, numberOfNodes, tasksPerNode, name} = props.options;
     return (
         <>
             <Flex mb="4px" mt="4px">
@@ -928,7 +954,11 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     <Input
                         ref={name}
                         placeholder={"Example: Analysis with parameters XYZ"}
-                        onChange={(enteredName) => url.current!.value = urlify(enteredName.currentTarget.value)}
+                        onChange={(enteredName) => {
+                            if (props.url.current != null) {
+                                props.url.current!.value = urlify(enteredName.currentTarget.value)
+                            }
+                        }}
                     />
                 </Label>
             </Flex>
@@ -988,7 +1018,9 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
             {props.app.invocation.applicationType == "VNC" || props.app.invocation.applicationType == "WEB" ? (
                 <Box mb="4px" mt="1em">
                     <ApplicationUrl
-                        inputRef={props.urlRef}
+                        inputRef={props.url}
+                        enabled={props.urlEnabled}
+                        setEnabled={props.setUrlEnabled}
                         jobName={name}
                     />
                 </Box>
@@ -1004,9 +1036,7 @@ function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOpt
         maxTime: {hours: 0, minutes: 0, seconds: 0},
         numberOfNodes: 1,
         tasksPerNode: 1,
-        name: jobInfo.name,
-        useUrl: jobInfo.useUrl,
-        url: jobInfo.url
+        name: jobInfo.name
     };
     const {maxTime, numberOfNodes, tasksPerNode} = jobInfo;
     extractedJobInfo.maxTime.hours = Math.abs(maxTime.hours);
