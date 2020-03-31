@@ -28,7 +28,9 @@ import {
     Label,
     OutlineButton,
     VerticalButtonGroup,
-    Checkbox
+    Checkbox,
+    Select,
+    Text
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Error from "ui-components/Error";
@@ -47,7 +49,7 @@ import {
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {
     checkIfFileExists,
-    expandHomeFolder,
+    expandHomeOrProjectFolder,
     fetchFileContent,
     fileTablePage, getFilenameFromPath,
     statFileQuery
@@ -87,6 +89,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             jobSubmitted: false,
             initialSubmit: false,
 
+            repository: undefined,
             parameterValues: new Map(),
             mountedFolders: [],
             additionalPeers: [],
@@ -279,6 +282,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                     setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})}
                                     url={this.state.url}
                                     app={application}
+                                    setRepository={repository => this.setState({repository})}
                                 />
                             </RunSection>
 
@@ -513,7 +517,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
 
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
-            const expandedValue = expandHomeFolder(it.ref.current!.value, Client.homeFolder);
+            const expandedValue = expandHomeOrProjectFolder(it.ref.current!.value, Client);
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!
@@ -575,6 +579,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             reservation,
             type: "start",
             name: jobName !== "" ? jobName : null,
+            // repository: this.state.repository,
             acceptSameDataRetry: false
         };
 
@@ -584,7 +589,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Client.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            if (err.request.status == 409) {
+            if (err.request.status === 409) {
                 addStandardDialog({
                     title: "Job with same parameters already running",
                     message: "You might be trying to run a duplicate job. Would you like to proceed?",
@@ -605,7 +610,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         }
                     },
                     onCancel: async () => {
-                        this.setState( () => ({jobSubmitted: false}));
+                        this.setState(() => ({jobSubmitted: false}));
                     }
                 });
             }
@@ -722,7 +727,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     for (const paramKey in fileParams) {
                         const param = fileParams[paramKey];
                         if (userInputValues[param.name]) {
-                            const path = expandHomeFolder(userInputValues[param.name], Client.homeFolder);
+                            const path = expandHomeOrProjectFolder(userInputValues[param.name], Client);
                             if (!await checkIfFileExists(path, Client)) {
                                 invalidFiles.push(userInputValues[param.name]);
                                 userInputValues[param.name] = "";
@@ -740,7 +745,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     const validMountFolders = [] as AdditionalMountedFolder[];
                     // tslint:disable-next-line:prefer-for-of
                     for (let i = 0; i < mountedFolders.length; i++) {
-                        if (await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Client.homeFolder), Client)) {
+                        if (await checkIfFileExists(expandHomeOrProjectFolder(mountedFolders[i].ref, Client), Client)) {
                             const ref = React.createRef<HTMLInputElement>();
                             validMountFolders.push({ref});
                         }
@@ -933,6 +938,7 @@ interface JobSchedulingOptionsProps {
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
     reservationRef: React.RefObject<HTMLInputElement>;
+    setRepository: (repository?: string) => void;
     urlEnabled: boolean;
     setUrlEnabled: React.Dispatch<React.SetStateAction<boolean>>;
     url: React.RefObject<HTMLInputElement>;
@@ -943,6 +949,12 @@ function urlify(text: string): string {
 }
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
+    const [repositories, setRepositories] = React.useState<Page<{name: string}>>(emptyPage);
+    React.useEffect(() => {
+        if (!Client.hasActiveProject) return;
+        Client.get("/projects/repositories?itemsPerPage=100&page=0").then(it => setRepositories(it.response));
+    }, []);
+
     if (!props.app) return null;
     const {maxTime, numberOfNodes, tasksPerNode, name} = props.options;
     return (
@@ -961,6 +973,15 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     />
                 </Label>
             </Flex>
+
+            {!Client.hasActiveProject ? null :
+                <Label>Project Repository
+                    {repositories.items.length === 0 ? <Text ml="8px" my="5px">No repositories available for project</Text> : <Select>
+                        <option onClick={() => props.setRepository()} />
+                        {repositories.items.map(g => <option key={g.name} onClick={() => props.setRepository(g.name)}>{g.name}</option>)}
+                    </Select>}
+                </Label>
+            }
 
             <Flex mb="1em">
                 <SchedulingField

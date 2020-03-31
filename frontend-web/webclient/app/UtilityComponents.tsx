@@ -13,7 +13,7 @@ import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
 import Input, {InputLabel} from "ui-components/Input";
 import {UploadPolicy} from "Uploader/api";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
@@ -49,7 +49,7 @@ export function addStandardDialog({
         <div>
             <div>
                 <Heading.h3>{title}</Heading.h3>
-                {title ? <Divider/> : null}
+                {title ? <Divider /> : null}
                 <div>{message}</div>
             </div>
             <Flex mt="20px">
@@ -65,7 +65,59 @@ export function addStandardDialog({
     ), onCancel, addToFront);
 }
 
-export function sensitivityDialog(): Promise<{ cancelled: true } | { option: SensitivityLevelMap }> {
+interface InputDialog {
+    title: string;
+    defaultValue: string;
+    placeholder: string;
+    cancelText: string;
+    confirmText: string;
+    validator: (val: string) => boolean;
+    validationFailureMessage: string;
+    addToFront: boolean;
+}
+
+export async function addStandardInputDialog({
+    title,
+    validator,
+    cancelText = "Cancel",
+    confirmText = "Submit",
+    addToFront = false,
+    placeholder = "New repository name",
+    validationFailureMessage,
+    defaultValue
+}: InputDialog): Promise<{cancelled: true} | {result: string}> {
+    let fieldValue = defaultValue;
+    return new Promise((resolve, reject) => dialogStore.addDialog(
+        <div>
+            <div>
+                <Heading.h3>{title}</Heading.h3>
+                {title ? <Divider /> : null}
+                <Input
+                    width="250px"
+                    onChange={e => fieldValue = e.target.value}
+                    placeholder={placeholder}
+                />
+            </div>
+            <Flex mt="20px">
+                <Button onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
+                <Button
+                    onClick={() => {
+                        if (validator(fieldValue)) {
+                            dialogStore.success();
+                            resolve({result: fieldValue});
+                        }
+                        else snackbarStore.addFailure(validationFailureMessage);
+                    }}
+                    color="green"
+                >
+                    {confirmText}
+                </Button>
+            </Flex>
+        </div>, () => reject({cancelled: true}), addToFront));
+}
+
+
+export function sensitivityDialog(): Promise<{cancelled: true} | {option: SensitivityLevelMap}> {
     let option = "INHERIT" as SensitivityLevelMap;
     return new Promise(resolve => addStandardDialog({
         title: "Change sensitivity",
@@ -97,7 +149,7 @@ const SharePromptWrapper = styled(Box)`
     width: 620px;
 `;
 
-export function SharePrompt({paths, client}: { paths: string[]; client: HttpClient }): JSX.Element {
+export function SharePrompt({paths, client}: {paths: string[]; client: HttpClient}): JSX.Element {
     const SERVICE = ServiceOrigin.SHARE_SERVICE;
     const readEditOptions = [
         {text: "Can view", value: "read"},
@@ -162,7 +214,7 @@ export function SharePrompt({paths, client}: { paths: string[]; client: HttpClie
                                 width={"418px"}
                                 top={"40px"}
                             >
-                                {searchResponse.data.contacts.map(it =>(
+                                {searchResponse.data.contacts.map(it => (
                                     <div
                                         key={it}
                                         onClick={() => {
@@ -215,21 +267,21 @@ export function SharePrompt({paths, client}: { paths: string[]; client: HttpClie
                                     <Box ml="auto" />
                                 </>
                             ) : (
-                                <>
-                                    <Input readOnly value={shareableLink} rightLabel />
-                                    <InputLabel
-                                        rightLabel
-                                        onClick={() => copyToClipboard({
-                                            value: shareableLink,
-                                            message: "Link copied to clipboard"
-                                        })}
-                                        backgroundColor="blue"
-                                        cursor="pointer"
-                                    >
-                                        Copy
+                                    <>
+                                        <Input readOnly value={shareableLink} rightLabel />
+                                        <InputLabel
+                                            rightLabel
+                                            onClick={() => copyToClipboard({
+                                                value: shareableLink,
+                                                message: "Link copied to clipboard"
+                                            })}
+                                            backgroundColor="blue"
+                                            cursor="pointer"
+                                        >
+                                            Copy
                                     </InputLabel>
-                                </>
-                            )}
+                                    </>
+                                )}
                         </Flex>
                         <Divider />
                     </>
@@ -270,13 +322,13 @@ export function SharePrompt({paths, client}: { paths: string[]; client: HttpClie
                     if (!(paths.length > 1 && "why" in e.response && e.response.why !== "Already exists"))
                         snackbarStore.addFailure(e.response.why);
                 }).finally(() => {
-                if (!promises.canceledKeeper && failures + successes === paths.length) setLoading(false);
-            });
+                    if (!promises.canceledKeeper && failures + successes === paths.length) setLoading(false);
+                });
         });
     }
 }
 
-export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
+export function overwriteDialog(): Promise<{cancelled?: boolean}> {
     return new Promise(resolve => addStandardDialog({
         title: "Warning",
         message: "The existing file is being overwritten. Cancelling now will corrupt the file. Continue?",
@@ -289,7 +341,7 @@ export function overwriteDialog(): Promise<{ cancelled?: boolean }> {
 
 interface RewritePolicy {
     path: string;
-    homeFolder: string;
+    client: HttpClient;
     filesRemaining: number;
     allowOverwrite: boolean;
 }
@@ -298,7 +350,7 @@ type RewritePolicyResult = {applyToAll: boolean} & ({cancelled: true} | {policy:
 
 export function rewritePolicyDialog({
     path,
-    homeFolder,
+    client,
     filesRemaining,
     allowOverwrite
 }: RewritePolicy): Promise<RewritePolicyResult> {
@@ -309,7 +361,7 @@ export function rewritePolicyDialog({
             <div>
                 <Heading.h3>File exists</Heading.h3>
                 <Divider />
-                {replaceHomeFolder(path, homeFolder)} already
+                {replaceHomeOrProjectFolder(path, client)} already
                 exists. {allowOverwrite ? "How would you like to proceed?" :
                     "Do you wish to continue? Folders cannot be overwritten."}
                 <Box mt="10px">
@@ -341,7 +393,7 @@ export function rewritePolicyDialog({
                     color="red"
                     mr="5px"
                 >
-                     No
+                    No
                 </Button>
                 <Button
                     onClick={() => {

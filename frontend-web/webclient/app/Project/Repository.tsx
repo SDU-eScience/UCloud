@@ -12,8 +12,7 @@ import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Client} from "Authentication/HttpClientInstance";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {addStandardDialog} from "UtilityComponents";
-import {useHistory} from "react-router";
+import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 
 const baseContext = "/projects/repositories";
 
@@ -92,17 +91,47 @@ function Repositories(): JSX.Element {
                     left={repo.name}
                     navigate={() => undefined}
                     right={<>
-                        <Button color="red" onClick={() => promptDeleteRepository(repo.name)}>Delete</Button>
+                        <Button onClick={() => promptRenameRepository(repo.name)}>Rename</Button>
+                        <Button ml="8px" color="red" onClick={() => promptDeleteRepository(repo.name)}>Delete</Button>
                     </>}
                 />
             ))}
         </List>);
     }
 
+    async function promptRenameRepository(oldName: string): Promise<void> {
+        const result = await addStandardInputDialog({
+            title: `Rename ${oldName}`,
+            addToFront: false,
+            confirmText: "Rename",
+            defaultValue: "",
+            placeholder: "New repository name",
+            validationFailureMessage: "New name can't be empty.",
+            cancelText: "Cancel",
+            validator: val => {
+                if (!val) return false;
+                if (val.length > 50) return false;
+                return true;
+            }
+        });
+
+        if ("cancelled" in result) return;
+
+        try {
+            await Client.post(`${baseContext}/update`, {oldName, newName: result.result});
+            reload();
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to rename repository."));
+        }
+    }
+
     function promptDeleteRepository(name: string): void {
         addStandardDialog({
             title: "Delete repository?",
-            message: `Delete ${name}?`,
+            message: <>
+                Delete {name}?<br />
+                This will also delete associated files. This Cannot be undone.
+            </>,
             confirmText: "Delete",
             onConfirm: () => deleteRepository(name)
         });
