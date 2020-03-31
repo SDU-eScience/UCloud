@@ -1,6 +1,7 @@
 package dk.sdu.cloud.activity.services
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.module.kotlin.MissingKotlinParameterException
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.activity.api.ActivityEvent
@@ -304,119 +305,125 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
     ): List<ActivityEvent> {
         val activityEventList = arrayListOf<ActivityEvent>()
         searchResponse.hits.hits.forEach { doc ->
-            when {
-                doc.index.startsWith(FILES_SIMPLE_UPLOAD.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<UploadActivity>(doc.sourceAsString)
-                    activityEventList.add(ActivityEvent.Uploaded(
-                        source.token.principal.username,
-                        source.timestamp.time,
-                        source.requestJson.request?.path!!
-                    ))
-                }
-                doc.index.startsWith(FILES_SIMPLE_BULK_UPLOAD.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<BulkUploadActivity>(doc.sourceAsString)
-                    activityEventList.add(ActivityEvent.Uploaded(
-                        source.token.principal.username,
-                        source.timestamp.time,
-                        source.requestJson.path
-                    ))
-                }
-                doc.index.startsWith(FILES_UPDATEDACL.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<UpdateACLActivity>(doc.sourceAsString)
-                    val changes = ArrayList<ActivityEvent.RightsAndUser>()
-                    source.requestJson.request.changes.forEach { update ->
-                        changes.add(ActivityEvent.RightsAndUser(update.rights, update.entity))
+            try {
+                when {
+                    doc.index.startsWith(FILES_SIMPLE_UPLOAD.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<UploadActivity>(doc.sourceAsString)
+                        activityEventList.add(
+                            ActivityEvent.Uploaded(
+                                source.token.principal.username,
+                                source.timestamp.time,
+                                source.requestJson.request?.path!!
+                            )
+                        )
                     }
-                    activityEventList.add(ActivityEvent.UpdatedAcl(
-                        source.token.principal.username,
-                        source.timestamp.time,
-                        source.requestJson.request.path,
-                        changes.toList()
-                    ))
-                }
-                doc.index.startsWith(FILES_RECLASSYFIED.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<ReclassifyActivity>(doc.sourceAsString)
-                    activityEventList.add(ActivityEvent.Reclassify(
-                        source.token.principal.username,
-                        source.timestamp.time,
-                        source.requestJson.request.path,
-                        source.requestJson.request.sensitivity?.name ?: "Inherit"
-                    ))
-                }
-                doc.index.startsWith(FILES_MOVED.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<MoveActivity>(doc.sourceAsString)
-                    activityEventList.add(ActivityEvent.Moved(
-                        source.token.principal.username,
-                        source.requestJson.request.newPath,
-                        source.timestamp.time,
-                        source.requestJson.request.path
-                    ))
-                }
-                doc.index.startsWith(FILES_FAVORITE_TOGGLE.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<FavoriteActivity>(doc.sourceAsString)
-                    if (source.requestJson.files.single().newStatus != null) {
-                        activityEventList.add(ActivityEvent.Favorite(
-                            source.token.principal.username,
-                            source.requestJson.files.single().newStatus!!,
-                            source.timestamp.time,
-                            source.requestJson.files.single().path
-                        ))
+                    doc.index.startsWith(FILES_SIMPLE_BULK_UPLOAD.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<BulkUploadActivity>(doc.sourceAsString)
+                        activityEventList.add(
+                            ActivityEvent.Uploaded(
+                                source.token.principal.username,
+                                source.timestamp.time,
+                                source.requestJson.path
+                            )
+                        )
                     }
-                }
-                doc.index.startsWith(FILES_DOWNLOAD.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<DownloadActivity>(doc.sourceAsString)
-                    activityEventList.add(ActivityEvent.Download(
-                        source.token.principal.username,
-                        source.timestamp.time,
-                        source.requestJson.request.path
-                    ))
-                }
-                doc.index.startsWith(FILES_DELETE_FILE.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<DeleteActivity>(doc.sourceAsString)
-                    activityEventList.add(ActivityEvent.Deleted(
-                        source.token.principal.username,
-                        source.timestamp.time,
-                        source.requestJson.request.path
-                    ))
-                }
-                doc.index.startsWith(FILES_CREATE_DIR.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<CreateDirectoryActivity>(doc.sourceAsString)
-                    activityEventList.add(ActivityEvent.DirectoryCreated(
-                        source.token.principal.username,
-                        source.timestamp.time,
-                        source.requestJson.path
-                    ))
-                }
-                doc.index.startsWith(FILES_COPY.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<CopyActivity>(doc.sourceAsString)
-                    activityEventList.add(ActivityEvent.Copy(
-                        source.token.principal.username,
-                        source.timestamp.time,
-                        source.requestJson.request.path,
-                        source.requestJson.request.newPath
-                    ))
-                }
-                doc.index.startsWith(APP_START_INDEX.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<UsedInAppActivity>(doc.sourceAsString)
-                    if (isFileSearch) {
-                        source.requestJson.mounts.forEach { mount ->
-                            val path = checkSource(mount.toString(), normalizedFilePath)
-                            if (path != null) {
-                                activityEventList.add(
-                                    ActivityEvent.SingleFileUsedByApplication(
-                                        source.token.principal.username,
-                                        source.timestamp.time,
-                                        path,
-                                        source.requestJson.application.name,
-                                        source.requestJson.application.version
-                                    )
-                                )
-                            }
+                    doc.index.startsWith(FILES_UPDATEDACL.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<UpdateACLActivity>(doc.sourceAsString)
+                        val changes = ArrayList<ActivityEvent.RightsAndUser>()
+                        source.requestJson.request.changes.forEach { update ->
+                            changes.add(ActivityEvent.RightsAndUser(update.rights, update.entity))
                         }
-                        source.requestJson.parameters.forEach { (t, u) ->
-                            if (t == "directory") {
-                                val path = checkSource(u.toString(), normalizedFilePath)
-                                if (path != null ) {
+                        activityEventList.add(
+                            ActivityEvent.UpdatedAcl(
+                                source.token.principal.username,
+                                source.timestamp.time,
+                                source.requestJson.request.path,
+                                changes.toList()
+                            )
+                        )
+                    }
+                    doc.index.startsWith(FILES_RECLASSYFIED.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<ReclassifyActivity>(doc.sourceAsString)
+                        activityEventList.add(
+                            ActivityEvent.Reclassify(
+                                source.token.principal.username,
+                                source.timestamp.time,
+                                source.requestJson.request.path,
+                                source.requestJson.request.sensitivity?.name ?: "Inherit"
+                            )
+                        )
+                    }
+                    doc.index.startsWith(FILES_MOVED.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<MoveActivity>(doc.sourceAsString)
+                        activityEventList.add(
+                            ActivityEvent.Moved(
+                                source.token.principal.username,
+                                source.requestJson.request.newPath,
+                                source.timestamp.time,
+                                source.requestJson.request.path
+                            )
+                        )
+                    }
+                    doc.index.startsWith(FILES_FAVORITE_TOGGLE.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<FavoriteActivity>(doc.sourceAsString)
+                        if (source.requestJson.files.single().newStatus != null) {
+                            activityEventList.add(
+                                ActivityEvent.Favorite(
+                                    source.token.principal.username,
+                                    source.requestJson.files.single().newStatus!!,
+                                    source.timestamp.time,
+                                    source.requestJson.files.single().path
+                                )
+                            )
+                        }
+                    }
+                    doc.index.startsWith(FILES_DOWNLOAD.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<DownloadActivity>(doc.sourceAsString)
+                        activityEventList.add(
+                            ActivityEvent.Download(
+                                source.token.principal.username,
+                                source.timestamp.time,
+                                source.requestJson.request.path
+                            )
+                        )
+                    }
+                    doc.index.startsWith(FILES_DELETE_FILE.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<DeleteActivity>(doc.sourceAsString)
+                        activityEventList.add(
+                            ActivityEvent.Deleted(
+                                source.token.principal.username,
+                                source.timestamp.time,
+                                source.requestJson.request.path
+                            )
+                        )
+                    }
+                    doc.index.startsWith(FILES_CREATE_DIR.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<CreateDirectoryActivity>(doc.sourceAsString)
+                        activityEventList.add(
+                            ActivityEvent.DirectoryCreated(
+                                source.token.principal.username,
+                                source.timestamp.time,
+                                source.requestJson.path
+                            )
+                        )
+                    }
+                    doc.index.startsWith(FILES_COPY.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<CopyActivity>(doc.sourceAsString)
+                        activityEventList.add(
+                            ActivityEvent.Copy(
+                                source.token.principal.username,
+                                source.timestamp.time,
+                                source.requestJson.request.path,
+                                source.requestJson.request.newPath
+                            )
+                        )
+                    }
+                    doc.index.startsWith(APP_START_INDEX.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<UsedInAppActivity>(doc.sourceAsString)
+                        if (isFileSearch) {
+                            source.requestJson.mounts.forEach { mount ->
+                                val path = checkSource(mount.toString(), normalizedFilePath)
+                                if (path != null) {
                                     activityEventList.add(
                                         ActivityEvent.SingleFileUsedByApplication(
                                             source.token.principal.username,
@@ -428,49 +435,67 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                                     )
                                 }
                             }
-                        }
-
-                    }
-                    if (isUserSearch) {
-                        var filesUsed = ""
-                        source.requestJson.mounts.forEach { mount ->
-                            val path = checkSource(mount.toString(), normalizedFilePath, inUserSearch = true)
-                            if (path != null) {
-                                filesUsed += "$path, "
+                            source.requestJson.parameters.forEach { (t, u) ->
+                                if (t == "directory") {
+                                    val path = checkSource(u.toString(), normalizedFilePath)
+                                    if (path != null) {
+                                        activityEventList.add(
+                                            ActivityEvent.SingleFileUsedByApplication(
+                                                source.token.principal.username,
+                                                source.timestamp.time,
+                                                path,
+                                                source.requestJson.application.name,
+                                                source.requestJson.application.version
+                                            )
+                                        )
+                                    }
+                                }
                             }
+
                         }
-                        source.requestJson.parameters.forEach { (t, u) ->
-                            if (t == "directory") {
-                                val path = checkSource(u.toString(), normalizedFilePath, inUserSearch = true)
+                        if (isUserSearch) {
+                            var filesUsed = ""
+                            source.requestJson.mounts.forEach { mount ->
+                                val path = checkSource(mount.toString(), normalizedFilePath, inUserSearch = true)
                                 if (path != null) {
                                     filesUsed += "$path, "
                                 }
                             }
+                            source.requestJson.parameters.forEach { (t, u) ->
+                                if (t == "directory") {
+                                    val path = checkSource(u.toString(), normalizedFilePath, inUserSearch = true)
+                                    if (path != null) {
+                                        filesUsed += "$path, "
+                                    }
+                                }
+                            }
+                            activityEventList.add(
+                                ActivityEvent.AllFilesUsedByApplication(
+                                    source.token.principal.username,
+                                    source.timestamp.time,
+                                    filesUsed,
+                                    source.requestJson.application.name,
+                                    source.requestJson.application.version
+                                )
+                            )
+
                         }
+                    }
+                    doc.index.startsWith(SHARES_CREATED.dropLast(1)) -> {
+                        val source = defaultMapper.readValue<SharedActivity>(doc.sourceAsString)
                         activityEventList.add(
-                            ActivityEvent.AllFilesUsedByApplication(
+                            ActivityEvent.SharedWith(
                                 source.token.principal.username,
                                 source.timestamp.time,
-                                filesUsed,
-                                source.requestJson.application.name,
-                                source.requestJson.application.version
+                                source.requestJson.path,
+                                source.requestJson.sharedWith,
+                                source.requestJson.rights
                             )
                         )
-
                     }
                 }
-                doc.index.startsWith(SHARES_CREATED.dropLast(1)) -> {
-                    val source = defaultMapper.readValue<SharedActivity>(doc.sourceAsString)
-                    activityEventList.add(
-                        ActivityEvent.SharedWith(
-                            source.token.principal.username,
-                            source.timestamp.time,
-                            source.requestJson.path,
-                            source.requestJson.sharedWith,
-                            source.requestJson.rights
-                        )
-                    )
-                }
+            } catch (ex: MissingKotlinParameterException) {
+                log.warn("${doc.id} in ${doc.index} has null value")
             }
         }
         return activityEventList.toList()

@@ -1,5 +1,4 @@
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {LoadingMainContainer} from "MainContainer/MainContainer";
 import {
     addMemberInProject,
@@ -18,22 +17,37 @@ import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router";
 import {Box, Button, Flex, Input, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {defaultAvatar} from "UserSettings/Avataaar";
+import {defaultAvatar, AvatarType} from "UserSettings/Avataaar";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {Client} from "Authentication/HttpClientInstance";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {usePromiseKeeper} from "PromiseKeeper";
+import {Avatar} from "AvataaarLib";
+import {loadingAction} from "Loading";
+import {
+    projectRoleToString,
+    shouldVerifyMembership,
+    ShouldVerifyMembershipResponse,
+    verifyMembership
+} from "Project/api";
+import {Client} from "Authentication/HttpClientInstance";
 
 const View: React.FunctionComponent<ViewOperations> = props => {
-    const id = decodeURIComponent(useParams<{id: string}>().id);
+    const id = decodeURIComponent(useParams<{ id: string }>().id);
     const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
+    const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
+        shouldVerifyMembership(id),
+        {shouldVerify: false}
+    );
 
     const role = roleInProject(project.data);
-    const allowManagement = role === ProjectRole.PI || Client.userIsAdmin;
+    const allowManagement = role === ProjectRole.PI || role === ProjectRole.ADMIN;
     const newMemberRef = useRef<HTMLInputElement>(null);
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
+    const [avatars, setAvatars] = React.useState<{[username: string]: AvatarType}>({});
+    const promises = usePromiseKeeper();
 
     const reload = (): void => setProjectParams(viewProject({id}));
 
@@ -41,6 +55,20 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         props.setRefresh(reload);
         return () => props.setRefresh();
     }, []);
+
+    useEffect(() => {
+        props.setLoading(project.loading);
+    }, [project.loading]);
+
+    React.useEffect(() => {
+        const usernames = project.data.members.map(it => it.username);
+        if (usernames.length === 0) return;
+        promises.makeCancelable(
+            Client.post<{avatars: {[key: string]: AvatarType}}>("/avatar/bulk", {usernames: project.data.members.map(it => it.username)})
+        ).promise.then(it =>
+            setAvatars(it.response.avatars)
+        ).catch(it => console.warn(it));
+    }, [project.data.members.length, id]);
 
     useEffect(() => reload(), [id]);
 
@@ -63,23 +91,17 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         }
     };
 
+    const onApprove = async () => {
+        await callAPIWithErrorHandler(verifyMembership(id));
+        setShouldVerifyParams(shouldVerifyMembership(id));
+    };
+
     return (
         <LoadingMainContainer
-            headerSize={124}
+            headerSize={66}
             header={(
                 <>
-                    <Heading.h3>
-                        Project {project.data.title}
-                    </Heading.h3>
-                    <form onSubmit={onSubmit}>
-                        <Label htmlFor={"new-project-member"}>Add new member</Label>
-                        <Input
-                            id="new-project-member"
-                            placeholder="Username"
-                            ref={newMemberRef}
-                            disabled={isCreatingNewMember}
-                        />
-                    </form>
+                    <Heading.h3>{project.data.id}</Heading.h3>
                 </>
             )}
             sidebar={null}
@@ -87,11 +109,47 @@ const View: React.FunctionComponent<ViewOperations> = props => {
             error={project.error ? project.error.why : undefined}
             main={(
                 <>
+                    {!allowManagement ? null : (
+                        <form onSubmit={onSubmit}>
+                            <Label htmlFor={"new-project-member"}>Add new member</Label>
+                            <Input
+                                id="new-project-member"
+                                placeholder="Username"
+                                ref={newMemberRef}
+                                disabled={isCreatingNewMember}
+                            />
+                        </form>
+                    )}
+                    {!shouldVerify.data.shouldVerify ? null : (
+                        <Box backgroundColor={"orange"} color={"white"} p={32}>
+                            <Heading.h4>Time for a review!</Heading.h4>
+
+                            <ul>
+                                <li>PIs and admins are asked to occasionally review members of their project</li>
+                                <li>We ask you to ensure that only the people who need access have access</li>
+                                <li>If you find someone who should not have access then remove them by clicking 'Remove'
+                                    next to their name
+                                </li>
+                                <li>
+                                    When you are done, click below:
+
+                                    <Box mt={8}>
+                                        <Button color={"green"} textColor={"white"} onClick={onApprove}>
+                                            Everything looks good now
+                                        </Button>
+                                    </Box>
+                                </li>
+                            </ul>
+
+                        </Box>
+                    )}
+
                     {project.data.members.map((e, idx) => (
                         <ViewMember
                             key={idx}
                             project={project.data}
                             member={e}
+                            avatar={avatars[e.username] ?? defaultAvatar}
                             allowManagement={allowManagement}
                             onActionComplete={() => undefined/* reload() */}
                         />
@@ -107,6 +165,7 @@ const ViewMember: React.FunctionComponent<{
     member: ProjectMember;
     allowManagement: boolean;
     onActionComplete: () => void;
+    avatar: AvatarType;
 }> = props => {
     const [isLoading, runCommand] = useAsyncCommand();
     const [role, setRole] = useState<ProjectRole>(props.member.role);
@@ -123,13 +182,13 @@ const ViewMember: React.FunctionComponent<{
     return (
         <Box mt={16}>
             <Flex>
-                <UserAvatar avatar={defaultAvatar} />
+                <Flex width="60px" alignItems="center" height="48px"><Avatar avatarStyle="circle" {...props.avatar} /></Flex>
                 <Box flexGrow={1}>
-                    {props.member.username} <br />
-                    {!props.allowManagement ? role : (
+                    {props.member.username} <br/>
+                    {!props.allowManagement || role === ProjectRole.PI ? projectRoleToString(role) : (
                         <ClickableDropdown
                             chevron
-                            trigger={role}
+                            trigger={projectRoleToString(role)}
                             onChange={async value => {
                                 try {
                                     await runCommand(changeRoleInProject({
@@ -151,7 +210,7 @@ const ViewMember: React.FunctionComponent<{
                         />
                     )}
                 </Box>
-                {!props.allowManagement ? null : (
+                {!props.allowManagement || props.member.role == ProjectRole.PI ? null : (
                     <Box flexShrink={0}>
                         <Button
                             color={"red"}
@@ -170,10 +229,12 @@ const ViewMember: React.FunctionComponent<{
 
 interface ViewOperations {
     setRefresh: (refresh?: () => void) => void;
+    setLoading: (loading: boolean) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): ViewOperations => ({
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
+    setLoading: loading => dispatch(loadingAction(loading))
 });
 
 export default connect(null, mapDispatchToProps)(View);

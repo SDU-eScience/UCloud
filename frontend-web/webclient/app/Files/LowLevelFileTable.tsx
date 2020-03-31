@@ -423,6 +423,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                             currentPath={props.path ?? ""}
                             navigate={onFileNavigation}
                             homeFolder={Client.homeFolder}
+                            projectFolder={Client.projectFolder}
                         />
                     )}
 
@@ -876,7 +877,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const icon = (
         <Flex mr="10px" alignItems="center" cursor="inherit">
             <FileIcon
-                fileIcon={UF.iconFromFilePath(props.file.path, props.file.fileType, Client.homeFolder)}
+                fileIcon={UF.iconFromFilePath(props.file.path, props.file.fileType, Client)}
                 size={42}
                 shared={(props.file.acl != null ? props.file.acl.length : 0) > 0}
             />

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "indexing"
-    version = "1.16.0"
+    version = "1.16.1"
 
     withAmbassador {}
 
@@ -11,6 +11,21 @@ bundle { ctx ->
         deployment.spec.replicas = 2
 
         injectSecret("elasticsearch-credentials")
+        injectConfiguration("ceph-fs-config")
+
+        val cephfsVolume = "cephfs"
+        serviceContainer.volumeMounts.add(VolumeMount().apply {
+            name = cephfsVolume
+            mountPath = "/mnt/cephfs"
+            readOnly = true
+        })
+
+        volumes.add(Volume().apply {
+            name = cephfsVolume
+            persistentVolumeClaim = PersistentVolumeClaimVolumeSource().apply {
+                claimName = cephfsVolume
+            }
+        })
     }
 
     val deploymentWithMount = DeploymentResource(
@@ -29,6 +44,7 @@ bundle { ctx ->
         serviceContainer.volumeMounts.add(VolumeMount().apply {
             name = cephfsVolume
             mountPath = "/mnt/cephfs"
+            readOnly = true
         })
 
         volumes.add(Volume().apply {

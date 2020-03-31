@@ -8,16 +8,16 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page} from "Types";
 import Button from "ui-components/Button";
-import {Text, Icon} from "ui-components";
+import {Flex, Icon, List, Text} from "ui-components";
 import Link from "ui-components/Link";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
-import {prettierString} from "UtilityFunctions";
-import {List} from "ui-components";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {ListRow} from "ui-components/List";
 import {useHistory} from "react-router";
-
+import {loadingAction} from "Loading";
+import {dispatchSetProjectAction} from "Project/Redux";
+import {projectRoleToString} from "Project/api";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -25,6 +25,10 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         listProjects({page: 0, itemsPerPage: 50}),
         emptyPage
     );
+
+    React.useEffect(() => {
+        props.setLoading(response.loading);
+    }, [response.loading]);
 
     const history = useHistory();
 
@@ -47,7 +51,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             main={(
                 <Pagination.List
                     page={response.data}
-                    pageRenderer={page => (
+                    pageRenderer={(page: Page<UserInProject>) => (
                         <List>
                             {page.items.map(e => {
                                 const isSelected = e.projectId === props.project;
@@ -61,15 +65,20 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         leftSub={<>
                                             <Text fontSize={0} pb="3px"><Icon mt="-2px" size="12px" name="id" /> {e.projectId}</Text>
                                             <Text fontSize={0} ml="4px"><Icon color="white" color2="black" mt="-2px" size="12px" name="user" />
-                                                {" "}{prettierString(e.whoami.role)}
+                                                {" "}{projectRoleToString(e.whoami.role)}
                                             </Text>
                                         </>}
                                         right={<>
-                                            {isSelected ? <Link to="/projects/repositories"><Button mr="6px">Repositories</Button></Link> : null}
-                                            {isSelected ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
-                                            {isSelected ? <Icon mr="44px" mt="9px" name="check" color="green" /> : (
-                                                <Button onClick={() => props.setProject(e.projectId)}>Set active</Button>
-                                            )}
+                                            <Flex alignItems={"center"}>
+                                                {!e.needsVerification ? null : (
+                                                    <Text fontSize={0} mr={8}><Icon name={"warning"} /> Attention required</Text>
+                                                )}
+                                                {isSelected ? <Link to="/projects/repositories"><Button mr="6px">Repositories</Button></Link> : null}
+                                                {isSelected ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
+                                                {isSelected ? <Icon mr="44px" mt="9px" name="check" color="green" /> : (
+                                                    <Button onClick={() => props.setProject(e.projectId)}>Set active</Button>
+                                                )}
+                                            </Flex>
                                         </>}
                                     />
                                 );
@@ -100,14 +109,16 @@ interface DispatchProps {
     setProject: (id?: string) => void;
     setPageTitle: () => void;
     setRefresh: (refresh?: () => void) => void;
+    setLoading: (loading: boolean) => void;
 }
 
 const mapStateToProps = (state: ReduxObject): {project?: string} => state.project;
 
 const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
     setPageTitle: () => dispatch(updatePageTitle("Projects")),
-    setProject: id => dispatch({type: "SET_PROJECT", project: id}),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
+    setLoading: loading => dispatch(loadingAction(loading)),
+    setProject: id => dispatchSetProjectAction(dispatch, id)
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(_List);

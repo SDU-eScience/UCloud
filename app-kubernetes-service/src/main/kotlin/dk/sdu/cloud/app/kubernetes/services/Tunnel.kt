@@ -7,6 +7,7 @@ class Tunnel(
     val jobId: String,
     val ipAddress: String,
     val localPort: Int,
+    val urlId: String?,
     private val _isAlive: () -> Boolean,
     private val _close: () -> Unit
 ) : Closeable {

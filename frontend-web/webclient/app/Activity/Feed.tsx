@@ -7,7 +7,7 @@ import styled from "styled-components";
 import {Box, Flex, Text} from "ui-components";
 import Icon, {IconName} from "ui-components/Icon";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {fileInfoPage, getFilenameFromPath, replaceHomeFolder} from "Utilities/FileUtilities";
+import {fileInfoPage, getFilenameFromPath, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 
 export const ActivityFeedFrame: React.FC<{containerRef?: React.RefObject<HTMLTableSectionElement>}> = props => {
     return (
@@ -58,7 +58,7 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
                         <ReactRouterLink to={fileInfoPage((props.event.activityEvent as Module.MovedActivity).newName)}>
                             <div className="ellipsis">
                                 <Text color="black">
-                                    {replaceHomeFolder((props.event.activityEvent as Module.MovedActivity).newName, Client.homeFolder)}
+                                    {replaceHomeOrProjectFolder((props.event.activityEvent as Module.MovedActivity).newName, Client)}
                                 </Text>
                             </div>
                         </ReactRouterLink>

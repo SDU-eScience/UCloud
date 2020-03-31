@@ -40,6 +40,7 @@ export interface BreadcrumbsList {
     currentPath: string;
     navigate: (path: string) => void;
     homeFolder: string;
+    projectFolder: string;
 }
 
 export interface BreadCrumbMapping {
@@ -47,9 +48,14 @@ export interface BreadCrumbMapping {
     local: string;
 }
 
-export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList): JSX.Element | null => {
+export const BreadCrumbs = ({
+    currentPath,
+    navigate,
+    homeFolder,
+    projectFolder
+}: BreadcrumbsList): JSX.Element | null => {
     if (!currentPath) return null;
-    const pathsMapping = buildBreadCrumbs(currentPath, homeFolder);
+    const pathsMapping = buildBreadCrumbs(currentPath, homeFolder, projectFolder);
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map((path, index) => (
@@ -89,22 +95,30 @@ export const BreadCrumbs = ({currentPath, navigate, homeFolder}: BreadcrumbsList
     }
 };
 
-function buildBreadCrumbs(path: string, homeFolder: string): BreadCrumbMapping[] {
+function buildBreadCrumbs(path: string, homeFolder: string, projectFolder: string): BreadCrumbMapping[] {
     const paths = path.split("/").filter(p => p !== "");
     if (paths.length === 0) return [{actualPath: "/", local: "/"}];
 
-    let pathsMapping: BreadCrumbMapping[] = [];
+    const pathsMapping: BreadCrumbMapping[] = [];
     for (let i = 0; i < paths.length; i++) {
         let actualPath = "/";
         for (let j = 0; j <= i; j++) actualPath += paths[j] + "/";
         pathsMapping.push({actualPath, local: paths[i]});
     }
+
+    // Handle starts with home
     if (addTrailingSlash(path).startsWith(homeFolder)) // remove first two indices
-        pathsMapping = [{actualPath: homeFolder, local: "Home", }].concat(pathsMapping.slice(2));
+        return [{actualPath: homeFolder, local: "Home"}].concat(pathsMapping.slice(2));
     else if (path.startsWith("/home") && pathsMapping.length >= 2)
-        pathsMapping = [{
+        return [{
             actualPath: pathsMapping[1].actualPath,
             local: `Home of ${pathsMapping[1].local}`
         }].concat(pathsMapping.slice(2));
+
+    // Handle starts with project
+    if (addTrailingSlash(path).startsWith("/projects/")) {
+        return [{actualPath: projectFolder, local: "Projects"}].concat(pathsMapping.slice(2));
+    }
+
     return pathsMapping;
 }

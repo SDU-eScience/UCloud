@@ -3,6 +3,7 @@ package dk.sdu.cloud.indexing.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.StorageFile
+import dk.sdu.cloud.file.api.joinPath
 import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.Comparison
 import dk.sdu.cloud.indexing.api.ComparisonOperator
@@ -41,7 +42,8 @@ import org.elasticsearch.search.sort.SortOrder
 
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient,
-    private val fastDirectoryStats: FastDirectoryStats?
+    private val fastDirectoryStats: FastDirectoryStats?,
+    private val cephFsRoot: String
 ) {
     private val mapper = defaultMapper
 
@@ -76,7 +78,7 @@ class ElasticQueryService(
         return if (fastDirectoryStats != null) {
             var sum = 0L
             for (path in paths) {
-                sum += fastDirectoryStats.getRecursiveSize(path)
+                sum += fastDirectoryStats.getRecursiveSize(joinPath(cephFsRoot, path))
             }
             sum
         } else {

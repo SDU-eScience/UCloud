@@ -57,6 +57,10 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                             text: "Select",
                             onClick: files => props.onFileSelect(files[0]),
                             disabled: files => {
+                                if (files.some(it => addTrailingSlash(resolvePath(it.path)) === Client.currentProjectFolder)) {
+                                    return true;
+                                }
+
                                 if (files.some(it => it.mockTag !== undefined && it.mockTag !== MOCK_RELATIVE)) {
                                     return true;
                                 }

@@ -1,27 +1,19 @@
 package dk.sdu.cloud.accounting.compute.services
 
-import dk.sdu.cloud.accounting.api.ContextQuery
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.CriteriaBuilderContext
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.createCriteriaBuilder
 import dk.sdu.cloud.service.db.createQuery
-import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.paginatedCriteria
-import dk.sdu.cloud.service.mapItems
 import org.hibernate.annotations.NaturalId
 import java.util.*
 import javax.persistence.Entity
 import javax.persistence.Id
 import javax.persistence.Table
-import javax.persistence.criteria.Predicate
 
 /**
  * @see [AccountingJobCompletedEvent]
@@ -46,8 +38,8 @@ data class JobCompletedEntity(
 /**
  * Implements [CompletedJobsDao] with Hibernate
  */
-class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
-    override fun upsert(session: HibernateSession, event: AccountingJobCompletedEvent) {
+class CompletedJobsDao {
+    fun upsert(session: HibernateSession, event: AccountingJobCompletedEvent) {
         val existing = JobCompletedEntity[session, event.jobId]
         if (existing != null) return
 
@@ -55,61 +47,16 @@ class CompletedJobsHibernateDao : CompletedJobsDao<HibernateSession> {
         session.saveOrUpdate(entity)
     }
 
-    override fun listAllEvents(
-        session: HibernateSession,
-        context: ContextQuery,
-        user: String
-    ): List<AccountingJobCompletedEvent> {
-        return session.criteria<JobCompletedEntity>(
-            orderBy = { listOf(descending(entity[JobCompletedEntity::timestamp])) },
-
-            predicate = {
-                (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
-            }
-        ).list().map { it.toModel() }
-    }
-
-    override fun listEvents(
-        session: HibernateSession,
-        paging: NormalizedPaginationRequest,
-        context: ContextQuery,
-        user: String
-    ): Page<AccountingJobCompletedEvent> {
-        return session.paginatedCriteria<JobCompletedEntity>(
-            paging,
-            orderBy = { listOf(descending(entity[JobCompletedEntity::timestamp])) },
-            predicate = {
-                (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
-            }
-        ).mapItems { it.toModel() }
-    }
-
-    override fun computeUsage(session: HibernateSession, context: ContextQuery, user: String): Long {
+    fun computeUsage(session: HibernateSession, user: String): Long {
         val query = session.createCriteriaBuilder<Pair<Long, Int>, JobCompletedEntity>().run {
             criteria.multiselect(entity[JobCompletedEntity::durationInMs], entity[JobCompletedEntity::nodes])
             criteria.where(
-                (entity[JobCompletedEntity::startedBy] equal user) and matchingContext(context)
+                (entity[JobCompletedEntity::startedBy] equal user)
             )
             criteria
         }.createQuery(session).list()
 
         return query.map { it.first * it.second }.sum()
-    }
-
-    private fun CriteriaBuilderContext<*, JobCompletedEntity>.matchingContext(context: ContextQuery): Predicate {
-        var builder = literal(true).toPredicate()
-        // TODO We really need >= and <=
-        val since = context.since
-        val until = context.until
-        if (since != null) {
-            builder = builder and (entity[JobCompletedEntity::timestamp] greaterThan Date(since - 1))
-        }
-
-        if (until != null) {
-            builder = builder and (entity[JobCompletedEntity::timestamp] lessThan Date(until + 1))
-        }
-
-        return builder
     }
 
     companion object : Loggable {
@@ -128,16 +75,4 @@ fun AccountingJobCompletedEvent.toEntity(): JobCompletedEntity = JobCompletedEnt
     nodes,
     Date(timestamp),
     jobId
-)
-
-/**
- * Converts [JobCompletedEntity] to [AccountingJobCompletedEvent]
- */
-fun JobCompletedEntity.toModel(): AccountingJobCompletedEvent = AccountingJobCompletedEvent(
-    NameAndVersion(applicationName, applicationVersion),
-    nodes,
-    durationInMs.toSimpleDuration(),
-    startedBy,
-    jobId,
-    timestamp.time
 )
