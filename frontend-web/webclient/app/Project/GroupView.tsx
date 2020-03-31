@@ -18,6 +18,10 @@ import {Spacer} from "ui-components/Spacer";
 import {History} from "history";
 import {addStandardDialog} from "UtilityComponents";
 import {emptyPage} from "DefaultObjects";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {loadingAction} from "Loading";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 
 interface GroupWithSummary {
     group: string;
@@ -40,7 +44,7 @@ interface PaginationRequest {
     page: number;
 }
 
-function GroupsOverview(): JSX.Element | null {
+function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
     const history = useHistory();
     const {group} = useParams<{group?: string}>();
     const [creatingGroup, setCreatingGroup] = React.useState(false);
@@ -52,6 +56,18 @@ function GroupsOverview(): JSX.Element | null {
         page: 0,
         itemsPerPage: 25
     }), emptyPage);
+
+    // set reload
+    const reload = () => fetchSummaries({...params});
+
+    React.useEffect(() => {
+        props.setRefresh(reload);
+    }, [reload]);
+
+    // set loading
+    React.useEffect(() => {
+        props.setLoading(groupSummaries.loading);
+    }, [groupSummaries.loading]);
 
     const promptDeleteGroups = React.useCallback(async () => {
         const groups = [...selectedGroups];
@@ -69,6 +85,7 @@ function GroupsOverview(): JSX.Element | null {
                 try {
                     setLoading(true);
                     await Client.delete(baseContext, {groups});
+                    reload();
                 } catch (err) {
                     snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred deleting groups"));
                 } finally {
@@ -173,4 +190,14 @@ function SimpleGroupView({group, setSelected, isSelected, history}: GroupViewPro
     );
 }
 
-export default GroupsOverview;
+interface GroupViewOperations {
+    setLoading: (loading: boolean) => void;
+    setRefresh: (refresh?: () => void) => void;
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): GroupViewOperations => ({
+    setLoading: loading => dispatch(loadingAction(loading)),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+});
+
+export default connect(null, mapDispatchToProps)(GroupsOverview);
