@@ -1,10 +1,10 @@
 import * as AccountingRedux from "Accounting/Redux";
-import {Activity, ActivityFilter, ActivityForFrontend} from "Activity";
+import {ActivityFilter, ActivityForFrontend} from "Activity";
 import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
 import * as ApplicationRedux from "Applications/Redux";
 import {TaskReduxState} from "BackgroundTasks/redux";
 import {DashboardStateProps} from "Dashboard";
-import {DetailedFileSearchReduxState, File, SortOrder} from "Files";
+import {DetailedFileSearchReduxState, SortOrder} from "Files";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";

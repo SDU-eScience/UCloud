@@ -27,6 +27,7 @@ import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Avatar} from "AvataaarLib";
+import {loadingAction} from "Loading";
 
 const View: React.FunctionComponent<ViewOperations> = props => {
     const id = decodeURIComponent(useParams<{id: string}>().id);
@@ -45,6 +46,10 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         props.setRefresh(reload);
         return () => props.setRefresh();
     }, []);
+
+    useEffect(() => {
+        props.setLoading(project.loading);
+    }, [project.loading]);
 
     React.useEffect(() => {
         const usernames = project.data.members.map(it => it.username);
@@ -186,10 +191,12 @@ const ViewMember: React.FunctionComponent<{
 
 interface ViewOperations {
     setRefresh: (refresh?: () => void) => void;
+    setLoading: (loading: boolean) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): ViewOperations => ({
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
+    setLoading: loading => dispatch(loadingAction(loading))
 });
 
 export default connect(null, mapDispatchToProps)(View);

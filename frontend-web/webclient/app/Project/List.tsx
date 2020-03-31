@@ -17,6 +17,7 @@ import {updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {ListRow} from "ui-components/List";
 import {useHistory} from "react-router";
+import {loadingAction} from "Loading";
 
 
 // eslint-disable-next-line no-underscore-dangle
@@ -25,6 +26,10 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         listProjects({page: 0, itemsPerPage: 50}),
         emptyPage
     );
+
+    React.useEffect(() => {
+        props.setLoading(response.loading);
+    }, [response.loading]);
 
     const history = useHistory();
 
@@ -100,6 +105,7 @@ interface DispatchProps {
     setProject: (id?: string) => void;
     setPageTitle: () => void;
     setRefresh: (refresh?: () => void) => void;
+    setLoading: (loading: boolean) => void;
 }
 
 const mapStateToProps = (state: ReduxObject): {project?: string} => state.project;
@@ -107,7 +113,8 @@ const mapStateToProps = (state: ReduxObject): {project?: string} => state.projec
 const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
     setPageTitle: () => dispatch(updatePageTitle("Projects")),
     setProject: id => dispatch({type: "SET_PROJECT", project: id}),
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
+    setLoading: loading => dispatch(loadingAction(loading))
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(_List);

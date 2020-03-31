@@ -2,8 +2,6 @@ import * as React from "react";
 import {Card, Icon, Button, Text, Input, Flex, Checkbox, Label} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
-import * as Pagination from "Pagination";
-import {emptyPage} from "DefaultObjects";
 import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
 import {Page} from "Types";
 import {GridCardGroup} from "ui-components/Grid";
@@ -19,6 +17,7 @@ import {SnackType} from "Snackbar/Snackbars";
 import {Spacer} from "ui-components/Spacer";
 import {History} from "history";
 import {addStandardDialog} from "UtilityComponents";
+import {emptyPage} from "DefaultObjects";
 
 interface GroupWithSummary {
     group: string;
@@ -30,7 +29,7 @@ const baseContext = "/projects/groups";
 
 function groupSummaryRequest(payload: PaginationRequest): APICallParameters<PaginationRequest> {
     return {
-        path: baseContext,
+        path: `${baseContext}/summary`,
         method: "GET",
         payload
     };
@@ -49,10 +48,10 @@ function GroupsOverview(): JSX.Element | null {
     const createGroupRef = React.useRef<HTMLInputElement>(null);
     const [selectedGroups, setSelectedGroups] = React.useState<Set<string>>(new Set());
     const promises = usePromiseKeeper();
-    const [groupSummaries, fetchSummaries, params] = useCloudAPI<GroupWithSummary[]>(groupSummaryRequest({
+    const [groupSummaries, fetchSummaries, params] = useCloudAPI<Page<GroupWithSummary>>(groupSummaryRequest({
         page: 0,
         itemsPerPage: 25
-    }), []);
+    }), emptyPage);
 
     const promptDeleteGroups = React.useCallback(async () => {
         const groups = [...selectedGroups];
@@ -89,8 +88,8 @@ function GroupsOverview(): JSX.Element | null {
         </>}
         main={(
             <GridCardGroup minmax={300}>
-                {groupSummaries.data.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
-                {groupSummaries.data.map(g => {
+                {groupSummaries.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
+                {groupSummaries.data.items.map(g => {
                     const isSelected = selectedGroups.has(g.group);
                     return (
                         <Card

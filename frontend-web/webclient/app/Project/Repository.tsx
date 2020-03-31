@@ -13,6 +13,10 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Client} from "Authentication/HttpClientInstance";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
+import {connect} from "react-redux";
+import {Dispatch} from "redux";
+import {loadingAction} from "Loading";
+import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 
 const baseContext = "/projects/repositories";
 
@@ -42,7 +46,7 @@ function repositoryListRequest(payload: RepositoryListRequest): APICallParameter
     };
 }
 
-function Repositories(): JSX.Element {
+function Repositories(props: RepositoryOperations): JSX.Element {
     const [repositories, setParameters, parameters] = useCloudAPI<Page<{name: string}>>(repositoryListRequest({
         itemsPerPage: 25, page: 0
     }), emptyPage);
@@ -53,6 +57,16 @@ function Repositories(): JSX.Element {
         itemsPerPage: parameters.payload.itemsPerPage,
         page: parameters.payload.pageNumber
     }));
+
+
+    React.useEffect(() => {
+        props.setLoading(repositories.loading);
+    }, [repositories.loading]);
+
+    React.useEffect(() => {
+        props.setRefresh(reload);
+        return () => props.setRefresh();
+    }, [reload]);
 
     return <MainContainer
         main={<Pagination.List
@@ -165,4 +179,14 @@ function Repositories(): JSX.Element {
     }
 }
 
-export default Repositories;
+interface RepositoryOperations {
+    setLoading: (value: boolean) => void;
+    setRefresh: (refresh?: () => void) => void;
+}
+
+const mapDispatchToProps = (dispatch: Dispatch): RepositoryOperations => ({
+    setLoading: loading => dispatch(loadingAction(loading)),
+    setRefresh: refresh => dispatch(setRefreshFunction(refresh))
+});
+
+export default connect(null, mapDispatchToProps)(Repositories);
