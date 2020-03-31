@@ -54,8 +54,6 @@ describe("Get filename from path", () => {
 });
 
 describe("Replace homefolder and project folder", () => {
-    console.warn(Client.homeFolder);
-
     test("Replace homefolder", () =>
         expect(replaceHomeOrProjectFolder("/home/test@test.dk/", Client)).toBe("Home/")
     );
