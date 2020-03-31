@@ -70,7 +70,6 @@ import {PRODUCT_NAME} from "../../site.config.json";
 import {AppHeader} from "./View";
 import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
-import {concatScrolls} from "Scroll";
 import {TextSpan} from "ui-components/Text";
 import Warning from "ui-components/Warning";
 

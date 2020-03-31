@@ -95,15 +95,13 @@ class JobController(
             if (request.url != null) {
                 val invalidChars = Regex("""([./\\\n])""")
                 if (invalidChars.containsMatchIn(request.url!!) || request.url!!.length < 5) {
-                    error(CommonErrorMessage("Provided url not allowed"), HttpStatusCode.BadRequest)
-                    return@implement
+                    throw RPCException("Provided url not allowed", HttpStatusCode.BadRequest)
                 }
 
-                kotlin.runCatching {
+                runCatching {
                     jobOrchestrator.lookupOwnJobByUrl(request.url!!, ctx.securityPrincipal)
                 }.onSuccess {
-                    error(CommonErrorMessage("Provided url not available"), HttpStatusCode.BadRequest)
-                    return@implement
+                    throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
                 }
             }
 
