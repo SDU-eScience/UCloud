@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesDescriptions
+import dk.sdu.cloud.app.orchestrator.api.ComputationCallbackDescriptions
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.service.BroadcastingStream
@@ -44,12 +45,12 @@ class WebService(
                 return@get
             }
 
-            if (performAuthentication) {
-                val job = jobCache.findJob(id) ?: run {
-                    call.respond(HttpStatusCode.BadRequest)
-                    return@get
-                }
+            val job = jobCache.findJob(id) ?: run {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
 
+            if (performAuthentication) {
                 val ingoingToken = call.request.cookies[SDU_CLOUD_REFRESH_TOKEN] ?: run {
                     call.respond(HttpStatusCode.Unauthorized)
                     return@get
@@ -72,7 +73,13 @@ class WebService(
                 )
             }
 
-            call.respondRedirect("http://$prefix$id.$domain/")
+            val urlId = if (job.url == null) {
+                id
+            } else {
+                job.url
+            }
+
+            call.respondRedirect("http://$prefix$urlId.$domain/")
         }
 
         // Called by envoy before every single request. We are allowed to control the "Cookie" header.
