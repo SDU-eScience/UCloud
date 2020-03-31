@@ -12,7 +12,7 @@ class VerifiedJobCache(private val serviceClient: AuthenticatedClient) {
 
     suspend fun findJob(id: String): VerifiedJob? {
         return jobIdToJob[id] ?: run {
-            val job = ComputationCallbackDescriptions.lookup.call(
+            val job = ComputationCallbackDescriptions.lookupUrl.call(
                 FindByStringId(id),
                 serviceClient
             ).orNull()

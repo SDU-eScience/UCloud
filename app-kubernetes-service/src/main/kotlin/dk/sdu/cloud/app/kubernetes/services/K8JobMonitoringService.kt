@@ -206,7 +206,6 @@ class K8JobMonitoringService(
                         SubmitComputationResult(
                             jobId,
                             "stdout.txt",
-                            false,
                             BinaryStream.outgoingFromChannel(logFile.readChannel(), logFile.length())
                         ),
                         k8.serviceClient

@@ -398,6 +398,12 @@ class JobOrchestrator<DBSession>(
         return jobWithToken.job
     }
 
+    suspend fun lookupOwnJobByUrl(urlId: String, securityPrincipal: SecurityPrincipal): VerifiedJob {
+        val jobWithToken = findJobForUrl(urlId)
+        computationBackendService.getAndVerifyByName(jobWithToken.job.backend, securityPrincipal)
+        return jobWithToken.job
+    }
+
     private suspend fun findLast10JobsForUser(
         securityPrincipalToken: SecurityPrincipalToken,
         application: String,
@@ -424,6 +430,14 @@ class JobOrchestrator<DBSession>(
 
     private suspend fun findJobForId(id: String, jobOwner: SecurityPrincipalToken? = null): VerifiedJobWithAccessToken =
         db.withTransaction { session -> jobDao.find(session, id, jobOwner) }
+
+    private suspend fun findJobForUrl(
+        urlId: String,
+        jobOwner: SecurityPrincipalToken? = null
+    ): VerifiedJobWithAccessToken =
+        db.withTransaction { session ->
+            jobDao.findFromUrlId(session, urlId, jobOwner) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
 
     companion object : Loggable {
         override val log = logger()

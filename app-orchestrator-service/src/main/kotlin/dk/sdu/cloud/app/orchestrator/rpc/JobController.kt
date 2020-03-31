@@ -83,14 +83,6 @@ class JobController(
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Maximum job time exceeded")
             }
 
-            // Check name
-            if (request.name != null) {
-                val invalidChars = Regex("""([./\\\n])""")
-                if (invalidChars.containsMatchIn(request.name!!)) {
-                    error(CommonErrorMessage("Provided name not allowed"), HttpStatusCode.BadRequest)
-                    return@implement
-                }
-            }
 
             val extensionResponse = AuthDescriptions.tokenExtension.call(
                 TokenExtensionRequest(

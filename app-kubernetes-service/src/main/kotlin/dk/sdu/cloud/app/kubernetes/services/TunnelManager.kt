@@ -46,7 +46,7 @@ class TunnelManager(private val k8: K8Dependencies) {
         cleanupExecutor.shutdownNow()
     }
 
-    suspend fun createOrUseExistingTunnel(id: String, remotePort: Int): Tunnel {
+    suspend fun createOrUseExistingTunnel(id: String, remotePort: Int, urlId: String?): Tunnel {
         mutex.withLock {
             val existing = openTunnels[id]
             val alive = existing?.tunnel?.isAlive() ?: false
@@ -71,14 +71,14 @@ class TunnelManager(private val k8: K8Dependencies) {
                     return@run -1
                 }
 
-                val newTunnel = createTunnel(id, localPort, remotePort)
+                val newTunnel = createTunnel(id, localPort, remotePort, urlId)
                 openTunnels[id] = TunnelWithUsageTracking(newTunnel, System.currentTimeMillis())
                 newTunnel
             }
         }
     }
 
-    private fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int): Tunnel {
+    private fun createTunnel(jobId: String, localPortSuggestion: Int, remotePort: Int, urlId: String?): Tunnel {
         val pod =
             k8.nameAllocator.listPods(jobId).firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
@@ -119,6 +119,7 @@ class TunnelManager(private val k8: K8Dependencies) {
                 jobId = jobId,
                 ipAddress = "127.0.0.1",
                 localPort = localPortSuggestion,
+                urlId = urlId,
                 _isAlive = {
                     k8sTunnel.isAlive
                 },
@@ -135,6 +136,7 @@ class TunnelManager(private val k8: K8Dependencies) {
                 jobId = jobId,
                 ipAddress = ipAddress,
                 localPort = remotePort,
+                urlId = urlId,
                 _isAlive = { runCatching { findPodResource()?.get() }.getOrNull() != null },
                 _close = { }
             )

@@ -58,6 +58,12 @@ interface JobDao<Session> {
         session: Session,
         timestamp: Long
     ): Sequence<VerifiedJobWithAccessToken>
+
+    suspend fun findFromUrlId(
+        session: Session,
+        urlId: String,
+        owner: SecurityPrincipalToken? = null
+    ): VerifiedJobWithAccessToken?
 }
 
 suspend fun <Session> JobDao<Session>.findOrNull(
