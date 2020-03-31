@@ -98,6 +98,13 @@ class JobController(
                     error(CommonErrorMessage("Provided url not allowed"), HttpStatusCode.BadRequest)
                     return@implement
                 }
+
+                kotlin.runCatching {
+                    jobOrchestrator.lookupOwnJobByUrl(request.url!!, ctx.securityPrincipal)
+                }.onSuccess {
+                    error(CommonErrorMessage("Provided url not available"), HttpStatusCode.BadRequest)
+                    return@implement
+                }
             }
 
             val extensionResponse = AuthDescriptions.tokenExtension.call(
