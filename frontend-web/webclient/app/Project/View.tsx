@@ -18,13 +18,15 @@ import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router";
 import {Box, Button, Flex, Input, Label} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
-import {defaultAvatar} from "UserSettings/Avataaar";
+import {defaultAvatar, AvatarType} from "UserSettings/Avataaar";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {Client} from "Authentication/HttpClientInstance";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {usePromiseKeeper} from "PromiseKeeper";
+import {Avatar} from "AvataaarLib";
 
 const View: React.FunctionComponent<ViewOperations> = props => {
     const id = decodeURIComponent(useParams<{id: string}>().id);
@@ -34,6 +36,8 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     const allowManagement = role === ProjectRole.PI || Client.userIsAdmin;
     const newMemberRef = useRef<HTMLInputElement>(null);
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
+    const [avatars, setAvatars] = React.useState<{[username: string]: AvatarType}>({});
+    const promises = usePromiseKeeper();
 
     const reload = (): void => setProjectParams(viewProject({id}));
 
@@ -41,6 +45,16 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         props.setRefresh(reload);
         return () => props.setRefresh();
     }, []);
+
+    React.useEffect(() => {
+        const usernames = project.data.members.map(it => it.username);
+        if (usernames.length === 0) return;
+        promises.makeCancelable(
+            Client.post<{avatars: {[key: string]: AvatarType}}>("/avatar/bulk", {usernames: project.data.members.map(it => it.username)})
+        ).promise.then(it =>
+            setAvatars(it.response.avatars)
+        ).catch(it => console.warn(it));
+    }, [project.data.members.length, id]);
 
     useEffect(() => reload(), [id]);
 
@@ -92,6 +106,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                             key={idx}
                             project={project.data}
                             member={e}
+                            avatar={avatars[e.username] ?? defaultAvatar}
                             allowManagement={allowManagement}
                             onActionComplete={() => undefined/* reload() */}
                         />
@@ -107,6 +122,7 @@ const ViewMember: React.FunctionComponent<{
     member: ProjectMember;
     allowManagement: boolean;
     onActionComplete: () => void;
+    avatar: AvatarType;
 }> = props => {
     const [isLoading, runCommand] = useAsyncCommand();
     const [role, setRole] = useState<ProjectRole>(props.member.role);
@@ -123,7 +139,7 @@ const ViewMember: React.FunctionComponent<{
     return (
         <Box mt={16}>
             <Flex>
-                <UserAvatar avatar={defaultAvatar} />
+                <Flex width="60px" alignItems="center" height="48px"><Avatar avatarStyle="circle" {...props.avatar} /></Flex>
                 <Box flexGrow={1}>
                     {props.member.username} <br />
                     {!props.allowManagement ? role : (
