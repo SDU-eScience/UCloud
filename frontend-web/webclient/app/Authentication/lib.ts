@@ -21,6 +21,7 @@ interface CallParameters {
     context?: string;
     maxRetries?: number;
     withCredentials?: boolean;
+    projectOverride?: string;
 }
 
 /**
@@ -132,7 +133,8 @@ export default class HttpClient {
         body,
         context = this.apiContext,
         maxRetries = 5,
-        withCredentials = false
+        withCredentials = false,
+        projectOverride
     }: CallParameters): Promise<any> {
         await this.waitForCloudReady();
 
@@ -148,7 +150,7 @@ export default class HttpClient {
                     req.open(method, this.computeURL(context, path));
                     req.setRequestHeader("Authorization", `Bearer ${token}`);
                     req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-                    if (!!this.projectId) req.setRequestHeader("Project", this.projectId);
+                    if (!!this.projectId) req.setRequestHeader("Project", projectOverride ?? this.projectId);
                     req.responseType = "text"; // Explicitly set, otherwise issues with empty response
                     if (withCredentials) {
                         req.withCredentials = true;

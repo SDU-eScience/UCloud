@@ -8,6 +8,9 @@ directory `/home/alice/shared` with Bob then all files will remain owned by
 Alice. This includes all the files Bob creates. As a result Alice will not
 lose access to the files created by Bob when Bob leaves the share.
 
+Admins of a project (`PI` and `ADMIN`) are considered the owner of a project
+directory.
+
 The platform controls access to files via **access control lists**. Each file
 can have an associated access control list (ACL). Each entry in the ACL
 contains a mapping between an "entity" and their permissions on the file. An
@@ -15,7 +18,7 @@ entity can be either a user or a project + group. The following file
 permissions exists:
 
 - `READ`: The associated entity can read the file.
-- `READ_WRITE`: The associated entitiy can read and write to the file. This
+- `WRITE`: The associated entitiy can read and write to the file. This
 includes renaming, moving and deleting the file.
 
 Note that only the owner a file can perform certain operations such as
@@ -26,7 +29,10 @@ children.__
 
 End users don't have direct access to the ACL. Instead, they use higher-level
 features such as [shares](../../share-service) and
-[projects](../../project-service).
+[project repositories](../../project-repository-service).
+
+Each ACL entry contains a tuple of `(entity, permissions)`. The backend supports
+two types of entities: users and project groups.
 
 ## Examples
 

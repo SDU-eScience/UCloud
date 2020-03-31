@@ -39,6 +39,7 @@ export interface APICallParameters<Parameters = any, Payload = any> {
     reloadId?: number; // Can be used to force an ID by setting this to a random value
     noop?: boolean; // Used to indicate that this should not be run in a useCloudAPI hook.
     withCredentials?: boolean;
+    projectOverride?: string;
 }
 
 export interface APIError {
@@ -68,7 +69,8 @@ export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
         body: parameters.payload,
         context: parameters.context,
         maxRetries: parameters.maxRetries,
-        withCredentials: parameters.withCredentials
+        withCredentials: parameters.withCredentials,
+        projectOverride: parameters.projectOverride
     })).response;
 }
 

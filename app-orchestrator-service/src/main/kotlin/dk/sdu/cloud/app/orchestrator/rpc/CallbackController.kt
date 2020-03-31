@@ -60,6 +60,10 @@ class CallbackController<DBSession>(
         implement(ComputationCallbackDescriptions.lookup) {
             ok(jobOrchestrator.lookupOwnJob(request.id, ctx.securityPrincipal))
         }
+
+        implement(ComputationCallbackDescriptions.lookupUrl) {
+            ok(jobOrchestrator.lookupOwnJobByUrl(request.id, ctx.securityPrincipal))
+        }
     }
 
     companion object : Loggable {
