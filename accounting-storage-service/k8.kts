@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "accounting-storage"
-    version = "1.3.0"
+    version = "1.4.0-projects.0"
 
     withAmbassador("/api/accounting/storage") {}
 
@@ -12,7 +12,4 @@ bundle {
     }
 
     withPostgresMigration(deployment)
-
-    withCronJob(deployment, "0 */3 * * *", listOf("--scan")) {}
-    withAdHocJob(deployment, "scan-now", { listOf("--scan") }) {}
 }

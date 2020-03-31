@@ -1,85 +1,30 @@
 package dk.sdu.cloud.accounting.storage.http
 
 import dk.sdu.cloud.accounting.api.ChartDataTypes
-import dk.sdu.cloud.accounting.api.ChartResponse
-import dk.sdu.cloud.accounting.api.ChartingHelpers
 import dk.sdu.cloud.accounting.api.UsageResponse
-import dk.sdu.cloud.accounting.storage.api.StorageUsedEvent
 import dk.sdu.cloud.accounting.storage.api.StorageUsedResourceDescription
 import dk.sdu.cloud.accounting.storage.services.StorageAccountingService
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
+import dk.sdu.cloud.file.api.KnowledgeMode
+import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import dk.sdu.cloud.service.Controller
-import io.ktor.http.HttpStatusCode
-import java.util.*
-import kotlin.collections.ArrayList
 
-class StorageUsedController<DBSession>(
-    private val storageAccountingService: StorageAccountingService<DBSession>,
-    private val cloud: AuthenticatedClient
+class StorageUsedController(
+    private val storageAccountingService: StorageAccountingService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(StorageUsedResourceDescription.chart) {
-            val homeFolder = FileDescriptions.findHomeFolder.call(
-                FindHomeFolderRequest(ctx.securityPrincipal.username),
-                cloud
-            ).orThrow().path
-
-            val list = ArrayList<StorageUsedEvent>()
-
-            val currentUsage = storageAccountingService.calculateUsage(
-                homeFolder
-            ).first().units
-            list.add(
-                StorageUsedEvent(Date().time, currentUsage, Long.MAX_VALUE, ctx.securityPrincipal.username)
-            )
-
-            list.addAll(storageAccountingService.listEvents(request, ctx.securityPrincipal.username))
-
-            ok(
-                ChartResponse(
-                    ChartingHelpers.absoluteChartFromEvents(
-                        list.toList(),
-                        dataType = ChartDataTypes.BYTES,
-                        dataTitle = "Storage Used",
-                        dataSelector = { it.bytesUsed }
-                    ),
-                    quota = null
-                )
-            )
-        }
-
         implement(StorageUsedResourceDescription.usage) {
-            val homeFolder = FileDescriptions.findHomeFolder.call(
-                FindHomeFolderRequest(ctx.securityPrincipal.username),
-                cloud
-            ).orThrow().path
-            val usage =
-                when {
-                    request.until == null -> {
-                        storageAccountingService.calculateUsage(
-                            homeFolder
-                        ).first().units
-                    }
-                    request.until!!.toLong() > Date().time - 1000 * 60 * 60 * 3 -> {
-                        storageAccountingService.calculateUsage(
-                            homeFolder
-                        ).first().units
-                    }
-                    else -> {
-                        storageAccountingService.listEvents(
-                            request,
-                            ctx.securityPrincipal.username
-                        ).takeIf { it.isNotEmpty() }?.last()?.bytesUsed ?:
-                        throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-                    }
-                }
+            val homeFolder = if (ctx.project == null) {
+                "/home/${ctx.securityPrincipal.username}"
+            } else {
+                "/projects/${ctx.project}"
+            }
+
+            val usage = storageAccountingService.calculateUsage(ctx.securityPrincipal.username, homeFolder)
 
             ok(
                 UsageResponse(
@@ -89,11 +34,6 @@ class StorageUsedController<DBSession>(
                     quota = null
                 )
             )
-        }
-
-
-        implement(StorageUsedResourceDescription.listEvents) {
-            ok(storageAccountingService.listEventsPage(request.normalize(), request, ctx.securityPrincipal.username))
         }
     }
 }
