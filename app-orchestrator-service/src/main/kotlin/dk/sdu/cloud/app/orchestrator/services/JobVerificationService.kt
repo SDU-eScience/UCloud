@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
 import dk.sdu.cloud.app.license.api.LicenseServerRequest
@@ -15,14 +16,17 @@ import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationParameter
 import dk.sdu.cloud.app.store.api.FileTransferDescription
 import dk.sdu.cloud.app.store.api.ToolReference
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
@@ -75,6 +79,29 @@ class JobVerificationService<Session>(
 
         val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
         val url = unverifiedJob.request.url
+
+        // Check name
+        if (name != null) {
+            val invalidChars = Regex("""([./\\\n])""")
+            if (invalidChars.containsMatchIn(name)) {
+                throw RPCException("Provided name not allowed", HttpStatusCode.BadRequest)
+            }
+        }
+
+        if (url != null) {
+            val validChars = Regex("([a-z0-9]+)")
+            if (!url.toLowerCase().matches(validChars)) {
+                throw RPCException("Provided url not allowed", HttpStatusCode.BadRequest)
+            }
+
+            val existingJob = db.withTransaction { session ->
+                dao.findFromUrlId(session, url)
+            }
+
+            if (existingJob != null) {
+                throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
+            }
+        }
 
         val (allPeers, _) = run {
             // TODO we should enforce in the app store that the parameter is a valid hostname
