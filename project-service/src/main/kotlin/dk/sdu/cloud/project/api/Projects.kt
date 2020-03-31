@@ -55,7 +55,13 @@ data class ShouldVerifyMembershipResponse(
 /**
  * A project summary from a user's perspective
  */
-data class UserProjectSummary(val projectId: String, val title: String, val whoami: ProjectMember)
+data class UserProjectSummary(
+    val projectId: String,
+    val title: String,
+    val whoami: ProjectMember,
+    val needsVerification: Boolean
+)
+
 data class UserGroupSummary(val projectId: String, val group: String, val username: String)
 
 data class ListProjectsRequest(

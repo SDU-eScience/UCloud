@@ -1,13 +1,10 @@
 import {File} from "Files";
 import {Action, Dispatch} from "redux";
 import {Dictionary, Page} from "Types";
-import {callAPI} from "Authentication/DataHook";
-import {shouldVerifyMembership, ShouldVerifyMembershipResponse} from "Project/api";
 
 export interface State {
     project?: string;
     files?: Dictionary<ProjectFilesCacheEntry>;
-    shouldVerify: boolean;
 }
 
 export interface ProjectFilesCacheEntry {
@@ -16,35 +13,17 @@ export interface ProjectFilesCacheEntry {
     files: Page<File>;
 }
 
-export const initialState = {project: getStoredProject() ?? undefined, shouldVerify: false};
+export const initialState = {project: getStoredProject() ?? undefined};
 
 interface SetProjectAction extends Action<"SET_PROJECT"> {
     project?: string;
 }
 
-interface SetShouldVerifyAction extends Action<"SHOULD_VERIFY_PROJECT"> {
-    project: string;
-    shouldVerify: boolean;
-}
-
 export function dispatchSetProjectAction(dispatch: Dispatch, project?: string) {
-    console.log("Dispatching");
     dispatch<ProjectAction>({project, type: "SET_PROJECT"});
-    console.log("Dispatch complete");
-
-    if (project !== undefined) {
-        callAPI<ShouldVerifyMembershipResponse>(shouldVerifyMembership())
-            .then(resp => {
-                const shouldVerify = !resp.shouldVerify;
-                dispatch<ProjectAction>({type: "SHOULD_VERIFY_PROJECT", project, shouldVerify});
-            })
-            .catch(resp => {
-                // Do nothing
-            });
-    }
 }
 
-type ProjectAction = SetProjectAction | SetShouldVerifyAction;
+type ProjectAction = SetProjectAction;
 
 export const reducer = (state: State = initialState, action: ProjectAction) => {
     switch (action.type) {
@@ -53,13 +32,6 @@ export const reducer = (state: State = initialState, action: ProjectAction) => {
             setStoredProject(action.project ?? null);
             return {...state, project: action.project, shouldVerify: false};
         }
-
-        case "SHOULD_VERIFY_PROJECT":
-            console.log(state, action);
-            if (state.project === action.project) {
-                return {...state, shouldVerify: action.shouldVerify};
-            }
-            return state;
 
         default:
             return state;

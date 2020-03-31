@@ -182,7 +182,14 @@ class ProjectDao {
                 val id = it.getString(1)!!
                 val title = it.getString(2)!!
 
-                UserProjectSummary(id, title, ProjectMember(user, role))
+                // TODO (Performance) Not ideal code
+                val needsVerification = if (role.isAdmin()) {
+                    shouldVerify(session, id)
+                } else {
+                    false
+                }
+
+                UserProjectSummary(id, title, ProjectMember(user, role), needsVerification)
             }
 
         val count = if (pagination == null) {

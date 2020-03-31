@@ -1,4 +1,4 @@
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {LoadingMainContainer} from "MainContainer/MainContainer";
 import {
@@ -21,18 +21,26 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {Client} from "Authentication/HttpClientInstance";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {ReduxObject} from "DefaultObjects";
+import {
+    projectRoleToString,
+    shouldVerifyMembership,
+    ShouldVerifyMembershipResponse,
+    verifyMembership
+} from "Project/api";
 
-const View: React.FunctionComponent<ViewStateProps & ViewOperations> = props => {
+const View: React.FunctionComponent<ViewOperations> = props => {
     const id = decodeURIComponent(useParams<{ id: string }>().id);
     const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
+    const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
+        shouldVerifyMembership(id),
+        {shouldVerify: false}
+    );
 
     const role = roleInProject(project.data);
-    const allowManagement = role === ProjectRole.PI || Client.userIsAdmin;
+    const allowManagement = role === ProjectRole.PI || role === ProjectRole.ADMIN;
     const newMemberRef = useRef<HTMLInputElement>(null);
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
 
@@ -64,22 +72,17 @@ const View: React.FunctionComponent<ViewStateProps & ViewOperations> = props => 
         }
     };
 
+    const onApprove = async () => {
+        await callAPIWithErrorHandler(verifyMembership(id));
+        setShouldVerifyParams(shouldVerifyMembership(id));
+    };
+
     return (
         <LoadingMainContainer
-            headerSize={124}
+            headerSize={66}
             header={(
                 <>
-                    <Heading.h3>{project.data.title} ({project.data.id})</Heading.h3>
-
-                    <form onSubmit={onSubmit}>
-                        <Label htmlFor={"new-project-member"}>Add new member</Label>
-                        <Input
-                            id="new-project-member"
-                            placeholder="Username"
-                            ref={newMemberRef}
-                            disabled={isCreatingNewMember}
-                        />
-                    </form>
+                    <Heading.h3>{project.data.id}</Heading.h3>
                 </>
             )}
             sidebar={null}
@@ -87,19 +90,34 @@ const View: React.FunctionComponent<ViewStateProps & ViewOperations> = props => 
             error={project.error ? project.error.why : undefined}
             main={(
                 <>
-                    {!props.shouldVerify ? null : (
+                    {!allowManagement ? null : (
+                        <form onSubmit={onSubmit}>
+                            <Label htmlFor={"new-project-member"}>Add new member</Label>
+                            <Input
+                                id="new-project-member"
+                                placeholder="Username"
+                                ref={newMemberRef}
+                                disabled={isCreatingNewMember}
+                            />
+                        </form>
+                    )}
+                    {!shouldVerify.data.shouldVerify ? null : (
                         <Box backgroundColor={"orange"} color={"white"} p={32}>
                             <Heading.h4>Time for a review!</Heading.h4>
 
                             <ul>
                                 <li>PIs and admins are asked to occasionally review members of their project</li>
                                 <li>We ask you to ensure that only the people who need access have access</li>
-                                <li>If you find someone who should not have access then remove them by clicking 'Remove' next to their name</li>
+                                <li>If you find someone who should not have access then remove them by clicking 'Remove'
+                                    next to their name
+                                </li>
                                 <li>
                                     When you are done, click below:
 
                                     <Box mt={8}>
-                                        <Button color={"green"} textColor={"white"}>Everything looks good now</Button>
+                                        <Button color={"green"} textColor={"white"} onClick={onApprove}>
+                                            Everything looks good now
+                                        </Button>
                                     </Box>
                                 </li>
                             </ul>
@@ -146,10 +164,10 @@ const ViewMember: React.FunctionComponent<{
                 <UserAvatar avatar={defaultAvatar}/>
                 <Box flexGrow={1}>
                     {props.member.username} <br/>
-                    {!props.allowManagement ? role : (
+                    {!props.allowManagement || role === ProjectRole.PI ? projectRoleToString(role) : (
                         <ClickableDropdown
                             chevron
-                            trigger={role}
+                            trigger={projectRoleToString(role)}
                             onChange={async value => {
                                 try {
                                     await runCommand(changeRoleInProject({
@@ -192,16 +210,8 @@ interface ViewOperations {
     setRefresh: (refresh?: () => void) => void;
 }
 
-interface ViewStateProps {
-    shouldVerify: boolean;
-}
-
-const mapStateToProps = (state: ReduxObject): ViewStateProps => ({
-    shouldVerify: state.project.shouldVerify
-});
-
 const mapDispatchToProps = (dispatch: Dispatch): ViewOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
-export default connect(mapStateToProps, mapDispatchToProps)(View);
+export default connect(null, mapDispatchToProps)(View);

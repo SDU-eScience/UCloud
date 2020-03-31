@@ -1,4 +1,5 @@
 import {APICallParameters} from "Authentication/DataHook";
+import {ProjectRole} from "Project/index";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -65,18 +66,29 @@ export interface ShouldVerifyMembershipResponse {
     shouldVerify: boolean;
 }
 
-export function shouldVerifyMembership(): APICallParameters {
+export function shouldVerifyMembership(projectId: string): APICallParameters {
     return {
         method: "GET",
         path: `${projectContext}should-verify`,
-        reloadId: Math.random()
+        reloadId: Math.random(),
+        projectOverride: projectId
     };
 }
 
-export function verifyMembership(): APICallParameters {
+export function verifyMembership(projectId: string): APICallParameters {
     return {
         method: "POST",
         path: `${projectContext}verify-membership`,
-        reloadId: Math.random()
+        reloadId: Math.random(),
+        projectOverride: projectId
     };
 }
+
+export function projectRoleToString(role: ProjectRole): string {
+    switch (role) {
+        case ProjectRole.PI: return "PI";
+        case ProjectRole.ADMIN: return "Admin";
+        case ProjectRole.USER: return "User";
+    }
+}
+
