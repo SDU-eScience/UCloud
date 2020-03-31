@@ -39,7 +39,7 @@ export default class HttpClient {
     private forceRefresh: boolean = false;
     private overridesPromise: Promise<void> | null = null;
 
-    private projectId: string | undefined = undefined;
+    public projectId: string | undefined = undefined;
 
     private overrides: Override[] = [];
 

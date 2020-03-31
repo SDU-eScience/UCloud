@@ -20,7 +20,7 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {dateToString} from "Utilities/DateUtilities";
 import {
     directorySizeQuery,
-    expandHomeFolder,
+    expandHomeOrProjectFolder,
     favoriteFile,
     fileTablePage,
     reclassifyFile,
@@ -70,7 +70,7 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
                     <Flex>
                         <BreadCrumbs
                             currentPath={file.path}
-                            navigate={p => props.history.push(fileTablePage(expandHomeFolder(p, Client.homeFolder)))}
+                            navigate={p => props.history.push(fileTablePage(expandHomeOrProjectFolder(p, Client)))}
                             homeFolder={Client.homeFolder}
                             projectFolder={Client.projectFolder}
                         />

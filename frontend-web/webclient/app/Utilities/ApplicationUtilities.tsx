@@ -15,7 +15,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
 import {addStandardDialog} from "UtilityComponents";
 import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
-import {expandHomeFolder} from "./FileUtilities";
+import {expandHomeOrProjectFolder} from "./FileUtilities";
 
 export const hpcJobQueryPost = "/hpc/jobs";
 
@@ -198,7 +198,7 @@ export function extractValuesFromWidgets({map, appParameters, client}: ExtractPa
             switch (parameter.type) {
                 case ParameterTypes.InputDirectory:
                 case ParameterTypes.InputFile:
-                    const expandedValue = expandHomeFolder(r.current.value, client.homeFolder);
+                    const expandedValue = expandHomeOrProjectFolder(r.current.value, client);
                     extracted[key] = {
                         source: expandedValue,
                         destination: removeTrailingSlash(expandedValue).split("/").pop()!

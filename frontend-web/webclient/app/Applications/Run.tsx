@@ -46,7 +46,7 @@ import {
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {
     checkIfFileExists,
-    expandHomeFolder,
+    expandHomeOrProjectFolder,
     fetchFileContent,
     fileTablePage, getFilenameFromPath,
     statFileQuery
@@ -483,7 +483,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
 
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
-            const expandedValue = expandHomeFolder(it.ref.current!.value, Client.homeFolder);
+            const expandedValue = expandHomeOrProjectFolder(it.ref.current!.value, Client);
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!
@@ -688,7 +688,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     for (const paramKey in fileParams) {
                         const param = fileParams[paramKey];
                         if (userInputValues[param.name]) {
-                            const path = expandHomeFolder(userInputValues[param.name], Client.homeFolder);
+                            const path = expandHomeOrProjectFolder(userInputValues[param.name], Client);
                             if (!await checkIfFileExists(path, Client)) {
                                 invalidFiles.push(userInputValues[param.name]);
                                 userInputValues[param.name] = "";
@@ -706,7 +706,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     const validMountFolders = [] as AdditionalMountedFolder[];
                     // tslint:disable-next-line:prefer-for-of
                     for (let i = 0; i < mountedFolders.length; i++) {
-                        if (await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Client.homeFolder), Client)) {
+                        if (await checkIfFileExists(expandHomeOrProjectFolder(mountedFolders[i].ref, Client), Client)) {
                             const ref = React.createRef<HTMLInputElement>();
                             validMountFolders.push({ref});
                         }
