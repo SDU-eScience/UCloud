@@ -9,6 +9,23 @@ bundle { ctx ->
     name = "ceph"
     version = "1"
 
+    val cephFsSubFolder = when (ctx.environment) {
+        Environment.DEVELOPMENT -> ""
+        Environment.PRODUCTION -> ""
+        Environment.TEST -> "staging"
+    }
+
+    withConfigMap("ceph-fs-config", version = "3") {
+        addConfig(
+            "config.yml",
+            """
+                ceph:
+                  subfolder: "$cephFsSubFolder"
+                  useCephDirectoryStats: true
+            """.trimIndent()
+        )
+    }
+
     if (ctx.environment != Environment.PRODUCTION) {
         val cephMonitors = when (ctx.environment) {
             Environment.DEVELOPMENT, Environment.TEST -> "10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789"
@@ -28,23 +45,6 @@ bundle { ctx ->
         val cephFsSecret = when (ctx.environment) {
             Environment.DEVELOPMENT, Environment.TEST -> "snaptest"
             Environment.PRODUCTION -> TODO()
-        }
-
-        val cephFsSubFolder = when (ctx.environment) {
-            Environment.DEVELOPMENT -> ""
-            Environment.PRODUCTION -> ""
-            Environment.TEST -> "staging"
-        }
-
-        withConfigMap("ceph-fs-config", version = "3") {
-            addConfig(
-                "config.yml",
-                """
-                    ceph:
-                      subfolder: "$cephFsSubFolder"
-                      useCephDirectoryStats: true
-                """.trimIndent()
-            )
         }
 
         withSecret(name = cephFsSecret, namespace = "default") {
