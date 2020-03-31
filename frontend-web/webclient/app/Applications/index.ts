@@ -1,4 +1,4 @@
-import {AnalysisReduxObject, ResponsiveReduxObject} from "DefaultObjects";
+import {AnalysisReduxObject} from "DefaultObjects";
 import {File, SortOrder} from "Files";
 import {History} from "history";
 import {SetStatusLoading} from "Navigation/Redux/StatusActions";
@@ -175,6 +175,7 @@ export interface RunAppState {
     fsShown: boolean;
     previousRuns: Page<File>;
     unknownParameters: string[];
+    repository?: string;
     reservation: React.RefObject<HTMLInputElement>;
 }
 

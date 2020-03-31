@@ -20,7 +20,8 @@ export enum KeyCode {
     ESC = 27
 }
 
-export const emptyPage: Page<any> = {items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0};
+export const emptyPage: Readonly<Page<any>> =
+    {items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0};
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -196,7 +197,7 @@ export function initObject(): ReduxObject {
     };
 }
 
-export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
+export type AvatarReduxObject = typeof defaultAvatar & {error?: string};
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({
