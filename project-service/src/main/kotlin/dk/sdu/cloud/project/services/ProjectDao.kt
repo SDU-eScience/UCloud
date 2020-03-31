@@ -1,21 +1,17 @@
 package dk.sdu.cloud.project.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.UserProjectSummary
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
-import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.insert
-import dk.sdu.cloud.service.db.async.long
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.text
-import dk.sdu.cloud.service.db.async.timestamp
+import dk.sdu.cloud.service.db.async.*
+import io.ktor.http.HttpStatusCode
 import org.joda.time.LocalDateTime
+import org.joda.time.Period
 
 class ProjectDao {
     suspend fun create(session: AsyncDBConnection, id: String, title: String, principalInvestigator: String) {
@@ -186,7 +182,14 @@ class ProjectDao {
                 val id = it.getString(1)!!
                 val title = it.getString(2)!!
 
-                UserProjectSummary(id, title, ProjectMember(user, role))
+                // TODO (Performance) Not ideal code
+                val needsVerification = if (role.isAdmin()) {
+                    shouldVerify(session, id)
+                } else {
+                    false
+                }
+
+                UserProjectSummary(id, title, ProjectMember(user, role), needsVerification)
             }
 
         val count = if (pagination == null) {
@@ -207,6 +210,52 @@ class ProjectDao {
         }
 
         return Page(count, pagination?.itemsPerPage ?: count, pagination?.page ?: 0, items)
+    }
+
+    suspend fun shouldVerify(session: AsyncDBConnection, project: String): Boolean {
+        val latestVerification = session
+            .sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                },
+                """
+                    select * 
+                    from project_membership_verification 
+                    where project_id = ?project  
+                    order by verification desc
+                    limit 1
+                """
+            )
+            .rows
+            .map { it.getField(ProjectMembershipVerified.verification) }
+            .singleOrNull()
+
+        if (latestVerification == null) {
+            verifyMembership(session, project, "_project")
+            return false
+        }
+
+        return Period.fieldDifference(LocalDateTime.now(), latestVerification).days > 14
+    }
+
+    suspend fun verifyMembership(session: AsyncDBConnection, project: String, verifiedBy: String) {
+        if (!verifiedBy.startsWith("_")) {
+            if (findRoleOfMember(session, project, verifiedBy)?.isAdmin() != true) {
+                throw RPCException("Not found or permission denied", HttpStatusCode.Forbidden)
+            }
+        }
+
+        session.insert(ProjectMembershipVerified) {
+            set(ProjectMembershipVerified.projectId, project)
+            set(ProjectMembershipVerified.verification, LocalDateTime.now())
+            set(ProjectMembershipVerified.verifiedBy, verifiedBy)
+        }
+    }
+
+    private object ProjectMembershipVerified : SQLTable("project_membership_verification") {
+        val projectId = text("project_id")
+        val verification = timestamp("verification")
+        val verifiedBy = text("verified_by")
     }
 
     private object ProjectTable : SQLTable("projects") {

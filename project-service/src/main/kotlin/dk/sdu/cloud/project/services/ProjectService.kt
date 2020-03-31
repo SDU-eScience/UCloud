@@ -127,6 +127,19 @@ class ProjectService(
         }
     }
 
+    suspend fun shouldVerify(user: String, projectId: String): Boolean {
+        return db.withTransaction { session ->
+            findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
+            dao.shouldVerify(session, projectId)
+        }
+    }
+
+    suspend fun verifyMembership(user: String, projectId: String) {
+        db.withTransaction { session ->
+            dao.verifyMembership(session, projectId, user)
+        }
+    }
+
     private suspend fun findProjectAndRequireRole(
         session: AsyncDBConnection,
         user: String,

@@ -29,6 +29,7 @@ export interface UserInProject {
     projectId: string;
     title: string;
     whoami: ProjectMember;
+    needsVerification: boolean;
 }
 
 // TODO This is a service only API. We need a gateway API which is responsible for also creating a data management plan
