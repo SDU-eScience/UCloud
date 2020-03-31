@@ -1,9 +1,8 @@
 package dk.sdu.cloud.accounting.compute
 
-import dk.sdu.cloud.accounting.compute.http.ComputeAccountingController
 import dk.sdu.cloud.accounting.compute.http.ComputeTimeController
 import dk.sdu.cloud.accounting.compute.processor.JobCompletedProcessor
-import dk.sdu.cloud.accounting.compute.services.CompletedJobsHibernateDao
+import dk.sdu.cloud.accounting.compute.services.CompletedJobsDao
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -25,21 +24,19 @@ class Server(
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
 
         // Services
-        val completedJobsDao = CompletedJobsHibernateDao()
-        val completedJobsService = CompletedJobsService(db, completedJobsDao, client)
+        val dao = CompletedJobsDao()
+        val service = CompletedJobsService(micro.hibernateDatabase, dao)
+        val completedJobsService = CompletedJobsService(db, dao)
 
         // Processors
-        JobCompletedProcessor(micro.eventStreamService, completedJobsService, client).init()
+        JobCompletedProcessor(micro.eventStreamService, completedJobsService).init()
 
         // HTTP
         with(micro.server) {
             configureControllers(
-                ComputeTimeController(completedJobsService),
-                ComputeAccountingController(completedJobsService)
+                ComputeTimeController(completedJobsService)
             )
         }
-
-        log.info("Server is ready!")
 
         startServices()
     }

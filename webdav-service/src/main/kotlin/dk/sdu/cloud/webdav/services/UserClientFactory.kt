@@ -1,14 +1,9 @@
 package dk.sdu.cloud.webdav.services
 
-import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.ClientAndBackend
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FindHomeFolderRequest
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.validateAndDecodeOrNull
 import io.ktor.http.HttpStatusCode

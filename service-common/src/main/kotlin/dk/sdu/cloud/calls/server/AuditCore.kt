@@ -22,7 +22,9 @@ data class HttpCallLogEntry(
     val responseCode: Int,
     val responseTime: Long,
 
-    val expiry: Long
+    val expiry: Long,
+
+    val project: String?
 )
 
 data class AuditEvent<A>(

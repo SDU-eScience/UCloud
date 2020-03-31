@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "accounting-compute"
-    version = "1.2.12"
+    version = "1.3.0-projects.0"
 
     withAmbassador("/api/accounting/compute") {}
 

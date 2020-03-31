@@ -155,6 +155,7 @@ object ProjectRepository : CallDescriptionContainer("project.repositories") {
             params {
                 +boundTo(ListFilesRequest::itemsPerPage)
                 +boundTo(ListFilesRequest::page)
+                +boundTo(ListFilesRequest::user)
             }
         }
     }

@@ -2,24 +2,15 @@ package dk.sdu.cloud.accounting.compute.processor
 
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
-import dk.sdu.cloud.accounting.compute.services.normalizeUsername
 import dk.sdu.cloud.app.orchestrator.api.JobCompletedEvent
-import dk.sdu.cloud.auth.api.LookupUsersRequest
-import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.app.orchestrator.api.AccountingEvents as JobAccountingEvents
 
-
-class JobCompletedProcessor<DBSession>(
+class JobCompletedProcessor(
     private val eventConsumerFactory: EventStreamService,
-    private val completedJobsService: CompletedJobsService<DBSession>,
-    private val serviceCloud: AuthenticatedClient
+    private val completedJobsService: CompletedJobsService
 ) {
     fun init() {
         eventConsumerFactory.subscribe(JobAccountingEvents.jobCompleted, EventConsumer.Batched(
@@ -45,27 +36,10 @@ class JobCompletedProcessor<DBSession>(
     /**
      * Normalizes project users to their normalized user (without the suffix)
      */
-    private suspend fun normalizeEvents(events: List<JobCompletedEvent>): List<JobCompletedEvent> {
-        // Normalize project users to their normalized user (without the suffix)
-        val users = events.map { it.jobOwner }.toSet().toList()
-
-        val userTable = UserDescriptions.lookupUsers.call(
-            LookupUsersRequest(users),
-            serviceCloud
-        ).orRethrowAs {
-            log.warn("Caught an exception while attempting to normalize events!")
-            log.warn("Got back status: ${it.error} ${it.statusCode}")
-            throw RPCException.fromStatusCode(it.statusCode)
-        }.results
-
-        return events.mapNotNull { event ->
+    private fun normalizeEvents(events: List<JobCompletedEvent>): List<JobCompletedEvent> {
+        return events.map { event ->
             val owner = event.jobOwner
-            val role = userTable[owner]?.role ?: return@mapNotNull run {
-                log.warn("Could not find user $owner. Discarding accounting event.")
-                null
-            }
-
-            event.copy(jobOwner = normalizeUsername(owner, role))
+            event.copy(jobOwner = owner)
         }
     }
 
