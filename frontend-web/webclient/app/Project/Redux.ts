@@ -1,11 +1,13 @@
 import {File} from "Files";
-import {Action} from "redux";
+import {Action, Dispatch} from "redux";
 import {Dictionary, Page} from "Types";
-import {getParentPath, resolvePath} from "Utilities/FileUtilities";
+import {callAPI} from "Authentication/DataHook";
+import {shouldVerifyMembership, ShouldVerifyMembershipResponse} from "Project/api";
 
 export interface State {
     project?: string;
     files?: Dictionary<ProjectFilesCacheEntry>;
+    shouldVerify: boolean;
 }
 
 export interface ProjectFilesCacheEntry {
@@ -14,104 +16,57 @@ export interface ProjectFilesCacheEntry {
     files: Page<File>;
 }
 
-export const initialState = {project: getStoredProject() ?? undefined};
+export const initialState = {project: getStoredProject() ?? undefined, shouldVerify: false};
 
 interface SetProjectAction extends Action<"SET_PROJECT"> {
     project?: string;
 }
 
-export function setProjectAction(project?: string): SetProjectAction {
-    return {project, type: "SET_PROJECT"};
+interface SetShouldVerifyAction extends Action<"SHOULD_VERIFY_PROJECT"> {
+    project: string;
+    shouldVerify: boolean;
 }
 
-interface UpdateProjectFileAction extends Action<"UPDATE_PROJECT_FILE"> {
-    newFile: File;
+export function dispatchSetProjectAction(dispatch: Dispatch, project?: string) {
+    console.log("Dispatching");
+    dispatch<ProjectAction>({project, type: "SET_PROJECT"});
+    console.log("Dispatch complete");
+
+    if (project !== undefined) {
+        callAPI<ShouldVerifyMembershipResponse>(shouldVerifyMembership())
+            .then(resp => {
+                const shouldVerify = !resp.shouldVerify;
+                dispatch<ProjectAction>({type: "SHOULD_VERIFY_PROJECT", project, shouldVerify});
+            })
+            .catch(resp => {
+                // Do nothing
+            });
+    }
 }
 
-export function updateProjectFileAction(newFile: File): UpdateProjectFileAction {
-    return {newFile, type: "UPDATE_PROJECT_FILE"};
-}
-
-type CacheProjectFilesAction = Action<"CACHE_PROJECT_FILES"> & ProjectFilesCacheEntry;
-
-export function cacheProjectFilesAction(entry: ProjectFilesCacheEntry): CacheProjectFilesAction {
-    return {...entry, type: "CACHE_PROJECT_FILES"};
-}
-
-type ClearDirtFlagAction = Action<"CACHE_PROJECT_FILES_CLEAR_DIRTY">;
-
-export function clearProjectFilesDirtyFlag(): ClearDirtFlagAction {
-    return {type: "CACHE_PROJECT_FILES_CLEAR_DIRTY"};
-}
-
-type ProjectAction = SetProjectAction | CacheProjectFilesAction | UpdateProjectFileAction | ClearDirtFlagAction;
+type ProjectAction = SetProjectAction | SetShouldVerifyAction;
 
 export const reducer = (state: State = initialState, action: ProjectAction) => {
     switch (action.type) {
         case "SET_PROJECT": {
+            console.log("Set project");
             setStoredProject(action.project ?? null);
-            return {...state, project: action.project};
+            return {...state, project: action.project, shouldVerify: false};
         }
 
-        case "CACHE_PROJECT_FILES": {
-            const existingDirectoryOrInitial = state.files ?? {};
-            const files = {...existingDirectoryOrInitial};
-            files[action.path] = action;
-            return {...state, files};
-        }
-
-        case "UPDATE_PROJECT_FILE": {
-            const parentPath = resolvePath(getParentPath(action.newFile.path));
-            const newFile = {...action.newFile, frontend: {dirty: true}};
-            const cachedParent: ProjectFilesCacheEntry = state.files?.[parentPath] ??
-                {
-                    project: state.project!,
-                    path: parentPath,
-                    files: {
-                        items: [newFile],
-                        pageNumber: 0,
-                        itemsPerPage: 50,
-                        itemsInTotal: 1,
-                        pagesInTotal: 1
-                    }
-                };
-
-            const directoryCopy = cachedParent.files.items.slice();
-            for (let i = 0; i < directoryCopy.length; i++) {
-                const file = directoryCopy[i];
-                if (file.path === newFile.path) {
-                    directoryCopy[i] = newFile;
-                    break;
-                }
+        case "SHOULD_VERIFY_PROJECT":
+            console.log(state, action);
+            if (state.project === action.project) {
+                return {...state, shouldVerify: action.shouldVerify};
             }
-
-            const files = {...state.files};
-            files[parentPath] = {...cachedParent, files: {...cachedParent.files, items: directoryCopy}};
-            return {...state, files};
-        }
-
-        case "CACHE_PROJECT_FILES_CLEAR_DIRTY": {
-            const files: Dictionary<ProjectFilesCacheEntry> = {...state.files};
-            Object.keys(files).forEach(key => {
-                const current = files[key];
-                files[key] = {
-                    ...current,
-                    files: {
-                        ...current.files,
-                        items: current.files.items.map(it => ({...it, frontend: undefined}))
-                    }
-                };
-            });
-
-            return {...state, files};
-        }
+            return state;
 
         default:
             return state;
     }
 };
 
-function getStoredProject(): string | null {
+export function getStoredProject(): string | null {
     return window.localStorage.getItem("project") ?? null;
 }
 

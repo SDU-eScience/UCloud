@@ -25,9 +25,10 @@ import {Client} from "Authentication/HttpClientInstance";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {ReduxObject} from "DefaultObjects";
 
-const View: React.FunctionComponent<ViewOperations> = props => {
-    const id = decodeURIComponent(useParams<{id: string}>().id);
+const View: React.FunctionComponent<ViewStateProps & ViewOperations> = props => {
+    const id = decodeURIComponent(useParams<{ id: string }>().id);
     const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
 
     const role = roleInProject(project.data);
@@ -68,9 +69,8 @@ const View: React.FunctionComponent<ViewOperations> = props => {
             headerSize={124}
             header={(
                 <>
-                    <Heading.h3>
-                        Project {project.data.title}
-                    </Heading.h3>
+                    <Heading.h3>{project.data.title} ({project.data.id})</Heading.h3>
+
                     <form onSubmit={onSubmit}>
                         <Label htmlFor={"new-project-member"}>Add new member</Label>
                         <Input
@@ -87,6 +87,26 @@ const View: React.FunctionComponent<ViewOperations> = props => {
             error={project.error ? project.error.why : undefined}
             main={(
                 <>
+                    {!props.shouldVerify ? null : (
+                        <Box backgroundColor={"orange"} color={"white"} p={32}>
+                            <Heading.h4>Time for a review!</Heading.h4>
+
+                            <ul>
+                                <li>PIs and admins are asked to occasionally review members of their project</li>
+                                <li>We ask you to ensure that only the people who need access have access</li>
+                                <li>If you find someone who should not have access then remove them by clicking 'Remove' next to their name</li>
+                                <li>
+                                    When you are done, click below:
+
+                                    <Box mt={8}>
+                                        <Button color={"green"} textColor={"white"}>Everything looks good now</Button>
+                                    </Box>
+                                </li>
+                            </ul>
+
+                        </Box>
+                    )}
+
                     {project.data.members.map((e, idx) => (
                         <ViewMember
                             key={idx}
@@ -123,9 +143,9 @@ const ViewMember: React.FunctionComponent<{
     return (
         <Box mt={16}>
             <Flex>
-                <UserAvatar avatar={defaultAvatar} />
+                <UserAvatar avatar={defaultAvatar}/>
                 <Box flexGrow={1}>
-                    {props.member.username} <br />
+                    {props.member.username} <br/>
                     {!props.allowManagement ? role : (
                         <ClickableDropdown
                             chevron
@@ -151,7 +171,7 @@ const ViewMember: React.FunctionComponent<{
                         />
                     )}
                 </Box>
-                {!props.allowManagement ? null : (
+                {!props.allowManagement || props.member.role == ProjectRole.PI ? null : (
                     <Box flexShrink={0}>
                         <Button
                             color={"red"}
@@ -172,8 +192,16 @@ interface ViewOperations {
     setRefresh: (refresh?: () => void) => void;
 }
 
+interface ViewStateProps {
+    shouldVerify: boolean;
+}
+
+const mapStateToProps = (state: ReduxObject): ViewStateProps => ({
+    shouldVerify: state.project.shouldVerify
+});
+
 const mapDispatchToProps = (dispatch: Dispatch): ViewOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
-export default connect(null, mapDispatchToProps)(View);
+export default connect(mapStateToProps, mapDispatchToProps)(View);

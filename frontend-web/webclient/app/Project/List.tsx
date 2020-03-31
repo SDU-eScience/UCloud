@@ -17,7 +17,7 @@ import {updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {ListRow} from "ui-components/List";
 import {useHistory} from "react-router";
-
+import {dispatchSetProjectAction} from "Project/Redux";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -106,7 +106,7 @@ const mapStateToProps = (state: ReduxObject): {project?: string} => state.projec
 
 const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
     setPageTitle: () => dispatch(updatePageTitle("Projects")),
-    setProject: id => dispatch({type: "SET_PROJECT", project: id}),
+    setProject: id => dispatchSetProjectAction(dispatch, id),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
