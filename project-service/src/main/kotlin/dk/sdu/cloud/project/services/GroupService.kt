@@ -2,6 +2,11 @@ package dk.sdu.cloud.project.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
+import dk.sdu.cloud.contact.book.api.InsertRequest
+import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -15,7 +20,8 @@ class GroupService(
     private val db: DBSessionFactory<AsyncDBConnection>,
     private val groups: GroupDao,
     private val projects: ProjectDao,
-    private val eventProducer: EventProducer<ProjectEvent>
+    private val eventProducer: EventProducer<ProjectEvent>,
+    private val serviceClient: AuthenticatedClient
 ) {
     suspend fun createGroup(principal: SecurityPrincipal, projectId: String, group: String) {
         val project = db.withTransaction { session ->
@@ -72,6 +78,10 @@ class GroupService(
         } ?: throw ProjectException.CantChangeGroupMember()
 
         eventProducer.produce(ProjectEvent.MemberAddedToGroup(project, member, group))
+
+        ContactBookDescriptions.insert.call(
+            InsertRequest(principal.username, listOf(member), ServiceOrigin.PROJECT_SERVICE), serviceClient
+        )
     }
 
     suspend fun removeMember(principal: SecurityPrincipal, projectId: String, group: String, member: String) {

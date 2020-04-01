@@ -33,9 +33,11 @@ import {
     verifyMembership
 } from "Project/api";
 import {Client} from "Authentication/HttpClientInstance";
+import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
+import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 
 const View: React.FunctionComponent<ViewOperations> = props => {
-    const id = decodeURIComponent(useParams<{ id: string }>().id);
+    const id = decodeURIComponent(useParams<{id: string}>().id);
     const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
     const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
         shouldVerifyMembership(id),
@@ -48,6 +50,24 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
     const [avatars, setAvatars] = React.useState<{[username: string]: AvatarType}>({});
     const promises = usePromiseKeeper();
+
+    /* Contact book */
+    const SERVICE = ServiceOrigin.PROJECT_SERVICE;
+    const ref = React.useRef<number>(-1);
+    const [contacts, setFetchArgs,] = useCloudAPI<{contacts: string[]}>(
+        searchPreviousSharedUsers("", SERVICE),
+        {contacts: []}
+    );
+
+    const onKeyUp = React.useCallback(() => {
+        if (ref.current !== -1) {
+            window.clearTimeout(ref.current);
+        }
+        ref.current = (window.setTimeout(() => {
+            setFetchArgs(searchPreviousSharedUsers(newMemberRef.current!.value, SERVICE));
+        }, 500));
+
+    }, [newMemberRef.current, setFetchArgs]);
 
     const reload = (): void => setProjectParams(viewProject({id}));
 
@@ -91,7 +111,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         }
     };
 
-    const onApprove = async () => {
+    const onApprove = async (): Promise<void> => {
         await callAPIWithErrorHandler(verifyMembership(id));
         setShouldVerifyParams(shouldVerifyMembership(id));
     };
@@ -111,13 +131,39 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                 <>
                     {!allowManagement ? null : (
                         <form onSubmit={onSubmit}>
-                            <Label htmlFor={"new-project-member"}>Add new member</Label>
-                            <Input
-                                id="new-project-member"
-                                placeholder="Username"
-                                ref={newMemberRef}
-                                disabled={isCreatingNewMember}
-                            />
+                            <Dropdown fullWidth hover={false}>
+                                <Label htmlFor={"new-project-member"}>Add new member</Label>
+                                <Flex mb="6px">
+                                    <Input
+                                        onKeyUp={onKeyUp}
+                                        id="new-project-member"
+                                        placeholder="Username"
+                                        ref={newMemberRef}
+                                        width="350px"
+                                        disabled={isCreatingNewMember}
+                                        rightLabel
+                                    />
+                                    <Button attached>Add</Button>
+                                </Flex>
+                            </Dropdown>
+                            <DropdownContent
+                                hover={false}
+                                colorOnHover={false}
+                                width="350px"
+                                visible={contacts.data.contacts.length > 0}
+                            >
+                                {contacts.data.contacts.map(it => (
+                                    <div
+                                        key={it}
+                                        onClick={() => {
+                                            newMemberRef.current!.value = it;
+                                            setFetchArgs(searchPreviousSharedUsers("", SERVICE));
+                                        }}
+                                    >
+                                        {it}
+                                    </div>
+                                ))}
+                            </DropdownContent>
                         </form>
                     )}
                     {!shouldVerify.data.shouldVerify ? null : (
@@ -128,7 +174,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                                 <li>PIs and admins are asked to occasionally review members of their project</li>
                                 <li>We ask you to ensure that only the people who need access have access</li>
                                 <li>If you find someone who should not have access then remove them by clicking 'Remove'
-                                    next to their name
+                                next to their name
                                 </li>
                                 <li>
                                     When you are done, click below:
@@ -151,7 +197,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                             member={e}
                             avatar={avatars[e.username] ?? defaultAvatar}
                             allowManagement={allowManagement}
-                            onActionComplete={() => undefined/* reload() */}
+                            onActionComplete={() => reload()}
                         />
                     ))}
                 </>
@@ -184,7 +230,7 @@ const ViewMember: React.FunctionComponent<{
             <Flex>
                 <Flex width="60px" alignItems="center" height="48px"><Avatar avatarStyle="circle" {...props.avatar} /></Flex>
                 <Box flexGrow={1}>
-                    {props.member.username} <br/>
+                    {props.member.username} <br />
                     {!props.allowManagement || role === ProjectRole.PI ? projectRoleToString(role) : (
                         <ClickableDropdown
                             chevron
@@ -210,7 +256,7 @@ const ViewMember: React.FunctionComponent<{
                         />
                     )}
                 </Box>
-                {!props.allowManagement || props.member.role == ProjectRole.PI ? null : (
+                {!props.allowManagement || props.member.role === ProjectRole.PI ? null : (
                     <Box flexShrink={0}>
                         <Button
                             color={"red"}
