@@ -97,7 +97,7 @@ export enum LicenseServerAccessRight {
 
 export enum UserEntityType {
     USER = "USER",
-    PROJECT_AND_GROUP = "PROJECT_AND_GROUP"
+    PROJECT_GROUP = "PROJECT_GROUP"
 }
 
 export interface UserEntity {

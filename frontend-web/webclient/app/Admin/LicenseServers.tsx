@@ -175,6 +175,7 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
 function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element {
     const [accessList, setAccessList] = React.useState<AclEntry[]>([]);
     const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
+    const [selectedEntityType, setSelectedEntityType] = React.useState<UserEntityType>(UserEntityType.USER);
     const [accessEntryToDelete, setAccessEntryToDelete] = React.useState<AclEntry | null>(null);
     const [, invokeCommand] = useAsyncCommand();
 
@@ -183,7 +184,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     async function loadAcl(serverId: string): Promise<AclEntry[]> {
         const {response} = await Client.get<{
             entity_name: string;
-            entity_type: string;
+            entity_type: UserEntityType;
             permission: LicenseServerAccessRight;
         }[]>(`/app/license/listAcl?serverId=${serverId}`);
         return response.map(item => ({
@@ -200,7 +201,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
             serverId: licenseServer.id,
             changes: [
                 {
-                    entity: {id: accessEntryToDelete.id, type: UserEntityType.USER},
+                    entity: {id: accessEntryToDelete.id, type: accessEntryToDelete.type},
                     rights: accessEntryToDelete.permission,
                     revoke: true
                 }
@@ -263,7 +264,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                     serverId: licenseServer.id,
                                     changes: [
                                         {
-                                            entity: {id: permissionUserValue, type: UserEntityType.USER},
+                                            entity: {id: permissionUserValue, type: selectedEntityType},
                                             rights: selectedAccess,
                                             revoke: false
                                         }
@@ -276,12 +277,24 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                         }}
                     >
                         <Flex height={45}>
+                            <InputLabel width="270px" leftLabel>
+                                <ClickableDropdown
+                                    chevron
+                                    width="180px"
+                                    onChange={(val: UserEntityType) => setSelectedEntityType(val)}
+                                    trigger={
+                                        <Box as="span" minWidth="220px">{prettifyEntityType(selectedEntityType)}</Box>
+                                    }
+                                    options={entityTypes}
+                                />
+                            </InputLabel>
                             <Input
+                                leftLabel
                                 rightLabel
                                 required
                                 type="text"
                                 ref={newPermissionEntityField}
-                                placeholder="Username"
+                                placeholder="Username or name of project group"
                             />
                             <InputLabel width="220px" rightLabel>
                                 <ClickableDropdown
@@ -309,7 +322,8 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                         <Table width="700px">
                             <LeftAlignedTableHeader>
                                 <TableRow>
-                                    <TableHeaderCell>Name</TableHeaderCell>
+                                    <TableHeaderCell width={150}>Type</TableHeaderCell>
+                                    <TableHeaderCell width={500}>Name</TableHeaderCell>
                                     <TableHeaderCell width={200}>Permission</TableHeaderCell>
                                     <TableHeaderCell width={50}>Delete</TableHeaderCell>
                                 </TableRow>
@@ -317,6 +331,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                             <tbody>
                                 {accessList.map(accessEntry => (
                                     <TableRow key={accessEntry.id}>
+                                        <TableCell>{prettifyEntityType(accessEntry.type)}</TableCell>
                                         <TableCell>{accessEntry.id}</TableCell>
                                         <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
                                         <TableCell textAlign="right">
@@ -357,6 +372,10 @@ function openTagsDialog(licenseServer: LicenseServer): void {
     dialogStore.addDialog(<LicenseServerTagsPrompt licenseServer={licenseServer} />, () => undefined)
 }
 
+const entityTypes = [
+    {text: prettifyEntityType(UserEntityType.USER), value: UserEntityType.USER},
+    {text: prettifyEntityType(UserEntityType.PROJECT_GROUP), value: UserEntityType.PROJECT_GROUP},
+];
 
 const permissionLevels = [
     {text: prettifyAccessRight(LicenseServerAccessRight.READ), value: LicenseServerAccessRight.READ},
@@ -378,6 +397,21 @@ function prettifyAccessRight(accessRight: LicenseServerAccessRight): string {
     }
 }
 
+function prettifyEntityType(entityType: UserEntityType): string {
+    switch (entityType) {
+        case UserEntityType.USER: {
+            return "User";
+        }
+        case UserEntityType.PROJECT_GROUP: {
+            return "Project group";
+        }
+        default: {
+            return "Unknown";
+        }
+
+    }
+}
+
 async function loadLicenseServers(): Promise<LicenseServer[]> {
     const {response} = await Client.get<LicenseServer[]>(`/app/license/listAll`);
     return response.map(item => ({
@@ -391,7 +425,7 @@ async function loadLicenseServers(): Promise<LicenseServer[]> {
 
 interface AclEntry {
     id: string;
-    type: string;
+    type: UserEntityType;
     permission: LicenseServerAccessRight;
 }
 
