@@ -22,7 +22,6 @@ import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {SnackType} from "Snackbar/Snackbars";
 import {useHistory} from "react-router";
 
-
 interface DetailedGroupViewProps {
     name: string;
 }
