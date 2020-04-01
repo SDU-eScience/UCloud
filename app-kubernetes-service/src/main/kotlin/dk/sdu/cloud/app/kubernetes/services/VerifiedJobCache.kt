@@ -12,13 +12,22 @@ class VerifiedJobCache(private val serviceClient: AuthenticatedClient) {
 
     suspend fun findJob(id: String): VerifiedJob? {
         return jobIdToJob[id] ?: run {
-            val job = ComputationCallbackDescriptions.lookupUrl.call(
+            val jobByUrl = ComputationCallbackDescriptions.lookupUrl.call(
                 FindByStringId(id),
                 serviceClient
             ).orNull()
-            if (job != null) cacheJob(job)
+            if (jobByUrl != null) {
+                cacheJob(jobByUrl)
+                jobByUrl
+            } else {
+                val jobById = ComputationCallbackDescriptions.lookup.call(
+                    FindByStringId(id),
+                    serviceClient
+                ).orNull()
 
-            job
+                if (jobById != null) cacheJob(jobById)
+                jobById
+            }
         }
     }
 

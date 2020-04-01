@@ -7,6 +7,14 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 01-04-20
+
+Another bug fix for app-kubernetes.
+
+| Deployment | Image |
+| ---------- | ----- |
+| app-kubernetes         |  registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.17.2 |
+
 ## 31-03-20
 
 Minor bug fix for indexing

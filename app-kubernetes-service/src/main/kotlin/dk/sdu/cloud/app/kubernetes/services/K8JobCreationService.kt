@@ -8,17 +8,7 @@ import dk.sdu.cloud.app.store.api.buildEnvironmentValue
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
-import io.fabric8.kubernetes.api.model.Container
-import io.fabric8.kubernetes.api.model.DoneablePod
-import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource
-import io.fabric8.kubernetes.api.model.EnvVar
-import io.fabric8.kubernetes.api.model.Pod
-import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder
-import io.fabric8.kubernetes.api.model.Quantity
-import io.fabric8.kubernetes.api.model.ResourceRequirements
-import io.fabric8.kubernetes.api.model.SecurityContext
-import io.fabric8.kubernetes.api.model.Toleration
-import io.fabric8.kubernetes.api.model.VolumeMount
+import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.PodResource
 import kotlinx.coroutines.launch
@@ -274,7 +264,12 @@ class K8JobCreationService(
                                                 null
                                             ),
 
-                                            *preparedWorkspace.mounts.toTypedArray()
+                                            *preparedWorkspace.mounts.toTypedArray(),
+
+                                            VolumeMount().apply {
+                                                name = "shm"
+                                                mountPath = "/dev/shm"
+                                            }
                                         )
 
                                         withHostAliases(*hostAliases.toTypedArray())
@@ -289,7 +284,19 @@ class K8JobCreationService(
                                         emptyDir = EmptyDirVolumeSource()
                                     },
 
-                                    *preparedWorkspace.volumes.toTypedArray()
+                                    *preparedWorkspace.volumes.toTypedArray(),
+
+                                    volume {
+                                        name = "shm"
+                                        emptyDir = EmptyDirVolumeSource().apply {
+                                            this.medium = "Memory"
+                                            this.sizeLimit = if (verifiedJob.reservation.memoryInGigs != null) {
+                                                Quantity("${verifiedJob.reservation.memoryInGigs}Gi")
+                                            } else {
+                                                Quantity("1Gi")
+                                            }
+                                        }
+                                    }
                                 )
 
                                 if (toleration != null) {
