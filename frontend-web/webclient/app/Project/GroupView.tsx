@@ -22,6 +22,8 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {loadingAction} from "Loading";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {buildQueryString} from "Utilities/URIUtilities";
+import {groupSummaryRequest} from "Project/api";
 
 interface GroupWithSummary {
     group: string;
@@ -30,19 +32,6 @@ interface GroupWithSummary {
 }
 
 const baseContext = "/projects/groups";
-
-function groupSummaryRequest(payload: PaginationRequest): APICallParameters<PaginationRequest> {
-    return {
-        path: `${baseContext}/summary`,
-        method: "GET",
-        payload
-    };
-}
-
-interface PaginationRequest {
-    itemsPerPage: number;
-    page: number;
-}
 
 function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
     const history = useHistory();

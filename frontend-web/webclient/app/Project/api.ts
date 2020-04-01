@@ -1,5 +1,7 @@
 import {APICallParameters} from "Authentication/DataHook";
 import {ProjectRole} from "Project/index";
+import {buildQueryString} from "Utilities/URIUtilities";
+import {PaginationRequest} from "Types";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -8,10 +10,8 @@ interface CreateGroupRequest {
     group: string;
 }
 
-export interface ListGroupMembersRequestProps {
+export interface ListGroupMembersRequestProps extends PaginationRequest {
     group: string;
-    itemsPerPage: number;
-    page: number;
 }
 
 export function createGroup(props: CreateGroupRequest): APICallParameters<{}> {
@@ -28,9 +28,9 @@ export function listGroupMembersRequest(
 ): APICallParameters<ListGroupMembersRequestProps> {
     return {
         method: "GET",
-        path: `${groupContext}members`,
+        path: buildQueryString(`${groupContext}members`, props),
         reloadId: Math.random(),
-        payload: props
+        parameters: props
     };
 }
 
@@ -92,3 +92,11 @@ export function projectRoleToString(role: ProjectRole): string {
     }
 }
 
+export function groupSummaryRequest(payload: PaginationRequest): APICallParameters<PaginationRequest> {
+    return {
+        path: `${groupContext}/summary`,
+        method: "GET",
+        reloadId: Math.random(),
+        payload
+    };
+}

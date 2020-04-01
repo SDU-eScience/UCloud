@@ -126,18 +126,23 @@ class JobOrchestrator<DBSession>(
         req: StartJobRequest,
         decodedToken: SecurityPrincipalToken,
         refreshToken: String,
-        userCloud: AuthenticatedClient
+        userCloud: AuthenticatedClient,
+        project: String?
     ): String {
-        log.debug("starting job ${req.application.name}@${req.application.version}")
+        log.debug("Starting job ${req.application.name}@${req.application.version}")
         val backend = computationBackendService.getAndVerifyByName(resolveBackend(req.backend, defaultBackend))
+
         log.debug("Verifying job")
-        val unverifiedJob = UnverifiedJob(req, decodedToken, refreshToken)
+        val unverifiedJob = UnverifiedJob(req, decodedToken, refreshToken, project)
         val jobWithToken = jobVerificationService.verifyOrThrow(unverifiedJob, userCloud)
+
+        log.debug("Checking if duplicate")
         if (!req.acceptSameDataRetry) {
             if (checkForDuplicateJob(decodedToken, jobWithToken)) {
                 throw RPCException.fromStatusCode(HttpStatusCode.Conflict, "Job with same parameters already running")
             }
         }
+
         log.debug("Switching state and preparing job...")
         val (outputFolder) = jobFileService.initializeResultFolder(jobWithToken)
         jobFileService.exportParameterFile(outputFolder, jobWithToken, req.parameters)
@@ -148,6 +153,7 @@ class JobOrchestrator<DBSession>(
         val initialState = JobStateChange(jobWithToken.job.id, JobState.PREPARED)
         backend.jobVerified.call(jobWithOutputFolder, serviceClient).orThrow()
 
+        log.debug("Saving job state")
         db.withTransaction { session ->
             jobDao.create(
                 session,

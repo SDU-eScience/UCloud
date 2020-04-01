@@ -1,16 +1,10 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.CommonErrorMessage
+import com.google.common.base.Verify
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
 import dk.sdu.cloud.app.license.api.LicenseServerRequest
-import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.MachineReservation
-import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
-import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationParameter
@@ -20,7 +14,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
@@ -35,7 +28,8 @@ import java.util.*
 data class UnverifiedJob(
     val request: StartJobRequest,
     val decodedToken: SecurityPrincipalToken,
-    val refreshToken: String
+    val refreshToken: String,
+    val project: String?
 )
 
 data class VerifiedJobWithAccessToken(
@@ -59,28 +53,32 @@ class JobVerificationService<Session>(
         unverifiedJob: UnverifiedJob,
         userClient: AuthenticatedClient
     ): VerifiedJobWithAccessToken {
-        val jobId = UUID.randomUUID().toString()
-        val name = unverifiedJob.request.name
         val application = findApplication(unverifiedJob)
         val tool = application.invocation.tool.tool!!
-        val reservation =
-            if (unverifiedJob.request.reservation == null) MachineReservation.BURST
-            else (machines.find { it.name == unverifiedJob.request.reservation }
-                ?: throw JobException.VerificationError("Bad machine reservation"))
-        val verifiedParameters = verifyParameters(application, unverifiedJob)
-        val username = unverifiedJob.decodedToken.principal.username
 
-        val files = findAndCollectFromInput(username, application, verifiedParameters, userClient)
-        val mounts = findAndCollectFromMounts(username, unverifiedJob, userClient)
+        // Check input parameters
+        val verifiedParameters = verifyParameters(
+            application,
+            unverifiedJob
+        )
 
-        val numberOfJobs = unverifiedJob.request.numberOfNodes ?: tool.description.defaultNumberOfNodes
-        val tasksPerNode = unverifiedJob.request.tasksPerNode ?: tool.description.defaultTasksPerNode
-        val allocatedTime = unverifiedJob.request.maxTime ?: tool.description.defaultTimeAllocation
+        // Check files
+        val files = findAndCollectFromInput(
+            unverifiedJob.decodedToken.principal.username,
+            application,
+            verifiedParameters,
+            userClient
+        )
 
-        val archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title
-        val url = unverifiedJob.request.url
+        // Check mounts
+        val mounts = findAndCollectFromMounts(
+            unverifiedJob.decodedToken.principal.username,
+            unverifiedJob,
+            userClient
+        )
 
         // Check name
+        val name = unverifiedJob.request.name
         if (name != null) {
             val invalidChars = Regex("""([./\\\n])""")
             if (invalidChars.containsMatchIn(name)) {
@@ -88,6 +86,8 @@ class JobVerificationService<Session>(
             }
         }
 
+        // Check URL
+        val url = unverifiedJob.request.url
         if (url != null) {
             val validChars = Regex("([a-z0-9]+)")
             if (!url.toLowerCase().matches(validChars)) {
@@ -103,6 +103,7 @@ class JobVerificationService<Session>(
             }
         }
 
+        // Check peers
         val (allPeers, _) = run {
             // TODO we should enforce in the app store that the parameter is a valid hostname
             val parameterPeers = application.invocation.parameters
@@ -138,16 +139,45 @@ class JobVerificationService<Session>(
             Pair(allPeers, resolvedPeers)
         }
 
+        // Check machine reservation
+        val reservation =
+            if (unverifiedJob.request.reservation == null) MachineReservation.BURST
+            else (machines.find { it.name == unverifiedJob.request.reservation }
+                ?: throw JobException.VerificationError("Bad machine reservation"))
+
+        // Check repository
+        val project = unverifiedJob.project
+        val repository = unverifiedJob.request.repository
+        val projectAndRepository = if (repository != null) {
+            if (project == null) throw JobException.VerificationError("Repository specified but not project was given!")
+            ProjectAndRepository(project, repository)
+        } else {
+            // If project != null and no repository is selected then this will run in your local context.
+            // This might not be the desired behavior!
+            null
+        }
+
+        if (projectAndRepository != null) {
+            FileDescriptions.verifyFileKnowledge.call(
+                VerifyFileKnowledgeRequest(
+                    unverifiedJob.decodedToken.principal.username,
+                    listOf("/projects/${projectAndRepository.project}/${projectAndRepository.repository}"),
+                    KnowledgeMode.Permission(requireWrite = true)
+                ),
+                serviceClient
+            ).orThrow()
+        }
+
         return VerifiedJobWithAccessToken(
             VerifiedJob(
-                id = jobId,
+                id = UUID.randomUUID().toString(),
                 name = name,
                 owner = unverifiedJob.decodedToken.principal.username,
                 application = application,
                 backend = resolveBackend(unverifiedJob.request.backend, defaultBackend),
-                nodes = numberOfJobs,
-                maxTime = allocatedTime,
-                tasksPerNode = tasksPerNode,
+                nodes = unverifiedJob.request.numberOfNodes ?: tool.description.defaultNumberOfNodes,
+                maxTime = unverifiedJob.request.maxTime ?: tool.description.defaultTimeAllocation,
+                tasksPerNode = unverifiedJob.request.tasksPerNode ?: tool.description.defaultTasksPerNode,
                 reservation = reservation,
                 jobInput = verifiedParameters,
                 files = files,
@@ -156,9 +186,10 @@ class JobVerificationService<Session>(
                 currentState = JobState.VALIDATED,
                 failedState = null,
                 status = "Validated",
-                archiveInCollection = archiveInCollection,
+                archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title,
                 startedAt = null,
-                url = url
+                url = url,
+                projectAndRepository = projectAndRepository
             ),
             null,
             unverifiedJob.refreshToken
