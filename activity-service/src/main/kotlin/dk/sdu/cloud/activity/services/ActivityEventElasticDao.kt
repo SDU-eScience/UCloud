@@ -24,6 +24,7 @@ import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
+import dk.sdu.cloud.project.repository.api.Repository
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -217,11 +218,54 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
     override fun findProjectEvents(
         scrollSize: Int,
         filter: ActivityEventFilter,
-        projectID: String
+        projectID: String,
+        repos: List<Repository>
     ): List<ActivityEvent> {
         val query = applyTimeFilter(filter)
         if (filter.user != null) {
             query.filter(QueryBuilders.matchPhraseQuery("token.principal.username", filter.user))
+        }
+        repos.forEach {
+            if (!it.name.isNullOrBlank()) {
+                val repoPath = "/projects/$projectID/${it.name}/*"
+                query.filter(
+                    QueryBuilders.boolQuery()
+                        //AppStart
+                        .should(
+                            QueryBuilders.wildcardQuery(
+                                "requestJson.mounts.source",
+                                repoPath
+                            )
+                        )
+                        .should(
+                            QueryBuilders.wildcardQuery(
+                                "requestJson.parameters.*.source",
+                                repoPath
+                            )
+                        )
+                        //SimpleUpload, download, updateAcl, SimpleBulkUpload, reclassify, move, copy, delete
+                        //createDirectory, create share, Toggle Favorite
+                        .should(
+                            QueryBuilders.wildcardQuery(
+                                "requestJson.files.path",
+                                repoPath
+                            )
+                        )
+                        .should(
+                            QueryBuilders.wildcardQuery(
+                                "requestJson.path",
+                                repoPath
+                            )
+                        )
+                        .should(
+                            QueryBuilders.wildcardQuery(
+                                "requestJson.request.path",
+                                repoPath
+                            )
+                        )
+                        .minimumShouldMatch(1)
+                )
+            }
         }
         val index = getIndexByType(filter.type)
 

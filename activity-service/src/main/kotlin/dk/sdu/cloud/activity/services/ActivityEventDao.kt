@@ -3,6 +3,7 @@ package dk.sdu.cloud.activity.services
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.ActivityForFrontend
+import dk.sdu.cloud.project.repository.api.Repository
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 
@@ -28,6 +29,7 @@ interface ActivityEventDao {
     fun findProjectEvents(
         scrollSize: Int,
         filter: ActivityEventFilter = ActivityEventFilter(),
-        projectID: String
+        projectID: String,
+        repos: List<Repository>
     ): List<ActivityEvent>
 }

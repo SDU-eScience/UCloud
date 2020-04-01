@@ -4,16 +4,23 @@ import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityFilter
 import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.activity.api.type
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.project.repository.api.ProjectRepository
+import dk.sdu.cloud.project.repository.api.RepositoryListRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.NormalizedScrollRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.ScrollResult
+import kotlinx.coroutines.runBlocking
 
 class ActivityService(
     private val activityEventElasticDao: ActivityEventElasticDao,
-    private val fileLookupService: FileLookupService
+    private val fileLookupService: FileLookupService,
+    private val client: AuthenticatedClient
 ) {
 
     suspend fun findEventsForPath(
@@ -29,7 +36,7 @@ class ActivityService(
 
     fun browseActivity(
         scroll: NormalizedScrollRequest<Int>,
-        user: String?,
+        user: String,
         userFilter: ActivityFilter? = null,
         projectID: String? = null
     ): ScrollResult<ActivityForFrontend, Int> {
@@ -42,10 +49,22 @@ class ActivityService(
         )
 
         val allEvents = if (!projectID.isNullOrBlank()) {
+            val repos = runBlocking {
+                ProjectRepository.list.call(
+                    RepositoryListRequest(
+                        user,
+                        null,
+                        null
+                    ),
+                    client
+                ).orThrow().items
+            }
+
             activityEventElasticDao.findProjectEvents(
                 scroll.scrollSize,
                 filter,
-                projectID
+                projectID,
+                repos
             )
         } else {
             activityEventElasticDao.findUserEvents(

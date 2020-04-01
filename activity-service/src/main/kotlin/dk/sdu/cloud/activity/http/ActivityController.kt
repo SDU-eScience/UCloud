@@ -5,6 +5,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.activity.api.Activity
 import dk.sdu.cloud.activity.api.ActivityDescriptions
 import dk.sdu.cloud.activity.services.ActivityService
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
@@ -40,7 +41,8 @@ class ActivityController(
                 val result = activityService.browseActivity(request.normalize(), user, request)
                 ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
             } else {
-                val result = activityService.browseActivity(request.normalize(), null, request, ctx.project)
+                val result = activityService
+                    .browseActivity(request.normalize(), ctx.securityPrincipal.username, request, ctx.project)
                 ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
             }
         }
