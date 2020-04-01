@@ -14,7 +14,10 @@ import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.H2_DIALECT
 import dk.sdu.cloud.service.db.H2_DRIVER
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
+import kotlinx.coroutines.runBlocking
+import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro
@@ -49,6 +52,25 @@ class Server(
         )
 
         val membershipService = MembershipService(db, groupDao, projectDao)
+
+        if (micro.commandLineArguments.contains("--remind")) {
+            try {
+                runBlocking<Nothing> {
+                    val verificationReminder = VerificationReminder(
+                        db,
+                        projectDao,
+                        MailCooldownDao(),
+                        client
+                    )
+
+                    verificationReminder.sendReminders()
+                    exitProcess(0)
+                }
+            } catch (ex: Throwable) {
+                log.error(ex.stackTraceToString())
+                exitProcess(1)
+            }
+        }
 
         with(micro.server) {
             configureControllers(

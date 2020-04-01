@@ -10,8 +10,16 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flow
+import org.joda.time.DateTimeConstants
+import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import org.joda.time.Period
+
+data class ProjectForVerification(val projectId: String, val username: String, val role: ProjectRole)
 
 class ProjectDao {
     suspend fun create(session: AsyncDBConnection, id: String, title: String, principalInvestigator: String) {
@@ -29,6 +37,8 @@ class ProjectDao {
             set(ProjectMemberTable.createdAt, LocalDateTime.now())
             set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
         }
+
+        verifyMembership(session, id, "_project")
     }
 
     suspend fun delete(session: AsyncDBConnection, id: String) {
@@ -235,7 +245,8 @@ class ProjectDao {
             return false
         }
 
-        return Period.fieldDifference(LocalDateTime.now(), latestVerification).days > 14
+        return (System.currentTimeMillis() - latestVerification.toTimestamp()) >
+                VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
     }
 
     suspend fun verifyMembership(session: AsyncDBConnection, project: String, verifiedBy: String) {
@@ -249,6 +260,45 @@ class ProjectDao {
             set(ProjectMembershipVerified.projectId, project)
             set(ProjectMembershipVerified.verification, LocalDateTime.now())
             set(ProjectMembershipVerified.verifiedBy, verifiedBy)
+        }
+    }
+
+    @UseExperimental(ExperimentalCoroutinesApi::class)
+    suspend fun findProjectsInNeedOfVerification(session: AsyncDBConnection): Flow<ProjectForVerification> {
+        return channelFlow {
+            session.sendPreparedStatement(
+                {
+                    setParameter("days", VERIFICATION_REQUIRED_EVERY_X_DAYS)
+                },
+                """
+                    declare c no scroll cursor for 
+                    
+                    select pm.project_id, pm.username, pm.role
+                    from 
+                         project_members pm,
+                         (
+                             select project_id
+                             from project_membership_verification v
+                             group by project_id
+                             having max(verification) <= (now() - (?days || ' day')::interval)
+                         ) as latest
+                         
+                    where 
+                        pm.project_id = latest.project_id and 
+                        (pm.role = 'PI' or pm.role = 'ADMIN');
+
+                """
+            )
+
+            session.sendQuery("fetch forward 100 from c").rows.forEach {
+                send(
+                    ProjectForVerification(
+                        it["project_id"] as String,
+                        it["username"] as String,
+                        ProjectRole.valueOf(it["role"] as String)
+                    )
+                )
+            }
         }
     }
 
@@ -283,4 +333,8 @@ class ProjectDao {
         getField(ProjectMemberTable.username),
         ProjectRole.valueOf(getField(ProjectMemberTable.role))
     )
+
+    companion object {
+        const val VERIFICATION_REQUIRED_EVERY_X_DAYS = 30L
+    }
 }

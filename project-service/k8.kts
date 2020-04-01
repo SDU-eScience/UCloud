@@ -15,4 +15,7 @@ bundle { ctx ->
     }
 
     withPostgresMigration(deployment)
+
+    //withCronJob(deployment, "0 */12 * * *", listOf("--remind")) {}
+    withAdHocJob(deployment, "remind-now", { listOf("--remind") })
 }
