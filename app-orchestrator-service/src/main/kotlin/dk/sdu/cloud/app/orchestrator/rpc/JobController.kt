@@ -20,12 +20,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.bearer
-import dk.sdu.cloud.calls.server.requiredAuthScope
-import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.calls.server.securityToken
+import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
 import dk.sdu.cloud.service.Controller
@@ -109,7 +104,7 @@ class JobController(
             val userClient = userClientFactory(null, refreshToken)
 
             log.debug("Starting job")
-            val jobId = jobOrchestrator.startJob(request, ctx.securityToken, refreshToken, userClient)
+            val jobId = jobOrchestrator.startJob(request, ctx.securityToken, refreshToken, userClient, ctx.project)
 
             log.debug("Complete")
             ok(JobStartedResponse(jobId))

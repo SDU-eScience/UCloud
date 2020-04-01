@@ -19,5 +19,6 @@ data class StartJobRequest(
     val peers: List<ApplicationPeer> = emptyList(),
     val reservation: String? = null,
     val acceptSameDataRetry: Boolean = false,
-    val url: String? = null
+    val url: String? = null,
+    val repository: String? = null
 )
