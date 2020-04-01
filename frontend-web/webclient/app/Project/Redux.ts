@@ -28,7 +28,6 @@ type ProjectAction = SetProjectAction;
 export const reducer = (state: State = initialState, action: ProjectAction) => {
     switch (action.type) {
         case "SET_PROJECT": {
-            console.log("Set project");
             setStoredProject(action.project ?? null);
             return {...state, project: action.project, shouldVerify: false};
         }

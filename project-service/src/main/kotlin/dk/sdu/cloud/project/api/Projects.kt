@@ -69,6 +69,7 @@ data class ListProjectsRequest(
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
+
 typealias ListProjectsResponse = Page<UserProjectSummary>
 
 object Projects : CallDescriptionContainer("project") {

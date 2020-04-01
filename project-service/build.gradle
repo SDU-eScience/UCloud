@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '3.0.0-v.8'
+version '3.0.0-v.11'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.project.MainKt"
@@ -13,12 +13,16 @@ repositories {
 buildscript {
     ext.serviceCommonVersion = "1.14.0-projects.2"
     ext.authApiVersion = "1.27.0"
+    ext.mailApiVersion = "0.1.0"
+    ext.notificationApiVersion = "1.2.6"
 }
 
 dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
+    compile "dk.sdu.cloud:mail-api:${mailApiVersion}"
+    compile "dk.sdu.cloud:notification-api:${notificationApiVersion}"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 
