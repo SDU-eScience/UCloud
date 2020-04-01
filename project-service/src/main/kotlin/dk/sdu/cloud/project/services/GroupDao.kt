@@ -355,6 +355,22 @@ class GroupDao {
                     setParameter("project", projectId)
                 },
                 """
+                    update groups
+                    set 
+                        the_group = ?newGroup
+                    where
+                        project = ?project and
+                        the_group = ?oldGroup 
+                """
+            )
+        session
+            .sendPreparedStatement(
+                {
+                    setParameter("newGroup", newGroupName)
+                    setParameter("oldGroup", oldGroupName)
+                    setParameter("project", projectId)
+                },
+                """
                     update group_members  
                     set the_group = ?newGroup
                     where

@@ -85,7 +85,8 @@ class ProjectService(
             eventProducer.produce(ProjectEvent.MemberAdded(projectWithNewMember, member))
 
             ContactBookDescriptions.insert.call(
-                InsertRequest(user, listOf(member.username), ServiceOrigin.PROJECT_SERVICE), serviceClient
+                InsertRequest(user, listOf(member.username), ServiceOrigin.PROJECT_SERVICE),
+                serviceClient
             )
         }
     }
