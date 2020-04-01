@@ -6,6 +6,9 @@ import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
+import dk.sdu.cloud.contact.book.api.InsertRequest
+import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectEvent
@@ -80,6 +83,10 @@ class ProjectService(
 
             val projectWithNewMember = project.copy(members = project.members + member)
             eventProducer.produce(ProjectEvent.MemberAdded(projectWithNewMember, member))
+
+            ContactBookDescriptions.insert.call(
+                InsertRequest(user, listOf(member.username), ServiceOrigin.PROJECT_SERVICE), serviceClient
+            )
         }
     }
 

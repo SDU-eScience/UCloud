@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '3.0.0-v.8'
+version '3.0.0-v.13'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.project.MainKt"
@@ -13,12 +13,14 @@ repositories {
 buildscript {
     ext.serviceCommonVersion = "1.14.0-projects.2"
     ext.authApiVersion = "1.27.0"
+    ext.contactsApiVersion = "0.1.17"
 }
 
 dependencies {
     // Internal services
     compile "dk.sdu.cloud:service-common:${serviceCommonVersion}"
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
+    compile "dk.sdu.cloud:contact-book-api:${contactsApiVersion}"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 

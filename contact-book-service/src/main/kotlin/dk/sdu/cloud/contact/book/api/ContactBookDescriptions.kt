@@ -12,7 +12,8 @@ import io.ktor.http.HttpMethod
 import java.lang.IllegalArgumentException
 
 enum class ServiceOrigin {
-    SHARE_SERVICE;
+    SHARE_SERVICE,
+    PROJECT_SERVICE;
 }
 
 data class InsertRequest(

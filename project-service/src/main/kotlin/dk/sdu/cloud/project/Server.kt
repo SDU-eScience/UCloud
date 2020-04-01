@@ -1,6 +1,7 @@
 package dk.sdu.cloud.project
 
 import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.ProjectEvents
@@ -43,7 +44,8 @@ class Server(
             db,
             groupDao,
             projectDao,
-            eventProducer
+            eventProducer,
+            micro.authenticator.authenticateClient(OutgoingHttpCall)
         )
 
         val membershipService = MembershipService(db, groupDao, projectDao)
