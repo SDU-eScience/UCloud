@@ -291,7 +291,7 @@ class GroupDao {
             .forEach { row ->
                 val groupName = row.getString(0)!!
                 val username = row.getString(1)
-                val memberCount = row.getInt(2)
+                val memberCount = row.getLong(2)?.toInt()
 
                 val existingSummary = groupWithSummaryByGroup[groupName] ?: GroupWithSummary(groupName, 0, emptyList())
 
