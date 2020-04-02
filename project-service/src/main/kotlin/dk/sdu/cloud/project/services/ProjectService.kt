@@ -1,8 +1,10 @@
 package dk.sdu.cloud.project.services
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
@@ -21,6 +23,8 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.stackTraceToString
+import io.ktor.http.HttpStatusCode
 
 class ProjectService(
     private val db: DBSessionFactory<AsyncDBConnection>,
@@ -75,19 +79,29 @@ class ProjectService(
     suspend fun addMember(user: String, projectId: String, member: ProjectMember) {
         confirmUserExists(member.username)
 
-        db.withTransaction { session ->
-            val project = findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
-            if (project.members.any { it.username == member.username }) throw ProjectException.AlreadyMember()
+        try {
+            db.withTransaction { session ->
+                val project =
+                    findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
+                if (project.members.any { it.username == member.username }) throw ProjectException.AlreadyMember()
 
-            dao.addMember(session, projectId, member)
+                dao.addMember(session, projectId, member)
 
-            val projectWithNewMember = project.copy(members = project.members + member)
-            eventProducer.produce(ProjectEvent.MemberAdded(projectWithNewMember, member))
+                val projectWithNewMember = project.copy(members = project.members + member)
+                eventProducer.produce(ProjectEvent.MemberAdded(projectWithNewMember, member))
 
-            ContactBookDescriptions.insert.call(
-                InsertRequest(user, listOf(member.username), ServiceOrigin.PROJECT_SERVICE),
-                serviceClient
-            )
+                ContactBookDescriptions.insert.call(
+                    InsertRequest(user, listOf(member.username), ServiceOrigin.PROJECT_SERVICE),
+                    serviceClient
+                )
+            }
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorMessage.fields['C'] == ALREADY_EXISTS_PSQL) {
+                throw RPCException("Member is already in group", HttpStatusCode.Conflict)
+            }
+
+            log.warn(ex.stackTraceToString())
+            throw RPCException("Internal Server Error", HttpStatusCode.InternalServerError)
         }
     }
 

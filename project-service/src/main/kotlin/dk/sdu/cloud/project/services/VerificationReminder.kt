@@ -77,7 +77,7 @@ class VerificationReminder(
                                 </li>
                                 <li>
                                     You can begin the review by clicking 
-                                    <a href="https://cloud.sdu.dk/app/projects/${URLEncoder.encode(project, "utf-8")}">
+                                    <a href="https://cloud.sdu.dk/app/projects/view/${URLEncoder.encode(project, "utf-8")}">
                                         here 
                                     </a>.
                                 </li>
@@ -104,6 +104,10 @@ class VerificationReminder(
     companion object : Loggable {
         override val log = logger()
     }
+}
+
+fun main() {
+    println(URLEncoder.encode("Test#9224", "utf-8"))
 }
 
 class MailCooldownDao {
