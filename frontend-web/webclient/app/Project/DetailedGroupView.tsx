@@ -6,7 +6,6 @@ import {defaultAvatar, AvatarType} from "UserSettings/Avataaar";
 import * as Pagination from "Pagination";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {Page} from "Types";
-import * as ReactModal from "react-modal";
 import {useCloudAPI} from "Authentication/DataHook";
 import {listGroupMembersRequest, addGroupMember, removeGroupMemberRequest, ListGroupMembersRequestProps} from "./api";
 import {Client} from "Authentication/HttpClientInstance";
@@ -16,9 +15,8 @@ import {GridCardGroup} from "ui-components/Grid";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Spacer} from "ui-components/Spacer";
 import {Avatar} from "AvataaarLib";
-import {addStandardDialog} from "UtilityComponents";
+import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {emptyPage} from "DefaultObjects";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
 import {SnackType} from "Snackbar/Snackbars";
 import {useHistory} from "react-router";
 
@@ -27,7 +25,7 @@ interface DetailedGroupViewProps {
 }
 
 function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
-    const [activeGroup, fetchActiveGroup] = useCloudAPI<Page<string>, ListGroupMembersRequestProps>(
+    const [activeGroup, fetchActiveGroup, params] = useCloudAPI<Page<string>, ListGroupMembersRequestProps>(
         listGroupMembersRequest({group: name ?? "", itemsPerPage: 25, page: 0}),
         emptyPage
     );
@@ -35,7 +33,6 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     const history = useHistory();
 
     const [loading, setLoading] = React.useState(false);
-    const [modalOpen, setModalOpen] = React.useState(false);
 
     const promises = usePromiseKeeper();
     const [avatars, setAvatars] = React.useState<AvatarType[]>([]);
@@ -49,7 +46,8 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     }, [activeGroup.data.items.length, activeGroup.data.pageNumber]);
 
     const memberRef = React.useRef<HTMLInputElement>(null);
-    const renameRef = React.useRef<HTMLInputElement>(null);
+
+    const reload = (): void => fetchActiveGroup({...params});
 
     React.useEffect(() => {
         if (name) fetchActiveGroup(listGroupMembersRequest({group: name ?? "", itemsPerPage: 25, page: 0}));
@@ -90,7 +88,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
                                         />
                                     }
                                 />
-                                <Text fontSize="20px" mx="8px" my="15px">{member}{member}{member}</Text>
+                                <Text fontSize="20px" mx="8px" my="15px">{member}</Text>
                             </Card>
                         )}
                     </GridCardGroup>
@@ -98,7 +96,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
             />
         }
         sidebar={<Box>
-            <Button onClick={() => setModalOpen(true)} width="100%" mb="5px">Rename group</Button>
+            <Button onClick={renameGroup} width="100%" mb="5px">Rename group</Button>
             <Button onClick={promptDeleteGroup} width="100%" color="red">Delete group</Button>
         </Box>}
         headerSize={120}
@@ -116,30 +114,33 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
                 </form>
             </Box>
         </>}
-        additional={<ReactModal isOpen={modalOpen} shouldCloseOnEsc shouldCloseOnOverlayClick onRequestClose={() => setModalOpen(false)} style={defaultModalStyle}>
-            <Heading.h2>New group</Heading.h2>
-            <form onSubmit={renameGroup}>
-                <Flex>
-                    <Input maxLength={500} placeholder="Group name..." ref={renameRef} />
-                    <Button ml="5px">Rename</Button>
-                </Flex>
-            </form>
-        </ReactModal>}
     />;
 
     async function renameGroup(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
-        const newGroupName = renameRef.current?.value;
-        if (!newGroupName) {
-            snackbarStore.addFailure("New group name cannot be empty");
-            return;
-        }
+
+        const result = await addStandardInputDialog({
+            confirmText: "Rename",
+            cancelText: "Cancel",
+            defaultValue: "",
+            placeholder: "Group name...",
+            title: `Rename ${name}`,
+            addToFront: false,
+            validationFailureMessage: "Name can't be empty.",
+            validator: val => !!val
+        });
+
+        if ("cancelled" in result) return;
+
         try {
-            promises.makeCancelable(Client.post("/projects/groups/update-name", {oldGroupName: name, newGroupName}));
+            promises.makeCancelable(Client.post("/projects/groups/update-name", {
+                oldGroupName: name, newGroupName: result.result
+            }));
             snackbarStore.addSnack({
                 message: "Group renamed",
                 type: SnackType.Success
             });
+            history.push(`/projects/groups/${encodeURI(result.result)}`);
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred renaming group"));
         } finally {
