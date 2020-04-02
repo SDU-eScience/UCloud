@@ -9,10 +9,11 @@ import {inDevEnvironment} from "UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
 import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
+import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
 
 // eslint-disable-next-line no-underscore-dangle
 const _ContextSwitcher: React.FunctionComponent<{maxSize: number} & ContextSwitcherReduxProps & DispatchProps> = props => {
-    if (!inDevEnvironment()) return null;
+    if (![DEV_SITE, STAGING_SITE].includes(window.location.host) && !inDevEnvironment()) return null;
 
     const userContext = props.activeProject ?? "Personal Project";
 

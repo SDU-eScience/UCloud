@@ -291,7 +291,7 @@ class GroupDao {
             .forEach { row ->
                 val groupName = row.getString(0)!!
                 val username = row.getString(1)
-                val memberCount = row.getInt(2)
+                val memberCount = row.getLong(2)?.toInt()
 
                 val existingSummary = groupWithSummaryByGroup[groupName] ?: GroupWithSummary(groupName, 0, emptyList())
 
@@ -347,6 +347,22 @@ class GroupDao {
         oldGroupName: String,
         newGroupName: String
     ) {
+        session
+            .sendPreparedStatement(
+                {
+                    setParameter("newGroup", newGroupName)
+                    setParameter("oldGroup", oldGroupName)
+                    setParameter("project", projectId)
+                },
+                """
+                    update groups
+                    set 
+                        the_group = ?newGroup
+                    where
+                        project = ?project and
+                        the_group = ?oldGroup 
+                """
+            )
         session
             .sendPreparedStatement(
                 {

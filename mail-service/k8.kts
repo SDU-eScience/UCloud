@@ -20,6 +20,7 @@ bundle {
                 mail:
                   whitelist:
                   - "_password-reset"
+                  - "_project"
                   fromAddress: "support@escience.sdu.dk"
             """.trimIndent()
         )

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "indexing"
-    version = "1.16.1"
+    version = "1.16.2"
 
     withAmbassador {}
 

@@ -16,6 +16,7 @@ import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.elasticsearch.action.ActionListener
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.get.GetRequest
@@ -23,10 +24,17 @@ import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.xcontent.XContentType
+import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.index.reindex.BulkByScrollResponse
+import org.elasticsearch.index.reindex.DeleteByQueryAction
+import org.elasticsearch.index.reindex.DeleteByQueryRequest
 import org.slf4j.Logger
 import java.io.File
 import java.util.concurrent.Executors
 import kotlin.math.abs
+import dk.sdu.cloud.indexing.services.ElasticIndexedFile
+import org.elasticsearch.ElasticsearchException
+
 
 @Suppress("BlockingMethodInNonBlockingContext")
 class FileSystemScanner(
@@ -86,7 +94,10 @@ class FileSystemScanner(
             bulk.add(deleteRequest)
             flushIfNeeded()
         }
+
     }
+
+
 
     private suspend fun submitScan(path: File, upperLimitOfEntries: Long = Long.MAX_VALUE) {
         log.debug("Scanning: ${path.toCloudPath()} (${path})")
@@ -128,7 +139,28 @@ class FileSystemScanner(
         val bulk = BulkRequestBuilder()
         filesInIndex.values.asSequence()
             .filter { it.path !in files }
-            .forEach { bulk.add(deleteDocWithFile(it.path)) }
+            .forEach {
+                bulk.add(deleteDocWithFile(it.path))
+                val queryDeleteRequest = DeleteByQueryRequest(FILES_INDEX)
+                queryDeleteRequest.setConflicts("proceed")
+                queryDeleteRequest.setQuery(
+                    QueryBuilders.wildcardQuery(
+                        "_id",
+                        "${it.path}/*"
+                    )
+                )
+                queryDeleteRequest.batchSize = 100
+                try {
+                    //We only delete 100 at a time to reduce stress. Redo until all matching search is deleted
+                    var moreTodelete = true
+                    while (moreTodelete) {
+                        val response = elastic.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
+                        if (response.deleted == 0L) moreTodelete = false
+                    }
+                } catch (ex: ElasticsearchException) {
+                    log.warn("Deletion of ${it.path}/* , failed")
+                }
+            }
 
         files.values.asSequence()
             .filter { it.path !in filesInIndex }

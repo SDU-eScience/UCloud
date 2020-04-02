@@ -82,7 +82,7 @@ class ProjectController(
             if (project == null) {
                 ok(Unit)
             } else {
-                service.shouldVerify(ctx.securityPrincipal.username, project)
+                service.verifyMembership(ctx.securityPrincipal.username, project)
                 ok(Unit)
             }
         }

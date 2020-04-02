@@ -1,19 +1,18 @@
 package dk.sdu.cloud.project.services
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
-import dk.sdu.cloud.contact.book.api.InsertRequest
-import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 
 class GroupService(
@@ -24,15 +23,25 @@ class GroupService(
     private val serviceClient: AuthenticatedClient
 ) {
     suspend fun createGroup(principal: SecurityPrincipal, projectId: String, group: String) {
-        val project = db.withTransaction { session ->
-            val role = projects.findRoleOfMember(session, projectId, principal.username) ?: return@withTransaction null
-            if (!role.isAdmin()) return@withTransaction null
-            val project = projects.findById(session, projectId)
-            groups.createGroup(session, projectId, group)
-            project
-        } ?: throw ProjectException.CantAddGroup()
+        try {
+            val project = db.withTransaction { session ->
+                val role =
+                    projects.findRoleOfMember(session, projectId, principal.username) ?: return@withTransaction null
+                if (!role.isAdmin()) return@withTransaction null
+                val project = projects.findById(session, projectId)
+                groups.createGroup(session, projectId, group)
+                project
+            } ?: throw ProjectException.CantAddGroup()
 
-        eventProducer.produce(ProjectEvent.GroupCreated(project, group))
+            eventProducer.produce(ProjectEvent.GroupCreated(project, group))
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorMessage.fields['C'] == ALREADY_EXISTS_PSQL) {
+                throw RPCException("Group already exists", HttpStatusCode.Conflict)
+            }
+
+            log.warn(ex.stackTraceToString())
+            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        }
     }
 
     suspend fun deleteGroups(principal: SecurityPrincipal, projectId: String, groupNames: Set<String>) {
@@ -69,19 +78,25 @@ class GroupService(
     }
 
     suspend fun addMember(principal: SecurityPrincipal, projectId: String, group: String, member: String) {
-        val project: Project = db.withTransaction { session ->
-            val role = projects.findRoleOfMember(session, projectId, principal.username) ?: return@withTransaction null
-            if (!role.isAdmin()) return@withTransaction null
-            val project = projects.findById(session, projectId)
-            groups.addMemberToGroup(session, projectId, member, group)
-            project
-        } ?: throw ProjectException.CantChangeGroupMember()
+        try {
+            val project: Project = db.withTransaction { session ->
+                val role =
+                    projects.findRoleOfMember(session, projectId, principal.username) ?: return@withTransaction null
+                if (!role.isAdmin()) return@withTransaction null
+                val project = projects.findById(session, projectId)
+                groups.addMemberToGroup(session, projectId, member, group)
+                project
+            } ?: throw ProjectException.CantChangeGroupMember()
 
-        eventProducer.produce(ProjectEvent.MemberAddedToGroup(project, member, group))
+            eventProducer.produce(ProjectEvent.MemberAddedToGroup(project, member, group))
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorMessage.fields['C'] == ALREADY_EXISTS_PSQL) {
+                throw RPCException("Member is already in group", HttpStatusCode.Conflict)
+            }
 
-        ContactBookDescriptions.insert.call(
-            InsertRequest(principal.username, listOf(member), ServiceOrigin.PROJECT_SERVICE), serviceClient
-        )
+            log.warn(ex.stackTraceToString())
+            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        }
     }
 
     suspend fun removeMember(principal: SecurityPrincipal, projectId: String, group: String, member: String) {
@@ -141,6 +156,10 @@ class GroupService(
         return db.withTransaction { session ->
             groups.exists(session, project, group)
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
