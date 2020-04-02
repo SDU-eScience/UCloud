@@ -184,7 +184,10 @@ export const sideBarMenuElements: {
     },
     general: {
         items: [
-            {icon: "files", label: "Files", to: () => fileTablePage(Client.homeFolder)},
+            {
+                icon: "files", label: "Files", to: () => Client.hasActiveProject ?
+                    fileTablePage(Client.currentProjectFolder) : fileTablePage(Client.homeFolder)
+            },
             {icon: "shareMenu", label: "Shares", to: "/shares/"},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
             {icon: "results", label: "Runs", to: "/applications/results/"}
