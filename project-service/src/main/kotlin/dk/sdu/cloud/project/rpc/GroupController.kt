@@ -38,6 +38,7 @@ class GroupController(private val groupService: GroupService) : Controller {
 
         implement(ProjectGroups.addGroupMember) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
+
             ok(groupService.addMember(ctx.securityPrincipal, project, request.group, request.memberUsername))
         }
 

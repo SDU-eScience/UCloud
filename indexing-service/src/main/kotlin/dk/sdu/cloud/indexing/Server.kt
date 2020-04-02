@@ -29,9 +29,10 @@ class Server(
     override val log = logger()
 
     override fun start() {
+        val cephFsRoot = "/mnt/cephfs/" + cephConfig.subfolder
         elastic = micro.elasticHighLevelClient
         val stats = if (cephConfig.useCephDirectoryStats) CephFsFastDirectoryStats else null
-        val queryService = ElasticQueryService(elastic, stats)
+        val queryService = ElasticQueryService(elastic, stats, cephFsRoot)
 
         if (micro.commandLineArguments.contains("--scan")) {
             runBlocking {
@@ -41,7 +42,9 @@ class Server(
                         queryService,
                         run {
                             if (micro.developmentModeEnabled) TODO()
-                            else "/mnt/cephfs/" + cephConfig.subfolder
+                            else {
+                                cephFsRoot
+                            }
                         },
                         stats
                     ).runScan()

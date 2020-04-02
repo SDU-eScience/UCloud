@@ -166,7 +166,8 @@ class AuditToEventStream(
                             requestJson = auditPayload,
                             responseCode = responseCode,
                             responseTime = responseTime,
-                            expiry = expiry
+                            expiry = expiry,
+                            project = context.project
                         )
 
                         eventProducer.produce(entry)

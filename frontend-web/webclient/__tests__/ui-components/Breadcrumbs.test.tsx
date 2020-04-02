@@ -16,6 +16,7 @@ describe("Breadcrumbs", () => {
                     currentPath="/home/mail@mailhost.dk/folder1"
                     navigate={() => undefined}
                     homeFolder={"/home/mail@mailhost.dk"}
+                    projectFolder="/project/hello"
                 />
             </ThemeProvider>)).toMatchSnapshot();
     });
@@ -27,6 +28,7 @@ describe("Breadcrumbs", () => {
             currentPath=""
             navigate={() => undefined}
             homeFolder={"mail@mailhost.dk"}
+            projectFolder="otherthing"
         /></ThemeProvider>)).toMatchSnapshot();
     });
 
@@ -36,6 +38,7 @@ describe("Breadcrumbs", () => {
             currentPath="/home/mail@mailhost.dk/folder1"
             navigate={navigate}
             homeFolder={"/home/mail@mailhost.dk"}
+            projectFolder="otherthing"
         /></ThemeProvider>);
         breadcrumbs.find("span").first().simulate("click");
         expect(navigate).toHaveBeenCalled();

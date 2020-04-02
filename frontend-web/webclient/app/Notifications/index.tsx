@@ -14,7 +14,7 @@ import {IconName} from "ui-components/Icon";
 import {TextSpan} from "ui-components/Text";
 import theme, {Theme, ThemeColor} from "ui-components/theme";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {
     fetchNotifications,
     notificationRead,
@@ -79,6 +79,11 @@ function Notifications(props: Notifications): JSX.Element {
                 // TODO Should refactor these URLs somewhere else
                 history.push(`/applications/results/${notification.meta.jobId}`);
                 break;
+            case "REVIEW_PROJECT":
+                reload();
+                history.push("/projects/view/" + encodeURIComponent(notification.meta["project"]));
+                break;
+
             case "SHARE_REQUEST":
                 reload();
                 history.push("/shares");
@@ -181,7 +186,7 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
                 <TextSpan color="grey" fontSize={1}>
                     {formatDistance(notification.ts, new Date(), {addSuffix: true})}
                 </TextSpan>
-                <TextSpan fontSize={1}>{replaceHomeFolder(notification.message, Client.homeFolder)}</TextSpan>
+                <TextSpan fontSize={1}>{replaceHomeOrProjectFolder(notification.message, Client)}</TextSpan>
             </Flex>
         </NotificationWrapper>
     );
@@ -197,6 +202,8 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
 
     function resolveEventType(eventType: string): {name: IconName; color: ThemeColor; color2: ThemeColor} {
         switch (eventType) {
+            case "REVIEW_PROJECT":
+                return {name: "projects", color: "black", color2: "black"};
             case "SHARE_REQUEST":
                 return {name: "share", color: "black", color2: "black"};
             case "APP_COMPLETE":

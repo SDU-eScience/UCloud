@@ -68,11 +68,6 @@ const Core = (): JSX.Element => (
                 <Route exact path="/files" component={requireAuth(Files)} />
 
                 <Route exact path="/activity" component={requireAuth(Activity)} />
-                <Route
-                    exact
-                    path="/accounting/:resource/:subResource"
-                    component={requireAuth(Accounting.DetailedPage)}
-                />
 
                 <Route exact path="/novnc" component={requireAuth(NoVNCClient)} />
 

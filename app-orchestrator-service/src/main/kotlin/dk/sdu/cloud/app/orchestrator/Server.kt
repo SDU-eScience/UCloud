@@ -55,7 +55,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         }
 
         val parameterExportService = ParameterExportService()
-        val jobFileService = JobFileService(serviceClient, userClientFactory, parameterExportService)
+        val jobFileService = JobFileService(userClientFactory, parameterExportService)
 
         val vncService = VncService(computationBackendService, db, jobHibernateDao, serviceClient)
         val webService = WebService(computationBackendService, db, jobHibernateDao, serviceClient)

@@ -28,7 +28,7 @@ import {
     getFilenameFromPath,
     getParentPath,
     isDirectory,
-    replaceHomeFolder
+    replaceHomeOrProjectFolder
 } from "Utilities/FileUtilities";
 import {FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
@@ -79,6 +79,9 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 break;
             case "SHARE_REQUEST":
                 props.history.push("/shares");
+                break;
+            case "REVIEW_PROJECT":
+                props.history.push("/projects/view/" + encodeURIComponent(notification.meta["project"]));
                 break;
         }
     };
@@ -186,13 +189,13 @@ const NoEntries = (props: NoEntriesProps): JSX.Element => (
 );
 
 const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): JSX.Element => {
-    const iconType = UF.iconFromFilePath(file.path, file.fileType, Client.homeFolder);
+    const iconType = UF.iconFromFilePath(file.path, file.fileType, Client);
     return (
         <Flex alignItems="center">
             <FileIcon fileIcon={iconType} />
             <Link ml="0.5em" to={fileTablePage(isDirectory(file) ? file.path : getParentPath(file.path))}>
                 <EllipsedText fontSize={2} width={pixelsWide}>
-                    {getFilenameFromPath(replaceHomeFolder(file.path, Client.homeFolder))}
+                    {getFilenameFromPath(replaceHomeOrProjectFolder(file.path, Client))}
                 </EllipsedText>
             </Link>
         </Flex>

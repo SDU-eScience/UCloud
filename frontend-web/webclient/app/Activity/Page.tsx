@@ -170,7 +170,7 @@ export const getStartOfWeek = (d: Date): Date => {
     return copy;
 };
 
-export const TimeFilter = (props: {text: string, onChange: (ts?: Date) => void, selected?: Date}) => (
+export const TimeFilter = (props: {text: string; onChange: (ts?: Date) => void; selected?: Date}): JSX.Element => (
     <Box mb={16}>
         <Label>{props.text}</Label>
         <InputGroup>

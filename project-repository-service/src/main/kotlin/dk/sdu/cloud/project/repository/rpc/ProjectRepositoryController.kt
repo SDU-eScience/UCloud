@@ -82,7 +82,7 @@ class ProjectRepositoryController(
                     .mapItems {
                         StorageFile(
                             FileType.DIRECTORY,
-                            "/projects/$project/$it"
+                            "/projects/$project/${it.name}"
                         )
                     }
             )

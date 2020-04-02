@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "project"
-    version = "3.0.0-v.6"
+    version = "3.0.0-v.17"
 
     withAmbassador("/api/projects") {}
 
@@ -15,4 +15,7 @@ bundle { ctx ->
     }
 
     withPostgresMigration(deployment)
+
+    //withCronJob(deployment, "0 */12 * * *", listOf("--remind")) {}
+    withAdHocJob(deployment, "remind-now", { listOf("--remind") })
 }

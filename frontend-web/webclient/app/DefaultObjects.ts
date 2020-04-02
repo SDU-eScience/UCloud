@@ -1,10 +1,10 @@
 import * as AccountingRedux from "Accounting/Redux";
-import {Activity, ActivityFilter, ActivityForFrontend} from "Activity";
+import {ActivityFilter, ActivityForFrontend} from "Activity";
 import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
 import * as ApplicationRedux from "Applications/Redux";
 import {TaskReduxState} from "BackgroundTasks/redux";
 import {DashboardStateProps} from "Dashboard";
-import {DetailedFileSearchReduxState, File, SortOrder} from "Files";
+import {DetailedFileSearchReduxState, SortOrder} from "Files";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
@@ -20,7 +20,8 @@ export enum KeyCode {
     ESC = 27
 }
 
-export const emptyPage: Page<any> = {items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0};
+export const emptyPage: Readonly<Page<any>> =
+    {items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0};
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -196,7 +197,7 @@ export function initObject(): ReduxObject {
     };
 }
 
-export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
+export type AvatarReduxObject = typeof defaultAvatar & {error?: string};
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({

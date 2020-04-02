@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.app.orchestrator.api.ProjectAndRepository
 import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -28,7 +29,6 @@ import java.util.*
 data class JobDirectory(val path: String)
 
 class JobFileService(
-    private val serviceClient: AuthenticatedClient,
     private val userClientFactory: (accessToken: String?, refreshToken: String?) -> AuthenticatedClient,
     private val parameterExportService: ParameterExportService
 ) {
@@ -41,7 +41,7 @@ class JobFileService(
             jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
                 ?: SensitivityLevel.PRIVATE
 
-        val jobsFolder = jobsFolder(job.owner)
+        val jobsFolder = jobsFolder(job.owner, job.projectAndRepository)
         FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(jobsFolder, null),
             userCloud
@@ -145,22 +145,14 @@ class JobFileService(
         ).orThrow()
     }
 
-    private val jobFolderCache = HashMap<String, String>()
-    private val jobFolderLock = Mutex()
-
-    suspend fun jobsFolder(ownerUsername: String): String {
-        jobFolderLock.withLock {
-            val homeFolder = jobFolderCache[ownerUsername] ?: FileDescriptions.findHomeFolder.call(
-                FindHomeFolderRequest(ownerUsername),
-                serviceClient
-            ).orThrow().path
-
-            jobFolderCache[ownerUsername] = homeFolder
-
-            return joinPath(
-                homeFolder,
-                "Jobs"
-            )
+    fun jobsFolder(
+        ownerUsername: String,
+        projectAndRepository: ProjectAndRepository?
+    ): String {
+        return if (projectAndRepository == null) {
+            joinPath(homeDirectory(ownerUsername), "Jobs")
+        } else {
+            joinPath("/projects", projectAndRepository.project, projectAndRepository.repository, "Jobs")
         }
     }
 
@@ -186,7 +178,7 @@ class JobFileService(
         if (job.outputFolder != null) {
             return job.outputFolder
         } else {
-            val jobsFolder = jobsFolder(job.owner)
+            val jobsFolder = jobsFolder(job.owner, job.projectAndRepository)
             var folderName = job.id
 
             if (new) {

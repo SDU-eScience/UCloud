@@ -28,7 +28,9 @@ import {
     Label,
     OutlineButton,
     VerticalButtonGroup,
-    Checkbox
+    Checkbox,
+    Select,
+    Text
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Error from "ui-components/Error";
@@ -47,7 +49,7 @@ import {
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {
     checkIfFileExists,
-    expandHomeFolder,
+    expandHomeOrProjectFolder,
     fetchFileContent,
     fileTablePage, getFilenameFromPath,
     statFileQuery
@@ -70,7 +72,6 @@ import {PRODUCT_NAME} from "../../site.config.json";
 import {AppHeader} from "./View";
 import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
-import {concatScrolls} from "Scroll";
 import {TextSpan} from "ui-components/Text";
 import Warning from "ui-components/Warning";
 
@@ -88,6 +89,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             jobSubmitted: false,
             initialSubmit: false,
 
+            repository: undefined,
             parameterValues: new Map(),
             mountedFolders: [],
             additionalPeers: [],
@@ -137,7 +139,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
     public render(): JSX.Element {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
-        if (!application) return <MainContainer main={<LoadingIcon size={36} />} />;
+        if (!application) return <MainContainer main={<LoadingIcon size={36}/>}/>;
 
         const parameters = application.invocation.parameters;
         const mandatory = parameters.filter(parameter => !parameter.optional);
@@ -183,7 +185,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 headerSize={48}
                 header={(
                     <Flex mx={["0px", "0px", "0px", "0px", "0px", "50px"]}>
-                        <AppHeader slim application={application} />
+                        <AppHeader slim application={application}/>
                     </Flex>
                 )}
 
@@ -280,6 +282,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                     setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})}
                                     url={this.state.url}
                                     app={application}
+                                    setRepository={repository => (this.setState({repository: repository === "" ? undefined : repository}))}
                                 />
                             </RunSection>
 
@@ -321,30 +324,30 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     Your files will be available at <code>/work/</code>.
                                                 </>
                                             ) : (
-                                                    <>
-                                                        If you need to use your {" "}
-                                                        <Link
-                                                            to={fileTablePage(Client.homeFolder)}
-                                                            target="_blank"
-                                                        >
-                                                            files
+                                                <>
+                                                    If you need to use your {" "}
+                                                    <Link
+                                                        to={fileTablePage(Client.homeFolder)}
+                                                        target="_blank"
+                                                    >
+                                                        files
                                                     </Link>
-                                                        {" "}
-                                                        in this job then click {" "}
-                                                        <BaseLink
-                                                            href="#"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                this.addFolder();
-                                                            }}
-                                                        >
-                                                            "Add folder"
+                                                    {" "}
+                                                    in this job then click {" "}
+                                                    <BaseLink
+                                                        href="#"
+                                                        onClick={e => {
+                                                            e.preventDefault();
+                                                            this.addFolder();
+                                                        }}
+                                                    >
+                                                        "Add folder"
                                                     </BaseLink>
-                                                        {" "}
-                                                        to select the relevant
-                                                        files.
+                                                    {" "}
+                                                    to select the relevant
+                                                    files.
                                                 </>
-                                                )}
+                                            )}
                                         </Box>
 
                                         {this.state.mountedFolders.map((entry, i) => (
@@ -396,21 +399,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                 File systems used by the <b>job</b> are automatically added to this job.
                                             </>
                                         ) : (
-                                                <>
-                                                    If you need to use the services of another job click{" "}
-                                                    <BaseLink
-                                                        href="#"
-                                                        onClick={e => {
-                                                            e.preventDefault();
-                                                            this.connectToJob();
-                                                        }}
-                                                    >
-                                                        "Connect to job".
+                                            <>
+                                                If you need to use the services of another job click{" "}
+                                                <BaseLink
+                                                    href="#"
+                                                    onClick={e => {
+                                                        e.preventDefault();
+                                                        this.connectToJob();
+                                                    }}
+                                                >
+                                                    "Connect to job".
                                                 </BaseLink>
-                                                    {" "}
-                                                    This includes networking.
+                                                {" "}
+                                                This includes networking.
                                             </>
-                                            )}
+                                        )}
                                     </Box>
 
                                     {
@@ -514,14 +517,14 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         }
 
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
-            const expandedValue = expandHomeFolder(it.ref.current!.value, Client.homeFolder);
+            const expandedValue = expandHomeOrProjectFolder(it.ref.current!.value, Client);
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!
             };
         });
 
-        const peers = [] as Array<{name: string; jobId: string}>;
+        const peers = [] as Array<{ name: string; jobId: string }>;
         {
             // Validate additional mounts
             for (const peer of this.state.additionalPeers) {
@@ -576,8 +579,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             reservation,
             type: "start",
             name: jobName !== "" ? jobName : null,
+            repository: this.state.repository,
             acceptSameDataRetry: false
         };
+
+        console.log(this.state.repository);
 
         try {
             this.setState({jobSubmitted: true});
@@ -585,7 +591,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Client.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            if (err.request.status == 409) {
+            if (err.request.status === 409) {
                 addStandardDialog({
                     title: "Job with same parameters already running",
                     message: "You might be trying to run a duplicate job. Would you like to proceed?",
@@ -606,11 +612,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                         }
                     },
                     onCancel: async () => {
-                        this.setState( () => ({jobSubmitted: false}));
+                        this.setState(() => ({jobSubmitted: false}));
                     }
                 });
-            }
-            else {
+            } else {
                 snackbarStore.addFailure(
                     errorMessageOrDefault(err, "An error occurred submitting the job.")
                 );
@@ -723,7 +728,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     for (const paramKey in fileParams) {
                         const param = fileParams[paramKey];
                         if (userInputValues[param.name]) {
-                            const path = expandHomeFolder(userInputValues[param.name], Client.homeFolder);
+                            const path = expandHomeOrProjectFolder(userInputValues[param.name], Client);
                             if (!await checkIfFileExists(path, Client)) {
                                 invalidFiles.push(userInputValues[param.name]);
                                 userInputValues[param.name] = "";
@@ -741,7 +746,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     const validMountFolders = [] as AdditionalMountedFolder[];
                     // tslint:disable-next-line:prefer-for-of
                     for (let i = 0; i < mountedFolders.length; i++) {
-                        if (await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Client.homeFolder), Client)) {
+                        if (await checkIfFileExists(expandHomeOrProjectFolder(mountedFolders[i].ref, Client), Client)) {
                             const ref = React.createRef<HTMLInputElement>();
                             validMountFolders.push({ref});
                         }
@@ -796,7 +801,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         fileReader.readAsText(file);
     }
 
-    private onImportFileSelected(file: {path: string}): void {
+    private onImportFileSelected(file: { path: string }): void {
         if (!file.path.endsWith(".json")) {
             addStandardDialog({
                 title: "Continue?",
@@ -809,7 +814,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.fetchAndImportParameters(file);
     }
 
-    private fetchAndImportParameters = async (file: {path: string}): Promise<void> => {
+    private fetchAndImportParameters = async (file: { path: string }): Promise<void> => {
         const fileStat = await Client.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
             snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed.");
@@ -897,35 +902,33 @@ const ApplicationUrl: React.FunctionComponent<{
                 <Label mb={10}>
                     <Checkbox size={28} checked={props.enabled} onChange={() => {
                         props.setEnabled(!props.enabled);
-                        
+
                         if (!props.enabled && props.jobName.current !== null) {
                             setUrl(urlify(props.jobName.current!.value));
                         }
-                    }} />
-                        <TextSpan>Persistent URL</TextSpan>
+                    }}/>
+                    <TextSpan>Persistent URL</TextSpan>
                 </Label>
             </div>
 
             <div>
-                { props.enabled ? (
+                {props.enabled ? (
                     <>
-                        <Warning warning="By enabling this setting, anyone with a link can gain access to the application." />
+                        <Warning
+                            warning="By enabling this setting, anyone with a link can gain access to the application."/>
                         <Label mt={20}>
                             <Flex>
                                 <TextSpan mt={10}>https://app-</TextSpan>
-                                <Input placeholder="Unique URL identifier" ref={props.inputRef} required />
+                                <Input placeholder="Unique URL identifier" ref={props.inputRef} required/>
                                 <TextSpan mt={10}>.cloud.sdu.dk</TextSpan>
                             </Flex>
                         </Label>
                     </>
-                ) : ( <></> )}
-            </div>    
+                ) : (<></>)}
+            </div>
         </>
     );
 };
-
-
-
 
 
 interface JobSchedulingOptionsProps {
@@ -934,16 +937,23 @@ interface JobSchedulingOptionsProps {
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
     reservationRef: React.RefObject<HTMLInputElement>;
+    setRepository: (repository?: string) => void;
     urlEnabled: boolean;
     setUrlEnabled: React.Dispatch<React.SetStateAction<boolean>>;
     url: React.RefObject<HTMLInputElement>;
 }
 
 function urlify(text: string): string {
-    return encodeURIComponent(text.substr(0, 32)).replace (new RegExp('%20', 'g'), '-').toLowerCase()
+    return encodeURIComponent(text.substr(0, 32)).replace(new RegExp('%20', 'g'), '-').toLowerCase()
 }
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
+    const [repositories, setRepositories] = React.useState<Page<{ name: string }>>(emptyPage);
+    React.useEffect(() => {
+        if (!Client.hasActiveProject) return;
+        Client.get("/projects/repositories?itemsPerPage=100&page=0").then(it => setRepositories(it.response));
+    }, []);
+
     if (!props.app) return null;
     const {maxTime, numberOfNodes, tasksPerNode, name} = props.options;
     return (
@@ -963,6 +973,21 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                 </Label>
             </Flex>
 
+            {!Client.hasActiveProject ? null :
+                <Label>
+                    Project Repository
+                    {
+                        repositories.items.length === 0 ?
+                            <Text ml="8px" my="5px">No repositories available for project</Text> : (
+                                <Select onChange={(e) => props.setRepository(e.target.value)}>
+                                    <option/>
+                                    {repositories.items.map(g => <option key={g.name}>{g.name}</option>)}
+                                </Select>
+                            )
+                    }
+                </Label>
+            }
+
             <Flex mb="1em">
                 <SchedulingField
                     min={0}
@@ -973,7 +998,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     value={maxTime.hours}
                     onChange={props.onChange}
                 />
-                <Box ml="4px" />
+                <Box ml="4px"/>
                 <SchedulingField
                     min={0}
                     max={59}
@@ -983,7 +1008,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     value={maxTime.minutes}
                     onChange={props.onChange}
                 />
-                <Box ml="4px" />
+                <Box ml="4px"/>
                 <SchedulingField
                     min={0}
                     max={59}

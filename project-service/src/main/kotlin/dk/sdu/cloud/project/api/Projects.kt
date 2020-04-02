@@ -48,10 +48,20 @@ typealias DeleteMemberResponse = Unit
 data class ChangeUserRoleRequest(val projectId: String, val member: String, val newRole: ProjectRole)
 typealias ChangeUserRoleResponse = Unit
 
+data class ShouldVerifyMembershipResponse(
+    val shouldVerify: Boolean
+)
+
 /**
  * A project summary from a user's perspective
  */
-data class UserProjectSummary(val projectId: String, val title: String, val whoami: ProjectMember)
+data class UserProjectSummary(
+    val projectId: String,
+    val title: String,
+    val whoami: ProjectMember,
+    val needsVerification: Boolean
+)
+
 data class UserGroupSummary(val projectId: String, val group: String, val username: String)
 
 data class ListProjectsRequest(
@@ -59,6 +69,7 @@ data class ListProjectsRequest(
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
+
 typealias ListProjectsResponse = Page<UserProjectSummary>
 
 object Projects : CallDescriptionContainer("project") {
@@ -207,4 +218,36 @@ object Projects : CallDescriptionContainer("project") {
             }
         }
     }
+
+    val shouldVerifyMembership =
+        call<Unit, ShouldVerifyMembershipResponse, CommonErrorMessage>("shouldVerifyMembership") {
+            auth {
+                access = AccessRight.READ
+            }
+
+            http {
+                method = HttpMethod.Get
+
+                path {
+                    using(baseContext)
+                    +"should-verify"
+                }
+            }
+        }
+
+    val verifyMembership =
+        call<Unit, Unit, CommonErrorMessage>("verifyMembership") {
+            auth {
+                access = AccessRight.READ_WRITE
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"verify-membership"
+                }
+            }
+        }
 }

@@ -1,11 +1,11 @@
-//DEPS dk.sdu.cloud:k8-resources:0.1.0
+//DEPS dk.sdu.cloud:k8-resources:0.1.2
 package dk.sdu.cloud.k8
 
 bundle {
     name = "elastic-management"
     version = "1.0.26"
 
-    val deployment = withDeployment {
+    val deployment = withDeployment(image = "registry.cloud.sdu.dk/sducloud/elastic-management:$version") {
         injectSecret("elasticsearch-credentials")
     }
 

@@ -46,7 +46,7 @@ describe("FileIcon", () => {
 
     test("FileIcon, not shared", () => {
         const mFile = mockFile({path: "path", type: "DIRECTORY"});
-        const iconType = iconFromFilePath(mFile.path, mFile.fileType, "/home/mail@mailhost.dk");
+        const iconType = iconFromFilePath(mFile.path, mFile.fileType, Client);
         expect(create(
             <ThemeProvider theme={theme}>
                 <FileIcon fileIcon={iconType} />
@@ -55,7 +55,7 @@ describe("FileIcon", () => {
     });
     test("FileIcon, shared", () => {
         const mFile = mockFile({path: "path", type: "DIRECTORY"});
-        const iconType = iconFromFilePath(mFile.path, mFile.fileType, "/home/mail@mailhost.dk");
+        const iconType = iconFromFilePath(mFile.path, mFile.fileType, Client);
         expect(create(
             <ThemeProvider theme={theme}>
                 <FileIcon
@@ -135,7 +135,7 @@ describe("Dialogs", () => {
         rewritePolicyDialog({
             allowOverwrite: false,
             filesRemaining: 0,
-            homeFolder: "home",
+            client: Client,
             path: "path"
         });
         expect(dialogCount).toBe(1);
@@ -149,7 +149,7 @@ describe("Dialogs", () => {
         rewritePolicyDialog({
             allowOverwrite: true,
             filesRemaining: 0,
-            homeFolder: "home",
+            client: Client,
             path: "path"
         });
         expect(dialogCount).toBe(1);

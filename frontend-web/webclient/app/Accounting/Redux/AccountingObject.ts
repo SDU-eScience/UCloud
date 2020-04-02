@@ -3,7 +3,6 @@ import {Dictionary, Page} from "Types";
 import * as API from "../api";
 
 export interface ResourceState {
-    chart: LoadableContent<API.ChartResponse>;
     usage: LoadableContent<API.Usage>;
     events: LoadableContent<Page<API.AccountingEvent>>;
 }

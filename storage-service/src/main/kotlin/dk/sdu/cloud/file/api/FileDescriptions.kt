@@ -317,6 +317,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
     val createDirectory =
         call<CreateDirectoryRequest, LongRunningResponse<Unit>, CommonErrorMessage>("createDirectory") {
             auth {
+                roles = Roles.AUTHENTICATED
                 access = AccessRight.READ_WRITE
             }
 

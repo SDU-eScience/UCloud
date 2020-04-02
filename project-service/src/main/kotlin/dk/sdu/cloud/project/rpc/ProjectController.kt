@@ -2,9 +2,11 @@ package dk.sdu.cloud.project.rpc
 
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.api.CreateProjectResponse
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.ShouldVerifyMembershipResponse
 import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
 import dk.sdu.cloud.project.services.ProjectService
 import dk.sdu.cloud.service.Controller
@@ -62,6 +64,27 @@ class ProjectController(
             }
 
             ok(service.listProjects(user, pagination))
+        }
+
+        implement(Projects.shouldVerifyMembership) {
+            val project = ctx.project
+            val shouldVerify = if (project == null) {
+                false
+            } else {
+                service.shouldVerify(ctx.securityPrincipal.username, project)
+            }
+
+            ok(ShouldVerifyMembershipResponse(shouldVerify))
+        }
+
+        implement(Projects.verifyMembership) {
+            val project = ctx.project
+            if (project == null) {
+                ok(Unit)
+            } else {
+                service.verifyMembership(ctx.securityPrincipal.username, project)
+                ok(Unit)
+            }
         }
     }
 

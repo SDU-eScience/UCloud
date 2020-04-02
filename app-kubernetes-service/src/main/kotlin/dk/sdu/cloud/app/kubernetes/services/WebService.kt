@@ -118,7 +118,7 @@ class WebService(
             return false
         }
 
-        if (job.url !== null) {
+        if (job.url != null) {
             return true
         }
 
