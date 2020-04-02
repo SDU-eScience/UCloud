@@ -42,7 +42,7 @@ interface AddGroupMemberProps {
 export function addGroupMember(payload: AddGroupMemberProps): APICallParameters<AddGroupMemberProps> {
     return {
         method: "PUT",
-        path: `${groupContext}`,
+        path: `${groupContext}/members`,
         reloadId: Math.random(),
         payload
     };

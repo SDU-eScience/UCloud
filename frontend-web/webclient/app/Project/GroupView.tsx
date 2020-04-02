@@ -2,7 +2,7 @@ import * as React from "react";
 import {Card, Icon, Button, Text, Input, Flex, Checkbox, Label} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
-import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
+import {useCloudAPI} from "Authentication/DataHook";
 import {Page} from "Types";
 import {GridCardGroup} from "ui-components/Grid";
 import {useHistory, useParams} from "react-router";
@@ -22,7 +22,6 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {loadingAction} from "Loading";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {buildQueryString} from "Utilities/URIUtilities";
 import {groupSummaryRequest} from "Project/api";
 
 interface GroupWithSummary {
@@ -47,7 +46,7 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
     }), emptyPage);
 
     // set reload
-    const reload = () => fetchSummaries({...params});
+    const reload = (): void => fetchSummaries({...params});
 
     React.useEffect(() => {
         props.setRefresh(reload);
@@ -92,9 +91,9 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
             <Button disabled={loading} mb="5px" onClick={() => setCreatingGroup(true)} width="100%">New Group</Button>
             <Button color="red" onClick={promptDeleteGroups} width="100%">Delete groups</Button>
         </>}
-        main={(
+        main={(<>
+            {groupSummaries.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
             <GridCardGroup minmax={300}>
-                {groupSummaries.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
                 {groupSummaries.data.items.map(g => {
                     const isSelected = selectedGroups.has(g.group);
                     return (
@@ -121,7 +120,7 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
                     );
                 })}
             </ GridCardGroup>
-        )}
+        </>)}
         additional={<ReactModal isOpen={creatingGroup} shouldCloseOnEsc shouldCloseOnOverlayClick onRequestClose={() => setCreatingGroup(false)} style={defaultModalStyle}>
             <Heading.h2>New group</Heading.h2>
             <form onSubmit={createGroup}>
