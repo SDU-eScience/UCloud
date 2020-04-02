@@ -141,29 +141,25 @@ class FileSystemScanner(
             .filter { it.path !in files }
             .forEach {
                 bulk.add(deleteDocWithFile(it.path))
-                if (it.fileType == FileType.DIRECTORY) {
-                    val queryDeleteRequest = DeleteByQueryRequest(FILES_INDEX)
-                    queryDeleteRequest.setConflicts("proceed")
-                    queryDeleteRequest.setQuery(
-                        QueryBuilders.wildcardQuery(
-                            "_id",
-                            "${it.path}/*"
-                        )
+                val queryDeleteRequest = DeleteByQueryRequest(FILES_INDEX)
+                queryDeleteRequest.setConflicts("proceed")
+                queryDeleteRequest.setQuery(
+                    QueryBuilders.wildcardQuery(
+                        "_id",
+                        "${it.path}/*"
                     )
-                    queryDeleteRequest.batchSize = 100
-                    try {
-                        //We only delete 100 at a time to reduce stress. Redo until all matching search is deleted
-                        var moreTodelete = true
-                        while (moreTodelete) {
-                            val response = elastic.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
-                            if (response.deleted == 0L) moreTodelete = false
-                        }
-                    } catch (ex: ElasticsearchException) {
-                        log.warn("Deletion of ${it.path}/* , failed")
+                )
+                queryDeleteRequest.batchSize = 100
+                try {
+                    //We only delete 100 at a time to reduce stress. Redo until all matching search is deleted
+                    var moreTodelete = true
+                    while (moreTodelete) {
+                        val response = elastic.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
+                        if (response.deleted == 0L) moreTodelete = false
                     }
+                } catch (ex: ElasticsearchException) {
+                    log.warn("Deletion of ${it.path}/* , failed")
                 }
-
-
             }
 
         files.values.asSequence()
