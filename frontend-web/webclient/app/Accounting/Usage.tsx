@@ -1,4 +1,3 @@
-import {detailedPage} from "Accounting";
 import {ReduxObject} from "DefaultObjects";
 import {LoadableContent} from "LoadableContent";
 import Spinner from "LoadingIcon/LoadingIcon";
@@ -58,7 +57,6 @@ const Usage: React.FunctionComponent<{
                 {props.renderTitle ? usage.title : null}
                 {" "}
                 <Quota usage={usage} />
-                <div><Link to={detailedPage(props.resource, props.subResource)}>View Chart</Link></div>
             </Heading.h4>
         </>
     );
