@@ -157,13 +157,13 @@ function enumToLabel(value: SidebarPages): string {
     }
 }
 
-const SidebarSpacer = () => (<Box mt="12px" />);
+const SidebarSpacer = (): JSX.Element => (<Box mt="12px" />);
 
 const SidebarPushToBottom = styled.div`
     flex-grow: 1;
 `;
 
-interface MenuElement {icon: IconName; label: string; to: string | (() => string);}
+interface MenuElement {icon: IconName; label: string; to: string | (() => string)}
 interface SidebarMenuElements {
     items: MenuElement[];
     predicate: () => boolean;
@@ -186,7 +186,7 @@ export const sideBarMenuElements: {
         items: [
             {
                 icon: "files", label: "Files", to: () => Client.hasActiveProject ?
-                    fileTablePage(Client.currentProjectFolder) : fileTablePage(Client.homeFolder)
+                    fileTablePage(Client.projectFolder) : fileTablePage(Client.homeFolder)
             },
             {icon: "shareMenu", label: "Shares", to: "/shares/"},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
