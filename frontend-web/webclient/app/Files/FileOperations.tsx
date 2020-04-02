@@ -33,6 +33,7 @@ import {
 import {addStandardDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
+import {repositoryTrashFolder} from "Utilities/ProjectUtilities";
 
 export interface FileOperationCallback {
     invokeAsyncWork: (fn: () => Promise<void>) => void;
@@ -73,8 +74,11 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "Empty Trash",
-        onClick: (_, cb) => clearTrash({client: Client, callback: () => cb.requestReload()}),
-        disabled: dir => resolvePath(dir[0].path) !== resolvePath(Client.trashFolder),
+        onClick: ([file], cb) => clearTrash({client: Client, trashPath: file.path, callback: () => cb.requestReload()}),
+        disabled: ([dir]) => {
+            const resolvedPath = resolvePath(dir.path);
+            return resolvedPath !== resolvePath(Client.trashFolder) && resolvedPath !== repositoryTrashFolder(resolvedPath, Client);
+        },
         color: "red",
         currentDirectoryMode: true
     },
