@@ -80,6 +80,9 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             case "SHARE_REQUEST":
                 props.history.push("/shares");
                 break;
+            case "REVIEW_PROJECT":
+                props.history.push("/projects/view/" + encodeURIComponent(notification.meta["project"]));
+                break;
         }
     };
 

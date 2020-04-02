@@ -79,6 +79,11 @@ function Notifications(props: Notifications): JSX.Element {
                 // TODO Should refactor these URLs somewhere else
                 history.push(`/applications/results/${notification.meta.jobId}`);
                 break;
+            case "REVIEW_PROJECT":
+                reload();
+                history.push("/projects/view/" + encodeURIComponent(notification.meta["project"]));
+                break;
+
             case "SHARE_REQUEST":
                 reload();
                 history.push("/shares");
@@ -197,6 +202,8 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
 
     function resolveEventType(eventType: string): {name: IconName; color: ThemeColor; color2: ThemeColor} {
         switch (eventType) {
+            case "REVIEW_PROJECT":
+                return {name: "projects", color: "black", color2: "black"};
             case "SHARE_REQUEST":
                 return {name: "share", color: "black", color2: "black"};
             case "APP_COMPLETE":
