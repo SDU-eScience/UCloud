@@ -31,7 +31,7 @@ export interface ApplicationsOperations {
 export type ApplicationsProps = ReduxType & ApplicationsOperations & RouterLocationProps;
 
 class Applications extends React.Component<ApplicationsProps> {
-    public componentDidMount() {
+    public componentDidMount(): void {
         const {props} = this;
         props.onInit();
 
@@ -39,17 +39,17 @@ class Applications extends React.Component<ApplicationsProps> {
         props.setRefresh(() => this.fetch());
     }
 
-    public componentDidUpdate(prevProps: ApplicationsProps) {
+    public componentDidUpdate(prevProps: ApplicationsProps): void {
         if (prevProps.location !== this.props.location) {
             this.fetch();
         }
     }
 
-    public componentWillUnmount() {
+    public componentWillUnmount(): void {
         this.props.setRefresh();
     }
 
-    public render() {
+    public render(): JSX.Element {
         const main = (
             <Pagination.List
                 loading={this.props.applicationsPage.loading}
@@ -79,7 +79,7 @@ class Applications extends React.Component<ApplicationsProps> {
         );
     }
 
-    private renderPage = (page: Page<FullAppInfo>) => (<ApplicationPage onFavorite={this.onFavorite} page={page} />);
+    private renderPage = (page: Page<FullAppInfo>): JSX.Element => (<ApplicationPage onFavorite={this.onFavorite} page={page} />);
 
     private onFavorite = async (name: string, version: string): Promise<void> => {
         const page = this.props.applicationsPage.content as Page<FullAppInfo>;
@@ -121,7 +121,7 @@ class Applications extends React.Component<ApplicationsProps> {
         }
     }
 
-    private fetch() {
+    private fetch(): void {
         const itemsPerPage = this.itemsPerPage(this.props);
         const pageNumber = this.pageNumber(this.props);
         const tag = this.tag(this.props);
