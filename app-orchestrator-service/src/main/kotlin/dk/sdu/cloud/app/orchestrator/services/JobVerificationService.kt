@@ -94,12 +94,10 @@ class JobVerificationService<Session>(
                 throw RPCException("Provided url not allowed", HttpStatusCode.BadRequest)
             }
 
-            val existingJob = db.withTransaction { session ->
-                dao.findFromUrlId(session, url)
-            }
-
-            if (existingJob != null) {
-                throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
+            db.withTransaction { session ->
+                if(dao.isUrlOccupied(session, url)) {
+                    throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
+                }
             }
         }
 

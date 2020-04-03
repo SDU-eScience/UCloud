@@ -456,4 +456,16 @@ class JobHibernateDao(
             (entity[JobInformationEntity::url] equal urlId)
         }.singleResult.toModel()
     }
+
+    override suspend fun isUrlOccupied(
+        session: HibernateSession,
+        urlId: String
+    ): Boolean {
+        return session.criteria<JobInformationEntity> {
+            ((entity[JobInformationEntity::systemId] equal urlId) or
+                    (entity[JobInformationEntity::url] equal urlId)) and
+                    ((entity[JobInformationEntity::state] notEqual JobState.SUCCESS) and
+                    (entity[JobInformationEntity::state] notEqual JobState.FAILURE))
+        }.list().isNotEmpty()
+    }
 }

@@ -64,6 +64,11 @@ interface JobDao<Session> {
         urlId: String,
         owner: SecurityPrincipalToken? = null
     ): VerifiedJobWithAccessToken?
+
+    suspend fun isUrlOccupied(
+        session: Session,
+        urlId: String
+    ): Boolean
 }
 
 suspend fun <Session> JobDao<Session>.findOrNull(
