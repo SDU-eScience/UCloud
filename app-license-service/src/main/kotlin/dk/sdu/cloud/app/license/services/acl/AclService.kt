@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.license.services.acl
 
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.app.license.api.ACLEntryRequest
+import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.rpc.AppLicenseController
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions

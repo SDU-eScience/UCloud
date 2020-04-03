@@ -1,6 +1,9 @@
 package dk.sdu.cloud.app.license.services.acl
 
-import dk.sdu.cloud.Roles
+import dk.sdu.cloud.app.license.api.EntityType
+import dk.sdu.cloud.app.license.api.EntityWithPermission
+import dk.sdu.cloud.app.license.api.ServerAccessRight
+import dk.sdu.cloud.app.license.api.UserEntity
 import dk.sdu.cloud.service.db.*
 import java.io.Serializable
 import javax.persistence.*

@@ -5,8 +5,8 @@ import dk.sdu.cloud.app.license.api.NewServerRequest
 import dk.sdu.cloud.app.license.api.UpdateServerRequest
 import dk.sdu.cloud.app.license.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.license.services.acl.AclService
-import dk.sdu.cloud.app.license.services.acl.EntityType
-import dk.sdu.cloud.app.license.services.acl.UserEntity
+import dk.sdu.cloud.app.license.api.EntityType
+import dk.sdu.cloud.app.license.api.UserEntity
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.HibernateSession

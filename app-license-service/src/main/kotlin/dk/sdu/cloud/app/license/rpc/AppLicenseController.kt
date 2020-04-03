@@ -2,8 +2,6 @@ package dk.sdu.cloud.app.license.rpc
 
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.AppLicenseService
-import dk.sdu.cloud.app.license.services.acl.UserEntity
-import dk.sdu.cloud.app.license.services.acl.EntityType
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
@@ -17,13 +15,9 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppLicenseDescriptions.get) {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
-            )
-
-            val licenseServer = licenseService.getLicenseServer(ctx.securityPrincipal, request.serverId, entity)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val licenseServer =
+                licenseService.getLicenseServer(ctx.securityPrincipal, request.serverId, ctx.securityPrincipal)
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             ok(
                 LicenseServerWithId(
@@ -37,57 +31,50 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
         }
 
         implement(AppLicenseDescriptions.updateAcl) {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
-            )
+            /*request.changes.forEach {
+                if (it.entity.type == EntityType.PROJECT_GROUP) {
+                    ProjectGroups.groupExists(GroupExistsRequest(
+                        "project-name",
+                        it.entity.id
 
-            ok(licenseService.updateAcl(request, entity))
+                    ))
+                }
+            }*/
+
+            ok(licenseService.updateAcl(request, ctx.securityPrincipal))
         }
 
-        implement(AppLicenseDescriptions.listAcl)  {
+        implement(AppLicenseDescriptions.listAcl) {
             ok(licenseService.listAcl(request, ctx.securityPrincipal))
         }
 
-        implement(AppLicenseDescriptions.list)  {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
-            )
-
-            ok(licenseService.listServers(request.tags, entity))
+        implement(AppLicenseDescriptions.list) {
+            ok(licenseService.listServers(request.tags, ctx.securityPrincipal))
         }
 
-        implement(AppLicenseDescriptions.listAll)  {
+        implement(AppLicenseDescriptions.listAll) {
             ok(licenseService.listAllServers(ctx.securityPrincipal))
         }
 
 
         implement(AppLicenseDescriptions.update) {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
+            ok(
+                UpdateServerResponse(
+                    licenseService.updateLicenseServer(
+                        ctx.securityPrincipal,
+                        request,
+                        ctx.securityPrincipal
+                    )
+                )
             )
-
-            ok(UpdateServerResponse(licenseService.updateLicenseServer(ctx.securityPrincipal, request, entity)))
         }
 
         implement(AppLicenseDescriptions.delete) {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
-            )
-
-            ok(licenseService.deleteLicenseServer(ctx.securityPrincipal, request, entity))
+            ok(licenseService.deleteLicenseServer(ctx.securityPrincipal, request, ctx.securityPrincipal))
         }
 
         implement(AppLicenseDescriptions.new) {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
-            )
-
-            ok(NewServerResponse(licenseService.createLicenseServer(request, entity)))
+            ok(NewServerResponse(licenseService.createLicenseServer(request, ctx.securityPrincipal)))
         }
 
         implement(TagDescriptions.add) {

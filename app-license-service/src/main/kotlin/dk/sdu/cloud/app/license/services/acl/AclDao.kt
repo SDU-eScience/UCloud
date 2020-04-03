@@ -1,26 +1,10 @@
 package dk.sdu.cloud.app.license.services.acl
-import dk.sdu.cloud.SecurityPrincipal
 
-enum class EntityType {
-    USER,
-    PROJECT_AND_GROUP
-}
+import dk.sdu.cloud.app.license.api.EntityWithPermission
+import dk.sdu.cloud.app.license.api.UserEntity
+import dk.sdu.cloud.app.license.api.ServerAccessRight
 
-enum class ServerAccessRight {
-    READ,
-    READ_WRITE
-}
 
-data class UserEntity(
-    val id: String,
-    val type: EntityType
-)
-
-data class EntityWithPermission(
-    val entity_name: String,
-    val entity_type: EntityType,
-    val permission: ServerAccessRight
-)
 
 interface AclDao<Session> {
     fun hasPermission(

@@ -1,7 +1,5 @@
 package dk.sdu.cloud.app.license.services
 
-import dk.sdu.cloud.app.license.api.ACLEntryRequest
-import dk.sdu.cloud.app.license.api.NewServerRequest
 import dk.sdu.cloud.app.license.services.acl.*
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.micro.HibernateFeature
@@ -18,6 +16,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.Test
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.app.license.api.*
 
 class AclTest {
     private lateinit var micro: Micro

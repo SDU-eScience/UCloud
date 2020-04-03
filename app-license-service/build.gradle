@@ -7,7 +7,8 @@ mainClassName = "dk.sdu.cloud.app.license.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.12.3"
+    ext.serviceCommonVersion = "1.14.0-projects.3"
+    ext.projectApiVersion = "3.0.0-v.6"
     ext.authApiVersion = "1.26.4"
 }
 
@@ -17,6 +18,7 @@ repositories {
 
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
+    compile "dk.sdu.cloud:project-api:$projectApiVersion"
     compile "dk.sdu.cloud:auth-api:$authApiVersion"
     compile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }

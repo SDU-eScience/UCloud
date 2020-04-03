@@ -15,7 +15,7 @@ class AppLicenseService<Session>(
     private val aclService: AclService<Session>,
     private val appLicenseDao: AppLicenseDao<Session>
 ) {
-    suspend fun getLicenseServer(securityPrincipal: SecurityPrincipal, serverId: String, entity: UserEntity): LicenseServerWithId? {
+    suspend fun getLicenseServer(securityPrincipal: SecurityPrincipal, serverId: String, entity: AccessEntity): LicenseServerWithId? {
         if (
             !aclService.hasPermission(serverId, entity, ServerAccessRight.READ) &&
             securityPrincipal.role !in Roles.PRIVILEDGED

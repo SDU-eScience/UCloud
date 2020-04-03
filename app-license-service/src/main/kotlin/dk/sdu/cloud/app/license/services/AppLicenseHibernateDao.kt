@@ -5,7 +5,6 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.LicenseServer
 import dk.sdu.cloud.app.license.api.LicenseServerId
 import dk.sdu.cloud.app.license.api.LicenseServerWithId
-import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.service.db.*
 import java.io.Serializable
 import javax.persistence.*
@@ -92,7 +91,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
     override fun list(
         session: HibernateSession,
         tags: List<String>,
-        userEntity: UserEntity
+        principal: SecurityPrincipal
     ): List<LicenseServerId>? {
         return session.createNativeQuery<LicenseServerEntity>(
             """
@@ -108,8 +107,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         """.trimIndent(), LicenseServerEntity::class.java
         ).also {
             it.setParameter("tags", tags)
-            it.setParameter("entityId", userEntity.id)
-            it.setParameter("entityType", userEntity.type.toString())
+            it.setParameter("entityId", principal.username)
         }.list().map { entity ->
             entity.toIdentifiable()
         }
