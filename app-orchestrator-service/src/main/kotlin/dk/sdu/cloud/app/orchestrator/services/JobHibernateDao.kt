@@ -451,8 +451,11 @@ class JobHibernateDao(
             } else {
                 (entity[JobInformationEntity::owner] equal owner.principal.username)
             }
-            (ownerPredicate and (entity[JobInformationEntity::systemId] equal urlId)) or
-                    (entity[JobInformationEntity::url] equal urlId) and (entity[JobInformationEntity::state] equal JobState.RUNNING)
+            ownerPredicate and (
+                (entity[JobInformationEntity::systemId] equal urlId) or (entity[JobInformationEntity::url] equal urlId)
+            ) and (
+                (entity[JobInformationEntity::state] notEqual JobState.SUCCESS) and (entity[JobInformationEntity::state] notEqual JobState.FAILURE)
+            )
         }.singleResult.toModel()
     }
 
