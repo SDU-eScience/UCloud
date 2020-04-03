@@ -89,7 +89,7 @@ class JobVerificationService<Session>(
         // Check URL
         val url = unverifiedJob.request.url
         if (url != null) {
-            val validChars = Regex("([a-z0-9]+)")
+            val validChars = Regex("([-_a-z0-9]){5,255}")
             if (!url.toLowerCase().matches(validChars)) {
                 throw RPCException("Provided url not allowed", HttpStatusCode.BadRequest)
             }

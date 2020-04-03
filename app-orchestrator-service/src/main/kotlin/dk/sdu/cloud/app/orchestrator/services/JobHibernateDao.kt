@@ -400,8 +400,8 @@ class JobHibernateDao(
                 tasksPerNode = tasksPerNode,
                 reservation = MachineReservation(reservationType, reservedCpus, reservedMemoryInGigs),
                 jobInput = VerifiedJobInput(parameters),
-                files = files?.toSet(),
-                _mounts = mounts?.toSet(),
+                files = files.toSet(),
+                _mounts = mounts.toSet(),
                 _peers = peers?.toSet(),
                 currentState = state,
                 failedState = failedState,
@@ -451,9 +451,8 @@ class JobHibernateDao(
             } else {
                 (entity[JobInformationEntity::owner] equal owner.principal.username)
             }
-
             (ownerPredicate and (entity[JobInformationEntity::systemId] equal urlId)) or
-            (entity[JobInformationEntity::url] equal urlId)
+                    (entity[JobInformationEntity::url] equal urlId) and (entity[JobInformationEntity::state] equal JobState.RUNNING)
         }.singleResult.toModel()
     }
 
@@ -465,7 +464,7 @@ class JobHibernateDao(
             ((entity[JobInformationEntity::systemId] equal urlId) or
                     (entity[JobInformationEntity::url] equal urlId)) and
                     ((entity[JobInformationEntity::state] notEqual JobState.SUCCESS) and
-                    (entity[JobInformationEntity::state] notEqual JobState.FAILURE))
+                            (entity[JobInformationEntity::state] notEqual JobState.FAILURE))
         }.list().isNotEmpty()
     }
 }
