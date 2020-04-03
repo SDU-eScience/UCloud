@@ -50,6 +50,11 @@ const ActivityEvent: React.FunctionComponent<{event: Module.ActivityForFrontend}
 const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}> = props => {
     switch (props.event.type) {
         case Module.ActivityType.MOVED: {
+            let byUser = "";
+            if (Client.hasActiveProject) {
+                const username = (props.event.activityEvent as Module.MovedActivity).username
+                byUser = `by ${username}`
+            }
             return (
                 <span>
                     was moved to
@@ -62,17 +67,27 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
                                 </Text>
                             </div>
                         </ReactRouterLink>
-                    </b>
+                    </b>  {byUser}
                 </span>
             );
         }
 
         case Module.ActivityType.FAVORITE: {
-            const isFavorite = (props.event.activityEvent as Module.FavoriteActivity).isFavorite;
+            const activity = (props.event.activityEvent as Module.FavoriteActivity);
+            const isFavorite = activity.isFavorite;
             if (isFavorite) {
-                return <span>was <b>added to favorites</b></span>;
+                if (Client.hasActiveProject) {
+                    return <span>was <b>added to {activity.username}s favorites</b></span>;
+                } else {
+                    return <span>was <b>added to favorites</b></span>;
+
+                }
             } else {
-                return <span>was <b>removed from favorites</b></span>;
+                if (Client.hasActiveProject) {
+                    return <span>was <b>removed from {activity.username}s favorites</b></span>;
+                } else {
+                    return <span>was <b>removed from favorites</b></span>;
+                }
             }
         }
 
@@ -83,24 +98,45 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
 
         case Module.ActivityType.UPDATEDACL: {
             const update = (props.event.activityEvent as Module.UpdatedACLActivity);
-            return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights}</span>;
+            if (Client.hasActiveProject) {
+                return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights} by {update.username}</span>;
+            } else {
+                return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights}</span>;
+
+            }
         }
 
         case Module.ActivityType.USEDINAPP: {
             const used = (props.event.activityEvent as Module.SingleFileUsedActivity);
             if (used.filePath === "") {
-                return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>;
+                if (Client.hasActiveProject) {
+                    return <span> No files were used in {used.applicationName} v{used.applicationVersion} by {used.username}</span>;
+                } else {
+                    return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>
+                }
+            } else {
+                if (Client.hasActiveProject) {
+                    return <span> were used in {used.applicationName} v{used.applicationVersion} by {used.username}</span>;
+                } else {
+                    return <span> were used in {used.applicationName} v{used.applicationVersion}</span>
+                }
             }
-            else {
-                return <span> were used in {used.applicationName} v{used.applicationVersion}</span>;
-            }        }
+        }
         case Module.ActivityType.ALLUSEDINAPP: {
             const used = (props.event.activityEvent as Module.AllFilesUsedActivity);
             if (used.filePath === "") {
-                return <span> No files were used in {used.applicationName} v{used.applicationVersion}</span>;
+                if (Client.hasActiveProject) {
+                    return <span> No files were used in {used.applicationName} v{used.applicationVersion} by {used.username}</span>;
+                } else {
+                    return <span> No files were used in {used.applicationName} v{used.applicationVersion} </span>
+                }
             }
             else {
-                return <span> were used in {used.applicationName} v{used.applicationVersion}</span>;
+                if(Client.hasActiveProject) {
+                    return <span> were used in {used.applicationName} v{used.applicationVersion} by {used.username}</span>;
+                } else {
+                    return <span> were used in {used.applicationName} v{used.applicationVersion} </span>
+                }
             }
         }
         case Module.ActivityType.RECLASSIFIED: {
@@ -110,11 +146,20 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
 
         case Module.ActivityType.COPIED: {
             const copy = (props.event.activityEvent as Module.CopyActivity);
-            return <span> was copied. Copy name: {copy.copyFilePath}</span>;
+            if (Client.hasActiveProject) {
+                return <span> was copied by {copy.username}. Copy name: {copy.copyFilePath}</span>;
+            } else {
+                return <span> was copied. Copy name: {copy.copyFilePath}</span>;
+
+            }
         }
 
         default: {
-            return <span>was <b>{operationToPastTense(props.event.type)}</b></span>;
+            if (Client.hasActiveProject) {
+                return <span>was <b>{operationToPastTense(props.event.type)}</b> by {props.event.activityEvent.username}</span>;
+            } else {
+                return <span>was <b>{operationToPastTense(props.event.type)}</b></span>;
+            }
         }
     }
 };
@@ -175,7 +220,7 @@ const operationToPastTense = (operation: Module.ActivityType): string => {
         case Module.ActivityType.ALLUSEDINAPP:
             return "used";
         case Module.ActivityType.DIRECTORYCREATED:
-            return "directory was created";
+            return "created";
         case Module.ActivityType.UPLOADED:
             return "uploaded";
         case Module.ActivityType.USEDINAPP:

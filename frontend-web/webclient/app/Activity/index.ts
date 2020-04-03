@@ -35,6 +35,7 @@ export interface ActivityFilter {
     type?: ActivityType;
     minTimestamp?: Date;
     maxTimestamp?: Date;
+    user?: string;
 }
 
 export interface FavoriteActivity extends Activity {

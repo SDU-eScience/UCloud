@@ -1,12 +1,12 @@
 package dk.sdu.cloud.activity.services
 
-import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityFilter
 import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.activity.api.type
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.project.repository.api.ProjectRepository
 import dk.sdu.cloud.project.repository.api.RepositoryListRequest
@@ -40,9 +40,9 @@ class ActivityService(
         userFilter: ActivityFilter? = null,
         projectID: String? = null
     ): ScrollResult<ActivityForFrontend, Int> {
-        val filter = ActivityEventFilter(
+        var filter = ActivityEventFilter(
             offset = scroll.offset,
-            user = user,
+            user = userFilter?.user,
             minTimestamp = userFilter?.minTimestamp,
             maxTimestamp = userFilter?.maxTimestamp,
             type = userFilter?.type
@@ -56,7 +56,7 @@ class ActivityService(
                         null,
                         null
                     ),
-                    client
+                    client.withProject(projectID)
                 ).orThrow().items
             }
 
@@ -66,7 +66,11 @@ class ActivityService(
                 projectID,
                 repos
             )
+
         } else {
+            if (filter.user == null) {
+                filter = filter.copy(user = user)
+            }
             activityEventElasticDao.findUserEvents(
                 scroll.scrollSize,
                 filter
