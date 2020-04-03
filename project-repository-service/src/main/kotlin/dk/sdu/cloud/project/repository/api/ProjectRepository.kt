@@ -2,6 +2,7 @@ package dk.sdu.cloud.project.repository.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
@@ -121,6 +122,7 @@ object ProjectRepository : CallDescriptionContainer("project.repositories") {
 
     val list = call<RepositoryListRequest, RepositoryListResponse, CommonErrorMessage>("list") {
         auth {
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
