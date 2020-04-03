@@ -32,19 +32,15 @@ class ActivityController(
         }
 
         implement(ActivityDescriptions.activityFeed) {
-            if (ctx.project == null) {
-                val user = request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEDGED }
+            val user = if (ctx.project == null) {
+                request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEDGED }
                     ?: ctx.securityPrincipal.username
-
-                val result = activityService.browseActivity(request.normalize(), user, request)
-                ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
             } else {
-                val user = ctx.securityPrincipal.username
-
-                val result = activityService
-                    .browseActivity(request.normalize(), user, request, ctx.project)
-                ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
+                ctx.securityPrincipal.username
             }
+
+            val result = activityService.browseActivity(request.normalize(), user, request, ctx.project)
+            ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
         }
     }
 
