@@ -117,9 +117,71 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
     override fun findByFilePath(pagination: NormalizedPaginationRequest, filePath: String): Page<ActivityForFrontend> {
         val normalizedFilePath = filePath.normalize()
         val request = SearchRequest(*ALL_RELEVANT_INDICES)
+        val query = QueryBuilders.boolQuery()
+        var parentPath = normalizedFilePath
+        if (normalizedFilePath.startsWith("/home")) {
+            while (parentPath != "/home") {
+                println(parentPath)
+                query
+                    .should(
+                        QueryBuilders.matchPhraseQuery(
+                            "requestJson.mounts.source",
+                            parentPath
+                        )
+                    )
+                    .should(
+                        QueryBuilders.matchPhraseQuery(
+                            "requestJson.parameters.*.source",
+                            parentPath
+                        )
+                    )
+                parentPath = parentPath.substringBeforeLast("/")
+            }
+        }
+        if (normalizedFilePath.startsWith("/projects")) {
+            while (parentPath != "/projects") {
+                println(parentPath)
+                query
+                    .should(
+                        QueryBuilders.matchPhraseQuery(
+                            "requestJson.mounts.source",
+                            parentPath
+                        )
+                    )
+                    .should(
+                        QueryBuilders.matchPhraseQuery(
+                            "requestJson.parameters.*.source",
+                            parentPath
+                        )
+                    )
+                parentPath = parentPath.substringBeforeLast("/")
+            }
+        }
+        query
+            .should(
+                QueryBuilders.matchPhraseQuery(
+                    "requestJson.files.path",
+                    normalizedFilePath
+                )
+            )
+            .should(
+                QueryBuilders.matchPhraseQuery(
+                    "requestJson.path",
+                    normalizedFilePath
+                )
+            )
+            .should(
+                QueryBuilders.matchPhraseQuery(
+                    "requestJson.request.path",
+                    normalizedFilePath
+                )
+            )
+            .minimumShouldMatch(1)
+
         val source = SearchSourceBuilder().query(
             QueryBuilders.boolQuery()
-                .filter(
+                .filter(query)
+                /*.filter(
                     QueryBuilders.boolQuery()
                         //AppStart
                         .should(
@@ -156,7 +218,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                         )
                         .minimumShouldMatch(1)
 
-                )
+                )*/
                 .filter(
                     QueryBuilders.boolQuery()
                         .should(
@@ -227,9 +289,9 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         if (filter.user != null) {
             query.filter(QueryBuilders.matchPhraseQuery("token.principal.username", filter.user))
         }
-        repos.forEach {
-            if (!it.name.isNullOrBlank()) {
-                val repoPath = "/projects/$projectID/${it.name}"
+        repos.forEach { repo ->
+            if (!repo.name.isNullOrBlank()) {
+                val repoPath = "/projects/$projectID/${repo.name}"
                 query
                     //AppStart
                     .should(
@@ -278,12 +340,11 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                         .should(
                             QueryBuilders.rangeQuery(
                                 "responseCode"
-                            ).lte(299)
+                            ).lte(299).gte(200)
                         )
                         .minimumShouldMatch(1)
                 )
                 .filter(query)
-                //.filter(byPrefixedPath("/projects/$projectID/${repos.first().name}"))
         ).from(filter.offset ?: 0)
             .size(scrollSize)
             .sort("@timestamp", SortOrder.DESC)
@@ -340,31 +401,14 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         val source = SearchSourceBuilder().query(
             QueryBuilders.boolQuery()
                 .filter(
-                    QueryBuilders.boolQuery()
-                        .must(
-                            QueryBuilders.matchPhraseQuery(
-                                "token.principal.username",
-                                filter.user
-                            )
-                        )
-                )
-                .filter(
                     byPrefixedPath(userHome)
-                )
-                .filter(
-                    QueryBuilders.boolQuery()
-                        .mustNot(
-                            QueryBuilders.existsQuery(
-                                "project"
-                            )
-                        )
                 )
                 .filter(
                     QueryBuilders.boolQuery()
                         .should(
                             QueryBuilders.rangeQuery(
                                 "responseCode"
-                            ).lte(299)
+                            ).lte(299).gte(200)
                         )
                         .minimumShouldMatch(1)
                 )

@@ -16,10 +16,8 @@ import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {ActivityFeedFrame, ActivityFeedItem, ActivityFeedSpacer} from "./Feed";
 import {fetchActivity, resetActivity, setLoading, updateActivityFilter} from "./Redux/ActivityActions";
-import FormField from "ui-components/FormField";
 import Input from "ui-components/Input";
 import {Client} from "Authentication/HttpClientInstance";
-import {searchPreviousSharedUsers} from "Shares";
 
 const scrollSize = 250;
 
@@ -73,7 +71,6 @@ function Activity(props: ActivityProps) {
     function renderSidebar(): React.ReactNode {
         const {minTimestamp, maxTimestamp, type} = props;
 
-        const username = React.useRef<HTMLInputElement>(null);
         const ref = React.useRef<number>(-1);
 
         const onKeyUp = React.useCallback((e) => {
@@ -166,7 +163,6 @@ function Activity(props: ActivityProps) {
     function applyFilter(filter: Partial<ActivityFilter>) {
         props.updateFilter(filter);
         props.resetActivity();
-        console.log(filter)
         props.fetchActivity({scrollSize}, {...props, ...filter});
     }
 
