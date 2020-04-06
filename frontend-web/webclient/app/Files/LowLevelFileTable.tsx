@@ -70,6 +70,7 @@ import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
+import {promptCreateRepository} from "Utilities/ProjectUtilities";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -452,6 +453,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
                     {isForbiddenPath ? <></> : (
                         <VerticalButtonGroup>
+                            <RepositoryOperations path={props.path} reload={reload} />
                             <FileOperations
                                 files={checkedFilesWithInfo}
                                 fileOperations={fileOperations}
@@ -670,7 +672,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                             await Client.post("/files/normalize-permissions", {path: f.path});
                                                             callbacks.requestReload();
                                                         }
-                                                    })
+                                                    });
                                                 }}>
                                                     <Icon
                                                         cursor="pointer"
@@ -977,6 +979,11 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         </Flex>
     );
 };
+
+function RepositoryOperations(props: {path: string | undefined; reload: () => void}): JSX.Element | null {
+    if (props.path !== Client.projectFolder) return null;
+    return <Button width="100%" onClick={() => promptCreateRepository(Client, props.reload)}>New Repository</Button>;
+}
 
 const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): JSX.Element => {
     interface IconDef {
