@@ -45,7 +45,6 @@ import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
 import {inDevEnvironment} from "UtilityFunctions";
 import GroupsOverview from "Project/GroupView";
-import Repositories from "Project/Repository";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
