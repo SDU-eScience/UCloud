@@ -33,7 +33,7 @@ import {
 import {addStandardDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
-import {repositoryTrashFolder} from "Utilities/ProjectUtilities";
+import {repositoryTrashFolder, promptDeleteRepository, promptRenameRepository} from "Utilities/ProjectUtilities";
 
 export interface FileOperationCallback {
     invokeAsyncWork: (fn: () => Promise<void>) => void;
@@ -67,7 +67,7 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "New Folder",
         onClick: (_, cb) => cb.requestFolderCreation(),
-        disabled: dir => resolvePath(dir[0].path) === resolvePath(Client.trashFolder),
+        disabled: ([file]) => resolvePath(file.path) === resolvePath(Client.trashFolder),
         color: "blue",
         outline: true,
         currentDirectoryMode: true
@@ -246,6 +246,19 @@ export const defaultFileOperations: FileOperation[] = [
             });
         },
         disabled: (files) => !files.every(f => getParentPath(f.path) === Client.trashFolder) || isAnyMockFile(files),
+        icon: "trash",
+        color: "red"
+    },
+    {
+        text: "Rename",
+        disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
+        onClick: ([file], cb) => promptRenameRepository(getFilenameFromPath(file.path), Client, cb.requestReload),
+        icon: "rename",
+    },
+    {
+        text: "Delete",
+        onClick: ([file], cb) => promptDeleteRepository(file.path, Client, cb.requestReload),
+        disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
         icon: "trash",
         color: "red"
     }

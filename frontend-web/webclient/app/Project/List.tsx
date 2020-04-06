@@ -73,7 +73,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                 {!e.needsVerification ? null : (
                                                     <Text fontSize={0} mr={8}><Icon name={"warning"} /> Attention required</Text>
                                                 )}
-                                                {isSelected ? <Link to="/projects/repositories"><Button mr="6px">Repositories</Button></Link> : null}
                                                 {isSelected ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
                                                 {isSelected ? <Icon mr="44px" mt="9px" name="check" color="green" /> : (
                                                     <Button onClick={() => props.setProject(e.projectId)}>Set active</Button>

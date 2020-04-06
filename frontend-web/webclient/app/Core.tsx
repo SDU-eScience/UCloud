@@ -115,7 +115,6 @@ const Core = (): JSX.Element => (
                 <Route exact path="/projects/create" component={requireAuth(ProjectCreate)} />
                 <Route exact path="/projects/view/:id" component={requireAuth(ProjectView)} />
                 <Route exact path="/projects/groups/:group?" component={requireAuth(GroupsOverview)} />
-                <Route exact path="/projects/repositories" component={requireAuth(Repositories)} />
 
                 <Route
                     exact
