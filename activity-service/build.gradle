@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.4.14-trycatch'
+version '1.4.14-project16'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.activity.MainKt"
@@ -7,8 +7,8 @@ mainClassName = "dk.sdu.cloud.activity.MainKt"
 apply from: "https://raw.githubusercontent.com/SDU-eScience/GradleBootstrap/v0.2.24/sdu-cloud.gradle"
 
 buildscript {
-    ext.serviceCommonVersion = "1.12.3"
-    ext.authApiVersion = "1.27.0"
+    ext.serviceCommonVersion = "1.14.0-projects.3"
+    ext.authApiVersion = "1.27.4"
 }
 
 dependencies {
@@ -19,6 +19,7 @@ dependencies {
     compile "dk.sdu.cloud:app-orchestrator-api:2.0.0-storage-events.1"
     compile "dk.sdu.cloud:app-store-api:0.13.0-storage-events.0"
     compile "dk.sdu.cloud:share-api:1.6.2"
+    compile "dk.sdu.cloud:project-repository-api:0.1.2"
 
     testCompile "dk.sdu.cloud:service-common-test:$serviceCommonVersion"
 }
