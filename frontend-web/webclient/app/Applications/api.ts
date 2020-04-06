@@ -13,6 +13,8 @@ export interface ListByNameProps {
     name: string;
 }
 
+export const HelloTest = "hello"
+
 export function listByName({name, itemsPerPage, page}: ListByNameProps): APICallParameters<ListByNameProps> {
     return {
         reloadId: Math.random(),
@@ -100,6 +102,12 @@ export enum UserEntityType {
     PROJECT_GROUP = "PROJECT_GROUP"
 }
 
+export interface AccessEntity {
+    user: string | null;
+    project: string | null;
+    group: string | null;
+}
+
 export interface UserEntity {
     id: string;
     type: UserEntityType;
@@ -122,7 +130,7 @@ export interface UpdateApplicationPermissionProps {
 }
 
 export interface UpdateLicenseServerPermissionEntry {
-    entity: UserEntity;
+    entity: AccessEntity;
     rights: LicenseServerAccessRight;
     revoke: boolean;
 }
