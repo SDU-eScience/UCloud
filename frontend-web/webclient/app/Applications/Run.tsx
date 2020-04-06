@@ -1040,7 +1040,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                 />
             </div>
 
-            {props.app.invocation.applicationType == "VNC" || props.app.invocation.applicationType == "WEB" ? (
+            {props.app.invocation.applicationType == "WEB" ? (
                 <Box mb="4px" mt="1em">
                     <ApplicationUrl
                         inputRef={props.url}
