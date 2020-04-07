@@ -1,12 +1,11 @@
 import * as React from "react";
 import {MainContainer} from "MainContainer/MainContainer";
-import {Text, Input, Box, Flex, Button, Card, Icon} from "ui-components";
+import {Text, Input, Box, Flex, Button, Card, Icon, List} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {defaultAvatar, AvatarType} from "UserSettings/Avataaar";
 import * as Pagination from "Pagination";
-import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {Page} from "Types";
-import {useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
 import {listGroupMembersRequest, addGroupMember, removeGroupMemberRequest, ListGroupMembersRequestProps} from "./api";
 import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -19,6 +18,9 @@ import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {emptyPage} from "DefaultObjects";
 import {SnackType} from "Snackbar/Snackbars";
 import {useHistory} from "react-router";
+import {dialogStore} from "Dialog/DialogStore";
+import {buildQueryString} from "Utilities/URIUtilities";
+import {ListRow} from "ui-components/List";
 
 interface DetailedGroupViewProps {
     name: string;
@@ -32,8 +34,6 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
 
     const history = useHistory();
 
-    const [loading, setLoading] = React.useState(false);
-
     const promises = usePromiseKeeper();
     const [avatars, setAvatars] = React.useState<AvatarType[]>([]);
 
@@ -45,15 +45,12 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
         ).catch(it => console.warn(it));
     }, [activeGroup.data.items.length, activeGroup.data.pageNumber]);
 
-    const memberRef = React.useRef<HTMLInputElement>(null);
-
     const reload = (): void => fetchActiveGroup({...params});
 
     React.useEffect(() => {
         if (name) fetchActiveGroup(listGroupMembersRequest({group: name ?? "", itemsPerPage: 25, page: 0}));
     }, [name]);
 
-    if (activeGroup.loading) return <MainContainer main={<LoadingSpinner size={48} />} />;
     if (activeGroup.error) return <MainContainer main={
         <Text fontSize={"24px"}>Could not fetch &apos;{name}&apos;.</Text>
     } />;
@@ -96,6 +93,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
             />
         }
         sidebar={<Box>
+            <Button onClick={promptAddMember} mb="5px" color="green" width="100%">Add member</Button>
             <Button onClick={renameGroup} width="100%" mb="5px">Rename group</Button>
             <Button onClick={promptDeleteGroup} width="100%" color="red">Delete group</Button>
         </Box>}
@@ -108,13 +106,13 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
                     width="100%"
                 >{name}</Text>
                 <Heading.h5>Members: {activeGroup.data.itemsInTotal}</Heading.h5>
-                <form onSubmit={addMember}>
-                    <Flex><Input type="text" ref={memberRef} width="300px" />
-                        <Button disabled={loading || activeGroup.loading} attached>Add</Button></Flex>
-                </form>
             </Box>
         </>}
     />;
+
+    function promptAddMember(): void {
+        dialogStore.addDialog(<AddMemberPrompt group={name} />, reload);
+    }
 
     async function renameGroup(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
@@ -133,9 +131,9 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
         if ("cancelled" in result) return;
 
         try {
-            promises.makeCancelable(Client.post("/projects/groups/update-name", {
+            await promises.makeCancelable(Client.post("/projects/groups/update-name", {
                 oldGroupName: name, newGroupName: result.result
-            }));
+            })).promise;
             snackbarStore.addSnack({
                 message: "Group renamed",
                 type: SnackType.Success
@@ -143,8 +141,6 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
             history.push(`/projects/groups/${encodeURI(result.result)}`);
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred renaming group"));
-        } finally {
-            setLoading(false);
         }
     }
 
@@ -158,9 +154,8 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     }
 
     async function deleteGroup(): Promise<void> {
-        setLoading(true);
         try {
-            promises.makeCancelable(Client.delete("/projects/groups", {groups: name}));
+            await promises.makeCancelable(Client.delete("/projects/groups", {groups: [name]})).promise;
             snackbarStore.addSnack({
                 type: SnackType.Success,
                 message: `Group '${name}' deleted`
@@ -168,31 +163,6 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
             history.push("/projects/groups/");
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred deleting group"));
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function addMember(e: React.FormEvent): Promise<void> {
-        e.preventDefault();
-        e.stopPropagation();
-        if (memberRef.current == null) return;
-
-        const member = memberRef.current.value;
-        if (!member) {
-            snackbarStore.addFailure("Please add a username");
-            return;
-        }
-
-
-        const {path, payload} = addGroupMember({group: name, memberUsername: member});
-        try {
-            setLoading(true);
-            Client.put(path!, payload);
-        } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to add member."));
-        } finally {
-            setLoading(false);
         }
     }
 
@@ -209,14 +179,74 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     async function removeMember(member: string): Promise<void> {
         const {path, payload} = removeGroupMemberRequest({group: name, memberUsername: member});
         try {
-            setLoading(true);
-            Client.delete(path!, payload);
+            await promises.makeCancelable(Client.delete(path!, payload)).promise;
+            reload();
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to remove member."));
-        } finally {
-            setLoading(false);
         }
     }
+}
+
+function AddMemberPrompt(props: {group: string}): JSX.Element {
+    const textRef = React.useRef<HTMLInputElement>(null);
+    const [projectMembers, setParams] = useCloudAPI<Page<string>>(membershipSearch("", 0), emptyPage);
+    const promises = usePromiseKeeper();
+
+    const ref = React.useRef<number>(-1);
+    const onKeyUp = React.useCallback(() => {
+        if (ref.current !== -1) {
+            window.clearTimeout(ref.current);
+        }
+        ref.current = (window.setTimeout(() => {
+            setParams(membershipSearch(textRef.current?.value ?? "", projectMembers.data.pageNumber)
+            );
+        }, 500));
+
+    }, [textRef.current, setParams]);
+
+    return (
+        <Box width="400px" maxHeight="90vh">
+            <Input onKeyUp={onKeyUp} ref={textRef} />
+            <Pagination.List
+                pageRenderer={page =>
+                    <List>
+                        {page.items.map(it =>
+                            <ListRow
+                                key={it}
+                                isSelected={false}
+                                select={() => undefined}
+                                navigate={() => undefined}
+                                left={<Box>{it}</Box>}
+                                right={<Button onClick={() => addMember(it)} color="green">Add to group</Button>}
+                            />
+                        )}
+                    </List>
+                }
+                page={projectMembers.data}
+                loading={projectMembers.loading}
+                customEmptyPage={"No users found. Users must be added to project, before being able to join a group."}
+                onPageChanged={newPage => setParams(membershipSearch(textRef.current?.value ?? "", newPage))}
+            />
+        </Box>
+    );
+
+
+    async function addMember(member: string): Promise<void> {
+        const {path, payload} = addGroupMember({group: props.group, memberUsername: member});
+        try {
+            await promises.makeCancelable(Client.put(path!, payload)).promise;
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to add member."));
+        }
+    }
+}
+
+
+function membershipSearch(query: string, page: number): APICallParameters {
+    return {
+        method: "GET",
+        path: buildQueryString("/projects/membership/search", {query, itemsPerPage: 100, page})
+    };
 }
 
 export default DetailedGroupView;
