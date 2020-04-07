@@ -55,7 +55,7 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     background-color: var(--${p => p.backgroundColor}, #f00);
     color: var(--${p => p.color}, #f00);
     width: ${props => props.width};
-    min-width: ${props => props.minWidth ? props.minWidth : "138"}px;
+    ${props => props.minWidth ? `min-width: ${props.minWidth};` : "min-width: 138px;"}
     max-height: ${props => props.maxHeight ? props.maxHeight : ""};
     padding: 12px 16px;
     z-index: 47;

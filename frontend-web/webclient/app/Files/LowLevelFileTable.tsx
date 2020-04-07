@@ -737,7 +737,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                     {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
                                         ((applications.get(f.path) ?? []).length < 1) ? null : (
                                             <ClickableDropdown
-                                                width="175px"
+                                                width="auto"
+                                                minWidth="175px"
                                                 left="-160px"
                                                 trigger={<Icon mr="8px" name="play" size="1em" color="midGray" hoverColor="gray" style={{display: "block"}} />}
                                             >
@@ -1111,17 +1112,18 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
                 cursor="pointer"
                 alignItems="center"
                 onClick={() => quickLaunchCallback(quickLaunchApp, getParentPath(file.path), props.history)}
+                width="auto"
                 {...props}
             >
                 <AppToolLogo name={quickLaunchApp.metadata.name} size="20px" type="APPLICATION" />
-                <span style={{marginLeft: "5px"}}>{quickLaunchApp.metadata.title}</span>
+                <span style={{marginLeft: "5px", marginRight: "5px"}}>{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}</span>
             </Flex>
         );
     };
 
     return (
         <>
-            {applications.map((ap, i) => <Operation quickLaunchApp={ap} key={`opt-${i}`} />)}
+            {applications.map((ap, i) => <Operation quickLaunchApp={ap} key={i} />)}
         </>
     );
 };
