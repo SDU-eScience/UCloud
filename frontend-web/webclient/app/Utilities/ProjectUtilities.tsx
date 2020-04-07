@@ -1,8 +1,11 @@
+import * as React from "react";
 import HttpClient from "Authentication/lib";
 import {addStandardInputDialog, addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 import {errorMessageOrDefault} from "UtilityFunctions";
+import {AccessRight} from "Types";
+import {Client} from "Authentication/HttpClientInstance";
 
 export function repositoryName(path: string): string {
     if (!path.startsWith("/projects/")) return "";
@@ -87,4 +90,26 @@ export async function promptRenameRepository(oldName: string, client: HttpClient
     } catch (err) {
         snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred renaming repository."));
     }
+}
+
+interface UpdatePermissionsRequest {
+    repository: string;
+    newAcl: ProjectAclEntry[];
+}
+
+interface ProjectAclEntry {
+    group: string;
+    rights: AccessRight[];
+}
+
+type UpdatePermissionsResponse = void;
+
+export function updatePermissions(props: {client: HttpClient; repository: string}): void {
+    // const [data, setFetchParams, params] = useCloudAPI();
+    // const result = dialogStore.addDialog(updatePermissionsDialog(), () => cancelled = true);
+    // if (cancelled) return;
+    Client.post<UpdatePermissionsResponse>("/projects/repositories/update-permissions", {
+        repository: "Single",
+        newAcl: [{group: "g", rights: ["READ"]}]
+    } as UpdatePermissionsRequest);
 }

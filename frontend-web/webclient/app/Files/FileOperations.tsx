@@ -206,7 +206,7 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "Properties",
-        onClick: (files, cb) => cb.history.push(fileInfoPage(files[0].path)),
+        onClick: ([file], cb) => cb.history.push(fileInfoPage(file.path)),
         disabled: (files) => files.length !== 1 || isAnyMockFile(files),
         icon: "properties"
     },

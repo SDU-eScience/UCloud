@@ -1,4 +1,3 @@
-import * as Accounting from "Accounting";
 import Activity from "Activity/Page";
 import {DetailedDowntime} from "Admin/Downtime/DetailedDowntime";
 import DowntimeManagement from "Admin/DowntimeManagement";
