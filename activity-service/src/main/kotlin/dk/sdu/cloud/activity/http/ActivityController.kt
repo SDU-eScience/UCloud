@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.calls.server.jobId
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
@@ -30,11 +31,15 @@ class ActivityController(
             }
         }
 
-        implement(ActivityDescriptions.browseByUser) {
-            val user = request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEDGED }
-                ?: ctx.securityPrincipal.username
-            
-            val result = activityService.browseForUser(request.normalize(), user, request)
+        implement(ActivityDescriptions.activityFeed) {
+            val user = if (ctx.project == null) {
+                request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEDGED }
+                    ?: ctx.securityPrincipal.username
+            } else {
+                ctx.securityPrincipal.username
+            }
+
+            val result = activityService.browseActivity(request.normalize(), user, request, ctx.project)
             ok(Activity.BrowseByUser.Response(result.endOfScroll, result.items, result.nextOffset))
         }
     }

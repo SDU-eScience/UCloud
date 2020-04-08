@@ -1,4 +1,3 @@
-import * as Accounting from "Accounting";
 import Activity from "Activity/Page";
 import {DetailedDowntime} from "Admin/Downtime/DetailedDowntime";
 import DowntimeManagement from "Admin/DowntimeManagement";
@@ -45,7 +44,6 @@ import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
 import {inDevEnvironment} from "UtilityFunctions";
 import GroupsOverview from "Project/GroupView";
-import Repositories from "Project/Repository";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -115,7 +113,6 @@ const Core = (): JSX.Element => (
                 <Route exact path="/projects/create" component={requireAuth(ProjectCreate)} />
                 <Route exact path="/projects/view/:id" component={requireAuth(ProjectView)} />
                 <Route exact path="/projects/groups/:group?" component={requireAuth(GroupsOverview)} />
-                <Route exact path="/projects/repositories" component={requireAuth(Repositories)} />
 
                 <Route
                     exact

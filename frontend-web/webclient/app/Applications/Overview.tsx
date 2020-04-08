@@ -68,20 +68,20 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         };
     }
 
-    public async componentDidMount() {
+    public async componentDidMount(): Promise<void> {
         const {props} = this;
         props.onInit();
         this.fetch();
         props.setRefresh(() => this.fetch());
     }
 
-    public componentDidUpdate(prevProps: ApplicationsProps) {
+    public componentDidUpdate(prevProps: ApplicationsProps): void {
         if (prevProps.location !== this.props.location) {
             this.fetch();
         }
     }
 
-    public componentWillUnmount() {
+    public componentWillUnmount(): void {
         this.props.setRefresh();
     }
 
@@ -101,7 +101,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         }
     }
 
-    public render() {
+    public render(): JSX.Element {
         const featured = this.featured;
         const {favorites} = this.props;
         const main = (
@@ -233,7 +233,7 @@ const ToolImage = styled.img`
 
 
 // eslint-disable-next-line no-underscore-dangle
-const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}) => {
+const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}): JSX.Element => {
     const allTags = props.page.items.map(it => it.tags);
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));

@@ -9,6 +9,7 @@ import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.activity.api.type
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.AccessRight
 import dk.sdu.cloud.file.api.BulkFileAudit
@@ -24,14 +25,17 @@ import dk.sdu.cloud.file.api.SingleFileAudit
 import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
+import dk.sdu.cloud.project.repository.api.Repository
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.share.api.Shares
+import io.ktor.http.HttpStatusCode
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.index.query.BoolQueryBuilder
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
@@ -113,9 +117,71 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
     override fun findByFilePath(pagination: NormalizedPaginationRequest, filePath: String): Page<ActivityForFrontend> {
         val normalizedFilePath = filePath.normalize()
         val request = SearchRequest(*ALL_RELEVANT_INDICES)
+        val query = QueryBuilders.boolQuery()
+        var parentPath = normalizedFilePath
+        if (normalizedFilePath.startsWith("/home")) {
+            while (parentPath != "/home") {
+                println(parentPath)
+                query
+                    .should(
+                        QueryBuilders.matchPhraseQuery(
+                            "requestJson.mounts.source",
+                            parentPath
+                        )
+                    )
+                    .should(
+                        QueryBuilders.matchPhraseQuery(
+                            "requestJson.parameters.*.source",
+                            parentPath
+                        )
+                    )
+                parentPath = parentPath.substringBeforeLast("/")
+            }
+        }
+        if (normalizedFilePath.startsWith("/projects")) {
+            while (parentPath != "/projects") {
+                println(parentPath)
+                query
+                    .should(
+                        QueryBuilders.matchPhraseQuery(
+                            "requestJson.mounts.source",
+                            parentPath
+                        )
+                    )
+                    .should(
+                        QueryBuilders.matchPhraseQuery(
+                            "requestJson.parameters.*.source",
+                            parentPath
+                        )
+                    )
+                parentPath = parentPath.substringBeforeLast("/")
+            }
+        }
+        query
+            .should(
+                QueryBuilders.matchPhraseQuery(
+                    "requestJson.files.path",
+                    normalizedFilePath
+                )
+            )
+            .should(
+                QueryBuilders.matchPhraseQuery(
+                    "requestJson.path",
+                    normalizedFilePath
+                )
+            )
+            .should(
+                QueryBuilders.matchPhraseQuery(
+                    "requestJson.request.path",
+                    normalizedFilePath
+                )
+            )
+            .minimumShouldMatch(1)
+
         val source = SearchSourceBuilder().query(
             QueryBuilders.boolQuery()
-                .filter(
+                .filter(query)
+                /*.filter(
                     QueryBuilders.boolQuery()
                         //AppStart
                         .should(
@@ -152,7 +218,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                         )
                         .minimumShouldMatch(1)
 
-                )
+                )*/
                 .filter(
                     QueryBuilders.boolQuery()
                         .should(
@@ -201,16 +267,69 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         }
     }
 
-
-    override fun findEvents(scrollSize: Int, filter: ActivityEventFilter): List<ActivityEvent> {
+    private fun applyTimeFilter(filter: ActivityEventFilter): BoolQueryBuilder {
         val query = QueryBuilders.boolQuery()
-
         if (filter.minTimestamp != null) {
             query.filter(QueryBuilders.rangeQuery("@timestamp").gte(filter.minTimestamp))
         }
         if (filter.maxTimestamp != null) {
             query.filter(QueryBuilders.rangeQuery("@timestamp").lte(filter.maxTimestamp))
         }
+
+        return query
+    }
+
+    override fun findProjectEvents(
+        scrollSize: Int,
+        filter: ActivityEventFilter,
+        projectID: String,
+        repos: List<Repository>
+    ): List<ActivityEvent> {
+        val query = applyTimeFilter(filter)
+        if (filter.user != null) {
+            query.filter(QueryBuilders.matchPhraseQuery("token.principal.username", filter.user))
+        }
+        repos.forEach { repo ->
+            if (!repo.name.isNullOrBlank()) {
+                val repoPath = "/projects/$projectID/${repo.name}"
+                query
+                    //AppStart
+                    .should(
+                        QueryBuilders.matchPhrasePrefixQuery(
+                            "requestJson.mounts.source",
+                            repoPath
+                        )
+                    )
+                    .should(
+                        QueryBuilders.matchPhrasePrefixQuery(
+                            "requestJson.parameters.*.source",
+                            repoPath
+                        )
+                    )
+                    //SimpleUpload, download, updateAcl, SimpleBulkUpload, reclassify, move, copy, delete
+                    //createDirectory, create share, Toggle Favorite
+                    .should(
+                        QueryBuilders.matchPhrasePrefixQuery(
+                            "requestJson.files.path",
+                            repoPath
+                        )
+                    )
+                    .should(
+                        QueryBuilders.matchPhrasePrefixQuery(
+                            "requestJson.path",
+                            repoPath
+                        )
+                    )
+                    .should(
+                        QueryBuilders.matchPhrasePrefixQuery(
+                            "requestJson.request.path",
+                            repoPath
+                        )
+                    )
+                    .minimumShouldMatch(1)
+            }
+        }
+
         val index = getIndexByType(filter.type)
 
         val request = SearchRequest(*index)
@@ -218,19 +337,78 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
             QueryBuilders.boolQuery()
                 .filter(
                     QueryBuilders.boolQuery()
-                        .must(
-                            QueryBuilders.matchPhraseQuery(
-                                "token.principal.username",
-                                filter.user
-                            )
+                        .should(
+                            QueryBuilders.rangeQuery(
+                                "responseCode"
+                            ).lte(299).gte(200)
                         )
+                        .minimumShouldMatch(1)
+                )
+                .filter(query)
+        ).from(filter.offset ?: 0)
+            .size(scrollSize)
+            .sort("@timestamp", SortOrder.DESC)
+        request.source(source)
+        val searchResponse = client.search(request, RequestOptions.DEFAULT)
+        return mapEventsBasedOnIndex(searchResponse, isUserSearch = true)
+
+    }
+
+    private fun byPrefixedPath(prefixPath: String): BoolQueryBuilder {
+        return QueryBuilders.boolQuery()
+            //AppStart
+            .should(
+                QueryBuilders.matchPhrasePrefixQuery(
+                    "requestJson.mounts.source",
+                    "$prefixPath"
+                )
+            )
+            .should(
+                QueryBuilders.matchPhrasePrefixQuery(
+                    "requestJson.parameters.*.source",
+                    "$prefixPath"
+                )
+            )
+            //SimpleUpload, download, updateAcl, SimpleBulkUpload, reclassify, move, copy, delete
+            //createDirectory, create share, Toggle Favorite
+            .should(
+                QueryBuilders.matchPhrasePrefixQuery(
+                    "requestJson.files.path",
+                    "$prefixPath"
+                )
+            )
+            .should(
+                QueryBuilders.matchPhrasePrefixQuery(
+                    "requestJson.path",
+                    "$prefixPath"
+                )
+            )
+            .should(
+                QueryBuilders.matchPhrasePrefixQuery(
+                    "requestJson.request.path",
+                    "$prefixPath"
+                )
+            )
+            .minimumShouldMatch(1)
+    }
+
+    override fun findUserEvents(scrollSize: Int, filter: ActivityEventFilter): List<ActivityEvent> {
+        val query = applyTimeFilter(filter)
+        val index = getIndexByType(filter.type)
+        val userHome = "/home/${filter.user}"
+        val request = SearchRequest(*index)
+
+        val source = SearchSourceBuilder().query(
+            QueryBuilders.boolQuery()
+                .filter(
+                    byPrefixedPath(userHome)
                 )
                 .filter(
                     QueryBuilders.boolQuery()
                         .should(
                             QueryBuilders.rangeQuery(
                                 "responseCode"
-                            ).lte(299)
+                            ).lte(299).gte(200)
                         )
                         .minimumShouldMatch(1)
                 )

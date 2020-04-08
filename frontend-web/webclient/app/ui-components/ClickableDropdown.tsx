@@ -34,7 +34,7 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
         super(props);
         this.state = {open: false};
         let neither = true;
-        if (!!props.children) neither = false;
+        if (props.children) neither = false;
         if (!!props.onChange && !!props.options) neither = false;
         if (neither) throw Error("Clickable dropdown must have either children prop or options and onChange");
         document.addEventListener("mousedown", this.handleClickOutside);
@@ -78,7 +78,7 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
                         overflow={"visible"}
                         squareTop={this.props.squareTop}
                         cursor="pointer"
-                        {...props }
+                        {...props}
                         width={width}
                         hover={false}
                         visible={this.state.open}

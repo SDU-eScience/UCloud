@@ -70,6 +70,7 @@ import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
+import {promptCreateRepository} from "Utilities/ProjectUtilities";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -452,6 +453,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
                     {isForbiddenPath ? <></> : (
                         <VerticalButtonGroup>
+                            <RepositoryOperations path={props.path} reload={reload} />
                             <FileOperations
                                 files={checkedFilesWithInfo}
                                 fileOperations={fileOperations}
@@ -670,7 +672,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                             await Client.post("/files/normalize-permissions", {path: f.path});
                                                             callbacks.requestReload();
                                                         }
-                                                    })
+                                                    });
                                                 }}>
                                                     <Icon
                                                         cursor="pointer"
@@ -735,7 +737,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                     {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
                                         ((applications.get(f.path) ?? []).length < 1) ? null : (
                                             <ClickableDropdown
-                                                width="175px"
+                                                width="auto"
+                                                minWidth="175px"
                                                 left="-160px"
                                                 trigger={<Icon mr="8px" name="play" size="1em" color="midGray" hoverColor="gray" style={{display: "block"}} />}
                                             >
@@ -978,6 +981,11 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     );
 };
 
+function RepositoryOperations(props: {path: string | undefined; reload: () => void}): JSX.Element | null {
+    if (props.path !== Client.projectFolder) return null;
+    return <Button width="100%" onClick={() => promptCreateRepository(Client, props.reload)}>New Repository</Button>;
+}
+
 const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): JSX.Element => {
     interface IconDef {
         color: string;
@@ -1104,17 +1112,18 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
                 cursor="pointer"
                 alignItems="center"
                 onClick={() => quickLaunchCallback(quickLaunchApp, getParentPath(file.path), props.history)}
+                width="auto"
                 {...props}
             >
                 <AppToolLogo name={quickLaunchApp.metadata.name} size="20px" type="APPLICATION" />
-                <span style={{marginLeft: "5px"}}>{quickLaunchApp.metadata.title}</span>
+                <span style={{marginLeft: "5px", marginRight: "5px"}}>{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}</span>
             </Flex>
         );
     };
 
     return (
         <>
-            {applications.map((ap, i) => <Operation quickLaunchApp={ap} key={`opt-${i}`} />)}
+            {applications.map((ap, i) => <Operation quickLaunchApp={ap} key={i} />)}
         </>
     );
 };

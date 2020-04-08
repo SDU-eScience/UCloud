@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "activity"
-    version = "1.4.14-trycatch"
+    version = "1.4.14-project27"
 
     withAmbassador {}
 

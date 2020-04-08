@@ -1,19 +1,26 @@
 package dk.sdu.cloud.activity.services
 
-import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityFilter
 import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.activity.api.type
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.file.api.path
+import dk.sdu.cloud.project.repository.api.ProjectRepository
+import dk.sdu.cloud.project.repository.api.RepositoryListRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.NormalizedScrollRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.ScrollResult
+import kotlinx.coroutines.runBlocking
 
 class ActivityService(
     private val activityEventElasticDao: ActivityEventElasticDao,
-    private val fileLookupService: FileLookupService
+    private val fileLookupService: FileLookupService,
+    private val client: AuthenticatedClient
 ) {
 
     suspend fun findEventsForPath(
@@ -27,30 +34,55 @@ class ActivityService(
         return activityEventElasticDao.findByFilePath(pagination, fileStat.path)
     }
 
-    fun browseForUser(
+    fun browseActivity(
         scroll: NormalizedScrollRequest<Int>,
         user: String,
-        userFilter: ActivityFilter? = null
+        userFilter: ActivityFilter? = null,
+        projectID: String? = null
     ): ScrollResult<ActivityForFrontend, Int> {
-        val filter = ActivityEventFilter(
+        var filter = ActivityEventFilter(
             offset = scroll.offset,
-            user = user,
+            user = userFilter?.user,
             minTimestamp = userFilter?.minTimestamp,
             maxTimestamp = userFilter?.maxTimestamp,
             type = userFilter?.type
         )
 
-        val allEvents = activityEventElasticDao.findEvents(
-            scroll.scrollSize,
-            filter
-        )
+        val allEvents = if (!projectID.isNullOrBlank()) {
+            val repos = runBlocking {
+                ProjectRepository.list.call(
+                    RepositoryListRequest(
+                        user,
+                        null,
+                        null
+                    ),
+                    client.withProject(projectID)
+                ).orThrow().items
+            }
 
+            activityEventElasticDao.findProjectEvents(
+                scroll.scrollSize,
+                filter,
+                projectID,
+                repos
+            )
+
+        } else {
+            if (filter.user == null) {
+                filter = filter.copy(user = user)
+            }
+            activityEventElasticDao.findUserEvents(
+                scroll.scrollSize,
+                filter
+            )
+        }
         val results = allEvents.map { ActivityForFrontend(it.type, it.timestamp, it) }
 
         val nextOffset = allEvents.size + (scroll.offset ?: 0)
 
         return ScrollResult(results, nextOffset, endOfScroll = allEvents.size < scroll.scrollSize)
     }
+
 
     companion object : Loggable {
         override val log = logger()

@@ -10,6 +10,7 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
+import {repositoryName, repositoryTrashFolder, repositoryJobsFolder} from "./ProjectUtilities";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -320,12 +321,19 @@ export const isInvalidPathName = ({path, filePaths}: IsInvalidPathname): boolean
  * @param {string} filePath the path of the file to be checked
  * @param {string} homeFolder the path for the homefolder of the current user
  */
-export const isFixedFolder = (filePath: string, homeFolder: string): boolean => {
-    return [ // homeFolder contains trailing slash
+export const isFixedFolder = (filePath: string, homeFolder: string, client: HttpClient): boolean => {
+    const fixedFolders = [ // homeFolder contains trailing slash
         `${homeFolder}Favorites`,
         `${homeFolder}Jobs`,
-        `${homeFolder}Trash`
-    ].some(it => UF.removeTrailingSlash(it) === filePath);
+        `${homeFolder}Trash`,
+    ];
+
+    if (repositoryName(filePath)) {
+        fixedFolders.push(repositoryTrashFolder(filePath, client));
+        fixedFolders.push(repositoryJobsFolder(filePath, client));
+    }
+
+    return fixedFolders.some(it => UF.removeTrailingSlash(it) === filePath);
 };
 
 /**
@@ -397,10 +405,10 @@ export const extractArchive = async ({files, client, onFinished}: ExtractArchive
     onFinished();
 };
 
-export const clearTrash = ({client, callback}: {client: HttpClient; callback: () => void}): void =>
+export const clearTrash = ({client, trashPath, callback}: {client: HttpClient; trashPath: string; callback: () => void}): void =>
     clearTrashDialog({
         onConfirm: async () => {
-            await client.post("/files/trash/clear", {trashPath: client.trashFolder});
+            await client.post("/files/trash/clear", {trashPath});
             callback();
             snackbarStore.addSnack({message: "Emptying trash", type: SnackType.Information});
         }
@@ -416,7 +424,7 @@ export const getParentPath = (path: string): string => {
     }
     /* TODO: Should be equivalent, let's test it for a while and replace if it works. */
     /* They are not equivalent for the empty string. // and /, respectively. */
-    const parentP = `/${path.split("/").filter(it => it).slice(0, -1).join("/")}/`;
+    const parentP = UF.addTrailingSlash(`/${path.split("/").filter(it => it).slice(0, -1).join("/")}`);
     if (window.location.hostname === "localhost" && parentP !== parentPath) {
         throw Error("ParentP and path not equal");
     }
@@ -616,21 +624,25 @@ export async function createFolder({path, client, onSuccess}: CreateFolder): Pro
     }
 }
 
-export const inTrashDir = (path: string, client: HttpClient): boolean => getParentPath(path) === client.trashFolder;
+export function inTrashDir(path: string, client: HttpClient): boolean {
+    const repoName = repositoryName(path);
+    const parentPath = getParentPath(path);
+    if (!repoName) return parentPath === client.trashFolder;
+    return parentPath === repositoryTrashFolder(path, client);
+}
 
 export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);
 }
 
 export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
-    return files.some(it => isFixedFolder(it.path, client.homeFolder));
+    return files.some(it => isFixedFolder(it.path, client.homeFolder, client));
 }
 
 export function isFilePreviewSupported(f: File): boolean {
     if (isDirectory(f)) return false;
     if (f.sensitivityLevel === "SENSITIVE") return false;
     return UF.isExtPreviewSupported(UF.extensionFromPath(f.path));
-
 }
 
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;

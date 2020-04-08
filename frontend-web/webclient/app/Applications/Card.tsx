@@ -251,7 +251,7 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLog
     );
 };
 
-export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
+export const AppLogo = ({size, hash}: {size: string, hash: number}): JSX.Element => {
     const i1 = (hash >>> 30) & 3;
     const i2 = (hash >>> 20) & 3;
     const rot = [0, 15, 30];

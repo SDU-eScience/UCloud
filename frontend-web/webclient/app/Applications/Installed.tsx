@@ -31,7 +31,7 @@ type InstalledStateProps = ReduxType;
 
 type InstalledProps = InstalledOperations & InstalledStateProps;
 
-function Installed(props: InstalledProps & {header: React.ReactNode}) {
+function Installed(props: InstalledProps & {header: React.ReactNode}): JSX.Element | null {
 
     React.useEffect(() => {
         props.onInit();
@@ -40,7 +40,7 @@ function Installed(props: InstalledProps & {header: React.ReactNode}) {
         return () => {if (props.header !== null) props.setRefresh();};
     }, []);
 
-    function refresh() {
+    function refresh(): void {
         const {content} = props.applications;
         const pageNumber = content?.pageNumber ?? 0;
         const itemsPerPage = content?.itemsPerPage ?? 25;
@@ -60,11 +60,11 @@ function Installed(props: InstalledProps & {header: React.ReactNode}) {
         }
     }
 
-    function onItemsPerPageChange(items: number) {
+    function onItemsPerPageChange(items: number): void {
         props.fetchItems(0, items);
     }
 
-    function pageRenderer(page: Page<FullAppInfo>) {
+    function pageRenderer(page: Page<FullAppInfo>): JSX.Element {
         return (
             <Box mt="5px">
                 <ApplicationPage onFavorite={onFavoriteApp} page={page} />
@@ -72,7 +72,7 @@ function Installed(props: InstalledProps & {header: React.ReactNode}) {
         );
     }
 
-    function onFavoriteApp(name: string, version: string) {
+    function onFavoriteApp(name: string, version: string): void {
         onFavorite(name, version);
     }
 
@@ -127,8 +127,8 @@ export const ApplicationPage: React.FunctionComponent<ApplicationPageProps> = pr
                 onFavorite={props.onFavorite}
                 app={it}
                 key={idx}
-                isFavorite={it.favorite}
                 linkToRun
+                isFavorite={it.favorite}
                 tags={it.tags}
             />
         ))}
