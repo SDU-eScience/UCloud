@@ -50,12 +50,12 @@ class AppLicenseService<Session>(
         }
     }
 
-    suspend fun listServers(tags: List<String>, principal: SecurityPrincipal): List<LicenseServerId> {
+    suspend fun listServers(tags: List<String>, accessEntity: AccessEntity): List<LicenseServerId> {
         return db.withTransaction { session ->
             appLicenseDao.list(
                 session,
                 tags,
-                principal
+                accessEntity
             )
         } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
     }

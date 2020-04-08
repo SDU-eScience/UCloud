@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.app.license.api.AccessEntity
 import dk.sdu.cloud.app.license.api.LicenseServer
 import dk.sdu.cloud.app.license.api.LicenseServerId
 import dk.sdu.cloud.app.license.api.LicenseServerWithId
@@ -20,7 +21,7 @@ interface AppLicenseDao<Session> {
     fun list(
         session: Session,
         tags: List<String>,
-        entity: SecurityPrincipal
+        accessEntity: AccessEntity
     ): List<LicenseServerId>?
 
     fun listAll(

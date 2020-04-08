@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.app.license.api.AccessEntity
 import dk.sdu.cloud.app.license.api.LicenseServer
 import dk.sdu.cloud.app.license.api.LicenseServerId
 import dk.sdu.cloud.app.license.api.LicenseServerWithId
@@ -91,23 +92,22 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
     override fun list(
         session: HibernateSession,
         tags: List<String>,
-        principal: SecurityPrincipal
+        accessEntity: AccessEntity
     ): List<LicenseServerId>? {
         return session.createNativeQuery<LicenseServerEntity>(
             """
             SELECT LS.id, LS.name, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
             INNER JOIN {h-schema}permissions as P
                 ON LS.id = P.server_id
-            WHERE LS.id IN
-                (SELECT T.license_server FROM {h-schema}tags AS T where T.name IN :tags)
-                AND P.entity = :entityId
-                AND P.entity_type = :entityType
-                AND (P.permission = 'READ_WRITE'
-    		    OR P.permission = 'READ')
+            WHERE LS.id IN (SELECT T.license_server FROM {h-schema}tags AS T where T.name IN :tags)
+                AND (P.user = :user OR (P.project = :project AND P.group = :group))
+                AND (P.permission = 'READ_WRITE' OR P.permission = 'READ')
         """.trimIndent(), LicenseServerEntity::class.java
         ).also {
             it.setParameter("tags", tags)
-            it.setParameter("entityId", principal.username)
+            it.setParameter("user", accessEntity.user)
+            it.setParameter("project", accessEntity.project)
+            it.setParameter("group", accessEntity.group)
         }.list().map { entity ->
             entity.toIdentifiable()
         }

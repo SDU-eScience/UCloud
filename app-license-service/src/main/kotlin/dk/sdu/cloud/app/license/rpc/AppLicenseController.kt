@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.license.services.AppLicenseService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
@@ -45,7 +46,14 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
         }
 
         implement(AppLicenseDescriptions.list) {
-            ok(licenseService.listServers(request.tags, ctx.securityPrincipal))
+            val accessEntity = if (ctx.project == null) {
+                AccessEntity(ctx.securityPrincipal.username, null, null)
+            } else {
+                // TODO
+                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            }
+
+            ok(licenseService.listServers(request.tags, accessEntity))
         }
 
         implement(AppLicenseDescriptions.listAll) {
