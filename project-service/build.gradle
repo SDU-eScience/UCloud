@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '3.0.0-v.17'
+version '3.0.0-v.20'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.project.MainKt"
@@ -16,6 +16,7 @@ buildscript {
     ext.contactsApiVersion = "0.1.17"
     ext.mailApiVersion = "0.1.0"
     ext.notificationApiVersion = "1.2.6"
+    ext.appLicenseApiVersion = "0.1.8-projects.2"
 }
 
 dependencies {
@@ -25,6 +26,7 @@ dependencies {
     compile "dk.sdu.cloud:contact-book-api:${contactsApiVersion}"
     compile "dk.sdu.cloud:mail-api:${mailApiVersion}"
     compile "dk.sdu.cloud:notification-api:${notificationApiVersion}"
+    compile "dk.sdu.cloud:app-license-api:${appLicenseApiVersion}"
     testCompile "dk.sdu.cloud:service-common-test:${serviceCommonVersion}"
 }
 
