@@ -31,10 +31,15 @@ enum class ServerAccessRight {
 }
 
 data class AccessEntity(
-    val username: String = "",
-    val project: String = "",
-    val group: String = ""
-)
+    val user: String?,
+    val project: String?,
+    val group: String?
+) {
+    init {
+        if (user.isNullOrBlank() && project.isNullOrBlank() && group.isNullOrBlank())
+            throw IllegalArgumentException("No access entity defined")
+    }
+}
 
 
 data class DeleteServerRequest(
@@ -78,7 +83,7 @@ data class NewServerResponse(val serverId: String)
 
 data class UpdateAclRequest(
     val serverId: String,
-    val changes: List<ACLEntryRequest>
+    val changes: List<AclEntryRequest>
 ) {
     init {
         if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
@@ -86,7 +91,7 @@ data class UpdateAclRequest(
     }
 }
 
-data class ACLEntryRequest(
+data class AclEntryRequest(
     val entity: AccessEntity,
     val rights: ServerAccessRight,
     val revoke: Boolean = false

@@ -15,8 +15,10 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppLicenseDescriptions.get) {
+            val accessEntity = AccessEntity(ctx.securityPrincipal.username, null, null)
+
             val licenseServer =
-                licenseService.getLicenseServer(ctx.securityPrincipal, request.serverId, ctx.securityPrincipal)
+                licenseService.getLicenseServer(ctx.securityPrincipal, request.serverId, accessEntity)
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             ok(
@@ -31,17 +33,7 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
         }
 
         implement(AppLicenseDescriptions.updateAcl) {
-            /*request.changes.forEach {
-                if (it.entity.type == EntityType.PROJECT_GROUP) {
-                    ProjectGroups.groupExists(GroupExistsRequest(
-                        "project-name",
-                        it.entity.id
-
-                    ))
-                }
-            }*/
-
-            ok(licenseService.updateAcl(request, ctx.securityPrincipal))
+            ok(licenseService.updateAcl(request.serverId, request.changes, ctx.securityPrincipal))
         }
 
         implement(AppLicenseDescriptions.listAcl) {
@@ -58,23 +50,30 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
 
         implement(AppLicenseDescriptions.update) {
+            val accessEntity = AccessEntity(
+                ctx.securityPrincipal.username,
+                null,
+                null
+            )
+
             ok(
                 UpdateServerResponse(
                     licenseService.updateLicenseServer(
                         ctx.securityPrincipal,
                         request,
-                        ctx.securityPrincipal
+                        accessEntity
                     )
                 )
             )
         }
 
         implement(AppLicenseDescriptions.delete) {
-            ok(licenseService.deleteLicenseServer(ctx.securityPrincipal, request, ctx.securityPrincipal))
+            ok(licenseService.deleteLicenseServer(ctx.securityPrincipal, request))
         }
 
         implement(AppLicenseDescriptions.new) {
-            ok(NewServerResponse(licenseService.createLicenseServer(request, ctx.securityPrincipal)))
+            val accessEntity = AccessEntity(ctx.securityPrincipal.username, null, null)
+            ok(NewServerResponse(licenseService.createLicenseServer(request, accessEntity)))
         }
 
         implement(TagDescriptions.add) {

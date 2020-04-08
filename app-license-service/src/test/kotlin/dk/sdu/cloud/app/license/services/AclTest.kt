@@ -47,7 +47,7 @@ class AclTest {
 
     @Test
     fun `empty acls`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
+        val user = AccessEntity("user", null, null)
         val serverId = "1234"
 
         val instance = aclService.listAcl(serverId)
@@ -59,8 +59,8 @@ class AclTest {
 
     @Test
     fun `revoke permission`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
-        val user2 = UserEntity("user2", EntityType.USER)
+        val user = AccessEntity("user", null, null)
+        val user2 = AccessEntity("user2", null, null)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
@@ -72,7 +72,7 @@ class AclTest {
             user
         )
 
-        val changes = listOf(ACLEntryRequest(user2, ServerAccessRight.READ))
+        val changes = listOf(AclEntryRequest(user2, ServerAccessRight.READ))
 
         aclService.updatePermissions(serverId, changes, user)
         assertTrue(aclService.hasPermission(serverId, user2, ServerAccessRight.READ))
@@ -85,8 +85,8 @@ class AclTest {
         val micro = initializeMicro()
         micro.install(HibernateFeature)
 
-        val userEntity = UserEntity("user", EntityType.USER)
-        val userEntity2 = UserEntity("user2", EntityType.USER)
+        val userEntity = AccessEntity("user", null, null)
+        val userEntity2 = AccessEntity("user2", null, null)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
@@ -101,7 +101,7 @@ class AclTest {
 
         assertFalse(aclService.hasPermission(serverId, userEntity2, ServerAccessRight.READ))
 
-        val changes = listOf(ACLEntryRequest(userEntity2, ServerAccessRight.READ))
+        val changes = listOf(AclEntryRequest(userEntity2, ServerAccessRight.READ))
 
         aclService.updatePermissions(serverId, changes, userEntity)
 
@@ -110,8 +110,8 @@ class AclTest {
 
     @Test
     fun `add user to acl several times`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
-        val user2 = UserEntity("user2", EntityType.USER)
+        val user = AccessEntity("user", null, null)
+        val user2 = AccessEntity("user2", null, null)
 
         val serverId = licenseService.createLicenseServer(
             NewServerRequest(
@@ -123,7 +123,7 @@ class AclTest {
             user
         )
 
-        val changes = listOf(ACLEntryRequest(user2, ServerAccessRight.READ))
+        val changes = listOf(AclEntryRequest(user2, ServerAccessRight.READ))
 
         repeat(10) {
             aclService.updatePermissions(serverId, changes, user)
@@ -132,7 +132,7 @@ class AclTest {
         val list = aclService.listAcl(serverId)
         assertThatPropertyEquals(list, { it.size }, 2)
 
-        assertTrue(EntityWithPermission("user", EntityType.USER, ServerAccessRight.READ_WRITE) in list)
-        assertTrue(EntityWithPermission("user2", EntityType.USER, ServerAccessRight.READ) in list)
+        assertTrue(AccessEntityWithPermission(AccessEntity("user", null, null), ServerAccessRight.READ_WRITE) in list)
+        assertTrue(AccessEntityWithPermission(AccessEntity("user2", null, null), ServerAccessRight.READ) in list)
     }
 }
