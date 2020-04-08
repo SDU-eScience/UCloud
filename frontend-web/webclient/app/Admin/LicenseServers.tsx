@@ -185,14 +185,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     const groupEntityField = React.useRef<HTMLInputElement>(null);
 
     async function loadAcl(serverId: string): Promise<AclEntry[]> {
-        const {response} = await Client.get<{
-            entity: {
-                user: string | null;
-                project: string | null;
-                group: string | null;
-            };
-            permission: LicenseServerAccessRight;
-        }[]>(`/app/license/listAcl?serverId=${serverId}`);
+        const {response} = await Client.get<AclEntry[]>(`/app/license/listAcl?serverId=${serverId}`);
         return response.map(item => ({
             entity: {
                 user: item.entity.user,
@@ -202,6 +195,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
             permission: item.permission
         }));
     }
+
     async function deleteAclEntry(): Promise<void> {
         if (licenseServer == null) return;
         if (accessEntryToDelete == null) return;
@@ -413,13 +407,19 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                 {accessList.map((accessEntry, index) => (
                                     <TableRow key={index}>
                                         <TableCell>
-                                            { accessEntry.entity.user === null ? (
+                                            { accessEntry.entity.user ? (
                                                 prettifyEntityType(UserEntityType.USER)
                                             ) : (
                                                 prettifyEntityType(UserEntityType.PROJECT_GROUP)
                                             )}
                                         </TableCell>
-                                        <TableCell>{accessEntry.entity}</TableCell>
+                                        <TableCell>
+                                            { accessEntry.entity.user ? (
+                                                accessEntry.entity.user
+                                            ) : (
+                                                accessEntry.entity.project + " " + accessEntry.entity.group
+                                            )}
+                                        </TableCell>
                                         <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
                                         <TableCell textAlign="right">
                                             <Button
@@ -452,7 +452,9 @@ interface LicenseServer {
 }
 
 function openAclDialog(licenseServer: LicenseServer): void {
+    console.log("Opens ACL dialog");
     dialogStore.addDialog(<LicenseServerAclPrompt licenseServer={licenseServer} />, () => undefined);
+    console.log("Done");
 }
 
 function openTagsDialog(licenseServer: LicenseServer): void {

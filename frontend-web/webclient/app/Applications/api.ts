@@ -13,8 +13,6 @@ export interface ListByNameProps {
     name: string;
 }
 
-export const HelloTest = "hello"
-
 export function listByName({name, itemsPerPage, page}: ListByNameProps): APICallParameters<ListByNameProps> {
     return {
         reloadId: Math.random(),
