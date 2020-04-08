@@ -108,6 +108,12 @@ class AclService<Session>(
         }
     }
 
+    suspend fun revokeAllFromEntity(entity: AccessEntity) {
+        db.withTransaction { session ->
+            dao.revokePermissionsFromEntity(session, entity)
+        }
+    }
+
     private fun revokePermissionWithSession(session: Session, serverId: String, entity: AccessEntity) {
         dao.revokePermission(session, serverId, entity)
     }

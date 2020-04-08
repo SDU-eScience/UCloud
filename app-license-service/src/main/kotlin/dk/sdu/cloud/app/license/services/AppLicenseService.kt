@@ -33,6 +33,15 @@ class AppLicenseService<Session>(
         aclService.updatePermissions(serverId, changes, accessEntity)
     }
 
+    suspend fun deleteProjectGroupAclEntries(request: DeleteProjectGroupAclEntriesRequest, principal: SecurityPrincipal)  {
+        return if (Roles.PRIVILEDGED.contains(principal.role)) {
+            val accessEntity = AccessEntity(null, request.project, request.group)
+            aclService.revokeAllFromEntity(accessEntity)
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not allowed")
+        }
+    }
+
     suspend fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<AccessEntityWithPermission> {
         return if (Roles.PRIVILEDGED.contains(user.role)) {
             aclService.listAcl(request.serverId)

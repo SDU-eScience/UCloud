@@ -28,6 +28,11 @@ interface AclDao<Session> {
         accessEntity: AccessEntity
     )
 
+    fun revokePermissionsFromEntity(
+        session: Session,
+        accessEntity: AccessEntity
+    )
+
     fun revokeAllServerPermissions(
         session: Session,
         serverId: String

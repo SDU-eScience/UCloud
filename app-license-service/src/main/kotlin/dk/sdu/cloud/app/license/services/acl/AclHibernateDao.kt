@@ -86,9 +86,9 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ) {
         session.deleteCriteria<PermissionEntry> {
             (entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal serverId) and
-                    (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) and
-                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project)
-                    (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+                    (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
+                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
+                    (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group))
         }.executeUpdate()
     }
 
@@ -113,5 +113,14 @@ class AclHibernateDao : AclDao<HibernateSession> {
             .map {
                 AccessEntityWithPermission(AccessEntity(it.key.user, it.key.project, it.key.group), it.key.permission)
             }
+    }
+
+    override fun revokePermissionsFromEntity(session: HibernateSession, accessEntity: AccessEntity) {
+        session.deleteCriteria<PermissionEntry> {
+            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
+                (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
+                (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+            )
+        }.executeUpdate()
     }
 }

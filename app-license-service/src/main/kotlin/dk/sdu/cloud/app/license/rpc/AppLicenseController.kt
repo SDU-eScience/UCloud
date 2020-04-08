@@ -36,6 +36,10 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             ok(licenseService.updateAcl(request.serverId, request.changes, ctx.securityPrincipal))
         }
 
+        implement(AppLicenseDescriptions.deleteProjectGroupAclEntries) {
+            ok(licenseService.deleteProjectGroupAclEntries(request, ctx.securityPrincipal))
+        }
+
         implement(AppLicenseDescriptions.listAcl) {
             ok(licenseService.listAcl(request, ctx.securityPrincipal))
         }
@@ -47,7 +51,6 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
         implement(AppLicenseDescriptions.listAll) {
             ok(licenseService.listAllServers(ctx.securityPrincipal))
         }
-
 
         implement(AppLicenseDescriptions.update) {
             val accessEntity = AccessEntity(
