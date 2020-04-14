@@ -72,11 +72,6 @@ data class LicenseServer(
     val license: String?
 )
 
-data class DeleteProjectGroupAclEntriesRequest(
-    val project: String,
-    val group: String
-)
-
 data class LicenseServerId(
     val id: String,
     val name: String
@@ -171,24 +166,6 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
             path {
                 using(baseContext)
                 +"updateAcl"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val deleteProjectGroupAclEntries = call<DeleteProjectGroupAclEntriesRequest, Unit, CommonErrorMessage>("updateProjectGroupAclEntries") {
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"deleteProjectGroupAclEntries"
             }
 
             body { bindEntireRequestFromBody() }

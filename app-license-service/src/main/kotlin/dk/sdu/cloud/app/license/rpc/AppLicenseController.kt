@@ -37,10 +37,6 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
             ok(licenseService.updateAcl(request.serverId, request.changes, ctx.securityPrincipal))
         }
 
-        implement(AppLicenseDescriptions.deleteProjectGroupAclEntries) {
-            ok(licenseService.deleteProjectGroupAclEntries(request, ctx.securityPrincipal))
-        }
-
         implement(AppLicenseDescriptions.listAcl) {
             ok(licenseService.listAcl(request, ctx.securityPrincipal))
         }
