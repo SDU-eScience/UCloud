@@ -13,9 +13,6 @@ import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
-import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
-import dk.sdu.cloud.app.license.api.DeleteProjectGroupAclEntriesRequest
-import dk.sdu.cloud.calls.client.call
 import io.ktor.http.HttpStatusCode
 
 class GroupService(
@@ -52,13 +49,6 @@ class GroupService(
             val role = projects.findRoleOfMember(session, projectId, principal.username) ?: return@withTransaction null
             if (!role.isAdmin()) return@withTransaction null
             val project = projects.findById(session, projectId)
-
-            groupNames.forEach { groupName ->
-                AppLicenseDescriptions.deleteProjectGroupAclEntries.call(
-                    DeleteProjectGroupAclEntriesRequest(projectId, groupName),
-                    serviceClient
-                )
-            }
 
             groups.deleteGroups(session, projectId, groupNames)
             project
