@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "4.1.0-projects.3"
+    version = "4.1.0-projects.4"
 
     withAmbassador(null) {
         services.add(
@@ -132,6 +132,7 @@ bundle { ctx ->
                   fileSystemMount: $mountLocation
                   filePermissionAcl:
                   - "_share"
+                  - "_project-repository"
  
             """.trimIndent()
         )

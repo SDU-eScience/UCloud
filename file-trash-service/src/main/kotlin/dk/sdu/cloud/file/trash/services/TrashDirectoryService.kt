@@ -22,7 +22,7 @@ class TrashDirectoryService {
         if (components.size < 2) return false
         return when {
             components[0] == "home" -> path.normalize() == findPersonalTrash(username)
-            components[1] == "projects" -> components.size > 3 && components[2] == "Trash"
+            components[0] == "projects" -> components.size >= 4 && components[3] == "Trash"
             else -> false
         }
     }
