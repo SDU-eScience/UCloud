@@ -49,7 +49,6 @@ class GroupService(
             val role = projects.findRoleOfMember(session, projectId, principal.username) ?: return@withTransaction null
             if (!role.isAdmin()) return@withTransaction null
             val project = projects.findById(session, projectId)
-
             groups.deleteGroups(session, projectId, groupNames)
             project
         } ?: throw ProjectException.CantDeleteGroup()
