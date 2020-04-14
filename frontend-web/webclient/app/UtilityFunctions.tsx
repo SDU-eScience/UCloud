@@ -346,12 +346,9 @@ export function defaultErrorHandler(
 ): number {
     const request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
-    let why: string | null = null;
-    if (!!error.response && !!error.response.why) {
-        why = error.response.why;
-    }
+    let why: string | null = error.response?.why;
 
-    if (!!request) {
+    if (request) {
         if (!why) {
             switch (request.status) {
                 case 400:
