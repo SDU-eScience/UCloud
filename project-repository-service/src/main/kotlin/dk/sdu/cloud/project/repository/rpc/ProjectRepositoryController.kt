@@ -1,9 +1,14 @@
 package dk.sdu.cloud.project.repository.rpc
 
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.*
+import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.FileType
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.project.repository.api.*
@@ -13,6 +18,7 @@ import io.ktor.http.HttpStatusCode
 
 class ProjectRepositoryController(
     private val service: RepositoryService,
+    private val serviceClient: AuthenticatedClient,
     private val userClientFactory: (accessToken: String) -> AuthenticatedClient
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
@@ -77,19 +83,25 @@ class ProjectRepositoryController(
         implement(ProjectRepository.listFiles) {
             ok(
                 service
-                    .listRepositories(ctx.securityPrincipal.username, project)
+                    .listFiles(ctx.securityPrincipal.username, project, userClient())
                     .paginate(request.normalize())
-                    .mapItems {
-                        StorageFile(
-                            FileType.DIRECTORY,
-                            "/projects/$project/${it.name}"
-                        )
-                    }
             )
         }
 
         implement(ProjectRepository.updatePermissions) {
-            service.updatePermissions(userClient(), project, request.repository, request.newAcl)
+            val newAccessToken = AuthDescriptions.tokenExtension.call(
+                TokenExtensionRequest(
+                    ctx.bearer!!,
+                    listOf(
+                        FileDescriptions.updateAcl.requiredAuthScope.toString()
+                    ),
+                    expiresIn = 1000L * 120,
+                    allowRefreshes = false
+                ),
+                serviceClient
+            ).orThrow().accessToken
+
+            service.updatePermissions(userClientFactory(newAccessToken), project, request.repository, request.newAcl)
             ok(Unit)
         }
         return@configure

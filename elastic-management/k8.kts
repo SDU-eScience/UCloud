@@ -5,7 +5,7 @@ bundle {
     name = "elastic-management"
     version = "1.0.26"
 
-    val deployment = withDeployment(image = "registry.cloud.sdu.dk/sducloud/elastic-management:$version") {
+    val deployment = withDeployment(image = "registry.cloud.sdu.dk/sdu-cloud/elastic-management:$version") {
         injectSecret("elasticsearch-credentials")
     }
 

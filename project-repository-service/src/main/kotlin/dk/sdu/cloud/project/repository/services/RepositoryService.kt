@@ -124,6 +124,27 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
             .map { Repository(it.first) }
     }
 
+    suspend fun listFiles(
+        username: String,
+        project: String,
+        userClient: AuthenticatedClient
+    ): List<StorageFile> {
+        val status = Projects.viewMemberInProject.call(
+            ViewMemberInProjectRequest(project, username),
+            serviceClient
+        ).orRethrowAs { throw RPCException("Unknown project", HttpStatusCode.NotFound) }
+
+        return if (!status.member.role.isAdmin()) {
+            val allRepos = listRepositories(username, project)
+            allRepos.map { StorageFile(FileType.DIRECTORY, "/projects/$project/${it.name}") }
+        } else {
+            FileDescriptions.listAtPath.call(
+                ListDirectoryRequest("/projects/$project", -1, -1, null, null),
+                userClient
+            ).orThrow().items
+        }
+    }
+
     suspend fun updatePermissions(
         userClient: AuthenticatedClient,
         project: String,
