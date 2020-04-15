@@ -191,6 +191,9 @@ function AddMemberPrompt(props: {group: string}): JSX.Element {
     const textRef = React.useRef<HTMLInputElement>(null);
     const [projectMembers, setParams] = useCloudAPI<Page<string>>(membershipSearch("", 0), emptyPage);
     const promises = usePromiseKeeper();
+    const [statuses, setStatuses] = React.useState<{member: string; added: boolean}[]>([]);
+    // HACK -- forceUpdate since ListRow isn't being re-rendered correctly.
+    const [, forceUpdate] = React.useState("");
 
     const ref = React.useRef<number>(-1);
     const onKeyUp = React.useCallback(() => {
@@ -198,8 +201,7 @@ function AddMemberPrompt(props: {group: string}): JSX.Element {
             window.clearTimeout(ref.current);
         }
         ref.current = (window.setTimeout(() => {
-            setParams(membershipSearch(textRef.current?.value ?? "", projectMembers.data.pageNumber)
-            );
+            setParams(membershipSearch(textRef.current?.value ?? "", projectMembers.data.pageNumber));
         }, 500));
 
     }, [textRef.current, setParams]);
@@ -210,14 +212,14 @@ function AddMemberPrompt(props: {group: string}): JSX.Element {
             <Pagination.List
                 pageRenderer={page =>
                     <List>
-                        {page.items.map(it =>
+                        {page.items.map(member =>
                             <ListRow
-                                key={it}
+                                key={member}
                                 isSelected={false}
                                 select={() => undefined}
                                 navigate={() => undefined}
-                                left={<Box>{it}</Box>}
-                                right={<Button onClick={() => addMember(it)} color="green">Add to group</Button>}
+                                left={member}
+                                right={<Button disabled={statuses.find(it => it.member === member)?.added ?? false} onClick={() => addMember(member)} color="green">Add to group</Button>}
                             />
                         )}
                     </List>
@@ -230,12 +232,22 @@ function AddMemberPrompt(props: {group: string}): JSX.Element {
         </Box>
     );
 
-
     async function addMember(member: string): Promise<void> {
         const {path, payload} = addGroupMember({group: props.group, memberUsername: member});
         try {
             await promises.makeCancelable(Client.put(path!, payload)).promise;
+            snackbarStore.addSnack({type: SnackType.Success, message: "User added to project."});
         } catch (err) {
+            if (err?.response?.why === "Member is already in group") {
+                const index = statuses.findIndex(it => it.member === member);
+                if (index !== -1) {
+                    statuses[index].added = true;
+                } else {
+                    statuses.push({member, added: true});
+                }
+                setStatuses(statuses);
+                forceUpdate(member);
+            }
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to add member."));
         }
     }
