@@ -309,8 +309,9 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     };
 
     const {path} = groupedShare;
-    const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || groupedShare.sharedByMe ? (
-        <Link to={fileTablePage(isDirectory({fileType}) ? path : getParentPath(path))}>
+    const sharedByMe = groupedShare.sharedByMe;
+    const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || sharedByMe ? (
+        <Link to={fileTablePage(!sharedByMe ? Client.sharesFolder : (isDirectory({fileType}) ? path : getParentPath(path)))}>
             {getFilenameFromPath(path)}
         </Link>
     ) : <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
