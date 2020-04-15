@@ -1090,11 +1090,11 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations): JSX.
     };
     return (
         <>
-            {buttons.map(op => <Operation fileOp={op} key={op.text} />)}
+            {buttons.map((op, i)=> <Operation fileOp={op} key={i} />)}
             {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
                 <div><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></div>
             }
-            {options.map(op => <Operation fileOp={op} key={op.text} />)}
+            {options.map((op, i) => <Operation fileOp={op} key={i} />)}
         </>
     );
 };

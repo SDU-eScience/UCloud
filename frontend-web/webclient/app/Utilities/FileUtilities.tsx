@@ -163,7 +163,7 @@ function hasAccess(accessRight: AccessRight, file: File): boolean {
     if (file.ownerName === username) return true;
     if (file.acl === null) return true; // If ACL is null, we are still fetching the ACL
 
-    const withoutProjectAcls = file.acl.filter(it => "username" in it.entity);
+    const withoutProjectAcls = file.acl.filter(it => typeof it.entity === "string" || "username" in it.entity);
     const relevantEntries = withoutProjectAcls.filter(item => !item.group && (item.entity as UserEntity).username === username);
     return relevantEntries.some(entry => entry.rights.includes(accessRight));
 }

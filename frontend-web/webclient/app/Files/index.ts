@@ -41,7 +41,7 @@ export interface ProjectEntity {
 }
 
 export interface Acl {
-    entity: ProjectEntity | UserEntity;
+    entity: ProjectEntity | UserEntity | string;
     rights: string[];
     group: boolean;
 }
