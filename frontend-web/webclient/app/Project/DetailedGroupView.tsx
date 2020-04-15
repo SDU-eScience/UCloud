@@ -35,13 +35,13 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     const history = useHistory();
 
     const promises = usePromiseKeeper();
-    const [avatars, setAvatars] = React.useState<AvatarType[]>([]);
+    const [avatars, setAvatars] = React.useState<{[key: string]: AvatarType}>({});
 
     React.useEffect(() => {
         promises.makeCancelable(
             Client.post<{avatars: {[key: string]: AvatarType}}>("/avatar/bulk", {usernames: activeGroup.data.items})
         ).promise.then(it =>
-            setAvatars(Object.values(it.response.avatars))
+            setAvatars(it.response.avatars)
         ).catch(it => console.warn(it));
     }, [activeGroup.data.items.length, activeGroup.data.pageNumber]);
 
