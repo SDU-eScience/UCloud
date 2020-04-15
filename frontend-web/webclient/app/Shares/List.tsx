@@ -8,7 +8,7 @@ import {
 } from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {emptyPage} from "DefaultObjects";
+import {emptyPage, ReduxObject} from "DefaultObjects";
 import {File, FileType} from "Files";
 import {loadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -40,6 +40,7 @@ import {addStandardDialog, FileIcon} from "UtilityComponents";
 import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
 import {ListProps, ListSharesParams, loadAvatars, MinimalShare, SharesByPath, ShareState} from ".";
 import {acceptShare, createShare, findShare, listShares, revokeShare, updateShare} from "./index";
+import Warning from "ui-components/Warning";
 
 export const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?
@@ -107,28 +108,30 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
         }
     }, [page]);
 
-    const header = props.byPath !== undefined ? null : (
-        <SelectableTextWrapper>
-            <SelectableText
-                mr="1em"
-                cursor="pointer"
-                fontSize={3}
-                selected={!sharedByMe}
-                onClick={() => setFetchParams(listShares({sharedByMe: false, itemsPerPage: 25, page: 0}))}
-            >
-                Shared with Me
+    const header = props.byPath !== undefined ? <ProjectSharesWarning /> : (
+        <>
+            <ProjectSharesWarning />
+            <SelectableTextWrapper>
+                <SelectableText
+                    mr="1em"
+                    cursor="pointer"
+                    fontSize={3}
+                    selected={!sharedByMe}
+                    onClick={() => setFetchParams(listShares({sharedByMe: false, itemsPerPage: 25, page: 0}))}
+                >
+                    Shared with Me
             </SelectableText>
-
-            <SelectableText
-                mr="1em"
-                cursor="pointer"
-                selected={sharedByMe}
-                fontSize={3}
-                onClick={() => setFetchParams(listShares({sharedByMe: true, itemsPerPage: 25, page: 0}))}
-            >
-                Shared by Me
-            </SelectableText>
-        </SelectableTextWrapper>
+                <SelectableText
+                    mr="1em"
+                    cursor="pointer"
+                    selected={sharedByMe}
+                    fontSize={3}
+                    onClick={() => setFetchParams(listShares({sharedByMe: true, itemsPerPage: 25, page: 0}))}
+                >
+                    Shared by Me
+                </SelectableText>
+            </SelectableTextWrapper>
+        </>
     );
 
     const shares = page.data.items.filter(it => it.sharedByMe === sharedByMe || props.byPath !== undefined);
@@ -169,7 +172,7 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
 
     return (
         <MainContainer
-            headerSize={55}
+            headerSize={55 + (Client.hasActiveProject ? 65 : 0)}
             header={props.innerComponent ? null : header}
             main={main}
             sidebar={null}
@@ -557,6 +560,11 @@ function sharePermissionsToText(rights: AccessRight[]): string {
     if (rights.indexOf(AccessRight.WRITE) !== -1) return CAN_EDIT_TEXT;
     else if (rights.indexOf(AccessRight.READ) !== -1) return CAN_VIEW_TEXT;
     else return "No permissions";
+}
+
+function ProjectSharesWarning(): JSX.Element | null {
+    if (!Client.hasActiveProject) return null;
+    return <Box mb="10px"><Warning warning="All shares are personal and not related to your active project." /></Box>;
 }
 
 const receiveDummyShares = (itemsPerPage: number, page: number) => {
