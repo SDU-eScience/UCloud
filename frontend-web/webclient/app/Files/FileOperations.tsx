@@ -37,7 +37,8 @@ import {
     repositoryTrashFolder,
     promptDeleteRepository,
     promptRenameRepository,
-    updatePermissionsPrompt
+    updatePermissionsPrompt,
+    repositoryName
 } from "Utilities/ProjectUtilities";
 
 export interface FileOperationCallback {
@@ -272,7 +273,7 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "Delete",
-        onClick: ([file], cb) => promptDeleteRepository(file.path, Client, cb.requestReload),
+        onClick: ([file], cb) => promptDeleteRepository(repositoryName(file.path), Client, cb.requestReload),
         disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
         icon: "trash",
         color: "red",
