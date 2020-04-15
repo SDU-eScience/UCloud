@@ -31,8 +31,17 @@ export interface File {
     permissionAlert: boolean | null;
 }
 
+export interface UserEntity {
+    username: string;
+}
+
+export interface ProjectEntity {
+    group: string;
+    projectId: string;
+}
+
 export interface Acl {
-    entity: string;
+    entity: ProjectEntity | UserEntity;
     rights: string[];
     group: boolean;
 }
