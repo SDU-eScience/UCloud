@@ -248,9 +248,7 @@ export const isExtPreviewSupported = (ext: string): boolean => {
         case "ogg":
         case "aac":
         case "pcm":
-        case "mpg":
         case "mp4":
-        case "avi":
         case "mov":
         case "wmv":
             return true;
