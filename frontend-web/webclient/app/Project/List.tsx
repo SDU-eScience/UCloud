@@ -18,6 +18,7 @@ import {useHistory} from "react-router";
 import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {projectRoleToString} from "Project/api";
+import {snackbarStore} from "Snackbar/SnackbarStore";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -51,16 +52,24 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             main={(
                 <Pagination.List
                     page={response.data}
-                    pageRenderer={(page: Page<UserInProject>) => (
+                    pageRenderer={page => (
                         <List>
+                            <ListRow
+                                left={<Text>Personal project</Text>}
+                                leftSub={<div />}
+                                right={props.project ? (
+                                    <Flex height="48px" alignItems="center">
+                                        <Button onClick={() => props.setProject()}>Set active</Button>
+                                    </Flex>
+                                ) :
+                                    <Flex alignItems="center" height="48px"><Icon mr="44px" mt="9px" name="check" color="green" /></Flex>}
+                            />
                             {page.items.map(e => {
                                 const isSelected = e.projectId === props.project;
                                 return (
                                     <ListRow
                                         key={e.projectId}
                                         navigate={() => history.push(`/projects/view/${encodeURIComponent(e.projectId)}`)}
-                                        isSelected={false}
-                                        select={() => undefined}
                                         left={<Text cursor="pointer">{e.title}</Text>}
                                         leftSub={<>
                                             <Text fontSize={0} pb="3px"><Icon mt="-2px" size="12px" name="id" /> {e.projectId}</Text>
@@ -75,7 +84,10 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                 )}
                                                 {isSelected ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
                                                 {isSelected ? <Icon mr="44px" mt="9px" name="check" color="green" /> : (
-                                                    <Button onClick={() => props.setProject(e.projectId)}>Set active</Button>
+                                                    <Button onClick={() => {
+                                                        snackbarStore.addInformation(`${e.projectId} is now the active project`);
+                                                        props.setProject(e.projectId);
+                                                    }}>Set active</Button>
                                                 )}
                                             </Flex>
                                         </>}
@@ -90,8 +102,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             )}
             sidebar={(
                 <VerticalButtonGroup>
-                    <Link to="/projects/create"><Button>Create</Button></Link>
-                    <Button disabled={!props.project} color="red" onClick={() => props.setProject(undefined)}>Clear selection</Button>
+                    <Link to="/projects/create"><Button>Create project</Button></Link>
                 </VerticalButtonGroup>
             )}
         />

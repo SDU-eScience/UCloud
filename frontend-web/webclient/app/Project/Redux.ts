@@ -5,6 +5,7 @@ import {Dictionary, Page} from "Types";
 export interface State {
     project?: string;
     files?: Dictionary<ProjectFilesCacheEntry>;
+    shouldVerify?: boolean;
 }
 
 export interface ProjectFilesCacheEntry {
@@ -19,13 +20,13 @@ interface SetProjectAction extends Action<"SET_PROJECT"> {
     project?: string;
 }
 
-export function dispatchSetProjectAction(dispatch: Dispatch, project?: string) {
+export function dispatchSetProjectAction(dispatch: Dispatch, project?: string): void {
     dispatch<ProjectAction>({project, type: "SET_PROJECT"});
 }
 
 type ProjectAction = SetProjectAction;
 
-export const reducer = (state: State = initialState, action: ProjectAction) => {
+export const reducer = (state: State = initialState, action: ProjectAction): State => {
     switch (action.type) {
         case "SET_PROJECT": {
             setStoredProject(action.project ?? null);
@@ -41,7 +42,7 @@ export function getStoredProject(): string | null {
     return window.localStorage.getItem("project") ?? null;
 }
 
-function setStoredProject(value: string | null) {
+function setStoredProject(value: string | null): void {
     if (value === null) {
         window.localStorage.removeItem("project");
     } else {

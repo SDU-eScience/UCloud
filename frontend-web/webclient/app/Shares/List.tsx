@@ -8,7 +8,7 @@ import {
 } from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {emptyPage, ReduxObject} from "DefaultObjects";
+import {emptyPage} from "DefaultObjects";
 import {File, FileType} from "Files";
 import {loadingAction} from "Loading";
 import {MainContainer} from "MainContainer/MainContainer";

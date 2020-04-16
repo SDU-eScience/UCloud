@@ -36,9 +36,9 @@ List.defaultProps = {
 List.displayName = "List";
 
 interface ListRowProps {
-    isSelected: boolean;
-    select: () => void;
-    navigate: () => void;
+    isSelected?: boolean;
+    select?: () => void;
+    navigate?: () => void;
     left: React.ReactNode;
     leftSub?: React.ReactNode;
     icon?: React.ReactNode;
@@ -46,8 +46,9 @@ interface ListRowProps {
 }
 
 export function ListRow(props: ListRowProps): JSX.Element {
+    const isSelected = props.isSelected ?? false;
     const left = props.leftSub ? (
-        <Box mb="4px" onClick={e => {e.stopPropagation(); props.navigate();}}>
+        <Box mb="4px" onClick={e => {e.stopPropagation(); props.navigate?.();}}>
             <Truncate width={1} mb="-4px" fontSize={20}>{props.left}</Truncate>
             <Flex>
                 {props.leftSub}
@@ -56,7 +57,7 @@ export function ListRow(props: ListRowProps): JSX.Element {
     ) : props.left;
     return (
         <HoverColorFlex
-            isSelected={props.isSelected}
+            isSelected={isSelected}
             onClick={props.select}
             pt="5px"
             pb="5px"

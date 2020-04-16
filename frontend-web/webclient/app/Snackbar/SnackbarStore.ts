@@ -32,6 +32,22 @@ class SnackbarStore {
         });
     }
 
+    public addSuccess(message: string, lifetime?: number): void {
+        this.addSnack({
+            message,
+            type: SnackType.Success,
+            lifetime
+        });
+    }
+
+    public addInformation(message: string, lifetime?: number): void {
+        this.addSnack({
+            message,
+            type: SnackType.Success,
+            lifetime
+        });
+    }
+
     public requestCancellation(): void {
         if (this.activeExpiresAt !== -1) {
             // Setting this to 0 will cause the invariant (-1 means no active) to still be true while still cancelling
