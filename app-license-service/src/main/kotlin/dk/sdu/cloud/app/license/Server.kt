@@ -19,7 +19,7 @@ class Server(override val micro: Micro) : CommonServer {
     val appLicenseDao = AppLicenseHibernateDao()
     val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
     val aclService = AclService(db, authenticatedClient, aclDao)
-    val appLicenseService = AppLicenseService(db, aclService, appLicenseDao)
+    val appLicenseService = AppLicenseService(db, aclService, appLicenseDao, authenticatedClient)
 
     override fun start() {
         ProjectProcessor(streams, appLicenseService).init()

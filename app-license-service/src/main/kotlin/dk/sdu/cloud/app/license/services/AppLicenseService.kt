@@ -5,6 +5,11 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.acl.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.project.api.ProjectMembers
+import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
@@ -13,7 +18,8 @@ import java.util.*
 class AppLicenseService<Session>(
     private val db: DBSessionFactory<Session>,
     private val aclService: AclService<Session>,
-    private val appLicenseDao: AppLicenseDao<Session>
+    private val appLicenseDao: AppLicenseDao<Session>,
+    private val authenticatedClient: AuthenticatedClient
 ) {
     suspend fun getLicenseServer(securityPrincipal: SecurityPrincipal, serverId: String, accessEntity: AccessEntity): LicenseServerWithId? {
         if (
@@ -46,12 +52,22 @@ class AppLicenseService<Session>(
         }
     }
 
-    suspend fun listServers(tags: List<String>, accessEntity: AccessEntity): List<LicenseServerId> {
+    suspend fun listServers(tags: List<String>, principal: SecurityPrincipal): List<LicenseServerId> {
+        val projectGroups = ProjectMembers.userStatus.call(
+            UserStatusRequest(principal.username),
+            authenticatedClient
+        ).orRethrowAs {
+            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        }.groups.map {
+            ProjectAndGroup(it.projectId, it.group)
+        }
+
         return db.withTransaction { session ->
             appLicenseDao.list(
                 session,
                 tags,
-                accessEntity
+                principal,
+                projectGroups
             )
         } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
     }

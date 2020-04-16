@@ -13,8 +13,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.project.api.GroupExistsRequest
 import dk.sdu.cloud.project.api.ProjectGroups
-import dk.sdu.cloud.project.api.ProjectServiceDescription
-import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode

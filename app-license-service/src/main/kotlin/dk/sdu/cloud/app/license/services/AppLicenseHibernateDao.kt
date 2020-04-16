@@ -2,10 +2,7 @@ package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.license.api.AccessEntity
-import dk.sdu.cloud.app.license.api.LicenseServer
-import dk.sdu.cloud.app.license.api.LicenseServerId
-import dk.sdu.cloud.app.license.api.LicenseServerWithId
+import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.service.db.*
 import java.io.Serializable
 import javax.persistence.*
@@ -92,22 +89,39 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
     override fun list(
         session: HibernateSession,
         tags: List<String>,
-        accessEntity: AccessEntity
+        securityPrincipal: SecurityPrincipal,
+        projectGroups: List<ProjectAndGroup>
     ): List<LicenseServerId>? {
-        return session.createNativeQuery<LicenseServerEntity>(
-            """
+        var query = """
             SELECT LS.id, LS.name, LS.address, LS.port, LS.license FROM {h-schema}license_servers AS LS
             INNER JOIN {h-schema}permissions as P
                 ON LS.id = P.server_id
             WHERE LS.id IN (SELECT T.license_server FROM {h-schema}tags AS T where T.name IN :tags)
-                AND (P.user = :user OR (P.project = :project AND P.group = :group))
-                AND (P.permission = 'READ_WRITE' OR P.permission = 'READ')
-        """.trimIndent(), LicenseServerEntity::class.java
+                AND (
+                    P.username = :user OR (
+        """
+
+        var i = 0
+        for(index in projectGroups.indices) {
+            query += "(P.project = :project$index AND P.project_group = :group$index)"
+            if (i < projectGroups.size - 1) {
+                query += " OR "
+            }
+            i++
+        }
+
+        query += ") AND (P.permission = 'READ_WRITE' OR P.permission = 'READ'))"
+
+        return session.createNativeQuery<LicenseServerEntity>(
+            query.trimIndent(), LicenseServerEntity::class.java
         ).also {
             it.setParameter("tags", tags)
-            it.setParameter("user", accessEntity.user)
-            it.setParameter("project", accessEntity.project)
-            it.setParameter("group", accessEntity.group)
+            it.setParameter("user", securityPrincipal.username)
+        }.apply {
+            projectGroups.forEachIndexed { index, projectAndGroup ->
+                setParameter("project$index", projectAndGroup.project)
+                setParameter("group$index", projectAndGroup.group)
+            }
         }.list().map { entity ->
             entity.toIdentifiable()
         }

@@ -41,6 +41,11 @@ data class AccessEntity(
     }
 }
 
+data class ProjectAndGroup(
+    val project: String,
+    val group: String
+)
+
 
 data class DeleteServerRequest(
     val id: String
