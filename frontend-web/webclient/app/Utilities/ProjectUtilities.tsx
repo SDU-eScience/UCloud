@@ -165,7 +165,7 @@ export function UpdatePermissionsDialog(props: {client: HttpClient; repository: 
                 <Spacer
                     mt="50px"
                     left={<Button color="red" onClick={() => dialogStore.failure()}>Cancel</Button>}
-                    right={<Button onClick={update}>Update</Button>}
+                    right={<Button disabled={newRights.size === 0} onClick={update}>Update</Button>}
                 />
             </List>
         </Box>
@@ -184,10 +184,11 @@ export async function updatePermissions(
     newAcl: ProjectAclEntry[]
 ): Promise<void> {
     try {
-        client.post<UpdatePermissionsResponse>("/projects/repositories/update-permissions", {
+        await client.post<UpdatePermissionsResponse>("/projects/repositories/update-permissions", {
             repository,
             newAcl
         } as UpdatePermissionsRequest);
+        snackbarStore.addSuccess("Updated permissions.");
     } catch (err) {
         snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update permissions"));
     }
