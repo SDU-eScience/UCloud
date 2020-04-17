@@ -1,6 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {ReduxObject} from "DefaultObjects";
-import {ContextSwitcher} from "Project/ContextSwitcher";
 import * as React from "react";
 import {connect} from "react-redux";
 import styled, {css} from "styled-components";
@@ -185,8 +184,8 @@ export const sideBarMenuElements: {
     general: {
         items: [
             {
-                icon: "files", label: "Files", to: () => Client.hasActiveProject ?
-                    fileTablePage(Client.projectFolder) : fileTablePage(Client.homeFolder)
+                icon: "files", label: "Files", to: () =>
+                    fileTablePage(Client.hasActiveProject ? Client.projectFolder : Client.homeFolder)
             },
             {icon: "shareMenu", label: "Shares", to: "/shares/"},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
@@ -237,7 +236,6 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
-            {Client.userIsAdmin ? <ContextSwitcher maxSize={140} /> : null}
             {!Client.isLoggedIn ? null : (
                 <SidebarTextLabel
                     height="25px"
@@ -285,7 +283,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
     );
 };
 
-function copyUserName() {
+function copyUserName(): void {
     copyToClipboard({
         value: Client.username,
         message: "Username copied to clipboard"

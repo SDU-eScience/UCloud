@@ -25,6 +25,7 @@ interface ClickableDropdownProps<T> {
     squareTop?: boolean;
     keepOpenOnOutsideClick?: boolean;
     onChange?: (value: T) => void;
+    onTriggerClick?: () => void;
 }
 
 class ClickableDropdown<T extends string> extends React.Component<ClickableDropdownProps<T>, ClickableDropdownState> {
@@ -47,7 +48,7 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
     };
 
     public render(): JSX.Element {
-        const {keepOpenOnClick, onChange, ...props} = this.props;
+        const {keepOpenOnClick, onChange, onTriggerClick, ...props} = this.props;
         let children: React.ReactNode[] = [];
         if (props.options !== undefined && onChange) {
             children = props.options.map((opt, i) => (
@@ -70,7 +71,7 @@ class ClickableDropdown<T extends string> extends React.Component<ClickableDropd
         const width = this.props.fullWidth ? "100%" : this.props.width;
         return (
             <Dropdown data-tag="dropdown" ref={this.ref} fullWidth={this.props.fullWidth}>
-                <Text.TextSpan cursor="pointer" onClick={() => this.setState(() => ({open: !this.state.open}))}>
+                <Text.TextSpan cursor="pointer" onClick={() => {onTriggerClick?.(); this.setState(() => ({open: !this.state.open}))}}>
                     {this.props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em" /> : null}
                 </Text.TextSpan>
                 {emptyChildren || !this.state.open ? null : (
