@@ -86,9 +86,12 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ) {
         session.deleteCriteria<PermissionEntry> {
             (entity[PermissionEntry::key][PermissionEntry.Key::serverId] equal serverId) and
-                    (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
-                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
-                    (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group))
+                    if (accessEntity.user.isNullOrBlank()) {
+                        (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
+                                (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+                    } else {
+                        (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user)
+                    }
         }.executeUpdate()
     }
 
@@ -117,10 +120,12 @@ class AclHibernateDao : AclDao<HibernateSession> {
 
     override fun revokePermissionsFromEntity(session: HibernateSession, accessEntity: AccessEntity) {
         session.deleteCriteria<PermissionEntry> {
-            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
+            if (accessEntity.user.isNullOrBlank()) {
                 (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
-                (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
-            )
+                        (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+            } else {
+                (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user)
+            }
         }.executeUpdate()
     }
 }
