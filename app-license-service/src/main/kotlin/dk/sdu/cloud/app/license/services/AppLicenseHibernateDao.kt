@@ -98,19 +98,23 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
                 ON LS.id = P.server_id
             WHERE LS.id IN (SELECT T.license_server FROM {h-schema}tags AS T where T.name IN :tags)
                 AND (
-                    P.username = :user OR (
+                    P.username = :user
         """
 
-        var i = 0
-        for(index in projectGroups.indices) {
-            query += "(P.project = :project$index AND P.project_group = :group$index)"
-            if (i < projectGroups.size - 1) {
-                query += " OR "
+        if (projectGroups.size > 0) {
+            query += " OR ("
+            var i = 0
+            for(index in projectGroups.indices) {
+                query += "(P.project = :project$index AND P.project_group = :group$index)"
+                if (i < projectGroups.size - 1) {
+                    query += " OR "
+                }
+                i++
             }
-            i++
+            query += ")"
         }
 
-        query += ") AND (P.permission = 'READ_WRITE' OR P.permission = 'READ'))"
+        query += " AND (P.permission = 'READ_WRITE' OR P.permission = 'READ'))"
 
         return session.createNativeQuery<LicenseServerEntity>(
             query.trimIndent(), LicenseServerEntity::class.java
