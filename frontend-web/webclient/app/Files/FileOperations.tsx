@@ -36,7 +36,6 @@ import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {
     repositoryTrashFolder,
     promptDeleteRepository,
-    promptRenameRepository,
     updatePermissionsPrompt,
     repositoryName
 } from "Utilities/ProjectUtilities";
@@ -260,11 +259,12 @@ export const defaultFileOperations: FileOperation[] = [
         /* Rename project repo */
         text: "Rename",
         disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
-        onClick: ([file], cb) => promptRenameRepository(getFilenameFromPath(file.path), Client, cb.requestReload),
+        onClick: ([file], cb) => cb.startRenaming(file),
         icon: "rename",
         repositoryMode: true
     },
     {
+        /* Update repo permissions */
         text: "Update permissions",
         disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
         onClick: ([file]) => updatePermissionsPrompt(Client, file),
@@ -272,6 +272,7 @@ export const defaultFileOperations: FileOperation[] = [
         repositoryMode: true
     },
     {
+        /* Delete repo permission */
         text: "Delete",
         onClick: ([file], cb) => promptDeleteRepository(repositoryName(file.path), Client, cb.requestReload),
         disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,

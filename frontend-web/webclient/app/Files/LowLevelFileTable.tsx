@@ -63,14 +63,15 @@ import {
     mockFile,
     moveFile,
     resolvePath,
-    sizeToString
+    sizeToString,
+    MOCK_REPO_CREATE_TAG
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
-import {promptCreateRepository, repositoryName} from "Utilities/ProjectUtilities";
+import {repositoryName, createRepository, renameRepository} from "Utilities/ProjectUtilities";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -343,13 +344,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             const path = props.path ? props.path : Client.homeFolder;
             props.showUploader(path);
         },
-        requestFolderCreation: () => {
+        requestFolderCreation: (isRepo?: boolean) => {
             if (props.path === undefined) return;
             const path = `${props.path}/newFolder`;
             setInjectedViaState([
                 mockFile({
                     path,
-                    tag: MOCK_RENAME_TAG,
+                    tag: isRepo ? MOCK_REPO_CREATE_TAG : MOCK_RENAME_TAG,
                     type: "DIRECTORY"
                 })
             ]
@@ -453,7 +454,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
                     {isForbiddenPath ? <></> : (
                         <VerticalButtonGroup>
-                            <RepositoryOperations path={props.path} reload={reload} />
+                            <RepositoryOperations path={props.path} createFolder={callbacks.requestFolderCreation} />
                             <FileOperations
                                 files={checkedFilesWithInfo}
                                 fileOperations={fileOperations}
@@ -611,23 +612,36 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         } else if (key === KeyCode.ENTER) {
             const file = allFiles.find(f => f.path === fileBeingRenamed);
             if (file === undefined) return;
+
+            const splitPath = file.path.split("/").filter(it => it);
+            const isProject = file.mockTag === MOCK_REPO_CREATE_TAG ||
+                // FIXME: This is a mess.
+                (splitPath.length === 3 && file.path.startsWith(Client.currentProjectFolder));
+
             const fileNames = allFiles.map(f => getFilenameFromPath(f.path));
             if (isInvalidPathName({path: name, filePaths: fileNames})) return;
-
-            const fullPath = `${UF.addTrailingSlash(getParentPath(file.path))}${name}`;
-            if (file.mockTag === MOCK_RENAME_TAG) {
-                createFolder({
-                    path: fullPath,
-                    client: Client,
-                    onSuccess: () => callbacks.requestReload()
-                });
+            if (isProject) {
+                if (file.mockTag === MOCK_REPO_CREATE_TAG) {
+                    createRepository(Client, name, callbacks.requestReload);
+                } else {
+                    renameRepository(getFilenameFromPath(file.path), name, Client, callbacks.requestReload);
+                }
             } else {
-                moveFile({
-                    oldPath: file.path,
-                    newPath: fullPath,
-                    client: Client,
-                    onSuccess: () => callbacks.requestReload()
-                });
+                const fullPath = `${UF.addTrailingSlash(getParentPath(file.path))}${name}`;
+                if (file.mockTag === MOCK_RENAME_TAG) {
+                    createFolder({
+                        path: fullPath,
+                        client: Client,
+                        onSuccess: () => callbacks.requestReload()
+                    });
+                } else {
+                    moveFile({
+                        oldPath: file.path,
+                        newPath: fullPath,
+                        client: Client,
+                        onSuccess: () => callbacks.requestReload()
+                    });
+                }
             }
         }
     }
@@ -981,9 +995,9 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     );
 };
 
-function RepositoryOperations(props: {path: string | undefined; reload: () => void}): JSX.Element | null {
+function RepositoryOperations(props: {path: string | undefined; createFolder: (isRepo?: boolean) => void}): JSX.Element | null {
     if (props.path !== Client.projectFolder) return null;
-    return <Button width="100%" onClick={() => promptCreateRepository(Client, props.reload)}>New Repository</Button>;
+    return <Button width="100%" onClick={() => props.createFolder(true)}>New Repository</Button>;
 }
 
 const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): JSX.Element => {
@@ -1090,7 +1104,7 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations): JSX.
     };
     return (
         <>
-            {buttons.map((op, i)=> <Operation fileOp={op} key={i} />)}
+            {buttons.map((op, i) => <Operation fileOp={op} key={i} />)}
             {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
                 <div><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></div>
             }

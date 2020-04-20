@@ -269,6 +269,7 @@ export const favoritesQuery = (page: number = 0, itemsPerPage: number = 25): str
     `/files/favorite?page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const MOCK_RENAME_TAG = "rename";
+export const MOCK_REPO_CREATE_TAG = "repo_create";
 export const MOCK_VIRTUAL = "virtual";
 export const MOCK_RELATIVE = "relative";
 
@@ -285,7 +286,7 @@ export function mockFile(props: {path: string; type: FileType; fileId?: string; 
         sensitivityLevel: SensitivityLevelMap.PRIVATE,
         ownSensitivityLevel: null,
         mockTag: props.tag,
-        permissionAlert: false
+        permissionAlert: false,
     };
 }
 

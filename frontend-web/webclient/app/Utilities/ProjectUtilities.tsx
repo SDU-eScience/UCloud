@@ -31,22 +31,9 @@ export function repositoryJobsFolder(path: string, client: HttpClient): string {
     return `${client.currentProjectFolder}${repo}/Jobs`;
 }
 
-export async function promptCreateRepository(client: HttpClient, reload: () => void): Promise<void> {
-    const result = await addStandardInputDialog({
-        title: "Create repository",
-        addToFront: false,
-        confirmText: "Create",
-        defaultValue: "",
-        validationFailureMessage: "Name can't be empty.",
-        validator: val => !!val,
-        placeholder: "Repository name...",
-        cancelText: "Cancel"
-    });
-
-    if ("cancelled" in result) return;
-
+export async function createRepository(client: HttpClient, name: string, reload: () => void): Promise<void> {
     try {
-        await client.post("/projects/repositories", {name: result.result});
+        await client.post("/projects/repositories", {name});
         snackbarStore.addSnack({
             type: SnackType.Success,
             message: "Repository created"
@@ -73,22 +60,14 @@ export function promptDeleteRepository(name: string, client: HttpClient, reload:
     });
 }
 
-export async function promptRenameRepository(oldName: string, client: HttpClient, reload: () => void): Promise<void> {
-    const res = await addStandardInputDialog({
-        title: `Rename ${oldName}`,
-        addToFront: false,
-        cancelText: "Cancel",
-        confirmText: "Rename",
-        defaultValue: "",
-        placeholder: "Enter new name...",
-        validationFailureMessage: "Name can't be empty or the same as the old one.",
-        validator: val => (oldName !== val && !!val)
-    });
-
-    if ("cancelled" in res) return;
-
+export async function renameRepository(
+    oldName: string,
+    newName: string,
+    client: HttpClient,
+    reload: () => void
+): Promise<void> {
     try {
-        await client.post("/projects/repositories/update", {oldName, newName: res.result});
+        await client.post("/projects/repositories/update", {oldName, newName});
         snackbarStore.addSnack({
             type: SnackType.Success,
             message: "Repository renamed"
