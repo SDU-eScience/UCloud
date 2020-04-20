@@ -72,6 +72,7 @@ import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
 import {repositoryName, createRepository, renameRepository} from "Utilities/ProjectUtilities";
+import {ProjectMember, ProjectRole} from "Project";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -280,6 +281,15 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, , invokeWork] = useAsyncWork();
     const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map());
+
+    const promises = usePromiseKeeper();
+    const [projectMember, setMember] = React.useState<ProjectMember>({
+        role: ProjectRole.USER, username: Client.username ?? ""
+    });
+    React.useEffect(() => {
+        getProjectMember();
+    }, [Client.projectId]);
+
     const history = useHistory();
 
     const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
@@ -454,11 +464,12 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
                     {isForbiddenPath ? <></> : (
                         <VerticalButtonGroup>
-                            <RepositoryOperations path={props.path} createFolder={callbacks.requestFolderCreation} />
+                            <RepositoryOperations role={projectMember.role} path={props.path} createFolder={callbacks.requestFolderCreation} />
                             <FileOperations
                                 files={checkedFilesWithInfo}
                                 fileOperations={fileOperations}
                                 callback={callbacks}
+                                role={projectMember?.role}
                                 // Don't pass a directory if the page is set.
                                 // This should indicate that the path is fake.
                                 directory={props.page !== undefined ? undefined : mockFile({
@@ -587,6 +598,21 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     );
 
     // Private utility functions
+
+    async function getProjectMember(): Promise<void> {
+        if (!!Client.projectId && !!Client.username) {
+            try {
+                const {response} = await promises.makeCancelable(Client.get<{member: ProjectMember}>(
+                    `/projects/members?projectId=${encodeURIComponent(Client.projectId)}&username=${encodeURIComponent(Client.username)}`
+                )).promise;
+                setMember(response.member);
+            } catch (err) {
+                if (promises.canceledKeeper) return;
+                snackbarStore.addFailure(UF.errorMessageOrDefault(err, "An error ocurred fetcing member info."));
+            }
+        }
+    }
+
     function setChecked(updatedFiles: File[], checkStatus?: boolean): void {
         const checked = new Set(checkedFiles);
         if (checkStatus === false) {
@@ -990,8 +1016,14 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     );
 };
 
-function RepositoryOperations(props: {path: string | undefined; createFolder: (isRepo?: boolean) => void}): JSX.Element | null {
-    if (props.path !== Client.projectFolder) return null;
+function RepositoryOperations(props: {
+    path: string | undefined;
+    createFolder: (isRepo?: boolean) => void;
+    role: ProjectRole;
+}): JSX.Element | null {
+    if (props.path !== Client.projectFolder || ![ProjectRole.ADMIN, ProjectRole.PI].includes(props.role)) {
+        return null;
+    }
     return <Button width="100%" onClick={() => props.createFolder(true)}>New Repository</Button>;
 }
 
@@ -1051,15 +1083,17 @@ interface FileOperations extends SpaceProps {
     callback: FileOperationCallback;
     directory?: File;
     inDropdown?: boolean;
+    role?: ProjectRole;
 }
 
-const FileOperations = ({files, fileOperations, ...props}: FileOperations): JSX.Element | null => {
+const FileOperations = ({files, fileOperations, role, ...props}: FileOperations): JSX.Element | null => {
     if (fileOperations.length === 0) return null;
 
     const buttons: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode === true);
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
     const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
+        if (fileOp.repositoryMode && ![ProjectRole.PI, ProjectRole.ADMIN].includes(role ?? ProjectRole.USER)) return null;
         if (fileOp.repositoryMode && files.some(it => !repositoryName(it.path))) return null;
         if (!fileOp.repositoryMode && files.some(it => repositoryName(it.path))) return null;
 
