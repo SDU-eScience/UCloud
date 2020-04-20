@@ -54,8 +54,15 @@ export interface CopyActivity extends Activity {
     copyFilePath: string;
 }
 
+export type UpdateAcl = UpdatedACLActivity | UpdateProjectAcl;
+
 export interface UpdatedACLActivity extends Activity {
-    rightsAndUser: {rights: Set<AccessRight>, user: string}[];
+    rightsAndUser: {rights: AccessRight[], user: string}[];
+}
+
+export interface UpdateProjectAcl extends Activity {
+    project: string;
+    acl: {group: string, rights: AccessRight[]}[];
 }
 
 export interface MovedActivity extends Activity {

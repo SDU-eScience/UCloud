@@ -4,7 +4,7 @@ import {format, formatDistanceToNow} from "date-fns/esm";
 import * as React from "react";
 import {Link as ReactRouterLink} from "react-router-dom";
 import styled from "styled-components";
-import {Box, Flex, Text} from "ui-components";
+import {Flex, Text} from "ui-components";
 import Icon, {IconName} from "ui-components/Icon";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {fileInfoPage, getFilenameFromPath, replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
@@ -97,12 +97,15 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
         }
 
         case Module.ActivityType.UPDATEDACL: {
-            const update = (props.event.activityEvent as Module.UpdatedACLActivity);
-            if (Client.hasActiveProject) {
-                return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights} by {update.username}</span>;
+            const update = (props.event.activityEvent as Module.UpdateAcl);
+            if ("project" in update) {
+                return <span> had ACL for {update.acl.map(it => it.group).join(", ")} updated to {update.acl.map(it => it.rights)} by {update.username}</span>;
             } else {
-                return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights}</span>;
-
+                if (Client.hasActiveProject) {
+                    return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights} by {update.username}</span>;
+                } else {
+                    return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights}</span>;
+                }
             }
         }
 

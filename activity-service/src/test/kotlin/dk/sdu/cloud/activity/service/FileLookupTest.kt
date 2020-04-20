@@ -31,7 +31,7 @@ class FileLookupTest {
                 12345678,
                 "user",
                 1234,
-                listOf(AccessEntry("entity", emptySet())),
+                listOf(AccessEntry(ACLEntity.User("entity"), emptySet())),
                 SensitivityLevel.PRIVATE
             )
         )

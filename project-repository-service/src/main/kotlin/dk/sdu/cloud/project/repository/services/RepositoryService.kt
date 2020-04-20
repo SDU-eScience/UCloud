@@ -99,7 +99,7 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
             serviceClient
         ).orRethrowAs { throw RPCException("Unknown project", HttpStatusCode.NotFound) }
 
-        // All members can view all projects
+        // All members can view all repositories
         return MetadataDescriptions.findByPrefix
             .call(
                 FindByPrefixRequest(

@@ -7,6 +7,9 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.file.api.FileDescriptions
+import dk.sdu.cloud.file.api.KnowledgeMode
+import dk.sdu.cloud.file.api.VerifyFileKnowledgeRequest
 import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.project.repository.api.ProjectRepository
 import dk.sdu.cloud.project.repository.api.RepositoryListRequest
@@ -22,7 +25,6 @@ class ActivityService(
     private val fileLookupService: FileLookupService,
     private val client: AuthenticatedClient
 ) {
-
     suspend fun findEventsForPath(
         pagination: NormalizedPaginationRequest,
         path: String,
@@ -34,7 +36,7 @@ class ActivityService(
         return activityEventElasticDao.findByFilePath(pagination, fileStat.path)
     }
 
-    fun browseActivity(
+    suspend fun browseActivity(
         scroll: NormalizedScrollRequest<Int>,
         user: String,
         userFilter: ActivityFilter? = null,
@@ -49,22 +51,31 @@ class ActivityService(
         )
 
         val allEvents = if (!projectID.isNullOrBlank()) {
-            val repos = runBlocking {
-                ProjectRepository.list.call(
-                    RepositoryListRequest(
-                        user,
-                        null,
-                        null
-                    ),
-                    client.withProject(projectID)
-                ).orThrow().items
-            }
+            val repos = ProjectRepository.list.call(
+                RepositoryListRequest(
+                    user,
+                    null,
+                    null
+                ),
+                client.withProject(projectID)
+            ).orThrow().items
+
+            val withKnowledge = FileDescriptions.verifyFileKnowledge.call(
+                VerifyFileKnowledgeRequest(
+                    user,
+                    repos.map { "/projects/${projectID}/${it.name}" },
+                    KnowledgeMode.Permission(requireWrite = false)
+                ),
+                client
+            ).orThrow().responses
+
+            val filteredRepos = repos.filterIndexed { index, _ -> withKnowledge[index] }
 
             activityEventElasticDao.findProjectEvents(
                 scroll.scrollSize,
                 filter,
                 projectID,
-                repos
+                filteredRepos
             )
 
         } else {

@@ -50,6 +50,6 @@ class ActivityEventDaoTest {
             response
         }
 
-        elasticDao.findEvents(250, ActivityEventFilter(user = "user"))
+        elasticDao.findUserEvents(250, ActivityEventFilter(user = "user"))
     }
 }

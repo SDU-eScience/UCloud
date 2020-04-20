@@ -25,7 +25,6 @@ import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.common.xcontent.ToXContent
 import org.elasticsearch.index.query.BoolQueryBuilder
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.builder.SearchSourceBuilder
@@ -464,6 +463,28 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) : Activit
                             changes.toList()
                         )
                     )
+                }
+            }
+
+            object FilesProjectAcl : CallWithActivity<UpdateProjectAclRequest>(
+                ActivityEventType.updatedACL,
+                FileDescriptions.updateProjectAcl,
+                jacksonTypeRef(),
+                listOf("path")
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<UpdateProjectAclRequest>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return listOf(ActivityEvent.UpdateProjectAcl(
+                        doc.token.principal.username,
+                        doc.timestamp.time,
+                        doc.requestJson.path,
+                        doc.requestJson.project,
+                        doc.requestJson.newAcl.map { ActivityEvent.ProjectAclEntry(it.group, it.rights) }
+                    ))
                 }
             }
 

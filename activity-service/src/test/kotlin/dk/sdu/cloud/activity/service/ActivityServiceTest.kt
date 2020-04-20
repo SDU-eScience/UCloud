@@ -15,6 +15,7 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.NormalizedScrollRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.ScrollResult
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -33,7 +34,7 @@ class ActivityServiceTest {
     fun `find by path test`() {
         val mockedFileLookup = mockk<FileLookupService>()
         val mockedDao = mockk<ActivityEventElasticDao>()
-        val activityService = ActivityService(mockedDao, mockedFileLookup)
+        val activityService = ActivityService(mockedDao, mockedFileLookup, ClientMock.authenticatedClient)
 
         coEvery { mockedFileLookup.lookupFile(any(), any(), any(), any()) } answers {
             StorageFile(
@@ -74,7 +75,7 @@ class ActivityServiceTest {
     fun `browse test`() {
         val mockedFileLookup = mockk<FileLookupService>()
         val mockedDao = mockk<ActivityEventElasticDao>()
-        val activityService = ActivityService(mockedDao, mockedFileLookup)
+        val activityService = ActivityService(mockedDao, mockedFileLookup, ClientMock.authenticatedClient)
 
         coEvery { mockedFileLookup.lookupFile(any(), any(), any(), any()) } answers {
             StorageFile(
@@ -90,7 +91,7 @@ class ActivityServiceTest {
             )
         }
 
-        coEvery { mockedDao.findEvents(any(),any()) } answers {
+        coEvery { mockedDao.findUserEvents(any(),any()) } answers {
             listOf(
                 ActivityEvent.Deleted(
                         user,
@@ -101,7 +102,7 @@ class ActivityServiceTest {
         }
 
         runBlocking {
-            val results = activityService.browseForUser(NormalizedScrollRequest(0,250), user, null)
+            val results = activityService.browseActivity(NormalizedScrollRequest(0,250), user)
             assertTrue(results.endOfScroll)
             assertEquals(ActivityEventType.deleted, results.items.first().type)
         }

@@ -78,6 +78,16 @@ sealed class ActivityEvent {
         val rightsAndUser: List<RightsAndUser>
     ) : ActivityEvent()
 
+    data class UpdateProjectAcl(
+        override val username: String,
+        override val timestamp: Long,
+        override val filePath: String,
+        val project: String,
+        val acl: List<ProjectAclEntry>
+    ) : ActivityEvent()
+
+    data class ProjectAclEntry(val group: String, val rights: Set<AccessRight>)
+
     data class Favorite(
         override val username: String,
         val isFavorite: Boolean,
@@ -136,6 +146,7 @@ val ActivityEvent.type: ActivityEventType get() = when (this) {
     is ActivityEvent.Copy -> ActivityEventType.copy
     is ActivityEvent.SharedWith -> ActivityEventType.sharedWith
     is ActivityEvent.AllFilesUsedByApplication -> ActivityEventType.allUsedInApp
+    is ActivityEvent.UpdateProjectAcl -> ActivityEventType.updatedACL
 }
 
 data class ActivityForFrontend(

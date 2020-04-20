@@ -42,7 +42,7 @@ class ActivityControllerTest {
         val controller = ActivityController(activityService)
 
         withKtorTest(
-            setup = {listOf(controller)},
+            setup = { listOf(controller) },
             test = {
                 val path = "/file"
                 val event = ActivityEvent.Deleted(
@@ -50,13 +50,15 @@ class ActivityControllerTest {
                     0L,
                     "path"
                 )
-                val expectedResult = listOf(ActivityForFrontend(
-                    ActivityEventType.deleted,
-                    0L,
-                    event
-                ))
+                val expectedResult = listOf(
+                    ActivityForFrontend(
+                        ActivityEventType.deleted,
+                        0L,
+                        event
+                    )
+                )
 
-                coEvery{
+                coEvery {
                     activityService.findEventsForPath(
                         any(),
                         any(),
@@ -71,7 +73,7 @@ class ActivityControllerTest {
                     path = "/api/activity/by-path",
                     user = TestUsers.user,
                     params = mapOf("path" to path)
-                ) {addHeader("Job-Id", UUID.randomUUID().toString())}
+                ) { addHeader("Job-Id", UUID.randomUUID().toString()) }
 
                 response.assertSuccess()
 
@@ -112,7 +114,7 @@ class ActivityControllerTest {
             test = {
                 val user = TestUsers.user.username
 
-                coEvery { activityService.browseForUser(any(),any(),any()) } answers {
+                coEvery { activityService.browseActivity(any(), any(), any(), any()) } answers {
                     val items = emptyList<ActivityForFrontend>()
                     ScrollResult(items, 0, true)
                 }
@@ -122,7 +124,7 @@ class ActivityControllerTest {
                     path = "/api/activity/browse/user",
                     user = TestUsers.user,
                     params = mapOf("scrollSize" to 250)
-                ) {addHeader("Job-Id", UUID.randomUUID().toString())}
+                ) { addHeader("Job-Id", UUID.randomUUID().toString()) }
 
                 response.assertSuccess()
             }
