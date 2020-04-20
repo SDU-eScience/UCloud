@@ -35,25 +35,25 @@ class AclHibernateDao : AclDao<HibernateSession> {
             ServerAccessRight.READ -> {
                 session.criteria<PermissionEntry> {
                     (
-                        (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
-                            (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
-                            (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
-                        )
-                    ) and (
-                        (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ) or
-                        (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
-                    )
+                            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
+                                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
+                                            (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+                                    )
+                            ) and (
+                            (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ) or
+                                    (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
+                            )
                 }.list().isNotEmpty()
             }
             ServerAccessRight.READ_WRITE -> {
                 session.criteria<PermissionEntry> {
                     (
-                        (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
-                            (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
-                            (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
-                        ) and
-                        (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
-                    )
+                            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
+                                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
+                                            (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+                                    ) and
+                                    (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
+                            )
                 }.list().isNotEmpty()
             }
         }
@@ -68,9 +68,9 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ) {
         val permissionEntry = PermissionEntry(
             PermissionEntry.Key(
-                accessEntity.user?:"",
-                accessEntity.project?:"",
-                accessEntity.group?:"",
+                accessEntity.user ?: "",
+                accessEntity.project ?: "",
+                accessEntity.group ?: "",
                 serverId,
                 permissions
             )
