@@ -58,6 +58,12 @@ class MetadataService(
         }
     }
 
+    suspend fun removeAllMetadataOfType(rootPath: String, type: String) {
+        db.withTransaction { session ->
+            dao.deleteByPrefix(session, rootPath, type = type)
+        }
+    }
+
     suspend fun <R> runMoveAction(
         oldPath: String,
         newPath: String,

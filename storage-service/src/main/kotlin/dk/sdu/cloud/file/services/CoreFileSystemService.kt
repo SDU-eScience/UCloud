@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.MetadataService
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
@@ -191,6 +192,16 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         val targetPath = renameAccordingToPolicy(ctx, to, writeConflictPolicy)
         fs.requirePermission(ctx, from.normalize(), AccessRight.WRITE)
         fs.requirePermission(ctx, targetPath.normalize(), AccessRight.WRITE)
+
+        if (from.normalize().startsWith("/home/") && to.normalize().startsWith("/projects/")) {
+            // We must remove all shares here
+            // TODO This probably isn't the best place for this code
+            metadataService.removeAllMetadataOfType(
+                from.normalize(),
+                AclService.USER_METADATA_TYPE
+            )
+        }
+
         metadataService.runMoveAction(from.normalize(), targetPath.normalize()) {
             fs.move(ctx, from, targetPath, writeConflictPolicy)
         }

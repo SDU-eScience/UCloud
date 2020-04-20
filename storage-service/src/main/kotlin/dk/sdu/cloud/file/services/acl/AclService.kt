@@ -83,7 +83,6 @@ class AclService(
         }
     }
 
-    // TODO This should not be public
     private suspend fun revokePermission(path: String, entity: ACLEntity.User) {
         val normalizedPath = path.normalize()
         metadataService.removeEntries(
@@ -274,7 +273,7 @@ class AclService(
     companion object : Loggable {
         override val log = logger()
 
-        private const val USER_METADATA_TYPE = "acl"
-        private const val PROJECT_METADATA_TYPE = "project-acl"
+        const val USER_METADATA_TYPE = "acl"
+        const val PROJECT_METADATA_TYPE = "project-acl"
     }
 }

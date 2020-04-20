@@ -418,17 +418,29 @@ class MetadataDao {
         )
     }
 
-    suspend fun deleteByPrefix(session: AsyncDBConnection, path: String, includeFile: Boolean = true) {
+    suspend fun deleteByPrefix(
+        session: AsyncDBConnection,
+        path: String,
+        includeFile: Boolean = true,
+        type: String? = null
+    ) {
         session.sendPreparedStatement(
             {
                 setParameter("path", path.normalize())
                 setParameter("includeFile", includeFile)
+                setParameter("type", type)
             },
             """
                 delete from metadata
                 where
-                    path like (?path || '/%') or
-                    (?includeFile and path = ?path)
+                    (
+                        path like (?path || '/%') or
+                        (?includeFile and path = ?path)
+                    ) and
+                    (
+                        ?type::text is null or
+                        type = ?type
+                    )
             """
         )
     }
