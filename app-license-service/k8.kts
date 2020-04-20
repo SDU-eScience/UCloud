@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "app-license"
-    version = "0.1.8-projects.15"
+    version = "0.1.8-projects.19"
 
     withAmbassador("/api/app/license") {}
 
