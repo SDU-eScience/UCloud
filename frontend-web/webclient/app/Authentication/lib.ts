@@ -288,7 +288,7 @@ export default class HttpClient {
         path: string,
         body: object,
         context = this.apiContext
-    ): Promise<{request: XMLHttpRequest, response: T}> {
+    ): Promise<{request: XMLHttpRequest; response: T}> {
         return this.call({method: "OPTIONS", path, body, context});
     }
 
@@ -298,7 +298,7 @@ export default class HttpClient {
     public async head<T = any>(
         path: string,
         context = this.apiContext
-    ): Promise<{request: XMLHttpRequest, response: T}> {
+    ): Promise<{request: XMLHttpRequest; response: T}> {
         return this.call({method: "HEAD", path, body: undefined, context});
     }
 
