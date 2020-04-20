@@ -36,7 +36,7 @@ data class AccessEntity(
     val group: String?
 ) {
     init {
-        require(!user.isNullOrBlank() || (!project.isNullOrBlank() && !group.isNullOrBlank()) { "No access entity defined" }
+        require(!user.isNullOrBlank() || (!project.isNullOrBlank() && !group.isNullOrBlank())) { "No access entity defined" }
     }
 }
 

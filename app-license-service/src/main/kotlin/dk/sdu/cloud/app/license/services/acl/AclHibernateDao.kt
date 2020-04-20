@@ -31,32 +31,22 @@ class AclHibernateDao : AclDao<HibernateSession> {
         accessEntity: AccessEntity,
         permission: ServerAccessRight
     ): Boolean {
-        return when (permission) {
-            ServerAccessRight.READ -> {
-                session.criteria<PermissionEntry> {
-                    (
-                            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
-                                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
-                                            (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
-                                    )
-                            ) and (
-                            (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ) or
-                                    (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
-                            )
-                }.list().isNotEmpty()
-            }
-            ServerAccessRight.READ_WRITE -> {
-                session.criteria<PermissionEntry> {
-                    (
-                            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
-                                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
-                                            (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
-                                    ) and
-                                    (entity[PermissionEntry::key][PermissionEntry.Key::permission] equal ServerAccessRight.READ_WRITE)
-                            )
-                }.list().isNotEmpty()
-            }
+        val permissionSet = if (permission == ServerAccessRight.READ_WRITE) {
+            setOf(ServerAccessRight.READ, ServerAccessRight.READ_WRITE)
+        } else {
+            setOf(ServerAccessRight.READ)
         }
+
+        return session.criteria<PermissionEntry> {
+            (
+                (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
+                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
+                        (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+                )
+            ) and (
+                (entity[PermissionEntry::key][PermissionEntry.Key::permission] isInCollection  permissionSet)
+            )
+        }.list().isNotEmpty()
     }
 
 
