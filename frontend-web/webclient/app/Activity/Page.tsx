@@ -36,7 +36,7 @@ const dropdownOptions: Array<{text: string; value: string}> = [
     {value: Module.ActivityType.SHAREDWITH, text: "Shares"}
 ];
 
-function Activity(props: ActivityProps) {
+function Activity(props: ActivityProps): JSX.Element {
 
     React.useEffect(() => {
         props.onMount();
@@ -145,7 +145,7 @@ function Activity(props: ActivityProps) {
         );
     }
 
-    function filter(title: string, filter: Partial<ActivityFilter>) {
+    function filter(title: string, filter: Partial<ActivityFilter>): JSX.Element {
         return (
             <BaseLink
                 style={{display: "block"}}
@@ -160,7 +160,7 @@ function Activity(props: ActivityProps) {
         );
     }
 
-    function applyFilter(filter: Partial<ActivityFilter>) {
+    function applyFilter(filter: Partial<ActivityFilter>): void {
         props.updateFilter(filter);
         props.resetActivity();
         props.fetchActivity({scrollSize}, {...props, ...filter});

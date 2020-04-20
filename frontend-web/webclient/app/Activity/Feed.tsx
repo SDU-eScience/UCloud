@@ -52,7 +52,7 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
         case Module.ActivityType.MOVED: {
             let byUser = "";
             if (Client.hasActiveProject) {
-                const username = (props.event.activityEvent as Module.MovedActivity).username
+                const username = (props.event.activityEvent as Module.MovedActivity).username;
                 byUser = `by ${username}`
             }
             return (

@@ -1,4 +1,4 @@
-import {Activity, ActivityFilter, ActivityForFrontend} from "Activity";
+import {ActivityFilter, ActivityForFrontend} from "Activity";
 import {Client} from "Authentication/HttpClientInstance";
 import {Action} from "redux";
 import {ScrollRequest, ScrollResult} from "Scroll/Types";
@@ -11,6 +11,11 @@ import {errorMessageOrDefault} from "UtilityFunctions";
 export const fetchActivity = async (scroll: ScrollRequest<number>, filter?: ActivityFilter) => {
     try {
         const {response} = await Client.get(activityQuery(scroll, filter));
+        response.items.forEach(it => {
+            if (it.activityEvent.username.startsWith("_")) {
+                it.activityEvent.username = "UCloud";
+            }
+        });
         return receiveActivity(response);
     } catch (e) {
         snackbarStore.addFailure(errorMessageOrDefault(e, "Could not fetch activity from server"));
