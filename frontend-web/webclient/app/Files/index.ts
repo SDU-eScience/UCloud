@@ -29,6 +29,7 @@ export interface File {
     ownSensitivityLevel: SensitivityLevelMap | null;
     mockTag?: string;
     permissionAlert: boolean | null;
+    isRepo?: boolean;
 }
 
 export interface UserEntity {

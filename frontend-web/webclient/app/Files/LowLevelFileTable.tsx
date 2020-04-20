@@ -612,15 +612,10 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         } else if (key === KeyCode.ENTER) {
             const file = allFiles.find(f => f.path === fileBeingRenamed);
             if (file === undefined) return;
-
-            const splitPath = file.path.split("/").filter(it => it);
-            const isProject = file.mockTag === MOCK_REPO_CREATE_TAG ||
-                // FIXME: This is a mess.
-                (splitPath.length === 3 && file.path.startsWith(Client.currentProjectFolder));
-
+            const isProjectRepo = file.mockTag === MOCK_REPO_CREATE_TAG || !!file.isRepo;
             const fileNames = allFiles.map(f => getFilenameFromPath(f.path));
             if (isInvalidPathName({path: name, filePaths: fileNames})) return;
-            if (isProject) {
+            if (isProjectRepo) {
                 if (file.mockTag === MOCK_REPO_CREATE_TAG) {
                     createRepository(Client, name, callbacks.requestReload);
                 } else {

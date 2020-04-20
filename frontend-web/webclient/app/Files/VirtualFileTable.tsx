@@ -100,7 +100,9 @@ export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
             ).response;
         } else if (folder === Client.projectFolder) {
             try {
-                return (await Client.get<Page<File>>(buildQueryString("/projects/repositories/list-files", {page, itemsPerPage}))).response;
+                const {response} = await Client.get<Page<File>>(buildQueryString("/projects/repositories/list-files", {page, itemsPerPage}));
+                response.items.forEach(f => f.isRepo = true);
+                return response;
             } catch (err) {
                 // Edge case that no repos exist for for project, but we want it to be empty instead of non-existant.
                 if (err.request.status === 404) return emptyPage;
