@@ -1,6 +1,6 @@
 import {Client as currentClient} from "Authentication/HttpClientInstance";
 import {SensitivityLevel} from "DefaultObjects";
-import {Acl, File, FileType, SortBy} from "Files";
+import {Acl, File, FileType, SortBy, UserEntity} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {dateToString} from "Utilities/DateUtilities";
@@ -74,7 +74,8 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
  * @return {string}
  */
 export const getMembersString = (acls: Acl[]): string => {
-    const filteredAcl = acls.filter(it => it.entity !== currentClient.activeUsername);
+    const withoutProjectAcls = acls.filter(it => typeof it.entity === "string" || "username" in it.entity);
+    const filteredAcl = withoutProjectAcls.filter(it => (it.entity as UserEntity).username !== currentClient.activeUsername);
     if (filteredAcl.length > 0) {
         return `${acls.length + 1} members`;
     } else {
@@ -247,9 +248,7 @@ export const isExtPreviewSupported = (ext: string): boolean => {
         case "ogg":
         case "aac":
         case "pcm":
-        case "mpg":
         case "mp4":
-        case "avi":
         case "mov":
         case "wmv":
             return true;
@@ -346,12 +345,9 @@ export function defaultErrorHandler(
 ): number {
     const request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
-    let why: string | null = null;
-    if (!!error.response && !!error.response.why) {
-        why = error.response.why;
-    }
+    let why: string | null = error.response?.why;
 
-    if (!!request) {
+    if (request) {
         if (!why) {
             switch (request.status) {
                 case 400:

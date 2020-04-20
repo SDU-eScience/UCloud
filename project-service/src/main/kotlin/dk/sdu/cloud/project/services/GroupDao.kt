@@ -54,12 +54,25 @@ class GroupDao {
                 setParameter("project", project)
                 setParameter("groups", groups.toList())
             },
+            """
+                delete from group_members
+                where
+                    project = ?project and
+                    the_group in (select * from unnest(?groups::text[]))
+            """
+        )
+
+        session.sendPreparedStatement(
+            {
+                setParameter("project", project)
+                setParameter("groups", groups.toList())
+            },
 
             """
                 delete from groups
                 where 
                     project = ?project and   
-                    the_group in ?groups 
+                    the_group in (select * from unnest(?groups::text[]))
             """
         )
     }
@@ -112,7 +125,7 @@ class GroupDao {
                     delete from group_members
                     where
                         username = ?username and
-                        project = ?project
+                        project = ?project and
                         the_group = ?group
                 """
             )
@@ -332,10 +345,10 @@ class GroupDao {
                     setParameter("usernameQuery", "%${query}%")
                 },
                 """
-                    from group_members
+                    from project_members
                     where
-                        project = ?project and
-                        username like ?usernameQuery
+                        project_id = ?project and
+                        username ilike ?usernameQuery
                 """
             )
             .mapItems { it.getField(GroupMembershipTable.username) }
@@ -347,22 +360,8 @@ class GroupDao {
         oldGroupName: String,
         newGroupName: String
     ) {
-        session
-            .sendPreparedStatement(
-                {
-                    setParameter("newGroup", newGroupName)
-                    setParameter("oldGroup", oldGroupName)
-                    setParameter("project", projectId)
-                },
-                """
-                    update groups
-                    set 
-                        the_group = ?newGroup
-                    where
-                        project = ?project and
-                        the_group = ?oldGroup 
-                """
-            )
+        createGroup(session, projectId, newGroupName)
+
         session
             .sendPreparedStatement(
                 {
@@ -379,19 +378,7 @@ class GroupDao {
                 """
             )
 
-        session
-            .sendPreparedStatement(
-                {
-                    setParameter("oldGroup", oldGroupName)
-                    setParameter("project", projectId)
-                },
-                """
-                    delete from group_members  
-                    where
-                        project = ?project and
-                        the_group = ?oldGroup
-                """
-            )
+        deleteGroups(session, projectId, setOf(oldGroupName))
     }
 
     suspend fun isMemberQuery(

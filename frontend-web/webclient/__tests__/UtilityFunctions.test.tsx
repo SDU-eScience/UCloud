@@ -122,7 +122,7 @@ test("Upper 5xx range", () =>
 
 const mockAcls: Acl[] = [
     {
-        entity: "user3@test.dk",
+        entity: {username: "user3@test.dk"},
         rights: [
             "READ"
         ],

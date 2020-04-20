@@ -70,7 +70,7 @@ import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
-import {promptCreateRepository} from "Utilities/ProjectUtilities";
+import {promptCreateRepository, repositoryName} from "Utilities/ProjectUtilities";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -1032,7 +1032,7 @@ const SensitivityBadge = styled.div<{bg: string}>`
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 0.2em solid ${(props): string => props.bg};
+    border: 0.2em solid ${props => props.bg};
     border-radius: 100%;
 `;
 
@@ -1051,6 +1051,9 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations): JSX.
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
     const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
+        if (fileOp.repositoryMode && files.some(it => !repositoryName(it.path))) return null;
+        if (!fileOp.repositoryMode && files.some(it => repositoryName(it.path))) return null;
+
         if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
@@ -1087,11 +1090,11 @@ const FileOperations = ({files, fileOperations, ...props}: FileOperations): JSX.
     };
     return (
         <>
-            {buttons.map((op, i) => <Operation fileOp={op} key={`button-${i}`} />)}
+            {buttons.map((op, i)=> <Operation fileOp={op} key={i} />)}
             {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
                 <div><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></div>
             }
-            {options.map((op, i) => <Operation fileOp={op} key={`opt-${i}`} />)}
+            {options.map((op, i) => <Operation fileOp={op} key={i} />)}
         </>
     );
 };

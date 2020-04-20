@@ -1,7 +1,7 @@
 import {Client} from "Authentication/HttpClientInstance";
 import HttpClient from "Authentication/lib";
 import {SensitivityLevelMap} from "DefaultObjects";
-import {File, FileResource, FileType} from "Files";
+import {File, FileResource, FileType, UserEntity} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
@@ -163,7 +163,8 @@ function hasAccess(accessRight: AccessRight, file: File): boolean {
     if (file.ownerName === username) return true;
     if (file.acl === null) return true; // If ACL is null, we are still fetching the ACL
 
-    const relevantEntries = file.acl.filter(item => !item.group && item.entity === username);
+    const withoutProjectAcls = file.acl.filter(it => typeof it.entity === "string" || "username" in it.entity);
+    const relevantEntries = withoutProjectAcls.filter(item => !item.group && (item.entity as UserEntity).username === username);
     return relevantEntries.some(entry => entry.rights.includes(accessRight));
 }
 

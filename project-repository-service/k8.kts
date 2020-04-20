@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "project-repository"
-    version = "0.1.5"
+    version = "0.1.8"
 
     withAmbassador("/api/projects/repositories") {}
 

@@ -33,7 +33,13 @@ import {
 import {addStandardDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
-import {repositoryTrashFolder, promptDeleteRepository, promptRenameRepository} from "Utilities/ProjectUtilities";
+import {
+    repositoryTrashFolder,
+    promptDeleteRepository,
+    promptRenameRepository,
+    updatePermissionsPrompt,
+    repositoryName
+} from "Utilities/ProjectUtilities";
 
 export interface FileOperationCallback {
     invokeAsyncWork: (fn: () => Promise<void>) => void;
@@ -54,6 +60,7 @@ export interface FileOperation {
     color?: string;
     outline?: boolean;
     currentDirectoryMode?: boolean;
+    repositoryMode?: true;
 }
 
 export const defaultFileOperations: FileOperation[] = [
@@ -250,16 +257,26 @@ export const defaultFileOperations: FileOperation[] = [
         color: "red"
     },
     {
+        /* Rename project repo */
         text: "Rename",
         disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
         onClick: ([file], cb) => promptRenameRepository(getFilenameFromPath(file.path), Client, cb.requestReload),
         icon: "rename",
+        repositoryMode: true
+    },
+    {
+        text: "Update permissions",
+        disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
+        onClick: ([file]) => updatePermissionsPrompt(Client, file),
+        icon: "properties",
+        repositoryMode: true
     },
     {
         text: "Delete",
-        onClick: ([file], cb) => promptDeleteRepository(file.path, Client, cb.requestReload),
+        onClick: ([file], cb) => promptDeleteRepository(repositoryName(file.path), Client, cb.requestReload),
         disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
         icon: "trash",
-        color: "red"
+        color: "red",
+        repositoryMode: true
     }
 ];

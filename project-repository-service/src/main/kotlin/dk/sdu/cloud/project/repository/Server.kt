@@ -18,6 +18,7 @@ class Server(override val micro: Micro) : CommonServer {
             configureControllers(
                 ProjectRepositoryController(
                     RepositoryService(serviceClient),
+                    serviceClient,
                     userClientFactory = { accessToken ->
                         ClientAndBackend(micro.client, OutgoingHttpCall).bearerAuth(accessToken)
                     }
