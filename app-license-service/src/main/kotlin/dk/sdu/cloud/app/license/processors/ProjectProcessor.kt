@@ -23,7 +23,7 @@ class ProjectProcessor(
 
             }
             else -> {
-                log.warn("Discarding event: $event")
+                log.debug("Discarding event: $event")
             }
         }
     }
