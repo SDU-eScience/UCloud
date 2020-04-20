@@ -93,7 +93,7 @@ class ProjectRepositoryController(
                 TokenExtensionRequest(
                     ctx.bearer!!,
                     listOf(
-                        FileDescriptions.updateAcl.requiredAuthScope.toString()
+                        FileDescriptions.updateProjectAcl.requiredAuthScope.toString()
                     ),
                     expiresIn = 1000L * 120,
                     allowRefreshes = false
