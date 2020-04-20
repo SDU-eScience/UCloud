@@ -4,7 +4,6 @@ import com.fasterxml.jackson.module.kotlin.treeToValue
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.SERVICE_USER
@@ -52,56 +51,71 @@ class AclService(
             throw RPCException("Only the owner can update the ACL", HttpStatusCode.Forbidden)
         }
 
-        val bulkChanges = ArrayList<UserWithPermissions>()
+        val bulkChanges = ArrayList<AclEntryRequest>()
         request.changes.forEach { change ->
             if (change.revoke) {
                 revokePermission(request.path, change.entity)
             } else {
-                bulkChanges.add(UserWithPermissions(change.entity, change.rights))
+                bulkChanges.add(change)
             }
         }
 
-        updatePermissions(request.path, bulkChanges)
+        updateUserPermissions(request.path, bulkChanges)
     }
 
-    suspend fun updatePermissions(path: String, entries: List<UserWithPermissions>) {
+    private suspend fun updateUserPermissions(path: String, entries: List<AclEntryRequest>) {
         val normalizedPath = path.normalize()
-        log.debug("updatePermissions($normalizedPath, $entries)")
+        log.debug("updateUserPermissions($normalizedPath, $entries)")
 
-        val metadataByProject = HashMap<String, List<ProjectAclEntity>>()
         for (entry in entries) {
+            require(!entry.revoke)
+
             val entity = entry.entity
-            val permissions = entry.permissions
-
-            when (entity) {
-                is ACLEntity.User -> {
-                    metadataService.updateMetadata(
-                        Metadata(
-                            normalizedPath,
-                            USER_METADATA_TYPE,
-                            entity.username,
-                            defaultMapper.valueToTree(UserAclMetadata(permissions))
-                        )
-                    )
-                }
-
-                is ACLEntity.ProjectAndGroup -> {
-                    val existing = metadataByProject[entity.projectId] ?: emptyList()
-                    metadataByProject[entity.projectId] = existing + listOf(ProjectAclEntity(entity.group, permissions))
-                }
-            }
-        }
-
-        for ((project, projectEntries) in metadataByProject) {
+            val permissions = entry.rights
             metadataService.updateMetadata(
                 Metadata(
                     normalizedPath,
-                    PROJECT_METADATA_TYPE,
-                    project,
-                    defaultMapper.valueToTree(ProjectAclMetadata(projectEntries))
+                    USER_METADATA_TYPE,
+                    entity.username,
+                    defaultMapper.valueToTree(UserAclMetadata(permissions))
                 )
             )
         }
+    }
+
+    // TODO This should not be public
+    private suspend fun revokePermission(path: String, entity: ACLEntity.User) {
+        val normalizedPath = path.normalize()
+        metadataService.removeEntries(
+            listOf(
+                FindMetadataRequest(
+                    normalizedPath,
+                    USER_METADATA_TYPE,
+                    entity.username
+                )
+            )
+        )
+    }
+
+    suspend fun updateProjectAcl(request: UpdateProjectAclRequest, username: String) {
+        if (!isOwner(request.path, username)) {
+            throw RPCException("Only the owner can update the ACL", HttpStatusCode.Forbidden)
+        }
+
+        metadataService.updateMetadata(
+            Metadata(
+                request.path.normalize(),
+                PROJECT_METADATA_TYPE,
+                request.project,
+                defaultMapper.valueToTree(
+                    ProjectAclMetadata(
+                        request.newAcl.map { entry ->
+                            ProjectAclEntity(entry.group, entry.rights)
+                        }
+                    )
+                )
+            )
+        )
     }
 
     private suspend fun internalIsOwner(normalizedPath: String, username: String): Boolean {
@@ -255,62 +269,6 @@ class AclService(
                 }
             }
             .toMap()
-    }
-
-    suspend fun revokePermission(path: String, entity: ACLEntity) {
-        val normalizedPath = path.normalize()
-
-        when (entity) {
-            is ACLEntity.User -> {
-                metadataService.removeEntries(
-                    listOf(
-                        FindMetadataRequest(
-                            normalizedPath,
-                            USER_METADATA_TYPE,
-                            entity.username
-                        )
-                    )
-                )
-            }
-
-            is ACLEntity.ProjectAndGroup -> {
-                val metadata = metadataService
-                    .findMetadata(
-                        normalizedPath,
-                        entity.projectId,
-                        PROJECT_METADATA_TYPE
-                    )
-                    ?.payload
-                    ?.let { defaultMapper.treeToValue<ProjectAclMetadata>(it) }
-
-                if (metadata == null) {
-                    // Do nothing
-                } else {
-                    val newEntries = metadata.entries.filter { it.group != entity.group }
-                    if (newEntries.isEmpty()) {
-                        metadataService.removeEntries(
-                            listOf(
-                                FindMetadataRequest(
-                                    normalizedPath,
-                                    PROJECT_METADATA_TYPE,
-                                    entity.projectId
-                                )
-                            )
-                        )
-                    } else {
-                        metadataService.updateMetadata(
-                            Metadata(
-                                normalizedPath,
-                                PROJECT_METADATA_TYPE,
-                                entity.projectId,
-                                defaultMapper.valueToTree(ProjectAclMetadata(newEntries))
-                            )
-                        )
-                    }
-                }
-            }
-        }
-
     }
 
     companion object : Loggable {

@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '0.1.8'
+version '0.1.9'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.project.repository.MainKt"
@@ -10,7 +10,7 @@ buildscript {
     ext.serviceCommonVersion = "1.14.0-projects.2"
     ext.authApiVersion = "1.27.0"
     ext.projectApiVersion = "3.0.0-v.5"
-    ext.fileApiVersion = "4.1.0-projects.0"
+    ext.fileApiVersion = "4.1.0-projects.6"
 }
 
 repositories {

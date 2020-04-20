@@ -14,7 +14,6 @@ import dk.sdu.cloud.project.repository.api.ProjectAclEntry
 import dk.sdu.cloud.project.repository.api.Repository
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.content.HttpStatusCodeContent
 import io.ktor.http.isSuccess
 import org.slf4j.Logger
 
@@ -162,16 +161,11 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
             }
         }
 
-        FileDescriptions.updateAcl.call(
-            UpdateAclRequest(
+        FileDescriptions.updateProjectAcl.call(
+            UpdateProjectAclRequest(
                 joinPath(PROJECT_DIR_PREFIX, project, repository),
-                newAcl.map {
-                    ACLEntryRequest(
-                        ACLEntity.ProjectAndGroup(project, it.group),
-                        it.rights,
-                        revoke = false
-                    )
-                }
+                project,
+                newAcl.map { ProjectAclEntryRequest(it.group, it.rights) }
             ),
             userClient
         ).orThrow()

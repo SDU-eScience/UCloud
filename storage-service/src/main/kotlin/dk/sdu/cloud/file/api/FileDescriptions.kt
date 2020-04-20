@@ -32,7 +32,7 @@ import dk.sdu.cloud.file.api.AccessRight as FileAccessRight
 
 data class UpdateAclRequest(
     val path: String,
-    val changes: List<ACLEntryRequest>
+    val changes: List<AclEntryRequest>
 ) {
     init {
         if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
@@ -40,11 +40,30 @@ data class UpdateAclRequest(
     }
 }
 
-data class ACLEntryRequest(
-    val entity: ACLEntity,
+@Deprecated(
+    replaceWith = ReplaceWith("AclEntryRequest(entity, rights, revoke)"),
+    message = "Replace with AclEntryRequest"
+)
+typealias ACLEntryRequest = AclEntryRequest
+
+data class AclEntryRequest(
+    val entity: ACLEntity.User,
     val rights: Set<FileAccessRight>,
     val revoke: Boolean = false
 )
+
+data class UpdateProjectAclRequest(
+    val path: String,
+    val project: String,
+    val newAcl: List<ProjectAclEntryRequest>
+)
+
+data class ProjectAclEntryRequest(
+    val group: String,
+    val rights: Set<FileAccessRight>
+)
+
+typealias UpdateProjectAclResponse = Unit
 
 data class StatRequest(
     val path: String,
@@ -469,6 +488,25 @@ object FileDescriptions : CallDescriptionContainer("files") {
             body { bindEntireRequestFromBody() }
         }
     }
+
+    val updateProjectAcl =
+        call<UpdateProjectAclRequest, UpdateProjectAclResponse, CommonErrorMessage>("updateProjectAcl") {
+            auth {
+                access = AccessRight.READ_WRITE
+            }
+
+            websocket(wsBaseContext)
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"update-project-acl"
+                }
+
+                body { bindEntireRequestFromBody() }
+            }
+        }
 
     val reclassify = call<
             ReclassifyRequest,

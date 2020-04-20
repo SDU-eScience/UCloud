@@ -1,5 +1,5 @@
 group 'dk.sdu.cloud'
-version '1.4.14-project27'
+version '1.4.14-project32'
 
 apply plugin: 'application'
 mainClassName = "dk.sdu.cloud.activity.MainKt"
@@ -14,7 +14,7 @@ buildscript {
 dependencies {
     compile "dk.sdu.cloud:service-common:$serviceCommonVersion"
     compile "dk.sdu.cloud:auth-api:${authApiVersion}"
-    compile "dk.sdu.cloud:file-api:4.0.0-storage-events.31"
+    compile "dk.sdu.cloud:file-api:4.1.0-projects.6"
     compile "dk.sdu.cloud:file-favorite-api:1.4.2"
     compile "dk.sdu.cloud:app-orchestrator-api:2.0.0-storage-events.1"
     compile "dk.sdu.cloud:app-store-api:0.13.0-storage-events.0"

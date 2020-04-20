@@ -27,6 +27,12 @@ class FileSecurityController<Ctx : FSUserContext>(
             ok(Unit)
         }
 
+        implement(FileDescriptions.updateProjectAcl) {
+            requirePermissionToChangeFilePermissions()
+            aclWorker.updateProjectAcl(request, ctx.securityPrincipal.username)
+            ok(Unit)
+        }
+
         implement(FileDescriptions.reclassify) {
             audit(SingleFileAudit(request))
 

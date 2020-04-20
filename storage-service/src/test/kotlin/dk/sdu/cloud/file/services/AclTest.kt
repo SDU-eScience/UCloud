@@ -2,6 +2,8 @@ package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.file.api.ACLEntity
 import dk.sdu.cloud.file.api.AccessRight
+import dk.sdu.cloud.file.api.AclEntryRequest
+import dk.sdu.cloud.file.api.UpdateAclRequest
 import dk.sdu.cloud.file.services.acl.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -60,9 +62,12 @@ class AclTest {
         val userHome = "/home/$username"
         val notUser = "notUser"
 
-        aclService.updatePermissions(
-            userHome,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                userHome,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
 
         assertTrue(aclService.hasPermission(userHome, username, AccessRight.WRITE))
@@ -85,10 +90,12 @@ class AclTest {
         val username = "user"
         val userHome = "/home/$username"
         val notUser = "notUser"
-
-        aclService.updatePermissions(
-            userHome,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                userHome,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
 
         assertTrue(aclService.hasPermission(userHome, username, AccessRight.WRITE))
@@ -96,10 +103,12 @@ class AclTest {
 
         assertTrue(aclService.hasPermission(userHome, notUser, AccessRight.WRITE))
         assertTrue(aclService.hasPermission(userHome, notUser, AccessRight.READ))
-
-        aclService.updatePermissions(
-            userHome,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_ONLY))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                userHome,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_ONLY))
+            ),
+            username
         )
         assertFalse(aclService.hasPermission(userHome, notUser, AccessRight.WRITE))
         assertTrue(aclService.hasPermission(userHome, notUser, AccessRight.READ))
@@ -119,9 +128,12 @@ class AclTest {
         val userHome = "/home/$username"
         val notUser = "notUser"
 
-        aclService.updatePermissions(
-            userHome,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                userHome,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
 
         assertTrue(aclService.hasPermission(userHome, username, AccessRight.WRITE))
@@ -129,8 +141,13 @@ class AclTest {
 
         assertTrue(aclService.hasPermission(userHome, notUser, AccessRight.WRITE))
         assertTrue(aclService.hasPermission(userHome, notUser, AccessRight.READ))
-
-        aclService.revokePermission(userHome, ACLEntity.User(notUser))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                userHome,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE, revoke = true))
+            ),
+            username
+        )
         assertFalse(aclService.hasPermission(userHome, notUser, AccessRight.WRITE))
         assertFalse(aclService.hasPermission(userHome, notUser, AccessRight.READ))
 
@@ -155,10 +172,12 @@ class AclTest {
         val username = "user"
         val userHome = "/home/$username"
         val notUser = "notUser"
-
-        aclService.updatePermissions(
-            userHome,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                userHome,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
         (0 until 10).map { (arrayOf(userHome) + Array(it) { "dir-$it" }).joinToString("/") }.forEach { path ->
             assertTrue(aclService.hasPermission(path, username, AccessRight.WRITE))
@@ -175,9 +194,12 @@ class AclTest {
         val userHome = "/home/$username"
         val notUser = "notUser"
 
-        aclService.updatePermissions(
-            "$userHome/dir-0/dir-1/dir-2",
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                "$userHome/dir-0/dir-1/dir-2",
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
         (0 until 10).map { (arrayOf(userHome) + Array(it) { "dir-$it" }).joinToString("/") }.forEach { path ->
             assertTrue(aclService.hasPermission(path, username, AccessRight.WRITE))
@@ -230,14 +252,19 @@ class AclTest {
         val folderA = "/home/$username/a"
         val folderB = "/home/$username/b"
         val notUser = "notUser"
-
-        aclService.updatePermissions(
-            folderA,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                folderA,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
-        aclService.updatePermissions(
-            folderB,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                folderB,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
 
         assertTrue(aclService.hasPermission(folderA, notUser, AccessRight.WRITE))
@@ -245,8 +272,13 @@ class AclTest {
 
         assertTrue(aclService.hasPermission(folderB, notUser, AccessRight.WRITE))
         assertTrue(aclService.hasPermission(folderB, notUser, AccessRight.READ))
-
-        aclService.revokePermission(folderA, ACLEntity.User(notUser))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                folderA,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE, revoke = true))
+            ),
+            username
+        )
         assertFalse(aclService.hasPermission(folderA, notUser, AccessRight.WRITE))
         assertFalse(aclService.hasPermission(folderA, notUser, AccessRight.READ))
 
@@ -269,9 +301,12 @@ class AclTest {
         val notUser = "notUser"
 
         repeat(10) {
-            aclService.updatePermissions(
-                userHome,
-                listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            aclService.updateAcl(
+                UpdateAclRequest(
+                    userHome,
+                    listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+                ),
+                username
             )
         }
 
@@ -296,10 +331,12 @@ class AclTest {
         val sharedFolder = "/home/$username/shared"
         val sharedFolderNew = "/home/$username/sharedNew"
         val notUser = "notUser"
-
-        aclService.updatePermissions(
-            sharedFolder,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                sharedFolder,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
         metadataService.runMoveAction(sharedFolder, sharedFolderNew) {}
 
@@ -316,10 +353,12 @@ class AclTest {
         val sharedFolder = "/home/$username/shared"
         val sharedFolderNew = "/home/$username/sharedNew"
         val notUser = "notUser"
-
-        aclService.updatePermissions(
-            sharedFolder,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                sharedFolder,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
         metadataService.runMoveAction(sharedFolder, sharedFolderNew) {}
 
@@ -336,10 +375,12 @@ class AclTest {
         val sharedFolder = "/home/$username/shared"
         val sharedFolderNew = "/home/$username/sharedNew"
         val notUser = "notUser"
-
-        aclService.updatePermissions(
-            sharedFolder,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                sharedFolder,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
         metadataService.runMoveAction(sharedFolder, sharedFolderNew) {}
         metadataService.runMoveAction("$sharedFolder/file", "$sharedFolderNew/file22") {}
@@ -357,9 +398,12 @@ class AclTest {
         val sharedFolder = "/home/$username/shared"
         val notUser = "notUser"
 
-        aclService.updatePermissions(
-            sharedFolder,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                sharedFolder,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
         metadataService.runDeleteAction(Array(200) { "$sharedFolder/f-$it" }.toList() + listOf(sharedFolder)) {}
 
@@ -373,9 +417,12 @@ class AclTest {
         val sharedFolder = "/home/$username/shared"
         val notUser = "notUser"
 
-        aclService.updatePermissions(
-            sharedFolder,
-            listOf(UserWithPermissions(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+        aclService.updateAcl(
+            UpdateAclRequest(
+                sharedFolder,
+                listOf(AclEntryRequest(ACLEntity.User(notUser), AccessRights.READ_WRITE))
+            ),
+            username
         )
 
         assertThatInstance(

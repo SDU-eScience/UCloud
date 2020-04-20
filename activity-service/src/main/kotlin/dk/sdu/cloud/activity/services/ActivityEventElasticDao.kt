@@ -1,40 +1,31 @@
 package dk.sdu.cloud.activity.services
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.module.kotlin.MissingKotlinParameterException
-import com.fasterxml.jackson.module.kotlin.readValue
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.activity.api.ActivityEvent
 import dk.sdu.cloud.activity.api.ActivityEventType
 import dk.sdu.cloud.activity.api.ActivityForFrontend
 import dk.sdu.cloud.activity.api.type
+import dk.sdu.cloud.app.orchestrator.api.JobDescriptions
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.BulkFileAudit
-import dk.sdu.cloud.file.api.BulkUploadAudit
-import dk.sdu.cloud.file.api.CopyRequest
-import dk.sdu.cloud.file.api.CreateDirectoryRequest
-import dk.sdu.cloud.file.api.DeleteFileRequest
-import dk.sdu.cloud.file.api.FindByPath
-import dk.sdu.cloud.file.api.MoveRequest
-import dk.sdu.cloud.file.api.MultiPartUploadAudit
-import dk.sdu.cloud.file.api.ReclassifyRequest
-import dk.sdu.cloud.file.api.SingleFileAudit
-import dk.sdu.cloud.file.api.UpdateAclRequest
-import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.favorite.api.FileFavoriteDescriptions
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteAudit
 import dk.sdu.cloud.project.repository.api.Repository
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.share.api.Shares
-import io.ktor.http.HttpStatusCode
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.common.xcontent.ToXContent
 import org.elasticsearch.index.query.BoolQueryBuilder
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.builder.SearchSourceBuilder
@@ -42,183 +33,53 @@ import org.elasticsearch.search.sort.SortOrder
 import java.util.*
 import kotlin.collections.ArrayList
 
-data class DeleteActivity(
+data class AuditEntry<E>(
     @get:JsonProperty("@timestamp") val timestamp: Date,
     val token: SecurityPrincipalToken,
-    val requestJson: SingleFileAudit<DeleteFileRequest>
+    val requestJson: E
 )
 
-data class DownloadActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: BulkFileAudit<FindByPath>
-)
-data class FavoriteActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: ToggleFavoriteAudit
-)
-
-data class MoveActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: SingleFileAudit<MoveRequest>
-)
-
-data class CopyActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: SingleFileAudit<CopyRequest>
-)
-
-data class ReclassifyActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: SingleFileAudit<ReclassifyRequest>
-)
-
-data class UpdateACLActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: SingleFileAudit<UpdateAclRequest>
-)
-
-data class UploadActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: MultiPartUploadAudit
-)
-
-data class BulkUploadActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: BulkUploadAudit
-)
-
-data class CreateDirectoryActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: CreateDirectoryRequest
-)
-
-data class UsedInAppActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: StartJobRequest
-)
-
-data class SharedActivity(
-    @get:JsonProperty("@timestamp") val timestamp: Date,
-    val token: SecurityPrincipalToken,
-    val requestJson: Shares.Create.Request
-)
-
-class ActivityEventElasticDao(private val client: RestHighLevelClient): ActivityEventDao {
-    override fun findByFilePath(pagination: NormalizedPaginationRequest, filePath: String): Page<ActivityForFrontend> {
+class ActivityEventElasticDao(private val client: RestHighLevelClient) : ActivityEventDao {
+    override fun findByFilePath(
+        pagination: NormalizedPaginationRequest,
+        filePath: String
+    ): Page<ActivityForFrontend> {
         val normalizedFilePath = filePath.normalize()
-        val request = SearchRequest(*ALL_RELEVANT_INDICES)
+        val request = SearchRequest(*CallWithActivity.allIndices.toTypedArray())
         val query = QueryBuilders.boolQuery()
-        var parentPath = normalizedFilePath
-        if (normalizedFilePath.startsWith("/home")) {
-            while (parentPath != "/home") {
-                println(parentPath)
-                query
-                    .should(
-                        QueryBuilders.matchPhraseQuery(
-                            "requestJson.mounts.source",
-                            parentPath
+
+        CallWithActivity.all.forEach { call ->
+            if (call.usesAllDescendants) {
+                // Drop /home and /projects
+                val allParents = normalizedFilePath.parents().drop(1)
+
+                allParents.forEach { parent ->
+                    call.jsonPathToAffectedFiles.forEach { jsonPath ->
+                        query.should(
+                            QueryBuilders.matchPhraseQuery(
+                                "requestJson.$jsonPath",
+                                parent
+                            )
                         )
+                    }
+                }
+            }
+
+            call.jsonPathToAffectedFiles.forEach { jsonPath ->
+                query.should(
+                    QueryBuilders.matchPhraseQuery(
+                        "requestJson.$jsonPath",
+                        normalizedFilePath
                     )
-                    .should(
-                        QueryBuilders.matchPhraseQuery(
-                            "requestJson.parameters.*.source",
-                            parentPath
-                        )
-                    )
-                parentPath = parentPath.substringBeforeLast("/")
+                )
             }
         }
-        if (normalizedFilePath.startsWith("/projects")) {
-            while (parentPath != "/projects") {
-                println(parentPath)
-                query
-                    .should(
-                        QueryBuilders.matchPhraseQuery(
-                            "requestJson.mounts.source",
-                            parentPath
-                        )
-                    )
-                    .should(
-                        QueryBuilders.matchPhraseQuery(
-                            "requestJson.parameters.*.source",
-                            parentPath
-                        )
-                    )
-                parentPath = parentPath.substringBeforeLast("/")
-            }
-        }
-        query
-            .should(
-                QueryBuilders.matchPhraseQuery(
-                    "requestJson.files.path",
-                    normalizedFilePath
-                )
-            )
-            .should(
-                QueryBuilders.matchPhraseQuery(
-                    "requestJson.path",
-                    normalizedFilePath
-                )
-            )
-            .should(
-                QueryBuilders.matchPhraseQuery(
-                    "requestJson.request.path",
-                    normalizedFilePath
-                )
-            )
-            .minimumShouldMatch(1)
+
+        query.minimumShouldMatch(1)
 
         val source = SearchSourceBuilder().query(
             QueryBuilders.boolQuery()
                 .filter(query)
-                /*.filter(
-                    QueryBuilders.boolQuery()
-                        //AppStart
-                        .should(
-                            QueryBuilders.matchPhraseQuery(
-                                "requestJson.mounts.source",
-                                normalizedFilePath
-                            )
-                        )
-                        .should(
-                            QueryBuilders.matchPhraseQuery(
-                                "requestJson.parameters.*.source",
-                                normalizedFilePath
-                            )
-                        )
-                        //SimpleUpload, download, updateAcl, SimpleBulkUpload, reclassify, move, copy, delete
-                        //createDirectory, create share, Toggle Favorite
-                        .should(
-                            QueryBuilders.matchPhraseQuery(
-                                "requestJson.files.path",
-                                normalizedFilePath
-                            )
-                        )
-                        .should(
-                            QueryBuilders.matchPhraseQuery(
-                                "requestJson.path",
-                                normalizedFilePath
-                            )
-                        )
-                        .should(
-                            QueryBuilders.matchPhraseQuery(
-                                "requestJson.request.path",
-                                normalizedFilePath
-                            )
-                        )
-                        .minimumShouldMatch(1)
-
-                )*/
                 .filter(
                     QueryBuilders.boolQuery()
                         .should(
@@ -246,24 +107,11 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         return Page(numberOfItems, pagination.itemsPerPage, pagination.page, activityEventList)
     }
 
-    private fun getIndexByType(type: ActivityEventType?): Array<String> {
+    private fun getIndexByType(type: ActivityEventType?): List<String> {
         return if (type != null) {
-            when (type){
-                ActivityEventType.download -> arrayOf(FILES_DOWNLOAD)
-                ActivityEventType.favorite -> arrayOf(FILES_FAVORITE_TOGGLE)
-                ActivityEventType.moved -> arrayOf(FILES_MOVED)
-                ActivityEventType.deleted -> arrayOf(FILES_DELETE_FILE)
-                ActivityEventType.usedInApp -> arrayOf(APP_START_INDEX)
-                ActivityEventType.directoryCreated -> arrayOf(FILES_CREATE_DIR)
-                ActivityEventType.updatedACL -> arrayOf(FILES_UPDATEDACL)
-                ActivityEventType.upload -> arrayOf(FILES_SIMPLE_UPLOAD, FILES_SIMPLE_BULK_UPLOAD)
-                ActivityEventType.reclassify -> arrayOf(FILES_RECLASSYFIED)
-                ActivityEventType.copy -> arrayOf(FILES_COPY)
-                ActivityEventType.sharedWith -> arrayOf(SHARES_CREATED)
-                ActivityEventType.allUsedInApp -> arrayOf(APP_START_INDEX)
-            }
+            (CallWithActivity.callsByType[type] ?: emptyList()).map { it.index }
         } else {
-            ALL_RELEVANT_INDICES
+            CallWithActivity.allIndices
         }
     }
 
@@ -289,48 +137,26 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
         if (filter.user != null) {
             query.filter(QueryBuilders.matchPhraseQuery("token.principal.username", filter.user))
         }
-        repos.forEach { repo ->
-            if (!repo.name.isNullOrBlank()) {
-                val repoPath = "/projects/$projectID/${repo.name}"
-                query
-                    //AppStart
-                    .should(
+
+        for (repo in repos) {
+            if (repo.name.isBlank()) continue
+            val repoPath = "/projects/$projectID/${repo.name}"
+
+            CallWithActivity.all.forEach { call ->
+                call.jsonPathToAffectedFiles.forEach { jsonPath ->
+                    query.should(
                         QueryBuilders.matchPhrasePrefixQuery(
-                            "requestJson.mounts.source",
+                            "requestJson.$jsonPath",
                             repoPath
                         )
                     )
-                    .should(
-                        QueryBuilders.matchPhrasePrefixQuery(
-                            "requestJson.parameters.*.source",
-                            repoPath
-                        )
-                    )
-                    //SimpleUpload, download, updateAcl, SimpleBulkUpload, reclassify, move, copy, delete
-                    //createDirectory, create share, Toggle Favorite
-                    .should(
-                        QueryBuilders.matchPhrasePrefixQuery(
-                            "requestJson.files.path",
-                            repoPath
-                        )
-                    )
-                    .should(
-                        QueryBuilders.matchPhrasePrefixQuery(
-                            "requestJson.path",
-                            repoPath
-                        )
-                    )
-                    .should(
-                        QueryBuilders.matchPhrasePrefixQuery(
-                            "requestJson.request.path",
-                            repoPath
-                        )
-                    )
-                    .minimumShouldMatch(1)
+                }
             }
+
+            query.minimumShouldMatch(1)
         }
 
-        val index = getIndexByType(filter.type)
+        val index = getIndexByType(filter.type).toTypedArray()
 
         val request = SearchRequest(*index)
         val source = SearchSourceBuilder().query(
@@ -354,54 +180,27 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
 
     }
 
-    private fun byPrefixedPath(prefixPath: String): BoolQueryBuilder {
-        return QueryBuilders.boolQuery()
-            //AppStart
-            .should(
-                QueryBuilders.matchPhrasePrefixQuery(
-                    "requestJson.mounts.source",
-                    "$prefixPath"
-                )
-            )
-            .should(
-                QueryBuilders.matchPhrasePrefixQuery(
-                    "requestJson.parameters.*.source",
-                    "$prefixPath"
-                )
-            )
-            //SimpleUpload, download, updateAcl, SimpleBulkUpload, reclassify, move, copy, delete
-            //createDirectory, create share, Toggle Favorite
-            .should(
-                QueryBuilders.matchPhrasePrefixQuery(
-                    "requestJson.files.path",
-                    "$prefixPath"
-                )
-            )
-            .should(
-                QueryBuilders.matchPhrasePrefixQuery(
-                    "requestJson.path",
-                    "$prefixPath"
-                )
-            )
-            .should(
-                QueryBuilders.matchPhrasePrefixQuery(
-                    "requestJson.request.path",
-                    "$prefixPath"
-                )
-            )
-            .minimumShouldMatch(1)
-    }
-
     override fun findUserEvents(scrollSize: Int, filter: ActivityEventFilter): List<ActivityEvent> {
         val query = applyTimeFilter(filter)
-        val index = getIndexByType(filter.type)
+        val index = getIndexByType(filter.type).toTypedArray()
         val userHome = "/home/${filter.user}"
         val request = SearchRequest(*index)
 
         val source = SearchSourceBuilder().query(
             QueryBuilders.boolQuery()
                 .filter(
-                    byPrefixedPath(userHome)
+                    QueryBuilders.boolQuery().also { innerQuery ->
+                        CallWithActivity.all.forEach { call ->
+                            call.jsonPathToAffectedFiles.forEach { jsonPath ->
+                                innerQuery.should(
+                                    QueryBuilders.matchPhrasePrefixQuery(
+                                        "requestJson.$jsonPath",
+                                        userHome
+                                    )
+                                )
+                            }
+                        }
+                    }
                 )
                 .filter(
                     QueryBuilders.boolQuery()
@@ -413,9 +212,9 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
                         .minimumShouldMatch(1)
                 )
                 .filter(query)
-            ).from(filter.offset ?: 0)
-                .size(scrollSize)
-                .sort("@timestamp", SortOrder.DESC)
+        ).from(filter.offset ?: 0)
+            .size(scrollSize)
+            .sort("@timestamp", SortOrder.DESC)
 
         request.source(source)
         val searchResponse = client.search(request, RequestOptions.DEFAULT)
@@ -430,234 +229,424 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient): Activity
     ): List<ActivityEvent> {
         val activityEventList = arrayListOf<ActivityEvent>()
         searchResponse.hits.hits.forEach { doc ->
-            try {
-                when {
-                    doc.index.startsWith(FILES_SIMPLE_UPLOAD.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<UploadActivity>(doc.sourceAsString)
-                        activityEventList.add(
-                            ActivityEvent.Uploaded(
-                                source.token.principal.username,
-                                source.timestamp.time,
-                                source.requestJson.request?.path!!
-                            )
-                        )
-                    }
-                    doc.index.startsWith(FILES_SIMPLE_BULK_UPLOAD.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<BulkUploadActivity>(doc.sourceAsString)
-                        activityEventList.add(
-                            ActivityEvent.Uploaded(
-                                source.token.principal.username,
-                                source.timestamp.time,
-                                source.requestJson.path
-                            )
-                        )
-                    }
-                    doc.index.startsWith(FILES_UPDATEDACL.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<UpdateACLActivity>(doc.sourceAsString)
-                        val changes = ArrayList<ActivityEvent.RightsAndUser>()
-                        source.requestJson.request.changes.forEach { update ->
-                            changes.add(ActivityEvent.RightsAndUser(update.rights, update.entity))
-                        }
-                        activityEventList.add(
-                            ActivityEvent.UpdatedAcl(
-                                source.token.principal.username,
-                                source.timestamp.time,
-                                source.requestJson.request.path,
-                                changes.toList()
-                            )
-                        )
-                    }
-                    doc.index.startsWith(FILES_RECLASSYFIED.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<ReclassifyActivity>(doc.sourceAsString)
-                        activityEventList.add(
-                            ActivityEvent.Reclassify(
-                                source.token.principal.username,
-                                source.timestamp.time,
-                                source.requestJson.request.path,
-                                source.requestJson.request.sensitivity?.name ?: "Inherit"
-                            )
-                        )
-                    }
-                    doc.index.startsWith(FILES_MOVED.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<MoveActivity>(doc.sourceAsString)
-                        activityEventList.add(
-                            ActivityEvent.Moved(
-                                source.token.principal.username,
-                                source.requestJson.request.newPath,
-                                source.timestamp.time,
-                                source.requestJson.request.path
-                            )
-                        )
-                    }
-                    doc.index.startsWith(FILES_FAVORITE_TOGGLE.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<FavoriteActivity>(doc.sourceAsString)
-                        if (source.requestJson.files.single().newStatus != null) {
-                            activityEventList.add(
-                                ActivityEvent.Favorite(
-                                    source.token.principal.username,
-                                    source.requestJson.files.single().newStatus!!,
-                                    source.timestamp.time,
-                                    source.requestJson.files.single().path
-                                )
-                            )
-                        }
-                    }
-                    doc.index.startsWith(FILES_DOWNLOAD.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<DownloadActivity>(doc.sourceAsString)
-                        activityEventList.add(
-                            ActivityEvent.Download(
-                                source.token.principal.username,
-                                source.timestamp.time,
-                                source.requestJson.request.path
-                            )
-                        )
-                    }
-                    doc.index.startsWith(FILES_DELETE_FILE.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<DeleteActivity>(doc.sourceAsString)
-                        activityEventList.add(
-                            ActivityEvent.Deleted(
-                                source.token.principal.username,
-                                source.timestamp.time,
-                                source.requestJson.request.path
-                            )
-                        )
-                    }
-                    doc.index.startsWith(FILES_CREATE_DIR.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<CreateDirectoryActivity>(doc.sourceAsString)
-                        activityEventList.add(
-                            ActivityEvent.DirectoryCreated(
-                                source.token.principal.username,
-                                source.timestamp.time,
-                                source.requestJson.path
-                            )
-                        )
-                    }
-                    doc.index.startsWith(FILES_COPY.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<CopyActivity>(doc.sourceAsString)
-                        activityEventList.add(
-                            ActivityEvent.Copy(
-                                source.token.principal.username,
-                                source.timestamp.time,
-                                source.requestJson.request.path,
-                                source.requestJson.request.newPath
-                            )
-                        )
-                    }
-                    doc.index.startsWith(APP_START_INDEX.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<UsedInAppActivity>(doc.sourceAsString)
-                        if (isFileSearch) {
-                            source.requestJson.mounts.forEach { mount ->
-                                val path = checkSource(mount.toString(), normalizedFilePath)
-                                if (path != null) {
-                                    activityEventList.add(
-                                        ActivityEvent.SingleFileUsedByApplication(
-                                            source.token.principal.username,
-                                            source.timestamp.time,
-                                            path,
-                                            source.requestJson.application.name,
-                                            source.requestJson.application.version
-                                        )
-                                    )
-                                }
-                            }
-                            source.requestJson.parameters.forEach { (t, u) ->
-                                if (t == "directory") {
-                                    val path = checkSource(u.toString(), normalizedFilePath)
-                                    if (path != null) {
-                                        activityEventList.add(
-                                            ActivityEvent.SingleFileUsedByApplication(
-                                                source.token.principal.username,
-                                                source.timestamp.time,
-                                                path,
-                                                source.requestJson.application.name,
-                                                source.requestJson.application.version
-                                            )
-                                        )
-                                    }
-                                }
-                            }
+            val responsibleMapper = CallWithActivity.all
+                .find { doc.index.startsWith(it.index.dropLast(1)) } as CallWithActivity<Any>?
 
-                        }
-                        if (isUserSearch) {
-                            var filesUsed = ""
-                            source.requestJson.mounts.forEach { mount ->
-                                val path = checkSource(mount.toString(), normalizedFilePath, inUserSearch = true)
-                                if (path != null) {
-                                    filesUsed += "$path, "
-                                }
-                            }
-                            source.requestJson.parameters.forEach { (t, u) ->
-                                if (t == "directory") {
-                                    val path = checkSource(u.toString(), normalizedFilePath, inUserSearch = true)
-                                    if (path != null) {
-                                        filesUsed += "$path, "
-                                    }
-                                }
-                            }
-                            activityEventList.add(
-                                ActivityEvent.AllFilesUsedByApplication(
-                                    source.token.principal.username,
-                                    source.timestamp.time,
-                                    filesUsed,
-                                    source.requestJson.application.name,
-                                    source.requestJson.application.version
-                                )
-                            )
-
-                        }
-                    }
-                    doc.index.startsWith(SHARES_CREATED.dropLast(1)) -> {
-                        val source = defaultMapper.readValue<SharedActivity>(doc.sourceAsString)
-                        activityEventList.add(
-                            ActivityEvent.SharedWith(
-                                source.token.principal.username,
-                                source.timestamp.time,
-                                source.requestJson.path,
-                                source.requestJson.sharedWith,
-                                source.requestJson.rights
-                            )
-                        )
-                    }
+            if (responsibleMapper != null) {
+                try {
+                    val value = defaultMapper.readValue(doc.sourceAsString, responsibleMapper.typeRef)
+                    activityEventList.addAll(
+                        responsibleMapper.createActivityEvents(value, isUserSearch, isFileSearch, normalizedFilePath)
+                    )
+                } catch (ex: Throwable) {
+                    log.warn("Caught exception: ${ex.stackTraceToString()}")
                 }
-            } catch (ex: MissingKotlinParameterException) {
-                log.warn("${doc.id} in ${doc.index} has null value")
             }
         }
         return activityEventList.toList()
     }
 
-    //Definitely not a good way to check source!!
-    private fun checkSource(element: String, normalizedFilePath: String, inUserSearch: Boolean = false): String? {
-        val clearElement = element.removePrefix("{").removeSuffix("}")
-        if (clearElement.contains("source")) {
-            val startIndex = clearElement.indexOf("source=")+"source=".length
-            val sourceStartString = clearElement.substring(startIndex)
-            val path = sourceStartString.substring(0, sourceStartString.indexOf(", ")).normalize()
-            if (path == normalizedFilePath || inUserSearch) {
-                return path
+    companion object : Loggable {
+        override val log = logger()
+
+        sealed class CallWithActivity<AuditEvent>(
+            val eventType: ActivityEventType,
+            call: CallDescription<*, *, *>,
+            val typeRef: TypeReference<AuditEntry<AuditEvent>>,
+            val jsonPathToAffectedFiles: List<String>,
+            val usesAllDescendants: Boolean = false
+        ) {
+            val index = "http_logs_${call.fullName.toLowerCase()}-*"
+
+            abstract fun createActivityEvents(
+                doc: AuditEntry<AuditEvent>,
+                isUserSearch: Boolean,
+                isFileSearch: Boolean,
+                normalizedFilePath: String
+            ): List<ActivityEvent>
+
+            object FilesCopy : CallWithActivity<BulkFileAudit<CopyRequest>>(
+                ActivityEventType.copy,
+                FileDescriptions.copy,
+                jacksonTypeRef(),
+                listOf(
+                    "request.path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<BulkFileAudit<CopyRequest>>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return listOf(
+                        ActivityEvent.Copy(
+                            doc.token.principal.username,
+                            doc.timestamp.time,
+                            doc.requestJson.request.path,
+                            doc.requestJson.request.newPath
+                        )
+                    )
+                }
+            }
+
+            object FilesCreateDirectory : CallWithActivity<CreateDirectoryRequest>(
+                ActivityEventType.directoryCreated,
+                FileDescriptions.createDirectory,
+                jacksonTypeRef(),
+                listOf(
+                    "path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<CreateDirectoryRequest>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return listOf(
+                        ActivityEvent.DirectoryCreated(
+                            doc.token.principal.username,
+                            doc.timestamp.time,
+                            doc.requestJson.path
+                        )
+                    )
+                }
+            }
+
+            object FilesDeleteFile : CallWithActivity<SingleFileAudit<DeleteFileRequest>>(
+                ActivityEventType.deleted,
+                FileDescriptions.deleteFile,
+                jacksonTypeRef(),
+                listOf(
+                    "request.request.path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<SingleFileAudit<DeleteFileRequest>>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return listOf(
+                        ActivityEvent.Deleted(
+                            doc.token.principal.username,
+                            doc.timestamp.time,
+                            doc.requestJson.request.path
+                        )
+                    )
+                }
+            }
+
+            object FilesDownload : CallWithActivity<BulkFileAudit<FindByPath>>(
+                ActivityEventType.download,
+                FileDescriptions.download,
+                jacksonTypeRef(),
+                listOf(
+                    "request.path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<BulkFileAudit<FindByPath>>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return listOf(
+                        ActivityEvent.Download(
+                            doc.token.principal.username,
+                            doc.timestamp.time,
+                            doc.requestJson.request.path
+                        )
+                    )
+                }
+            }
+
+            object FilesFavoriteToggle : CallWithActivity<ToggleFavoriteAudit>(
+                ActivityEventType.favorite,
+                FileFavoriteDescriptions.toggleFavorite,
+                jacksonTypeRef(),
+                listOf(
+                    "files.path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<ToggleFavoriteAudit>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return doc.requestJson.files.filter { it.newStatus != null }.map {
+                        ActivityEvent.Favorite(
+                            doc.token.principal.username,
+                            doc.requestJson.files.single().newStatus!!,
+                            doc.timestamp.time,
+                            doc.requestJson.files.single().path
+                        )
+                    }
+                }
+            }
+
+            object FilesMoved : CallWithActivity<SingleFileAudit<MoveRequest>>(
+                ActivityEventType.moved,
+                FileDescriptions.move,
+                jacksonTypeRef(),
+                listOf(
+                    "request.path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<SingleFileAudit<MoveRequest>>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return listOf(
+                        ActivityEvent.Moved(
+                            doc.token.principal.username,
+                            doc.requestJson.request.newPath,
+                            doc.timestamp.time,
+                            doc.requestJson.request.path
+                        )
+                    )
+                }
+            }
+
+            object FilesReclassified : CallWithActivity<SingleFileAudit<ReclassifyRequest>>(
+                ActivityEventType.reclassify,
+                FileDescriptions.reclassify,
+                jacksonTypeRef(),
+                listOf(
+                    "request.path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<SingleFileAudit<ReclassifyRequest>>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return listOf(
+                        ActivityEvent.Reclassify(
+                            doc.token.principal.username,
+                            doc.timestamp.time,
+                            doc.requestJson.request.path,
+                            doc.requestJson.request.sensitivity?.name ?: "Inherit"
+                        )
+                    )
+                }
+            }
+
+            object FilesUpdateAcl : CallWithActivity<BulkFileAudit<UpdateAclRequest>>(
+                ActivityEventType.updatedACL,
+                FileDescriptions.updateAcl,
+                jacksonTypeRef(),
+                listOf(
+                    "request.path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<BulkFileAudit<UpdateAclRequest>>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    val changes = ArrayList<ActivityEvent.RightsAndUser>()
+                    doc.requestJson.request.changes.forEach { update ->
+                        changes.add(ActivityEvent.RightsAndUser(update.rights, update.entity.username))
+                    }
+
+                    return listOf(
+                        ActivityEvent.UpdatedAcl(
+                            doc.token.principal.username,
+                            doc.timestamp.time,
+                            doc.requestJson.request.path,
+                            changes.toList()
+                        )
+                    )
+                }
+            }
+
+            object FilesBulkUpload : CallWithActivity<BulkUploadAudit>(
+                ActivityEventType.upload,
+                MultiPartUploadDescriptions.simpleBulkUpload,
+                jacksonTypeRef(),
+                listOf(
+                    "path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<BulkUploadAudit>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return listOf(
+                        ActivityEvent.Uploaded(
+                            doc.token.principal.username,
+                            doc.timestamp.time,
+                            doc.requestJson.path
+                        )
+                    )
+                }
+            }
+
+            object FilesUpload : CallWithActivity<MultiPartUploadAudit>(
+                ActivityEventType.upload,
+                MultiPartUploadDescriptions.simpleUpload,
+                jacksonTypeRef(),
+                listOf(
+                    "path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<MultiPartUploadAudit>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return listOf(
+                        ActivityEvent.Uploaded(
+                            doc.token.principal.username,
+                            doc.timestamp.time,
+                            doc.requestJson.request?.path!!
+                        )
+                    )
+                }
+            }
+
+            object ApplicationStart : CallWithActivity<StartJobRequest>(
+                ActivityEventType.usedInApp,
+                JobDescriptions.start,
+                jacksonTypeRef(),
+                listOf(
+                    "mounts.source",
+                    "parameters.*.source"
+                ),
+                usesAllDescendants = true
+            ) {
+                private fun checkSource(
+                    element: String,
+                    normalizedFilePath: String,
+                    inUserSearch: Boolean = false
+                ): String? {
+                    val clearElement = element.removePrefix("{").removeSuffix("}")
+                    if (clearElement.contains("source")) {
+                        val startIndex = clearElement.indexOf("source=") + "source=".length
+                        val sourceStartString = clearElement.substring(startIndex)
+                        val path = sourceStartString.substring(0, sourceStartString.indexOf(", ")).normalize()
+                        if (path == normalizedFilePath || inUserSearch) {
+                            return path
+                        }
+                    }
+                    return null
+                }
+
+                override fun createActivityEvents(
+                    doc: AuditEntry<StartJobRequest>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    val activityEventList = ArrayList<ActivityEvent>()
+
+                    if (isFileSearch) {
+                        doc.requestJson.mounts.forEach { mount ->
+                            val path = checkSource(mount.toString(), normalizedFilePath)
+                            if (path != null) {
+                                activityEventList.add(
+                                    ActivityEvent.SingleFileUsedByApplication(
+                                        doc.token.principal.username,
+                                        doc.timestamp.time,
+                                        path,
+                                        doc.requestJson.application.name,
+                                        doc.requestJson.application.version
+                                    )
+                                )
+                            }
+                        }
+                        doc.requestJson.parameters.forEach { (t, u) ->
+                            if (t == "directory") {
+                                val path = checkSource(u.toString(), normalizedFilePath)
+                                if (path != null) {
+                                    activityEventList.add(
+                                        ActivityEvent.SingleFileUsedByApplication(
+                                            doc.token.principal.username,
+                                            doc.timestamp.time,
+                                            path,
+                                            doc.requestJson.application.name,
+                                            doc.requestJson.application.version
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    if (isUserSearch) {
+                        var filesUsed = ""
+                        doc.requestJson.mounts.forEach { mount ->
+                            val path = checkSource(mount.toString(), normalizedFilePath, inUserSearch = true)
+                            if (path != null) {
+                                filesUsed += "$path, "
+                            }
+                        }
+                        doc.requestJson.parameters.forEach { (t, u) ->
+                            if (t == "directory") {
+                                val path = checkSource(u.toString(), normalizedFilePath, inUserSearch = true)
+                                if (path != null) {
+                                    filesUsed += "$path, "
+                                }
+                            }
+                        }
+                        activityEventList.add(
+                            ActivityEvent.AllFilesUsedByApplication(
+                                doc.token.principal.username,
+                                doc.timestamp.time,
+                                filesUsed,
+                                doc.requestJson.application.name,
+                                doc.requestJson.application.version
+                            )
+                        )
+                    }
+
+                    return activityEventList
+                }
+            }
+
+            object ShareCreated : CallWithActivity<Shares.Create.Request>(
+                ActivityEventType.sharedWith,
+                Shares.create,
+                jacksonTypeRef(),
+                listOf(
+                    "path"
+                )
+            ) {
+                override fun createActivityEvents(
+                    doc: AuditEntry<Shares.Create.Request>,
+                    isUserSearch: Boolean,
+                    isFileSearch: Boolean,
+                    normalizedFilePath: String
+                ): List<ActivityEvent> {
+                    return listOf(
+                        ActivityEvent.SharedWith(
+                            doc.token.principal.username,
+                            doc.timestamp.time,
+                            doc.requestJson.path,
+                            doc.requestJson.sharedWith,
+                            doc.requestJson.rights
+                        )
+                    )
+                }
+            }
+
+            companion object {
+                val all by lazy { CallWithActivity::class.sealedSubclasses.map { it.objectInstance!! } }
+                val allIndices by lazy { all.map { it.index } }
+                val callsByType: Map<ActivityEventType, List<CallWithActivity<*>>> by lazy {
+                    all.groupBy { it.eventType }
+                }
             }
         }
-        return null
-    }
-
-    companion object: Loggable {
-        override val log = logger()
-        const val FILES_COPY = "http_logs_files.copy-*" //requestJson.request.path
-        const val FILES_CREATE_DIR = "http_logs_files.createdirectory-*" //requestJson.path
-        const val FILES_DELETE_FILE = "http_logs_files.deletefile-*" //requestJson.request.path
-        const val FILES_DOWNLOAD = "http_logs_files.download-*" //requestJson.request.path
-        const val FILES_FAVORITE_TOGGLE = "http_logs_files.favorite.togglefavorite-*" //requestJson.files.path
-        const val FILES_MOVED = "http_logs_files.move-*" //requestJson.request.path
-        const val FILES_RECLASSYFIED = "http_logs_files.reclassify-*" //requestJson.request.path
-        const val FILES_UPDATEDACL = "http_logs_files.updateacl-*" //requestJson.request.path
-        const val FILES_SIMPLE_BULK_UPLOAD = "http_logs_files.upload.simplebulkupload-*" //requestJson.request.path
-        const val FILES_SIMPLE_UPLOAD = "http_logs_files.upload.simpleupload-*" //requestJson.request.path
-        const val APP_START_INDEX = "http_logs_hpc.jobs.start-*" //requestJson.mounts.source
-        const val SHARES_CREATED = "http_logs_shares.create-*" //requestJson.path
-
-        val ALL_RELEVANT_INDICES = arrayOf(FILES_COPY, FILES_CREATE_DIR, FILES_DELETE_FILE, FILES_DOWNLOAD,
-            FILES_FAVORITE_TOGGLE, FILES_MOVED, FILES_RECLASSYFIED, FILES_UPDATEDACL, FILES_SIMPLE_BULK_UPLOAD,
-            FILES_SIMPLE_UPLOAD, APP_START_INDEX, SHARES_CREATED)
-
     }
 }

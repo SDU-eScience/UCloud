@@ -340,7 +340,7 @@ bundle { ctx ->
         )
     }
 
-    withConfigMap("auth-config", version = "5") {
+    withConfigMap("auth-config", version = "6") {
         val trustedOrigins: List<String> = when (ctx.environment) {
             Environment.TEST, Environment.DEVELOPMENT -> listOf("localhost", host(ctx.environment))
             Environment.PRODUCTION -> listOf(host(ctx.environment))
@@ -394,7 +394,7 @@ bundle { ctx ->
             TokenExtension(
                 "_project-repository",
                 listOf(
-                    "files.updateAcl:write"
+                    "files.updateProjectAcl:write"
                 )
             )
         )
