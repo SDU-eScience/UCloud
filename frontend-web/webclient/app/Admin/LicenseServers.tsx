@@ -179,21 +179,25 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     const [selectedEntityType, setSelectedEntityType] = React.useState<UserEntityType>(UserEntityType.USER);
     const [accessEntryToDelete, setAccessEntryToDelete] = React.useState<AclEntry | null>(null);
     const [, invokeCommand] = useAsyncCommand();
+    const promises = usePromiseKeeper()
 
     const userEntityField = React.useRef<HTMLInputElement>(null);
     const projectEntityField = React.useRef<HTMLInputElement>(null);
     const groupEntityField = React.useRef<HTMLInputElement>(null);
 
-    async function loadAcl(serverId: string): Promise<AclEntry[]> {
-        const {response} = await Client.get<AclEntry[]>(`/app/license/listAcl?serverId=${serverId}`);
-        return response.map(item => ({
-            entity: {
-                user: item.entity.user,
-                project: item.entity.project,
-                group: item.entity.group
-            },
-            permission: item.permission
-        }));
+    async function loadAcl(serverId: string) {
+        try {
+            const {response} = await (
+                await promises.makeCancelable(
+                    Client.get<AclEntry[]>(`/app/license/listAcl?serverId=${serverId}`)
+                ).promise
+            );
+            setAccessList(response);
+        } catch (err) {
+            if (!promises.canceledKeeper) {
+                snackbarStore.addFailure("Failed to load License Server Permissions");
+            }
+        }
     }
 
     async function deleteAclEntry(): Promise<void> {
@@ -217,7 +221,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     }
 
     async function loadAndSetAccessList(serverId: string): Promise<void> {
-        setAccessList(await loadAcl(serverId));
+        await loadAcl(serverId);
     }
 
     React.useEffect(() => {
@@ -242,8 +246,8 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                             Remove access for {accessEntryToDelete?.entity.user !== null ? (
                                 accessEntryToDelete?.entity.user
                             ) : (
-                                accessEntryToDelete?.entity.project + ':' + accessEntryToDelete?.entity.group
-                            )}?
+                                    `${accessEntryToDelete?.entity.project}:${accessEntryToDelete?.entity.group}`
+                                )}?
                         </Text>
                     </Box>
                     <Box mt="6px" alignItems="center">
@@ -261,7 +265,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                         onSubmit={async e => {
                             e.preventDefault();
 
-                            if(selectedEntityType == UserEntityType.USER) {
+                            if (selectedEntityType == UserEntityType.USER) {
                                 const userField = userEntityField.current;
                                 if (userField === null) return;
 
@@ -287,7 +291,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                 await loadAndSetAccessList(licenseServer.id);
                                 userField.value = "";
 
-                            } else if(selectedEntityType === UserEntityType.PROJECT_GROUP) {
+                            } else if (selectedEntityType === UserEntityType.PROJECT_GROUP) {
                                 const projectField = projectEntityField.current;
                                 if (projectField === null) return;
 
@@ -348,27 +352,27 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                     placeholder="Username"
                                 />
                             ) : (
-                                <>
-                                    <Input
-                                        leftLabel
-                                        rightLabel
-                                        required
-                                        width={200}
-                                        type="text"
-                                        ref={projectEntityField}
-                                        placeholder="Project name"
-                                    />
-                                    <Input
-                                        leftLabel
-                                        rightLabel
-                                        required
-                                        width={200}
-                                        type="text"
-                                        ref={groupEntityField}
-                                        placeholder="Group name"
-                                    />
-                                </>
-                            )}
+                                    <>
+                                        <Input
+                                            leftLabel
+                                            rightLabel
+                                            required
+                                            width={200}
+                                            type="text"
+                                            ref={projectEntityField}
+                                            placeholder="Project name"
+                                        />
+                                        <Input
+                                            leftLabel
+                                            rightLabel
+                                            required
+                                            width={200}
+                                            type="text"
+                                            ref={groupEntityField}
+                                            placeholder="Group name"
+                                        />
+                                    </>
+                                )}
 
 
                             <InputLabel width={160} rightLabel>
@@ -407,18 +411,18 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                 {accessList.map((accessEntry, index) => (
                                     <TableRow key={index}>
                                         <TableCell>
-                                            { accessEntry.entity.user ? (
+                                            {accessEntry.entity.user ? (
                                                 prettifyEntityType(UserEntityType.USER)
                                             ) : (
-                                                prettifyEntityType(UserEntityType.PROJECT_GROUP)
-                                            )}
+                                                    prettifyEntityType(UserEntityType.PROJECT_GROUP)
+                                                )}
                                         </TableCell>
                                         <TableCell>
-                                            { accessEntry.entity.user ? (
+                                            {accessEntry.entity.user ? (
                                                 accessEntry.entity.user
                                             ) : (
-                                                accessEntry.entity.project + " " + accessEntry.entity.group
-                                            )}
+                                                    accessEntry.entity.project + " " + accessEntry.entity.group
+                                                )}
                                         </TableCell>
                                         <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
                                         <TableCell textAlign="right">
@@ -452,9 +456,7 @@ interface LicenseServer {
 }
 
 function openAclDialog(licenseServer: LicenseServer): void {
-    console.log("Opens ACL dialog");
     dialogStore.addDialog(<LicenseServerAclPrompt licenseServer={licenseServer} />, () => undefined);
-    console.log("Done");
 }
 
 function openTagsDialog(licenseServer: LicenseServer): void {
