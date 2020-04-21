@@ -77,6 +77,7 @@ function promptRedirect(history: History, setProject: () => void, refresh?: () =
 
 const HoverBox = styled(Truncate)`
     width: auto;
+    color: white;
     padding-left: 8px;
     padding-right: 8px;
     border-radius: 8px;
