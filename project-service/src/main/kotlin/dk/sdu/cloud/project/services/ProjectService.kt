@@ -22,6 +22,8 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
+import dk.sdu.cloud.service.db.async.PostgresErrorCodes
+import dk.sdu.cloud.service.db.async.errorCode
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
@@ -30,21 +32,25 @@ class ProjectService(
     private val db: DBSessionFactory<AsyncDBConnection>,
     private val dao: ProjectDao,
     private val eventProducer: EventProducer<ProjectEvent>,
-    private val serviceClient: AuthenticatedClient,
-    private val uniqueNameService: UniqueNameService
+    private val serviceClient: AuthenticatedClient
 ) {
     suspend fun create(title: String, principalInvestigator: String): Project {
         confirmUserExists(principalInvestigator)
-        val id = generateIdFromTitle(title)
-        log.info("Using ID: $id")
-
         return db.withTransaction { session ->
-            dao.create(session, id, title, principalInvestigator)
-            val piMember = ProjectMember(principalInvestigator, ProjectRole.PI)
+            try {
+                dao.create(session, title, title, principalInvestigator)
+                val piMember = ProjectMember(principalInvestigator, ProjectRole.PI)
 
-            val project = Project(id, title, listOf(piMember))
-            eventProducer.produce(ProjectEvent.Created(project))
-            project
+                val project = Project(title, title, listOf(piMember))
+                eventProducer.produce(ProjectEvent.Created(project))
+                project
+            } catch (ex: GenericDatabaseException) {
+                if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+                    throw RPCException("Project already exists", HttpStatusCode.Conflict)
+                }
+
+                throw ex
+            }
         }
     }
 
@@ -175,10 +181,6 @@ class ProjectService(
         }
 
         return project
-    }
-
-    private suspend fun generateIdFromTitle(title: String): String {
-        return uniqueNameService.generateUniqueId(title)
     }
 
     companion object : Loggable {

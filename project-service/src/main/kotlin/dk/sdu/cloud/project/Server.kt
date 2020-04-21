@@ -33,14 +33,12 @@ class Server(
         val projectDao = ProjectDao()
         val groupDao = GroupDao()
         val eventProducer = eventStreamService.createProducer(ProjectEvents.events)
-        val uniqueNameService = UniqueNameService(db, projectDao)
 
         val projectService = ProjectService(
             db,
             projectDao,
             eventProducer,
-            client,
-            uniqueNameService
+            client
         )
 
         val groupService = GroupService(
