@@ -74,7 +74,7 @@ class ApplicationHibernateDAO(
         if (isPublic(session, user, appName, appVersion)) return true
         return aclDAO.hasPermission(
             session,
-            UserEntity(user.username, EntityType.USER),
+            AccessEntity(user.username, EntityType.USER),
             appName,
             setOf(permission)
         )
@@ -115,7 +115,7 @@ class ApplicationHibernateDAO(
                     fav.user = :user and
                     fav.applicationName = application.id.name and
                     fav.applicationVersion = application.id.version and
-                    (application.isPublic = TRUE or permission.key.userEntity = :user or :role in (:privileged))
+                    (application.isPublic = TRUE or permission.key.accessEntity = :user or :role in (:privileged))
                 order by fav.applicationName
             """.trimIndent()
         ).setParameter("user", user.username)
@@ -185,7 +185,7 @@ class ApplicationHibernateDAO(
                 group by title
             ) and (A.id.name) in (:applications) and
             (A.isPublic = true or :user in (
-                select P.key.userEntity from PermissionEntry as P where A.id.name = P.key.applicationName
+                select P.key.accessEntity from PermissionEntry as P where A.id.name = P.key.applicationName
             ) or :role in (:privileged))
             """.trimIndent()
         ).setParameter("applications", applicationNames)
@@ -206,7 +206,7 @@ class ApplicationHibernateDAO(
                 group by title
             ) and (A.id.name) in (:applications) and
             (A.isPublic = true or :user in (
-                select P.key.userEntity from PermissionEntry as P where A.id.name = P.key.applicationName
+                select P.key.accessEntity from PermissionEntry as P where A.id.name = P.key.applicationName
             ) or :role in (:privileged))
             order by A.title
         """.trimIndent()
@@ -320,7 +320,7 @@ class ApplicationHibernateDAO(
                     group by title
                 ) and $keywordsQuery and
                 (A.isPublic = true or :user in (
-                    select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                    select P.key.accessEntity from PermissionEntry as P where P.key.applicationName = A.id.name
                 ) or :role in (:privileged))
                 order by A.title
             """.trimIndent()
@@ -353,7 +353,7 @@ class ApplicationHibernateDAO(
                 group by title
             ) and $keywordsQuery and
             (A.isPublic = true or :user in (
-                select P.key.userEntity from PermissionEntry as P where A.id.name = P.key.applicationName 
+                select P.key.accessEntity from PermissionEntry as P where A.id.name = P.key.applicationName 
             ) or :role in (:privileged))
             """.trimIndent()
         ).setParameter("user", user.username)
@@ -401,7 +401,7 @@ class ApplicationHibernateDAO(
                    group by title
                ) and lower(A.title) like '%' || :query || '%' and
                (A.isPublic = true or :user in (
-                   select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                   select P.key.accessEntity from PermissionEntry as P where P.key.applicationName = A.id.name
                ) or :role in (:privileged))
             """.trimIndent()
         ).setParameter("query", normalizedQuery)
@@ -450,7 +450,7 @@ class ApplicationHibernateDAO(
                 from ApplicationEntity as A
                 where lower(A.title) like '%' || :query || '%' and
                     (A.isPublic = true or :user in (
-                        select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                        select P.key.accessEntity from PermissionEntry as P where P.key.applicationName = A.id.name
                     ) or :role in (:privileged))
                 order by A.title
             """.trimIndent()
@@ -618,7 +618,7 @@ class ApplicationHibernateDAO(
                     where A.id.name = B.id.name and (
                         A.isPublic = true or
                         :user in (
-                            select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                            select P.key.accessEntity from PermissionEntry as P where P.key.applicationName = A.id.name
                         ) or :role in (:privileged)
                     )
                     group by id.name
@@ -639,7 +639,7 @@ class ApplicationHibernateDAO(
                     where A.id.name = B.id.name  and (
                         A.isPublic = true or
                         :user in (
-                            select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                            select P.key.accessEntity from PermissionEntry as P where P.key.applicationName = A.id.name
                         ) or :role in (:privileged)
                     )
                     group by id.name
@@ -966,7 +966,7 @@ class ApplicationHibernateDAO(
                 ) and A.toolName = :toolName and (
                     A.isPublic = true or
                     :user in (
-                        select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                        select P.key.accessEntity from PermissionEntry as P where P.key.applicationName = A.id.name
                     ) or :role in (:privileged)
                 )
             """.trimIndent()
@@ -990,7 +990,7 @@ class ApplicationHibernateDAO(
                     ) and A.toolName = :toolName and (
                         A.isPublic = true or
                         :user in (
-                            select P.key.userEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                            select P.key.accessEntity from PermissionEntry as P where P.key.applicationName = A.id.name
                         ) or :role in (:privileged)
                     )
                 order by A.id.name

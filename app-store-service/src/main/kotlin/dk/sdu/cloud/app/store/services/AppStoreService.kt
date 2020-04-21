@@ -119,7 +119,7 @@ class AppStoreService<DBSession>(
             applicationDAO.isPublic(session, securityPrincipal, appName, appVersion) ||
                     aclDao.hasPermission(
                         session,
-                        UserEntity(securityPrincipal.username, EntityType.USER),
+                        AccessEntity(securityPrincipal.username, EntityType.USER),
                         appName,
                         permissions
                     )
@@ -165,7 +165,7 @@ class AppStoreService<DBSession>(
     private suspend fun updatePermissionsWithSession(
         session: DBSession,
         applicationName: String,
-        entity: UserEntity,
+        entity: AccessEntity,
         permissions: ApplicationAccessRight
     ) {
         if (entity.type == EntityType.USER) {
@@ -193,7 +193,7 @@ class AppStoreService<DBSession>(
     private fun revokePermissionWithSession(
         session: DBSession,
         applicationName: String,
-        entity: UserEntity
+        entity: AccessEntity
     ) {
         aclDao.revokePermission(session, entity, applicationName)
     }

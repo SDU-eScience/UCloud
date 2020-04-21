@@ -15,7 +15,7 @@ data class PermissionEntry(
 
     @Embeddable
     data class Key(
-        @get:Column(name = "entity") var userEntity: String,
+        @get:Column(name = "entity") var accessEntity: String,
         @get:Enumerated(EnumType.STRING) @Column(name = "entity_type") var entityType: EntityType,
         @get:Column(name = "application_name") var applicationName: String,
         @get:Enumerated(EnumType.STRING) var permission: ApplicationAccessRight
@@ -26,13 +26,13 @@ data class PermissionEntry(
 class AclHibernateDao : AclDao<HibernateSession> {
     override fun hasPermission(
         session: HibernateSession,
-        accessEntity: UserEntity,
+        accessEntity: AccessEntity,
         applicationName: String,
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
         val result = session.criteria<PermissionEntry> {
             allOf(
-                (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal accessEntity.id),
+                (entity[PermissionEntry::key][PermissionEntry.Key::accessEntity] equal accessEntity.id),
                 (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type),
                 (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName)
             )
@@ -47,14 +47,14 @@ class AclHibernateDao : AclDao<HibernateSession> {
 
     override fun updatePermissions(
         session: HibernateSession,
-        userEntity: UserEntity,
+        accessEntity: AccessEntity,
         applicationName: String,
         permissions: ApplicationAccessRight
     ) {
         val permissionEntry = PermissionEntry(
             PermissionEntry.Key(
-                userEntity.id,
-                userEntity.type,
+                accessEntity.id,
+                accessEntity.type,
                 applicationName,
                 permissions
             )
@@ -65,14 +65,14 @@ class AclHibernateDao : AclDao<HibernateSession> {
 
     override fun revokePermission(
         session: HibernateSession,
-        userEntity: UserEntity,
+        accessEntity: AccessEntity,
         applicationName: String
     ) {
         session.deleteCriteria<PermissionEntry> {
             allOf(
                 (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName),
-                (entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal userEntity.id),
-                (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal userEntity.type)
+                (entity[PermissionEntry::key][PermissionEntry.Key::accessEntity] equal accessEntity.id),
+                (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type)
             )
         }.executeUpdate()
     }
@@ -87,7 +87,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             }
             .list()
             .map {
-                EntityWithPermission(UserEntity(it.key.userEntity, it.key.entityType), it.key.permission)
+                EntityWithPermission(AccessEntity(it.key.accessEntity, it.key.entityType), it.key.permission)
             }
     }
 }
