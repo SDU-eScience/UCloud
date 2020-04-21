@@ -74,7 +74,7 @@ class ApplicationHibernateDAO(
         if (isPublic(session, user, appName, appVersion)) return true
         return aclDAO.hasPermission(
             session,
-            AccessEntity(user.username, EntityType.USER),
+            AccessEntity(user.username, null, null),
             appName,
             setOf(permission)
         )
