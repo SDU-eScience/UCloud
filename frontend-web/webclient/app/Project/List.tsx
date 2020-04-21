@@ -1,5 +1,5 @@
 import {useCloudAPI} from "Authentication/DataHook";
-import {emptyPage, ReduxObject} from "DefaultObjects";
+import {emptyPage, ReduxObject, KeyCode} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
 import {listProjects, ListProjectsRequest, UserInProject, ProjectRole} from "Project/index";
@@ -8,7 +8,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page} from "Types";
 import Button from "ui-components/Button";
-import {Flex, Icon, List, Text, Input} from "ui-components";
+import {Flex, Icon, List, Text, Input, Box} from "ui-components";
 import Link from "ui-components/Link";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -62,6 +62,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     pageRenderer={page => (
                         <List>
                             <ListRow
+                                icon={<Box width="24px" />}
                                 left={<Text>Personal project</Text>}
                                 leftSub={<Text color="gray" fontSize={0}><Icon size="10" name="id" /> {Client.username}</Text>}
                                 right={<Icon
@@ -79,6 +80,14 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                             />
                             {creatingProject ?
                                 <ListRow
+                                    icon={<Icon
+                                        cursor="pointer"
+                                        size="24"
+                                        name={"starEmpty"}
+                                        color={"midGray"}
+                                        onClick={(): void => {}}
+                                        hoverColor="blue"
+                                    />}
                                     left={<form onSubmit={createProject}><Input
                                         pt="0px"
                                         pb="0px"
@@ -87,6 +96,11 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         noBorder
                                         fontSize={20}
                                         maxLength={1024}
+                                        onKeyDown={e => {
+                                            if (e.keyCode === KeyCode.ESC) {
+                                                setCreatingProject(false);
+                                            }
+                                        }}
                                         borderRadius="0px"
                                         type="text"
                                         width="100%"
@@ -105,6 +119,14 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 return (
                                     <ListRow
                                         key={e.projectId}
+                                        icon={<Icon
+                                            cursor="pointer"
+                                            size="24"
+                                            name={e.needsVerification ? "starFilled" : "starEmpty"}
+                                            color={e.needsVerification ? "blue" : "midGray"}
+                                            onClick={(event): void => {}}
+                                            hoverColor="blue"
+                                        />}
                                         navigate={() => history.push(`/projects/view/${encodeURIComponent(e.projectId)}`)}
                                         left={<Text cursor="pointer">{e.title}</Text>}
                                         leftSub={<>
