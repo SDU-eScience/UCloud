@@ -2,13 +2,13 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage, ReduxObject} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
-import {listProjects, ListProjectsRequest, UserInProject} from "Project/index";
+import {listProjects, ListProjectsRequest, UserInProject, ProjectRole} from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page} from "Types";
 import Button from "ui-components/Button";
-import {Flex, Icon, List, Text} from "ui-components";
+import {Flex, Icon, List, Text, Input} from "ui-components";
 import Link from "ui-components/Link";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -21,6 +21,8 @@ import {projectRoleToString} from "Project/api";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
+import {errorMessageOrDefault} from "UtilityFunctions";
+import {SnackType} from "Snackbar/Snackbars";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -28,6 +30,9 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         listProjects({page: 0, itemsPerPage: 50}),
         emptyPage
     );
+
+    const [creatingProject, setCreatingProject] = React.useState(false);
+    const title = React.useRef<HTMLInputElement>(null);
 
     React.useEffect(() => {
         props.setLoading(response.loading);
@@ -72,6 +77,28 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     }}
                                 />}
                             />
+                            {creatingProject ?
+                                <ListRow
+                                    left={<form onSubmit={createProject}><Input
+                                        pt="0px"
+                                        pb="0px"
+                                        pr="0px"
+                                        pl="0px"
+                                        noBorder
+                                        fontSize={20}
+                                        maxLength={1024}
+                                        borderRadius="0px"
+                                        type="text"
+                                        width="100%"
+                                        autoFocus
+                                        ref={title}
+                                    /></form>}
+                                    right={<div />}
+                                    leftSub={<Text ml="4px" color="gray" fontSize={0}>
+                                        <Icon color="white" color2="gray" mt="-2px" size="10" name="user" />
+                                        {" "}{projectRoleToString(ProjectRole.PI)}
+                                    </Text>}
+                                /> : null}
                             {page.items.map(e => {
                                 const isSelected = e.projectId === props.project;
                                 const showGroups = isSelected && isAdminOrPI(e.whoami.role);
@@ -117,18 +144,46 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             )}
             sidebar={(
                 <VerticalButtonGroup>
-                    <Link to="/projects/create"><Button>Create project</Button></Link>
+                    <Button onClick={startCreateProject}>Create project</Button>
                 </VerticalButtonGroup>
             )}
         />
     );
-};
 
-interface ProjectSummaryProps {
-    summary: UserInProject;
-    isSelected: boolean;
-    setProject(id: string): void;
-}
+    function startCreateProject(): void {
+        setCreatingProject(true);
+    }
+
+
+    async function createProject(e: React.FormEvent): Promise<void> {
+        e.preventDefault();
+        if (response.loading) return;
+        if (title.current == null) return;
+
+        // TODO FIXME This will only work for admin accounts!!!
+        if (!Client.userIsAdmin) {
+            snackbarStore.addFailure("Currently requires user is admin in backend.");
+            return;
+        }
+
+        try {
+            const res = await Client.post<{id: string}>("/projects", {
+                title: title.current.value,
+                principalInvestigator: Client.username!
+            });
+
+            snackbarStore.addSnack({
+                message: "Group created.",
+                type: SnackType.Success
+            });
+            setCreatingProject(false);
+            reload();
+            props.setProject(res.response.id);
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to create group."));
+        }
+    }
+};
 
 interface DispatchProps {
     setProject: (id?: string) => void;
