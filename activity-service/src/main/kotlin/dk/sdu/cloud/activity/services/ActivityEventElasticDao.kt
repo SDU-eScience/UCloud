@@ -137,8 +137,10 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) : Activit
             query.filter(QueryBuilders.matchPhraseQuery("token.principal.username", filter.user))
         }
 
-        for (repo in repos) {
-            if (repo.name.isBlank()) continue
+        val validRepos = repos.filter { it.name.isNotBlank() }
+        if (validRepos.isEmpty()) return emptyList()
+
+        for (repo in validRepos) {
             val repoPath = "/projects/$projectID/${repo.name}"
 
             CallWithActivity.all.forEach { call ->
@@ -151,9 +153,9 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) : Activit
                     )
                 }
             }
-
-            query.minimumShouldMatch(1)
         }
+
+        query.minimumShouldMatch(1)
 
         val index = getIndexByType(filter.type).toTypedArray()
 
