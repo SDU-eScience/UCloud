@@ -319,7 +319,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         </Link>
     ) : <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
     return (
-        <Card height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} mb={12}>
+        <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} mb={12}>
             <BorderedFlex
                 bg="lightGray"
                 color="darkGray"
