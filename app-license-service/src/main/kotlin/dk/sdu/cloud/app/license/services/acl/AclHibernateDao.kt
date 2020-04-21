@@ -32,9 +32,9 @@ class AclHibernateDao : AclDao<HibernateSession> {
         permission: ServerAccessRight
     ): Boolean {
         val permissionSet = if (permission == ServerAccessRight.READ_WRITE) {
-            setOf(ServerAccessRight.READ, ServerAccessRight.READ_WRITE)
+            setOf(ServerAccessRight.READ_WRITE)
         } else {
-            setOf(ServerAccessRight.READ)
+            setOf(ServerAccessRight.READ_WRITE, ServerAccessRight.READ)
         }
 
         return session.criteria<PermissionEntry> {
