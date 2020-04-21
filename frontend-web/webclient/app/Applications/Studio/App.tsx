@@ -8,8 +8,8 @@ import {
     listByName,
     updateApplicationPermission,
     uploadLogo,
-    UserEntity,
-    UserEntityType
+    AccessEntity,
+    AccessEntityType
 } from "Applications/api";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import * as Actions from "Applications/Redux/BrowseActions";
@@ -53,8 +53,8 @@ interface AppVersion {
 }
 
 const entityTypes = [
-    {text: prettifyEntityType(UserEntityType.USER), value: UserEntityType.USER},
-    {text: prettifyEntityType(UserEntityType.PROJECT_GROUP), value: UserEntityType.PROJECT_GROUP},
+    {text: prettifyEntityType(AccessEntityType.USER), value: AccessEntityType.USER},
+    {text: prettifyEntityType(AccessEntityType.PROJECT_GROUP), value: AccessEntityType.PROJECT_GROUP},
 ];
 
 function prettifyAccessRight(accessRight: ApplicationAccessRight) {
@@ -64,12 +64,12 @@ function prettifyAccessRight(accessRight: ApplicationAccessRight) {
     }
 }
 
-function prettifyEntityType(entityType: UserEntityType): string {
+function prettifyEntityType(entityType: AccessEntityType): string {
     switch (entityType) {
-        case UserEntityType.USER: {
+        case AccessEntityType.USER: {
             return "User";
         }
-        case UserEntityType.PROJECT_GROUP: {
+        case AccessEntityType.PROJECT_GROUP: {
             return "Project group";
         }
         default: {
@@ -80,9 +80,12 @@ function prettifyEntityType(entityType: UserEntityType): string {
 }
 
 async function loadApplicationPermissionEntries(appName: string): Promise<ApplicationPermissionEntry[]> {
-    const {response} = await Client.get<Array<{entity: UserEntity, permission: ApplicationAccessRight}>>(`/hpc/apps/list-acl/${appName}`);
+    const {response} = await Client.get<Array<{
+        entity: AccessEntity;
+        permission: ApplicationAccessRight;
+    }>>(`/hpc/apps/list-acl/${appName}`);
     return response.map(item => {
-        const entityObj: UserEntity = { id: item.entity.id, type: item.entity.type };
+        const entityObj: AccessEntity = { user: item.entity.user, project: item.entity.project, group: item.entity.group };
         const entry: ApplicationPermissionEntry = {
             entity: entityObj,
             permission: item.permission,
@@ -101,7 +104,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     const [apps, setAppParameters, appParameters] =
         useCloudAPI<Page<WithAppMetadata & WithAllAppTags>>({noop: true}, emptyPage);
     const [versions, setVersions] = useState<AppVersion[]>([]);
-    const [selectedEntityType, setSelectedEntityType] = React.useState<UserEntityType>(UserEntityType.USER);
+    const [selectedEntityType, setSelectedEntityType] = React.useState<AccessEntityType>(AccessEntityType.USER);
 
     const permissionLevels = [
         {text: prettifyAccessRight(ApplicationAccessRight.LAUNCH), value: ApplicationAccessRight.LAUNCH}
@@ -264,27 +267,28 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     e.preventDefault();
                                     if (commandLoading) return;
 
-                                    const permissionField = userEntityField.current;
-                                    if (permissionField === null) return;
+                                    if (selectedEntityType == AccessEntityType.USER) {
+                                        const userField = userEntityField.current;
+                                        if (userField === null) return;
 
-                                    const permissionValue = permissionField.value;
-                                    if (permissionValue === "") return;
+                                        const userValue = userField.value;
+                                        if (userValue === "") return;
 
-                                    await invokeCommand(updateApplicationPermission(
-                                        {
-                                            applicationName: name,
-                                            changes: [
-                                                {
-                                                    entity: { id: permissionValue, type: UserEntityType.USER },
-                                                    rights: access,
-                                                    revoke: false
-                                                }
-                                            ]
-                                        }
-                                    ));
-                                    setPermissionEntries(await loadApplicationPermissionEntries(name));
-
-                                    permissionField.value = "";
+                                        await invokeCommand(updateApplicationPermission(
+                                            {
+                                                applicationName: name,
+                                                changes: [
+                                                    {
+                                                        entity: { user: userValue, project: null, group: null},
+                                                        rights: access,
+                                                        revoke: false
+                                                    }
+                                                ]
+                                            }
+                                        ));
+                                        setPermissionEntries(await loadApplicationPermissionEntries(name));
+                                        userField.value = "";
+                                    }
                                 }}
                             >
                                 <Flex height={45}>
@@ -292,14 +296,14 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                         <ClickableDropdown
                                             chevron
                                             width="180px"
-                                            onChange={(val: UserEntityType) => setSelectedEntityType(val)}
+                                            onChange={(val: AccessEntityType) => setSelectedEntityType(val)}
                                             trigger={
                                                 <Box as="span" minWidth="220px">{prettifyEntityType(selectedEntityType)}</Box>
                                             }
                                             options={entityTypes}
                                         />
                                     </InputLabel>
-                                    {selectedEntityType === UserEntityType.USER ? (
+                                    {selectedEntityType === AccessEntityType.USER ? (
                                         <Input
                                             rightLabel
                                             leftLabel
@@ -355,9 +359,9 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                             </TableRow>
                                         </LeftAlignedTableHeader>
                                         <tbody>
-                                            {permissionEntries.map(permissionEntry => (
-                                                <TableRow key={permissionEntry.entity.id}>
-                                                    <TableCell>{permissionEntry.entity.id}</TableCell>
+                                            {permissionEntries.map((permissionEntry, index) => (
+                                                <TableRow key={index}>
+                                                    <TableCell>{permissionEntry.entity.user}</TableCell>
                                                     <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
                                                     <TableCell textAlign="right">
                                                         <Button
@@ -368,7 +372,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                 message: (
                                                                     <Box>
                                                                         <Text>
-                                                                            Remove permission for {permissionEntry.entity.id}
+                                                                            Remove permission for {permissionEntry.entity.user}
                                                                         </Text>
                                                                     </Box>
                                                                 ),
@@ -378,7 +382,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                             applicationName: name,
                                                                             changes: [
                                                                                 {
-                                                                                    entity: { id: permissionEntry.entity.id, type: UserEntityType.USER },
+                                                                                    entity: { user: permissionEntry.entity.user, project: permissionEntry.entity.project, group: permissionEntry.entity.group},
                                                                                     rights: permissionEntry.permission,
                                                                                     revoke: true
                                                                                 }

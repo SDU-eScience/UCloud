@@ -95,9 +95,20 @@ export enum LicenseServerAccessRight {
     READ_WRITE = "READ_WRITE"
 }
 
+export enum AccessEntityType {
+    USER = "USER",
+    PROJECT_GROUP = "PROJECT_GROUP"
+}
+
 export enum UserEntityType {
     USER = "USER",
     PROJECT_GROUP = "PROJECT_GROUP"
+}
+
+export interface AccessEntity {
+    user: string | null;
+    project: string | null;
+    group: string | null;
 }
 
 export interface UserEntity {
@@ -106,12 +117,12 @@ export interface UserEntity {
 }
 
 export interface ApplicationPermissionEntry {
-    entity: UserEntity;
+    entity: AccessEntity;
     permission: ApplicationAccessRight;
 }
 
 export interface UpdateApplicationPermissionEntry {
-    entity: UserEntity;
+    entity: AccessEntity;
     rights: ApplicationAccessRight;
     revoke: boolean;
 }
