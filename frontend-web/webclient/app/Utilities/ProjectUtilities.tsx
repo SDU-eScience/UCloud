@@ -13,6 +13,7 @@ import {File, Acl, ProjectEntity} from "Files";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Spacer} from "ui-components/Spacer";
+import {ProjectRole} from "Project";
 
 export function repositoryName(path: string): string {
     if (!path.startsWith("/projects/")) return "";
@@ -171,4 +172,8 @@ export async function updatePermissions(
     } catch (err) {
         snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update permissions"));
     }
+}
+
+export function isAdminOrPI(role: ProjectRole): boolean {
+    return [ProjectRole.ADMIN, ProjectRole.PI].includes(role);
 }

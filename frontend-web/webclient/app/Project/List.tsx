@@ -19,6 +19,7 @@ import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {projectRoleToString} from "Project/api";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -66,6 +67,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                             />
                             {page.items.map(e => {
                                 const isSelected = e.projectId === props.project;
+                                const showGroups = isSelected && isAdminOrPI(e.whoami.role);
                                 return (
                                     <ListRow
                                         key={e.projectId}
@@ -82,7 +84,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                 {!e.needsVerification ? null : (
                                                     <Text fontSize={0} mr={8}><Icon name={"warning"} /> Attention required</Text>
                                                 )}
-                                                {isSelected ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
+                                                {showGroups ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
                                                 {isSelected ? <Icon mr="44px" mt="9px" name="check" color="green" /> : (
                                                     <Button onClick={() => {
                                                         snackbarStore.addInformation(`${e.projectId} is now the active project`);
