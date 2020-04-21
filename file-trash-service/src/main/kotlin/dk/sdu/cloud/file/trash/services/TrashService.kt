@@ -4,19 +4,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.api.CreateDirectoryRequest
-import dk.sdu.cloud.file.api.DeleteFileRequest
-import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.ListDirectoryRequest
-import dk.sdu.cloud.file.api.MoveRequest
-import dk.sdu.cloud.file.api.StatRequest
-import dk.sdu.cloud.file.api.WriteConflictPolicy
-import dk.sdu.cloud.file.api.fileName
-import dk.sdu.cloud.file.api.fileType
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.path
-import dk.sdu.cloud.file.trash.api.FileTrashDescriptions
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
@@ -38,7 +26,7 @@ class TrashService(
             throw RPCException("Invalid trash folder", HttpStatusCode.BadRequest)
         }
 
-        validateTrashDirectory(actualTrashFolder, userCloud)
+        validateTrashDirectory(actualTrashFolder, userCloud, username)
         backgroundScope.launch {
             runTask(wsServiceClient, backgroundScope, "Emptying trash", username) {
                 runCatching {
@@ -80,7 +68,7 @@ class TrashService(
     suspend fun moveFilesToTrash(files: List<String>, username: String, userCloud: AuthenticatedClient) {
         try {
             val trashFolders = files.map { trashDirectoryService.findTrashDirectory(username, it) }.toSet()
-            trashFolders.forEach { folder -> validateTrashDirectory(folder, userCloud) }
+            trashFolders.forEach { folder -> validateTrashDirectory(folder, userCloud, username) }
         } catch (ex: Throwable) {
             log.warn(ex.stackTraceToString())
             throw ex
@@ -119,8 +107,22 @@ class TrashService(
         return result.statusCode.isSuccess()
     }
 
-    private suspend fun validateTrashDirectory(trashDirectoryPath: String, userCloud: AuthenticatedClient) {
+    private suspend fun validateTrashDirectory(
+        trashDirectoryPath: String,
+        userCloud: AuthenticatedClient,
+        username: String
+    ) {
         suspend fun createTrashDirectory() {
+            val trashComponents = trashDirectoryPath.components()
+            if (trashComponents.size >= 2 && trashComponents[0] == "projects") {
+                FileDescriptions.createPersonalRepository.call(
+                    CreatePersonalRepositoryRequest(
+                        trashComponents[1],
+                        username
+                    ),
+                    wsServiceClient
+                )
+            }
             FileDescriptions.createDirectory.call(
                 CreateDirectoryRequest(trashDirectoryPath, null),
                 userCloud

@@ -14,7 +14,9 @@ data class JobCompletedEvent(
     val jobCompletedAt: Long,
 
     @JsonDeserialize(`as` = NameAndVersionImpl::class) val application: NameAndVersion,
-    val success: Boolean
+    val success: Boolean,
+    val reservation: MachineReservation?,
+    val project: String?
 )
 
 object AccountingEvents : EventStreamContainer() {

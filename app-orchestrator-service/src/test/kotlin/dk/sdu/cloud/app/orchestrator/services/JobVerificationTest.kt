@@ -34,7 +34,8 @@ class JobVerificationTest {
             "backend"
         ),
         TestUsers.user.createToken(),
-        "token"
+        "token",
+        null
     )
 
     private lateinit var service: JobVerificationService<*>
@@ -114,7 +115,8 @@ class JobVerificationTest {
             "backend"
         ),
         TestUsers.user.createToken(),
-        "token"
+        "token",
+        null
     )
 
     @Test(expected = JobException.VerificationError::class)
@@ -136,7 +138,8 @@ class JobVerificationTest {
             "backend"
         ),
         TestUsers.user.createToken(),
-        "token"
+        "token",
+        null
     )
 
     @Test(expected = JobException.VerificationError::class)

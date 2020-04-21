@@ -117,7 +117,8 @@ class AclService(
         )
     }
 
-    private suspend fun internalIsOwner(normalizedPath: String, username: String): Boolean {
+    suspend fun isOwner(path: String, username: String): Boolean {
+        val normalizedPath = path.normalize()
         if (normalizedPath.startsWith("/home/")) {
             val homeFolder = homeFolderService.findHomeFolder(username).normalize()
             log.trace("user is '$username' requesting path '$normalizedPath' and home is '$homeFolder'")
@@ -129,22 +130,25 @@ class AclService(
             val components = normalizedPath.components()
             if (components.size < 2) return false
             val projectId = components[1]
+            val viewMember = projectCache.viewMember(projectId, username) ?: return false
 
-            return projectCache.viewMember(projectId, username)?.role?.isAdmin() == true
+            // Note: Even if username matches we must be a member of the project. This allows us to keep files after
+            // a user leaves.
+            if (components.size > 5 && components[2] == PERSONAL_REPOSITORY && components[4] == username) {
+                return true
+            }
+
+            return viewMember.role.isAdmin()
         }
 
         return false
-    }
-
-    suspend fun isOwner(path: String, username: String): Boolean {
-        return internalIsOwner(path.normalize(), username)
     }
 
     suspend fun hasPermission(path: String, username: String, permission: AccessRight): Boolean {
         if (username == SERVICE_USER) return true
 
         val normalizedPath = path.normalize()
-        if (internalIsOwner(normalizedPath, username)) return true
+        if (isOwner(normalizedPath, username)) return true
         val relevantPaths = normalizedPath.parents().map { it.normalize() } + listOf(normalizedPath)
 
         val hasPermissionAsUser = metadataService
