@@ -20,6 +20,7 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {projectRoleToString} from "Project/api";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {Client} from "Authentication/HttpClientInstance";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -57,13 +58,19 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         <List>
                             <ListRow
                                 left={<Text>Personal project</Text>}
-                                leftSub={<div />}
-                                right={props.project ? (
-                                    <Flex height="48px" alignItems="center">
-                                        <Button onClick={() => props.setProject()}>Set active</Button>
-                                    </Flex>
-                                ) :
-                                    <Flex alignItems="center" height="48px"><Icon mr="44px" mt="9px" name="check" color="green" /></Flex>}
+                                leftSub={<Text color="gray" fontSize={0}><Icon size="10" name="id" /> {Client.username}</Text>}
+                                right={<Icon
+                                    mr="20px"
+                                    mt="5px"
+                                    name="check"
+                                    color={!props.project ? "green" : "gray"}
+                                    hoverColor="green"
+                                    onClick={() => {
+                                        if (!props.project) return;
+                                        snackbarStore.addInformation(`Personal project is now the active.`);
+                                        props.setProject();
+                                    }}
+                                />}
                             />
                             {page.items.map(e => {
                                 const isSelected = e.projectId === props.project;
@@ -74,8 +81,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         navigate={() => history.push(`/projects/view/${encodeURIComponent(e.projectId)}`)}
                                         left={<Text cursor="pointer">{e.title}</Text>}
                                         leftSub={<>
-                                            <Text fontSize={0} pb="3px"><Icon mt="-2px" size="12px" name="id" /> {e.projectId}</Text>
-                                            <Text fontSize={0} ml="4px"><Icon color="white" color2="black" mt="-2px" size="12px" name="user" />
+                                            <Text color="gray" fontSize={0}><Icon size="10" name="id" /> {e.projectId}</Text>
+                                            <Text ml="4px" color="gray" fontSize={0}><Icon color="white" color2="gray" mt="-2px" size="10" name="user" />
                                                 {" "}{projectRoleToString(e.whoami.role)}
                                             </Text>
                                         </>}
@@ -85,12 +92,18 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                     <Text fontSize={0} mr={8}><Icon name={"warning"} /> Attention required</Text>
                                                 )}
                                                 {showGroups ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
-                                                {isSelected ? <Icon mr="44px" mt="9px" name="check" color="green" /> : (
-                                                    <Button onClick={() => {
+                                                <Icon
+                                                    mr="20px"
+                                                    mt="5px"
+                                                    name="check"
+                                                    color={isSelected ? "green" : "gray"}
+                                                    hoverColor="green"
+                                                    onClick={() => {
+                                                        if (isSelected) return;
                                                         snackbarStore.addInformation(`${e.projectId} is now the active project`);
                                                         props.setProject(e.projectId);
-                                                    }}>Set active</Button>
-                                                )}
+                                                    }}
+                                                />
                                             </Flex>
                                         </>}
                                     />

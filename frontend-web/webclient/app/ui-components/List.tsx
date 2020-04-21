@@ -48,9 +48,9 @@ interface ListRowProps {
 export function ListRow(props: ListRowProps): JSX.Element {
     const isSelected = props.isSelected ?? false;
     const left = props.leftSub ? (
-        <Box mb="4px" onClick={e => {e.stopPropagation(); props.navigate?.();}}>
+        <Box onClick={e => {e.stopPropagation(); props.navigate?.();}}>
             <Truncate width={1} mb="-4px" fontSize={20}>{props.left}</Truncate>
-            <Flex>
+            <Flex mt="4px">
                 {props.leftSub}
             </Flex>
         </Box>

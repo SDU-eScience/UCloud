@@ -176,10 +176,14 @@ function Runs(props: AnalysesProps & {history: History}): React.ReactElement {
                                     select={() => props.checkAnalysis(it.jobId, !it.checked)}
                                     left={<Text cursor="pointer">{it.name ? it.name : shortUUID(it.jobId)}</Text>}
                                     leftSub={<>
-                                        <Icon color="gray" mr="5px" mt="4px" size="10px" name="id" />
-                                        <Text color="gray" fontSize="12px">{it.metadata.title} v{it.metadata.version}</Text>
-                                        <Icon color="gray" ml="4px" mr="2px" mt="4px" size="10px" name="chrono" />
-                                        <Text color="gray" fontSize="12px">Started {formatRelative(it.createdAt, new Date(), {locale: enGB})}</Text>
+                                        <Text color="gray" fontSize={0}>
+                                            <Icon color="gray" mr="5px" size="10px" name="id" />
+                                            {it.metadata.title} v{it.metadata.version}
+                                        </Text>
+                                        <Text color="gray" fontSize={0}>
+                                            <Icon color="gray" ml="4px" mr="2px" size="10px" name="chrono" />
+                                            Started {formatRelative(it.createdAt, new Date(), {locale: enGB})}
+                                        </Text>
                                     </>}
                                     right={<>
                                         {hideExpiration ? null : (
