@@ -10,12 +10,16 @@ import org.junit.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-class JobFileTest{
+class JobFileTest {
 
     @Test
     fun `initialize Result folder test`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService({ _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+        val service = JobFileService(
+            { _, _ -> ClientMock.authenticatedClient },
+            ParameterExportService(),
+            ClientMock.authenticatedClient
+        )
 
         ClientMock.mockCallSuccess(
             FileDescriptions.stat,
@@ -49,7 +53,7 @@ class JobFileTest{
     @Test
     fun `test accept File - no extract also absolute path`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService({ _, _ -> authClient }, ParameterExportService())
+        val service = JobFileService({ _, _ -> authClient }, ParameterExportService(), ClientMock.authenticatedClient)
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -75,7 +79,7 @@ class JobFileTest{
     @Test
     fun `test accept File - with extract`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService({ _, _ -> authClient }, ParameterExportService())
+        val service = JobFileService({ _, _ -> authClient }, ParameterExportService(), ClientMock.authenticatedClient)
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -106,7 +110,11 @@ class JobFileTest{
     @Test
     fun `jobFolder test`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService({ _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+        val service = JobFileService(
+            { _, _ -> ClientMock.authenticatedClient },
+            ParameterExportService(),
+            ClientMock.authenticatedClient
+        )
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -122,7 +130,11 @@ class JobFileTest{
     @Test
     fun `jobFolder test2`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService({ _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+        val service = JobFileService(
+            { _, _ -> ClientMock.authenticatedClient },
+            ParameterExportService(),
+            ClientMock.authenticatedClient
+        )
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,
@@ -172,7 +184,11 @@ class JobFileTest{
     @Test
     fun `jobFolder test - folder not null`() {
         val authClient = ClientMock.authenticatedClient
-        val service = JobFileService({ _, _ -> ClientMock.authenticatedClient }, ParameterExportService())
+        val service = JobFileService(
+            { _, _ -> ClientMock.authenticatedClient },
+            ParameterExportService(),
+            ClientMock.authenticatedClient
+        )
 
         ClientMock.mockCallSuccess(
             FileDescriptions.findHomeFolder,

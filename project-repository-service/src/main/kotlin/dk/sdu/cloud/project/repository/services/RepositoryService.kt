@@ -19,6 +19,8 @@ import org.slf4j.Logger
 
 class RepositoryService(private val serviceClient: AuthenticatedClient) {
     suspend fun create(principal: SecurityPrincipal, project: String, repository: String) {
+        if (repository == PERSONAL_REPOSITORY) throw RPCException("Invalid repository name", HttpStatusCode.BadRequest)
+
         val status = Projects.viewMemberInProject.call(
             ViewMemberInProjectRequest(project, principal.username),
             serviceClient
@@ -69,6 +71,10 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
         oldRepository: String,
         newRepository: String
     ) {
+        if (newRepository == PERSONAL_REPOSITORY) {
+            throw RPCException("Invalid repository name", HttpStatusCode.BadRequest)
+        }
+
         FileDescriptions.move.call(
             MoveRequest(
                 joinPath(PROJECT_DIR_PREFIX, project, oldRepository),
@@ -84,6 +90,8 @@ class RepositoryService(private val serviceClient: AuthenticatedClient) {
         project: String,
         repository: String
     ) {
+        if (repository == PERSONAL_REPOSITORY) throw RPCException("Invalid repository name", HttpStatusCode.BadRequest)
+
         FileDescriptions.deleteFile.call(
             DeleteFileRequest(joinPath(PROJECT_DIR_PREFIX, project, repository)),
             userClient

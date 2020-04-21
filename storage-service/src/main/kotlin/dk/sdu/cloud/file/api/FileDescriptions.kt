@@ -242,6 +242,18 @@ data class VerifyFileKnowledgeResponse(val responses: List<Boolean>)
 data class NormalizePermissionsRequest(val path: String)
 typealias NormalizePermissionsResponse = Unit
 
+data class CreatePersonalRepositoryRequest(val project: String, val username: String) {
+    init {
+        // Some quick sanity checks (these should already be enforced elsewhere)
+        if (project.contains("..")) throw RPCException("Project cannot contain '..'", HttpStatusCode.BadRequest)
+        if (project.contains("/")) throw RPCException("Project cannot contains '/'", HttpStatusCode.BadRequest)
+        if (username.contains("..")) throw RPCException("Username cannot contain '..'", HttpStatusCode.BadRequest)
+        if (username.contains("/")) throw RPCException("Username cannot contains '/'", HttpStatusCode.BadRequest)
+    }
+}
+
+typealias CreatePersonalRepositoryResponse = Unit
+
 object FileDescriptions : CallDescriptionContainer("files") {
     val baseContext = "/api/files"
     val wsBaseContext = "$baseContext/ws"
@@ -585,6 +597,28 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 path {
                     using(baseContext)
                     +"normalize-permissions"
+                }
+
+                body { bindEntireRequestFromBody() }
+            }
+        }
+
+    /**
+     * Internal call to ensure that a personal repository has been created for a user.
+     */
+    val createPersonalRepository =
+        call<CreatePersonalRepositoryRequest, CreatePersonalRepositoryResponse, CommonErrorMessage>("createPersonalRepository") {
+            auth {
+                access = AccessRight.READ_WRITE
+                roles = Roles.PRIVILEDGED
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"create-personal-repository"
                 }
 
                 body { bindEntireRequestFromBody() }

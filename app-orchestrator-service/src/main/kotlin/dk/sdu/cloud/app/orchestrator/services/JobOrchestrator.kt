@@ -36,7 +36,7 @@ import kotlinx.coroutines.runBlocking
  * updates (e.g. state change). In reaction to life-time events the orchestrator will update
  * its internal state and potentially send new updates to the relevant computation backends.
  *
- * Below is a description of how a [VerifiedJob] moves between its states ([currentState]):
+ * Below is a description of how a [VerifiedJob] moves between its states ([VerifiedJob.currentState]):
  *
  * - A user starts an application (see [startJob])
  *   - Sets state to [JobState.VALIDATED]. Backends notified via [ComputationDescriptions.jobVerified]
@@ -276,7 +276,9 @@ class JobOrchestrator<DBSession>(
                     job.nodes,
                     System.currentTimeMillis(),
                     NameAndVersion(job.application.metadata.name, job.application.metadata.version),
-                    success
+                    success,
+                    job.reservation,
+                    job.project
                 )
             )
         }

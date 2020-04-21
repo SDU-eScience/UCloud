@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.app.orchestrator.api.ProjectAndRepository
 import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -30,32 +29,40 @@ data class JobDirectory(val path: String)
 
 class JobFileService(
     private val userClientFactory: (accessToken: String?, refreshToken: String?) -> AuthenticatedClient,
-    private val parameterExportService: ParameterExportService
+    private val parameterExportService: ParameterExportService,
+    private val serviceClient: AuthenticatedClient
 ) {
     suspend fun initializeResultFolder(jobWithToken: VerifiedJobWithAccessToken): JobDirectory {
         val (job, accessToken, refreshToken) = jobWithToken
-
-        val userCloud = userClientFactory(accessToken, refreshToken)
+        val userClient = userClientFactory(accessToken, refreshToken)
 
         val sensitivityLevel =
             jobWithToken.job.files.map { it.stat.sensitivityLevel }.sortedByDescending { it.ordinal }.max()
                 ?: SensitivityLevel.PRIVATE
 
-        val jobsFolder = jobsFolder(job.owner, job.projectAndRepository)
+        val jobsFolder = jobsFolder(job.owner, job.project)
+        if (job.project != null) {
+            // Create the personal repository lazily
+            FileDescriptions.createPersonalRepository.call(
+                CreatePersonalRepositoryRequest(job.project, job.owner),
+                serviceClient
+            )
+        }
+
         FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(jobsFolder, null),
-            userCloud
+            userClient
         )
 
         val path = jobFolder(jobWithToken, true)
         FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(path.parent(), null, sensitivity = sensitivityLevel),
-            userCloud
+            userClient
         )
 
         val dirResp = FileDescriptions.createDirectory.call(
             CreateDirectoryRequest(path, null),
-            userCloud
+            userClient
         ).throwIfInternal()
 
         if (!dirResp.statusCode.isSuccess()) {
@@ -147,12 +154,12 @@ class JobFileService(
 
     fun jobsFolder(
         ownerUsername: String,
-        projectAndRepository: ProjectAndRepository?
+        project: String?
     ): String {
-        return if (projectAndRepository == null) {
+        return if (project == null) {
             joinPath(homeDirectory(ownerUsername), "Jobs")
         } else {
-            joinPath("/projects", projectAndRepository.project, projectAndRepository.repository, "Jobs")
+            joinPath("/projects", project, PERSONAL_REPOSITORY, ownerUsername, "Jobs")
         }
     }
 
@@ -178,7 +185,7 @@ class JobFileService(
         if (job.outputFolder != null) {
             return job.outputFolder
         } else {
-            val jobsFolder = jobsFolder(job.owner, job.projectAndRepository)
+            val jobsFolder = jobsFolder(job.owner, job.project)
             var folderName = job.id
 
             if (new) {

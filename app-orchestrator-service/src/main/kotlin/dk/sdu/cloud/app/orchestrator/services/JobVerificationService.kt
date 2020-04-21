@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import com.google.common.base.Verify
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
 import dk.sdu.cloud.app.license.api.LicenseServerRequest
@@ -13,8 +12,11 @@ import dk.sdu.cloud.app.store.api.ToolReference
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
@@ -143,27 +145,15 @@ class JobVerificationService<Session>(
             else (machines.find { it.name == unverifiedJob.request.reservation }
                 ?: throw JobException.VerificationError("Bad machine reservation"))
 
-        // Check repository
-        val project = unverifiedJob.project
-        val repository = unverifiedJob.request.repository
-        val projectAndRepository = if (repository != null) {
-            if (project == null) throw JobException.VerificationError("Repository specified but not project was given!")
-            ProjectAndRepository(project, repository)
-        } else {
-            // If project != null and no repository is selected then this will run in your local context.
-            // This might not be the desired behavior!
-            null
-        }
-
-        if (projectAndRepository != null) {
-            FileDescriptions.verifyFileKnowledge.call(
-                VerifyFileKnowledgeRequest(
-                    unverifiedJob.decodedToken.principal.username,
-                    listOf("/projects/${projectAndRepository.project}/${projectAndRepository.repository}"),
-                    KnowledgeMode.Permission(requireWrite = true)
+        // Verify membership of project
+        if (unverifiedJob.project != null) {
+            Projects.viewMemberInProject.call(
+                ViewMemberInProjectRequest(
+                    unverifiedJob.project,
+                    unverifiedJob.decodedToken.principal.username
                 ),
                 serviceClient
-            ).orThrow()
+            ).orNull() ?: throw RPCException("Unable to verify membership of project", HttpStatusCode.Forbidden)
         }
 
         return VerifiedJobWithAccessToken(
@@ -187,7 +177,7 @@ class JobVerificationService<Session>(
                 archiveInCollection = unverifiedJob.request.archiveInCollection ?: application.metadata.title,
                 startedAt = null,
                 url = url,
-                projectAndRepository = projectAndRepository
+                project = unverifiedJob.project
             ),
             null,
             unverifiedJob.refreshToken

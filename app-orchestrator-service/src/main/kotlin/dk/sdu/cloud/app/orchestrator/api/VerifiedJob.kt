@@ -6,8 +6,6 @@ import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import kotlin.math.max
 
-data class ProjectAndRepository(val project: String, val repository: String)
-
 data class VerifiedJob(
     /**
      * A unique ID for this job.
@@ -117,7 +115,7 @@ data class VerifiedJob(
      */
     val url: String? = null,
 
-    val projectAndRepository: ProjectAndRepository? = null
+    val project: String? = null
 ) {
     @get:JsonIgnore val mounts: Set<ValidatedFileForUpload>
         get() = _mounts ?: emptySet()

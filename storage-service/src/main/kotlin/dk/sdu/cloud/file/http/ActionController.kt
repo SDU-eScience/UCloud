@@ -1,10 +1,12 @@
 package dk.sdu.cloud.file.http
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
@@ -19,6 +21,13 @@ class ActionController<Ctx : FSUserContext>(
     private val fileLookupService: FileLookupService<Ctx>
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
+        implement(FileDescriptions.createPersonalRepository) {
+            commandRunnerFactory.withCtx(this, SERVICE_USER) {
+                coreFs.makeDirectory(it, "/projects/${request.project}/${PERSONAL_REPOSITORY}/${request.username}")
+            }
+            ok(Unit)
+        }
+
         implement(FileDescriptions.createDirectory) {
             val sensitivity = request.sensitivity
             if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.owner != null) {

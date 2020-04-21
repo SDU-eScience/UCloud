@@ -93,7 +93,7 @@ class JobOrchestratorTest {
         coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
 
 
-        val jobFileService = JobFileService({ _, _ -> client }, ParameterExportService())
+        val jobFileService = JobFileService({ _, _ -> client }, ParameterExportService(), ClientMock.authenticatedClient)
         val orchestrator = JobOrchestrator(
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
@@ -161,7 +161,8 @@ class JobOrchestratorTest {
                 startJobRequest,
                 TestUsers.user.createToken(),
                 "token",
-                client
+                client,
+                null
             )
         }
         runBlocking {
@@ -229,7 +230,8 @@ class JobOrchestratorTest {
                     startJobRequest,
                     TestUsers.user.createToken(),
                     "token",
-                    client
+                    client,
+                    null
                 )
             }
         }
@@ -260,7 +262,8 @@ class JobOrchestratorTest {
                     startJobRequest,
                     TestUsers.user.createToken(),
                     "token",
-                    client
+                    client,
+                    null
                 )
             }
         }
@@ -290,7 +293,7 @@ class JobOrchestratorTest {
     fun `handle incoming files`() {
         val orchestrator = setup()
         val returnedID = runBlocking {
-            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client, null)
         }
 
         ClientMock.mockCallSuccess(
@@ -322,7 +325,7 @@ class JobOrchestratorTest {
     fun `followStreams test`() {
         val orchestrator = setup()
         val returnedID = runBlocking {
-            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client, null)
         }
 
         ClientMock.mockCallSuccess(
@@ -347,7 +350,7 @@ class JobOrchestratorTest {
     fun `test with job exception`() {
         val orchestrator = setup()
         val returnedID = runBlocking {
-            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client, null)
         }
 
         runBlocking {
@@ -379,7 +382,7 @@ class JobOrchestratorTest {
         val orchestrator = setup()
         val returnedID =
             runBlocking {
-                orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+                orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client, null)
             }
 
         runBlocking {
@@ -417,7 +420,7 @@ class JobOrchestratorTest {
     fun `Handle failed state of unsuccessful job test`() {
         val orchestrator = setup()
         val returnedID = runBlocking {
-            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client, null)
         }
 
         runBlocking {
@@ -459,7 +462,8 @@ class JobOrchestratorTest {
                 startJobRequest.copy(backend = "backend"),
                 TestUsers.user.createToken(),
                 "refresh",
-                client
+                client,
+                null
             )
         }
         runBlocking {
@@ -478,7 +482,7 @@ class JobOrchestratorTest {
     @Test
     fun `handle job complete - null wallduration - startedAt null`() {
         val systemID = runBlocking {
-            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "refresh", client)
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "refresh", client, null)
         }
         runBlocking {
             orchestrator.handleJobComplete(
@@ -490,7 +494,7 @@ class JobOrchestratorTest {
     @Test
     fun `replay lost jobs test`() {
         runBlocking {
-            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client, null)
         }
 
         orchestrator.replayLostJobs()
@@ -499,7 +503,7 @@ class JobOrchestratorTest {
     @Test
     fun `Lookup own job`() {
         val jobID = runBlocking {
-            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client, null)
         }
         runBlocking {
             orchestrator.lookupOwnJob(jobID, TestUsers.user)
@@ -509,7 +513,7 @@ class JobOrchestratorTest {
     @Test
     fun `remove Expired Jobs test`() {
         runBlocking {
-            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client)
+            orchestrator.startJob(startJobRequest, TestUsers.user.createToken(), "token", client, null)
         }
 
         runBlocking {
