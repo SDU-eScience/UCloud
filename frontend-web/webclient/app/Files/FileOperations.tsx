@@ -265,7 +265,7 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         /* Update repo permissions */
-        text: "Update permissions",
+        text: "Permissions",
         disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
         onClick: ([file]) => updatePermissionsPrompt(Client, file),
         icon: "properties",

@@ -71,7 +71,7 @@ import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
-import {repositoryName, createRepository, renameRepository} from "Utilities/ProjectUtilities";
+import {repositoryName, createRepository, renameRepository, isAdminOrPI} from "Utilities/ProjectUtilities";
 import {ProjectMember, ProjectRole} from "Project";
 
 export interface LowLevelFileTableProps {
@@ -813,12 +813,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                     mr="-17px"
                                                     pl="15px"
                                                     callback={callbacks}
+                                                    role={projectMember.role}
                                                 />
                                             </ClickableDropdown>
                                         </Box>
                                     ) : (
                                             <Box mt="-2px" ml="5px">
                                                 <FileOperations
+                                                    role={projectMember.role}
                                                     files={[f]}
                                                     fileOperations={fileOperations}
                                                     callback={callbacks}
@@ -1083,7 +1085,7 @@ interface FileOperations extends SpaceProps {
     callback: FileOperationCallback;
     directory?: File;
     inDropdown?: boolean;
-    role?: ProjectRole;
+    role: ProjectRole;
 }
 
 const FileOperations = ({files, fileOperations, role, ...props}: FileOperations): JSX.Element | null => {
@@ -1093,7 +1095,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
     const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
-        if (fileOp.repositoryMode && ![ProjectRole.PI, ProjectRole.ADMIN].includes(role ?? ProjectRole.USER)) return null;
+        if (fileOp.repositoryMode && !isAdminOrPI(role)) return null;
         if (fileOp.repositoryMode && files.some(it => !repositoryName(it.path))) return null;
         if (!fileOp.repositoryMode && files.some(it => repositoryName(it.path))) return null;
 

@@ -131,6 +131,8 @@ export function UpdatePermissionsDialog(props: {client: HttpClient; repository: 
                                         // HACK end
                                         setNewRights(newRights);
                                     }}
+                                    minWidth="75px"
+                                    width="75px"
                                     options={[
                                         {text: "Read", value: "READ"},
                                         {text: "Edit", value: "WRITE"},
