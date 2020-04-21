@@ -52,10 +52,30 @@ interface AppVersion {
     isPublic: boolean;
 }
 
+const entityTypes = [
+    {text: prettifyEntityType(UserEntityType.USER), value: UserEntityType.USER},
+    {text: prettifyEntityType(UserEntityType.PROJECT_GROUP), value: UserEntityType.PROJECT_GROUP},
+];
+
 function prettifyAccessRight(accessRight: ApplicationAccessRight) {
     switch (accessRight) {
         case ApplicationAccessRight.LAUNCH:
             return "Can launch";
+    }
+}
+
+function prettifyEntityType(entityType: UserEntityType): string {
+    switch (entityType) {
+        case UserEntityType.USER: {
+            return "User";
+        }
+        case UserEntityType.PROJECT_GROUP: {
+            return "Project group";
+        }
+        default: {
+            return "Unknown";
+        }
+
     }
 }
 
@@ -81,6 +101,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     const [apps, setAppParameters, appParameters] =
         useCloudAPI<Page<WithAppMetadata & WithAllAppTags>>({noop: true}, emptyPage);
     const [versions, setVersions] = useState<AppVersion[]>([]);
+    const [selectedEntityType, setSelectedEntityType] = React.useState<UserEntityType>(UserEntityType.USER);
 
     const permissionLevels = [
         {text: prettifyAccessRight(ApplicationAccessRight.LAUNCH), value: ApplicationAccessRight.LAUNCH}
@@ -126,7 +147,9 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
     const appTitle = apps.data.items.length > 0 ? apps.data.items[0].metadata.title : name;
     const tags = apps.data.items.length > 0 ? apps.data.items[0].tags : [];
     const newTagField = useRef<HTMLInputElement>(null);
-    const newPermissionField = useRef<HTMLInputElement>(null);
+    const userEntityField = React.useRef<HTMLInputElement>(null);
+    const projectEntityField = React.useRef<HTMLInputElement>(null);
+    const groupEntityField = React.useRef<HTMLInputElement>(null);
 
     if (Client.userRole !== "ADMIN") return null;
     return (
@@ -179,7 +202,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
 
             main={(
                 <Flex flexDirection="column">
-                    <Box maxWidth="650px" width="100%" ml="auto" mr="auto">
+                    <Box maxWidth="800px" width="100%" ml="auto" mr="auto">
                         <Heading.h2>Tags</Heading.h2>
                         <Box mb={46} mt={26}>
                             {tags.map(tag => (
@@ -233,7 +256,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                             </form>
                         </Box>
                     </Box>
-                    <Box maxWidth="650px" width="100%" ml="auto" mr="auto" mt="25px">
+                    <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <Heading.h2>Permissions</Heading.h2>
                         <Box mt={16}>
                             <form
@@ -241,7 +264,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     e.preventDefault();
                                     if (commandLoading) return;
 
-                                    const permissionField = newPermissionField.current;
+                                    const permissionField = userEntityField.current;
                                     if (permissionField === null) return;
 
                                     const permissionValue = permissionField.value;
@@ -265,14 +288,49 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                 }}
                             >
                                 <Flex height={45}>
-                                    <Input
-                                        rightLabel
-                                        required
-                                        type="text"
-                                        ref={newPermissionField}
-                                        placeholder="Username"
-                                    />
-                                    <InputLabel width="250px" rightLabel>
+                                    <InputLabel width={320} leftLabel>
+                                        <ClickableDropdown
+                                            chevron
+                                            width="180px"
+                                            onChange={(val: UserEntityType) => setSelectedEntityType(val)}
+                                            trigger={
+                                                <Box as="span" minWidth="220px">{prettifyEntityType(selectedEntityType)}</Box>
+                                            }
+                                            options={entityTypes}
+                                        />
+                                    </InputLabel>
+                                    {selectedEntityType === UserEntityType.USER ? (
+                                        <Input
+                                            rightLabel
+                                            leftLabel
+                                            required
+                                            type="text"
+                                            ref={userEntityField}
+                                            placeholder="Username"
+                                        />
+                                    ) : (
+                                        <>
+                                            <Input
+                                                leftLabel
+                                                rightLabel
+                                                required
+                                                width={180}
+                                                type="text"
+                                                ref={projectEntityField}
+                                                placeholder="Project name"
+                                            />
+                                            <Input
+                                                leftLabel
+                                                rightLabel
+                                                required
+                                                width={180}
+                                                type="text"
+                                                ref={groupEntityField}
+                                                placeholder="Group name"
+                                            />
+                                        </>
+                                    )}
+                                    <InputLabel width={300} rightLabel>
                                         <ClickableDropdown
                                             chevron
                                             width="180px"
@@ -344,7 +402,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                             </Box>
                         </Flex>
                     </Box>
-                    <Box maxWidth="650px" width="100%" ml="auto" mr="auto" mt="25px">
+                    <Box maxWidth="800px" width="100%" ml="auto" mr="auto" mt="25px">
                         <Heading.h2>Versions</Heading.h2>
                         <Box mb={26} mt={26}>
                             <Table>
