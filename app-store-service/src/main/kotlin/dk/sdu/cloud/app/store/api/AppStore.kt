@@ -3,8 +3,6 @@ package dk.sdu.cloud.app.store.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.app.store.services.acl.AccessEntity
-import dk.sdu.cloud.app.store.services.acl.EntityWithPermission
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
@@ -16,6 +14,21 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
+
+data class AccessEntity(
+    val user: String?,
+    val project: String?,
+    val group: String?
+) {
+    init {
+        require(!user.isNullOrBlank() || (!project.isNullOrBlank() && !group.isNullOrBlank())) { "No access entity defined" }
+    }
+}
+
+data class EntityWithPermission(
+    val entity: AccessEntity,
+    val permission: ApplicationAccessRight
+)
 
 data class FindApplicationAndOptionalDependencies(
     val appName: String,

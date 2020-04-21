@@ -1,6 +1,8 @@
 package dk.sdu.cloud.app.store.services.acl
 
+import dk.sdu.cloud.app.store.api.AccessEntity
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
+import dk.sdu.cloud.app.store.api.EntityWithPermission
 import dk.sdu.cloud.service.db.*
 import java.io.Serializable
 import javax.persistence.*
@@ -15,8 +17,9 @@ data class PermissionEntry(
 
     @Embeddable
     data class Key(
-        @get:Column(name = "entity") var accessEntity: String,
-        @get:Enumerated(EnumType.STRING) @Column(name = "entity_type") var entityType: EntityType,
+        @get:Column(name = "user") var user: String,
+        @get:Column(name = "project") var project: String,
+        @get:Column(name = "project_group") var group: String,
         @get:Column(name = "application_name") var applicationName: String,
         @get:Enumerated(EnumType.STRING) var permission: ApplicationAccessRight
     ) : Serializable
@@ -31,11 +34,10 @@ class AclHibernateDao : AclDao<HibernateSession> {
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
         val result = session.criteria<PermissionEntry> {
-            allOf(
-                (entity[PermissionEntry::key][PermissionEntry.Key::accessEntity] equal accessEntity.id),
-                (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type),
-                (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName)
-            )
+            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
+                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
+                            (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+                    ) and (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName)
         }.uniqueResultOptional()
 
         if (result.isPresent) {
@@ -43,7 +45,6 @@ class AclHibernateDao : AclDao<HibernateSession> {
         }
         return false
     }
-
 
     override fun updatePermissions(
         session: HibernateSession,
@@ -53,8 +54,9 @@ class AclHibernateDao : AclDao<HibernateSession> {
     ) {
         val permissionEntry = PermissionEntry(
             PermissionEntry.Key(
-                accessEntity.id,
-                accessEntity.type,
+                accessEntity.user ?: "",
+                accessEntity.project ?: "",
+                accessEntity.group ?: "",
                 applicationName,
                 permissions
             )
@@ -69,11 +71,13 @@ class AclHibernateDao : AclDao<HibernateSession> {
         applicationName: String
     ) {
         session.deleteCriteria<PermissionEntry> {
-            allOf(
-                (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName),
-                (entity[PermissionEntry::key][PermissionEntry.Key::accessEntity] equal accessEntity.id),
-                (entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal accessEntity.type)
-            )
+            (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName) and
+                    if (accessEntity.user.isNullOrBlank()) {
+                        (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
+                                (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+                    } else {
+                        (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user)
+                    }
         }.executeUpdate()
     }
 
@@ -87,7 +91,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             }
             .list()
             .map {
-                EntityWithPermission(AccessEntity(it.key.accessEntity, it.key.entityType), it.key.permission)
+                EntityWithPermission(AccessEntity(it.key.user, it.key.project, it.key.group), it.key.permission)
             }
     }
 }
