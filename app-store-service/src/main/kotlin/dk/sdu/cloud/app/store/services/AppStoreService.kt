@@ -12,6 +12,8 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.project.api.GroupExistsRequest
+import dk.sdu.cloud.project.api.ProjectGroups
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -168,7 +170,7 @@ class AppStoreService<DBSession>(
         entity: AccessEntity,
         permissions: ApplicationAccessRight
     ) {
-        if (entity.user != null) {
+        if (!entity.user.isNullOrBlank()) {
             log.debug("Verifying that user exists")
 
             val lookup = UserDescriptions.lookupUsers.call(
@@ -187,6 +189,23 @@ class AppStoreService<DBSession>(
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "The user does not exist")
             }
             aclDao.updatePermissions(session, entity, applicationName, permissions)
+        } else if(!entity.project.isNullOrBlank() && !entity.group.isNullOrBlank()) {
+            log.debug("Verifying that project group exists")
+
+            val lookup = ProjectGroups.groupExists.call(
+                GroupExistsRequest(entity.project, entity.group),
+                authenticatedClient
+            ).orRethrowAs {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
+
+            if (!lookup.exists) throw RPCException.fromStatusCode(
+                HttpStatusCode.BadRequest,
+                "The project group does not exist"
+            )
+            aclDao.updatePermissions(session, entity, applicationName, permissions)
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Neither user or project group defined")
         }
     }
 
