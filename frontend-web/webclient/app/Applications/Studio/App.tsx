@@ -267,7 +267,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                     e.preventDefault();
                                     if (commandLoading) return;
 
-                                    if (selectedEntityType == AccessEntityType.USER) {
+                                    if (selectedEntityType === AccessEntityType.USER) {
                                         const userField = userEntityField.current;
                                         if (userField === null) return;
 
@@ -288,6 +288,34 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                         ));
                                         setPermissionEntries(await loadApplicationPermissionEntries(name));
                                         userField.value = "";
+                                    } else if (selectedEntityType === AccessEntityType.PROJECT_GROUP) {
+                                        const projectField = projectEntityField.current;
+                                        if (projectField === null) return;
+
+                                        const projectValue = projectField.value;
+                                        if (projectValue === "") return;
+
+                                        const groupField = groupEntityField.current;
+                                        if (groupField === null) return;
+
+                                        const groupValue = groupField.value;
+                                        if (groupValue === "") return;
+
+                                        await invokeCommand(updateApplicationPermission(
+                                            {
+                                                applicationName: name,
+                                                changes: [
+                                                    {
+                                                        entity: { user: null, project: projectValue, group: groupValue},
+                                                        rights: access,
+                                                        revoke: false
+                                                    }
+                                                ]
+                                            }
+                                        ));
+                                        setPermissionEntries(await loadApplicationPermissionEntries(name));
+                                        projectField.value = "";
+                                        groupField.value = "";
                                     }
                                 }}
                             >
