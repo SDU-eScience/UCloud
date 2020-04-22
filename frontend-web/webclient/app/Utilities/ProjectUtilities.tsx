@@ -1,6 +1,6 @@
 import * as React from "react";
 import HttpClient from "Authentication/lib";
-import {addStandardInputDialog, addStandardDialog} from "UtilityComponents";
+import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 import {errorMessageOrDefault} from "UtilityFunctions";
@@ -53,9 +53,27 @@ export function promptDeleteRepository(name: string, client: HttpClient, reload:
         onConfirm: async () => {
             try {
                 await client.delete("/projects/repositories", {name});
+                snackbarStore.addSuccess("Repository deleted");
                 reload();
             } catch (err) {
-                snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete."));
+                snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete repository."));
+            }
+        }
+    });
+}
+
+export function promptDeleteProject(id: string, client: HttpClient, reload: () => void): void {
+    addStandardDialog({
+        title: "Delete?",
+        message: `Delete ${id} and EVERY associated job, repository and group? Cannot be undone.`,
+        confirmText: "Delete project",
+        onConfirm: async () => {
+            try {
+                await client.delete(`/projects`, {id});
+                snackbarStore.addSuccess("Project deleted");
+                reload();
+            } catch (err) {
+                snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete project."));
             }
         }
     });

@@ -1,6 +1,7 @@
 import HttpClient from "Authentication/lib";
 import {emptyPage} from "DefaultObjects";
 import {Action} from "redux";
+import {IconName} from "ui-components/Icon";
 
 export interface SidebarOption {
     name: string;
@@ -78,6 +79,6 @@ export interface Operation<T> {
     text: string;
     onClick: (listItems: T[], client: HttpClient) => void;
     disabled: (listItems: T[], client: HttpClient) => boolean;
-    icon?: string;
+    icon: IconName;
     color?: string;
 }

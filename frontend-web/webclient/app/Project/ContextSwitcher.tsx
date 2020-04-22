@@ -32,8 +32,6 @@ function _AltContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): 
 
     const history = useHistory();
 
-    if (!inDevEnvironment()) return null;
-
     if (response.data.items.length === 0 && !response.loading) return null;
 
     const addMore = response.data.itemsInTotal > 10;

@@ -2,11 +2,11 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage, ReduxObject, KeyCode} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
-import {listProjects, ListProjectsRequest, UserInProject, ProjectRole} from "Project/index";
+import {listProjects, ListProjectsRequest, UserInProject, ProjectRole, Project} from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Page} from "Types";
+import {Page, Operation} from "Types";
 import Button from "ui-components/Button";
 import {Flex, Icon, List, Text, Input, Box} from "ui-components";
 import Link from "ui-components/Link";
@@ -21,8 +21,9 @@ import {projectRoleToString} from "Project/api";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {SnackType} from "Snackbar/Snackbars";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -51,6 +52,17 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         props.setRefresh(reload);
         return () => props.setRefresh();
     }, [reload]);
+
+    const projectOperations: ProjectOperation[] = [{
+        text: "Groups",
+        disabled: projects => projects.length !== 1 || !projects.every(it => isAdminOrPI(it.whoami.role)),
+        icon: "user",
+        onClick: ([project]) => {
+            if (props.project !== project.projectId) props.setProject(project.projectId);
+            snackbarStore.addInformation(`${project.projectId} set as active project.`);
+            history.push("/projects/groups/");
+        }
+    }];
 
     return (
         <MainContainer
@@ -115,7 +127,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 /> : null}
                             {page.items.map(e => {
                                 const isSelected = e.projectId === props.project;
-                                const showGroups = isSelected && isAdminOrPI(e.whoami.role);
                                 return (
                                     <ListRow
                                         key={e.projectId}
@@ -140,7 +151,16 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                 {!e.needsVerification ? null : (
                                                     <Text fontSize={0} mr={8}><Icon name={"warning"} /> Attention required</Text>
                                                 )}
-                                                {showGroups ? <Link to="/projects/groups/"><Button mr="38px">Groups</Button></Link> : null}
+                                                <Link
+                                                    to={`/projects/view/${encodeURIComponent(e.projectId)}`}
+                                                >
+                                                    <Icon
+                                                        cursor="pointer"
+                                                        color="black"
+                                                        name="projects"
+                                                        mr="15px"
+                                                    />
+                                                </Link>
                                                 <Icon
                                                     mr="20px"
                                                     mt="5px"
@@ -153,6 +173,25 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                         props.setProject(e.projectId);
                                                     }}
                                                 />
+                                                <ClickableDropdown
+                                                    width="125px"
+                                                    left="-105px"
+                                                    trigger={(
+                                                        <Icon
+                                                            onClick={preventDefault}
+                                                            ml="10px"
+                                                            mr="10px"
+                                                            name="ellipsis"
+                                                            size="1em"
+                                                            rotation={90}
+                                                        />
+                                                    )}
+                                                >
+                                                    <ProjectOperations
+                                                        selectedProjects={[e]}
+                                                        projectOperations={projectOperations}
+                                                    />
+                                                </ClickableDropdown>
                                             </Flex>
                                         </>}
                                     />
@@ -164,11 +203,12 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     onPageChanged={newPage => setFetchParams(listProjects({page: newPage, itemsPerPage: 50}))}
                 />
             )}
-            sidebar={(
+            sidebar={(<>
                 <VerticalButtonGroup>
                     <Button onClick={startCreateProject}>Create project</Button>
+                    <ProjectOperations selectedProjects={[]} projectOperations={projectOperations} />
                 </VerticalButtonGroup>
-            )}
+            </>)}
         />
     );
 
@@ -181,10 +221,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         e.preventDefault();
         if (response.loading) return;
         if (title.current == null) return;
-
-        // TODO FIXME This will only work for admin accounts!!!
-        if (!Client.userIsAdmin) {
-            snackbarStore.addFailure("Currently requires user is admin in backend.");
+        if (title.current.value === "") {
+            snackbarStore.addInformation("Project name can't be empty.");
             return;
         }
 
@@ -202,10 +240,36 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             reload();
             props.setProject(res.response.id);
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to create group."));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to create project."));
         }
     }
 };
+
+type ProjectOperation = Operation<UserInProject>;
+
+interface ProjectOperations {
+    projectOperations: ProjectOperation[];
+    selectedProjects: UserInProject[];
+}
+
+function ProjectOperations(props: ProjectOperations): JSX.Element | null {
+    if (props.projectOperations.length === 0) return null;
+
+    function ProjectOp(op: ProjectOperation): JSX.Element | null {
+        if (op.disabled(props.selectedProjects, Client)) return null;
+        return <span onClick={() => op.onClick(props.selectedProjects, Client)}>
+            <Icon size={16} mr="1em" color={op.color} name={op.icon} />{op.text}</span>;
+    }
+
+    return (
+        <Flex
+            ml="-17px"
+            mr="-17px"
+            pl="15px">
+            {props.projectOperations.map(ProjectOp)}
+        </Flex>
+    );
+}
 
 interface DispatchProps {
     setProject: (id?: string) => void;
