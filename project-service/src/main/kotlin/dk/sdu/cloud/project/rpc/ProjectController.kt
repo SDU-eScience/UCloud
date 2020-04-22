@@ -20,11 +20,6 @@ class ProjectController(
             ok(CreateProjectResponse(service.create(request.title, request.principalInvestigator).id))
         }
 
-        implement(Projects.delete) {
-            service.delete(request.id)
-            ok(Unit)
-        }
-
         implement(Projects.addMember) {
             service.addMember(ctx.securityPrincipal.username, request.projectId, request.member)
             ok(Unit)

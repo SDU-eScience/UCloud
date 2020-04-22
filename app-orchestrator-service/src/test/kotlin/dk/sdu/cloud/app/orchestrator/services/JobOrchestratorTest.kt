@@ -10,6 +10,7 @@ import dk.sdu.cloud.app.orchestrator.utils.startJobRequest
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.BackgroundScopeFeature
 import dk.sdu.cloud.micro.DeinitFeature
@@ -43,7 +44,7 @@ class JobOrchestratorTest {
     private val client = ClientMock.authenticatedClient
     private lateinit var backend: NamedComputationBackendDescriptions
     private lateinit var orchestrator: JobOrchestrator<HibernateSession>
-    private lateinit var streamFollowService: StreamFollowService<HibernateSession>
+    private lateinit var streamFollowService: StreamFollowService
     private lateinit var micro: Micro
 
     @BeforeTest
@@ -83,6 +84,16 @@ class JobOrchestratorTest {
         val jobDao = JobHibernateDao(appDao, toolDao)
         val backendName = "backend"
         val compBackend = ComputationBackendService(listOf(ApplicationBackend(backendName)), true)
+        val jobQueryService = JobQueryService(
+            db,
+            jobDao,
+            JobFileService(
+                { a, b -> ClientMock.authenticatedClient },
+                mockk(relaxed = true),
+                ClientMock.authenticatedClient
+            ),
+            ProjectCache(ClientMock.authenticatedClient)
+        )
 
         coEvery {
             appDao.findByNameAndVersion(
@@ -93,7 +104,8 @@ class JobOrchestratorTest {
         coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
 
 
-        val jobFileService = JobFileService({ _, _ -> client }, ParameterExportService(), ClientMock.authenticatedClient)
+        val jobFileService =
+            JobFileService({ _, _ -> client }, ParameterExportService(), ClientMock.authenticatedClient)
         val orchestrator = JobOrchestrator(
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
@@ -102,6 +114,7 @@ class JobOrchestratorTest {
             compBackend,
             jobFileService,
             jobDao,
+            jobQueryService,
             backendName,
             micro.backgroundScope
         )
@@ -140,7 +153,7 @@ class JobOrchestratorTest {
 
         this.orchestrator = orchestrator
         this.streamFollowService =
-            StreamFollowService(jobFileService, client, client, compBackend, db, jobDao, micro.backgroundScope)
+            StreamFollowService(jobFileService, client, client, compBackend, jobQueryService, micro.backgroundScope)
     }
 
     @AfterTest
@@ -155,6 +168,8 @@ class JobOrchestratorTest {
     @Test
     fun `orchestrator start job, handle proposed state, lookup test `() {
         val orchestrator = setup()
+
+        ClientMock.mockCallSuccess(MetadataDescriptions.verify, VerifyResponse)
 
         val returnedID = runBlocking {
             orchestrator.startJob(
@@ -339,7 +354,10 @@ class JobOrchestratorTest {
         )
         runBlocking {
             val result =
-                streamFollowService.followStreams(FollowStdStreamsRequest(returnedID, 0, 0, 0, 0), decodedJWT.subject)
+                streamFollowService.followStreams(
+                    FollowStdStreamsRequest(returnedID, 0, 0, 0, 0),
+                    decodedJWT.toSecurityToken()
+                )
             assertEquals("stdout", result.stdout)
             assertEquals("stderr", result.stderr)
             assertEquals(10, result.stderrNextLine)

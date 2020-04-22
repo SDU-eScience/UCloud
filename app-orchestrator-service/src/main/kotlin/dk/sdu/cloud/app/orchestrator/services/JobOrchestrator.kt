@@ -68,6 +68,7 @@ class JobOrchestrator<DBSession>(
     private val computationBackendService: ComputationBackendService,
     private val jobFileService: JobFileService,
     private val jobDao: JobDao<DBSession>,
+    private val jobQueryService: JobQueryService<*>, // TODO This dependency should be removed
 
     private val defaultBackend: String,
 
@@ -191,14 +192,15 @@ class JobOrchestrator<DBSession>(
         computeBackend: SecurityPrincipal? = null,
         jobOwner: SecurityPrincipalToken? = null
     ) {
-        withJobExceptionHandler(event.systemId) {
-            if (computeBackend == null && jobOwner == null) {
-                log.warn("computeBackend == null && jobOwner == null in handleProposedStateChange")
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-            }
+        if (computeBackend == null && jobOwner == null) {
+            log.warn("computeBackend == null && jobOwner == null in handleProposedStateChange")
+            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        }
 
+        val jobWithToken = findJobForId(event.systemId, jobOwner)
+
+        withJobExceptionHandler(event.systemId) {
             val proposedState = event.newState
-            val jobWithToken = findJobForId(event.systemId, jobOwner)
             val (job) = jobWithToken
             computationBackendService.getAndVerifyByName(job.backend, computeBackend)
 
@@ -436,8 +438,13 @@ class JobOrchestrator<DBSession>(
         }
     }
 
-    private suspend fun findJobForId(id: String, jobOwner: SecurityPrincipalToken? = null): VerifiedJobWithAccessToken =
-        db.withTransaction { session -> jobDao.find(session, id, jobOwner) }
+    private suspend fun findJobForId(id: String, jobOwner: SecurityPrincipalToken? = null): VerifiedJobWithAccessToken {
+        return if (jobOwner == null) {
+            db.withTransaction { session -> jobDao.find(session, id, null) }
+        } else {
+            jobQueryService.findById(jobOwner, id)
+        }
+    }
 
     private suspend fun findJobForUrl(
         urlId: String,

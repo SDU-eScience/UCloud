@@ -152,8 +152,7 @@ class JobHibernateDaoTest {
                         it,
                         user.createToken(),
                         NormalizedPaginationRequest(10, 0),
-                        application = null,
-                        version = null
+                        ListRecentRequest()
                     )
                 }
             assertEquals(1, result.itemsInTotal)
@@ -362,12 +361,10 @@ class JobHibernateDaoTest {
                 session,
                 user.createToken(),
                 NormalizedPaginationRequest(100, 0),
-                SortOrder.DESCENDING,
-                JobSortBy.LAST_UPDATE,
-                null,
-                null,
-                application = null,
-                version = null
+                ListRecentRequest(
+                    order = SortOrder.DESCENDING,
+                    sortBy = JobSortBy.LAST_UPDATE
+                )
             )
         }
     }
@@ -381,12 +378,12 @@ class JobHibernateDaoTest {
             session,
             user.createToken(),
             NormalizedPaginationRequest(10, 0),
-            SortOrder.DESCENDING,
-            JobSortBy.LAST_UPDATE,
-            min,
-            max,
-            application = null,
-            version = null
+            ListRecentRequest(
+                order = SortOrder.DESCENDING,
+                sortBy = JobSortBy.LAST_UPDATE,
+                minTimestamp = min,
+                maxTimestamp = max
+            )
         )
     }
 
@@ -406,13 +403,11 @@ class JobHibernateDaoTest {
                     it,
                     user.createToken(),
                     NormalizedPaginationRequest(100, 0),
-                    SortOrder.DESCENDING,
-                    JobSortBy.LAST_UPDATE,
-                    null,
-                    null,
-                    JobState.VALIDATED,
-                    null,
-                    null
+                    ListRecentRequest(
+                        order = SortOrder.DESCENDING,
+                        sortBy = JobSortBy.LAST_UPDATE,
+                        filter = JobState.VALIDATED
+                    )
                 )
             }
             assertEquals(1, jobByFilter.items.size)
@@ -422,13 +417,11 @@ class JobHibernateDaoTest {
                     it,
                     user.createToken(),
                     NormalizedPaginationRequest(100, 0),
-                    SortOrder.DESCENDING,
-                    JobSortBy.LAST_UPDATE,
-                    null,
-                    null,
-                    JobState.CANCELING,
-                    null,
-                    null
+                    ListRecentRequest(
+                        order = SortOrder.DESCENDING,
+                        sortBy = JobSortBy.LAST_UPDATE,
+                        filter = JobState.CANCELING
+                    )
                 )
             }
 
@@ -474,7 +467,10 @@ class JobHibernateDaoTest {
         db.withTransaction {
             runBlocking {
                 val page = jobHibDao.list(
-                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.NAME
+                    it,
+                    userToken,
+                    NormalizedPaginationRequest(10, 0),
+                    ListRecentRequest(sortBy = JobSortBy.NAME)
                 )
 
                 assertEquals(2, page.itemsInTotal)
@@ -484,7 +480,10 @@ class JobHibernateDaoTest {
 
             runBlocking {
                 val page = jobHibDao.list(
-                    it, userToken, NormalizedPaginationRequest(10, 0), SortOrder.ASCENDING, JobSortBy.NAME
+                    it,
+                    userToken,
+                    NormalizedPaginationRequest(10, 0),
+                    ListRecentRequest(order = SortOrder.ASCENDING, sortBy = JobSortBy.NAME)
                 )
                 assertEquals(page.items.first().job.application.metadata.name, appName)
                 assertEquals(page.items.last().job.application.metadata.name, appName2)
@@ -492,7 +491,10 @@ class JobHibernateDaoTest {
 
             runBlocking {
                 val page = jobHibDao.list(
-                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.STATE
+                    it,
+                    userToken,
+                    NormalizedPaginationRequest(10, 0),
+                    ListRecentRequest(sortBy = JobSortBy.STATE)
                 )
                 assertEquals(page.items.first().job.application.metadata.name, appName)
                 assertEquals(page.items.last().job.application.metadata.name, appName2)
@@ -500,31 +502,10 @@ class JobHibernateDaoTest {
 
             runBlocking {
                 val page = jobHibDao.list(
-                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.LAST_UPDATE
-                )
-                assertEquals(page.items.first().job.application.metadata.name, appName2)
-                assertEquals(page.items.last().job.application.metadata.name, appName)
-            }
-
-            runBlocking {
-                val page = jobHibDao.list(
-                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.APPLICATION
-                )
-                assertEquals(page.items.first().job.application.metadata.name, appName2)
-                assertEquals(page.items.last().job.application.metadata.name, appName)
-            }
-
-            runBlocking {
-                val page = jobHibDao.list(
-                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.STARTED_AT
-                )
-                assertEquals(page.items.first().job.application.metadata.name, appName2)
-                assertEquals(page.items.last().job.application.metadata.name, appName)
-            }
-
-            runBlocking {
-                val page = jobHibDao.list(
-                    it, userToken, NormalizedPaginationRequest(10, 0), sortBy = JobSortBy.CREATED_AT
+                    it,
+                    userToken,
+                    NormalizedPaginationRequest(10, 0),
+                    ListRecentRequest(sortBy = JobSortBy.LAST_UPDATE)
                 )
                 assertEquals(page.items.first().job.application.metadata.name, appName2)
                 assertEquals(page.items.last().job.application.metadata.name, appName)
@@ -535,12 +516,32 @@ class JobHibernateDaoTest {
                     it,
                     userToken,
                     NormalizedPaginationRequest(10, 0),
-                    sortBy = JobSortBy.NAME,
-                    application = appName2,
-                    version = version2
+                    ListRecentRequest(sortBy = JobSortBy.APPLICATION)
                 )
-                assertEquals(1, page.itemsInTotal)
                 assertEquals(page.items.first().job.application.metadata.name, appName2)
+                assertEquals(page.items.last().job.application.metadata.name, appName)
+            }
+
+            runBlocking {
+                val page = jobHibDao.list(
+                    it,
+                    userToken,
+                    NormalizedPaginationRequest(10, 0),
+                    ListRecentRequest(sortBy = JobSortBy.STARTED_AT)
+                )
+                assertEquals(page.items.first().job.application.metadata.name, appName2)
+                assertEquals(page.items.last().job.application.metadata.name, appName)
+            }
+
+            runBlocking {
+                val page = jobHibDao.list(
+                    it,
+                    userToken,
+                    NormalizedPaginationRequest(10, 0),
+                    ListRecentRequest(sortBy = JobSortBy.CREATED_AT)
+                )
+                assertEquals(page.items.first().job.application.metadata.name, appName2)
+                assertEquals(page.items.last().job.application.metadata.name, appName)
             }
         }
 

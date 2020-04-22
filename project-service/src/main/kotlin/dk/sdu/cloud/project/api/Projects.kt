@@ -77,7 +77,6 @@ object Projects : CallDescriptionContainer("project") {
 
     val create = call<CreateProjectRequest, CreateProjectResponse, CommonErrorMessage>("create") {
         auth {
-            roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE
         }
 
@@ -129,23 +128,6 @@ object Projects : CallDescriptionContainer("project") {
                 }
             }
         }
-
-    val delete = call<DeleteProjectRequest, DeleteProjectResponse, CommonErrorMessage>("delete") {
-        auth {
-            roles = Roles.PRIVILEDGED
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Delete
-
-            path {
-                using(baseContext)
-            }
-
-            params { +boundTo((DeleteProjectRequest::id)) }
-        }
-    }
 
     val addMember = call<AddMemberRequest, AddMemberResponse, CommonErrorMessage>("addMember") {
         auth {

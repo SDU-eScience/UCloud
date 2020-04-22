@@ -202,17 +202,23 @@ class JobFileService(
                         job.name + "-" + shortJobId
                     }
 
-                    if (FileDescriptions.stat.call(
-                            StatRequest(
-                                joinPath(
-                                    jobsFolder,
-                                    job.archiveInCollection,
-                                    folderName
-                                )
-                            ),
-                            userClient
-                        ).statusCode == HttpStatusCode.NotFound
-                    ) {
+                    val statStatusCode = FileDescriptions.stat.call(
+                        StatRequest(
+                            joinPath(
+                                jobsFolder,
+                                job.archiveInCollection,
+                                folderName
+                            )
+                        ),
+                        userClient
+                    ).statusCode
+
+
+                    if (statStatusCode == HttpStatusCode.NotFound) {
+                        break
+                    } else if (statStatusCode == HttpStatusCode.Forbidden) {
+                        // This could be a project user who has not yet created a personal repository
+                        // We will let this fail later if we really don't have permissions.
                         break
                     }
 

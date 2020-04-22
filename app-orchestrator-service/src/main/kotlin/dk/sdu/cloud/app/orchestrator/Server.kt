@@ -60,6 +60,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val vncService = VncService(computationBackendService, db, jobHibernateDao, serviceClient)
         val webService = WebService(computationBackendService, db, jobHibernateDao, serviceClient)
 
+        val jobQueryService = JobQueryService(db, jobHibernateDao, jobFileService, ProjectCache(serviceClient))
+
         val jobVerificationService = JobVerificationService(
             appStoreService,
             toolStoreService,
@@ -79,6 +81,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 computationBackendService,
                 jobFileService,
                 jobHibernateDao,
+                jobQueryService,
                 config.defaultBackend,
                 micro.backgroundScope
             )
@@ -89,12 +92,10 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 serviceClient,
                 serviceClientWS,
                 computationBackendService,
-                db,
-                jobHibernateDao,
+                jobQueryService,
                 micro.backgroundScope
             )
 
-        val jobQueryService = JobQueryService(db, jobHibernateDao, jobFileService)
 
         with(micro.server) {
             configureControllers(
@@ -112,18 +113,6 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 CallbackController(jobOrchestrator)
             )
         }
-
-        /*
-        log.info("Replaying lost jobs")
-        @Suppress("TooGenericExceptionCaught")
-        try {
-            jobOrchestrator.replayLostJobs()
-        } catch (ex: Throwable) {
-            log.warn("Caught exception while replaying lost jobs. These are ignored!")
-            log.warn(ex.stackTraceToString())
-            log.warn("Caught exception while replaying lost jobs. These are ignored!")
-        }
-         */
 
         log.info("Starting application services")
         startServices()

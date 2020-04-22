@@ -116,14 +116,9 @@ class JobFileTest {
             ClientMock.authenticatedClient
         )
 
-        ClientMock.mockCallSuccess(
-            FileDescriptions.findHomeFolder,
-            FindHomeFolderResponse("home")
-        )
-
         runBlocking {
             val result = service.jobFolder(verifiedJobWithAccessToken)
-            assertTrue(result.startsWith("/home/Jobs/title"))
+            assertTrue(result.startsWith("/home/${verifiedJobWithAccessToken.job.owner}/Jobs/title"))
         }
     }
 
@@ -134,11 +129,6 @@ class JobFileTest {
             { _, _ -> ClientMock.authenticatedClient },
             ParameterExportService(),
             ClientMock.authenticatedClient
-        )
-
-        ClientMock.mockCallSuccess(
-            FileDescriptions.findHomeFolder,
-            FindHomeFolderResponse("home")
         )
 
         ClientMock.mockCallSuccess(
@@ -166,9 +156,12 @@ class JobFileTest {
         )
 
         runBlocking {
-            assertEquals("/home/Jobs/title/01-01-1970 04.25.45.678", service.jobFolder(verifiedJobWithAccessToken2))
             assertEquals(
-                "/home/Jobs/title/myJobId",
+                "/home/${verifiedJobWithAccessToken2.job.owner}/Jobs/title/01-01-1970 04.25.45.678",
+                service.jobFolder(verifiedJobWithAccessToken2)
+            )
+            assertEquals(
+                "/home/${verifiedJobWithAccessToken2.job.owner}/Jobs/title/myJobId",
                 service.jobFolder(
                     myJob,
                     true

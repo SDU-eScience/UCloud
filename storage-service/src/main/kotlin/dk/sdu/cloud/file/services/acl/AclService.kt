@@ -127,17 +127,22 @@ class AclService(
                 return true
             }
         } else if (normalizedPath.startsWith("/projects/")) {
+            log.debug("Path is project: $path $username")
             val components = normalizedPath.components()
             if (components.size < 2) return false
             val projectId = components[1]
+            log.debug("projectId: $projectId")
             val viewMember = projectCache.viewMember(projectId, username) ?: return false
+            log.debug("is member: $viewMember")
 
             // Note: Even if username matches we must be a member of the project. This allows us to keep files after
             // a user leaves.
-            if (components.size > 5 && components[2] == PERSONAL_REPOSITORY && components[4] == username) {
+            if (components.size > 5 && components[2] == PERSONAL_REPOSITORY && components[3] == username) {
+                log.debug("owner!")
                 return true
             }
 
+            log.debug("are we member? $viewMember")
             return viewMember.role.isAdmin()
         }
 

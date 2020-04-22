@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "storage"
-    version = "4.1.0-projects.12"
+    version = "4.1.0-projects.14"
 
     withAmbassador(null) {
         services.add(

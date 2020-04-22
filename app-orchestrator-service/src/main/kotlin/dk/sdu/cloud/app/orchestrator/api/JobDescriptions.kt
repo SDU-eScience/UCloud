@@ -17,17 +17,27 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
-data class ListRecentRequest(
-    override val itemsPerPage: Int?,
-    override val page: Int?,
-    val order: SortOrder?,
-    val sortBy: JobSortBy?,
-    val minTimestamp: Long?,
-    val maxTimestamp: Long?,
-    val filter: JobState?,
-    val application: String?,
+interface JobQuery {
+    val order: SortOrder
+    val sortBy: JobSortBy
+    val minTimestamp: Long?
+    val maxTimestamp: Long?
+    val filter: JobState?
+    val application: String?
     val version: String?
-) : WithPaginationRequest
+}
+
+data class ListRecentRequest(
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null,
+    override val order: SortOrder = SortOrder.DESCENDING,
+    override val sortBy: JobSortBy = JobSortBy.CREATED_AT,
+    override val minTimestamp: Long? = null,
+    override val maxTimestamp: Long? = null,
+    override val filter: JobState? = null,
+    override val application: String? = null,
+    override val version: String? = null
+) : WithPaginationRequest, JobQuery
 
 enum class SortOrder {
     ASCENDING,

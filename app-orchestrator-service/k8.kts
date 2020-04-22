@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-orchestrator"
-    version = "2.2.0-projects.2"
+    version = "2.2.0-projects.8"
 
     withAmbassador(null) {
         addSimpleMapping("/api/hpc/jobs")
@@ -17,7 +17,7 @@ bundle { ctx ->
 
     withPostgresMigration(deployment)
 
-    withConfigMap(name = "app-config", version = "1") {
+    withConfigMap(name = "app-config", version = "2") {
         data class MachineType(val name: String, val cpu: Int?, val memoryInGigs: Int?, val gpu: Int? = null)
         data class ComputeBackend(val name: String, val title: String, val useWorkspaces: Boolean)
 
@@ -70,7 +70,8 @@ bundle { ctx ->
                     "vasileios@bmb.sdu.dk",
                     "svensson@imada.sdu.dk",
                     "dthrane@imada.sdu.dk",
-                    "schweisfurth@mci.sdu.dk"
+                    "schweisfurth@mci.sdu.dk",
+                    "alfal19@student.sdu.dk"
                 ),
                 "backends" to listOf(
                     ComputeBackend("kubernetes", "k8s", true)

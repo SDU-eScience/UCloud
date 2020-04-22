@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.app.orchestrator.api.JobSortBy
+import dk.sdu.cloud.app.orchestrator.api.ListRecentRequest
 import dk.sdu.cloud.app.orchestrator.api.SortOrder
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJob
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
@@ -29,19 +30,20 @@ class JobQueryServiceTest {
         micro.install(HibernateFeature)
         daoMock = mockk<JobHibernateDao>()
         jobFileMock = mockk<JobFileService>()
-        return JobQueryService(micro.hibernateDatabase, daoMock, jobFileMock)
+        return JobQueryService(micro.hibernateDatabase, daoMock, jobFileMock, mockk(relaxed = true))
     }
 
     @Test
     fun `Find By Id test`() {
         val jobQueryService = newJobQueryService()
         val token = TestUsers.admin.createToken()
-        val verifiedJobWithAccessToken = VerifiedJobWithAccessToken(verifiedJob, "access", "refresh")
+        val verifiedJobWithAccessToken =
+            VerifiedJobWithAccessToken(verifiedJob.copy(owner = token.principal.username), "access", "refresh")
 
-        coEvery{ daoMock.findOrNull(any(), "job1", token) } answers {
+        coEvery { daoMock.findOrNull(any(), "job1", token) } answers {
             verifiedJobWithAccessToken
         }
-        coEvery { daoMock.find(any(),any(),any()) } answers {
+        coEvery { daoMock.find(any(), any(), any()) } answers {
             listOf(verifiedJobWithAccessToken)
         }
 
@@ -53,11 +55,11 @@ class JobQueryServiceTest {
         }
     }
 
-    @Test (expected = RPCException::class)
+    @Test(expected = RPCException::class)
     fun `Find By Id test - Not found`() {
         val jobQueryService = newJobQueryService()
 
-        coEvery{ daoMock.find(any(), any(), any()) } returns emptyList()
+        coEvery { daoMock.find(any(), any(), any()) } returns emptyList()
         runBlocking {
             val result = jobQueryService.findById(TestUsers.admin.createToken(), "job1")
 
@@ -68,7 +70,7 @@ class JobQueryServiceTest {
     fun `List Recent test - using defualt null values`() {
         val jobQueryService = newJobQueryService()
 
-        coEvery{ daoMock.list(any(), any(), any(), any(), any(), any(), any(), any(),any(), any())} answers {
+        coEvery { daoMock.list(any(), any(), any(), any(), any()) } answers {
             Page(
                 1,
                 10,
@@ -79,10 +81,14 @@ class JobQueryServiceTest {
             )
         }
 
-        coEvery{ jobFileMock.jobFolder(any(), any())} returns "path/to/job/folder"
+        coEvery { jobFileMock.jobFolder(any(), any()) } returns "path/to/job/folder"
 
         runBlocking {
-            val results = jobQueryService.listRecent(TestUsers.admin.createToken(), NormalizedPaginationRequest(10, 0))
+            val results = jobQueryService.listRecent(
+                TestUsers.admin.createToken(),
+                NormalizedPaginationRequest(10, 0),
+                ListRecentRequest()
+            )
 
             assertEquals(1, results.pagesInTotal)
             assertEquals(1, results.itemsInTotal)
@@ -93,25 +99,32 @@ class JobQueryServiceTest {
     fun `List Recent test - specific order and sort`() {
         val jobQueryService = newJobQueryService()
 
-        coEvery{ daoMock.list(any(), any(), any(), any(), any(), any(), any(), any(),any(), any())} answers {
+        coEvery { daoMock.list(any(), any(), any(), any(), any()) } answers {
             Page(
                 1,
                 10,
                 0,
                 listOf(
-                    verifiedJobWithAccessToken.copy(verifiedJob.copy(startedAt = 1234, maxTime = SimpleDuration(1,0,0)))
+                    verifiedJobWithAccessToken.copy(
+                        verifiedJob.copy(
+                            startedAt = 1234,
+                            maxTime = SimpleDuration(1, 0, 0)
+                        )
+                    )
                 )
             )
         }
 
-        coEvery{ jobFileMock.jobFolder(any(), any())} returns "path/to/job/folder"
+        coEvery { jobFileMock.jobFolder(any(), any()) } returns "path/to/job/folder"
 
         runBlocking {
             val results = jobQueryService.listRecent(
                 TestUsers.admin.createToken(),
                 NormalizedPaginationRequest(10, 0),
-                order = SortOrder.ASCENDING,
-                sortBy = JobSortBy.NAME
+                ListRecentRequest(
+                    order = SortOrder.ASCENDING,
+                    sortBy = JobSortBy.NAME
+                )
             )
 
             assertEquals(1, results.pagesInTotal)

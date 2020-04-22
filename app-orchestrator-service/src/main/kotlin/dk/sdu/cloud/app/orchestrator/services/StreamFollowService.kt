@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.orchestrator.api.CancelWSStreamRequest
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsRequest
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsResponse
@@ -29,22 +30,20 @@ import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class StreamFollowService<DBSession>(
+class StreamFollowService(
     private val jobFileService: JobFileService,
     private val serviceClient: AuthenticatedClient,
     private val serviceClientWS: AuthenticatedClient,
     private val computationBackendService: ComputationBackendService,
-    private val db: DBSessionFactory<DBSession>,
-    private val jobDao: JobDao<DBSession>,
+    private val jobQueryService: JobQueryService<*>,
     private val backgroundScope: BackgroundScope
 ) {
     suspend fun followStreams(
         request: FollowStdStreamsRequest,
-        requestedBy: String
+        requestedBy: SecurityPrincipalToken
     ): FollowStdStreamsResponse {
-        val jobWithToken = db.withTransaction { jobDao.find(it, request.jobId) }
+        val jobWithToken = jobQueryService.findById(requestedBy, request.jobId)
         val (job) = jobWithToken
-        if (job.owner != requestedBy) throw RPCException("Not found", HttpStatusCode.NotFound)
 
         val backend = computationBackendService.getAndVerifyByName(job.backend, null)
         val internalResult = backend.follow.call(
@@ -78,7 +77,7 @@ class StreamFollowService<DBSession>(
 
     suspend fun followWSStreams(
         request: FollowWSRequest,
-        requestedBy: String,
+        requestedBy: SecurityPrincipalToken,
         callContext: CallHandler<*, FollowWSResponse, *>
     ): Job {
         fun debug(message: String) {
@@ -88,8 +87,7 @@ class StreamFollowService<DBSession>(
         return backgroundScope.launch {
             debug("Initializing stream")
 
-            val (initialJob) = db.withTransaction { jobDao.find(it, request.jobId) }
-            if (initialJob.owner != requestedBy) throw RPCException("Not found", HttpStatusCode.NotFound)
+            val (initialJob) = jobQueryService.findById(requestedBy, request.jobId)
             val backend = computationBackendService.getAndVerifyByName(initialJob.backend, null)
 
             var lastStatus: String? = null
@@ -110,7 +108,7 @@ class StreamFollowService<DBSession>(
             var activeSubscription: Job? = null
             while (true) {
                 try {
-                    val (job) = db.withTransaction { jobDao.find(it, request.jobId) }
+                    val (job) = jobQueryService.findById(requestedBy, request.jobId)
 
                     if (job.currentState == JobState.RUNNING) {
                         if (activeSubscription == null) {

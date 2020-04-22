@@ -35,6 +35,7 @@ import io.ktor.util.pipeline.PipelineContext
 import kotlinx.io.IOException
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.reflect.KFunction
 import kotlin.reflect.KType
 import kotlin.reflect.full.companionObjectInstance
 import kotlin.reflect.jvm.javaType
@@ -136,17 +137,18 @@ class IngoingHttpInterceptor(
 
         // We need to start going through all properties and parse them
 
+        val constructor = RequestParsing.findConstructor<Any>(call.requestType.type)
+
         val mappedQueryParameters = http
             .params
             ?.parameters
-            ?.mapNotNull { it.bindValuesFromCall(ctx, call) }
+            ?.mapNotNull { it.bindValuesFromCall(ctx, call, constructor) }
             ?.toMap() ?: emptyMap()
-
 
         val mappedPathParameters = http
             .path
             .segments
-            .mapNotNull { it.bindValuesFromCall(ctx, call) }
+            .mapNotNull { it.bindValuesFromCall(ctx, call, constructor) }
             .toMap()
 
         val mappedHeaders = http
@@ -154,6 +156,7 @@ class IngoingHttpInterceptor(
             ?.parameters
             ?.mapNotNull { it.bindValuesFromCall(ctx, call) }
             ?.toMap() ?: emptyMap()
+
 
         val mappedBody = when (val body = http.body) {
             null -> null
@@ -175,8 +178,10 @@ class IngoingHttpInterceptor(
                     else -> defaultConverterRequestBody(ctx, type)
                 } as? R?
 
-                if (converted == null && !property.returnType.isMarkedNullable) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Missing parameter for '$name'")
+                if (converted == null) {
+                    if (!property.returnType.isMarkedNullable && constructor.parameters.find { it.name == property.name }?.isOptional != true) {
+                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Missing parameter for '$name'")
+                    }
                 }
 
                 mapOf(name to converted)
@@ -241,7 +246,8 @@ class IngoingHttpInterceptor(
 
     private fun <R : Any> HttpQueryParameter<R>.bindValuesFromCall(
         ctx: HttpCall,
-        call: CallDescription<*, *, *>
+        call: CallDescription<*, *, *>,
+        constructor: KFunction<Any>
     ): Pair<String, Any?>? {
         return when (this) {
             is HttpQueryParameter.Property<R, *> -> {
@@ -259,8 +265,14 @@ class IngoingHttpInterceptor(
                     else -> defaultStringConverter(ctx, name, value, returnType)
                 }
 
-                if (converted == null && !returnType.isMarkedNullable) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Missing parameter for '$name'")
+                if (converted == null) {
+                    if (constructor.parameters.find { it.name == property.name }?.isOptional == true) {
+                        return null
+                    }
+
+                    if (!returnType.isMarkedNullable) {
+                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Missing parameter for '$name'")
+                    }
                 }
 
                 Pair(name, converted)
@@ -270,7 +282,8 @@ class IngoingHttpInterceptor(
 
     private fun <R : Any> HttpPathSegment<R>.bindValuesFromCall(
         ctx: HttpCall,
-        call: CallDescription<*, *, *>
+        call: CallDescription<*, *, *>,
+        constructor: KFunction<Any>
     ): Pair<String, Any?>? {
         return when (this) {
             is HttpPathSegment.Property<R, *> -> {
@@ -287,8 +300,14 @@ class IngoingHttpInterceptor(
                     else -> defaultStringConverter(ctx, name, value, returnType)
                 }
 
-                if (converted == null && !returnType.isMarkedNullable) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Missing parameter for '$name'")
+                if (converted == null) {
+                    if (constructor.parameters.find { it.name == property.name }?.isOptional == true) {
+                        return null
+                    }
+
+                    if (!property.returnType.isMarkedNullable) {
+                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Missing parameter for '$name'")
+                    }
                 }
 
                 Pair(name, converted)

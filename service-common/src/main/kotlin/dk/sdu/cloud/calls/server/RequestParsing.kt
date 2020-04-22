@@ -7,12 +7,13 @@ import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import java.lang.reflect.Type
 import kotlin.reflect.KClass
+import kotlin.reflect.KFunction
 import kotlin.reflect.full.primaryConstructor
 
 object RequestParsing : Loggable {
     override val log = logger()
 
-    fun <P : Any> constructFromAttributes(target: Type, parameters: Map<String, Any?>): P {
+    fun <P : Any> findConstructor(target: Type): KFunction<P> {
         val requestClass = target as? Class<*> ?: throw IllegalStateException(
             "$target is not a simple class. This is required."
         )
@@ -26,11 +27,13 @@ object RequestParsing : Loggable {
             )
         }
 
-        val constructor =
-            requestClassKotlin.primaryConstructor ?: requestClassKotlin.constructors.single()
+        return requestClassKotlin.primaryConstructor ?: requestClassKotlin.constructors.single()
+    }
 
-        val resolvedArguments = constructor.parameters.map {
-            val name = it.name ?: run {
+    fun <P : Any> constructFromAttributes(target: Type, parameters: Map<String, Any?>): P {
+        val constructor = findConstructor<P>(target)
+        val resolvedArguments = constructor.parameters.mapNotNull { param ->
+            val name = param.name ?: run {
                 throw IllegalStateException(
                     "Unable to determine name of property in request " +
                             "type. Please use a data class instead to solve this problem."
@@ -38,10 +41,13 @@ object RequestParsing : Loggable {
             }
 
             if (name !in parameters) {
+                if (param.isOptional) {
+                    return@mapNotNull null
+                }
                 throw IllegalStateException("The property '$name' of $target was not bound in description!")
             }
 
-            it to parameters[name]
+            param to parameters[name]
         }.toMap()
 
         @Suppress("TooGenericExceptionCaught")

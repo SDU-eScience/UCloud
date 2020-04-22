@@ -8,21 +8,19 @@ import dk.sdu.cloud.app.orchestrator.api.JobStartedResponse
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobStateChange
 import dk.sdu.cloud.app.orchestrator.api.MachineReservation
-import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
-import dk.sdu.cloud.app.orchestrator.services.JobQueryService
-import dk.sdu.cloud.app.orchestrator.services.StreamFollowService
-import dk.sdu.cloud.app.orchestrator.services.VncService
-import dk.sdu.cloud.app.orchestrator.services.WebService
-import dk.sdu.cloud.app.orchestrator.services.exportForEndUser
+import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.api.FileDescriptions
 import dk.sdu.cloud.file.api.MultiPartUploadDescriptions
+import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
@@ -32,7 +30,7 @@ internal const val JOB_MAX_TIME = 1000 * 60 * 60 * 200L
 class JobController(
     private val jobQueryService: JobQueryService<*>,
     private val jobOrchestrator: JobOrchestrator<*>,
-    private val streamFollowService: StreamFollowService<*>,
+    private val streamFollowService: StreamFollowService,
     private val userClientFactory: (String?, String?) -> AuthenticatedClient,
     private val serviceClient: AuthenticatedClient,
     private val vncService: VncService<*>,
@@ -42,29 +40,38 @@ class JobController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(JobDescriptions.findById) {
-            verifyPrincipal()
-            ok(jobQueryService.findById(ctx.securityToken, request.id))
+            verifySlaFromPrincipal()
+            ok(jobQueryService.asJobWithStatus(jobQueryService.findById(ctx.securityToken, request.id)))
         }
 
         implement(JobDescriptions.listRecent) {
-            verifyPrincipal()
+            verifySlaFromPrincipal()
+            val project = run {
+                val projectId = ctx.project
+                if (projectId != null) {
+                    val memberInProject = Projects.viewMemberInProject.call(
+                        ViewMemberInProjectRequest(projectId, ctx.securityPrincipal.username),
+                        serviceClient
+                    ).orThrow()
+
+                    ProjectContext(projectId, memberInProject.member.role)
+                } else {
+                    null
+                }
+            }
+
             ok(
                 jobQueryService.listRecent(
                     ctx.securityToken,
                     request.normalize(),
-                    request.order,
-                    request.sortBy,
-                    request.minTimestamp,
-                    request.maxTimestamp,
-                    request.filter,
-                    request.application,
-                    request.version
+                    request,
+                    project
                 )
             )
         }
 
         implement(JobDescriptions.start) {
-            verifyPrincipal()
+            verifySlaFromPrincipal()
             val canAccessGpu =
                 ctx.securityPrincipal.email in gpuWhitelist || ctx.securityPrincipal.role in Roles.PRIVILEDGED
             val reservation = machineTypes.find { it.name == request.reservation }
@@ -111,7 +118,7 @@ class JobController(
         }
 
         implement(JobDescriptions.cancel) {
-            verifyPrincipal()
+            verifySlaFromPrincipal()
             jobOrchestrator.handleProposedStateChange(
                 JobStateChange(request.jobId, JobState.CANCELING),
                 newStatus = "Job is cancelling...",
@@ -122,34 +129,34 @@ class JobController(
         }
 
         implement(JobDescriptions.follow) {
-            verifyPrincipal()
-            ok(streamFollowService.followStreams(request, ctx.securityPrincipal.username))
+            verifySlaFromPrincipal()
+            ok(streamFollowService.followStreams(request, ctx.securityToken))
         }
 
         implement(JobDescriptions.followWS) {
-            verifyPrincipal()
-            streamFollowService.followWSStreams(request, ctx.securityPrincipal.username, this).join()
+            verifySlaFromPrincipal()
+            streamFollowService.followWSStreams(request, ctx.securityToken, this).join()
         }
 
         implement(JobDescriptions.queryVncParameters) {
-            verifyPrincipal()
+            verifySlaFromPrincipal()
             ok(vncService.queryVncParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
         }
 
         implement(JobDescriptions.queryWebParameters) {
-            verifyPrincipal()
+            verifySlaFromPrincipal()
             ok(webService.queryWebParameters(request.jobId, ctx.securityPrincipal.username).exportForEndUser())
         }
 
         implement(JobDescriptions.machineTypes) {
-            verifyPrincipal()
+            verifySlaFromPrincipal()
             val canAccessGpu =
                 ctx.securityPrincipal.email in gpuWhitelist || ctx.securityPrincipal.role in Roles.PRIVILEDGED
             ok(if (canAccessGpu) machineTypes else machineTypes.filter { it.gpu == null })
         }
     }
 
-    private fun CallHandler<*, *, *>.verifyPrincipal() {
+    private fun CallHandler<*, *, *>.verifySlaFromPrincipal() {
         val principal = ctx.securityPrincipal
         if (principal.role == Role.USER && !principal.twoFactorAuthentication &&
             principal.principalType == "password"

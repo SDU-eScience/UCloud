@@ -1,14 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.app.orchestrator.api.ApplicationPeer
-import dk.sdu.cloud.app.orchestrator.api.JobSortBy
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.MachineReservation
-import dk.sdu.cloud.app.orchestrator.api.SortOrder
-import dk.sdu.cloud.app.orchestrator.api.ValidatedFileForUpload
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
-import dk.sdu.cloud.app.orchestrator.api.VerifiedJobInput
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ParsedApplicationParameter
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -158,7 +151,9 @@ data class JobInformationEntity(
 
     var outputFolder: String?,
 
-    var url: String?
+    var url: String?,
+
+    var project: String?
 ) : WithTimestamps {
 
     companion object : HibernateEntity<JobInformationEntity>, WithId<String>
@@ -200,7 +195,8 @@ class JobHibernateDao(
             reservedMemoryInGigs = job.reservation.memoryInGigs,
             reservedGpus = job.reservation.gpu,
             outputFolder = job.outputFolder,
-            url = job.url
+            url = job.url,
+            project = job.project
         )
 
         session.save(entity)
@@ -281,74 +277,86 @@ class JobHibernateDao(
         session: HibernateSession,
         owner: SecurityPrincipalToken,
         pagination: NormalizedPaginationRequest,
-        order: SortOrder,
-        sortBy: JobSortBy,
-        minTimestamp: Long?,
-        maxTimestamp: Long?,
-        filter: JobState?,
-        application: String?,
-        version: String?
+        query: JobQuery,
+        projectContext: ProjectContext?
     ): Page<VerifiedJobWithAccessToken> {
-        return session.paginatedCriteria<JobInformationEntity>(
-            pagination,
-            orderBy = {
-                val field = when (sortBy) {
-                    JobSortBy.NAME -> JobInformationEntity::name
-                    JobSortBy.STATE -> JobInformationEntity::state
-                    JobSortBy.APPLICATION -> JobInformationEntity::application
-                    JobSortBy.STARTED_AT -> JobInformationEntity::startedAt
-                    JobSortBy.LAST_UPDATE -> JobInformationEntity::modifiedAt
-                    JobSortBy.CREATED_AT -> JobInformationEntity::createdAt
-                }
+        with (query) {
+            return session.paginatedCriteria<JobInformationEntity>(
+                pagination,
+                orderBy = {
+                    val field = when (sortBy) {
+                        JobSortBy.NAME -> JobInformationEntity::name
+                        JobSortBy.STATE -> JobInformationEntity::state
+                        JobSortBy.APPLICATION -> JobInformationEntity::application
+                        JobSortBy.STARTED_AT -> JobInformationEntity::startedAt
+                        JobSortBy.LAST_UPDATE -> JobInformationEntity::modifiedAt
+                        JobSortBy.CREATED_AT -> JobInformationEntity::createdAt
+                    }
 
-                when (order) {
-                    SortOrder.ASCENDING -> listOf(ascending(entity[field]))
-                    SortOrder.DESCENDING -> listOf(descending(entity[field]))
-                }
-            },
-            predicate = {
-                val canViewAsOwner = entity[JobInformationEntity::owner] equal owner.principal.username
+                    when (order) {
+                        SortOrder.ASCENDING -> listOf(ascending(entity[field]))
+                        SortOrder.DESCENDING -> listOf(descending(entity[field]))
+                    }
+                },
+                predicate = {
+                    val canView = run {
+                        val canViewAsOwner = if (projectContext?.role?.isAdmin() != true) {
+                            entity[JobInformationEntity::owner] equal owner.principal.username
+                        } else {
+                            literal(true).toPredicate()
+                        }
 
-                // Time ranges
-                val lowerTime = entity[JobInformationEntity::createdAt] greaterThanEquals Date(minTimestamp ?: 0)
-                val upperTime = entity[JobInformationEntity::createdAt] lessThanEquals Date(maxTimestamp ?: Date().time)
-                val matchesLowerFilter = literal(minTimestamp == null).toPredicate() or lowerTime
-                val matchesUpperFilter = literal(maxTimestamp == null).toPredicate() or upperTime
+                        val projectPredicate = if (projectContext == null) {
+                            entity[JobInformationEntity::project].isNull
+                        } else {
+                            entity[JobInformationEntity::project] equal projectContext.project
+                        }
 
-                // AppState filter
-                val appState = entity[JobInformationEntity::state] equal (filter ?: JobState.VALIDATED)
-                val appStateFilter = literal(filter == null).toPredicate() or appState
+                        allOf(canViewAsOwner, projectPredicate)
+                    }
 
-                // By application name (and version)
-                val byNameAndVersionFilter = if (application != null) {
-                    allOf(
-                        *ArrayList<Predicate>().apply {
-                            val app = entity[JobInformationEntity::application]
+                    // Time ranges
+                    val lowerTime = entity[JobInformationEntity::createdAt] greaterThanEquals Date(minTimestamp ?: 0)
+                    val upperTime =
+                        entity[JobInformationEntity::createdAt] lessThanEquals Date(maxTimestamp ?: Date().time)
+                    val matchesLowerFilter = literal(minTimestamp == null).toPredicate() or lowerTime
+                    val matchesUpperFilter = literal(maxTimestamp == null).toPredicate() or upperTime
 
-                            add(
-                                app[EmbeddedNameAndVersion::name] equal application
-                            )
+                    // AppState filter
+                    val appState = entity[JobInformationEntity::state] equal (filter ?: JobState.VALIDATED)
+                    val appStateFilter = literal(filter == null).toPredicate() or appState
 
-                            if (version != null) {
+                    // By application name (and version)
+                    val byNameAndVersionFilter = if (application != null) {
+                        allOf(
+                            *ArrayList<Predicate>().apply {
+                                val app = entity[JobInformationEntity::application]
+
                                 add(
-                                    app[EmbeddedNameAndVersion::version] equal version
+                                    app[EmbeddedNameAndVersion::name] equal application
                                 )
-                            }
-                        }.toTypedArray()
-                    )
-                } else {
-                    literal(true).toPredicate()
-                }
 
-                allOf(
-                    matchesLowerFilter,
-                    matchesUpperFilter,
-                    appStateFilter,
-                    byNameAndVersionFilter,
-                    canViewAsOwner
-                )
-            }
-        ).mapItemsNotNull { it.toModel() }
+                                if (version != null) {
+                                    add(
+                                        app[EmbeddedNameAndVersion::version] equal version
+                                    )
+                                }
+                            }.toTypedArray()
+                        )
+                    } else {
+                        literal(true).toPredicate()
+                    }
+
+                    allOf(
+                        matchesLowerFilter,
+                        matchesUpperFilter,
+                        appStateFilter,
+                        byNameAndVersionFilter,
+                        canView
+                    )
+                }
+            ).mapItemsNotNull { it.toModel() }
+        }
     }
 
     override suspend fun list10LatestActiveJobsOfApplication(
@@ -411,7 +419,8 @@ class JobHibernateDao(
                 createdAt = createdAt.time,
                 modifiedAt = modifiedAt.time,
                 startedAt = startedAt?.time,
-                url = url
+                url = url,
+                project = project
             ),
             accessToken,
             refreshToken

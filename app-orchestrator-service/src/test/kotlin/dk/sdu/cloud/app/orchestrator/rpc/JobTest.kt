@@ -15,6 +15,7 @@ import dk.sdu.cloud.app.orchestrator.services.VncService
 import dk.sdu.cloud.app.orchestrator.services.WebService
 import dk.sdu.cloud.app.orchestrator.utils.jobWithStatus
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
+import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
@@ -41,7 +42,7 @@ import org.junit.Test
 private fun KtorApplicationTestSetupContext.configureCallbackServer(
     jobQueryService: JobQueryService<Session>,
     orchestrator: JobOrchestrator<Session>,
-    streamFollowService: StreamFollowService<Session>,
+    streamFollowService: StreamFollowService,
     userClientFactory: (String?, String?) -> AuthenticatedClient,
     serviceClient: AuthenticatedClient,
     vncService: VncService<Session>,
@@ -68,7 +69,7 @@ class JobTest{
             setup = {
                 val jobQueryService = mockk<JobQueryService<Session>>()
                 val orchestrator = mockk<JobOrchestrator<Session>>()
-                val streamFollowService = mockk<StreamFollowService<Session>>()
+                val streamFollowService = mockk<StreamFollowService>()
                 val userClientFactory: (String?, String?) -> AuthenticatedClient =
                     { accessToken, refreshToken ->
                         ClientMock.authenticatedClient
@@ -87,10 +88,11 @@ class JobTest{
                     "IdOfJob"
                 }
 
-                coEvery { jobQueryService.findById(any(), any()) } returns jobWithStatus
+                coEvery { jobQueryService.findById(any(), any()) } returns verifiedJobWithAccessToken
+                coEvery { jobQueryService.asJobWithStatus(any()) } returns jobWithStatus
 
                 coEvery { jobQueryService.listRecent(
-                    any(), any(), any(), any(), any(), any(), any(), any(), any()
+                    any(), any(), any(), any()
                 ) } answers {
                     val resultPage = Page(
                         1,
@@ -178,17 +180,7 @@ class JobTest{
                     method = HttpMethod.Get,
                     path = "/api/hpc/jobs",
                     user = TestUsers.user,
-                    request = ListRecentRequest(
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null
-                    )
+                    request = ListRecentRequest(null, null)
                 )
                 listRequest.assertSuccess()
 
