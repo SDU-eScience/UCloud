@@ -17,6 +17,8 @@ import kotlin.test.assertEquals
 import kotlin.test.Test
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.license.api.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import io.mockk.mockk
 
 class AclTest {
     private lateinit var micro: Micro
@@ -28,6 +30,8 @@ class AclTest {
         micro = initializeMicro()
         micro.install(HibernateFeature)
 
+        val authClient = mockk<AuthenticatedClient>(relaxed = true)
+
         ClientMock.mockCall(UserDescriptions.lookupUsers) {
             TestCallResult.Ok(
                 LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
@@ -35,7 +39,7 @@ class AclTest {
         }
 
         aclService = AclService(micro.hibernateDatabase, ClientMock.authenticatedClient, AclHibernateDao())
-        licenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao())
+        licenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao(), authClient)
 
         runBlocking {
             micro.hibernateDatabase.withTransaction {

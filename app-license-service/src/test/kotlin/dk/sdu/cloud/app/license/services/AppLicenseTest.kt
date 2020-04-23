@@ -7,12 +7,14 @@ import dk.sdu.cloud.app.license.api.UpdateServerRequest
 import dk.sdu.cloud.app.license.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.license.services.acl.AclService
 import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.BeforeTest
@@ -35,8 +37,10 @@ class AppLicenseTest {
             )
         }
 
+        val authClient = mockk<AuthenticatedClient>(relaxed = true)
+
         aclService = AclService(micro.hibernateDatabase, ClientMock.authenticatedClient, AclHibernateDao())
-        appLicenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao())
+        appLicenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao(), authClient)
     }
 
     @Test
