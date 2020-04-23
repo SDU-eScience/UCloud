@@ -6,7 +6,8 @@ bundle {
     version = "1.0.26"
 
     val deployment = withDeployment(image = "registry.cloud.sdu.dk/sdu-cloud/elastic-management:$version") {
-        injectSecret("elasticsearch-credentials")
+        injectSecret("elasticsearch-logging-cluster-credentials")
+        injectSecret("elasticmangement-tokens")
     }
 
     withCronJob(deployment, "0 1 * * *", listOf("--cleanup"), name="elastic-cleanup") {}
