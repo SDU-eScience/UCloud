@@ -1,9 +1,9 @@
 import * as React from "react";
-import {Button, Text, Input, List, Icon} from "ui-components";
+import {Button, Text, Input, List, Icon, Flex} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI} from "Authentication/DataHook";
-import {Page} from "Types";
+import {Page, Operation} from "Types";
 import {useHistory, useParams} from "react-router";
 import DetailedGroupView from "./DetailedGroupView";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -11,7 +11,6 @@ import {errorMessageOrDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Client} from "Authentication/HttpClientInstance";
 import {SnackType} from "Snackbar/Snackbars";
-import {History} from "history";
 import {addStandardDialog} from "UtilityComponents";
 import {emptyPage, KeyCode} from "DefaultObjects";
 import {connect} from "react-redux";
@@ -54,6 +53,14 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
         props.setLoading(groupSummaries.loading);
     }, [groupSummaries.loading]);
 
+    const operations: GroupOperation[] = [{
+        disabled: groups => groups.length === 0,
+        onClick: () => promptDeleteGroups(),
+        icon: "trash",
+        text: "Delete",
+        color: "red"
+    }];
+
     const promptDeleteGroups = React.useCallback(async () => {
         const groups = [...selectedGroups];
         if (groups.length === 0) {
@@ -86,7 +93,8 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
     return <MainContainer
         sidebar={<>
             <Button disabled={loading} mb="5px" onClick={() => setCreatingGroup(true)} width="100%">New Group</Button>
-            <Button color="red" disabled={selectedGroups.size === 0} onClick={promptDeleteGroups} width="100%">Delete groups</Button>
+            {selectedGroups.size > 0 ? `${selectedGroups.size} group${selectedGroups.size > 1 ? "s" : ""} selected` : null}
+            <GroupOperations groupOperations={operations} selectedGroups={groupSummaries.data.items.filter(it => selectedGroups.has(it.group))} />
         </>}
         main={(<>
             {groupSummaries.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
@@ -151,7 +159,7 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
                 </>))}
             </List>
         </>)}
-        header={null}
+        header={<Heading.h3>Groups for {Client.projectId} </Heading.h3>}
     />;
 
     async function createGroup(e: React.SyntheticEvent): Promise<void> {
@@ -176,12 +184,32 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
     }
 }
 
-interface GroupViewProps {
-    group: GroupWithSummary;
-    setSelected: () => void;
-    isSelected?: boolean;
-    history: History;
+type GroupOperation = Operation<GroupWithSummary>;
+
+interface GroupOperationsProps {
+    selectedGroups: GroupWithSummary[];
+    groupOperations: GroupOperation[];
 }
+
+function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
+    if (props.groupOperations.length === 0) return null;
+
+    function GroupOp(op: GroupOperation): JSX.Element | null {
+        if (op.disabled(props.selectedGroups, Client)) return null;
+        return <span onClick={() => op.onClick(props.selectedGroups, Client)}>
+            <Icon size={16} mr="1em" color={op.color} name={op.icon} />{op.text}</span>;
+    }
+
+    return (
+        <Flex
+            ml="-17px"
+            mr="-17px"
+            pl="15px">
+            {props.groupOperations.map(GroupOp)}
+        </Flex>
+    );
+}
+
 
 interface GroupViewOperations {
     setLoading: (loading: boolean) => void;
