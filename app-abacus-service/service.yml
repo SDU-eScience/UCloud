@@ -1,8 +1,0 @@
----
-name: app-abacus
-
-namespaces:
-  - app.compute.abacus
-
-dependencies:
-  - app.compute
