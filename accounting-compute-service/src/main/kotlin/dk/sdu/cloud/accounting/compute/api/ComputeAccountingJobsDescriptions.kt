@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.compute.api
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import dk.sdu.cloud.accounting.api.AbstractAccountingResourceDescriptions
 import dk.sdu.cloud.accounting.api.AccountingEvent
+import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.NameAndVersionImpl
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -13,6 +14,8 @@ data class AccountingJobCompletedEvent(
     val totalDuration: SimpleDuration,
     val startedBy: String,
     val jobId: String,
+    val reservation: MachineReservation,
+    val project: String?,
 
     override val timestamp: Long
 ) : AccountingEvent {

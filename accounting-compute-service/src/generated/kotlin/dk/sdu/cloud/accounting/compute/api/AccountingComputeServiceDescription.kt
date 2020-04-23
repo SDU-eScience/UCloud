@@ -4,5 +4,5 @@ import dk.sdu.cloud.ServiceDescription
 
 object AccountingComputeServiceDescription : ServiceDescription {
     override val name: String = "accounting-compute"
-    override val version: String = "1.3.0-projects.0"
+    override val version: String = "1.3.0-projects.3"
 }

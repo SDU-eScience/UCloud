@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.compute.services
 
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.util.withDatabase
+import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import org.junit.Test
@@ -15,6 +16,8 @@ class CompletedJobsHibernateDaoTest {
         SimpleDuration(1, 0, 0),
         "user",
         "job-id",
+        MachineReservation.BURST,
+        null,
         System.currentTimeMillis()
     )
 
@@ -26,7 +29,7 @@ class CompletedJobsHibernateDaoTest {
 
             service.insert(dummyEvent)
 
-            val usage = service.computeUsage(dummyEvent.startedBy)
+            val usage = service.computeUsage(ComputeUser.User(dummyEvent.startedBy))
             assertEquals(dummyEvent.totalDuration.toMillis(), usage)
         }
     }

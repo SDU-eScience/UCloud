@@ -26,7 +26,7 @@ class CompletedJobsService(
         }
     }
 
-    suspend fun computeUsage(user: String): Long {
+    suspend fun computeUsage(user: ComputeUser): Long {
         return db.withTransaction {
             dao.computeUsage(it, user)
         }

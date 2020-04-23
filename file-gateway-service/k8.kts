@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-gateway"
-    version = "1.4.0"
+    version = "1.5.0-projects.0"
 
     withAmbassador(null) {
         services.add(

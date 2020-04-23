@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.compute.processor
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
 import dk.sdu.cloud.accounting.compute.services.CompletedJobsService
 import dk.sdu.cloud.app.orchestrator.api.JobCompletedEvent
+import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStreamService
 import dk.sdu.cloud.service.Loggable
@@ -25,6 +26,8 @@ class JobCompletedProcessor(
                     event.duration,
                     event.jobOwner,
                     event.jobId,
+                    event.reservation ?: MachineReservation.BURST,
+                    event.project,
                     event.jobCompletedAt
                 )
             }

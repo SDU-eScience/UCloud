@@ -1,7 +1,7 @@
 package dk.sdu.cloud.accounting.compute.services
 
 import dk.sdu.cloud.accounting.compute.api.AccountingJobCompletedEvent
-import dk.sdu.cloud.app.store.api.NameAndVersion
+import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
@@ -30,10 +30,22 @@ data class JobCompletedEntity(
 
     @NaturalId
     @Id
-    var jobId: String
+    var jobId: String,
+
+    var machineReservationCpu: Int?,
+    var machineReservationGpu: Int?,
+    var machineReservationMem: Int?,
+    var machineReservationName: String?,
+    var projectId: String?
 ) {
     companion object : HibernateEntity<JobCompletedEntity>, WithId<String>
 }
+
+sealed class ComputeUser {
+    data class User(val username: String) : ComputeUser()
+    data class Project(val id: String) : ComputeUser()
+}
+
 
 /**
  * Implements [CompletedJobsDao] with Hibernate
@@ -47,12 +59,22 @@ class CompletedJobsDao {
         session.saveOrUpdate(entity)
     }
 
-    fun computeUsage(session: HibernateSession, user: String): Long {
+    fun computeUsage(session: HibernateSession, user: ComputeUser): Long {
         val query = session.createCriteriaBuilder<Pair<Long, Int>, JobCompletedEntity>().run {
             criteria.multiselect(entity[JobCompletedEntity::durationInMs], entity[JobCompletedEntity::nodes])
-            criteria.where(
-                (entity[JobCompletedEntity::startedBy] equal user)
-            )
+            when (user) {
+                is ComputeUser.User -> {
+                    criteria.where(
+                        (entity[JobCompletedEntity::startedBy] equal user.username)
+                    )
+                }
+
+                is ComputeUser.Project -> {
+                    criteria.where(
+                        (entity[JobCompletedEntity::projectId] equal user.id)
+                    )
+                }
+            }
             criteria
         }.createQuery(session).list()
 
@@ -74,5 +96,10 @@ fun AccountingJobCompletedEvent.toEntity(): JobCompletedEntity = JobCompletedEnt
     startedBy,
     nodes,
     Date(timestamp),
-    jobId
+    jobId,
+    reservation.cpu,
+    reservation.gpu,
+    reservation.memoryInGigs,
+    reservation.name,
+    project
 )
