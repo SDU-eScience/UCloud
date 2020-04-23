@@ -78,7 +78,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 left={<Text>Personal project</Text>}
                                 leftSub={<Text color="gray" fontSize={0}><Icon size="10" name="id" /> {Client.username}</Text>}
                                 right={<Icon
-                                    mr="20px"
+                                    mr="57px"
                                     mt="5px"
                                     name="check"
                                     color={!props.project ? "green" : "gray"}

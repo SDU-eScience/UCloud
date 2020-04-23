@@ -85,7 +85,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
                                         />
                                     }
                                 />
-                                <Text fontSize="20px" mx="8px" my="15px">{member}</Text>
+                                <Flex justifyContent="center"><Text fontSize="20px" mx="8px" my="15px">{member}</Text></Flex>
                             </Card>
                         )}
                     </GridCardGroup>
