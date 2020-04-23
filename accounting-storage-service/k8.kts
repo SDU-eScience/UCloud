@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "accounting-storage"
-    version = "1.4.0-projects.0"
+    version = "1.4.0-projects.1"
 
     withAmbassador("/api/accounting/storage") {}
 
