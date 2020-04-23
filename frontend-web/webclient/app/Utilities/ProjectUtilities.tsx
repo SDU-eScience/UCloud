@@ -109,18 +109,22 @@ interface ProjectAclEntry {
 
 type UpdatePermissionsResponse = void;
 
-export function updatePermissionsPrompt(client: HttpClient, file: File): void {
+export function updatePermissionsPrompt(client: HttpClient, file: File, reload: () => void): void {
     const reponame = repositoryName(file.path);
     const rights = file.acl ?? [];
-    dialogStore.addDialog(<UpdatePermissionsDialog client={client} repository={reponame} rights={rights} />, () => undefined);
+    dialogStore.addDialog(
+        <UpdatePermissionsDialog
+            reload={reload}
+            client={client}
+            repository={reponame}
+            rights={rights}
+        />, () => undefined
+    );
 }
 
-export function UpdatePermissionsDialog(props: {client: HttpClient; repository: string; rights: Acl[]}): JSX.Element {
-    const [groups, params, setParams] = useCloudAPI<string[]>({path: "/projects/groups", method: "GET"}, []);
+export function UpdatePermissionsDialog(props: {client: HttpClient; repository: string; rights: Acl[]; reload: () => void}): JSX.Element {
+    const [groups] = useCloudAPI<string[]>({path: "/projects/groups", method: "GET"}, []);
     const [newRights, setNewRights] = React.useState<Map<string, AccessRight[]>>(new Map());
-    // HACK -- The setNewRights doesn't trigger at new update.
-    const [, forceUpdate] = React.useState("");
-    // HACK END
 
     return (
         <Box width="auto" minWidth="300px">
@@ -144,10 +148,7 @@ export function UpdatePermissionsDialog(props: {client: HttpClient; repository: 
                                         if (value === "") newRights.set(g, []);
                                         else if (value === "READ") newRights.set(g, [AccessRight.READ]);
                                         else if (value === "WRITE") newRights.set(g, [AccessRight.READ, AccessRight.WRITE]);
-                                        // HACK
-                                        forceUpdate(g + value);
-                                        // HACK end
-                                        setNewRights(newRights);
+                                        setNewRights(new Map(newRights));
                                     }}
                                     minWidth="75px"
                                     width="75px"
@@ -171,10 +172,11 @@ export function UpdatePermissionsDialog(props: {client: HttpClient; repository: 
         </Box>
     );
 
-    function update(): void {
-        updatePermissions(props.client, props.repository, [...newRights.entries()].map(([group, rights]) => ({
+    async function update(): Promise<void> {
+        await updatePermissions(props.client, props.repository, [...newRights.entries()].map(([group, rights]) => ({
             group, rights
         })));
+        props.reload();
     }
 }
 
