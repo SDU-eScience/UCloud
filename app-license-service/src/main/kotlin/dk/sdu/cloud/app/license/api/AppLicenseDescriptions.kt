@@ -3,9 +3,6 @@ package dk.sdu.cloud.app.license.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.app.license.services.acl.EntityWithPermission
-import dk.sdu.cloud.app.license.services.acl.ServerAccessRight
-import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
@@ -22,6 +19,32 @@ data class UpdateServerRequest(
     val license: String?,
     val withId: String
 )
+
+data class AccessEntityWithPermission(
+    val entity: AccessEntity,
+    val permission: ServerAccessRight
+)
+
+enum class ServerAccessRight {
+    READ,
+    READ_WRITE
+}
+
+data class AccessEntity(
+    val user: String?,
+    val project: String?,
+    val group: String?
+) {
+    init {
+        require(!user.isNullOrBlank() || (!project.isNullOrBlank() && !group.isNullOrBlank())) { "No access entity defined" }
+    }
+}
+
+data class ProjectAndGroup(
+    val project: String,
+    val group: String
+)
+
 
 data class DeleteServerRequest(
     val id: String
@@ -64,7 +87,7 @@ data class NewServerResponse(val serverId: String)
 
 data class UpdateAclRequest(
     val serverId: String,
-    val changes: List<ACLEntryRequest>
+    val changes: List<AclEntryRequest>
 ) {
     init {
         if (changes.isEmpty()) throw IllegalArgumentException("changes cannot be empty")
@@ -72,8 +95,8 @@ data class UpdateAclRequest(
     }
 }
 
-data class ACLEntryRequest(
-    val entity: UserEntity,
+data class AclEntryRequest(
+    val entity: AccessEntity,
     val rights: ServerAccessRight,
     val revoke: Boolean = false
 )
@@ -153,7 +176,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
-    val listAcl = call<ListAclRequest, List<EntityWithPermission>, CommonErrorMessage>("listAcl") {
+    val listAcl = call<ListAclRequest, List<AccessEntityWithPermission>, CommonErrorMessage>("listAcl") {
         auth {
             roles = Roles.PRIVILEDGED
             access = AccessRight.READ_WRITE

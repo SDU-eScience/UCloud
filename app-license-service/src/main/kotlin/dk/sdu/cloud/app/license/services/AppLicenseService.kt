@@ -5,6 +5,11 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.acl.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.project.api.ProjectMembers
+import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
@@ -13,11 +18,12 @@ import java.util.*
 class AppLicenseService<Session>(
     private val db: DBSessionFactory<Session>,
     private val aclService: AclService<Session>,
-    private val appLicenseDao: AppLicenseDao<Session>
+    private val appLicenseDao: AppLicenseDao<Session>,
+    private val authenticatedClient: AuthenticatedClient
 ) {
-    suspend fun getLicenseServer(securityPrincipal: SecurityPrincipal, serverId: String, entity: UserEntity): LicenseServerWithId? {
+    suspend fun getLicenseServer(securityPrincipal: SecurityPrincipal, serverId: String, accessEntity: AccessEntity): LicenseServerWithId? {
         if (
-            !aclService.hasPermission(serverId, entity, ServerAccessRight.READ) &&
+            !aclService.hasPermission(serverId, accessEntity, ServerAccessRight.READ) &&
             securityPrincipal.role !in Roles.PRIVILEDGED
         ) {
             throw RPCException("Unauthorized request to license server", HttpStatusCode.Unauthorized)
@@ -28,11 +34,17 @@ class AppLicenseService<Session>(
         } ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
     }
 
-    suspend fun updateAcl(request: UpdateAclRequest, entity: UserEntity) {
-        aclService.updatePermissions(request.serverId, request.changes, entity)
+    suspend fun updateAcl(serverId: String, changes: List<AclEntryRequest>, principal: SecurityPrincipal) {
+        val accessEntity = AccessEntity(principal.username, null, null)
+        aclService.updatePermissions(serverId, changes, accessEntity)
     }
 
-    suspend fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<EntityWithPermission> {
+    suspend fun deleteProjectGroupAclEntries(project: String, group: String)  {
+        val accessEntity = AccessEntity(null, project, group)
+        aclService.revokeAllFromEntity(accessEntity)
+    }
+
+    suspend fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<AccessEntityWithPermission> {
         return if (Roles.PRIVILEDGED.contains(user.role)) {
             aclService.listAcl(request.serverId)
         } else {
@@ -40,12 +52,22 @@ class AppLicenseService<Session>(
         }
     }
 
-    suspend fun listServers(tags: List<String>, entity: UserEntity): List<LicenseServerId> {
+    suspend fun listServers(tags: List<String>, principal: SecurityPrincipal): List<LicenseServerId> {
+        val projectGroups = ProjectMembers.userStatus.call(
+            UserStatusRequest(principal.username),
+            authenticatedClient
+        ).orRethrowAs {
+            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        }.groups.map {
+            ProjectAndGroup(it.projectId, it.group)
+        }
+
         return db.withTransaction { session ->
             appLicenseDao.list(
                 session,
                 tags,
-                entity
+                principal,
+                projectGroups
             )
         } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
     }
@@ -59,7 +81,9 @@ class AppLicenseService<Session>(
         } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
     }
 
-    suspend fun createLicenseServer(request: NewServerRequest, entity: UserEntity): String {
+    suspend fun createLicenseServer(request: NewServerRequest, entity: AccessEntity): String {
+
+
         val license = if (request.license.isNullOrBlank()) {
             null
         } else {
@@ -89,9 +113,9 @@ class AppLicenseService<Session>(
         return serverId
     }
 
-    suspend fun updateLicenseServer(securityPrincipal: SecurityPrincipal, request: UpdateServerRequest, entity: UserEntity): String {
+    suspend fun updateLicenseServer(securityPrincipal: SecurityPrincipal, request: UpdateServerRequest, accessEntity: AccessEntity): String {
         if (
-            aclService.hasPermission(request.withId, entity, ServerAccessRight.READ_WRITE) ||
+            aclService.hasPermission(request.withId, accessEntity, ServerAccessRight.READ_WRITE) ||
             securityPrincipal.role in Roles.PRIVILEDGED
         ) {
             // Save information for existing license server
@@ -114,9 +138,9 @@ class AppLicenseService<Session>(
         }
     }
 
-    suspend fun deleteLicenseServer(securityPrincipal: SecurityPrincipal, request: DeleteServerRequest, entity: UserEntity) {
+    suspend fun deleteLicenseServer(securityPrincipal: SecurityPrincipal, request: DeleteServerRequest) {
         if (
-            aclService.hasPermission(request.id, entity, ServerAccessRight.READ_WRITE) ||
+            aclService.hasPermission(request.id, AccessEntity(securityPrincipal.username, null, null), ServerAccessRight.READ_WRITE) ||
             securityPrincipal.role in Roles.PRIVILEDGED
         ) {
             db.withTransaction { session ->

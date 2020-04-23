@@ -97,7 +97,13 @@ export enum LicenseServerAccessRight {
 
 export enum UserEntityType {
     USER = "USER",
-    PROJECT_AND_GROUP = "PROJECT_AND_GROUP"
+    PROJECT_GROUP = "PROJECT_GROUP"
+}
+
+export interface AccessEntity {
+    user: string | null;
+    project: string | null;
+    group: string | null;
 }
 
 export interface UserEntity {
@@ -122,7 +128,7 @@ export interface UpdateApplicationPermissionProps {
 }
 
 export interface UpdateLicenseServerPermissionEntry {
-    entity: UserEntity;
+    entity: AccessEntity;
     rights: LicenseServerAccessRight;
     revoke: boolean;
 }

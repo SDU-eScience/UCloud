@@ -1,10 +1,7 @@
 package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.license.api.LicenseServer
-import dk.sdu.cloud.app.license.api.LicenseServerId
-import dk.sdu.cloud.app.license.api.LicenseServerWithId
-import dk.sdu.cloud.app.license.services.acl.UserEntity
+import dk.sdu.cloud.app.license.api.*
 
 interface AppLicenseDao<Session> {
     fun getById(
@@ -21,7 +18,8 @@ interface AppLicenseDao<Session> {
     fun list(
         session: Session,
         tags: List<String>,
-        entity: UserEntity
+        securityPrincipal: SecurityPrincipal,
+        projectGroups: List<ProjectAndGroup>
     ): List<LicenseServerId>?
 
     fun listAll(

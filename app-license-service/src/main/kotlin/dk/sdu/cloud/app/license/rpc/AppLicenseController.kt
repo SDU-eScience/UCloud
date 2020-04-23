@@ -2,12 +2,14 @@ package dk.sdu.cloud.app.license.rpc
 
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.app.license.services.AppLicenseService
-import dk.sdu.cloud.app.license.services.acl.UserEntity
-import dk.sdu.cloud.app.license.services.acl.EntityType
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.project.api.ProjectMembers
+import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import org.hibernate.Session
@@ -17,13 +19,11 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppLicenseDescriptions.get) {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
-            )
+            val accessEntity = AccessEntity(ctx.securityPrincipal.username, null, null)
 
-            val licenseServer = licenseService.getLicenseServer(ctx.securityPrincipal, request.serverId, entity)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val licenseServer =
+                licenseService.getLicenseServer(ctx.securityPrincipal, request.serverId, accessEntity)
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             ok(
                 LicenseServerWithId(
@@ -37,57 +37,46 @@ class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Cont
         }
 
         implement(AppLicenseDescriptions.updateAcl) {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
-            )
-
-            ok(licenseService.updateAcl(request, entity))
+            ok(licenseService.updateAcl(request.serverId, request.changes, ctx.securityPrincipal))
         }
 
-        implement(AppLicenseDescriptions.listAcl)  {
+        implement(AppLicenseDescriptions.listAcl) {
             ok(licenseService.listAcl(request, ctx.securityPrincipal))
         }
 
-        implement(AppLicenseDescriptions.list)  {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
-            )
-
-            ok(licenseService.listServers(request.tags, entity))
+        implement(AppLicenseDescriptions.list) {
+            ok(licenseService.listServers(request.tags, ctx.securityPrincipal))
         }
 
-        implement(AppLicenseDescriptions.listAll)  {
+        implement(AppLicenseDescriptions.listAll) {
             ok(licenseService.listAllServers(ctx.securityPrincipal))
         }
 
-
         implement(AppLicenseDescriptions.update) {
-            val entity = UserEntity(
+            val accessEntity = AccessEntity(
                 ctx.securityPrincipal.username,
-                EntityType.USER
+                null,
+                null
             )
 
-            ok(UpdateServerResponse(licenseService.updateLicenseServer(ctx.securityPrincipal, request, entity)))
+            ok(
+                UpdateServerResponse(
+                    licenseService.updateLicenseServer(
+                        ctx.securityPrincipal,
+                        request,
+                        accessEntity
+                    )
+                )
+            )
         }
 
         implement(AppLicenseDescriptions.delete) {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
-            )
-
-            ok(licenseService.deleteLicenseServer(ctx.securityPrincipal, request, entity))
+            ok(licenseService.deleteLicenseServer(ctx.securityPrincipal, request))
         }
 
         implement(AppLicenseDescriptions.new) {
-            val entity = UserEntity(
-                ctx.securityPrincipal.username,
-                EntityType.USER
-            )
-
-            ok(NewServerResponse(licenseService.createLicenseServer(request, entity)))
+            val accessEntity = AccessEntity(ctx.securityPrincipal.username, null, null)
+            ok(NewServerResponse(licenseService.createLicenseServer(request, accessEntity)))
         }
 
         implement(TagDescriptions.add) {

@@ -1,19 +1,20 @@
 package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.app.license.api.AccessEntity
 import dk.sdu.cloud.app.license.api.NewServerRequest
 import dk.sdu.cloud.app.license.api.UpdateServerRequest
 import dk.sdu.cloud.app.license.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.license.services.acl.AclService
-import dk.sdu.cloud.app.license.services.acl.EntityType
-import dk.sdu.cloud.app.license.services.acl.UserEntity
 import dk.sdu.cloud.auth.api.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestCallResult
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
+import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.BeforeTest
@@ -36,13 +37,15 @@ class AppLicenseTest {
             )
         }
 
+        val authClient = mockk<AuthenticatedClient>(relaxed = true)
+
         aclService = AclService(micro.hibernateDatabase, ClientMock.authenticatedClient, AclHibernateDao())
-        appLicenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao())
+        appLicenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao(), authClient)
     }
 
     @Test
     fun `save new license server and fetch`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
+        val user = AccessEntity("user", null, null)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
@@ -59,7 +62,7 @@ class AppLicenseTest {
 
     @Test
     fun `save new license and update`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
+        val user = AccessEntity("user", null, null)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
@@ -92,8 +95,8 @@ class AppLicenseTest {
 
     @Test
     fun `save and update license - fail if unauthorized`() = runBlocking {
-        val user = UserEntity("user", EntityType.USER)
-        val user2 = UserEntity("user2", EntityType.USER)
+        val user = AccessEntity("user", null, null)
+        val user2 = AccessEntity("user2", null, null)
 
         val serverId = appLicenseService.createLicenseServer(
             NewServerRequest(
