@@ -28,9 +28,7 @@ import {
     Label,
     OutlineButton,
     VerticalButtonGroup,
-    Checkbox,
-    Select,
-    Text
+    Checkbox
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Error from "ui-components/Error";
@@ -88,8 +86,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             promises: new PromiseKeeper(),
             jobSubmitted: false,
             initialSubmit: false,
-
-            repository: undefined,
             parameterValues: new Map(),
             mountedFolders: [],
             additionalPeers: [],
@@ -282,7 +278,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                     setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})}
                                     url={this.state.url}
                                     app={application}
-                                    setRepository={repository => (this.setState({repository: repository === "" ? undefined : repository}))}
                                 />
                             </RunSection>
 
@@ -579,11 +574,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             reservation,
             type: "start",
             name: jobName !== "" ? jobName : null,
-            repository: this.state.repository,
             acceptSameDataRetry: false
         };
-
-        console.log(this.state.repository);
 
         try {
             this.setState({jobSubmitted: true});
@@ -603,12 +595,12 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                             acceptSameDataRetry: true
                         };
                         try {
-                            const rerunRequest = await Client.post(hpcJobQueryPost, rerunJob)
+                            const rerunRequest = await Client.post(hpcJobQueryPost, rerunJob);
                             this.props.history.push(`/applications/results/${rerunRequest.response.jobId}`);
                         } catch (rerunErr) {
                             snackbarStore.addFailure(
                                 errorMessageOrDefault(rerunErr, "An error occurred submitting the job.")
-                            )
+                            );
                         }
                     },
                     onCancel: async () => {
@@ -937,7 +929,6 @@ interface JobSchedulingOptionsProps {
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
     reservationRef: React.RefObject<HTMLInputElement>;
-    setRepository: (repository?: string) => void;
     urlEnabled: boolean;
     setUrlEnabled: React.Dispatch<React.SetStateAction<boolean>>;
     url: React.RefObject<HTMLInputElement>;
@@ -948,12 +939,6 @@ function urlify(text: string): string {
 }
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
-    const [repositories, setRepositories] = React.useState<Page<{ name: string }>>(emptyPage);
-    React.useEffect(() => {
-        if (!Client.hasActiveProject) return;
-        Client.get("/projects/repositories?itemsPerPage=100&page=0").then(it => setRepositories(it.response));
-    }, []);
-
     if (!props.app) return null;
     const {maxTime, numberOfNodes, tasksPerNode, name} = props.options;
     return (
@@ -972,21 +957,6 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     />
                 </Label>
             </Flex>
-
-            {!Client.hasActiveProject ? null :
-                <Label>
-                    Project Repository
-                    {
-                        repositories.items.length === 0 ?
-                            <Text ml="8px" my="5px">No repositories available for project</Text> : (
-                                <Select onChange={(e) => props.setRepository(e.target.value)}>
-                                    <option/>
-                                    {repositories.items.map(g => <option key={g.name}>{g.name}</option>)}
-                                </Select>
-                            )
-                    }
-                </Label>
-            }
 
             <Flex mb="1em">
                 <SchedulingField
