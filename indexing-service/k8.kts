@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "indexing"
-    version = "1.16.2"
+    version = "1.16.3"
 
     withAmbassador {}
 
@@ -59,7 +59,7 @@ bundle { ctx ->
     withCronJob(deploymentWithMount, "0 */12 * * *", listOf("--scan")) {
     }
 
-    withAdHocJob(deploymentWithMount, "scan-now", { listOf("--scan") }) {
+    withAdHocJob(deploymentWithMount, "scan-now", { listOf("--scan", "--debug") }) {
     }
 
     val numberOfShards = when (ctx.environment) {

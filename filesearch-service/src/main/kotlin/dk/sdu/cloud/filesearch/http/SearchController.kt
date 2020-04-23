@@ -14,7 +14,9 @@ import dk.sdu.cloud.indexing.api.FileQuery
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.QueryRequest
 import dk.sdu.cloud.project.api.ListProjectsRequest
+import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Page
@@ -59,12 +61,13 @@ class SearchController(
                     addAll(sharesRoots)
                 }
 
-                val projects = Projects.listProjects.call(
-                    ListProjectsRequest(itemsPerPage = null, page = null, user = ctx.securityPrincipal.username),
+                val projects = ProjectMembers.userStatus.call(
+                    UserStatusRequest(ctx.securityPrincipal.username),
                     serviceClient
-                ).orNull()?.items ?: emptyList()
+                ).orNull()?.membership?.map { it.projectId } ?: emptyList()
+                log.debug("Using the following projects: ${projects}")
 
-                addAll(projects.map { "/projects/${it.projectId}" })
+                addAll(projects.map { "/projects/${it}" })
             }
 
             val queryResponse = QueryDescriptions.query.call(
@@ -113,6 +116,10 @@ class SearchController(
 
         for ((index, verified) in verifiedFiles.responses.withIndex()) {
             if (verified) queryResultsVerified.add(queryResponse.items[index])
+        }
+
+        if (verifiedFiles.responses.size != queryResultsVerified.size) {
+            log.debug("Returning ${queryResultsVerified.size} out of ${verifiedFiles.responses.size}")
         }
 
         return Page(

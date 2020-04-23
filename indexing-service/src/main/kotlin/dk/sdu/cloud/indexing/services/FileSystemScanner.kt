@@ -62,6 +62,9 @@ class FileSystemScanner(
             launch {
                 submitScan(File(cephFsRoot, "home").absoluteFile)
             }.join()
+            launch {
+                submitScan(File(cephFsRoot, "projects").absoluteFile)
+            }.join()
         }
     }
 
@@ -96,8 +99,6 @@ class FileSystemScanner(
         }
 
     }
-
-
 
     private suspend fun submitScan(path: File, upperLimitOfEntries: Long = Long.MAX_VALUE) {
         log.debug("Scanning: ${path.toCloudPath()} (${path})")
@@ -233,7 +234,7 @@ class FileSystemScanner(
         val recursiveSubDirs = dirCount.count
 
         if (recursiveEntryCount != recursiveFiles + recursiveSubDirs) {
-            log.info("Entry count is different ($recursiveEntryCount != $recursiveFiles + $recursiveSubDirs")
+            log.info("Entry count is different ($recursiveEntryCount != $recursiveFiles + $recursiveSubDirs)")
             return ShouldContinue(true, recursiveEntryCount)
         }
 
