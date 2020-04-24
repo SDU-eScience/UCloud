@@ -12,28 +12,19 @@ We assume that you are already familiar with the
 We expect that you have the following tools installed:
 
 - Kotlin development tools. Easily installed with [sdkman](https://sdkman.io/)
-  - JDK 1.8 (`sdk install java 8.8.181-zulu`)
-  - Gradle 4.10 (`sdk install gradle 4.10.3`)
+  - JDK 1.8+
+  - Gradle 5
   - kotlin (`sdk install kotlin`)
   - kscript (`sdk install kscript`)
 - [Docker](https://www.docker.com/)
 - [IntelliJ IDEA](https://www.jetbrains.com/idea/)
-- A local instance of Kafka (`brew install kafka`)
-
-With these tools installed you need to login to the Maven repository for
-private JAR artifacts. Ask @hschu12 or @DanThrane for a login. You should create
-a file at `~/.gradle/gradle.properties` containing the following information:
-
-```text
-eScienceCloudUser=<user>
-eScienceCloudPassword=<password>
-```
+- A local instance of Redis
 
 You should add `infrastructure/scripts` to your `PATH`.
 
 ## Creating the Service
 
-Start by cloning the SDUCloud repository and running the `create_service.kts`
+Start by cloning the UCloud repository and running the `create_service.kts`
 command:
 
 ```bash
@@ -52,39 +43,35 @@ folder should look, roughly, like this:
 ```text
 microblog-service/
 ├── Dockerfile
-├── Jenkinsfile
-├── build.gradle
-├── gradle/
-├── gradlew
-├── gradlew.bat
-├── k8/
-├── settings.gradle
+├── build.gradle.kts
+├── k8.kts
+├── api/
 └── src
     ├── main
     │   ├── kotlin
-    │   │   └── dk/sdu/cloud/microblog/
+    │   │   └── microblog/
     │   └── resources
     └── test
         ├── kotlin
-        │   └── dk/sdu/cloud/microblog/
+        │   └── microblog/
         └── resources
 ```
 
 The most important files are:
 
 - `Dockerfile`: A file which describes how to containerize this micro-service.
-- `Jenkinsfile`: Instructs our CI tool (Jenkins) how to test this service.
-- `build.gradle`/`settings.gradle`: Gradle configuration files. Gradle
+- `build.gradle.kts`: Gradle configuration files. Gradle
    controls the build of our service, including management of code dependencies.
-- `k8/`: Contains [Kubernetes](https://kubernetes.io/) resource files.
+- `k8.kts`: Contains configuration of [Kubernetes](https://kubernetes.io/) resources
 - `src/`: Contains the source code for this service
 - `src/main/kotlin/`: Contains the implementation of the micro-service.
 - `src/test/kotlin`: Contains test code for this micro-service.
+- `api/`: Subproject containing shared API interfaces of this micro-service
 
 You will be spending most of your time in `src/main/kotlin` and
 `src/test/kotlin`.
 
-## Understanding the Structure of a SDUCloud Service
+## Understanding the Structure of a UCloud Service
 
 Below we will go through the components of a single micro-service. You don't
 have to understand it yet. In the next section we will begin implementing
@@ -118,17 +105,12 @@ artifact included by other services. As a result it is important that the
 `api` package does not include classes that live elsewhere.
 
 If an `api` package depends on external libraries then these can be included
-in the published `pom` artifact. You can add the following in the
-`build.gradle`:
+in api's `build.gradle.kts` by using the `api` target:
 
 ```gradle
-sduCloud.createTasksForApiJar(
-    "upload",
-    [
-        "dk.sdu.cloud:file-api:${project.version}",
-        "com.squareup.okhttp3:okhttp:3.11.0"
-    ]
-)
+dependencies {
+    api(project(":storage-service:api"))
+}
 ```
 
 ### `rpc`
@@ -283,7 +265,7 @@ You can now start the micro-service by running the following command
 (remember to change `CONFIGDIR`):
 
 ```bash
-./gradlew run -PappArgs='["--dev", "--config-dir", "<CONFIGDIR>"]'
+./gradlew run --args='--dev --config-dir <CONFIGDIR>'
 ```
 
 You should now be able to reach the endpoint you just created. This can be
