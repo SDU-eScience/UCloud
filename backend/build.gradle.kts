@@ -173,6 +173,15 @@ subprojects {
         }
     }
 
+    tasks.withType<KotlinCompile>().configureEach {
+        kotlinOptions.freeCompilerArgs += "-progressive"
+        kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
+    }
+
+    tasks.withType<Test>().configureEach {
+        systemProperty("log4j2.configurationFactory", "dk.sdu.cloud.micro.Log4j2ConfigFactory")
+        systemProperty("java.io.tmpdir", System.getProperty("java.io.tmpdir"))
+    }
 
     val compileKotlin: KotlinCompile by tasks
     compileKotlin.kotlinOptions {
