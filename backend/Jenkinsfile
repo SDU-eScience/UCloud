@@ -3,6 +3,7 @@ def initialize() {
     stage('build and backend') {
       sh '''cd backend
       ./gradlew clean
+      ./gradlew generateBuildConfig
       ./gradlew build'''
     }
   } catch (e) {

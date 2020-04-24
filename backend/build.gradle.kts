@@ -102,6 +102,13 @@ subprojects {
                 }
             }
 
+            val cleanGeneratedBuildConfig = tasks.register("cleanGeneratedBuildConfig") {
+                doFirst {
+                    File(project.projectDir, "src/generated").deleteRecursively()
+                }
+            }
+
+            tasks["clean"].dependsOn(cleanGeneratedBuildConfig)
             tasks["compileKotlin"].dependsOn(generateBuildConfig)
         }
     }
