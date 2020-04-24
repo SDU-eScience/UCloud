@@ -2,16 +2,9 @@
 set -e
 set -x
 
-version_string=`grep "version '.*'" build.gradle`
-version=`python -c "
-import sys 
-v = sys.argv[1] 
-v_dash = len(v) - 1
-
-print(v[v.index(\"'\") + 1:v_dash])
-" "${version_string}"`
-
-name=`grep "rootProject" settings.gradle | cut -c 21- | rev | cut -f 2 -d "'" | rev`
+gradle generateBuildConfig
+name=`cat src/generated/resources/name.txt`
+version=`cat src/generated/resources/version.txt`
 echo "Tagging as ${name}:${version}"
 
 rm -rf build/distributions

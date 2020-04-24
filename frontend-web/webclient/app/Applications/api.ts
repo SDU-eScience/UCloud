@@ -133,7 +133,7 @@ export interface UpdateApplicationPermissionProps {
 }
 
 export interface UpdateLicenseServerPermissionEntry {
-    entity: UserEntity;
+    entity: AccessEntity;
     rights: LicenseServerAccessRight;
     revoke: boolean;
 }

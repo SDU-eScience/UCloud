@@ -410,7 +410,11 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                             applicationName: name,
                                                                             changes: [
                                                                                 {
-                                                                                    entity: { user: permissionEntry.entity.user, project: permissionEntry.entity.project, group: permissionEntry.entity.group},
+                                                                                    entity: {
+                                                                                        user: permissionEntry.entity.user,
+                                                                                        project: permissionEntry.entity.project,
+                                                                                        group: permissionEntry.entity.group
+                                                                                    },
                                                                                     rights: permissionEntry.permission,
                                                                                     revoke: true
                                                                                 }

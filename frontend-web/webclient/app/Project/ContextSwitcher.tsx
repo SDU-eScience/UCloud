@@ -32,8 +32,6 @@ function _AltContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): 
 
     const history = useHistory();
 
-    if (!inDevEnvironment()) return null;
-
     if (response.data.items.length === 0 && !response.loading) return null;
 
     const addMore = response.data.itemsInTotal > 10;
@@ -77,6 +75,7 @@ function promptRedirect(history: History, setProject: () => void, refresh?: () =
 
 const HoverBox = styled(Truncate)`
     width: auto;
+    color: white;
     padding-left: 8px;
     padding-right: 8px;
     border-radius: 8px;

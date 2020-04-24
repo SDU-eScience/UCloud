@@ -1,0 +1,26 @@
+def initialize() {
+  try {
+    stage('build and backend') {
+      sh '''cd backend
+      ./gradlew clean
+      ./gradlew generateBuildConfig
+      ./gradlew build'''
+    }
+  } catch (e) {
+    echo "Build Failed"
+    return 'FAILURE\n' + e.message
+  } finally {
+    publishHTML([
+        allowmissing: false,
+        alwaysLinkToLastBuild: false,
+        keepAll: true,
+        reportDir: 'backend/build/reports/detekt',
+        reportFiles: 'detekt.html',
+        reportName: 'Backend Detekt',
+        reportTitles: ''
+    ])
+  }
+  return 'SUCCESS'
+}
+
+return this

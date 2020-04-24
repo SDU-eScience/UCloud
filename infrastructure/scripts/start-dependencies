@@ -25,9 +25,9 @@ script_dir="$(dirname "$0")"
 start_dir=$PWD
 
 cd "$script_dir"
-cd "../../"
+cd "../../backend"
 set -e
-script="infrastructure/scripts/development-utils/src/main/kotlin/Main.kt"
+script="../infrastructure/scripts/development-utils/src/main/kotlin/Main.kt"
 output=$(kscript "$script" "$@")
 bash "$output"
 cd "$start_dir"

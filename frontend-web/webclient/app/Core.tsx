@@ -29,7 +29,6 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import NoVNCClient from "NoVNC/NoVNCClient";
 import {Playground} from "Playground/Playground";
-import ProjectCreate from "Project/Create";
 import ProjectList from "Project/List";
 import ProjectView from "Project/View";
 import * as React from "react";
@@ -110,7 +109,6 @@ const Core = (): JSX.Element => (
                 <Route exact path="/search/:priority" component={requireAuth(Search)} />
 
                 <Route exact path="/projects" component={requireAuth(ProjectList)} />
-                <Route exact path="/projects/create" component={requireAuth(ProjectCreate)} />
                 <Route exact path="/projects/view/:id" component={requireAuth(ProjectView)} />
                 <Route exact path="/projects/groups/:group?" component={requireAuth(GroupsOverview)} />
 

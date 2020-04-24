@@ -177,7 +177,6 @@ export interface RunAppState {
     fsShown: boolean;
     previousRuns: Page<File>;
     unknownParameters: string[];
-    repository?: string;
     reservation: React.RefObject<HTMLInputElement>;
 }
 
