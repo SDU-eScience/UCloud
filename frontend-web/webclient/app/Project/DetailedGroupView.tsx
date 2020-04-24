@@ -5,8 +5,8 @@ import * as Heading from "ui-components/Heading";
 import {defaultAvatar, AvatarType} from "UserSettings/Avataaar";
 import * as Pagination from "Pagination";
 import {Page} from "Types";
-import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
-import {listGroupMembersRequest, addGroupMember, removeGroupMemberRequest, ListGroupMembersRequestProps} from "./api";
+import {useCloudAPI, APICallParameters, useAsyncCommand} from "Authentication/DataHook";
+import {listGroupMembersRequest, addGroupMember, removeGroupMemberRequest, ListGroupMembersRequestProps, projectRoleToString} from "./api";
 import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
@@ -21,6 +21,8 @@ import {useHistory} from "react-router";
 import {dialogStore} from "Dialog/DialogStore";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {ListRow} from "ui-components/List";
+import {ProjectMember, ProjectRole, changeRoleInProject} from "Project";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
 interface DetailedGroupViewProps {
     name: string;
@@ -33,17 +35,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     );
 
     const history = useHistory();
-
     const promises = usePromiseKeeper();
-    const [avatars, setAvatars] = React.useState<{[key: string]: AvatarType}>({});
-
-    React.useEffect(() => {
-        promises.makeCancelable(
-            Client.post<{avatars: {[key: string]: AvatarType}}>("/avatar/bulk", {usernames: activeGroup.data.items})
-        ).promise.then(it =>
-            setAvatars(it.response.avatars)
-        ).catch(it => console.warn(it));
-    }, [activeGroup.data.items.length, activeGroup.data.pageNumber]);
 
     const reload = (): void => fetchActiveGroup({...params});
 
@@ -67,28 +59,14 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
                 customEmptyPage={<Text>No members in group.</Text>}
                 page={activeGroup.data}
                 pageRenderer={page =>
-                    <GridCardGroup minmax={220}>
-                        {page.items.map(member =>
-                            <Card borderRadius="10px" height="auto" minWidth="220px" key={member}>
-                                <Spacer
-                                    left={<Flex ml="88px" width="60px" alignItems="center" mt="8px" height="48px">
-                                        <Avatar avatarStyle="Circle" {...avatars[member] ?? defaultAvatar} />
-                                    </Flex>}
-                                    right={
-                                        <Icon
-                                            cursor="pointer"
-                                            mt="8px"
-                                            mr="8px"
-                                            color="red"
-                                            name="close"
-                                            onClick={() => promptRemoveMember(member)} size="20px"
-                                        />
-                                    }
-                                />
-                                <Flex justifyContent="center"><Text fontSize="20px" mx="8px" my="15px">{member}</Text></Flex>
-                            </Card>
-                        )}
-                    </GridCardGroup>
+                    <GroupMembers
+                        members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
+                        promptRemoveMember={promptRemoveMember}
+                        reload={reload}
+                        project={Client.projectId ?? ""}
+                        allowManagement
+                        allowRoleManagement={false}
+                    />
                 }
             />
         }
@@ -259,6 +237,74 @@ function membershipSearch(query: string, page: number): APICallParameters {
         method: "GET",
         path: buildQueryString("/projects/membership/search", {query, itemsPerPage: 100, page})
     };
+}
+
+export function GroupMembers(props: Readonly<{
+    members: ProjectMember[];
+    promptRemoveMember(member: string): void;
+    allowManagement: boolean;
+    allowRoleManagement: boolean;
+    reload: () => void;
+    project: string;
+}>): JSX.Element {
+    const promises = usePromiseKeeper();
+    const [isLoading, runCommand] = useAsyncCommand();
+    const [avatars, setAvatars] = React.useState<{[key: string]: AvatarType}>({});
+
+    React.useEffect(() => {
+        promises.makeCancelable(
+            Client.post<{avatars: {[key: string]: AvatarType}}>("/avatar/bulk", {usernames: props.members.map(it => it.username)})
+        ).promise.then(it =>
+            setAvatars(it.response.avatars)
+        ).catch(it => console.warn(it));
+    }, [props.members.length]);
+    return (
+        <GridCardGroup minmax={220}>
+            {props.members.map(member =>
+                <Card borderRadius="10px" height="auto" minWidth="220px" key={member.username}>
+                    <Spacer
+                        left={<Flex ml="88px" width="60px" alignItems="center" mt="8px" height="48px">
+                            <Avatar avatarStyle="Circle" {...avatars[member.username] ?? defaultAvatar} />
+                        </Flex>}
+                        right={!props.allowManagement || member.role === ProjectRole.PI ? null :
+                            <Icon
+                                cursor="pointer"
+                                mt="8px"
+                                mr="8px"
+                                color="red"
+                                name="close"
+                                onClick={() => props.promptRemoveMember(member.username)} size="20px"
+                            />
+                        }
+                    />
+                    <Flex justifyContent="center"><Text fontSize="20px" mx="8px" mt="15px">{member.username}</Text></Flex>
+                    <Flex justifyContent="center" mb="4px">
+                        {!props.allowRoleManagement || member.role === ProjectRole.PI ? projectRoleToString(member.role) :
+                            <ClickableDropdown
+                                chevron
+                                trigger={projectRoleToString(member.role)}
+                                onChange={async value => {
+                                    try {
+                                        await runCommand(changeRoleInProject({
+                                            projectId: props.project,
+                                            member: member.username,
+                                            newRole: value
+                                        }));
+                                        props.reload();
+                                    } catch (err) {
+                                        snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update role."));
+                                    }
+                                }}
+                                options={[
+                                    {text: "User", value: ProjectRole.USER},
+                                    {text: "Admin", value: ProjectRole.ADMIN}
+                                ]}
+                            />}
+                    </Flex>
+                </Card>
+            )}
+        </GridCardGroup>
+    );
 }
 
 export default DetailedGroupView;
