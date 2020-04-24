@@ -48,8 +48,6 @@ volumes: [
                 hasError = true
             }
 
-            currentBuild.rawBuild.@result = hudson.model.Result.SUCCESS
-
             junit '**/build/test-results/**/*.xml'
             jacoco(
                 execPattern: '**/**.exec',
