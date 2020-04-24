@@ -43,7 +43,7 @@ volumes: [
                 hasError = true
             }
 
-            if (backendResult.startsWith("FAILURE") {
+            if (backendResult.startsWith("FAILURE")) {
                 sendAlert(backendResult)
                 hasError = true
             }
