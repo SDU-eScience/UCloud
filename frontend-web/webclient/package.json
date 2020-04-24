@@ -57,7 +57,7 @@
         "@types/react-router": "^5.1.5",
         "@types/react-router-dom": "^5.1.4",
         "@types/react-test-renderer": "16.9.2",
-        "@types/recharts": "^1.8.9",
+        "@types/recharts": "^1.8.10",
         "@types/styled-components": "5.1.0",
         "@types/styled-system": "^5.1.9",
         "@typescript-eslint/eslint-plugin": "^2.29.0",

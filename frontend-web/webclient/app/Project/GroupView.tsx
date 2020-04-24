@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Button, Text, Input, List, Icon, Flex} from "ui-components";
+import {Button, Text, Input, List, Icon, Flex, Truncate, Box} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {MainContainer} from "MainContainer/MainContainer";
 import {useCloudAPI} from "Authentication/DataHook";
@@ -7,7 +7,7 @@ import {Page, Operation} from "Types";
 import {useHistory, useParams} from "react-router";
 import DetailedGroupView from "./DetailedGroupView";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {errorMessageOrDefault, preventDefault, stopPropagation} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Client} from "Authentication/HttpClientInstance";
 import {SnackType} from "Snackbar/Snackbars";
@@ -19,6 +19,8 @@ import {loadingAction} from "Loading";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {groupSummaryRequest} from "Project/api";
 import {ListRow} from "ui-components/List";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {updatePageTitle} from "Navigation/Redux/StatusActions";
 
 interface GroupWithSummary {
     group: string;
@@ -40,6 +42,10 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
         page: 0,
         itemsPerPage: 25
     }), emptyPage);
+
+    React.useEffect(() => {
+        props.setTitle();
+    }, []);
 
     // set reload
     const reload = (): void => fetchSummaries({...params});
@@ -86,6 +92,7 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
             },
             confirmText: "Delete"
         });
+        setSelectedGroups(new Set());
     }, [selectedGroups.size]);
 
     if (group) return <DetailedGroupView name={group} />;
@@ -133,22 +140,36 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
                     <ListRow
                         key={g.group}
                         left={
-                            <Text
-                                cursor="pointer"
-                                width="auto"
-                                onClick={() => history.push(`/projects/groups/${encodeURI(g.group)}`)}
-                                fontSize={20}
-                                style={{wordBreak: "break-word"}}
-                            >
-                                {g.group}
-                            </Text>
-                        }
+                            <Box width="100%">
+                                <Truncate
+                                    cursor="pointer"
+                                    width={1}
+                                    onClick={() => history.push(`/projects/groups/${encodeURI(g.group)}`)}
+                                    fontSize={20}
+                                >
+                                    {g.group}
+                                </Truncate>
+                            </Box>}
                         leftSub={
                             <Text ml="4px" color="gray" fontSize={0}>
                                 <Icon color="gray" mt="-2px" size="10" name="projects" /> {g.numberOfMembers}
                             </Text>
                         }
-                        right={<div />}
+                        right={selectedGroups.size === 0 ? <div onClick={stopPropagation}><ClickableDropdown
+                            width="125px"
+                            left="-105px"
+                            trigger={(
+                                <Icon
+                                    onClick={preventDefault}
+                                    mr="10px"
+                                    name="ellipsis"
+                                    size="1em"
+                                    rotation={90}
+                                />
+                            )}
+                        >
+                            <GroupOperations groupOperations={operations} selectedGroups={[g]} />
+                        </ClickableDropdown></div> : null}
                         isSelected={selectedGroups.has(g.group)}
                         select={() => {
                             if (selectedGroups.has(g.group)) selectedGroups.delete(g.group);
@@ -204,6 +225,7 @@ function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
         <Flex
             ml="-17px"
             mr="-17px"
+            cursor="pointer"
             pl="15px">
             {props.groupOperations.map(GroupOp)}
         </Flex>
@@ -214,9 +236,11 @@ function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
 interface GroupViewOperations {
     setLoading: (loading: boolean) => void;
     setRefresh: (refresh?: () => void) => void;
+    setTitle(): void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): GroupViewOperations => ({
+    setTitle: () => dispatch(updatePageTitle("Groups")),
     setLoading: loading => dispatch(loadingAction(loading)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });

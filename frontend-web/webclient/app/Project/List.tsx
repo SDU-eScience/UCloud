@@ -8,7 +8,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page, Operation} from "Types";
 import Button from "ui-components/Button";
-import {Flex, Icon, List, Text, Input, Box} from "ui-components";
+import {Flex, Icon, List, Text, Input, Box, Truncate} from "ui-components";
 import Link from "ui-components/Link";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -21,9 +21,10 @@ import {projectRoleToString} from "Project/api";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
-import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
+import {errorMessageOrDefault, preventDefault, stopPropagation} from "UtilityFunctions";
 import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import {ThemeColor} from "ui-components/theme";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -34,6 +35,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
 
     const [creatingProject, setCreatingProject] = React.useState(false);
     const title = React.useRef<HTMLInputElement>(null);
+    const [selectedProjects, setSelectedProjects] = React.useState(new Set());
 
     React.useEffect(() => {
         props.setLoading(response.loading);
@@ -57,6 +59,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         text: "Groups",
         disabled: projects => projects.length !== 1 || !projects.every(it => isAdminOrPI(it.whoami.role)),
         icon: "user",
+        iconColor2: "white",
+        color: "black",
         onClick: ([project]) => {
             if (props.project !== project.projectId) props.setProject(project.projectId);
             snackbarStore.addInformation(`${project.projectId} set as active project.`);
@@ -97,7 +101,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         size="24"
                                         name={"starEmpty"}
                                         color={"midGray"}
-                                        onClick={(): void => {}}
                                         hoverColor="blue"
                                     />}
                                     left={<form onSubmit={createProject}><Input
@@ -126,10 +129,16 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     </Text>}
                                 /> : null}
                             {page.items.map(e => {
-                                const isSelected = e.projectId === props.project;
+                                const isActive = e.projectId === props.project;
                                 return (
                                     <ListRow
                                         key={e.projectId}
+                                        isSelected={selectedProjects.has(e.projectId)}
+                                        select={() => {
+                                            if (selectedProjects.has(e.projectId)) selectedProjects.delete(e.projectId);
+                                            else selectedProjects.add(e.projectId);
+                                            setSelectedProjects(new Set(selectedProjects));
+                                        }}
                                         icon={<Icon
                                             cursor="pointer"
                                             size="24"
@@ -139,13 +148,13 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                             hoverColor="blue"
                                         />}
                                         navigate={() => history.push(`/projects/view/${encodeURIComponent(e.projectId)}`)}
-                                        left={<Text cursor="pointer">{e.title}</Text>}
-                                        leftSub={<>
-                                            <Text color="gray" fontSize={0}><Icon size="10" name="id" /> {e.projectId}</Text>
-                                            <Text ml="4px" color="gray" fontSize={0}><Icon color="white" color2="gray" mt="-2px" size="10" name="user" />
+                                        left={e.title}
+                                        leftSub={
+                                            <Text ml="4px" color="gray" fontSize={0}>
+                                                <Icon color="white" color2="gray" mt="-2px" size="10" name="user" />
                                                 {" "}{projectRoleToString(e.whoami.role)}
                                             </Text>
-                                        </>}
+                                        }
                                         right={<>
                                             <Flex alignItems={"center"}>
                                                 {!e.needsVerification ? null : (
@@ -165,39 +174,40 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                     mr="20px"
                                                     mt="5px"
                                                     name="check"
-                                                    color={isSelected ? "green" : "gray"}
+                                                    color={isActive ? "green" : "gray"}
                                                     hoverColor="green"
                                                     onClick={() => {
-                                                        if (isSelected) return;
+                                                        if (isActive) return;
                                                         snackbarStore.addInformation(`${e.projectId} is now the active project`);
                                                         props.setProject(e.projectId);
                                                     }}
                                                 />
-                                                <ClickableDropdown
-                                                    width="125px"
-                                                    left="-105px"
-                                                    trigger={(
-                                                        <Icon
-                                                            onClick={preventDefault}
-                                                            ml="10px"
-                                                            mr="10px"
-                                                            name="ellipsis"
-                                                            size="1em"
-                                                            rotation={90}
+                                                {selectedProjects.size === 0 ? <div onClick={stopPropagation}>
+                                                    <ClickableDropdown
+                                                        width="125px"
+                                                        left="-105px"
+                                                        trigger={(
+                                                            <Icon
+                                                                mr="10px"
+                                                                name="ellipsis"
+                                                                size="1em"
+                                                                rotation={90}
+                                                            />
+                                                        )}
+                                                    >
+
+                                                        <ProjectOperations
+                                                            selectedProjects={[e]}
+                                                            projectOperations={projectOperations}
                                                         />
-                                                    )}
-                                                >
-                                                    <ProjectOperations
-                                                        selectedProjects={[e]}
-                                                        projectOperations={projectOperations}
-                                                    />
-                                                </ClickableDropdown>
+                                                    </ClickableDropdown>
+                                                </div> : <Box width="28px" />}
                                             </Flex>
                                         </>}
                                     />
                                 );
                             })}
-                        </List>
+                        </List >
                     )}
                     loading={response.loading}
                     onPageChanged={newPage => setFetchParams(listProjects({page: newPage, itemsPerPage: 50}))}
@@ -206,7 +216,10 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             sidebar={(<>
                 <VerticalButtonGroup>
                     <Button onClick={startCreateProject}>Create project</Button>
-                    <ProjectOperations selectedProjects={[]} projectOperations={projectOperations} />
+                    <ProjectOperations
+                        selectedProjects={response.data.items.filter(it => selectedProjects.has(it.projectId))}
+                        projectOperations={projectOperations}
+                    />
                 </VerticalButtonGroup>
             </>)}
         />
@@ -245,7 +258,9 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     }
 };
 
-type ProjectOperation = Operation<UserInProject>;
+interface ProjectOperation extends Operation<UserInProject> {
+    iconColor2?: ThemeColor;
+}
 
 interface ProjectOperations {
     projectOperations: ProjectOperation[];
@@ -258,7 +273,7 @@ function ProjectOperations(props: ProjectOperations): JSX.Element | null {
     function ProjectOp(op: ProjectOperation): JSX.Element | null {
         if (op.disabled(props.selectedProjects, Client)) return null;
         return <span onClick={() => op.onClick(props.selectedProjects, Client)}>
-            <Icon size={16} mr="1em" color={op.color} name={op.icon} />{op.text}</span>;
+            <Icon size={16} mr="0.5em" color={op.color} color2={op.iconColor2} name={op.icon} />{op.text}</span>;
     }
 
     return (
