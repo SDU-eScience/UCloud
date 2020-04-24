@@ -98,6 +98,7 @@ class ApplicationHibernateDAO(
     override fun retrieveFavorites(
         session: HibernateSession,
         user: SecurityPrincipal,
+        project: String?,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
         val itemsInTotal = session.createCriteriaBuilder<Long, FavoriteApplicationEntity>().run {
@@ -115,11 +116,18 @@ class ApplicationHibernateDAO(
                     fav.user = :user and
                     fav.applicationName = application.id.name and
                     fav.applicationVersion = application.id.version and
-                    (application.isPublic = TRUE or permission.key.accessEntity = :user or :role in (:privileged))
+                    (
+                        application.isPublic = TRUE or (
+                            project is null and permission.key.accessEntity = :user
+                        ) or (
+                                                    
+                        ) or :role in (:privileged
+                    )
                 order by fav.applicationName
             """.trimIndent()
         ).setParameter("user", user.username)
             .setParameter("role", user.role)
+            .setParameter("project", project)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
             .asSequence()
@@ -150,6 +158,7 @@ class ApplicationHibernateDAO(
         tags: List<String>
     ): List<String> {
         return session.createNativeQuery<TagEntity>(
+            // TODO
             """
             select T.application_name, T.tag, T.id from {h-schema}application_tags as T
             where T.tag in (:tags)
@@ -157,7 +166,7 @@ class ApplicationHibernateDAO(
                     exists (
                         select A.is_public from {h-schema}applications as A where A.name = T.application_name and A.is_public = true
                     ) or exists (
-                        select P.entity from {h-schema}permissions as P where P.application_name = T.application_name and P.entity = :user
+                        select P.username, P.project, P.project_group from {h-schema}permissions as P where P.application_name = T.application_name and P.username = :user
                     ) or :role in (:privileged)
                 )
             """.trimIndent(), TagEntity::class.java
@@ -607,6 +616,7 @@ class ApplicationHibernateDAO(
     override fun listLatestVersion(
         session: HibernateSession,
         user: SecurityPrincipal?,
+        projectGroups: List<ProjectAndGroup>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
         val count = session.typedQuery<Long>(

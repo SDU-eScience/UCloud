@@ -16,6 +16,7 @@ interface ApplicationDAO<Session> {
     fun retrieveFavorites(
         session: Session,
         user: SecurityPrincipal,
+        project: String?,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
@@ -72,7 +73,7 @@ interface ApplicationDAO<Session> {
     fun listLatestVersion(
         session: Session,
         user: SecurityPrincipal?,
-
+        projectGroups: List<ProjectAndGroup>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 

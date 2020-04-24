@@ -14,6 +14,8 @@ import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.project.api.GroupExistsRequest
 import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.project.api.ProjectMembers
+import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -46,11 +48,13 @@ class AppStoreService<DBSession>(
 
     suspend fun retrieveFavorites(
         securityPrincipal: SecurityPrincipal,
+        project: String?,
         request: PaginationRequest
     ): Page<ApplicationSummaryWithFavorite> = db.withTransaction { session ->
         applicationDAO.retrieveFavorites(
             session,
             securityPrincipal,
+            project,
             request.normalize()
         )
     }
@@ -290,16 +294,31 @@ class AppStoreService<DBSession>(
 
     suspend fun listAll(
         securityPrincipal: SecurityPrincipal,
+        project: String?,
         normalizedPaginationRequest: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite> =
-        db.withTransaction { session ->
+    ): Page<ApplicationSummaryWithFavorite> {
+        val projectGroups = if (project.isNullOrBlank()) { emptyList() } else {
+            ProjectMembers.userStatus.call(
+                UserStatusRequest(securityPrincipal.username),
+                authenticatedClient
+            ).orRethrowAs {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }.groups.map {
+                if (it.projectId == project) {
+                    ProjectAndGroup(it.projectId, it.group)
+                }
+            }
+        }
+
+        return db.withTransaction { session ->
             applicationDAO.listLatestVersion(
                 session,
                 securityPrincipal,
+                projectGroups as List<ProjectAndGroup>,
                 normalizedPaginationRequest
             )
-
         }
+    }
 
     suspend fun create(securityPrincipal: SecurityPrincipal, application: Application, content: String) {
         db.withTransaction { session ->

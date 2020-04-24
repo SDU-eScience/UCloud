@@ -14,6 +14,7 @@ import dk.sdu.cloud.app.store.services.LogoType
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Controller
@@ -39,7 +40,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.retrieveFavorites) {
-            ok(appStore.retrieveFavorites(ctx.securityPrincipal, request))
+            ok(appStore.retrieveFavorites(ctx.securityPrincipal, ctx.project, request))
         }
 
         implement(AppStore.searchTags) {
@@ -88,7 +89,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.listAll) {
-            ok(appStore.listAll(ctx.securityPrincipal, request.normalize()))
+            ok(appStore.listAll(ctx.securityPrincipal, ctx.project, request.normalize()))
         }
 
         implement(AppStore.advancedSearch) {
