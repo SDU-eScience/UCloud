@@ -4,7 +4,8 @@ import {
     updateLicenseServerPermission,
     UserEntityType,
     addLicenseServerTag,
-    deleteLicenseServerTag
+    deleteLicenseServerTag,
+    AccessEntity
 } from "Applications/api";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
@@ -169,28 +170,34 @@ function LicenseServerTagsPrompt({licenseServer}: {licenseServer: LicenseServer 
                     )}
             </div>
         </Box>
-    )
+    );
 }
 
 function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer | null}): JSX.Element {
     const [accessList, setAccessList] = React.useState<AclEntry[]>([]);
     const [selectedAccess, setSelectedAccess] = React.useState<LicenseServerAccessRight>(LicenseServerAccessRight.READ);
+    const [selectedEntityType, setSelectedEntityType] = React.useState<UserEntityType>(UserEntityType.USER);
     const [accessEntryToDelete, setAccessEntryToDelete] = React.useState<AclEntry | null>(null);
     const [, invokeCommand] = useAsyncCommand();
+    const promises = usePromiseKeeper()
 
-    const newPermissionEntityField = React.useRef<HTMLInputElement>(null);
+    const userEntityField = React.useRef<HTMLInputElement>(null);
+    const projectEntityField = React.useRef<HTMLInputElement>(null);
+    const groupEntityField = React.useRef<HTMLInputElement>(null);
 
-    async function loadAcl(serverId: string): Promise<AclEntry[]> {
-        const {response} = await Client.get<{
-            entity_name: string;
-            entity_type: string;
-            permission: LicenseServerAccessRight;
-        }[]>(`/app/license/listAcl?serverId=${serverId}`);
-        return response.map(item => ({
-            id: item.entity_name,
-            type: item.entity_type,
-            permission: item.permission
-        }));
+    async function loadAcl(serverId: string) {
+        try {
+            const {response} = await (
+                await promises.makeCancelable(
+                    Client.get<AclEntry[]>(`/app/license/listAcl?serverId=${serverId}`)
+                ).promise
+            );
+            setAccessList(response);
+        } catch (err) {
+            if (!promises.canceledKeeper) {
+                snackbarStore.addFailure("Failed to load License Server Permissions");
+            }
+        }
     }
 
     async function deleteAclEntry(): Promise<void> {
@@ -200,7 +207,11 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
             serverId: licenseServer.id,
             changes: [
                 {
-                    entity: {id: accessEntryToDelete.id, type: UserEntityType.USER},
+                    entity: {
+                        user: accessEntryToDelete.entity.user,
+                        project: accessEntryToDelete.entity.project,
+                        group: accessEntryToDelete.entity.group
+                    },
                     rights: accessEntryToDelete.permission,
                     revoke: true
                 }
@@ -210,7 +221,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     }
 
     async function loadAndSetAccessList(serverId: string): Promise<void> {
-        setAccessList(await loadAcl(serverId));
+        await loadAcl(serverId);
     }
 
     React.useEffect(() => {
@@ -232,7 +243,11 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                     <Heading.h3>Delete entry</Heading.h3>
                     <Box>
                         <Text>
-                            Remove access for {accessEntryToDelete?.id}?
+                            Remove access for {accessEntryToDelete?.entity.user !== null ? (
+                                accessEntryToDelete?.entity.user
+                            ) : (
+                                    `${accessEntryToDelete?.entity.project}:${accessEntryToDelete?.entity.group}`
+                                )}?
                         </Text>
                     </Box>
                     <Box mt="6px" alignItems="center">
@@ -250,40 +265,117 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                         onSubmit={async e => {
                             e.preventDefault();
 
-                            const permissionEntityField = newPermissionEntityField.current;
-                            if (permissionEntityField === null) return;
+                            if (selectedEntityType == UserEntityType.USER) {
+                                const userField = userEntityField.current;
+                                if (userField === null) return;
 
-                            const permissionUserValue = permissionEntityField.value;
+                                const userValue = userField.value;
 
-                            if (permissionUserValue === "") return;
+                                if (userValue === "") return;
 
-                            if (licenseServer === null) return;
-                            await invokeCommand(updateLicenseServerPermission(
-                                {
-                                    serverId: licenseServer.id,
-                                    changes: [
-                                        {
-                                            entity: {id: permissionUserValue, type: UserEntityType.USER},
-                                            rights: selectedAccess,
-                                            revoke: false
-                                        }
-                                    ]
-                                }
-                            ));
+                                if (licenseServer === null) return;
 
-                            await loadAndSetAccessList(licenseServer.id);
-                            permissionEntityField.value = "";
+                                await invokeCommand(updateLicenseServerPermission(
+                                    {
+                                        serverId: licenseServer.id,
+                                        changes: [
+                                            {
+                                                entity: {user: userValue, project: null, group: null},
+                                                rights: selectedAccess,
+                                                revoke: false
+                                            }
+                                        ]
+                                    }
+                                ));
+
+                                await loadAndSetAccessList(licenseServer.id);
+                                userField.value = "";
+
+                            } else if (selectedEntityType === UserEntityType.PROJECT_GROUP) {
+                                const projectField = projectEntityField.current;
+                                if (projectField === null) return;
+
+                                const projectValue = projectField.value;
+
+                                if (projectValue === "") return;
+
+                                const groupField = groupEntityField.current;
+                                if (groupField === null) return;
+
+                                const groupValue = groupField.value;
+
+                                if (groupValue === "") return;
+
+                                if (licenseServer === null) return;
+
+                                await invokeCommand(updateLicenseServerPermission(
+                                    {
+                                        serverId: licenseServer.id,
+                                        changes: [
+                                            {
+                                                entity: {user: null, project: projectValue, group: groupValue},
+                                                rights: selectedAccess,
+                                                revoke: false
+                                            }
+                                        ]
+                                    }
+                                ));
+
+                                await loadAndSetAccessList(licenseServer.id);
+                                projectField.value = "";
+                                groupField.value = "";
+                            } else {
+                                return;
+                            }
+
                         }}
                     >
                         <Flex height={45}>
-                            <Input
-                                rightLabel
-                                required
-                                type="text"
-                                ref={newPermissionEntityField}
-                                placeholder="Username"
-                            />
-                            <InputLabel width="220px" rightLabel>
+                            <InputLabel width={160} leftLabel>
+                                <ClickableDropdown
+                                    chevron
+                                    width="180px"
+                                    onChange={(val: UserEntityType) => setSelectedEntityType(val)}
+                                    trigger={
+                                        <Box as="span" minWidth="220px">{prettifyEntityType(selectedEntityType)}</Box>
+                                    }
+                                    options={entityTypes}
+                                />
+                            </InputLabel>
+                            {selectedEntityType === UserEntityType.USER ? (
+                                <Input
+                                    leftLabel
+                                    rightLabel
+                                    required
+                                    type="text"
+                                    ref={userEntityField}
+                                    placeholder="Username"
+                                />
+                            ) : (
+                                    <>
+                                        <Input
+                                            leftLabel
+                                            rightLabel
+                                            required
+                                            width={200}
+                                            type="text"
+                                            ref={projectEntityField}
+                                            placeholder="Project name"
+                                        />
+                                        <Input
+                                            leftLabel
+                                            rightLabel
+                                            required
+                                            width={200}
+                                            type="text"
+                                            ref={groupEntityField}
+                                            placeholder="Group name"
+                                        />
+                                    </>
+                                )}
+
+
+                            <InputLabel width={160} rightLabel>
                                 <ClickableDropdown
                                     chevron
                                     width="180px"
@@ -309,15 +401,29 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                         <Table width="700px">
                             <LeftAlignedTableHeader>
                                 <TableRow>
-                                    <TableHeaderCell>Name</TableHeaderCell>
+                                    <TableHeaderCell width={150}>Type</TableHeaderCell>
+                                    <TableHeaderCell width={500}>Name</TableHeaderCell>
                                     <TableHeaderCell width={200}>Permission</TableHeaderCell>
                                     <TableHeaderCell width={50}>Delete</TableHeaderCell>
                                 </TableRow>
                             </LeftAlignedTableHeader>
                             <tbody>
-                                {accessList.map(accessEntry => (
-                                    <TableRow key={accessEntry.id}>
-                                        <TableCell>{accessEntry.id}</TableCell>
+                                {accessList.map((accessEntry, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>
+                                            {accessEntry.entity.user ? (
+                                                prettifyEntityType(UserEntityType.USER)
+                                            ) : (
+                                                    prettifyEntityType(UserEntityType.PROJECT_GROUP)
+                                                )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {accessEntry.entity.user ? (
+                                                accessEntry.entity.user
+                                            ) : (
+                                                    accessEntry.entity.project + " " + accessEntry.entity.group
+                                                )}
+                                        </TableCell>
                                         <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
                                         <TableCell textAlign="right">
                                             <Button
@@ -357,6 +463,10 @@ function openTagsDialog(licenseServer: LicenseServer): void {
     dialogStore.addDialog(<LicenseServerTagsPrompt licenseServer={licenseServer} />, () => undefined)
 }
 
+const entityTypes = [
+    {text: prettifyEntityType(UserEntityType.USER), value: UserEntityType.USER},
+    {text: prettifyEntityType(UserEntityType.PROJECT_GROUP), value: UserEntityType.PROJECT_GROUP},
+];
 
 const permissionLevels = [
     {text: prettifyAccessRight(LicenseServerAccessRight.READ), value: LicenseServerAccessRight.READ},
@@ -378,6 +488,21 @@ function prettifyAccessRight(accessRight: LicenseServerAccessRight): string {
     }
 }
 
+function prettifyEntityType(entityType: UserEntityType): string {
+    switch (entityType) {
+        case UserEntityType.USER: {
+            return "User";
+        }
+        case UserEntityType.PROJECT_GROUP: {
+            return "Project group";
+        }
+        default: {
+            return "Unknown";
+        }
+
+    }
+}
+
 async function loadLicenseServers(): Promise<LicenseServer[]> {
     const {response} = await Client.get<LicenseServer[]>(`/app/license/listAll`);
     return response.map(item => ({
@@ -390,8 +515,7 @@ async function loadLicenseServers(): Promise<LicenseServer[]> {
 }
 
 interface AclEntry {
-    id: string;
-    type: string;
+    entity: AccessEntity;
     permission: LicenseServerAccessRight;
 }
 
@@ -491,7 +615,7 @@ export default function LicenseServers(): JSX.Element | null {
                                     <Label mb="1em" width="30%">
                                         Port
                                         <Input
-                                            value={port != 0 ? port : ""}
+                                            value={port !== 0 ? port : ""}
                                             type="number"
                                             min={0}
                                             max={65535}

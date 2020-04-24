@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "0.37.3",
+    "version": "0.37.4",
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
@@ -57,7 +57,7 @@
         "@types/react-router": "^5.1.5",
         "@types/react-router-dom": "^5.1.4",
         "@types/react-test-renderer": "16.9.2",
-        "@types/recharts": "^1.8.9",
+        "@types/recharts": "^1.8.10",
         "@types/styled-components": "5.1.0",
         "@types/styled-system": "^5.1.9",
         "@typescript-eslint/eslint-plugin": "^2.29.0",
@@ -85,7 +85,7 @@
         "ts-loader": "6.2.2",
         "typescript": "^3.8.3",
         "url-loader": "4.1.0",
-        "webpack": "4.42.1",
+        "webpack": "4.43.0",
         "webpack-cli": "^3.3.11",
         "webpack-dev-server": "3.10.3",
         "webpack-merge": "4.2.2"

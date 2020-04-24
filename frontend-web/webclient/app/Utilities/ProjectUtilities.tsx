@@ -1,6 +1,6 @@
 import * as React from "react";
 import HttpClient from "Authentication/lib";
-import {addStandardInputDialog, addStandardDialog} from "UtilityComponents";
+import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {SnackType} from "Snackbar/Snackbars";
 import {errorMessageOrDefault} from "UtilityFunctions";
@@ -53,9 +53,27 @@ export function promptDeleteRepository(name: string, client: HttpClient, reload:
         onConfirm: async () => {
             try {
                 await client.delete("/projects/repositories", {name});
+                snackbarStore.addSuccess("Repository deleted");
                 reload();
             } catch (err) {
-                snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete."));
+                snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete repository."));
+            }
+        }
+    });
+}
+
+export function promptDeleteProject(id: string, client: HttpClient, reload: () => void): void {
+    addStandardDialog({
+        title: "Delete?",
+        message: `Delete ${id} and EVERY associated job, repository and group? Cannot be undone.`,
+        confirmText: "Delete project",
+        onConfirm: async () => {
+            try {
+                await client.delete(`/projects`, {id});
+                snackbarStore.addSuccess("Project deleted");
+                reload();
+            } catch (err) {
+                snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete project."));
             }
         }
     });
@@ -91,18 +109,22 @@ interface ProjectAclEntry {
 
 type UpdatePermissionsResponse = void;
 
-export function updatePermissionsPrompt(client: HttpClient, file: File): void {
+export function updatePermissionsPrompt(client: HttpClient, file: File, reload: () => void): void {
     const reponame = repositoryName(file.path);
     const rights = file.acl ?? [];
-    dialogStore.addDialog(<UpdatePermissionsDialog client={client} repository={reponame} rights={rights} />, () => undefined);
+    dialogStore.addDialog(
+        <UpdatePermissionsDialog
+            reload={reload}
+            client={client}
+            repository={reponame}
+            rights={rights}
+        />, () => undefined
+    );
 }
 
-export function UpdatePermissionsDialog(props: {client: HttpClient; repository: string; rights: Acl[]}): JSX.Element {
-    const [groups, params, setParams] = useCloudAPI<string[]>({path: "/projects/groups", method: "GET"}, []);
+export function UpdatePermissionsDialog(props: {client: HttpClient; repository: string; rights: Acl[]; reload: () => void}): JSX.Element {
+    const [groups] = useCloudAPI<string[]>({path: "/projects/groups", method: "GET"}, []);
     const [newRights, setNewRights] = React.useState<Map<string, AccessRight[]>>(new Map());
-    // HACK -- The setNewRights doesn't trigger at new update.
-    const [, forceUpdate] = React.useState("");
-    // HACK END
 
     return (
         <Box width="auto" minWidth="300px">
@@ -126,10 +148,7 @@ export function UpdatePermissionsDialog(props: {client: HttpClient; repository: 
                                         if (value === "") newRights.set(g, []);
                                         else if (value === "READ") newRights.set(g, [AccessRight.READ]);
                                         else if (value === "WRITE") newRights.set(g, [AccessRight.READ, AccessRight.WRITE]);
-                                        // HACK
-                                        forceUpdate(g + value);
-                                        // HACK end
-                                        setNewRights(newRights);
+                                        setNewRights(new Map(newRights));
                                     }}
                                     minWidth="75px"
                                     width="75px"
@@ -153,10 +172,11 @@ export function UpdatePermissionsDialog(props: {client: HttpClient; repository: 
         </Box>
     );
 
-    function update(): void {
-        updatePermissions(props.client, props.repository, [...newRights.entries()].map(([group, rights]) => ({
+    async function update(): Promise<void> {
+        await updatePermissions(props.client, props.repository, [...newRights.entries()].map(([group, rights]) => ({
             group, rights
         })));
+        props.reload();
     }
 }
 

@@ -1,5 +1,0 @@
-def initialize() {
-  return 'SUCCESS'
-}
-
-return this
