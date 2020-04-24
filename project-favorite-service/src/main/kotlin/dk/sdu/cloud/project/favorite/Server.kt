@@ -21,7 +21,7 @@ class Server(override val micro: Micro) : CommonServer {
 
             val projectHibernateDAO = ProjectFavoriteHibernateDAO()
             val projectFavoriteService = ProjectFavoriteService(db, projectHibernateDAO, authenticatedClient)
-            
+
             configureControllers(
                 ProjectFavoriteController(projectFavoriteService)
             )
