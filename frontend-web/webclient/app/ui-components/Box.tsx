@@ -5,7 +5,7 @@ import {
   minHeight, MinHeightProps, minWidth, MinWidthProps,
   overflow, OverflowProps, space, SpaceProps,
   textAlign, TextAlignProps, TopProps, width, WidthProps,
-  zIndex, ZIndexProps
+  zIndex, ZIndexProps, background, BackgroundProps
 } from "styled-system";
 import {cursor} from "Utilities/StyledComponentsUtilities";
 import {Cursor} from "./Types";
@@ -15,6 +15,7 @@ export type BoxProps =
   WidthProps &
   MinWidthProps &
   ColorProps &
+  BackgroundProps &
   AlignItemsProps &
   TopProps &
   HeightProps &
@@ -54,6 +55,7 @@ const Box = styled.div<BoxProps>`
   ${color}
   ${textAlign}
   ${overflow}
+  ${background}
 `;
 
 Box.displayName = "Box";
