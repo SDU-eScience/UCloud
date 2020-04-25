@@ -122,18 +122,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                     notifications={notifications}
                     readAll={props.readAll}
                 />
-                <Box>
-                    <Box mb="6px" height="142px">
-                        <DashboardCard title="Storage Used" isLoading={false}>
-                            <Accounting.Usage resource="storage" subResource="bytesUsed" />
-                        </DashboardCard>
-                    </Box>
-                    <Box height="142px">
-                        <DashboardCard title="Compute Time Used" isLoading={false}>
-                            <Accounting.Usage resource="compute" subResource="timeUsed" />
-                        </DashboardCard>
-                    </Box>
-                </Box>
+                <DashboardCard title="Resources" isLoading={false}>
+                    <Accounting.Usage resource="storage" subResource="bytesUsed" renderTitle/>
+                    <Box pb="12px"/>
+                    <Accounting.Usage resource="compute" subResource="timeUsed" renderTitle/>
+                </DashboardCard>
             </GridCardGroup>
         </>
     );
