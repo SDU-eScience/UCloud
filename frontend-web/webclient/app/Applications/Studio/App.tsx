@@ -13,7 +13,7 @@ import {
 } from "Applications/api";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import * as Actions from "Applications/Redux/BrowseActions";
-import {TagStyle} from "Applications/View";
+import {Tag} from "Applications/Card";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
@@ -185,7 +185,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                             {tags.map(tag => (
                                 <Flex key={tag} mb={16}>
                                     <Box flexGrow={1}>
-                                        <TagStyle to="#" key={tag}>{tag}</TagStyle>
+                                        <Tag key={tag} label={tag}/>
                                     </Box>
                                     <Box>
                                         <Button
