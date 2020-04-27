@@ -61,14 +61,13 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
 
     const operations: GroupOperation[] = [{
         disabled: groups => groups.length === 0,
-        onClick: () => promptDeleteGroups(),
+        onClick: (groups) => promptDeleteGroups(groups),
         icon: "trash",
         text: "Delete",
         color: "red"
     }];
 
-    const promptDeleteGroups = React.useCallback(async () => {
-        const groups = [...selectedGroups];
+    async function promptDeleteGroups(groups: GroupWithSummary[]): Promise<void> {
         if (groups.length === 0) {
             snackbarStore.addFailure("You haven't selected any groups.");
             return;
@@ -77,7 +76,7 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
             title: "Delete groups?",
             message: <>
                 <Text mb="5px">Selected groups:</Text>
-                {groups.map(g => <Text key={g} fontSize="12px">{g}</Text>)}
+                {groups.map(g => <Text key={g.group} fontSize="12px">{g.group}</Text>)}
             </>,
             onConfirm: async () => {
                 try {
@@ -93,7 +92,7 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
             confirmText: "Delete"
         });
         setSelectedGroups(new Set());
-    }, [selectedGroups.size]);
+    }
 
     if (group) return <DetailedGroupView name={group} />;
 
@@ -139,17 +138,8 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
                 {groupSummaries.data.items.map(g => (<>
                     <ListRow
                         key={g.group}
-                        left={
-                            <Box width="100%">
-                                <Truncate
-                                    cursor="pointer"
-                                    width={1}
-                                    onClick={() => history.push(`/projects/groups/${encodeURI(g.group)}`)}
-                                    fontSize={20}
-                                >
-                                    {g.group}
-                                </Truncate>
-                            </Box>}
+                        left={g.group}
+                        navigate={() => history.push(`/projects/groups/${encodeURI(g.group)}`)}
                         leftSub={
                             <Text ml="4px" color="gray" fontSize={0}>
                                 <Icon color="gray" mt="-2px" size="10" name="projects" /> {g.numberOfMembers}

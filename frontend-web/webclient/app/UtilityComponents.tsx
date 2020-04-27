@@ -22,7 +22,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 interface StandardDialog {
     title?: string;
     message: string | JSX.Element;
-    onConfirm: () => void;
+    onConfirm: () => void | Promise<void>;
     onCancel?: () => void;
     cancelText?: string;
     confirmText?: string;

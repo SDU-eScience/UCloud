@@ -12,6 +12,7 @@ import {Page} from "Types";
 import {
     ActionButton,
     Box,
+    Flex,
     ExternalLink,
     Image,
     Link,
@@ -24,7 +25,7 @@ import * as Heading from "ui-components/Heading";
 import {TextSpan} from "ui-components/Text";
 import {dateToString} from "Utilities/DateUtilities";
 import {capitalized} from "UtilityFunctions";
-import {ApplicationCardContainer, SlimApplicationCard} from "./Card";
+import {ApplicationCardContainer, SlimApplicationCard, Tag} from "./Card";
 import * as Pages from "./Pages";
 import * as Actions from "./Redux/ViewActions";
 import * as ViewObject from "./Redux/ViewObject";
@@ -220,35 +221,18 @@ const PreviousVersions: React.FunctionComponent<{previousVersions?: Page<FullApp
     </>
 );
 
-export const TagStyle = styled(Link)`
-    background-color: var(--darkGray, #f00);
-    color: #ebeff3;
-    &:hover { color: #ebeff3;}
-    text-decoration: none;
-    text-transform: Uppercase;
-    padding: 0px 10px 0px 10px;
-    margin-right: 4px;
-    border-radius: 3px;
-`;
-
-
-const TagBase = styled.div`
-    display: flex;
-    flex-direction: row;
-`;
-
 function Tags({tags}: {tags: string[]}): JSX.Element | null {
     if (!tags) return null;
 
     return (
         <div>
-            <TagBase>
+            <Flex flexDirection="row" >
                 {
                     tags.map(tag => (
-                        <TagStyle key={tag} to={Pages.browseByTag(tag)}>{tag}</TagStyle>
+                        <Link key={tag} to={Pages.browseByTag(tag)}><Tag label={tag}/> </Link>
                     ))
                 }
-            </TagBase>
+            </Flex>
         </div>
     );
 }

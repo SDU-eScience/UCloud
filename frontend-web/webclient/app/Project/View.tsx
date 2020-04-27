@@ -16,18 +16,15 @@ import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router";
 import {Box, Button, Flex, Input, Label} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {defaultAvatar, AvatarType} from "UserSettings/Avataaar";
+import {AvatarType} from "UserSettings/Avataaar";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {usePromiseKeeper} from "PromiseKeeper";
-import {Avatar} from "AvataaarLib";
 import {loadingAction} from "Loading";
 import {
-    projectRoleToString,
     shouldVerifyMembership,
     ShouldVerifyMembershipResponse,
     verifyMembership
@@ -35,6 +32,8 @@ import {
 import {Client} from "Authentication/HttpClientInstance";
 import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
+import {GroupMembers} from "./DetailedGroupView";
+import {addStandardDialog} from "UtilityComponents";
 
 const View: React.FunctionComponent<ViewOperations> = props => {
     const id = decodeURIComponent(useParams<{id: string}>().id);
@@ -50,6 +49,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
     const [avatars, setAvatars] = React.useState<{[username: string]: AvatarType}>({});
     const promises = usePromiseKeeper();
+    const [isLoading, runCommand] = useAsyncCommand();
 
     /* Contact book */
     const SERVICE = ServiceOrigin.PROJECT_SERVICE;
@@ -189,87 +189,28 @@ const View: React.FunctionComponent<ViewOperations> = props => {
 
                         </Box>
                     )}
+                    <GroupMembers
+                        members={project.data.members}
+                        promptRemoveMember={async member => addStandardDialog({
+                            title: "Remove member",
+                            message: `Remove ${member}?`,
+                            onConfirm: async () => {
+                                await runCommand(deleteMemberInProject({
+                                    projectId: id,
+                                    member
+                                }));
 
-                    {project.data.members.map((e, idx) => (
-                        <ViewMember
-                            key={idx}
-                            project={project.data}
-                            member={e}
-                            avatar={avatars[e.username] ?? defaultAvatar}
-                            allowManagement={allowManagement}
-                            onActionComplete={() => reload()}
-                        />
-                    ))}
+                                reload();
+                            }
+                        })}
+                        reload={reload}
+                        project={project.data.id}
+                        allowManagement={allowManagement}
+                        allowRoleManagement={allowManagement}
+                    />
                 </>
             )}
         />
-    );
-};
-
-const ViewMember: React.FunctionComponent<{
-    project: Project;
-    member: ProjectMember;
-    allowManagement: boolean;
-    onActionComplete: () => void;
-    avatar: AvatarType;
-}> = props => {
-    const [isLoading, runCommand] = useAsyncCommand();
-    const [role, setRole] = useState<ProjectRole>(props.member.role);
-
-    const deleteMember = async (): Promise<void> => {
-        await runCommand(deleteMemberInProject({
-            projectId: props.project.id,
-            member: props.member.username
-        }));
-
-        props.onActionComplete();
-    };
-
-    return (
-        <Box mt={16}>
-            <Flex>
-                <Flex width="60px" alignItems="center" height="48px"><Avatar avatarStyle="circle" {...props.avatar} /></Flex>
-                <Box flexGrow={1}>
-                    {props.member.username} <br />
-                    {!props.allowManagement || role === ProjectRole.PI ? projectRoleToString(role) : (
-                        <ClickableDropdown
-                            chevron
-                            trigger={projectRoleToString(role)}
-                            onChange={async value => {
-                                try {
-                                    await runCommand(changeRoleInProject({
-                                        projectId: props.project.id,
-                                        member: props.member.username,
-                                        newRole: value
-                                    }));
-                                    setRole(value);
-                                } catch (err) {
-                                    snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update role."));
-                                }
-
-                                props.onActionComplete();
-                            }}
-                            options={[
-                                {text: "User", value: ProjectRole.USER},
-                                {text: "Admin", value: ProjectRole.ADMIN}
-                            ]}
-                        />
-                    )}
-                </Box>
-                {!props.allowManagement || props.member.role === ProjectRole.PI ? null : (
-                    <Box flexShrink={0}>
-                        <Button
-                            color={"red"}
-                            mr={8}
-                            disabled={isLoading}
-                            onClick={deleteMember}
-                        >
-                            Remove
-                        </Button>
-                    </Box>
-                )}
-            </Flex>
-        </Box>
     );
 };
 
