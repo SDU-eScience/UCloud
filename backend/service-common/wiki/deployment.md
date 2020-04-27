@@ -1,13 +1,7 @@
 # Deployment
 
 In this document we will describe the procedures and technologies involved in
-the deployment of SDUCloud services.
-
-## Archiva
-
-Apache Archiva is a piece of software used to host private maven
-repositories. Archiva is currently hosted at https://cloud.sdu.dk/archiva.
-Access is currently a bit of a manual process.
+the deployment of UCloud services.
 
 ## Docker
 

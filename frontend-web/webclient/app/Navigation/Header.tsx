@@ -245,7 +245,7 @@ const SearchInput = styled(ui.Flex)`
     color: white;
     background-color: rgba(236, 239, 244, 0.25);
     border-radius: 5px;
-    
+
     & > input::-webkit-input-placeholder, input::-moz-placeholder, input::-ms-input-placeholder, input:-moz-placeholder {
         color: white;
     }
@@ -261,9 +261,11 @@ const SearchInput = styled(ui.Flex)`
     & > input:focus {
         color: black;
         background-color: white;
+        transition: ${ui.theme.duration.fast};
     }
     & > input {
         color: white;
+        transition: ${ui.theme.duration.fast};
     }
     & > ${Dropdown} > ${ui.Text} > input {
         width: 350px;

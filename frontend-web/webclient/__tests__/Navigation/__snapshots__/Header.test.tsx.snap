@@ -272,10 +272,14 @@ exports[`Header Mount header 1`] = `
 .c9 > input:focus {
   color: black;
   background-color: white;
+  -webkit-transition: 150ms;
+  transition: 150ms;
 }
 
 .c9 > input {
   color: white;
+  -webkit-transition: 150ms;
+  transition: 150ms;
 }
 
 .c9 > .c13 > .c4 > input {
