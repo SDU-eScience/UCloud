@@ -178,18 +178,18 @@ class AppStoreService<DBSession>(
             log.debug("Verifying that user exists")
 
             val lookup = UserDescriptions.lookupUsers.call(
-                LookupUsersRequest(listOf(entity.user)),
+                LookupUsersRequest(listOf(entity.user!!)),
                 authenticatedClient
             ).orRethrowAs {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
 
-            if (lookup.results[entity.user] == null) throw RPCException.fromStatusCode(
+            if (lookup.results[entity.user!!] == null) throw RPCException.fromStatusCode(
                 HttpStatusCode.BadRequest,
                 "The user does not exist"
             )
 
-            if (lookup.results[entity.user]?.role == Role.SERVICE) {
+            if (lookup.results[entity.user!!]?.role == Role.SERVICE) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "The user does not exist")
             }
             aclDao.updatePermissions(session, entity, applicationName, permissions)
@@ -197,7 +197,7 @@ class AppStoreService<DBSession>(
             log.debug("Verifying that project group exists")
 
             val lookup = ProjectGroups.groupExists.call(
-                GroupExistsRequest(entity.project, entity.group),
+                GroupExistsRequest(entity.project!!, entity.group!!),
                 authenticatedClient
             ).orRethrowAs {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
@@ -314,6 +314,7 @@ class AppStoreService<DBSession>(
             applicationDAO.listLatestVersion(
                 session,
                 securityPrincipal,
+                project,
                 projectGroups as List<ProjectAndGroup>,
                 normalizedPaginationRequest
             )

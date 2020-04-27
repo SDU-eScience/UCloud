@@ -55,7 +55,7 @@ class Server(override val micro: Micro) : CommonServer {
         if (micro.developmentModeEnabled) {
             runBlocking {
                 val listOfApps = db.withTransaction {
-                    applicationDAO.listLatestVersion(it, null, NormalizedPaginationRequest(null, null))
+                    applicationDAO.listLatestVersion(it, null, null, emptyList(), NormalizedPaginationRequest(null, null))
                 }
 
                 if (listOfApps.itemsInTotal == 0) {

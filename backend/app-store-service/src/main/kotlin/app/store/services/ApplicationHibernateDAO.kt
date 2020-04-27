@@ -616,7 +616,8 @@ class ApplicationHibernateDAO(
     override fun listLatestVersion(
         session: HibernateSession,
         user: SecurityPrincipal?,
-        projectGroups: List<ProjectAndGroup>,
+        currentProject: String?,
+        memberGroups: List<ProjectAndGroup>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
         val count = session.typedQuery<Long>(
@@ -626,16 +627,30 @@ class ApplicationHibernateDAO(
                     select max(createdAt)
                     from ApplicationEntity as B
                     where A.id.name = B.id.name and (
-                        A.isPublic = true or
-                        :user in (
-                            select P.key.accessEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                        A.isPublic = true or (
+                            :project is null and
+                            :user is not null and
+                            :user in (
+                                select P1.key.user from PermissionEntry as P1 where P1.key.applicationName = A.id.name
+                            )
+                        ) or (
+                            :project is not null and
+                            exists (
+                                select P2.key.group from PermissionEntry as P2 where
+                                    P2.key.applicationName = A.id.name and
+                                    P2.key.project = :project and
+                                    P2.key.group in :groups
+                                    
+                            )
                         ) or :role in (:privileged)
                     )
                     group by id.name
                 )
             """.trimIndent()
-        ).setParameter("user", user?.username ?: "")
+        ).setParameter("user", user?.username)
             .setParameter("role", user?.role ?: Role.UNKNOWN)
+            .setParameter("project", currentProject)
+            .setParameterList("groups", memberGroups.map { it.group })
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .uniqueResult()
             .toInt()

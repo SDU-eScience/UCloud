@@ -73,6 +73,7 @@ interface ApplicationDAO<Session> {
     fun listLatestVersion(
         session: Session,
         user: SecurityPrincipal?,
+        currentProject: String?,
         projectGroups: List<ProjectAndGroup>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
