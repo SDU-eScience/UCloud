@@ -19,17 +19,17 @@ If you are a user and just want to know how to use UCloud, check out our
 ## Application Developers: Getting Started
 
 Interested in developing applications for UCloud? We have the guide for you
-[here](./app-store-service/README.md).
+[here](./backend/app-store-service/README.md).
 
 ## UCloud Developers: Getting Started
 
 Our getting started guide for backend developers is located
-[here](./service-common/wiki/getting_started.md). You can read more about the
+[here](./backend/service-common/wiki/getting_started.md). You can read more about the
 frontend [here](./frontend-web/README.md).
 
 You might also be interested in our [general
 procedures](./infrastructure/wiki/README.md), [deployment
-checklists](./service-common/wiki/deployment.md) and
+checklists](./backend/service-common/wiki/deployment.md) and
 [CI/CD](./infrastructure/wiki/Jenkins.md) system.
 
 ## Release Notes
