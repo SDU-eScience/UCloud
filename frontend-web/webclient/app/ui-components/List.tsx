@@ -48,12 +48,12 @@ interface ListRowProps {
 export function ListRow(props: ListRowProps): JSX.Element {
     const isSelected = props.isSelected ?? false;
     const left = props.leftSub ? (
-        <Box maxWidth="calc(100% - 150px)" onClick={e => e.stopPropagation()}>
+        <Box maxWidth="calc(100% - 180px)" width="auto">
             <Truncate
                 cursor={props.navigate ? "pointer" : "default"}
-                onClick={() => props.navigate?.()}
+                onClick={e => {props.navigate?.(); e.stopPropagation()}}
                 mb="-4px"
-                width="min-content"
+                width={1}
                 fontSize={20}
             >{props.left}</Truncate>
             <Flex mt="4px">
