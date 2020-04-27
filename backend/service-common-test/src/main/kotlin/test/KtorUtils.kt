@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.server.JobId
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.ServerFeature
+import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.configureControllers
 import io.ktor.application.Application

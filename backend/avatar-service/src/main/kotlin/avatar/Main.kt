@@ -1,26 +1,19 @@
 package dk.sdu.cloud.avatar
 
+import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.avatar.api.AvatarServiceDescription
-import dk.sdu.cloud.micro.HealthCheckFeature
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
 
+object AvatarService : Service {
+    override val description: ServiceDescription = AvatarServiceDescription
+    override fun initializeServer(micro: Micro): CommonServer {
+        micro.install(RefreshingJWTCloudFeature)
+        return Server(micro)
+    }
+}
 
 fun main(args: Array<String>) {
-    val micro = Micro().apply {
-        initWithDefaultFeatures(AvatarServiceDescription, args)
-        install(HibernateFeature)
-        install(RefreshingJWTCloudFeature)
-        install(HealthCheckFeature)
-    }
-
-    if (micro.runScriptHandler()) return
-
-    Server(
-        micro
-    ).start()
+    AvatarService.runAsStandalone(args)
 }

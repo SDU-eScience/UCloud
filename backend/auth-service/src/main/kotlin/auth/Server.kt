@@ -17,15 +17,7 @@ import dk.sdu.cloud.auth.http.TwoFactorAuthController
 import dk.sdu.cloud.auth.http.UserController
 import dk.sdu.cloud.auth.services.*
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.ServerFeature
-import dk.sdu.cloud.micro.client
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.micro.serviceInstance
-import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers

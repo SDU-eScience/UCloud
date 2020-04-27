@@ -1,23 +1,20 @@
 package dk.sdu.cloud.accounting.compute
 
+import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.accounting.compute.api.AccountingComputeServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.micro.HealthCheckFeature
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
+
+object AccountingComputeService : Service {
+    override val description: ServiceDescription = AccountingComputeServiceDescription
+
+    override fun initializeServer(micro: Micro): CommonServer {
+        micro.install(RefreshingJWTCloudFeature)
+        return Server(micro)
+    }
+}
 
 fun main(args: Array<String>) {
-    val micro = Micro().apply {
-        initWithDefaultFeatures(AccountingComputeServiceDescription, args)
-        install(HibernateFeature)
-        install(RefreshingJWTCloudFeature)
-        install(HealthCheckFeature)
-    }
-
-    if (micro.runScriptHandler()) return
-
-    Server(micro).start()
+    AccountingComputeService.runAsStandalone(args)
 }

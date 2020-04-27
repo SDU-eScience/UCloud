@@ -1,17 +1,22 @@
 package dk.sdu.cloud.project
 
+import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.ProjectServiceDescription
+import dk.sdu.cloud.service.CommonServer
 import org.apache.logging.log4j.Level
 
-fun main(args: Array<String>) {
-    val micro = Micro().apply {
-        initWithDefaultFeatures(ProjectServiceDescription, args)
-        install(RefreshingJWTCloudFeature)
-        install(HealthCheckFeature)
-    }
+object ProjectService : Service {
+    override val description: ServiceDescription = ProjectServiceDescription
 
-    if (micro.runScriptHandler()) return
-    Server(micro).start()
+    override fun initializeServer(micro: Micro): CommonServer {
+        micro.install(RefreshingJWTCloudFeature)
+        return Server(micro)
+        TODO("Not yet implemented")
+    }
+}
+
+fun main(args: Array<String>) {
+    ProjectService.runAsStandalone(args)
 }

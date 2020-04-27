@@ -18,15 +18,7 @@ import dk.sdu.cloud.app.kubernetes.services.WebService
 import dk.sdu.cloud.app.kubernetes.services.WorkspaceService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.ServerFeature
-import dk.sdu.cloud.micro.ServiceDiscoveryOverrides
-import dk.sdu.cloud.micro.backgroundScope
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.redisConnectionManager
-import dk.sdu.cloud.micro.server
-import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.RedisBroadcastingStream
@@ -45,6 +37,8 @@ class Server(
 ) : CommonServer {
     override val log = logger()
     lateinit var tunnelManager: TunnelManager
+    lateinit var vncService: VncService
+    lateinit var webService: WebService
 
     override fun start() {
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
@@ -130,16 +124,8 @@ class Server(
             applicationProxyService.initializeListener()
         }
 
-        val vncService = VncService(tunnelManager)
-        val webService = WebService(
-            authenticationService = authenticationService,
-            performAuthentication = configuration.performAuthentication,
-            cookieName = configuration.cookieName,
-            prefix = configuration.prefix,
-            domain = configuration.domain,
-            broadcastingStream = broadcastingStream,
-            jobCache = jobCache
-        )
+        vncService = VncService(tunnelManager)
+        webService = WebService(authenticationService = authenticationService, performAuthentication = configuration.performAuthentication, cookieName = configuration.cookieName, prefix = configuration.prefix, domain = configuration.domain, broadcastingStream = broadcastingStream, jobCache = jobCache)
 
         jobMonitoringService.initializeListeners()
 
@@ -156,9 +142,11 @@ class Server(
             )
         }
 
-        val ktorEngine = micro.feature(ServerFeature).ktorApplicationEngine!!
-
         startServices(wait = false)
+    }
+
+    override fun onKtorReady() {
+        val ktorEngine = micro.feature(ServerFeature).ktorApplicationEngine!!
 
         ktorEngine.application.routing {
             vncService.install(this)

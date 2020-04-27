@@ -16,11 +16,7 @@ import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.elasticHighLevelClient
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.configureControllers

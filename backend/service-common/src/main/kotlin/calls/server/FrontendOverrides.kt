@@ -4,14 +4,7 @@ import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.HttpPathSegment
 import dk.sdu.cloud.calls.httpOrNull
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.MicroAttributeKey
-import dk.sdu.cloud.micro.MicroFeature
-import dk.sdu.cloud.micro.MicroFeatureFactory
-import dk.sdu.cloud.micro.RpcConfiguration
-import dk.sdu.cloud.micro.ServiceDiscoveryOverrides
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.*
 import io.ktor.http.HttpMethod
 import java.io.File
 
@@ -49,17 +42,25 @@ class FrontendOverrides : MicroFeature {
 
             val path = segments.joinToString("/")
 
+            if (ctx.developmentModeEnabled) {
+                ctx.featureOrNull(ServiceDiscoveryOverrides)
+                    ?.createOverride(call.namespace, localPort, "localhost")
+            }
+
             Override(path, http.method, Destination(port = localPort))
         }
     }
 
     fun generate() {
-        val config = ctx.frontendOverridesConfiguration ?: return
-        val outputFile = File(config.configDir, ctx.serviceDescription.name)
         val port =
             ctx.featureOrNull(ServiceDiscoveryOverrides)?.get(ctx.serviceDescription.name)?.port ?: 8080
+        val generate = generate(port, ctx.server.delayedHandlers)
 
-        defaultMapper.writeValue(outputFile, generate(port, ctx.server.delayedHandlers))
+        run {
+            val config = ctx.frontendOverridesConfiguration ?: return@run
+            val outputFile = File(config.configDir, ctx.serviceDescription.name)
+            defaultMapper.writeValue(outputFile, generate)
+        }
     }
 
     companion object : MicroFeatureFactory<FrontendOverrides, Unit> {

@@ -53,7 +53,7 @@ module.exports = webpackMerge(commonConfig, {
         inline: true,
         proxy: [{
             context: ["/auth", "/api"],
-            target: `https://${DEV_SITE}`,
+            target: process.env["local_dev"] !== undefined ? `http://localhost:8080` : `https://${DEV_SITE}`,
             secure: false,
             changeOrigin: true,
             ws: true,

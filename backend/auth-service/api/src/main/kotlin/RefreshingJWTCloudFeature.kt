@@ -1,13 +1,7 @@
 package dk.sdu.cloud.auth.api
 
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.MicroAttributeKey
-import dk.sdu.cloud.micro.MicroFeature
-import dk.sdu.cloud.micro.MicroFeatureFactory
-import dk.sdu.cloud.micro.client
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.TokenValidationJWT
 
 class RefreshingJWTCloudFeature : MicroFeature {

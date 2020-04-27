@@ -5,10 +5,7 @@ import dk.sdu.cloud.indexing.services.CephFsFastDirectoryStats
 import dk.sdu.cloud.indexing.services.ElasticQueryService
 import dk.sdu.cloud.indexing.services.FileSystemScanner
 import dk.sdu.cloud.indexing.services.FilesIndex
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.elasticHighLevelClient
-import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.stackTraceToString

@@ -1,11 +1,7 @@
 package dk.sdu.cloud.support
 
-import dk.sdu.cloud.micro.HealthCheckFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
 
 import dk.sdu.cloud.support.api.SupportServiceDescription
 
@@ -21,17 +17,18 @@ data class SlackNotifierConfig(
     val hook: String
 )
 
-fun main(args: Array<String>) {
-    val micro = Micro().apply {
-        initWithDefaultFeatures(SupportServiceDescription, args)
-        install(HealthCheckFeature)
+object SupportService : Service {
+    override val description = SupportServiceDescription
+
+    override fun initializeServer(micro: Micro): CommonServer {
+        val config = micro.configuration.requestChunkAtOrNull("ticket") ?: Configuration()
+        return Server(
+            micro,
+            config
+        )
     }
+}
 
-    if (micro.runScriptHandler()) return
-
-    val config = micro.configuration.requestChunkAt<Configuration>("ticket")
-    Server(
-        micro,
-        config
-    ).start()
+fun main(args: Array<String>) {
+    SupportService.runAsStandalone(args)
 }

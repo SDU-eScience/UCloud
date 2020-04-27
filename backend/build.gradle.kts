@@ -53,17 +53,12 @@ subprojects {
 
     if (project.name.endsWith("-service")) {
         run {
-            // Generated code
-            val main by sourceSets
-            val test by sourceSets
-            val generated = sourceSets.create("generated") {
-                compileClasspath += main.compileClasspath
-                runtimeClasspath += main.compileClasspath
+            val generated = sourceSets.create("generated")
+
+            dependencies {
+                implementation(generated.output)
+                add("generatedImplementation", project(":service-common"))
             }
-            main.compileClasspath += generated.output
-            main.runtimeClasspath += generated.output
-            test.compileClasspath += generated.output
-            test.runtimeClasspath += generated.output
 
             val generateBuildConfig = tasks.register("generateBuildConfig") {
                 doFirst {
@@ -101,15 +96,6 @@ subprojects {
                     }
                 }
             }
-
-            val cleanGeneratedBuildConfig = tasks.register("cleanGeneratedBuildConfig") {
-                doFirst {
-                    File(project.projectDir, "src/generated").deleteRecursively()
-                }
-            }
-
-            tasks["clean"].dependsOn(cleanGeneratedBuildConfig)
-            tasks["compileKotlin"].dependsOn(generateBuildConfig)
         }
     }
 

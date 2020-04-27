@@ -1,6 +1,7 @@
 package dk.sdu.cloud.support
 
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.developmentModeEnabled
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
@@ -24,6 +25,9 @@ class Server(
         }.toList()
 
         val ticketService = TicketService(ticketNotifiers)
+        if (ticketNotifiers.isEmpty() && !micro.developmentModeEnabled) {
+            throw IllegalStateException("Need at least one notifier!")
+        }
         log.info("Service started!")
         with(micro.server) {
             configureControllers(
