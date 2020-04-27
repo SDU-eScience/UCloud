@@ -4,9 +4,9 @@ create sequence hibernate_sequence
     start 1
     increment 1;
 
-create table favorite_project_entity (
+create table project_favorite (
     id int8 not null,
-    project_id varchar(255),
-    the_user varchar(255),
+    project_id TEXT,
+    the_user TEXT,
     primary key (id)
 );

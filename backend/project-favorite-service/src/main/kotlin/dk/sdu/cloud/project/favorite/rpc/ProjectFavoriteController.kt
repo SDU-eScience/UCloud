@@ -1,15 +1,15 @@
 package dk.sdu.cloud.project.favorite.rpc
 
-import api.ProjectFavoriteDescriptions
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.project.favorite.api.ProjectFavoriteDescriptions
 import dk.sdu.cloud.project.favorite.services.ProjectFavoriteService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 
-class ProjectFavoriteController<DBSession>(
-    private val projectFavoriteService: ProjectFavoriteService<DBSession>
+class ProjectFavoriteController(
+    private val projectFavoriteService: ProjectFavoriteService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ProjectFavoriteDescriptions.toggleFavorite) {

@@ -1,4 +1,4 @@
-package api
+package dk.sdu.cloud.project.favorite.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
