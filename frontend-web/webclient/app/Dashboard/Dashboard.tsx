@@ -44,13 +44,12 @@ import {isRunExpired} from "Utilities/ApplicationUtilities";
 
 const DashboardCard: React.FunctionComponent<{title: string; isLoading: boolean}> = ({title, isLoading, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
-        <Flex bg="lightGray" color="darkGray" px={3} py={2} alignItems="center">
+        <Flex bg="lightGray" px={3} py={2} alignItems="center">
             <Heading.h4>{title}</Heading.h4>
         </Flex>
         <Box px={3} py={1}>
-            {isLoading && <Spinner />}
             <Box pb="0.5em" />
-            {!isLoading ? children : null}
+            {!isLoading ? children : <Spinner />}
         </Box>
     </Card>
 );
@@ -122,18 +121,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                     notifications={notifications}
                     readAll={props.readAll}
                 />
-                <Box>
-                    <Box mb="6px" height="142px">
-                        <DashboardCard title="Storage Used" isLoading={false}>
-                            <Accounting.Usage resource="storage" subResource="bytesUsed" />
-                        </DashboardCard>
-                    </Box>
-                    <Box height="142px">
-                        <DashboardCard title="Compute Time Used" isLoading={false}>
-                            <Accounting.Usage resource="compute" subResource="timeUsed" />
-                        </DashboardCard>
-                    </Box>
-                </Box>
+                <DashboardCard title="Resources" isLoading={false}>
+                    <Accounting.Usage resource="storage" subResource="bytesUsed" renderTitle/>
+                    <Box pb="12px"/>
+                    <Accounting.Usage resource="compute" subResource="timeUsed" renderTitle/>
+                </DashboardCard>
             </GridCardGroup>
         </>
     );
@@ -249,7 +241,7 @@ interface DashboardNotificationProps {
 
 const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element => (
     <Card height="auto" width={1} overflow="hidden" boxShadow="sm" borderWidth={1} borderRadius={6}>
-        <Flex bg="lightGray" color="darkGray" px={3} py={2}>
+        <Flex bg="lightGray" px={3} py={2}>
             <Heading.h4>Recent Notifications</Heading.h4>
             <Box ml="auto" />
             <Icon

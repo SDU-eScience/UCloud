@@ -43,7 +43,6 @@ class SubscriptionService<Session>(
 
         GlobalScope.launch {
             while (isActive && isRunning) {
-                log.info("Cleaning up")
                 db.withTransaction { subscriptionDao.refreshSessions(it, localhost.host, localhost.port!!) }
                 delay(3000)
             }

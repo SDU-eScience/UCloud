@@ -67,11 +67,14 @@ class ConfigurationFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         log.info("Reading configuration...")
 
-        val initialConfigFile =
-            cliArgs.getOrNull(0)?.takeIf { !it.startsWith("--") }?.let { File(it) }
-
         val allConfigFiles = ArrayList<File>()
-        if (initialConfigFile != null) allConfigFiles.add(initialConfigFile)
+        if (ctx.commandLineArguments.contains("--dev")) {
+            val defaultConfigDir = File(System.getProperty("user.home"), "sducloud")
+            if (defaultConfigDir.exists() && defaultConfigDir.isDirectory) {
+                log.info("Include files from default configuration directory: ${defaultConfigDir.absolutePath}")
+                allConfigFiles.addAll(addFilesFromDirectory(defaultConfigDir))
+            }
+        }
 
         val argIterator = cliArgs.iterator()
         while (argIterator.hasNext()) {
@@ -90,9 +93,7 @@ class ConfigurationFeature : MicroFeature {
                     log.info("Dangling --config-dir. Correct syntax is --config-dir <directory>")
                 } else {
                     if (configDirectory.exists() && configDirectory.isDirectory) {
-                        allConfigFiles.addAll(
-                            configDirectory.listFiles()?.filter { it.extension in knownExtensions } ?: emptyList()
-                        )
+                        allConfigFiles.addAll(addFilesFromDirectory(configDirectory))
                     }
                 }
             }
@@ -116,6 +117,9 @@ class ConfigurationFeature : MicroFeature {
 
         ctx.configuration = serverConfiguration
     }
+
+    private fun addFilesFromDirectory(configDirectory: File) =
+        configDirectory.listFiles()?.filter { it.extension in knownExtensions } ?: emptyList()
 
     fun injectFile(configuration: ServerConfiguration, configFile: File) {
         log.debug("Reading from configuration file: ${configFile.absolutePath}")

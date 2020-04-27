@@ -1,21 +1,7 @@
 package dk.sdu.cloud.service.test
 
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.micro.ClientFeature
-import dk.sdu.cloud.micro.ConfigurationFeature
-import dk.sdu.cloud.micro.DatabaseConfigurationFeature
-import dk.sdu.cloud.micro.DeinitFeature
-import dk.sdu.cloud.micro.DevelopmentOverrides
-import dk.sdu.cloud.micro.KtorServerProviderFeature
-import dk.sdu.cloud.micro.LogFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.ScriptFeature
-import dk.sdu.cloud.micro.ServerFeature
-import dk.sdu.cloud.micro.ServiceDiscoveryOverrides
-import dk.sdu.cloud.micro.ServiceInstanceFeature
-import dk.sdu.cloud.micro.TokenValidationFeature
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.*
 import io.ktor.server.testing.TestApplicationEngine
 import java.nio.file.Files
 
@@ -33,7 +19,7 @@ private val tokenValidationConfig by lazy {
     }
 }
 
-private val databaseConfig by lazy {
+private val dbConfig by lazy {
     Files.createTempFile("config", ".yml").toFile().also {
         // language=yaml
         it.writeText(
@@ -62,7 +48,7 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
 
     // This function is required to initialize all default features
     return Micro().apply {
-        val configFiles = listOf(tokenValidationConfig, databaseConfig)
+        val configFiles = listOf(tokenValidationConfig, dbConfig)
         val configArgs = configFiles.flatMap { listOf("--config", it.absolutePath) }
 
         init(serviceDescription, (listOf("--dev") + configArgs + additionalArgs).toTypedArray())

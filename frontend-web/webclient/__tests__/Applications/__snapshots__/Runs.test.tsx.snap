@@ -47,7 +47,8 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 }
 
 .c32 {
-  max-width: calc(100% - 150px);
+  width: auto;
+  max-width: calc(100% - 180px);
 }
 
 .c9 {
@@ -225,9 +226,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 
 .c33 {
   cursor: pointer;
-  width: -webkit-min-content;
-  width: -moz-min-content;
-  width: min-content;
+  width: 100%;
   font-size: 20px;
   margin-bottom: -4px;
   -webkit-flex: 1;
@@ -1012,14 +1011,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c32"
-          onClick={[Function]}
+          width="auto"
         >
           <div
             className="c33"
             cursor="pointer"
             fontSize={20}
             onClick={[Function]}
-            width="min-content"
+            width={1}
           >
             <div
               className="c7"
@@ -1161,14 +1160,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c32"
-          onClick={[Function]}
+          width="auto"
         >
           <div
             className="c33"
             cursor="pointer"
             fontSize={20}
             onClick={[Function]}
-            width="min-content"
+            width={1}
           >
             <div
               className="c7"
@@ -1310,14 +1309,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c32"
-          onClick={[Function]}
+          width="auto"
         >
           <div
             className="c33"
             cursor="pointer"
             fontSize={20}
             onClick={[Function]}
-            width="min-content"
+            width={1}
           >
             <div
               className="c7"
@@ -1459,14 +1458,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c32"
-          onClick={[Function]}
+          width="auto"
         >
           <div
             className="c33"
             cursor="pointer"
             fontSize={20}
             onClick={[Function]}
-            width="min-content"
+            width={1}
           >
             <div
               className="c7"

@@ -4,6 +4,8 @@ application {
     mainClassName = "dk.sdu.cloud.file.MainKt"
 }
 
+
+
 dependencies {
     implementation(project(":auth-service:api"))
     implementation(project(":task-service:api"))

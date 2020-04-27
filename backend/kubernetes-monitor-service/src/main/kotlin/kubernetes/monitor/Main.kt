@@ -1,12 +1,8 @@
 package dk.sdu.cloud.kubernetes.monitor
 
 import dk.sdu.cloud.kubernetes.monitor.api.KubernetesMonitorServiceDescription
-import dk.sdu.cloud.micro.HealthCheckFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
 
 data class Configuration (
     val notifiers: Notifiers
@@ -20,6 +16,15 @@ data class SlackNotifierConfig(
     val hook: String
 )
 
+object KubernetesMonitorService : Service {
+    override val description = KubernetesMonitorServiceDescription
+
+    override fun initializeServer(micro: Micro): CommonServer {
+        val config = micro.configuration.requestChunkAt<Configuration>("alerting")
+        return Server(config, micro)
+    }
+}
+
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(KubernetesMonitorServiceDescription, args)
@@ -28,7 +33,4 @@ fun main(args: Array<String>) {
 
     if (micro.runScriptHandler()) return
 
-    val config = micro.configuration.requestChunkAt<Configuration>("alerting")
-
-    Server(config, micro).start()
 }

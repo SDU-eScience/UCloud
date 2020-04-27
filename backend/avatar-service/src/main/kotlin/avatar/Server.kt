@@ -1,8 +1,10 @@
 package dk.sdu.cloud.avatar
 
+import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.avatar.http.AvatarController
 import dk.sdu.cloud.avatar.services.AvatarHibernateDAO
 import dk.sdu.cloud.avatar.services.AvatarService
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.server
