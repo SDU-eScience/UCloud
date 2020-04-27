@@ -36,7 +36,7 @@ class ProjectFavoriteDAO {
                     username = ?username 
             """.trimIndent()
         ).rows
-            .map { it.getString(0)?.toInt()}.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            .map { it.getLong(0)?.toInt()}.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
         if (itemsInTotal == 0) {
             return Page(
@@ -73,13 +73,13 @@ class ProjectFavoriteDAO {
             session.sendPreparedStatement(
                 {
                     setParameter("username", user.username)
-                    setParameter("project_id", projectID)
+                    setParameter("projectID", projectID)
                 },
                 """
                     delete from project_favorite
                     where 
                         username = ?username and 
-                        project_id = ?project_id
+                        project_id = ?projectID
                 """
             )
         } else {
@@ -91,20 +91,20 @@ class ProjectFavoriteDAO {
     }
 
     private suspend fun isFavorite(session: AsyncDBConnection, username: String, projectID: String): Boolean {
-        return 0 != session.sendPreparedStatement(
+        return 0L != session.sendPreparedStatement(
             {
                 setParameter("username", username)
-                setParameter("project_id", projectID)
+                setParameter("projectID", projectID)
             },
             """
                     select count(*)
                     from project_favorite
                     where 
                         username = ?username and
-                        project_id = ?project
+                        project_id = ?projectID
                 """
         ).rows
-            .map { it.getString(0)?.toInt() }.singleOrNull()
+            .map { it.getLong(0) }.singleOrNull()
     }
 
     private object FavoriteProject : SQLTable("project_favorite") {
