@@ -1,4 +1,4 @@
-version = "0.13.0"
+version = "0.13.0-projects.2"
 
 application {
     mainClassName = "dk.sdu.cloud.app.store.MainKt"
@@ -6,6 +6,7 @@ application {
 
 dependencies {
     implementation(project(":auth-service:api"))
+    implementation(project(":project-service:api"))
     implementation("com.vladmihalcea:hibernate-types-52:2.4.1")
     implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4")
 }
