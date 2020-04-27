@@ -2,6 +2,7 @@ import * as React from "react";
 import styled from "styled-components";
 import {Box, Icon, Text} from "ui-components";
 import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
+import HttpClient from "Authentication/lib";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
 const BreadCrumbsBase = styled.ul`
@@ -39,8 +40,7 @@ const BreadCrumbsBase = styled.ul`
 export interface BreadcrumbsList {
     currentPath: string;
     navigate: (path: string) => void;
-    homeFolder: string;
-    projectFolder: string;
+    client: HttpClient;
 }
 
 export interface BreadCrumbMapping {
@@ -51,22 +51,24 @@ export interface BreadCrumbMapping {
 export const BreadCrumbs = ({
     currentPath,
     navigate,
-    homeFolder,
-    projectFolder
+    client
 }: BreadcrumbsList): JSX.Element | null => {
     if (!currentPath) return null;
-    const pathsMapping = buildBreadCrumbs(currentPath, homeFolder, projectFolder);
+    const isRepoFolder = client.projectFolder === currentPath;
+
+    const path = isRepoFolder ? `${client.homeFolder}${client.projectId}` : currentPath;
+    const pathsMapping = buildBreadCrumbs(path, client.homeFolder, client.projectId ?? "");
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
-    const breadcrumbs = pathsMapping.map((path, index) => (
+    const breadcrumbs = pathsMapping.map((p, index) => (
         <li key={index}>
-            <span title={path.local} onClick={() => navigate(path.actualPath)}>
-                {`${path.local.slice(0, 20).trim()}${path.local.length > 20 ? "..." : ""}`}
+            <span title={p.local} onClick={() => navigate(p.actualPath)}>
+                {`${p.local.slice(0, 20).trim()}${p.local.length > 20 ? "..." : ""}`}
             </span>
         </li>
     ));
 
-    const addHomeFolderLink = !currentPath.startsWith(removeTrailingSlash(homeFolder));
+    const addHomeFolderLink = !(path.startsWith(removeTrailingSlash(client.homeFolder)) || path.startsWith(client.currentProjectFolder));
 
     return (
         <>
@@ -91,11 +93,11 @@ export const BreadCrumbs = ({
     );
 
     function toHome(): void {
-        navigate(homeFolder);
+        navigate(client.homeFolder);
     }
 };
 
-function buildBreadCrumbs(path: string, homeFolder: string, projectFolder: string): BreadCrumbMapping[] {
+function buildBreadCrumbs(path: string, homeFolder: string, activeProject: string): BreadCrumbMapping[] {
     const paths = path.split("/").filter(p => p !== "");
     if (paths.length === 0) return [{actualPath: "/", local: "/"}];
 
@@ -117,7 +119,10 @@ function buildBreadCrumbs(path: string, homeFolder: string, projectFolder: strin
 
     // Handle starts with project
     if (addTrailingSlash(path).startsWith("/projects/")) {
-        return [{actualPath: projectFolder, local: "Projects"}].concat(pathsMapping.slice(2));
+        return [
+            {actualPath: homeFolder, local: "Home"},
+            {actualPath: `/projects/${activeProject}/`, local: activeProject}
+        ].concat(pathsMapping.slice(2));
     }
 
     return pathsMapping;

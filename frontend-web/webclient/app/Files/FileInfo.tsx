@@ -71,8 +71,7 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
                         <BreadCrumbs
                             currentPath={file.path}
                             navigate={p => props.history.push(fileTablePage(expandHomeOrProjectFolder(p, Client)))}
-                            homeFolder={Client.homeFolder}
-                            projectFolder={Client.projectFolder}
+                            client={Client}
                         />
                     </Flex>
                     <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
