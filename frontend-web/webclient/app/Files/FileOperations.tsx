@@ -264,6 +264,16 @@ export const defaultFileOperations: FileOperation[] = [
         repositoryMode: true
     },
     {
+        /* Update project sensitivity */
+        text: "Sensitivity",
+        onClick: (files, cb) =>
+            updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
+        disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) ||
+            isAnyFixedFolder(files, Client),
+        icon: "sensitivity",
+        repositoryMode: true
+    },
+    {
         /* Update repo permissions */
         text: "Permissions",
         disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,

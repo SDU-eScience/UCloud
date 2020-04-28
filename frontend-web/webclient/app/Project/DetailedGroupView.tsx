@@ -6,7 +6,13 @@ import {defaultAvatar, AvatarType} from "UserSettings/Avataaar";
 import * as Pagination from "Pagination";
 import {Page} from "Types";
 import {useCloudAPI, APICallParameters, useAsyncCommand} from "Authentication/DataHook";
-import {listGroupMembersRequest, addGroupMember, removeGroupMemberRequest, ListGroupMembersRequestProps, projectRoleToString} from "./api";
+import {
+    listGroupMembersRequest,
+    addGroupMember,
+    removeGroupMemberRequest,
+    ListGroupMembersRequestProps,
+    projectRoleToString
+} from "./api";
 import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
@@ -34,13 +40,35 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
         emptyPage
     );
 
+    const [allGroupMembers, setAllGroupMembers] = React.useState<Set<string>>(new Set());
+
+    async function fetchEveryGroupMember(page: number): Promise<void> {
+        try {
+            const set = page === 0 ? new Set<string>() : allGroupMembers;
+            const request = listGroupMembersRequest({group: name ?? "", itemsPerPage: 100, page});
+            const response = await promises.makeCancelable(Client.get<Page<string>>(request.path!)).promise;
+            response.response.items.forEach(member => set.add(member));
+            setAllGroupMembers(new Set(set));
+            if (response.response.pageNumber < response.response.pagesInTotal - 1) fetchEveryGroupMember(page + 1);
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to fetch group members."));
+        }
+    }
+
+
     const history = useHistory();
     const promises = usePromiseKeeper();
 
-    const reload = (): void => fetchActiveGroup({...params});
+    const reload = (): void => {
+        fetchActiveGroup({...params});
+        fetchEveryGroupMember(0);
+    };
 
     React.useEffect(() => {
-        if (name) fetchActiveGroup(listGroupMembersRequest({group: name ?? "", itemsPerPage: 25, page: 0}));
+        if (name) {
+            fetchActiveGroup(listGroupMembersRequest({group: name ?? "", itemsPerPage: 25, page: 0}));
+            fetchEveryGroupMember(0);
+        }
     }, [name]);
 
     if (activeGroup.error) return <MainContainer main={
@@ -89,7 +117,9 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     />;
 
     function promptAddMember(): void {
-        dialogStore.addDialog(<AddMemberPrompt group={name} />, reload);
+        dialogStore.addDialog(<AddMemberPrompt group={name} existingMembers={allGroupMembers} addMember={member =>
+            setAllGroupMembers(new Set([...allGroupMembers, member]))
+        } />, reload);
     }
 
     async function renameGroup(e: React.SyntheticEvent): Promise<void> {
@@ -165,13 +195,18 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     }
 }
 
-function AddMemberPrompt(props: {group: string}): JSX.Element {
+interface AddMemberPromptProps {
+    group: string;
+    existingMembers: Set<string>;
+    addMember: (name: string) => void;
+}
+
+function AddMemberPrompt(props: AddMemberPromptProps): JSX.Element {
     const textRef = React.useRef<HTMLInputElement>(null);
     const [projectMembers, setParams] = useCloudAPI<Page<string>>(membershipSearch("", 0), emptyPage);
     const promises = usePromiseKeeper();
-    const [statuses, setStatuses] = React.useState<{member: string; added: boolean}[]>([]);
-    // HACK -- forceUpdate since ListRow isn't being re-rendered correctly.
-    const [, forceUpdate] = React.useState("");
+
+    const [newlyAdded, setNewlyAdded] = React.useState<Set<string>>(new Set());
 
     const ref = React.useRef<number>(-1);
     const onKeyUp = React.useCallback(() => {
@@ -197,7 +232,7 @@ function AddMemberPrompt(props: {group: string}): JSX.Element {
                                 select={() => undefined}
                                 navigate={() => undefined}
                                 left={member}
-                                right={<Button disabled={statuses.find(it => it.member === member)?.added ?? false} onClick={() => addMember(member)} color="green">Add to group</Button>}
+                                right={<Button disabled={props.existingMembers.has(member) || newlyAdded.has(member)} onClick={() => addMember(member)} color="green">Add to group</Button>}
                             />
                         )}
                     </List>
@@ -215,17 +250,10 @@ function AddMemberPrompt(props: {group: string}): JSX.Element {
         try {
             await promises.makeCancelable(Client.put(path!, payload)).promise;
             snackbarStore.addSnack({type: SnackType.Success, message: "User added to project."});
+            props.addMember(member);
+            newlyAdded.add(member);
+            setNewlyAdded(new Set(newlyAdded));
         } catch (err) {
-            if (err?.response?.why === "Member is already in group") {
-                const index = statuses.findIndex(it => it.member === member);
-                if (index !== -1) {
-                    statuses[index].added = true;
-                } else {
-                    statuses.push({member, added: true});
-                }
-                setStatuses(statuses);
-                forceUpdate(member);
-            }
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to add member."));
         }
     }

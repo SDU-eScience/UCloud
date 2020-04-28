@@ -401,7 +401,9 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
 
     // Aliases
-    const isForbiddenPath = ["Forbidden", "Not Found"].includes(error ?? "");
+    const forbidden = error === "Forbidden";
+    const notFound = error === "Not Found";
+    const isForbiddenPath = forbidden || notFound;
     const isEmbedded = props.embedded !== false;
     const sortingSupported = !props.embedded;
     const fileOperations = props.fileOperations !== undefined ? props.fileOperations : defaultFileOperations;
@@ -437,8 +439,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                         <BreadCrumbs
                             currentPath={props.path ?? ""}
                             navigate={onFileNavigation}
-                            homeFolder={Client.homeFolder}
-                            projectFolder={Client.projectFolder}
+                            client={Client}
                         />
                     )}
 
@@ -590,7 +591,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                     <Pagination.List
                         loading={pageLoading}
                         customEmptyPage={!error ? <Heading.h3>No files in current folder</Heading.h3> : pageLoading ?
-                            null : <div>{error}</div>}
+                            null : <div>{messageFromError(error)}</div>}
                         page={{...page, items: allFiles}}
                         onPageChanged={(newPage, currentPage) => onPageChanged(newPage, currentPage.itemsPerPage)}
                         pageRenderer={pageRenderer}
@@ -838,6 +839,12 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         );
     }
 };
+
+function messageFromError(error: string): string {
+    if (error === "Not Found") return "Folder not found.";
+    if (error === "Forbidden") return "You do not have access to this folder.";
+    return error;
+}
 
 const StickyBox = styled(Box)`
     position: sticky;

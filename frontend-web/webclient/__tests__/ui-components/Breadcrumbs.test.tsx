@@ -5,6 +5,7 @@ import {create} from "react-test-renderer";
 import {ThemeProvider} from "styled-components";
 import {BreadCrumbs} from "../../app/ui-components/Breadcrumbs";
 import theme from "../../app/ui-components/theme";
+import {Client} from "../../app/Authentication/HttpClientInstance";
 configure({adapter: new Adapter()});
 
 
@@ -15,8 +16,7 @@ describe("Breadcrumbs", () => {
                 <BreadCrumbs
                     currentPath="/home/mail@mailhost.dk/folder1"
                     navigate={() => undefined}
-                    homeFolder={"/home/mail@mailhost.dk"}
-                    projectFolder="/project/hello"
+                    client={Client}
                 />
             </ThemeProvider>)).toMatchSnapshot();
     });
@@ -27,8 +27,7 @@ describe("Breadcrumbs", () => {
         <BreadCrumbs
             currentPath=""
             navigate={() => undefined}
-            homeFolder={"mail@mailhost.dk"}
-            projectFolder="otherthing"
+            client={Client}
         /></ThemeProvider>)).toMatchSnapshot();
     });
 
@@ -37,8 +36,7 @@ describe("Breadcrumbs", () => {
         const breadcrumbs = mount(<ThemeProvider theme={theme}><BreadCrumbs
             currentPath="/home/mail@mailhost.dk/folder1"
             navigate={navigate}
-            homeFolder={"/home/mail@mailhost.dk"}
-            projectFolder="otherthing"
+            client={Client}
         /></ThemeProvider>);
         breadcrumbs.find("span").first().simulate("click");
         expect(navigate).toHaveBeenCalled();
