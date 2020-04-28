@@ -995,6 +995,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
       >
         <div
           className="c0 c31"
+          onClick={[Function]}
         >
           <img
             alt=""
@@ -1144,6 +1145,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
       >
         <div
           className="c0 c31"
+          onClick={[Function]}
         >
           <img
             alt=""
@@ -1293,6 +1295,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
       >
         <div
           className="c0 c31"
+          onClick={[Function]}
         >
           <img
             alt=""
@@ -1442,6 +1445,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
       >
         <div
           className="c0 c31"
+          onClick={[Function]}
         >
           <img
             alt=""
