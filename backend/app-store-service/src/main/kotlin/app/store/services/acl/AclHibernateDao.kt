@@ -17,7 +17,7 @@ data class PermissionEntry(
 
     @Embeddable
     data class Key(
-        @get:Column(name = "user") var user: String,
+        @get:Column(name = "username") var user: String,
         @get:Column(name = "project") var project: String,
         @get:Column(name = "project_group") var group: String,
         @get:Column(name = "application_name") var applicationName: String,

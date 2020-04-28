@@ -119,9 +119,7 @@ class ApplicationHibernateDAO(
                     (
                         application.isPublic = TRUE or (
                             project is null and permission.key.accessEntity = :user
-                        ) or (
-                                                    
-                        ) or :role in (:privileged
+                        ) or :role in (:privileged)
                     )
                 order by fav.applicationName
             """.trimIndent()
@@ -429,7 +427,7 @@ class ApplicationHibernateDAO(
                    group by title
                ) and lower(A.title) like '%' || :query || '%' and
                (A.is_public = true or :user in (
-                   select P.entity from {h-schema}permissions as P where P.application_name = A.name
+                   select P.user from {h-schema}permissions as P where P.application_name = A.name
                ) or :role in (:privileged))
                order by A.title 
             """.trimIndent(), ApplicationEntity::class.java
@@ -492,7 +490,7 @@ class ApplicationHibernateDAO(
                     select * from {h-schema}applications as A
                     where A.name = :name 
                         and (A.is_public = true or :user in (
-                            select entity from {h-schema}permissions as P where P.application_name = A.name
+                            select user from {h-schema}permissions as P where P.application_name = A.name
                         ) or :role in (:privileged))
                     order by A.created_at desc
                 """.trimIndent(), ApplicationEntity::class.java
@@ -664,7 +662,7 @@ class ApplicationHibernateDAO(
                     where A.id.name = B.id.name  and (
                         A.isPublic = true or
                         :user in (
-                            select P.key.accessEntity from PermissionEntry as P where P.key.applicationName = A.id.name
+                            select P.key.user from PermissionEntry as P where P.key.applicationName = A.id.name
                         ) or :role in (:privileged)
                     )
                     group by id.name
