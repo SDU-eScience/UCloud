@@ -166,7 +166,7 @@ class AppTest {
                 micro.install(HibernateFeature)
                 val appDao = mockk<ApplicationHibernateDAO>()
                 val elasticDAO = mockk<ElasticDAO>()
-                every { appDao.searchTags(any(), any(), any(), any()) } answers {
+                every { appDao.searchTags(any(), any(), any(), any(), any(), any()) } answers {
                     val items = listOf(
                         mockk<ApplicationSummaryWithFavorite>(relaxed = true)
                     )
@@ -348,7 +348,7 @@ class AppTest {
                 val appDao = mockk<ApplicationHibernateDAO>()
                 val elasticDAO = mockk<ElasticDAO>()
 
-                every { appDao.findByNameAndVersionForUser(any(), any(), any(), any()) } answers {
+                every { appDao.findByNameAndVersionForUser(any(), any(), any(), any(), any(), any()) } answers {
                     ApplicationWithFavoriteAndTags(
                         application.metadata,
                         application.invocation,
@@ -382,7 +382,7 @@ class AppTest {
                 val appDao = mockk<ApplicationHibernateDAO>()
                 val elasticDAO = mockk<ElasticDAO>()
 
-                every { appDao.findAllByName(any(), any(), any(), any()) } answers {
+                every { appDao.findAllByName(any(), any(), any(), any(), any(), any()) } answers {
                     Page(
                         1,
                         10,
@@ -418,7 +418,7 @@ class AppTest {
                 val appDao = mockk<ApplicationHibernateDAO>()
                 val elasticDAO = mockk<ElasticDAO>()
 
-                every { appDao.listLatestVersion(any(), any(), any()) } answers {
+                every { appDao.listLatestVersion(any(), any(), any(), any(), any()) } answers {
                     Page(
                         1,
                         10,

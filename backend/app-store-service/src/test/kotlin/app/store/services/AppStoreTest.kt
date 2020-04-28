@@ -56,6 +56,7 @@ class AppStoreTest {
         runBlocking {
             val advancedSearchResultForTest1 = applicationService.advancedSearch(
                 TestUsers.admin,
+                null,
                 "",
                 listOf("test1"),
                 true,
@@ -64,6 +65,7 @@ class AppStoreTest {
 
             val advancedSearchResultForTest2 = applicationService.advancedSearch(
                 TestUsers.admin,
+                null,
                 "",
                 listOf("test2"),
                 true,
@@ -72,6 +74,7 @@ class AppStoreTest {
 
             val advancedSearchResultForAll = applicationService.advancedSearch(
                 TestUsers.admin,
+                null,
                 "",
                 listOf("test1", "test2"),
                 true,
@@ -92,6 +95,7 @@ class AppStoreTest {
         runBlocking {
             val advancedSearchResultForTest1 = applicationService.advancedSearch(
                 TestUsers.admin,
+                null,
                 "",
                 listOf("test1"),
                 true,
@@ -100,6 +104,7 @@ class AppStoreTest {
 
             val advancedSearchResultForTest2 = applicationService.advancedSearch(
                 TestUsers.admin,
+                null,
                 "",
                 listOf("test2"),
                 true,
@@ -108,6 +113,7 @@ class AppStoreTest {
 
             val advancedSearchResultForAll = applicationService.advancedSearch(
                 TestUsers.admin,
+                null,
                 "",
                 listOf("test1", "test2"),
                 true,
@@ -128,6 +134,7 @@ class AppStoreTest {
         runBlocking {
             val advancedSearchResultForTest1 = applicationService.advancedSearch(
                 TestUsers.admin,
+                null,
                 "",
                 listOf("test1"),
                 true,
@@ -136,6 +143,7 @@ class AppStoreTest {
 
             val advancedSearchResultForTest2 = applicationService.advancedSearch(
                 TestUsers.admin,
+                null,
                 "",
                 listOf("test2"),
                 true,
@@ -144,6 +152,7 @@ class AppStoreTest {
 
             val advancedSearchResultForAll = applicationService.advancedSearch(
                 TestUsers.admin,
+                null,
                 "",
                 listOf("test1", "test2"),
                 true,
@@ -185,7 +194,7 @@ class AppStoreTest {
                 normAppDesc.metadata.version
             )
 
-            val retrievedFav = appStoreService.retrieveFavorites(TestUsers.user, PaginationRequest())
+            val retrievedFav = appStoreService.retrieveFavorites(TestUsers.user, null, PaginationRequest())
 
             assertEquals(1, retrievedFav.itemsInTotal)
             assertEquals(normAppDesc.metadata.title, retrievedFav.items.first().metadata.title)
@@ -196,7 +205,7 @@ class AppStoreTest {
                 normAppDesc.metadata.version
             )
 
-            val retrievedFavAfterRemoved = appStoreService.retrieveFavorites(TestUsers.user, PaginationRequest())
+            val retrievedFavAfterRemoved = appStoreService.retrieveFavorites(TestUsers.user, null, PaginationRequest())
 
             assertEquals(0, retrievedFavAfterRemoved.itemsInTotal)
         }
@@ -212,14 +221,14 @@ class AppStoreTest {
             appStoreService.createTags(listOf("tag1", "tag2"), normAppDesc.metadata.name, TestUsers.admin)
 
             val tags =
-                appStoreService.searchTags(TestUsers.admin, listOf("tag1"), NormalizedPaginationRequest(10, 0))
+                appStoreService.searchTags(TestUsers.admin, null, listOf("tag1"), NormalizedPaginationRequest(10, 0))
             assertEquals(1, tags.itemsInTotal)
             assertEquals(normAppDesc.metadata.name, tags.items.first().metadata.name)
 
             appStoreService.deleteTags(listOf("tag1"), normAppDesc.metadata.name, TestUsers.admin)
 
             val tagsAfterDelete =
-                appStoreService.searchTags(TestUsers.admin, listOf("tag1"), NormalizedPaginationRequest(10, 0))
+                appStoreService.searchTags(TestUsers.admin, null, listOf("tag1"), NormalizedPaginationRequest(10, 0))
             assertEquals(0, tagsAfterDelete.itemsInTotal)
         }
     }
@@ -236,14 +245,14 @@ class AppStoreTest {
             appStoreService.createTags(listOf("tag2", "tag3"), normAppDesc.metadata.name, TestUsers.admin)
 
             val tags1 =
-                appStoreService.searchTags(TestUsers.admin, listOf("tag2"), NormalizedPaginationRequest(10, 0))
+                appStoreService.searchTags(TestUsers.admin, null, listOf("tag2"), NormalizedPaginationRequest(10, 0))
             assertEquals(1, tags1.itemsInTotal)
             assertEquals(normAppDesc.metadata.name, tags1.items.first().metadata.name)
 
             appStoreService.deleteTags(listOf("tag2"), normAppDesc.metadata.name, TestUsers.admin)
 
             val tags2 =
-                appStoreService.searchTags(TestUsers.admin, listOf("tag2"), NormalizedPaginationRequest(10, 0))
+                appStoreService.searchTags(TestUsers.admin, null, listOf("tag2"), NormalizedPaginationRequest(10, 0))
             assertEquals(0, tags2.itemsInTotal)
         }
     }
@@ -262,7 +271,7 @@ class AppStoreTest {
             )
 
             val foundApps =
-                appStoreService.searchApps(TestUsers.admin, "anotherTitle", NormalizedPaginationRequest(10, 0))
+                appStoreService.searchApps(TestUsers.admin, null, "anotherTitle", NormalizedPaginationRequest(10, 0))
 
             assertEquals(1, foundApps.itemsInTotal)
             assertEquals("anotherTitle", foundApps.items.first().metadata.title)
@@ -270,6 +279,7 @@ class AppStoreTest {
             val foundByNameAndVersion =
                 appStoreService.findByNameAndVersion(
                     TestUsers.admin,
+                    null,
                     normAppDesc.metadata.name,
                     normAppDesc.metadata.version
                 )
@@ -277,13 +287,13 @@ class AppStoreTest {
             assertEquals(normAppDesc.metadata.title, foundByNameAndVersion.metadata.title)
 
             val foundByName =
-                appStoreService.findByName(TestUsers.admin, "application", NormalizedPaginationRequest(10, 0))
+                appStoreService.findByName(TestUsers.admin, null, "application", NormalizedPaginationRequest(10, 0))
 
             assertEquals(1, foundByName.itemsInTotal)
             assertEquals("anotherTitle", foundByName.items.first().metadata.title)
 
             val allApps =
-                appStoreService.listAll(TestUsers.admin, NormalizedPaginationRequest(10, 0))
+                appStoreService.listAll(TestUsers.admin, null, NormalizedPaginationRequest(10, 0))
 
             assertEquals(2, allApps.itemsInTotal)
         }
