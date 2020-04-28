@@ -169,6 +169,7 @@ class K8JobMonitoringService(
                 val state = getCompletionState(verifiedJob.id)
                 if (state.get() != true) {
                     log.warn("Container did not start within deadline!")
+                    log.debug(ex.stackTraceToString())
                     k8.changeState(verifiedJob.id, JobState.FAILURE, "Job did not start within deadline.")
                     state.set(true)
                 }

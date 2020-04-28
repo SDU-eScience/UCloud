@@ -16,3 +16,5 @@ include("integration-testing")
         }
     }
 }
+
+include("launcher")

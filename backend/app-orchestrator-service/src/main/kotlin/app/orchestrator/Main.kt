@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.orchestrator.api.AppOrchestratorServiceDescription
 import dk.sdu.cloud.app.orchestrator.api.ApplicationBackend
 import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
 
 data class Configuration(
     val backends: List<ApplicationBackend> = emptyList(),
@@ -13,18 +14,18 @@ data class Configuration(
     val gpuWhitelist: List<String> = emptyList()
 )
 
-fun main(args: Array<String>) {
-    val micro = Micro().apply {
-        initWithDefaultFeatures(AppOrchestratorServiceDescription, args)
-        install(HibernateFeature)
-        install(RefreshingJWTCloudFeature)
-        install(BackgroundScopeFeature)
-        install(HealthCheckFeature)
+object AppOrchestratorService : Service {
+    override val description = AppOrchestratorServiceDescription
+
+    override fun initializeServer(micro: Micro): CommonServer {
+        micro.install(BackgroundScopeFeature)
+        micro.install(RefreshingJWTCloudFeature)
+
+        val config = micro.configuration.requestChunkOrNull("app") ?: Configuration()
+        return Server(micro, config)
     }
+}
 
-    if (micro.runScriptHandler()) return
-
-    val config = micro.configuration.requestChunkOrNull("app") ?: Configuration()
-
-    Server(micro, config).start()
+fun main(args: Array<String>) {
+    AppOrchestratorService.runAsStandalone(args)
 }

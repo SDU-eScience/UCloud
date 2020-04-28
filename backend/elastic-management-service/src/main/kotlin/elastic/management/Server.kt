@@ -10,6 +10,7 @@ import dk.sdu.cloud.elastic.management.services.deleteIndex
 import dk.sdu.cloud.elastic.management.services.getAllEmptyIndices
 import dk.sdu.cloud.elastic.management.services.getShardCount
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.commandLineArguments
 import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.elasticLowLevelClient
 import dk.sdu.cloud.service.CommonServer

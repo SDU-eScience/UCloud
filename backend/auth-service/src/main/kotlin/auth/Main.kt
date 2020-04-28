@@ -13,15 +13,8 @@ import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.ServiceMode
 import dk.sdu.cloud.auth.services.saml.KtorUtils
 import dk.sdu.cloud.auth.services.saml.validateOrThrow
-import dk.sdu.cloud.micro.HealthCheckFeature
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.runScriptHandler
-import dk.sdu.cloud.micro.tokenValidation
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
 import java.io.File
 import java.security.interfaces.RSAPrivateKey
@@ -76,8 +69,8 @@ data class ServiceTokenExtension(
 }
 
 data class AuthConfiguration(
-    val certsLocation: String = "./certs",
-    val wayfCerts: String = "./certs",
+    val certsLocation: String = "./auth-service/certs",
+    val wayfCerts: String = "./auth-service/certs",
     val enablePasswords: Boolean = true,
     val enableWayf: Boolean = false,
     val production: Boolean = true,
@@ -88,58 +81,58 @@ data class AuthConfiguration(
     val unconditionalPasswordResetWhitelist: List<String> = listOf("_password-reset")
 )
 
+object AuthService : dk.sdu.cloud.micro.Service {
+    override val description = AuthServiceDescription
+
+    override fun initializeServer(micro: Micro): CommonServer {
+        micro.installAuth()
+        val configuration = micro.configuration.requestChunkAtOrNull("auth") ?: AuthConfiguration()
+        KtorUtils.runningInProduction = configuration.production
+        configuration.services.forEach { ServiceDAO.insert(it) }
+        if (micro.developmentModeEnabled) {
+            ServiceDAO.insert(
+                Service(
+                    "dev-web",
+                    "http://localhost:9000/app/login/wayf",
+                    ServiceMode.WEB,
+                    1000 * 60 * 60 * 24 * 365L
+                )
+            )
+
+            ServiceDAO.insert(
+                Service(
+                    "dav",
+                    "http://localhost:9000/app/login/wayf?dav=true",
+                    ServiceMode.APPLICATION,
+                    1000 * 60 * 60 * 24 * 365L
+                )
+            )
+        }
+
+        val samlProperties = Properties().apply {
+            load(Server::class.java.classLoader.getResourceAsStream("saml.properties"))
+        }
+        insertKeysIntoProps(loadKeys(configuration.wayfCerts), samlProperties)
+        val jwtCerts = loadKeys(configuration.certsLocation)
+        val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
+
+        val tokenValidation = micro.tokenValidation as TokenValidationJWT
+
+        val algorithm = if (tokenValidation.algorithm.javaClass.canonicalName == "com.auth0.jwt.algorithms.HMACAlgorithm") {
+            tokenValidation.algorithm
+        } else {
+            Algorithm.RSA256(null, jwtCerts.privateKey)
+        }
+
+        return Server(
+            jwtAlg = algorithm,
+            config = configuration,
+            authSettings = authSettings,
+            micro = micro
+        )
+    }
+}
+
 fun main(args: Array<String>) {
-    val micro = Micro().apply {
-        initWithDefaultFeatures(AuthServiceDescription, args)
-        install(HibernateFeature)
-        installAuth()
-        install(HealthCheckFeature)
-    }
-
-    if (micro.runScriptHandler()) return
-
-    val configuration = micro.configuration.requestChunkAtOrNull("auth") ?: AuthConfiguration()
-    KtorUtils.runningInProduction = configuration.production
-    configuration.services.forEach { ServiceDAO.insert(it) }
-    if (micro.developmentModeEnabled) {
-        ServiceDAO.insert(
-            Service(
-                "dev-web",
-                "http://localhost:9000/app/login/wayf",
-                ServiceMode.WEB,
-                1000 * 60 * 60 * 24 * 365L
-            )
-        )
-
-        ServiceDAO.insert(
-            Service(
-                "dav",
-                "http://localhost:9000/app/login/wayf?dav=true",
-                ServiceMode.APPLICATION,
-                1000 * 60 * 60 * 24 * 365L
-            )
-        )
-    }
-
-    val samlProperties = Properties().apply {
-        load(Server::class.java.classLoader.getResourceAsStream("saml.properties"))
-    }
-    insertKeysIntoProps(loadKeys(configuration.wayfCerts), samlProperties)
-    val jwtCerts = loadKeys(configuration.certsLocation)
-    val authSettings = SettingsBuilder().fromProperties(samlProperties).build().validateOrThrow()
-
-    val tokenValidation = micro.tokenValidation as TokenValidationJWT
-
-    val algorithm = if (tokenValidation.algorithm.javaClass.canonicalName == "com.auth0.jwt.algorithms.HMACAlgorithm") {
-        tokenValidation.algorithm
-    } else {
-        Algorithm.RSA256(null, jwtCerts.privateKey)
-    }
-
-    Server(
-        jwtAlg = algorithm,
-        config = configuration,
-        authSettings = authSettings,
-        micro = micro
-    ).start()
+    AuthService.runAsStandalone(args)
 }

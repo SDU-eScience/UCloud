@@ -23,7 +23,6 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.mockk.Runs
 import io.mockk.coEvery
-import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import org.junit.Test
@@ -33,7 +32,7 @@ class AvatarControllerTest {
     val service = mockk<AvatarService<HibernateSession>>()
 
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
-        listOf(AvatarController(service))
+        listOf(AvatarController(service, serviceClient))
     }
 
     @Test

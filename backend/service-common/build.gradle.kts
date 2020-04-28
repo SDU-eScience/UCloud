@@ -56,6 +56,7 @@ dependencies {
 
     // Elastic
     api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.5.0")
+    api("net.java.dev.jna:jna:5.2.0")
 
     // Testing
     testImplementation(group = "com.h2database", name = "h2", version = "1.4.197")
@@ -65,4 +66,10 @@ dependencies {
         exclude(group = "ch.qos.logback", module = "logback-classic")
     }
     testImplementation("io.mockk:mockk:1.9.3")
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("net.java.dev.jna:jna:5.2.0")
+    }
 }

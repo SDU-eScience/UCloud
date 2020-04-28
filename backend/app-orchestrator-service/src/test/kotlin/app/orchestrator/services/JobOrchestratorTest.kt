@@ -12,13 +12,7 @@ import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.file.api.*
-import dk.sdu.cloud.micro.BackgroundScopeFeature
-import dk.sdu.cloud.micro.DeinitFeature
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.backgroundScope
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.EventServiceMock

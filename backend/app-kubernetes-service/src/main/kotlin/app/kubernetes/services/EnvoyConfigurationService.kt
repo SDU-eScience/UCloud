@@ -28,6 +28,11 @@ class EnvoyConfigurationService(
         require(clusterConfiguration.extension == "yaml")
 
         log.debug("Envoy is configured at ${routeConfiguration.absolutePath} and ${clusterConfiguration.absolutePath}")
+        runCatching {
+            routeConfiguration.parentFile.mkdirs()
+            clusterConfiguration.parentFile.mkdirs()
+        }
+
         if (!routeConfiguration.exists() || !clusterConfiguration.exists()) {
             runBlocking {
                 routeConfiguration.writeText("{}")

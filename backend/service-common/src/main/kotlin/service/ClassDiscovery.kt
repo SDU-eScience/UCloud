@@ -9,7 +9,7 @@ import java.io.FileInputStream
 import java.util.jar.JarInputStream
 import kotlin.reflect.KClass
 
-internal class ClassDiscovery(
+class ClassDiscovery(
     val packagesToLoadFrom: List<String>,
     private val classLoader: ClassLoader,
     private val filters: List<ClassDiscoveryFilter> = listOf(JRE_FILTER, GRADLE_FILTER),
@@ -40,7 +40,7 @@ internal class ClassDiscovery(
     }
 
     private suspend fun detectFile(parent: File, file: File) {
-        log.debug("detectFile($file)")
+        log.trace("detectFile($file)")
         if (file.isDirectory) {
             coroutineScope {
                 file.listFiles().map {
@@ -82,8 +82,8 @@ internal class ClassDiscovery(
                     handler(klass.kotlin)
                 }
             } catch (ex: Exception) {
-                log.debug("Caught an exception when loading $className")
-                log.debug(ex.message)
+                log.trace("Caught an exception when loading $className")
+                log.trace(ex.message)
             }
         }
     }

@@ -1,14 +1,8 @@
 package dk.sdu.cloud.file
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.micro.BackgroundScopeFeature
-import dk.sdu.cloud.micro.HealthCheckFeature
-import dk.sdu.cloud.micro.LogFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.installDefaultFeatures
-import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.storage.api.StorageServiceDescription
 import org.apache.logging.log4j.Level
 
@@ -22,30 +16,30 @@ data class CephConfiguration(
     val subfolder: String = ""
 )
 
-fun main(args: Array<String>) {
-    val micro = Micro().apply {
-        init(StorageServiceDescription, args)
-        installDefaultFeatures()
-        install(RefreshingJWTCloudFeature)
-        install(BackgroundScopeFeature)
-        install(HealthCheckFeature)
-    }
+object StorageService : Service {
+    override val description = StorageServiceDescription
 
-    if (micro.runScriptHandler()) return
-
-    val folder = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
-    val config = micro.configuration.requestChunkAtOrNull("storage") ?: StorageConfiguration()
+    override fun initializeServer(micro: Micro): CommonServer {
+        micro.install(RefreshingJWTCloudFeature)
+        micro.install(BackgroundScopeFeature)
+        val folder = micro.configuration.requestChunkAtOrNull("ceph") ?: CephConfiguration()
+        val config = micro.configuration.requestChunkAtOrNull("storage") ?: StorageConfiguration()
 
 
-    micro.feature(LogFeature).configureLevels(
-        mapOf(
-            "com.github.jasync.sql.db" to Level.INFO
+        micro.feature(LogFeature).configureLevels(
+            mapOf(
+                "com.github.jasync.sql.db" to Level.INFO
+            )
         )
-    )
 
-    Server(
-        config,
-        folder,
-        micro
-    ).start()
+        return Server(
+            config,
+            folder,
+            micro
+        )
+    }
+}
+
+fun main(args: Array<String>) {
+    StorageService.runAsStandalone(args)
 }

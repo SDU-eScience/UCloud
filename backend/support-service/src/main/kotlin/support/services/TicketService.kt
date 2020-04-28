@@ -17,12 +17,6 @@ data class Ticket(
 )
 
 class TicketService(private val notifiers: List<TicketNotifier>) {
-    init {
-        if (notifiers.isEmpty()) {
-            throw IllegalArgumentException("Need at least one notifier!")
-        }
-    }
-
     suspend fun createTicket(ticket: Ticket) {
         coroutineScope {
             val result = notifiers.map {

@@ -7,7 +7,7 @@ import dk.sdu.cloud.service.db.HibernateDatabaseConfig
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.generateDDL
 
-class HibernateFeature : MicroFeature {
+class HibernateFeature(private val config: HibernateFeatureConfiguration) : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         ctx.requireFeature(DatabaseConfigurationFeature)
 
@@ -28,7 +28,8 @@ class HibernateFeature : MicroFeature {
                 configuration.poolSize,
                 configuration.defaultSchema,
                 validateSchemaOnStartup = validateSchemaOnStartup,
-                recreateSchemaOnStartup = configuration.recreateSchema
+                recreateSchemaOnStartup = configuration.recreateSchema,
+                detectEntitiesInPackages = config.detectFromPackage
             )
         )
 
@@ -43,12 +44,12 @@ class HibernateFeature : MicroFeature {
         }
     }
 
-    companion object Feature : MicroFeatureFactory<HibernateFeature, Unit>,
+    companion object Feature : MicroFeatureFactory<HibernateFeature, HibernateFeatureConfiguration>,
         Loggable {
         fun safeSchemaName(service: ServiceDescription): String = service.name.replace('-', '_')
 
         override val key = MicroAttributeKey<HibernateFeature>("hibernate-feature")
-        override fun create(config: Unit): HibernateFeature = HibernateFeature()
+        override fun create(config: HibernateFeatureConfiguration): HibernateFeature = HibernateFeature(config)
 
         override val log = logger()
 
@@ -58,6 +59,11 @@ class HibernateFeature : MicroFeature {
     }
 }
 
+data class HibernateFeatureConfiguration(val detectFromPackage: List<String> = listOf("dk.sdu.cloud"))
+
+fun Micro.install(feature: HibernateFeature.Feature) {
+    install(feature, HibernateFeatureConfiguration())
+}
 
 var Micro.hibernateDatabase: HibernateSessionFactory
     get() {
