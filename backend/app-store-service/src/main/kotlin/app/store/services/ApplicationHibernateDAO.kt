@@ -107,49 +107,43 @@ class ApplicationHibernateDAO(
             criteria.select(count(entity))
         }.createQuery(session).uniqueResult()
 
-        println("retrieving favorites")
+        val groups = if (memberGroups.isNotEmpty()) { memberGroups } else { listOf("") }
 
-       val query = """
-           select A
-                           from app_store.favorited_by as F, app_store.applications as A
-                           where
-                               F.the_user = :user and
-                               F.application_name = A.name and
-                               F.application_version = A.version and (
-                                   (
-                                       A.is_public = TRUE
-                                   ) or (
-                                       :project is null and :user in (
-                                           select P1.username from app_store.permissions as P1 where P1.application_name = A.name
-                                       )
-                                   ) or (
-                                       :project is not null and exists (
-                                           select P2.project_group from app_store.permissions as P2 where
-                                               P2.application_name = A.name and
-                                               P2.project = :project and
-                                               P2.project_group in (:groups)
-                                       )
-                                   ) or (
-                                       :role in (:privileged)
-                                   )
-                               )
-                           order by F.application_name 
-       """.trimIndent()
-
-        println("$query")
-
-        val itemsWithoutTags = session.createNativeQuery<ApplicationEntity>(query, ApplicationEntity::class.java)
+        val itemsWithoutTags = session.createNativeQuery<ApplicationEntity>("""
+            select A.*
+            from app_store.favorited_by as F, app_store.applications as A
+            where
+                F.the_user = :user and
+                F.application_name = A.name and
+                F.application_version = A.version and (
+                    (
+                        A.is_public = TRUE
+                    ) or (
+                        :project is null and :user in (
+                            select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                        )
+                    ) or (
+                        :project is not null and exists (
+                            select P2.project_group from app_store.permissions as P2 where
+                                P2.application_name = A.name and
+                                    P2.project = :project and
+                                    P2.project_group in (:groups)
+                        )
+                    ) or (
+                        :role in (:privileged)
+                    )
+                )
+                order by F.application_name 
+        """.trimIndent(), ApplicationEntity::class.java)
             .setParameter("user", user.username)
             .setParameter("role", user.role)
-            .setParameter("project", project)
-            .setParameterList("groups", memberGroups)
+            .setParameter("project", project?:"")
+            .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
             .asSequence()
             .map { it.toModel() }
             .toList()
-
-        println("done")
 
         val apps = itemsWithoutTags.map { it.metadata.name }
         val allTags = session
@@ -159,7 +153,6 @@ class ApplicationHibernateDAO(
             val allTagsForApplication = allTags.filter { it.applicationName == appSummary.metadata.name }.map { it.tag }
             ApplicationSummaryWithFavorite(appSummary.metadata, true, allTagsForApplication)
         }
-
 
         return Page(
             itemsInTotal.toInt(),
