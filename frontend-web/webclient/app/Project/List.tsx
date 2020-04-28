@@ -19,9 +19,9 @@ import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {projectRoleToString} from "Project/api";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {isAdminOrPI, toggleFavoriteProject} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
-import {errorMessageOrDefault, preventDefault, stopPropagation} from "UtilityFunctions";
+import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
 import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {ThemeColor} from "ui-components/theme";
@@ -144,7 +144,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                             size="24"
                                             name={e.needsVerification ? "starFilled" : "starEmpty"}
                                             color={e.needsVerification ? "blue" : "midGray"}
-                                            onClick={(event): void => {}}
+                                            onClick={() => toggleFavoriteProject(e.projectId, Client, reload)}
                                             hoverColor="blue"
                                         />}
                                         navigate={() => history.push(`/projects/view/${encodeURIComponent(e.projectId)}`)}

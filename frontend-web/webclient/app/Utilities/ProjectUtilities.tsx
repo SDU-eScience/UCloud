@@ -199,3 +199,12 @@ export async function updatePermissions(
 export function isAdminOrPI(role: ProjectRole): boolean {
     return [ProjectRole.ADMIN, ProjectRole.PI].includes(role);
 }
+
+export async function toggleFavoriteProject(projectId: string, client: HttpClient, reload: () => void): Promise<void> {
+    try {
+        await client.post("/project/favorite", {projectID: projectId});
+        reload();
+    } catch (err) {
+        snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to toggle favorite"));
+    }
+}

@@ -3,6 +3,7 @@ import Box from "./Box";
 import * as React from "react";
 import Flex from "./Flex";
 import Truncate from "./Truncate";
+import {stopPropagationAndPreventDefault} from "UtilityFunctions";
 
 type StringOrNumber = string | number;
 
@@ -70,7 +71,7 @@ export function ListRow(props: ListRowProps): JSX.Element {
             width="100%"
             alignItems="center"
         >
-            {props.icon ? <Box mx="8px" mt="4px">{props.icon}</Box> : <Box width="4px" />}
+            {props.icon ? <Box onClick={stopPropagationAndPreventDefault} mx="8px" mt="4px">{props.icon}</Box> : <Box width="4px" />}
             {left}
             <Box ml="auto" />
             <Flex mr="8px">
