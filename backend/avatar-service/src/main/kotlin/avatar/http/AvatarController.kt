@@ -1,12 +1,18 @@
 package dk.sdu.cloud.avatar.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.ServiceLicenseAgreement
 import dk.sdu.cloud.avatar.api.*
 import dk.sdu.cloud.avatar.services.AvatarService
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.db.HibernateSession
 import io.ktor.http.HttpStatusCode
 
 class AvatarController<DBSession>(

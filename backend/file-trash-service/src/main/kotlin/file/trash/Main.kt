@@ -7,16 +7,18 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.initWithDefaultFeatures
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.service.CommonServer
+
+object FileTrashService : Service {
+    override val description = FileTrashServiceDescription
+
+    override fun initializeServer(micro: Micro): CommonServer {
+        micro.install(RefreshingJWTCloudFeature)
+        micro.install(BackgroundScopeFeature)
+        return Server(micro)
+    }
+}
 
 fun main(args: Array<String>) {
-    val micro = Micro().apply {
-        initWithDefaultFeatures(FileTrashServiceDescription, args)
-        install(RefreshingJWTCloudFeature)
-        install(BackgroundScopeFeature)
-        install(HealthCheckFeature)
-    }
-
-    if (micro.runScriptHandler()) return
-
-    Server(micro).start()
+    FileTrashService.runAsStandalone(args)
 }

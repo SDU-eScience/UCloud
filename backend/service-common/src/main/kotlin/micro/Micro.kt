@@ -2,94 +2,111 @@ package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.calls.server.FrontendOverrides
-import dk.sdu.cloud.service.Loggable
 import org.apache.logging.log4j.core.config.ConfigurationFactory
-import kotlin.system.measureTimeMillis
+import kotlin.properties.ReadWriteProperty
+import kotlin.reflect.KProperty
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 
-class Micro : Loggable {
-    init {
-        ConfigurationFactory.setConfigurationFactory(Log4j2ConfigFactory)
+//typealias Micro = Micro
+
+fun <T : MicroFeature> Micro.feature(factory: MicroFeatureFactory<T, *>): T {
+    return featureOrNull(factory) ?: throw NoSuchElementException("Feature not initialized!")
+}
+
+fun <T : MicroFeature> Micro.featureOrNull(factory: MicroFeatureFactory<T, *>): T? {
+    return getOrNull(factory.key)
+}
+
+fun Micro.requireFeature(factory: MicroFeatureFactory<*, *>) {
+    featureOrNull(factory) ?: throw IllegalStateException("$factory is a required feature")
+}
+
+@Deprecated("Replace with Service")
+fun Micro.init(description: ServiceDescription, cliArgs: Array<String>) {
+    isEmbeddedService = false
+    serviceDescription = description
+    commandLineArguments = cliArgs.toList()
+}
+
+@OptIn(ExperimentalTime::class)
+fun <Feature : MicroFeature, Config> Micro.install(
+    featureFactory: MicroFeatureFactory<Feature, Config>,
+    configuration: Config
+) {
+    if (getOrNull(featureFactory.key) != null) return
+
+    val time = measureTime {
+        val feature = featureFactory.create(configuration)
+        // Must happen before init to ensure that requireFeature(self) will not fail
+        attributes[featureFactory.key] = feature
+
+        feature.init(this, serviceDescription, commandLineArguments)
     }
 
-    override val log = logger()
+    // TODO Logging hasn't been initialized yet
+    println("Installing feature: ${featureFactory.key.name}. Took: ${time}")
+}
 
-    var initialized: Boolean = false
-        private set
-
-    var commandLineArguments: List<String> = emptyList()
-        private set
-
-    lateinit var serviceDescription: ServiceDescription
-        private set
-
-    val attributes = MicroAttributes()
-    private val featureRegistryKey =
-        MicroAttributeKey<MicroAttributes>("feature-registry")
-
-    val featureRegistry: MicroAttributes get() = attributes[featureRegistryKey]
-
-    fun <T : MicroFeature> feature(factory: MicroFeatureFactory<T, *>): T {
-        return attributes[featureRegistryKey][factory.key]
-    }
-
-    fun <T : MicroFeature> featureOrNull(factory: MicroFeatureFactory<T, *>): T? {
-        return attributes[featureRegistryKey].getOrNull(factory.key)
-    }
-
-    fun requireFeature(factory: MicroFeatureFactory<*, *>) {
-        featureOrNull(factory) ?: throw IllegalStateException("$factory is a required feature")
-    }
-
-    fun <Feature : MicroFeature, Config> install(
-        featureFactory: MicroFeatureFactory<Feature, Config>,
-        configuration: Config
-    ) {
-        val time = measureTimeMillis {
-            if (!initialized) throw IllegalStateException("Call init() before installing features")
-
-            val feature = featureFactory.create(configuration)
-            // Must happen before init to ensure that requireFeature(self) will not fail
-            attributes[featureRegistryKey][featureFactory.key] = feature
-
-            feature.init(this, serviceDescription, commandLineArguments)
+fun <T : Any> delegate(key: String): ReadWriteProperty<Micro, T> {
+    val microKey = MicroAttributeKey<T>(key)
+    return object : ReadWriteProperty<Micro, T>  {
+        override fun getValue(thisRef: Micro, property: KProperty<*>): T {
+            return thisRef[microKey]
         }
 
-        log.info("Installing feature: ${featureFactory.key.name}. Took: ${time}ms")
-    }
-
-    fun init(description: ServiceDescription, cliArgs: Array<String>) {
-        attributes.clear()
-        this.serviceDescription = description
-        commandLineArguments = cliArgs.toList()
-
-        attributes[featureRegistryKey] = MicroAttributes()
-        initialized = true
+        override fun setValue(thisRef: Micro, property: KProperty<*>, value: T) {
+            thisRef[microKey] = value
+        }
     }
 }
 
-class MicroAttributes {
-    private val attributes = HashMap<String, Any>()
+var Micro.serviceDescription: ServiceDescription by delegate("serviceDescription")
+var Micro.commandLineArguments: List<String> by delegate("commandLineArguments")
+
+class Micro(private val parent: Micro? = null) {
+    private val internalAttributes = HashMap<String, Any>()
+    private val children = ArrayList<Micro>()
+
+    val attributes = this // Backwards compatibility
+    init {
+        // Hack for backwards compatibility
+        if (parent == null) {
+            ConfigurationFactory.setConfigurationFactory(Log4j2ConfigFactory)
+        }
+    }
+
+    fun createScope(): Micro {
+        val scope = Micro(this)
+        children.add(scope)
+        return scope
+    }
 
     internal fun clear() {
-        attributes.clear()
+        internalAttributes.clear()
     }
 
     fun all(): Map<String, Any> {
-        return attributes.toMap()
+        return internalAttributes.toMap()
     }
 
     operator fun <T : Any> set(key: MicroAttributeKey<T>, value: T) {
-        attributes[key.name] = value
+        internalAttributes[key.name] = value
     }
 
     operator fun <T : Any> get(key: MicroAttributeKey<T>): T {
         @Suppress("UNCHECKED_CAST")
-        return attributes[key.name] as? T ?: throw IllegalStateException("Missing attribute for key: ${key.name}")
+        return getOrNull(key) ?: throw IllegalStateException("Missing attribute for key: ${key.name}")
     }
 
     fun <T : Any> getOrNull(key: MicroAttributeKey<T>): T? {
-        @Suppress("UNCHECKED_CAST")
-        return (attributes[key.name] ?: return null) as T
+        @Suppress("UNCHECKED_CAST") val result = internalAttributes[key.name] as T?
+
+        if (result == null && parent != null) {
+            return parent.getOrNull(key)
+        }
+
+        return result
     }
 }
 

@@ -26,6 +26,12 @@ class K8NameAllocator(
             .withLabel(ROLE_LABEL, appRole)
             .withLabel(JOB_ID_LABEL, jobId)
 
+    fun findServices(jobId: String) =
+        k8sClient.services()
+            .inNamespace(namespace)
+            .withLabel(ROLE_LABEL, appRole)
+            .withLabel(JOB_ID_LABEL, jobId)
+
     companion object {
         const val JOB_ID_LABEL = "job-id"
         const val RANK_LABEL = "rank"

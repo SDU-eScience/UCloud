@@ -7,6 +7,7 @@ import dk.sdu.cloud.file.favorite.http.FileFavoriteController
 import dk.sdu.cloud.file.favorite.migration.MetadataMigration
 import dk.sdu.cloud.file.favorite.services.FileFavoriteService
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.commandLineArguments
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers

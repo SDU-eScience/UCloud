@@ -1,21 +1,19 @@
 package dk.sdu.cloud.share
 
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
-import dk.sdu.cloud.micro.HealthCheckFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.share.api.ShareServiceDescription
 
-fun main(args: Array<String>) {
-    val micro = Micro().apply {
-        initWithDefaultFeatures(ShareServiceDescription, args)
-        install(RefreshingJWTCloudFeature)
-        install(HealthCheckFeature)
+object ShareService : Service {
+    override val description = ShareServiceDescription
+
+    override fun initializeServer(micro: Micro): CommonServer {
+        micro.install(RefreshingJWTCloudFeature)
+        return Server(micro)
     }
+}
 
-    if (micro.runScriptHandler()) return
-
-    Server(micro).start()
+fun main(args: Array<String>) {
+    ShareService.runAsStandalone(args)
 }

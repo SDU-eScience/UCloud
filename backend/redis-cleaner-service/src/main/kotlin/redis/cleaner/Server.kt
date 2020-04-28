@@ -2,6 +2,7 @@ package dk.sdu.cloud.redis.cleaner
 
 import dk.sdu.cloud.events.RedisStreamService
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.commandLineArguments
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.service.CommonServer
 import io.lettuce.core.Limit

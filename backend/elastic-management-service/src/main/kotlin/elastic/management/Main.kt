@@ -1,14 +1,8 @@
 package dk.sdu.cloud.elastic.management
 
 import dk.sdu.cloud.elastic.management.api.ElasticManagementServiceDescription
-import dk.sdu.cloud.micro.ElasticFeature
-import dk.sdu.cloud.micro.HealthCheckFeature
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.configuration
-import dk.sdu.cloud.micro.initWithDefaultFeatures
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.micro.runScriptHandler
+import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.CommonServer
 import java.net.InetAddress
 import java.net.UnknownHostException
 
@@ -17,16 +11,23 @@ data class Configuration(
     val gatherNode: String
 )
 
+object ElasticManagementService : Service {
+    override val description = ElasticManagementServiceDescription
+
+    override fun initializeServer(micro: Micro): CommonServer {
+        micro.install(ElasticFeature)
+
+        val config = micro.configuration.requestChunkAt<Configuration>("elasticmanagement")
+        return Server(config, micro)
+    }
+}
+
 fun main(args: Array<String>) {
     val micro = Micro().apply {
         initWithDefaultFeatures(ElasticManagementServiceDescription, args)
-        install(ElasticFeature)
         install(HealthCheckFeature)
     }
 
     if (micro.runScriptHandler()) return
 
-    val config = micro.configuration.requestChunkAt<Configuration>("elasticmanagement")
-
-    Server(config, micro).start()
 }

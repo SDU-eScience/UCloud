@@ -1,13 +1,7 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.calls.server.FrontendOverrides
-import dk.sdu.cloud.micro.DeinitFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.ServerFeature
-import dk.sdu.cloud.micro.ServiceDiscoveryOverrides
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.*
 import io.ktor.application.featureOrNull
 import io.ktor.application.install
 import io.ktor.application.uninstall
@@ -21,6 +15,7 @@ import java.io.File
 
 interface BaseServer {
     fun start()
+    fun onKtorReady() {}
     fun stop()
 }
 
@@ -50,6 +45,8 @@ val CommonServer.isRunning: Boolean
     }
 
 fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
+    if (micro.isEmbeddedService) return@runBlocking
+
     micro.featureOrNull(FrontendOverrides)?.generate()
 
     log.info("Starting Event Stream Services")

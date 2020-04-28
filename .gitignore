@@ -152,3 +152,6 @@ metadata-service/dev.db.trace.db
 logs/
 **/generated/**
 .DS_STORE
+fs/
+
+backend/envoy/

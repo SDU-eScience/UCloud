@@ -12,9 +12,6 @@ import io.fabric8.kubernetes.api.model.*
 import io.fabric8.kubernetes.client.KubernetesClientException
 import io.fabric8.kubernetes.client.dsl.PodResource
 import kotlinx.coroutines.launch
-import java.io.InputStreamReader
-import java.io.BufferedReader
-
 
 const val WORKING_DIRECTORY = "/work"
 const val MULTI_NODE_DIRECTORY = "/etc/ucloud"
@@ -65,6 +62,16 @@ class K8JobCreationService(
 
         try {
             k8.nameAllocator.findJobs(requestId).delete()
+        } catch (ex: Throwable) {
+            val isExceptionExpected = ex is KubernetesClientException && ex.status?.code in setOf(400, 404)
+            if (!isExceptionExpected) {
+                log.warn("Caught exception while deleting jobs")
+                log.warn(ex.stackTraceToString())
+            }
+        }
+
+        try {
+            k8.nameAllocator.findServices(requestId).delete()
         } catch (ex: Throwable) {
             val isExceptionExpected = ex is KubernetesClientException && ex.status?.code in setOf(400, 404)
             if (!isExceptionExpected) {
@@ -419,8 +426,8 @@ class K8JobCreationService(
             log.debug("Multi node configuration written to all nodes for ${verifiedJob.id}")
         }
 
-        if (verifiedJob.peers.isNotEmpty()) {
-            // Find peers and inject hostname of new application.
+        run {
+            // Create DNS entries for all our pods
             //
             // This is done to aid applications which assume that their hostnames are routable and are as such
             // advertised to other services as being routable. Without this networking will fail in certain cases.
@@ -430,39 +437,38 @@ class K8JobCreationService(
 
             log.debug("Found the following pods: $ourPods")
 
-            // Collect ips and hostnames from the new job
-            val ipsToHostName = ourPods.map { pod ->
-                val ip = pod.status.podIP
-                val hostname = pod.metadata.name
-
-                Pair(ip, hostname)
-            }
-
-            // Find peering pods that we will need to inject our hostname into
-            val peeringPods = verifiedJob.peers.flatMap { peer ->
-                log.debug("Looking for peers with ID: ${peer.jobId}")
-                k8.client.pods()
+            ourPods.forEach { pod ->
+                k8.client
+                    .services()
                     .inNamespace(k8.nameAllocator.namespace)
-                    .withLabel(K8NameAllocator.JOB_ID_LABEL, peer.jobId)
-                    .list()
-                    .items
-            }
+                    .create(Service().apply {
+                        metadata = ObjectMeta().apply {
+                            name = pod.metadata.name
+                            namespace = k8.nameAllocator.namespace
+                            labels = mapOf(
+                                K8NameAllocator.ROLE_LABEL to k8.nameAllocator.appRole,
+                                K8NameAllocator.JOB_ID_LABEL to verifiedJob.id
+                            )
+                        }
 
-            log.debug("Found the following peers: $peeringPods")
-
-            peeringPods.forEach { peer ->
-                log.debug("Injecting hostnames into ${peer.metadata.name}")
-                val pod = k8.client.pods().inNamespace(k8.nameAllocator.namespace).withName(peer.metadata.name)
-
-                // Defensive new-lines to avoid missing new-lines on either side
-                val newEntriesAsString = "\n" + ipsToHostName.joinToString("\n") { (ip, hostname) ->
-                    "$ip\t$hostname"
-                } + "\n"
-
-                log.debug("Injected config: $newEntriesAsString")
-
-                val container = if (verifiedJob.nodes > 1) MULTI_NODE_CONTAINER else USER_CONTAINER
-                writeToFile(pod, "/etc/hosts", newEntriesAsString, container = container, append = true)
+                        spec = ServiceSpec().apply {
+                            type = "ClusterIP"
+                            clusterIP = "None"
+                            selector = mapOf(
+                                K8NameAllocator.ROLE_LABEL to k8.nameAllocator.appRole,
+                                K8NameAllocator.JOB_ID_LABEL to verifiedJob.id,
+                                K8NameAllocator.RANK_LABEL to pod.metadata.labels[K8NameAllocator.RANK_LABEL]
+                            )
+                            ports = listOf(
+                                ServicePort().apply {
+                                    name = "placeholder"
+                                    port = 80
+                                    targetPort = IntOrString(80)
+                                    protocol = "TCP"
+                                }
+                            )
+                        }
+                    })
             }
         }
 

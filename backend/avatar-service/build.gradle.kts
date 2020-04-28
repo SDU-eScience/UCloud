@@ -1,4 +1,4 @@
-version = "1.3.6"
+version = "1.3.8"
 
 application {
     mainClassName = "dk.sdu.cloud.avatar.MainKt"
