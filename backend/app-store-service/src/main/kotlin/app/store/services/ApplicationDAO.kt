@@ -17,6 +17,7 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal,
         project: String?,
+        memberGroups: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
@@ -30,6 +31,8 @@ interface ApplicationDAO<Session> {
     fun search(
         session: Session,
         user: SecurityPrincipal,
+        currentProject: String?,
+        projectGroups: List<ProjectAndGroup>,
         query: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>

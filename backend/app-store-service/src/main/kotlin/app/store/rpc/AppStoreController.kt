@@ -48,7 +48,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.searchApps) {
-            ok(appStore.searchApps(ctx.securityPrincipal, request.query, request.normalize()))
+            ok(appStore.searchApps(ctx.securityPrincipal, ctx.project, request.query, request.normalize()))
         }
 
         implement(AppStore.findByNameAndVersion) {

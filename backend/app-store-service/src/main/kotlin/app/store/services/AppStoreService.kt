@@ -50,13 +50,31 @@ class AppStoreService<DBSession>(
         securityPrincipal: SecurityPrincipal,
         project: String?,
         request: PaginationRequest
-    ): Page<ApplicationSummaryWithFavorite> = db.withTransaction { session ->
-        applicationDAO.retrieveFavorites(
-            session,
-            securityPrincipal,
-            project,
-            request.normalize()
-        )
+    ): Page<ApplicationSummaryWithFavorite> {
+        val projectGroups = if (project.isNullOrBlank()) {
+            emptyList()
+        } else {
+            ProjectMembers.userStatus.call(
+                UserStatusRequest(securityPrincipal.username),
+                authenticatedClient
+            ).orRethrowAs {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }.groups.map {
+                if (it.projectId == project) {
+                    it.group
+                }
+            }
+        }
+
+        return db.withTransaction { session ->
+            applicationDAO.retrieveFavorites(
+                session,
+                securityPrincipal,
+                project,
+                projectGroups as List<String>,
+                request.normalize()
+            )
+        }
     }
 
     suspend fun searchTags(
@@ -75,17 +93,36 @@ class AppStoreService<DBSession>(
 
     suspend fun searchApps(
         securityPrincipal: SecurityPrincipal,
+        project: String?,
         query: String,
         normalizedPaginationRequest: NormalizedPaginationRequest
-    ): Page<ApplicationSummaryWithFavorite> =
-        db.withTransaction { session ->
+    ): Page<ApplicationSummaryWithFavorite> {
+        val projectGroups = if (project.isNullOrBlank()) {
+            emptyList()
+        } else {
+            ProjectMembers.userStatus.call(
+                UserStatusRequest(securityPrincipal.username),
+                authenticatedClient
+            ).orRethrowAs {
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }.groups.map {
+                if (it.projectId == project) {
+                    ProjectAndGroup(it.projectId, it.group)
+                }
+            }
+        }
+
+        return db.withTransaction { session ->
             applicationDAO.search(
                 session,
                 securityPrincipal,
+                project,
+                projectGroups as List<ProjectAndGroup>,
                 query,
                 normalizedPaginationRequest
             )
         }
+    }
 
     suspend fun findByNameAndVersion(
         securityPrincipal: SecurityPrincipal,
