@@ -10,7 +10,7 @@ import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
 import {ScrollResult} from "Scroll/Types";
 import {SimpleSearchStateProps} from "Search";
-import {Page, SidebarOption} from "Types";
+import {Dictionary, Page, SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Upload} from "Uploader";
 import {defaultAvatar} from "UserSettings/Avataaar";
@@ -120,8 +120,15 @@ interface LegacyReducers {
     activity?: Reducer<ActivityReduxObject>;
 }
 
-/* FIXME */
+/**
+ * Global state created via useGlobal() similar to ReduxObject
+ */
+export interface HookStore {
+    fileFavoriteCache?: Dictionary<boolean>;
+}
+
 interface LegacyReduxObject {
+    hookStore: HookStore;
     dashboard: DashboardStateProps;
     uploader: UploaderReduxObject;
     status: StatusReduxObject;
@@ -175,6 +182,7 @@ export const initDashboard = (): DashboardStateProps => ({
 
 export function initObject(): ReduxObject {
     return {
+        hookStore: {},
         dashboard: initDashboard(),
         status: initStatus(),
         header: initHeader(),

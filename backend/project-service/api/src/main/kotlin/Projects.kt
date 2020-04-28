@@ -11,10 +11,7 @@ import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 
-data class CreateProjectRequest(
-    val title: String,
-    val principalInvestigator: String
-) {
+data class CreateProjectRequest(val title: String) {
     init {
         if (!title.matches(regex)) {
             throw RPCException("Title must not contain special characters", HttpStatusCode.BadRequest)

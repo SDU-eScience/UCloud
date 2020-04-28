@@ -12,8 +12,6 @@ import {invertedColors} from "ui-components/theme";
 import {findAvatar} from "UserSettings/Redux/AvataaarActions";
 import {store} from "Utilities/ReduxUtilities";
 import {isLightThemeStored, setSiteTheme, toggleCssColors} from "UtilityFunctions";
-import {Dictionary} from "Types";
-import { setGlobal } from "reactn";
 
 export function dispatchUserAction(type: typeof USER_LOGIN | typeof USER_LOGOUT | typeof CONTEXT_SWITCH): void {
     store.dispatch({type});
@@ -29,14 +27,6 @@ const GlobalStyle = createGlobalStyle`
 `;
 
 Client.initializeStore(store);
-
-export interface GlobalState {
-    fileFavoriteCache: Dictionary<boolean>;
-}
-
-setGlobal<GlobalState>({
-    fileFavoriteCache: {}
-});
 
 function App({children}: React.PropsWithChildren<{}>): JSX.Element {
     const [isLightTheme, setTheme] = React.useState(() => {

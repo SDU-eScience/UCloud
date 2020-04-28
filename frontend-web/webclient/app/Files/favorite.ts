@@ -2,8 +2,7 @@ import {APICallParameters, useAsyncCommand} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Dictionary, PaginationRequest} from "Types";
 import {useCallback} from "react";
-import {useGlobal} from "reactn";
-import {GlobalState} from "App";
+import {useGlobal} from "Utilities/ReduxHooks";
 
 const fileFavoriteContext = "/files/favorite"
 
@@ -64,7 +63,7 @@ export interface FavoriteStatusHook {
 
 export function useFavoriteStatus(): FavoriteStatusHook {
     const [loading, invokeCommand] = useAsyncCommand();
-    const [cache, setCache] = useGlobal<GlobalState>("fileFavoriteCache");
+    const [cache, setCache] = useGlobal("fileFavoriteCache", {});
 
     const updateCache = useCallback(async (files: string[], markAsFavorite?: boolean) => {
         if (markAsFavorite === true) {
@@ -82,11 +81,11 @@ export function useFavoriteStatus(): FavoriteStatusHook {
 
     const toggle: ((path: string) => Promise<void>) = useCallback(async (path: string) => {
         await invokeCommand(toggleFavorite({path}));
-        const existing = cache[path] ?? false;
+        const existing = cache ? (cache[path] ?? false) : false;
         const newCache: Dictionary<boolean> = {...cache};
         newCache[path] = !existing;
         setCache(newCache);
     }, [cache, setCache, invokeCommand]);
 
-    return {cache, updateCache, toggle, loading};
+    return {cache: (cache ?? {}), updateCache, toggle, loading};
 }
