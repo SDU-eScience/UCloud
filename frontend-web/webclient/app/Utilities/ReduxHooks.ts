@@ -29,7 +29,6 @@ const reducer = (state: HookStore = {}, action: GenericSetAction): HookStore => 
         case "GENERIC_SET":
             const newState = {...state};
             newState[action.property] = action.newValue;
-            console.log("new state is", action.newValue);
             return newState;
 
         default: {
