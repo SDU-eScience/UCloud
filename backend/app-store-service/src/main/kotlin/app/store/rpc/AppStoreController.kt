@@ -44,7 +44,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.searchTags) {
-            ok(appStore.searchTags(ctx.securityPrincipal, request.tags, request.normalize()))
+            ok(appStore.searchTags(ctx.securityPrincipal, ctx.project, request.tags, request.normalize()))
         }
 
         implement(AppStore.searchApps) {
@@ -52,7 +52,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.findByNameAndVersion) {
-            ok(appStore.findByNameAndVersion(ctx.securityPrincipal, request.appName, request.appVersion))
+            ok(appStore.findByNameAndVersion(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion))
         }
 
         implement(AppStore.hasPermission) {
@@ -71,13 +71,14 @@ class AppStoreController<DBSession>(
             ok(
                 appStore.findBySupportedFileExtension(
                     ctx.securityPrincipal,
+                    ctx.project,
                     request.files
                 )
             )
         }
 
         implement(AppStore.findByName) {
-            ok(appStore.findByName(ctx.securityPrincipal, request.appName, request.normalize()))
+            ok(appStore.findByName(ctx.securityPrincipal, ctx.project, request.appName, request.normalize()))
         }
 
         implement(AppStore.isPublic) {
@@ -95,6 +96,7 @@ class AppStoreController<DBSession>(
         implement(AppStore.advancedSearch) {
             ok(appStore.advancedSearch(
                 ctx.securityPrincipal,
+                ctx.project,
                 request.query,
                 request.tags,
                 request.showAllVersions,
@@ -195,7 +197,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.findLatestByTool) {
-            ok(appStore.findLatestByTool(ctx.securityPrincipal, request.tool, request.normalize()))
+            ok(appStore.findLatestByTool(ctx.securityPrincipal, ctx.project, request.tool, request.normalize()))
         }
     }
 

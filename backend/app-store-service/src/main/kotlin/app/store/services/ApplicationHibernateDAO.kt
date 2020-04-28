@@ -168,7 +168,6 @@ class ApplicationHibernateDAO(
         tags: List<String>
     ): List<String> {
         return session.createNativeQuery<TagEntity>(
-            // TODO
             """
             select T.application_name, T.tag, T.id from {h-schema}application_tags as T
             where T.tag in (:tags)
@@ -191,46 +190,82 @@ class ApplicationHibernateDAO(
     private fun findAppsFromAppNames(
         session: HibernateSession,
         user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>,
         applicationNames: List<String>
     ): Pair<Query<ApplicationEntity>, Int> {
-        val itemsInTotal = session.typedQuery<Long>(
+        val groups = if (memberGroups.isEmpty()) { listOf("") } else { memberGroups }
+
+        val itemsInTotal = session.createNativeQuery<Long>(
             """
             select count (A.title)
-            from ApplicationEntity as A
-            where (A.createdAt) in (
-                select max(B.createdAt)
-                from ApplicationEntity as B
+            from applications as A
+            where (A.created_at) in (
+                select max(B.created_at)
+                from applications as B
                 where (A.title = B.title)
                 group by title
-            ) and (A.id.name) in (:applications) and
-            (A.isPublic = true or :user in (
-                select P.key.user from PermissionEntry as P where A.id.name = P.key.applicationName
-            ) or :role in (:privileged))
-            """.trimIndent()
+            ) and (A.name) in (:applications) and (
+                (
+                    A.is_public = TRUE
+                ) or (
+                    :project is null and :user in (
+                        select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                    )
+                ) or (
+                    :project is not null and exists (
+                        select P2.project_group from app_store.permissions as P2 where
+                            P2.application_name = A.name and
+                                P2.project = :project and
+                                P2.project_group in (:groups)
+                    )
+                ) or (
+                    :role in (:privileged)
+                ) 
+            )
+            """.trimIndent(), Long::class.java
         ).setParameter("applications", applicationNames)
             .setParameter("user", user.username)
+            .setParameter("project", project)
+            .setParameterList("groups", groups)
             .setParameter("role", user.role)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .uniqueResult()
             .toInt()
 
         return Pair(
-            session.typedQuery<ApplicationEntity>(
-                """
-            from ApplicationEntity as A
-            where (A.createdAt) in (
-                select max(createdAt)
-                from ApplicationEntity as B
-                where (A.title= B.title)
-                group by title
-            ) and (A.id.name) in (:applications) and
-            (A.isPublic = true or :user in (
-                select P.key.user from PermissionEntry as P where A.id.name = P.key.applicationName
-            ) or :role in (:privileged))
-            order by A.title
-        """.trimIndent()
-            ).setParameter("applications", applicationNames)
+            session.createNativeQuery<ApplicationEntity>("""
+                select A.*
+                from {h-schema}applications as A
+                where (A.created_at) in (
+                    select max(created_at)
+                    from applications as B
+                    where (A.title= B.title)
+                    group by title
+                ) and (A.name) in (:applications) and (
+                    (
+                        A.is_public = TRUE
+                    ) or (
+                        :project is null and :user in (
+                            select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                        )
+                    ) or (
+                        :project is not null and exists (
+                            select P2.project_group from app_store.permissions as P2 where
+                                P2.application_name = A.name and
+                                P2.project = :project and
+                                P2.project_group in (:groups)
+                        )
+                    ) or (
+                        :role in (:privileged)
+                    ) 
+                )
+                order by A.title
+            """.trimIndent(), ApplicationEntity::class.java)
+                .setParameter("applications", applicationNames)
                 .setParameter("user", user.username)
+                .setParameter("project", project)
+                .setParameterList("groups", groups)
                 .setParameter("role", user.role)
                 .setParameterList("privileged", Roles.PRIVILEDGED)
             , itemsInTotal
@@ -241,6 +276,8 @@ class ApplicationHibernateDAO(
     override fun searchTags(
         session: HibernateSession,
         user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>,
         tags: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
@@ -260,7 +297,7 @@ class ApplicationHibernateDAO(
             ).mapItems { it.withoutInvocation() }
         }
 
-        val (apps, itemsInTotal) = findAppsFromAppNames(session, user, applications)
+        val (apps, itemsInTotal) = findAppsFromAppNames(session, user, project, memberGroups, applications)
         val items = apps.paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
@@ -280,7 +317,7 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: SecurityPrincipal,
         currentProject: String?,
-        projectGroups: List<ProjectAndGroup>,
+        projectGroups: List<String>,
         query: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
@@ -299,6 +336,8 @@ class ApplicationHibernateDAO(
     override fun multiKeywordsearch(
         session: HibernateSession,
         user: SecurityPrincipal,
+        currentProject: String?,
+        projectGroups: List<String>,
         keywords: List<String>,
         paging: NormalizedPaginationRequest
     ): List<ApplicationEntity> {
@@ -422,38 +461,47 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: SecurityPrincipal,
         currentProject: String?,
-        memberGroups: List<ProjectAndGroup>,
+        memberGroups: List<String>,
         normalizedQuery: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val count = session.typedQuery<Long>(
+        val groups = if (memberGroups.isEmpty()) {
+            listOf("")
+        } else {
+            memberGroups
+        }
+
+        val count = session.createNativeQuery<Long>(
             """
-                select count(A.title) from ApplicationEntity as A
-                where (A.createdAt) in (
-                    select max(B.createdAt)
-                    from ApplicationEntity as B
+                select count(A.title) from {h-schema}applications as A
+                where (A.created_at) in (
+                    select max(B.created_at)
+                    from {h-schema}applications as B
                     where A.title = B.title
                     group by title
                 ) and lower(A.title) like '%' || :query || '%' and (
-                    A.isPublic = true or (
+                    (
+                        A.is_public = TRUE
+                    ) or (
                         :project is null and :user in (
-                            select P.key.user from PermissionEntry as P where P.key.applicationName = A.id.name
+                            select P1.username from app_store.permissions as P1 where P1.application_name = A.name
                         )
-                    )
-                ) or (
-                    :project is not null and
-                    exists (
-                        select P2.key.group from PermissionEntry as P2 where
-                            P2.key.applicationName = A.id.name and
-                            P2.key.project = :project and
-                            P2.key.group in :groups
-                    ) or :role in (:privileged)
+                    ) or (
+                        :project is not null and exists (
+                            select P2.project_group from app_store.permissions as P2 where
+                                P2.application_name = A.name and
+                                P2.project = :project and
+                                P2.project_group in (:groups)
+                        )
+                    ) or (
+                        :role in (:privileged)
+                    ) 
                 )
-            """.trimIndent()
-        ).setParameter("query", normalizedQuery)
+            """.trimIndent(), Long::class.java)
+            .setParameter("query", normalizedQuery)
             .setParameter("user", user.username)
             .setParameter("project", currentProject)
-            .setParameter("groups", memberGroups)
+            .setParameter("groups", groups)
             .setParameter("role", user.role)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .singleResult.toInt()
@@ -466,15 +514,32 @@ class ApplicationHibernateDAO(
                    from {h-schema}applications as B
                    where A.title = B.title
                    group by title
-               ) and lower(A.title) like '%' || :query || '%' and
-               (A.is_public = true or :user in (
-                   select P.user from {h-schema}permissions as P where P.application_name = A.name
-               ) or :role in (:privileged))
+               ) and lower(A.title) like '%' || :query || '%' and (
+                   (
+                       A.is_public = TRUE
+                   ) or (
+                       :project is null and :user in (
+                           select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                       )
+                   ) or (
+                       :project is not null and exists (
+                           select P2.project_group from app_store.permissions as P2 where
+                               P2.application_name = A.name and
+                               P2.project = :project and
+                               P2.project_group in (:groups)
+                       )
+                   ) or (
+                       :role in (:privileged)
+                   ) 
+               )
+               
                order by A.title 
             """.trimIndent(), ApplicationEntity::class.java
         )
             .setParameter("query", normalizedQuery)
             .setParameter("user", user.username)
+            .setParameter("project", currentProject)
+            .setParameter("groups", groups)
             .setParameter("role", user.role)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
@@ -511,6 +576,8 @@ class ApplicationHibernateDAO(
     override fun findAllByName(
         session: HibernateSession,
         user: SecurityPrincipal?,
+        currentProject: String?,
+        projectGroups: List<String>,
         appName: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
@@ -546,6 +613,8 @@ class ApplicationHibernateDAO(
     override fun findByNameAndVersion(
         session: HibernateSession,
         user: SecurityPrincipal?,
+        currentProject: String?,
+        projectGroups: List<String>,
         appName: String,
         appVersion: String
     ): Application {
@@ -585,6 +654,8 @@ class ApplicationHibernateDAO(
     override fun findBySupportedFileExtension(
         session: HibernateSession,
         user: SecurityPrincipal,
+        currentProject: String?,
+        projectGroups: List<String>,
         fileExtensions: Set<String>
     ): List<ApplicationWithExtension> {
         var query = ""
@@ -634,6 +705,8 @@ class ApplicationHibernateDAO(
     override fun findByNameAndVersionForUser(
         session: HibernateSession,
         user: SecurityPrincipal,
+        currentProject: String?,
+        projectGroups: List<String>,
         appName: String,
         appVersion: String
     ): ApplicationWithFavoriteAndTags {
@@ -656,62 +729,81 @@ class ApplicationHibernateDAO(
         session: HibernateSession,
         user: SecurityPrincipal?,
         currentProject: String?,
-        memberGroups: List<ProjectAndGroup>,
+        projectGroups: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        val count = session.typedQuery<Long>(
+        val groups = if (projectGroups.isEmpty()) {
+            listOf("")
+        } else {
+            projectGroups
+        }
+
+        val count = session.createNativeQuery<Long>(
             """
-                select count (A.id.name)
-                from ApplicationEntity as A where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where A.id.name = B.id.name and (
-                        A.isPublic = true or (
-                            :project is null and
-                            :user is not null and
-                            :user in (
-                                select P1.key.user from PermissionEntry as P1 where P1.key.applicationName = A.id.name
+                select count (A.name)
+                from {h-schema}applications as A where (A.created_at) in (
+                    select max(created_at)
+                    from {h-schema}applications as B
+                    where A.name = B.name and (
+                        (
+                            B.is_public = TRUE
+                        ) or (
+                            :project is null and :user in (
+                                select P1.username from app_store.permissions as P1 where P1.application_name = B.name
                             )
                         ) or (
-                            :project is not null and
-                            exists (
-                                select P2.key.group from PermissionEntry as P2 where
-                                    P2.key.applicationName = A.id.name and
-                                    P2.key.project = :project and
-                                    P2.key.group in :groups
-                                    
+                            :project is not null and exists (
+                                select P2.project_group from app_store.permissions as P2 where
+                                    P2.application_name = B.name and
+                                        P2.project = :project and
+                                        P2.project_group in (:groups)
                             )
-                        ) or :role in (:privileged)
+                        ) or (
+                            :role in (:privileged)
+                        )
                     )
-                    group by id.name
                 )
-            """.trimIndent()
+            """.trimIndent(), Long::class.java
         ).setParameter("user", user?.username)
             .setParameter("role", user?.role ?: Role.UNKNOWN)
             .setParameter("project", currentProject)
-            .setParameterList("groups", memberGroups.map { it.group })
+            .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .uniqueResult()
             .toInt()
 
 
-        val items = session.typedQuery<ApplicationEntity>(
-            """
-                from ApplicationEntity as A where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where A.id.name = B.id.name  and (
-                        A.isPublic = true or
-                        :user in (
-                            select P.key.user from PermissionEntry as P where P.key.applicationName = A.id.name
-                        ) or :role in (:privileged)
+        val items = session.createNativeQuery<ApplicationEntity>(
+            """ select A.*
+                from {h-schema}applications as A where (A.created_at) in (
+                    select max(created_at)
+                    from {h-schema}applications as B
+                    where A.name = B.name and (
+                         (
+                             B.is_public = TRUE
+                         ) or (
+                             :project is null and :user in (
+                                 select P1.username from app_store.permissions as P1 where P1.application_name = B.name
+                             )
+                         ) or (
+                             :project is not null and exists (
+                                 select P2.project_group from app_store.permissions as P2 where
+                                     P2.application_name = B.name and
+                                         P2.project = :project and
+                                         P2.project_group in (:groups)
+                             )
+                         ) or (
+                             :role in (:privileged)
+                         )
                     )
-                    group by id.name
+                    group by B.name
                 )
-                order by A.id.name
-            """.trimIndent()
+                order by A.name
+            """.trimIndent(), ApplicationEntity::class.java
         ).setParameter("user", user?.username ?: "")
             .setParameter("role", user?.role ?: Role.UNKNOWN)
+            .setParameter("project", currentProject)
+            .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
@@ -1015,54 +1107,88 @@ class ApplicationHibernateDAO(
     override fun findLatestByTool(
         session: HibernateSession,
         user: SecurityPrincipal,
+        project: String?,
+        projectGroups: List<String>,
         tool: String,
         paging: NormalizedPaginationRequest
     ): Page<Application> {
-        val count = session.typedQuery<Long>(
+        val groups = if (projectGroups.isEmpty()) {
+            listOf("")
+        } else {
+            projectGroups
+        }
+
+        val count = session.createNativeQuery<Long>(
             """
-                select count (A.id.name)
-                from ApplicationEntity as A
-                where (A.createdAt) in (
-                    select max(createdAt)
-                    from ApplicationEntity as B
-                    where A.id.name = B.id.name
-                    group by id.name
+                select count (A.name)
+                from {h-schema}applications as A
+                where (A.created_at) in (
+                    select max(created_at)
+                    from {h-schema}applications as B
+                    where A.name = B.name
+                    group by name
                 ) and A.toolName = :toolName and (
-                    A.isPublic = true or
-                    :user in (
-                        select P.key.user from PermissionEntry as P where P.key.applicationName = A.id.name
-                    ) or :role in (:privileged)
+                    (
+                        A.is_public = TRUE
+                    ) or (
+                        :project is null and :user in (
+                            select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                        )
+                    ) or (
+                        :project is not null and exists (
+                            select P2.project_group from app_store.permissions as P2 where
+                                P2.application_name = A.name and
+                                P2.project = :project and
+                                P2.project_group in (:groups)
+                        )
+                    ) or (
+                        :role in (:privileged)
+                    ) 
                 )
-            """.trimIndent()
-        )
+            """.trimIndent(), Long::class.java)
             .setParameter("toolName", tool)
             .setParameter("user", user.username)
             .setParameter("role", user.role)
+            .setParameter("project", project)
+            .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .uniqueResult()
             .toInt()
 
-        val items = session.typedQuery<ApplicationEntity>(
-            """
-                from ApplicationEntity as A 
+        val items = session.createNativeQuery<ApplicationEntity>(
+            """ select A.*
+                from {h-schema}applications as A 
                 where 
-                    (A.createdAt) in (
-                        select max(createdAt)
-                        from ApplicationEntity as B
-                        where A.id.name = B.id.name
-                        group by id.name
-                    ) and A.toolName = :toolName and (
-                        A.isPublic = true or
-                        :user in (
-                            select P.key.user from PermissionEntry as P where P.key.applicationName = A.id.name
-                        ) or :role in (:privileged)
+                    (A.created_at) in (
+                        select max(created_at)
+                        from {h-schema}applications as B
+                        where A.name = B.name
+                        group by name
+                    ) and A.tool_name = :toolName and (
+                        (
+                            A.is_public = TRUE
+                        ) or (
+                            :project is null and :user in (
+                                select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                            )
+                        ) or (
+                            :project is not null and exists (
+                                select P2.project_group from app_store.permissions as P2 where
+                                    P2.application_name = A.name and
+                                    P2.project = :project and
+                                    P2.project_group in (:groups)
+                            )
+                        ) or (
+                            :role in (:privileged)
+                        ) 
                     )
                 order by A.id.name
-            """.trimIndent()
-        )
+            """.trimIndent(), ApplicationEntity::class.java)
             .setParameter("toolName", tool)
             .setParameter("user", user.username)
             .setParameter("role", user.role)
+            .setParameter("project", project)
+            .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
@@ -1073,6 +1199,8 @@ class ApplicationHibernateDAO(
     override fun findAllByID(
         session: HibernateSession,
         user: SecurityPrincipal,
+        project: String?,
+        projectGroups: List<String>,
         embeddedNameAndVersionList: List<EmbeddedNameAndVersion>,
         paging: NormalizedPaginationRequest
     ): List<ApplicationEntity> {

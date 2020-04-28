@@ -24,6 +24,8 @@ interface ApplicationDAO<Session> {
     fun searchTags(
         session: Session,
         user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>,
         tags: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
@@ -32,7 +34,7 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal,
         currentProject: String?,
-        projectGroups: List<ProjectAndGroup>,
+        projectGroups: List<String>,
         query: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
@@ -40,6 +42,8 @@ interface ApplicationDAO<Session> {
     fun multiKeywordsearch(
         session: Session,
         user: SecurityPrincipal,
+        currentProject: String?,
+        projectGroups: List<String>,
         keywords: List<String>,
         paging: NormalizedPaginationRequest
     ): List<ApplicationEntity>
@@ -47,7 +51,8 @@ interface ApplicationDAO<Session> {
     fun findAllByName(
         session: Session,
         user: SecurityPrincipal?,
-
+        currentProject: String?,
+        projectGroups: List<String>,
         appName: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
@@ -55,13 +60,16 @@ interface ApplicationDAO<Session> {
     fun findBySupportedFileExtension(
         session: Session,
         user: SecurityPrincipal,
+        currentProject: String?,
+        projectGroups: List<String>,
         fileExtensions: Set<String>
     ): List<ApplicationWithExtension>
 
     fun findByNameAndVersion(
         session: Session,
         user: SecurityPrincipal?,
-
+        currentProject: String?,
+        projectGroups: List<String>,
         appName: String,
         appVersion: String
     ): Application
@@ -69,6 +77,8 @@ interface ApplicationDAO<Session> {
     fun findByNameAndVersionForUser(
         session: Session,
         user: SecurityPrincipal,
+        currentProject: String?,
+        projectGroups: List<String>,
         appName: String,
         appVersion: String
     ): ApplicationWithFavoriteAndTags
@@ -77,7 +87,7 @@ interface ApplicationDAO<Session> {
         session: Session,
         user: SecurityPrincipal?,
         currentProject: String?,
-        projectGroups: List<ProjectAndGroup>,
+        projectGroups: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
@@ -160,6 +170,8 @@ interface ApplicationDAO<Session> {
     fun findAllByID(
         session: Session,
         user: SecurityPrincipal,
+        project: String?,
+        projectGroups: List<String>,
         embeddedNameAndVersionList: List<EmbeddedNameAndVersion>,
         paging: NormalizedPaginationRequest
     ): List<ApplicationEntity>
@@ -167,6 +179,8 @@ interface ApplicationDAO<Session> {
     fun findLatestByTool(
         session: Session,
         user: SecurityPrincipal,
+        project: String?,
+        projectGroups: List<String>,
         tool: String,
         paging: NormalizedPaginationRequest
     ): Page<Application>
