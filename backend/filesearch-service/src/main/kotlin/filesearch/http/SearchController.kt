@@ -13,14 +13,11 @@ import dk.sdu.cloud.indexing.api.AnyOf
 import dk.sdu.cloud.indexing.api.FileQuery
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.QueryRequest
-import dk.sdu.cloud.project.api.ListProjectsRequest
 import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.ScrollResult
 import dk.sdu.cloud.share.api.Shares
 import io.ktor.http.HttpStatusCode
 import org.slf4j.Logger

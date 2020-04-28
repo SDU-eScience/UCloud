@@ -20,6 +20,5 @@ dependencies {
     implementation(project(":activity-service:api"))
     implementation(project(":notification-service:api"))
     implementation(project(":file-trash-service:api"))
-    implementation(project(":file-gateway-service:api"))
     implementation(project(":support-service:api"))
 }

@@ -279,10 +279,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 +boundTo(ListDirectoryRequest::attributes)
                 +boundTo(ListDirectoryRequest::type)
             }
-
-            headers {
-                +"X-No-Load"
-            }
         }
     }
 
@@ -309,10 +305,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
                     +boundTo(LookupFileInDirectoryRequest::order)
                     +boundTo(LookupFileInDirectoryRequest::attributes)
                 }
-
-                headers {
-                    +"X-No-Load"
-                }
             }
         }
 
@@ -337,10 +329,6 @@ object FileDescriptions : CallDescriptionContainer("files") {
             params {
                 +boundTo(StatRequest::path)
                 +boundTo(StatRequest::attributes)
-            }
-
-            headers {
-                +"X-No-Load"
             }
         }
     }

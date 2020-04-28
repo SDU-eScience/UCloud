@@ -1,4 +1,4 @@
-import {useAsyncWork} from "Authentication/DataHook";
+import {callAPIWithErrorHandler, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {File} from "Files/index";
@@ -6,8 +6,9 @@ import {LowLevelFileTable, LowLevelFileTableProps} from "Files/LowLevelFileTable
 import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
 import {Page} from "Types";
-import {favoritesQuery, getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
+import {getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
+import {listFavorites} from "Files/favorite";
 
 export type VirtualFileTableProps = LowLevelFileTableProps & VirtualFolderDefinition;
 
@@ -93,7 +94,8 @@ export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
 
     loadFolder: async (folder, page, itemsPerPage): Promise<Page<File>> => {
         if (folder === Client.favoritesFolder) {
-            return (await Client.get<Page<File>>(favoritesQuery(page, itemsPerPage))).response;
+            const favs = (await callAPIWithErrorHandler<Page<File>>(listFavorites({page, itemsPerPage})));
+            return favs ?? emptyPage;
         } else if (folder === Client.sharesFolder) {
             return (await Client.get<Page<File>>(
                 buildQueryString("/shares/list-files", {page, itemsPerPage}))

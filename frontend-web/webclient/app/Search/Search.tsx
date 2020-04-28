@@ -214,10 +214,8 @@ const mapStateToProps = ({
     simpleSearch,
     detailedFileSearch,
     detailedApplicationSearch
-}: ReduxObject): SimpleSearchStateProps & {favFilesCount: number, favAppCount: number} => ({
+}: ReduxObject): SimpleSearchStateProps => ({
     ...simpleSearch,
-    favFilesCount: simpleSearch.files.items.filter(it => it.favorited).length,
-    favAppCount: simpleSearch.applications.items.filter(it => it.favorite).length,
     fileSearch: detailedFileSearch,
     applicationSearch: detailedApplicationSearch
 });

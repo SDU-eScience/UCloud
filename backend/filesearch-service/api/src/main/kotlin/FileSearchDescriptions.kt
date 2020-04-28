@@ -62,10 +62,6 @@ object FileSearchDescriptions : CallDescriptionContainer("fileSearch") {
                 +boundTo(SimpleSearchRequest::itemsPerPage)
                 +boundTo(SimpleSearchRequest::page)
             }
-
-            headers {
-                +"X-No-Load"
-            }
         }
     }
 
@@ -83,10 +79,6 @@ object FileSearchDescriptions : CallDescriptionContainer("fileSearch") {
             }
 
             body { bindEntireRequestFromBody() }
-
-            headers {
-                +"X-No-Load"
-            }
         }
     }
 }

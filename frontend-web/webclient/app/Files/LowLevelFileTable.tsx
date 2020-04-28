@@ -3,7 +3,7 @@ import {APICallParameters, AsyncWorker, callAPI, useAsyncWork} from "Authenticat
 import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
 import {emptyPage, KeyCode, ReduxObject, SensitivityLevelMap} from "DefaultObjects";
-import {File, FileResource, FileType, SortBy, SortOrder} from "Files";
+import {File, FileType, SortBy, SortOrder} from "Files";
 import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
 import {History} from "history";
@@ -50,7 +50,6 @@ import {Upload} from "Uploader";
 import {appendUpload, setUploaderCallback, setUploaderVisible} from "Uploader/Redux/UploaderActions";
 import {
     createFolder,
-    favoriteFile,
     filePreviewQuery,
     getFilenameFromPath,
     getParentPath,
@@ -64,7 +63,7 @@ import {
     moveFile,
     resolvePath,
     sizeToString,
-    MOCK_REPO_CREATE_TAG
+    MOCK_REPO_CREATE_TAG, MOCK_VIRTUAL
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon} from "UtilityComponents";
@@ -73,6 +72,7 @@ import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
 import {repositoryName, createRepository, renameRepository, isAdminOrPI} from "Utilities/ProjectUtilities";
 import {ProjectMember, ProjectRole} from "Project";
+import {useFavoriteStatus} from "Files/favorite";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -107,7 +107,6 @@ export interface ListDirectoryRequest {
     itemsPerPage: number;
     order: SortOrder;
     sortBy: SortBy;
-    attrs: FileResource[];
     type?: FileType;
 }
 
@@ -117,7 +116,6 @@ export const listDirectory = ({
     itemsPerPage,
     order,
     sortBy,
-    attrs,
     type
 }: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
@@ -129,24 +127,21 @@ export const listDirectory = ({
             itemsPerPage,
             order,
             sortBy,
-            attrs: attrs.join(","),
             type
         }
     ),
-    parameters: {path, page, itemsPerPage, order, sortBy, attrs},
+    parameters: {path, page, itemsPerPage, order, sortBy},
     reloadId: Math.random()
 });
 
 const loadFiles = async (
-    attributes: FileResource[],
     callback: (page: Page<File>) => void,
     request: ListDirectoryRequest,
     promises: PromiseKeeper
 ): Promise<void> => {
     try {
         const response = await callAPI<Page<File>>(listDirectory({
-            ...request,
-            attrs: [FileResource.PATH, FileResource.FILE_TYPE].concat(attributes)
+            ...request
         }));
         if (promises.canceledKeeper) return;
         callback(response);
@@ -173,7 +168,6 @@ const initialPageParameters: ListDirectoryRequest = {
     order: SortOrder.ASCENDING,
     sortBy: SortBy.PATH,
     page: 0,
-    attrs: [],
     path: "TO_BE_REPLACED"
 };
 
@@ -194,13 +188,12 @@ function useApiForComponent(
         setPageParameters(request);
         submitPageLoaderJob(async () => {
             await loadFiles(
-                [
-                    FileResource.ACL, FileResource.OWNER_NAME, FileResource.FAVORITED,
-                    FileResource.SENSITIVITY_LEVEL
-                ],
-                it => setManagedPage(it),
+                it => {
+                    setManagedPage(it);
+                },
                 request,
-                promises);
+                promises
+            );
         });
     };
 
@@ -281,6 +274,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     const [injectedViaState, setInjectedViaState] = useState<File[]>([]);
     const [workLoading, , invokeWork] = useAsyncWork();
     const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map());
+    const favorites = useFavoriteStatus();
 
     const promises = usePromiseKeeper();
     const [projectMember, setMember] = React.useState<ProjectMember>({
@@ -294,6 +288,15 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
     const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
         useApiForComponent(props, setSortByColumn);
+
+    useEffect(() => {
+        const isKnownToBeFavorite = props.path === Client.favoritesFolder;
+        const files = page.items
+            .filter(it => it.mockTag == MOCK_VIRTUAL || it.mockTag === undefined)
+            .map(it => it.path)
+
+        favorites.updateCache(files, isKnownToBeFavorite);
+    }, [page]);
 
     // Fetch quick launch applications upon page refresh
     useEffect(() => {
@@ -908,10 +911,7 @@ interface NameBoxProps {
 }
 
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
-    const [favorite, setFavorite] = useState<boolean>(props.file.favorited ? props.file.favorited : false);
-    useEffect(() => {
-        setFavorite(props.file.favorited ? props.file.favorited : false);
-    }, [props.file]);
+    const favorites = useFavoriteStatus();
     const canNavigate = isDirectory({fileType: props.file.fileType});
 
     const icon = (
@@ -957,19 +957,11 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                     <Icon
                         cursor="pointer"
                         size="24"
-                        name={favorite ? "starFilled" : "starEmpty"}
-                        color={favorite ? "blue" : "midGray"}
+                        name={(favorites.cache[props.file.path] ?? false) ? "starFilled" : "starEmpty"}
+                        color={(favorites.cache[props.file.path] ?? false) ? "blue" : "midGray"}
                         onClick={(event): void => {
                             event.stopPropagation();
-                            props.callbacks.invokeAsyncWork(async () => {
-                                const initialValue = favorite;
-                                setFavorite(!initialValue);
-                                try {
-                                    await favoriteFile(props.file, Client);
-                                } catch (e) {
-                                    setFavorite(initialValue);
-                                }
-                            });
+                            favorites.toggle(props.file.path);
                         }}
                         hoverColor="blue"
                     />

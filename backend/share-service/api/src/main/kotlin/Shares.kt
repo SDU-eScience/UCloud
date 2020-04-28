@@ -188,10 +188,6 @@ object Shares : CallDescriptionContainer("shares") {
                 +boundTo(ListFiles.Request::itemsPerPage)
                 +boundTo(ListFiles.Request::page)
             }
-
-            headers {
-                +"X-No-Load"
-            }
         }
     }
 

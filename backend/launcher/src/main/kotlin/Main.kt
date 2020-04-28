@@ -2,7 +2,6 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
-import dk.sdu.cloud.file.gateway.FileGatewayService
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.micro.Service
 import dk.sdu.cloud.micro.ServiceRegistry
@@ -19,9 +18,12 @@ object Launcher : Loggable {
 suspend fun main(args: Array<String>) {
     val reg = ServiceRegistry(args)
     val blacklist = setOf(
+        // WebDav needs to run as a standalone server
         WebdavService,
+
+        // The following 'services' are all essentially scripts that run in UCloud
+        // None of them are meant to be run as a normal service.
         AuditIngestionService,
-        FileGatewayService,
         RedisCleanerService,
         ElasticManagementService,
         KubernetesMonitorService

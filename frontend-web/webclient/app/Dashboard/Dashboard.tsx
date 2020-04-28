@@ -3,7 +3,7 @@ import {fetchUsage} from "Accounting/Redux/AccountingActions";
 import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatDistanceToNow} from "date-fns/esm";
-import {ReduxObject} from "DefaultObjects";
+import {emptyPage, ReduxObject} from "DefaultObjects";
 import {File} from "Files";
 import {History} from "history";
 import Spinner from "LoadingIcon/LoadingIcon";
@@ -24,7 +24,6 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {EllipsedText} from "ui-components/Text";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {
-    favoriteFile,
     getFilenameFromPath,
     getParentPath,
     isDirectory,
@@ -34,13 +33,14 @@ import {FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
 import {
-    fetchFavorites,
     fetchRecentAnalyses,
-    receiveFavorites,
     setAllLoading
 } from "./Redux/DashboardActions";
 import {JobStateIcon} from "Applications/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
+import {listFavorites, useFavoriteStatus} from "Files/favorite";
+import {useCloudAPI} from "Authentication/DataHook";
+import {Page} from "Types";
 
 const DashboardCard: React.FunctionComponent<{title: string; isLoading: boolean}> = ({title, isLoading, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
@@ -55,7 +55,11 @@ const DashboardCard: React.FunctionComponent<{title: string; isLoading: boolean}
 );
 
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
-
+    const favorites = useFavoriteStatus();
+    const [favoritePage, setFavoriteParams] = useCloudAPI<Page<File>>(
+        listFavorites({itemsPerPage: 10, page: 0}),
+        emptyPage
+    );
     React.useEffect(() => {
         props.onInit();
         reload(true);
@@ -65,7 +69,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     function reload(loading: boolean): void {
         props.setAllLoading(loading);
-        props.fetchFavorites();
+        setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
         props.fetchRecentAnalyses();
         props.fetchUsage();
     }
@@ -85,18 +89,15 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         }
     };
 
-    const favoriteOrUnfavorite = (file: File): void => {
-        favoriteFile(file, Client);
-        props.receiveFavorites(favoriteFiles.filter(f => f.path !== file.path));
+    const favoriteOrUnfavorite = async (file: File) => {
+        await favorites.toggle(file.path);
+        setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
     };
 
     const {
-        favoriteFiles,
         recentAnalyses,
         notifications,
-        favoriteLoading,
         analysesLoading,
-        favoritesError,
         recentJobsError
     } = props;
 
@@ -104,9 +105,9 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         <>
             <GridCardGroup minmax={315}>
                 <DashboardFavoriteFiles
-                    error={favoritesError}
-                    files={favoriteFiles}
-                    isLoading={favoriteLoading}
+                    error={favoritePage.error?.why}
+                    files={favoritePage.data.items}
+                    isLoading={favoritePage.loading}
                     favorite={favoriteOrUnfavorite}
                 />
 
@@ -270,7 +271,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
         dispatch(setActivePage(SidebarPages.None));
     },
     setAllLoading: loading => dispatch(setAllLoading(loading)),
-    fetchFavorites: async () => dispatch(await fetchFavorites()),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
     fetchUsage: async () => {
         dispatch(await fetchUsage("storage", "bytesUsed"));
@@ -278,15 +278,12 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
-    // FIXME: Make action instead (favoriteFile)
-    receiveFavorites: files => dispatch(receiveFavorites(files)),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
 const mapStateToProps = (state: ReduxObject): DashboardStateProps => ({
     ...state.dashboard,
     notifications: state.notifications.items,
-    favoriteFilesLength: state.dashboard.favoriteFiles.length // Hack to ensure re-rendering
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Dashboard);

@@ -98,16 +98,17 @@ File(mainPackage, "Main.kt").writeText(
         import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
         import dk.sdu.cloud.${packageName}.api.${className}ServiceDescription
         
-        fun main(args: Array<String>) {
-            val micro = Micro().apply {
-                initWithDefaultFeatures(${className}ServiceDescription, args)
-                install(RefreshingJWTCloudFeature)
-                install(HealthCheckFeature)
+        object ${className}Service : Service {
+            override val description = ${ClassName}ServiceDescription
+            
+            override fun initializeServer(micro: Micro): CommonServer {
+                micro.install(RefreshingJWTCloudFeature)
+                return Server(micro)
             }
-            
-            if (micro.runScriptHandler()) return
-            
-            Server(micro).start()
+        }
+        
+        fun main(args: Array<String>) {
+            ${className}Service.runAsStandalone(args)
         }
         
     """.trimIndent()

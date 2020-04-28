@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.favorite.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.calls.client.withoutAuthentication
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusRequest
 import dk.sdu.cloud.file.favorite.api.FavoriteStatusResponse
 import dk.sdu.cloud.file.favorite.api.ToggleFavoriteResponse
@@ -99,8 +100,8 @@ class FileFavoriteControllerTest {
                     user = TestUsers.user,
                     request = FavoriteStatusRequest(
                         listOf(
-                            storageFile,
-                            storageFile.copy(pathOrNull = "/home/user/5")
+                            storageFile.path,
+                            storageFile.copy(pathOrNull = "/home/user/5").path
                         )
                     )
                 )
