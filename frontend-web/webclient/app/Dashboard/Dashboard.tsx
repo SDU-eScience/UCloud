@@ -182,7 +182,7 @@ const NoEntries = (props: NoEntriesProps): JSX.Element => (
 );
 
 const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): JSX.Element => {
-    const iconType = UF.iconFromFilePath(file.path, file.fileType, Client);
+    const iconType = UF.iconFromFilePath(file.path, file.fileType);
     return (
         <Flex alignItems="center">
             <FileIcon fileIcon={iconType} />

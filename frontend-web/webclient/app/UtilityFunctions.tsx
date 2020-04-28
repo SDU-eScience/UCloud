@@ -4,7 +4,13 @@ import {Acl, File, FileType, SortBy, UserEntity} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {dateToString} from "Utilities/DateUtilities";
-import {getFilenameFromPath, isDirectory, replaceHomeOrProjectFolder, sizeToString} from "Utilities/FileUtilities";
+import {
+    getFilenameFromPath,
+    isDirectory, isFavoritesFolder, isJobsFolder,
+    isSharesFolder, isTrashFolder,
+    replaceHomeOrProjectFolder,
+    sizeToString
+} from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 import HttpClient from "Authentication/lib";
 
@@ -264,39 +270,24 @@ export interface FtIconProps {
 
 export const iconFromFilePath = (
     filePath: string,
-    type: FileType,
-    client: HttpClient
+    type: FileType
 ): FtIconProps => {
     const icon: FtIconProps = {type: "FILE"};
 
     switch (type) {
         case "DIRECTORY":
-            const replaced = replaceHomeOrProjectFolder(filePath, client);
-
-            const project = (replaced.startsWith("Projects/") ? replaced.split("/")[1] : "") ?? "";
-
-            switch (replaced) {
-                case "Home/Jobs":
-                case `Projects/${project}/Jobs`:
-                    icon.type = "RESULTFOLDER";
-                    break;
-                case "Home/Favorites":
-                    icon.type = "FAVFOLDER";
-                    break;
-                case "Home/Shares":
-                    icon.type = "SHARESFOLDER";
-                    break;
-                case "Home/App File Systems":
-                    icon.type = "FSFOLDER";
-                    break;
-                case "Home/Trash":
-                case `Projects/${project}/Trash`:
-                    icon.type = "TRASHFOLDER";
-                    break;
-                default:
-                    icon.type = "DIRECTORY";
-                    break;
+            if (isSharesFolder(filePath)) {
+                icon.type = "SHARESFOLDER";
+            } else if (isTrashFolder(filePath)) {
+                icon.type = "TRASHFOLDER";
+            } else if (isJobsFolder(filePath)) {
+                icon.type = "RESULTFOLDER";
+            } else if (isFavoritesFolder(filePath)) {
+                icon.type = "FAVFOLDER";
+            } else {
+                icon.type = "DIRECTORY";
             }
+
             return icon;
 
         case "FILE":

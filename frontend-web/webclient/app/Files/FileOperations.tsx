@@ -20,13 +20,11 @@ import {
     fileTablePage,
     getFilenameFromPath,
     getParentPath,
-    inTrashDir,
     isAnyFixedFolder,
     isAnyMockFile,
     isArchiveExtension,
+    isTrashFolder,
     moveToTrash,
-    replaceHomeOrProjectFolder,
-    resolvePath,
     shareFiles,
     updateSensitivity
 } from "Utilities/FileUtilities";
@@ -34,7 +32,6 @@ import {addStandardDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {
-    repositoryTrashFolder,
     promptDeleteRepository,
     updatePermissionsPrompt,
     repositoryName
@@ -66,14 +63,14 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Upload Files",
         onClick: (_, cb) => cb.requestFileUpload(),
-        disabled: dir => resolvePath(dir[0].path) === resolvePath(Client.trashFolder),
+        disabled: dir => isTrashFolder(dir[0].path),
         color: "blue",
         currentDirectoryMode: true
     },
     {
         text: "New Folder",
         onClick: (_, cb) => cb.requestFolderCreation(),
-        disabled: ([file]) => resolvePath(file.path) === resolvePath(Client.trashFolder),
+        disabled: ([file]) => isTrashFolder(file.path),
         color: "blue",
         outline: true,
         currentDirectoryMode: true
@@ -82,20 +79,10 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Empty Trash",
         onClick: ([file], cb) => clearTrash({client: Client, trashPath: file.path, callback: () => cb.requestReload()}),
         disabled: ([dir]) => {
-            const resolvedPath = resolvePath(dir.path);
-            return resolvedPath !== resolvePath(Client.trashFolder) && resolvedPath !== repositoryTrashFolder(resolvedPath, Client);
+            return !isTrashFolder(dir.path);
         },
         color: "red",
         currentDirectoryMode: true
-    },
-    {
-        text: "Copy Path",
-        onClick: files => UF.copyToClipboard({
-            value: files[0].path,
-            message: `${replaceHomeOrProjectFolder(files[0].path, Client)} copied to clipboard`
-        }),
-        disabled: files => !UF.inDevEnvironment() || files.length !== 1 || isAnyMockFile(files),
-        icon: "chat"
     },
     {
         text: "Rename",
@@ -221,7 +208,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) =>
             moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload()}),
         disabled: (files) => (!allFilesHasAccessRight("WRITE", files) || isAnyFixedFolder(files, Client) ||
-            files.every(({path}) => inTrashDir(path, Client))) || isAnyMockFile(files),
+            files.every(({path}) => isTrashFolder(path))) || isAnyMockFile(files),
         icon: "trash",
         color: "red"
     },
@@ -251,7 +238,7 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !files.every(f => getParentPath(f.path) === Client.trashFolder) || isAnyMockFile(files),
+        disabled: (files) => !files.every(f => isTrashFolder(getParentPath(f.path))) || isAnyMockFile(files),
         icon: "trash",
         color: "red"
     },

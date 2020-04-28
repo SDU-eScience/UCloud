@@ -201,18 +201,18 @@ test("Extract no type from path", () =>
 );
 
 describe("Icon from file path", () => {
-    test("Dir", () => expect(UF.iconFromFilePath("home", "DIRECTORY", Client).type).toBe("DIRECTORY"));
-    test("File", () => expect(UF.iconFromFilePath("home", "FILE", Client)).toStrictEqual({type: "FILE"}));
+    test("Dir", () => expect(UF.iconFromFilePath("home", "DIRECTORY").type).toBe("DIRECTORY"));
+    test("File", () => expect(UF.iconFromFilePath("home", "FILE")).toStrictEqual({type: "FILE"}));
     test("File with ext", () =>
-        expect(UF.iconFromFilePath("home.txt", "FILE", Client)).toStrictEqual({type: "FILE", ext: "txt"}));
+        expect(UF.iconFromFilePath("home.txt", "FILE")).toStrictEqual({type: "FILE", ext: "txt"}));
     test("Jobs", () =>
-        expect(UF.iconFromFilePath("Home/Jobs", "DIRECTORY", Client).type).toStrictEqual("RESULTFOLDER"));
+        expect(UF.iconFromFilePath("Home/Jobs", "DIRECTORY").type).toStrictEqual("RESULTFOLDER"));
     test("Favorites", () =>
-        expect(UF.iconFromFilePath("Home/Favorites", "DIRECTORY", Client).type).toStrictEqual("FAVFOLDER"));
+        expect(UF.iconFromFilePath("Home/Favorites", "DIRECTORY").type).toStrictEqual("FAVFOLDER"));
     test("Shares", () =>
-        expect(UF.iconFromFilePath("Home/Shares", "DIRECTORY", Client).type).toStrictEqual("SHARESFOLDER"));
+        expect(UF.iconFromFilePath("Home/Shares", "DIRECTORY").type).toStrictEqual("SHARESFOLDER"));
     test("Trash", () =>
-        expect(UF.iconFromFilePath("Home/Trash", "DIRECTORY", Client).type).toStrictEqual("TRASHFOLDER"));
+        expect(UF.iconFromFilePath("Home/Trash", "DIRECTORY").type).toStrictEqual("TRASHFOLDER"));
 });
 
 const HOME_FOLDER = "/home/user@test.dk/";

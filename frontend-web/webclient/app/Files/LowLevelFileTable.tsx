@@ -70,7 +70,13 @@ import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
-import {repositoryName, createRepository, renameRepository, isAdminOrPI} from "Utilities/ProjectUtilities";
+import {
+    repositoryName,
+    createRepository,
+    renameRepository,
+    isAdminOrPI,
+    isRepository
+} from "Utilities/ProjectUtilities";
 import {ProjectMember, ProjectRole} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 
@@ -924,7 +930,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const icon = (
         <Flex mr="10px" alignItems="center" cursor="inherit">
             <FileIcon
-                fileIcon={UF.iconFromFilePath(props.file.path, props.file.fileType, Client)}
+                fileIcon={UF.iconFromFilePath(props.file.path, props.file.fileType)}
                 size={42}
                 shared={(props.file.acl != null ? props.file.acl.length : 0) > 0}
             />
@@ -1095,8 +1101,8 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
 
     const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
         if (fileOp.repositoryMode && !isAdminOrPI(role)) return null;
-        if (fileOp.repositoryMode && files.some(it => !repositoryName(it.path))) return null;
-        if (!fileOp.repositoryMode && files.some(it => repositoryName(it.path))) return null;
+        if (fileOp.repositoryMode && files.some(it => !isRepository(it.path))) return null;
+        if (!fileOp.repositoryMode && files.some(it => isRepository(it.path))) return null;
 
         if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;

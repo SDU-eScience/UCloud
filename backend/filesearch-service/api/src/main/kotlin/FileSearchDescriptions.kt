@@ -8,7 +8,6 @@ import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.SensitivityLevel
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest

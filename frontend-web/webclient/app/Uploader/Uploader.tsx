@@ -595,7 +595,7 @@ const UploaderRow = (p: {
     return (
         <Flex flexDirection="row" data-tag={"uploadRow"}>
             <Box width={0.04} textAlign="center">
-                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE", Client)} />
+                <FileIcon fileIcon={iconFromFilePath(p.upload.file.name, "FILE")} />
             </Box>
             <Flex width="100%">{body}</Flex>
         </Flex>

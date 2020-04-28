@@ -9,7 +9,7 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
-import {repositoryName, repositoryTrashFolder, repositoryJobsFolder} from "./ProjectUtilities";
+import {repositoryName} from "./ProjectUtilities";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -191,6 +191,10 @@ export function resolvePath(path: string): string {
     return "/" + result.join("/");
 }
 
+export function pathComponents(path: string): string[] {
+    return resolvePath(path).split("/").filter(it => it !== "");
+}
+
 export const filePreviewQuery = (path: string): string =>
     `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 
@@ -262,21 +266,12 @@ export const isInvalidPathName = ({path, filePaths}: IsInvalidPathname): boolean
 /**
  * Checks if the specific folder is a fixed folder, meaning it can not be removed, renamed, deleted, etc.
  * @param {string} filePath the path of the file to be checked
- * @param {string} homeFolder the path for the homefolder of the current user
  */
-export const isFixedFolder = (filePath: string, homeFolder: string, client: HttpClient): boolean => {
-    const fixedFolders = [ // homeFolder contains trailing slash
-        `${homeFolder}Favorites`,
-        `${homeFolder}Jobs`,
-        `${homeFolder}Trash`,
-    ];
-
-    if (repositoryName(filePath)) {
-        fixedFolders.push(repositoryTrashFolder(filePath, client));
-        fixedFolders.push(repositoryJobsFolder(filePath, client));
-    }
-
-    return fixedFolders.some(it => UF.removeTrailingSlash(it) === filePath);
+export const isFixedFolder = (filePath: string): boolean => {
+    if (isTrashFolder(filePath)) return true;
+    else if (isJobsFolder(filePath)) return true;
+    else if (isTrashFolder(filePath)) return true;
+    else return false;
 };
 
 interface ReclassifyFile {
@@ -549,19 +544,12 @@ export async function createFolder({path, client, onSuccess}: CreateFolder): Pro
     }
 }
 
-export function inTrashDir(path: string, client: HttpClient): boolean {
-    const repoName = repositoryName(path);
-    const parentPath = getParentPath(path);
-    if (!repoName) return parentPath === client.trashFolder;
-    return parentPath === repositoryTrashFolder(path, client);
-}
-
 export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);
 }
 
 export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
-    return files.some(it => isFixedFolder(it.path, client.homeFolder, client));
+    return files.some(it => isFixedFolder(it.path));
 }
 
 export function isFilePreviewSupported(f: File): boolean {
@@ -576,3 +564,35 @@ export const fileTablePage = (path: string): string => `/files?path=${encodeURIC
 
 export const archiveExtensions: string[] = [".tar.gz", ".zip"];
 export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
+
+export function isTrashFolder(path: string): boolean {
+    const resolvedPath = resolvePath(path);
+    if (Client.trashFolder === resolvedPath) return true;
+    const components = pathComponents(path);
+    return components.length === 5 &&
+        components[0] === "projects" &&
+        components[2] === "Personal" &&
+        components[3] === Client.username &&
+        components[4] === "Trash";
+}
+
+export function isJobsFolder(path: string): boolean {
+    const resolvedPath = resolvePath(path);
+    if (resolvePath(Client.homeFolder + "/Jobs") === resolvedPath) return true;
+    const components = pathComponents(path);
+    return components.length === 5 &&
+        components[0] === "projects" &&
+        components[2] === "Personal" &&
+        components[3] === Client.username &&
+        components[4] === "Jobs";
+}
+
+export function isSharesFolder(path: string): boolean {
+    const resolvedPath = resolvePath(path);
+    return resolvePath(Client.homeFolder + "/Shares") === resolvedPath;
+}
+
+export function isFavoritesFolder(path: string): boolean {
+    const resolvedPath = resolvePath(path);
+    return resolvePath(Client.homeFolder + "/Favorites") === resolvedPath;
+}

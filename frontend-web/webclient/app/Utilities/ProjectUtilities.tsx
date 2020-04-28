@@ -14,22 +14,19 @@ import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Spacer} from "ui-components/Spacer";
 import {ProjectRole} from "Project";
+import {pathComponents, resolvePath} from "Utilities/FileUtilities";
+import {Client} from "Authentication/HttpClientInstance";
 
 export function repositoryName(path: string): string {
-    if (!path.startsWith("/projects/")) return "";
-    return path.split("/").filter(it => it)[2];
+    const components = pathComponents(path);
+    if (components.length < 3) return "";
+    if (components[0] !== "projects") return "";
+    return components[2];
 }
 
-export function repositoryTrashFolder(path: string, client: HttpClient): string {
-    const repo = repositoryName(path);
-    if (!repo) return "";
-    return `${client.currentProjectFolder}${repo}/Trash`;
-}
-
-export function repositoryJobsFolder(path: string, client: HttpClient): string {
-    const repo = repositoryName(path);
-    if (!repo) return "";
-    return `${client.currentProjectFolder}${repo}/Jobs`;
+export function isRepository(path: string): boolean {
+    const components = pathComponents(path);
+    return (components.length === 3 && components[0] === "projects");
 }
 
 export async function createRepository(client: HttpClient, name: string, reload: () => void): Promise<void> {
