@@ -1,0 +1,7 @@
+---
+name: project-favorite
+
+namespaces:
+- project.favorite
+
+dependencies: []
