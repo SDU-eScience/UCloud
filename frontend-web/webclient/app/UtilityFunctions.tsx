@@ -1,4 +1,4 @@
-import {Client as currentClient} from "Authentication/HttpClientInstance";
+import {Client, Client as currentClient} from "Authentication/HttpClientInstance";
 import {SensitivityLevel} from "DefaultObjects";
 import {Acl, File, FileType, SortBy, UserEntity} from "Files";
 import {SnackType} from "Snackbar/Snackbars";

@@ -550,33 +550,30 @@ export const archiveExtensions: string[] = [".tar.gz", ".zip"];
 export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 
 export function isTrashFolder(path: string): boolean {
-    const resolvedPath = resolvePath(path);
-    if (Client.trashFolder === resolvedPath) return true;
     const components = pathComponents(path);
-    return components.length === 5 &&
+    if (components.length === 3 && components[0] === "home" && components[2] === "Trash") return true;
+    else return components.length === 5 &&
         components[0] === "projects" &&
         components[2] === "Personal" &&
-        components[3] === Client.username &&
         components[4] === "Trash";
 }
 
 export function isJobsFolder(path: string): boolean {
-    const resolvedPath = resolvePath(path);
-    if (resolvePath(Client.homeFolder + "/Jobs") === resolvedPath) return true;
     const components = pathComponents(path);
-    return components.length === 5 &&
+
+    if (components.length === 3 && components[0] === "home" && components[2] === "Jobs") return true;
+    else return components.length === 5 &&
         components[0] === "projects" &&
         components[2] === "Personal" &&
-        components[3] === Client.username &&
         components[4] === "Jobs";
 }
 
 export function isSharesFolder(path: string): boolean {
-    const resolvedPath = resolvePath(path);
-    return resolvePath(Client.homeFolder + "/Shares") === resolvedPath;
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "home" && components[2] === "Shares";
 }
 
 export function isFavoritesFolder(path: string): boolean {
-    const resolvedPath = resolvePath(path);
-    return resolvePath(Client.homeFolder + "/Favorites") === resolvedPath;
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "home" && components[2] === "Favorites";
 }

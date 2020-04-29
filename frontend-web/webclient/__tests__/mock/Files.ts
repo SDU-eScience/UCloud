@@ -1,6 +1,6 @@
 import {SensitivityLevelMap} from "../../app/DefaultObjects";
 import {File, FileType} from "../../app/Files";
-import {Page} from "../../app/Types";
+import {AccessRight, Page} from "../../app/Types";
 
 export const mockFilesSensitivityConfidential: Page<File> = {
     itemsInTotal: 12,
@@ -14,7 +14,6 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             ownerName: "user@user.telecity",
             size: 3794,
             acl: [],
-            favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.SENSITIVE,
             permissionAlert: null
@@ -24,8 +23,7 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             modifiedAt: 1534858191000,
             ownerName: "user@user.telecity",
             size: 1,
-            acl: [{entity: {username: "user3@test.dk"}, rights: ["WRITE", "EXECUTE"], group: false}],
-            favorited: true,
+            acl: [{entity: {username: "user3@test.dk"}, rights: [AccessRight.WRITE]}],
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.SENSITIVE,
             permissionAlert: null
@@ -36,7 +34,6 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             ownerName: "user@user.telecity",
             size: 6,
             acl: [],
-            favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             permissionAlert: null
@@ -47,7 +44,6 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             ownerName: "user@user.telecity",
             size: 78,
             acl: [],
-            favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             permissionAlert: null
@@ -58,7 +54,6 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             ownerName: "user@user.telecity",
             size: 1,
             acl: [],
-            favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             permissionAlert: null
@@ -69,7 +64,6 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             ownerName: "user@user.telecity",
             size: 3,
             acl: [],
-            favorited: true,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             permissionAlert: null
@@ -80,7 +74,6 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             ownerName: "user@user.telecity",
             size: 0,
             acl: [],
-            favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             permissionAlert: null
@@ -91,7 +84,6 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             ownerName: "user@user.telecity",
             size: 0,
             acl: [],
-            favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             permissionAlert: null
@@ -102,7 +94,6 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             ownerName: "user@user.telecity",
             size: 0,
             acl: [],
-            favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             permissionAlert: null
@@ -113,7 +104,6 @@ export const mockFilesSensitivityConfidential: Page<File> = {
             ownerName: "user@user.telecity",
             size: 0,
             acl: [],
-            favorited: false,
             sensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             ownSensitivityLevel: SensitivityLevelMap.CONFIDENTIAL,
             permissionAlert: null
@@ -138,7 +128,6 @@ export const newMockFile = ({
     acl,
     ownSensitivityLevel: sensitivityLevel,
     ownerName,
-    favorited,
     sensitivityLevel,
     permissionAlert: null
 });
