@@ -60,6 +60,9 @@ data class ListGroupMembersRequest(
 
 typealias ListGroupMembersResponse = Page<String>
 
+data class ListAllMembersRequest(val group: String)
+typealias ListAllMembersResponse = List<String>
+
 data class IsMemberQuery(val project: String, val group: String, val username: String)
 data class IsMemberRequest(val queries: List<IsMemberQuery>)
 data class IsMemberResponse(val responses: List<Boolean>)
@@ -204,6 +207,23 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
                 }
             }
         }
+
+    val listAllGroupMembers = call<ListAllMembersRequest, ListAllMembersResponse, CommonErrorMessage>("listAllGroupMembers") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            path {
+                using(baseContext)
+                +"allMembers"
+            }
+
+            params {
+                +boundTo(ListAllMembersRequest::group)
+            }
+        }
+    }
 
     val isMember = call<IsMemberRequest, IsMemberResponse, CommonErrorMessage>("isMember") {
         auth {

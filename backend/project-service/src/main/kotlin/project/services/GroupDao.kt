@@ -181,6 +181,29 @@ class GroupDao {
         return Page(count, pagination.itemsPerPage, pagination.page, items)
     }
 
+    suspend fun listAllGroupMembers(
+        session: AsyncDBConnection,
+        project: String,
+        group: String
+    ): List<String> {
+        return session
+            .sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("group", group)
+                },
+                """
+                    select username
+                    from group_members
+                    where
+                        project = ?project and 
+                        (?group = '' or the_group = ?group)
+                """
+            )
+            .rows
+            .map { it.getField(GroupMembershipTable.username) }
+    }
+
     suspend fun listGroupsForUser(
         session: AsyncDBConnection,
         pagination: NormalizedPaginationRequest?,

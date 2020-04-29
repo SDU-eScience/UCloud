@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.api.GroupExistsResponse
 import dk.sdu.cloud.project.api.IsMemberResponse
+import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectGroups
 import dk.sdu.cloud.project.services.GroupService
 import dk.sdu.cloud.service.Controller
@@ -66,6 +67,17 @@ class GroupController(private val groupService: GroupService) : Controller {
                     request.group,
                     request.normalize()
                 ).mapItems { it.username }
+            )
+        }
+
+        implement(ProjectGroups.listAllGroupMembers) {
+            val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
+            ok(
+                groupService.listAllGroupMembers(
+                    ctx.securityPrincipal,
+                    project,
+                    request.group
+                )
             )
         }
 

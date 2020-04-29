@@ -124,6 +124,17 @@ class GroupService(
         }
     }
 
+    suspend fun listAllGroupMembers(
+        principal: SecurityPrincipal,
+        projectId: String,
+        group: String
+    ): List<String> {
+        db.withTransaction { session ->
+            projects.findRoleOfMember(session, projectId, principal.username)?.isAdmin() ?: throw ProjectException.Unauthorized()
+            return groups.listAllGroupMembers(session, projectId, group)
+        }
+    }
+
     suspend fun updateGroupName(
         principal: SecurityPrincipal,
         projectId: String,
