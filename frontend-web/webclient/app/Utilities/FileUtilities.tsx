@@ -577,3 +577,9 @@ export function isFavoritesFolder(path: string): boolean {
     const components = pathComponents(path);
     return components.length === 3 && components[0] === "home" && components[2] === "Favorites";
 }
+
+export function isProjectHome(path: string): boolean {
+    const components = pathComponents(path);
+    if (components.length === 3 && components[0] === "home" && components[2] === "Project") return true;
+    return components.length === 2 && components[0] === "projects";
+}
