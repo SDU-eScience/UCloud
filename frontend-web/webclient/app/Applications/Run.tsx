@@ -6,7 +6,7 @@ import {callAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
-import {File as CloudFile, FileResource, SortBy, SortOrder} from "Files";
+import {File as CloudFile, SortBy, SortOrder} from "Files";
 import FileSelector from "Files/FileSelector";
 import {listDirectory} from "Files/LowLevelFileTable";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
@@ -449,7 +449,6 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 path: Client.homeFolder + `Jobs/${this.state.application.metadata.title}`,
                 page: 0,
                 itemsPerPage: 25,
-                attrs: [FileResource.PATH],
                 order: SortOrder.DESCENDING,
                 sortBy: SortBy.MODIFIED_AT
             }));

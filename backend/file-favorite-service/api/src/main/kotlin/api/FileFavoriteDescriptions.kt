@@ -28,16 +28,15 @@ data class ToggleFavoriteAudit(
 
 data class ToggleFavoriteFileAudit(
     val path: String,
-    var fileId: String? = null,
     var newStatus: Boolean? = null
 )
 
 data class FavoriteStatusRequest(
-    val files: List<StorageFile>
+    val files: List<String>
 )
 
 /**
- * Contains a mapping between [StorageFile.fileId] and their [FavoriteStatus]
+ * Contains a mapping between [StorageFile.pathOrNull] and their favorite status
  */
 data class FavoriteStatusResponse(
     val favorited: Map<String, Boolean>
@@ -70,7 +69,7 @@ object FileFavoriteDescriptions : CallDescriptionContainer("${FileDescriptions.n
             }
         }
 
-    val favoriteStatus = call<FavoriteStatusRequest, FavoriteStatusResponse, CommonErrorMessage>("favoriteStatus") {
+    val favoriteStatus = call<FavoriteStatusRequest, FavoriteStatusResponse, CommonErrorMessage>("favoriteStatus.2") {
         auth {
             access = AccessRight.READ
         }
@@ -87,7 +86,7 @@ object FileFavoriteDescriptions : CallDescriptionContainer("${FileDescriptions.n
         }
     }
 
-    val list = call<ListRequest, ListResponse, CommonErrorMessage>("list") {
+    val list = call<ListRequest, ListResponse, CommonErrorMessage>("list.2") {
         auth {
             access = AccessRight.READ
         }

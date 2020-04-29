@@ -21,7 +21,6 @@ import {dateToString} from "Utilities/DateUtilities";
 import {
     directorySizeQuery,
     expandHomeOrProjectFolder,
-    favoriteFile,
     fileTablePage,
     reclassifyFile,
     sizeToString,
@@ -33,6 +32,8 @@ import {capitalized, removeTrailingSlash, errorMessageOrDefault} from "UtilityFu
 import FilePreview from "./FilePreview";
 import {fetchFileActivity, setLoading} from "./Redux/FileInfoActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {useFavoriteStatus} from "Files/favorite";
+import {useCallback} from "react";
 
 interface FileInfoOperations {
     updatePageTitle: () => void;
@@ -71,8 +72,7 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
                         <BreadCrumbs
                             currentPath={file.path}
                             navigate={p => props.history.push(fileTablePage(expandHomeOrProjectFolder(p, Client)))}
-                            homeFolder={Client.homeFolder}
-                            projectFolder={Client.projectFolder}
+                            client={Client}
                         />
                     </Flex>
                     <Heading.h5 color="gray">{capitalized(file.fileType)}</Heading.h5>
@@ -157,8 +157,12 @@ interface FileViewProps {
 }
 
 function FileView({file}: FileViewProps): JSX.Element | null {
-    const [favorite, setFavorite] = React.useState(file.favorited);
+    const favorites = useFavoriteStatus();
     const [sensitivity, setSensitivity] = React.useState(file.ownSensitivityLevel);
+    const toggleFavorite = useCallback(() => {
+        favorites.toggle(file.path);
+    }, [file.path]);
+    const favorite = favorites.cache[file.path] ?? false;
 
     return !file ? null : (
         <Flex flexDirection="row" justifyContent="center" flexWrap="wrap">
@@ -191,15 +195,6 @@ function FileView({file}: FileViewProps): JSX.Element | null {
             </AttributeBox>
         </Flex>
     );
-
-    async function toggleFavorite(): Promise<void> {
-        try {
-            await favoriteFile(file, Client);
-            setFavorite(fav => !fav);
-        } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to toggle favorite status."));
-        }
-    }
 
     async function changeSensitivity(val: SensitivityLevelMap): Promise<void> {
         try {

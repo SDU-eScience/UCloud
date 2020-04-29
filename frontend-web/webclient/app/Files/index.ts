@@ -1,7 +1,7 @@
 import {SensitivityLevelMap} from "DefaultObjects";
 import * as React from "react";
-import {Operation, PredicatedOperation} from "Types";
 import {Times} from "./Redux/DetailedFileSearchActions";
+import {AccessRight} from "Types";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -24,7 +24,6 @@ export interface File {
     ownerName: string | null;
     size: number | null;
     acl: Acl[] | null;
-    favorited: boolean | null;
     sensitivityLevel: SensitivityLevelMap | null;
     ownSensitivityLevel: SensitivityLevelMap | null;
     mockTag?: string;
@@ -43,11 +42,9 @@ export interface ProjectEntity {
 
 export interface Acl {
     entity: ProjectEntity | UserEntity | string;
-    rights: string[];
-    group: boolean;
+    rights: AccessRight[];
 }
 
-// FIXME: SortBy is subset of {FileResource}
 export enum SortBy {
     FILE_TYPE = "fileType",
     PATH = "path",
@@ -55,18 +52,6 @@ export enum SortBy {
     SIZE = "size",
     ACL = "acl",
     SENSITIVITY_LEVEL = "sensitivityLevel",
-}
-
-export enum FileResource {
-    FAVORITED = "favorited",
-    FILE_TYPE = "fileType",
-    PATH = "path",
-    MODIFIED_AT = "modifiedAt",
-    OWNER_NAME = "ownerName",
-    SIZE = "size",
-    ACL = "acl",
-    SENSITIVITY_LEVEL = "sensitivityLevel",
-    OWN_SENSITIVITY_LEVEL = "ownSensitivityLevel",
 }
 
 export interface FileSelectorProps {
@@ -78,29 +63,6 @@ export interface FileSelectorProps {
     visible: boolean;
     disallowedPaths?: string[];
 }
-
-export interface FileOptionsProps {
-    files: File[];
-    fileOperations: FileOperation[];
-}
-
-export interface SortByDropdownProps {
-    currentSelection: SortBy;
-    sortOrder: SortOrder;
-    onSelect: (sortorder: SortOrder, s: SortBy) => void;
-    asDropdown: boolean;
-    isSortedBy: boolean;
-}
-
-export type FileOperation = Operation<File> | PredicatedOperation<File>;
-
-export interface ContextButtonsProps {
-    createFolder: () => void;
-    showUploader: () => void;
-    inTrashFolder: boolean;
-    toHome: () => void;
-}
-
 
 export interface DetailedFileSearchOperations {
     toggleHidden: () => void;

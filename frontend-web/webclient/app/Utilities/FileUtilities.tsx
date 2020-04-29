@@ -1,16 +1,14 @@
 import {Client} from "Authentication/HttpClientInstance";
 import HttpClient from "Authentication/lib";
 import {SensitivityLevelMap} from "DefaultObjects";
-import {File, FileResource, FileType, UserEntity} from "Files";
+import {File, FileType, UserEntity} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page} from "Types";
 import {UploadPolicy} from "Uploader/api";
 import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
-import {repositoryName, repositoryTrashFolder, repositoryJobsFolder} from "./ProjectUtilities";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -156,74 +154,6 @@ export const checkIfFileExists = async (path: string, client: HttpClient): Promi
     }
 };
 
-export type AccessRight = "READ" | "WRITE";
-
-function hasAccess(accessRight: AccessRight, file: File): boolean {
-    const username = Client.activeUsername;
-    if (file.ownerName === username) return true;
-    if (file.acl === null) return true; // If ACL is null, we are still fetching the ACL
-
-    const withoutProjectAcls = file.acl.filter(it => typeof it.entity === "string" || "username" in it.entity);
-    const relevantEntries = withoutProjectAcls.filter(item => !item.group && (item.entity as UserEntity).username === username);
-    return relevantEntries.some(entry => entry.rights.includes(accessRight));
-}
-
-export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]): boolean =>
-    files.every(f => hasAccess(accessRight, f));
-
-export function mergeFilePages(
-    basePage: Page<File>,
-    additionalPage: Page<File>,
-    attributesToCopy: FileResource[]
-): Page<File> {
-    const items = basePage.items.map(base => {
-        const additionalFile = additionalPage.items.find(it => it.path === base.path);
-        if (additionalFile !== undefined) {
-            return mergeFile(base, additionalFile, attributesToCopy);
-        } else {
-            return base;
-        }
-    });
-
-    return {...basePage, items};
-}
-
-export function mergeFile(base: File, additional: File, attributesToCopy: FileResource[]): File {
-    const result: File = {...base};
-    attributesToCopy.forEach(attr => {
-        switch (attr) {
-            case FileResource.FAVORITED:
-                result.favorited = additional.favorited;
-                break;
-            case FileResource.FILE_TYPE:
-                result.fileType = additional.fileType;
-                break;
-            case FileResource.PATH:
-                result.path = additional.path;
-                break;
-            case FileResource.MODIFIED_AT:
-                result.modifiedAt = additional.modifiedAt;
-                break;
-            case FileResource.OWNER_NAME:
-                result.ownerName = additional.ownerName;
-                break;
-            case FileResource.SIZE:
-                result.size = additional.size;
-                break;
-            case FileResource.ACL:
-                result.acl = additional.acl;
-                break;
-            case FileResource.SENSITIVITY_LEVEL:
-                result.sensitivityLevel = additional.sensitivityLevel;
-                break;
-            case FileResource.OWN_SENSITIVITY_LEVEL:
-                result.ownSensitivityLevel = additional.ownSensitivityLevel;
-                break;
-        }
-    });
-    return result;
-}
-
 /**
  * Used for resolving paths, which contain either "." or "..", and returning the resolved path.
  * @param path The current input path, which can include relative paths
@@ -245,12 +175,14 @@ export function resolvePath(path: string): string {
     return "/" + result.join("/");
 }
 
+export function pathComponents(path: string): string[] {
+    return resolvePath(path).split("/").filter(it => it !== "");
+}
+
 export const filePreviewQuery = (path: string): string =>
     `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 
 export const advancedFileSearch = "/file-search/advanced";
-
-export const recentFilesQuery = "/files/stats/recent";
 
 export function moveFileQuery(path: string, newPath: string, policy?: UploadPolicy): string {
     let query = `/files/move?path=${encodeURIComponent(resolvePath(path))}&newPath=${encodeURIComponent(newPath)}`;
@@ -265,8 +197,6 @@ export function copyFileQuery(path: string, newPath: string, policy: UploadPolic
 }
 
 export const statFileQuery = (path: string): string => `/files/stat?path=${encodeURIComponent(path)}`;
-export const favoritesQuery = (page: number = 0, itemsPerPage: number = 25): string =>
-    `/files/favorite?page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const MOCK_RENAME_TAG = "rename";
 export const MOCK_REPO_CREATE_TAG = "repo_create";
@@ -282,7 +212,6 @@ export function mockFile(props: {path: string; type: FileType; fileId?: string; 
         modifiedAt: new Date().getTime(),
         size: 0,
         acl: [],
-        favorited: false,
         sensitivityLevel: SensitivityLevelMap.PRIVATE,
         ownSensitivityLevel: null,
         mockTag: props.tag,
@@ -321,40 +250,13 @@ export const isInvalidPathName = ({path, filePaths}: IsInvalidPathname): boolean
 /**
  * Checks if the specific folder is a fixed folder, meaning it can not be removed, renamed, deleted, etc.
  * @param {string} filePath the path of the file to be checked
- * @param {string} homeFolder the path for the homefolder of the current user
  */
-export const isFixedFolder = (filePath: string, homeFolder: string, client: HttpClient): boolean => {
-    const fixedFolders = [ // homeFolder contains trailing slash
-        `${homeFolder}Favorites`,
-        `${homeFolder}Jobs`,
-        `${homeFolder}Trash`,
-    ];
-
-    if (repositoryName(filePath)) {
-        fixedFolders.push(repositoryTrashFolder(filePath, client));
-        fixedFolders.push(repositoryJobsFolder(filePath, client));
-    }
-
-    return fixedFolders.some(it => UF.removeTrailingSlash(it) === filePath);
+export const isFixedFolder = (filePath: string): boolean => {
+    if (isTrashFolder(filePath)) return true;
+    else if (isJobsFolder(filePath)) return true;
+    else if (isTrashFolder(filePath)) return true;
+    else return false;
 };
-
-/**
- * Used to favorite/defavorite a file based on its current state.
- * @param {File} file The single file to be favorited
- * @param {HttpClient} client The client instance used to changed the favorite state for the file
- */
-export const favoriteFile = async (file: File, client: HttpClient): Promise<File> => {
-    try {
-        await client.post(favoriteFileQuery(file.path), {});
-    } catch (e) {
-        UF.errorMessageOrDefault(e, "An error occurred favoriting file.");
-        throw e;
-    }
-    file.favorited = !file.favorited;
-    return file;
-};
-
-const favoriteFileQuery = (path: string): string => `/files/favorite/toggle?path=${encodeURIComponent(path)}`;
 
 interface ReclassifyFile {
     file: File;
@@ -626,19 +528,12 @@ export async function createFolder({path, client, onSuccess}: CreateFolder): Pro
     }
 }
 
-export function inTrashDir(path: string, client: HttpClient): boolean {
-    const repoName = repositoryName(path);
-    const parentPath = getParentPath(path);
-    if (!repoName) return parentPath === client.trashFolder;
-    return parentPath === repositoryTrashFolder(path, client);
-}
-
 export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);
 }
 
 export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
-    return files.some(it => isFixedFolder(it.path, client.homeFolder, client));
+    return files.some(it => isFixedFolder(it.path));
 }
 
 export function isFilePreviewSupported(f: File): boolean {
@@ -653,3 +548,32 @@ export const fileTablePage = (path: string): string => `/files?path=${encodeURIC
 
 export const archiveExtensions: string[] = [".tar.gz", ".zip"];
 export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
+
+export function isTrashFolder(path: string): boolean {
+    const components = pathComponents(path);
+    if (components.length === 3 && components[0] === "home" && components[2] === "Trash") return true;
+    else return components.length === 5 &&
+        components[0] === "projects" &&
+        components[2] === "Personal" &&
+        components[4] === "Trash";
+}
+
+export function isJobsFolder(path: string): boolean {
+    const components = pathComponents(path);
+
+    if (components.length === 3 && components[0] === "home" && components[2] === "Jobs") return true;
+    else return components.length === 5 &&
+        components[0] === "projects" &&
+        components[2] === "Personal" &&
+        components[4] === "Jobs";
+}
+
+export function isSharesFolder(path: string): boolean {
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "home" && components[2] === "Shares";
+}
+
+export function isFavoritesFolder(path: string): boolean {
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "home" && components[2] === "Favorites";
+}

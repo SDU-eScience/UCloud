@@ -19,7 +19,6 @@ import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.StorageFileAttribute
 import dk.sdu.cloud.file.api.UpdateMetadataRequest
 import dk.sdu.cloud.file.api.normalize
-import dk.sdu.cloud.file.api.path
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -96,16 +95,16 @@ class FileFavoriteService(
         return failures
     }
 
-    suspend fun getFavoriteStatus(files: List<StorageFile>, user: SecurityPrincipalToken): Map<String, Boolean> {
+    suspend fun getFavoriteStatus(files: List<String>, user: SecurityPrincipalToken): Map<String, Boolean> {
         val allMetadata = MetadataDescriptions.findMetadata.call(
             FindMetadataRequest(null, FAVORITE_METADATA_TYPE, user.principal.username),
             serviceClient
         ).orThrow()
 
-        val filesSet = files.map { it.path.normalize() }.toSet()
+        val filesSet = files.map { it.normalize() }.toSet()
 
         val result = HashMap<String, Boolean>()
-        files.forEach { result[it.path.normalize()] = false }
+        files.forEach { result[it.normalize()] = false }
 
         allMetadata.metadata
             .asSequence()

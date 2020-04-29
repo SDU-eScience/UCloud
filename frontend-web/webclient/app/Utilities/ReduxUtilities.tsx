@@ -21,6 +21,7 @@ import simpleSearch from "Search/Redux/SearchReducer";
 import {responsiveBP} from "ui-components/theme";
 import uploader from "Uploader/Redux/UploaderReducer";
 import avatar from "UserSettings/Redux/AvataaarReducer";
+import hookStore from "Utilities/ReduxHooks";
 
 export function configureStore(
     initialObject: ReduxObject,
@@ -56,6 +57,7 @@ export const store = configureStore(initObject(), {
     detailedFileSearch,
     detailedApplicationSearch,
     fileInfo,
+    hookStore,
     ...AppRedux.reducers,
     ...AccountingRedux.reducers,
     avatar,

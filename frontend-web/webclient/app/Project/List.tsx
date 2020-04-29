@@ -2,13 +2,13 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {emptyPage, ReduxObject, KeyCode} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
-import {listProjects, ListProjectsRequest, UserInProject, ProjectRole, Project} from "Project/index";
+import {listProjects, ListProjectsRequest, UserInProject, ProjectRole} from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page, Operation} from "Types";
 import Button from "ui-components/Button";
-import {Flex, Icon, List, Text, Input, Box, Truncate} from "ui-components";
+import {Flex, Icon, List, Text, Input, Box} from "ui-components";
 import Link from "ui-components/Link";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
@@ -19,12 +19,13 @@ import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {projectRoleToString} from "Project/api";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {isAdminOrPI, toggleFavoriteProject} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
-import {errorMessageOrDefault, preventDefault, stopPropagation} from "UtilityFunctions";
+import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
 import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {ThemeColor} from "ui-components/theme";
+import {usePromiseKeeper} from "PromiseKeeper";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -32,6 +33,22 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         listProjects({page: 0, itemsPerPage: 50}),
         emptyPage
     );
+
+    const promises = usePromiseKeeper();
+    const [favorites, setFavorites] = React.useState<Page<string>>(emptyPage);
+
+    async function fetchFavorites(itemsPerPage: number, page: number): Promise<void> {
+        try {
+            const r = await promises.makeCancelable(Client.post<Page<string>>("/project/favorite/list", {page, itemsPerPage})).promise;
+            setFavorites(r.response);
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed fetching favorites"));
+        }
+    }
+
+    React.useEffect(() => {
+        fetchFavorites(response.data.itemsPerPage, response.data.pageNumber);
+    }, [response.data.items, response.data.pageNumber, response.data.itemsPerPage]);
 
     const [creatingProject, setCreatingProject] = React.useState(false);
     const title = React.useRef<HTMLInputElement>(null);
@@ -43,8 +60,10 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
 
     const history = useHistory();
 
-    const reload = (): void =>
+    const reload = (): void => {
+        fetchFavorites(response.data.itemsPerPage, response.data.pageNumber);
         setFetchParams(listProjects({page: response.data.pageNumber, itemsPerPage: response.data.itemsPerPage}));
+    };
 
     React.useEffect(() => {
         props.setPageTitle();
@@ -130,6 +149,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 /> : null}
                             {page.items.map(e => {
                                 const isActive = e.projectId === props.project;
+                                const isFavorite = favorites.items.findIndex(it => it === e.projectId) !== -1;
                                 return (
                                     <ListRow
                                         key={e.projectId}
@@ -142,9 +162,9 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         icon={<Icon
                                             cursor="pointer"
                                             size="24"
-                                            name={e.needsVerification ? "starFilled" : "starEmpty"}
-                                            color={e.needsVerification ? "blue" : "midGray"}
-                                            onClick={(event): void => {}}
+                                            name={isFavorite ? "starFilled" : "starEmpty"}
+                                            color={isFavorite ? "blue" : "midGray"}
+                                            onClick={() => toggleFavoriteProject(e.projectId, Client, reload)}
                                             hoverColor="blue"
                                         />}
                                         navigate={() => history.push(`/projects/view/${encodeURIComponent(e.projectId)}`)}
@@ -210,7 +230,10 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         </List >
                     )}
                     loading={response.loading}
-                    onPageChanged={newPage => setFetchParams(listProjects({page: newPage, itemsPerPage: 50}))}
+                    onPageChanged={newPage => {
+                        setFetchParams(listProjects({page: newPage, itemsPerPage: response.data.itemsPerPage}));
+                        fetchFavorites(response.data.itemsPerPage, newPage);
+                    }}
                 />
             )}
             sidebar={(<>

@@ -9,27 +9,23 @@ import {dialogStore} from "Dialog/DialogStore";
 import {Box, Button, List} from "ui-components";
 import {useCloudAPI} from "Authentication/DataHook";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
-import {File, Acl, ProjectEntity} from "Files";
+import {Acl, File, ProjectEntity} from "Files";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Spacer} from "ui-components/Spacer";
 import {ProjectRole} from "Project";
+import {pathComponents} from "Utilities/FileUtilities";
 
 export function repositoryName(path: string): string {
-    if (!path.startsWith("/projects/")) return "";
-    return path.split("/").filter(it => it)[2];
+    const components = pathComponents(path);
+    if (components.length < 3) return "";
+    if (components[0] !== "projects") return "";
+    return components[2];
 }
 
-export function repositoryTrashFolder(path: string, client: HttpClient): string {
-    const repo = repositoryName(path);
-    if (!repo) return "";
-    return `${client.currentProjectFolder}${repo}/Trash`;
-}
-
-export function repositoryJobsFolder(path: string, client: HttpClient): string {
-    const repo = repositoryName(path);
-    if (!repo) return "";
-    return `${client.currentProjectFolder}${repo}/Jobs`;
+export function isRepository(path: string): boolean {
+    const components = pathComponents(path);
+    return (components.length === 3 && components[0] === "projects");
 }
 
 export async function createRepository(client: HttpClient, name: string, reload: () => void): Promise<void> {
@@ -133,8 +129,8 @@ export function UpdatePermissionsDialog(props: {client: HttpClient; repository: 
                 {groups.data.map(g => {
                     const acl = newRights.get(g) ?? props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ?? [];
                     let rights = "None";
-                    if (acl.includes("READ")) rights = "Read";
-                    if (acl.includes("WRITE")) rights = "Edit";
+                    if (acl.includes(AccessRight.READ)) rights = "Read";
+                    if (acl.includes(AccessRight.WRITE)) rights = "Edit";
                     return (
                         <ListRow
                             key={g}
@@ -198,4 +194,13 @@ export async function updatePermissions(
 
 export function isAdminOrPI(role: ProjectRole): boolean {
     return [ProjectRole.ADMIN, ProjectRole.PI].includes(role);
+}
+
+export async function toggleFavoriteProject(projectId: string, client: HttpClient, reload: () => void): Promise<void> {
+    try {
+        await client.post("/project/favorite", {projectID: projectId});
+        reload();
+    } catch (err) {
+        snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to toggle favorite"));
+    }
 }

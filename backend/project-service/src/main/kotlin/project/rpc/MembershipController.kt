@@ -1,5 +1,6 @@
 package dk.sdu.cloud.project.rpc
 
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
@@ -14,7 +15,14 @@ class MembershipController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ProjectMembers.userStatus) {
-            ok(members.summarizeMembershipForUser(request.username))
+            val inputUsername = if (ctx.securityPrincipal.role in Roles.PRIVILEDGED) {
+                request.username
+            } else {
+                null
+            }
+
+            val username = inputUsername ?: ctx.securityPrincipal.username
+            ok(members.summarizeMembershipForUser(username))
         }
 
         implement(ProjectMembers.search) {

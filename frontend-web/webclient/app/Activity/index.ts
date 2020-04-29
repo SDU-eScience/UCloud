@@ -1,6 +1,6 @@
 import {ActivityReduxObject} from "DefaultObjects";
 import {ScrollRequest} from "Scroll";
-import {AccessRight} from "Utilities/FileUtilities";
+import {AccessRight} from "Types";
 
 export enum ActivityType {
     DOWNLOAD = "download",

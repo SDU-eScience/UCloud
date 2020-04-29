@@ -337,11 +337,11 @@ export default class HttpClient {
     }
 
     public get projectFolder(): string {
-        return `${this.homeFolder}Projects`;
+        return `${this.homeFolder}Project`;
     }
 
     public get currentProjectFolder(): string {
-        return `/projects/${this.projectId}/`;
+        return `/projects/${this.projectId}`;
     }
 
     public get trashFolder(): string {

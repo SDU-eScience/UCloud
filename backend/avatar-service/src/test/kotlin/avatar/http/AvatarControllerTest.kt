@@ -32,7 +32,7 @@ class AvatarControllerTest {
     val service = mockk<AvatarService<HibernateSession>>()
 
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
-        listOf(AvatarController(service, serviceClient))
+        listOf(AvatarController(service))
     }
 
     @Test

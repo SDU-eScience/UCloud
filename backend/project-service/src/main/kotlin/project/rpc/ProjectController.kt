@@ -17,7 +17,7 @@ class ProjectController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {
-            ok(CreateProjectResponse(service.create(request.title, request.principalInvestigator).id))
+            ok(CreateProjectResponse(service.create(request.title, ctx.securityPrincipal.username).id))
         }
 
         implement(Projects.addMember) {
