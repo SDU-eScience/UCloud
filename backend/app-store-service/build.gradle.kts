@@ -1,4 +1,4 @@
-version = "0.13.0-projects.31"
+version = "0.13.0-projects.38"
 
 application {
     mainClassName = "dk.sdu.cloud.app.store.MainKt"

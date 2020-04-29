@@ -165,22 +165,43 @@ class ApplicationHibernateDAO(
     private fun findAppNamesFromTags(
         session: HibernateSession,
         user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>,
         tags: List<String>
     ): List<String> {
+        println(user.username)
+        println(project)
+        println(memberGroups)
+        println(tags)
+        println(user.role)
+        println(Roles.PRIVILEDGED)
+
         return session.createNativeQuery<TagEntity>(
             """
-            select T.application_name, T.tag, T.id from {h-schema}application_tags as T
-            where T.tag in (:tags)
-                and (
-                    exists (
-                        select A.is_public from {h-schema}applications as A where A.name = T.application_name and A.is_public = true
-                    ) or exists (
-                        select P.username, P.project, P.project_group from {h-schema}permissions as P where P.application_name = T.application_name and P.username = :user
-                    ) or :role in (:privileged)
+            select T.application_name, T.tag, T.id from {h-schema}application_tags as T, {h-schema}applications as A
+            where T.application_name = A.name and T.tag in (:tags) and (
+                (
+                    A.is_public = TRUE
+                ) or (
+                    :project is null and :user in (
+                        select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
+                    )
+                ) or (
+                    :project is not null and exists (
+                        select P2.project_group from {h-schema}permissions as P2 where
+                            P2.application_name = A.name and
+                                P2.project = :project and
+                                P2.project_group in (:groups)
+                    )
+                ) or (
+                    :role in (:privileged)
                 )
+            ) 
             """.trimIndent(), TagEntity::class.java
         )
             .setParameter("user", user.username)
+            .setParameter("project", project)
+            .setParameterList("groups", memberGroups)
             .setParameterList("tags", tags)
             .setParameter("role", user.role)
             .setParameterList("privileged", Roles.PRIVILEDGED)
@@ -194,8 +215,6 @@ class ApplicationHibernateDAO(
         memberGroups: List<String>,
         applicationNames: List<String>
     ): Pair<Query<ApplicationEntity>, Int> {
-        val groups = if (memberGroups.isEmpty()) { listOf("") } else { memberGroups }
-
         val itemsInTotal = session.createNativeQuery<Long>(
             """
             select count (A.title)
@@ -210,11 +229,11 @@ class ApplicationHibernateDAO(
                     A.is_public = TRUE
                 ) or (
                     :project is null and :user in (
-                        select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                        select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                     )
                 ) or (
                     :project is not null and exists (
-                        select P2.project_group from app_store.permissions as P2 where
+                        select P2.project_group from {h-schema}permissions as P2 where
                             P2.application_name = A.name and
                                 P2.project = :project and
                                 P2.project_group in (:groups)
@@ -224,10 +243,10 @@ class ApplicationHibernateDAO(
                 ) 
             )
             """.trimIndent(), Long::class.java
-        ).setParameter("applications", applicationNames)
+        ).setParameterList("applications", applicationNames)
             .setParameter("user", user.username)
             .setParameter("project", project)
-            .setParameterList("groups", groups)
+            .setParameterList("groups", memberGroups)
             .setParameter("role", user.role)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .uniqueResult()
@@ -247,11 +266,11 @@ class ApplicationHibernateDAO(
                         A.is_public = TRUE
                     ) or (
                         :project is null and :user in (
-                            select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                            select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                         )
                     ) or (
                         :project is not null and exists (
-                            select P2.project_group from app_store.permissions as P2 where
+                            select P2.project_group from {h-schema}permissions as P2 where
                                 P2.application_name = A.name and
                                 P2.project = :project and
                                 P2.project_group in (:groups)
@@ -262,10 +281,10 @@ class ApplicationHibernateDAO(
                 )
                 order by A.title
             """.trimIndent(), ApplicationEntity::class.java)
-                .setParameter("applications", applicationNames)
+                .setParameterList("applications", applicationNames)
                 .setParameter("user", user.username)
                 .setParameter("project", project)
-                .setParameterList("groups", groups)
+                .setParameterList("groups", memberGroups)
                 .setParameter("role", user.role)
                 .setParameterList("privileged", Roles.PRIVILEDGED)
             , itemsInTotal
@@ -281,8 +300,15 @@ class ApplicationHibernateDAO(
         tags: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
+        val groups = if (memberGroups.isEmpty()) {
+            listOf("")
+        } else {
+            memberGroups
+        }
 
-        val applications = findAppNamesFromTags(session, user, tags)
+        println("Finding app-names from tags")
+        val applications = findAppNamesFromTags(session, user, project, groups, tags)
+        println("$applications")
 
         if (applications.isEmpty()) {
             return preparePageForUser(
@@ -297,7 +323,9 @@ class ApplicationHibernateDAO(
             ).mapItems { it.withoutInvocation() }
         }
 
-        val (apps, itemsInTotal) = findAppsFromAppNames(session, user, project, memberGroups, applications)
+        println("Finding applications from app names")
+        val (apps, itemsInTotal) = findAppsFromAppNames(session, user, project, groups, applications)
+
         val items = apps.paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
@@ -484,11 +512,11 @@ class ApplicationHibernateDAO(
                         A.is_public = TRUE
                     ) or (
                         :project is null and :user in (
-                            select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                            select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                         )
                     ) or (
                         :project is not null and exists (
-                            select P2.project_group from app_store.permissions as P2 where
+                            select P2.project_group from {h-schema}permissions as P2 where
                                 P2.application_name = A.name and
                                 P2.project = :project and
                                 P2.project_group in (:groups)
@@ -519,11 +547,11 @@ class ApplicationHibernateDAO(
                        A.is_public = TRUE
                    ) or (
                        :project is null and :user in (
-                           select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                           select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                        )
                    ) or (
                        :project is not null and exists (
-                           select P2.project_group from app_store.permissions as P2 where
+                           select P2.project_group from {h-schema}permissions as P2 where
                                P2.application_name = A.name and
                                P2.project = :project and
                                P2.project_group in (:groups)
