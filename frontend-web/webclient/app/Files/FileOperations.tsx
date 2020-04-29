@@ -9,7 +9,6 @@ import {Upload} from "Uploader";
 import {UploadPolicy} from "Uploader/api";
 import {newUpload} from "Uploader/Uploader";
 import {
-    allFilesHasAccessRight,
     clearTrash,
     CopyOrMove,
     copyOrMoveFilesNew,
@@ -31,13 +30,11 @@ import {
 import {addStandardDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
-import {
-    promptDeleteRepository,
-    updatePermissionsPrompt,
-    repositoryName
-} from "Utilities/ProjectUtilities";
+import {promptDeleteRepository, repositoryName, updatePermissionsPrompt} from "Utilities/ProjectUtilities";
+import {FilePermissions} from "Files/permissions";
 
 export interface FileOperationCallback {
+    permissions: FilePermissions;
     invokeAsyncWork: (fn: () => Promise<void>) => void;
     requestFolderCreation: () => void;
     requestReload: () => void;
@@ -51,7 +48,7 @@ export interface FileOperationCallback {
 export interface FileOperation {
     text: string;
     onClick: (selectedFiles: File[], cb: FileOperationCallback) => void;
-    disabled: (selectedFiles: File[]) => boolean;
+    disabled: (selectedFiles: File[], cb: FileOperationCallback) => boolean;
     icon?: IconName;
     color?: string;
     outline?: boolean;
@@ -87,8 +84,12 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Rename",
         onClick: (files, cb) => cb.startRenaming(files[0]),
-        disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files) ||
-            isAnyMockFile(files) || isAnyFixedFolder(files, Client),
+        disabled: (files, cb) => {
+            if (files.length !== 1) return true;
+            else if (isAnyMockFile(files)) return true;
+            else if (isAnyFixedFolder(files, Client)) return true;
+            else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
+        },
         icon: "rename"
     },
     {
@@ -111,30 +112,43 @@ export const defaultFileOperations: FileOperation[] = [
 
             input.click();
         },
-        disabled: (files) => files.length !== 1 || !allFilesHasAccessRight("WRITE", files) ||
-            files[0].fileType !== "FILE" || isAnyMockFile(files),
+        disabled: (files, cb) => {
+            if (files.length !== 1) return true;
+            else if (files[0].fileType !== "FILE") return true;
+            else if (isAnyMockFile(files)) return true;
+            else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
+        },
         icon: "upload"
     },
     {
         text: "Download",
         onClick: files => downloadFiles(files, Client),
-        disabled: files => !UF.downloadAllowed(files) || !allFilesHasAccessRight("READ", files) ||
-            isAnyMockFile(files),
+        disabled: (files, cb) => {
+            if (!UF.downloadAllowed(files)) return true;
+            else if (isAnyMockFile(files)) return true;
+            else return !cb.permissions.requireForAll(files, AccessRight.READ);
+        },
         icon: "download"
     },
     {
         text: "Share",
         onClick: (files) => shareFiles({files, client: Client}),
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
-            isAnyMockFile(files) || isAnyFixedFolder(files, Client),
+        disabled: (files, cb) => {
+            if (isAnyMockFile(files)) return true;
+            else if (isAnyFixedFolder(files, Client)) return true;
+            else return !files.every(it => it.ownerName === Client.username);
+        },
         icon: "share"
     },
     {
         text: "Sensitivity",
         onClick: (files, cb) =>
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
-        disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) ||
-            isAnyFixedFolder(files, Client),
+        disabled: (files, cb) => {
+            if (isAnyMockFile(files)) return true;
+            else if (isAnyFixedFolder(files, Client)) return true;
+            else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
+        },
         icon: "sensitivity"
     },
     {
@@ -151,8 +165,11 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) ||
-            isAnyFixedFolder(files, Client),
+        disabled: (files, cb) => {
+            if (isAnyFixedFolder(files, Client)) return true;
+            else if (isAnyMockFile(files)) return true;
+            else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
+        },
         icon: "copy",
     },
     {
@@ -169,8 +186,11 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) ||
-            isAnyFixedFolder(files, Client),
+        disabled: (files, cb) => {
+            if (isAnyMockFile(files)) return true;
+            else if (isAnyFixedFolder(files, Client))  return true;
+            else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
+        },
         icon: "move",
     },
     {
@@ -192,9 +212,13 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Preview",
         onClick: (files, cb) => cb.history.push(filePreviewPage(files[0].path)),
-        disabled: (files) => !UF.isExtPreviewSupported(UF.extensionFromPath(files[0].path)) ||
-            !UF.inRange({status: files[0].size ?? 0, min: 1, max: PREVIEW_MAX_SIZE}) || (!UF.downloadAllowed(files) ||
-                !allFilesHasAccessRight("READ", files) || isAnyMockFile(files)),
+        disabled: (files, cb) => {
+            if (!UF.isExtPreviewSupported(UF.extensionFromPath(files[0].path))) return true;
+            else if (!cb.permissions.requireForAll(files, AccessRight.READ)) return true;
+            else if (isAnyMockFile(files)) return true;
+            else if (!UF.inRange({status: files[0].size ?? 0, min: 1, max: PREVIEW_MAX_SIZE})) return true;
+            return false
+        },
         icon: "preview"
     },
     {
@@ -205,10 +229,15 @@ export const defaultFileOperations: FileOperation[] = [
     },
     {
         text: "Move to Trash",
-        onClick: (files, cb) =>
-            moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload()}),
-        disabled: (files) => (!allFilesHasAccessRight("WRITE", files) || isAnyFixedFolder(files, Client) ||
-            files.every(({path}) => isTrashFolder(path))) || isAnyMockFile(files),
+        onClick: (files, cb) => {
+            moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload()});
+        },
+        disabled: (files, cb) => {
+            if (!cb.permissions.requireForAll(files, AccessRight.WRITE)) return true;
+            else if (isAnyFixedFolder(files, Client)) return true;
+            else if (isAnyMockFile(files)) return true;
+            else return files.every(({path}) => isTrashFolder(path));
+        },
         icon: "trash",
         color: "red"
     },
@@ -255,7 +284,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Sensitivity",
         onClick: (files, cb) =>
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
-        disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) ||
+        disabled: (files, cb) => isAnyMockFile(files) || !cb.permissions.requireForAll(files, AccessRight.WRITE) ||
             isAnyFixedFolder(files, Client),
         icon: "sensitivity",
         repositoryMode: true

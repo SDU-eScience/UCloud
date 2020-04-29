@@ -9,7 +9,6 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
-import {repositoryName} from "./ProjectUtilities";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -154,21 +153,6 @@ export const checkIfFileExists = async (path: string, client: HttpClient): Promi
         return !(e.request.status === 404 || e.request.status === 403);
     }
 };
-
-export type AccessRight = "READ" | "WRITE";
-
-function hasAccess(accessRight: AccessRight, file: File): boolean {
-    const username = Client.activeUsername;
-    if (file.ownerName === username) return true;
-    if (file.acl === null) return true; // If ACL is null, we are still fetching the ACL
-
-    const withoutProjectAcls = file.acl.filter(it => typeof it.entity === "string" || "username" in it.entity);
-    const relevantEntries = withoutProjectAcls.filter(item => !item.group && (item.entity as UserEntity).username === username);
-    return relevantEntries.some(entry => entry.rights.includes(accessRight));
-}
-
-export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]): boolean =>
-    files.every(f => hasAccess(accessRight, f));
 
 /**
  * Used for resolving paths, which contain either "." or "..", and returning the resolved path.

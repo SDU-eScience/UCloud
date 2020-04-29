@@ -10,8 +10,8 @@ interface GenericSetAction {
 
 export function useGlobal<Property extends keyof HookStore>(
     property: Property,
-    defaultValue: HookStore[Property]
-): [HookStore[Property], (newValue: HookStore[Property]) => void] {
+    defaultValue: NonNullable<HookStore[Property]>
+): [NonNullable<HookStore[Property]>, (newValue: HookStore[Property]) => void] {
     const value = useSelector<ReduxObject, HookStore[Property]>(it => {
         if (it.hookStore === undefined) return undefined;
         return it.hookStore[property];
@@ -21,7 +21,10 @@ export function useGlobal<Property extends keyof HookStore>(
         dispatch<GenericSetAction>({type: "GENERIC_SET", property, newValue});
     }, [dispatch]);
 
-    return [value === undefined ? defaultValue : value, setter];
+    return [
+        ((value === undefined || value === null) ? defaultValue : value) as NonNullable<HookStore[Property]>,
+        setter
+    ];
 }
 
 const reducer = (state: HookStore = {}, action: GenericSetAction): HookStore => {

@@ -9,13 +9,12 @@ import {dialogStore} from "Dialog/DialogStore";
 import {Box, Button, List} from "ui-components";
 import {useCloudAPI} from "Authentication/DataHook";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
-import {File, Acl, ProjectEntity} from "Files";
+import {Acl, File, ProjectEntity} from "Files";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Spacer} from "ui-components/Spacer";
 import {ProjectRole} from "Project";
-import {pathComponents, resolvePath} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
+import {pathComponents} from "Utilities/FileUtilities";
 
 export function repositoryName(path: string): string {
     const components = pathComponents(path);
@@ -130,8 +129,8 @@ export function UpdatePermissionsDialog(props: {client: HttpClient; repository: 
                 {groups.data.map(g => {
                     const acl = newRights.get(g) ?? props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ?? [];
                     let rights = "None";
-                    if (acl.includes("READ")) rights = "Read";
-                    if (acl.includes("WRITE")) rights = "Edit";
+                    if (acl.includes(AccessRight.READ)) rights = "Read";
+                    if (acl.includes(AccessRight.WRITE)) rights = "Edit";
                     return (
                         <ListRow
                             key={g}
