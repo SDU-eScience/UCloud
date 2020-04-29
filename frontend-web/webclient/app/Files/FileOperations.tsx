@@ -23,7 +23,7 @@ import {
     isAnyMockFile,
     isArchiveExtension,
     isTrashFolder,
-    moveToTrash,
+    moveToTrash, resolvePath,
     shareFiles,
     updateSensitivity
 } from "Utilities/FileUtilities";
@@ -274,7 +274,7 @@ export const defaultFileOperations: FileOperation[] = [
     {
         /* Rename project repo */
         text: "Rename",
-        disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
+        disabled: files => files.length !== 1,
         onClick: ([file], cb) => cb.startRenaming(file),
         icon: "rename",
         repositoryMode: true
@@ -292,7 +292,7 @@ export const defaultFileOperations: FileOperation[] = [
     {
         /* Update repo permissions */
         text: "Permissions",
-        disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
+        disabled: files => files.length !== 1,
         onClick: ([file], cb) => updatePermissionsPrompt(Client, file, cb.requestReload),
         icon: "properties",
         repositoryMode: true
@@ -301,7 +301,7 @@ export const defaultFileOperations: FileOperation[] = [
         /* Delete repo permission */
         text: "Delete",
         onClick: ([file], cb) => promptDeleteRepository(repositoryName(file.path), Client, cb.requestReload),
-        disabled: files => files.length !== 1 || getParentPath(files[0].path) !== Client.currentProjectFolder,
+        disabled: files => files.length !== 1,
         icon: "trash",
         color: "red",
         repositoryMode: true
