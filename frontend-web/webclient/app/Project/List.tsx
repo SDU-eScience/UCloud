@@ -100,11 +100,12 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 left={<Text>Personal project</Text>}
                                 leftSub={<Text color="gray" fontSize={0}><Icon size="10" name="id" /> {Client.username}</Text>}
                                 right={<Icon
-                                    mr="57px"
+                                    mr="48px"
                                     mt="5px"
                                     name="check"
                                     color={!props.project ? "green" : "gray"}
                                     hoverColor="green"
+                                    cursor="pointer"
                                     onClick={() => {
                                         if (!props.project) return;
                                         snackbarStore.addInformation("Personal project is now the active.", false);
@@ -195,6 +196,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                     name="check"
                                                     color={isActive ? "green" : "gray"}
                                                     hoverColor="green"
+                                                    cursor="pointer"
                                                     onClick={() => {
                                                         if (isActive) return;
                                                         snackbarStore.addInformation(`${e.projectId} is now the active project`, false);
