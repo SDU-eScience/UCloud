@@ -32,6 +32,12 @@ export interface UserInProject {
     needsVerification: boolean;
 }
 
+export interface UserGroupSummary {
+    projectId: string;
+    group: string;
+    username: string;
+}
+
 // TODO This is a service only API. We need a gateway API which is responsible for also creating a data management plan
 export const createProject = (payload: {title: string; principalInvestigator: string}): APICallParameters => ({
     method: "POST",

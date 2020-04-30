@@ -1,6 +1,7 @@
 import {SensitivityLevelMap} from "DefaultObjects";
 import * as React from "react";
 import {Times} from "./Redux/DetailedFileSearchActions";
+import {AccessRight} from "Types";
 
 export enum SortOrder {
     ASCENDING = "ASCENDING",
@@ -41,8 +42,7 @@ export interface ProjectEntity {
 
 export interface Acl {
     entity: ProjectEntity | UserEntity | string;
-    rights: string[];
-    group: boolean;
+    rights: AccessRight[];
 }
 
 export enum SortBy {

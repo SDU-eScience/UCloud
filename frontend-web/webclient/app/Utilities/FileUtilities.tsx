@@ -9,7 +9,6 @@ import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} 
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
-import {repositoryName} from "./ProjectUtilities";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
     return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
@@ -155,21 +154,6 @@ export const checkIfFileExists = async (path: string, client: HttpClient): Promi
         return !(e.request.status === 404 || e.request.status === 403);
     }
 };
-
-export type AccessRight = "READ" | "WRITE";
-
-function hasAccess(accessRight: AccessRight, file: File): boolean {
-    const username = Client.activeUsername;
-    if (file.ownerName === username) return true;
-    if (file.acl === null) return true; // If ACL is null, we are still fetching the ACL
-
-    const withoutProjectAcls = file.acl.filter(it => typeof it.entity === "string" || "username" in it.entity);
-    const relevantEntries = withoutProjectAcls.filter(item => !item.group && (item.entity as UserEntity).username === username);
-    return relevantEntries.some(entry => entry.rights.includes(accessRight));
-}
-
-export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]): boolean =>
-    files.every(f => hasAccess(accessRight, f));
 
 /**
  * Used for resolving paths, which contain either "." or "..", and returning the resolved path.
@@ -549,7 +533,7 @@ export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);
 }
 
-export function isAnyFixedFolder(files: File[]): boolean {
+export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
     return files.some(it => isFixedFolder(it.path));
 }
 
@@ -567,33 +551,36 @@ export const archiveExtensions: string[] = [".tar.gz", ".zip"];
 export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
 
 export function isTrashFolder(path: string): boolean {
-    const resolvedPath = resolvePath(path);
-    if (Client.trashFolder === resolvedPath) return true;
     const components = pathComponents(path);
-    return components.length === 5 &&
+    if (components.length === 3 && components[0] === "home" && components[2] === "Trash") return true;
+    else return components.length === 5 &&
         components[0] === "projects" &&
         components[2] === "Personal" &&
-        components[3] === Client.username &&
         components[4] === "Trash";
 }
 
 export function isJobsFolder(path: string): boolean {
-    const resolvedPath = resolvePath(path);
-    if (resolvePath(Client.homeFolder + "/Jobs") === resolvedPath) return true;
     const components = pathComponents(path);
-    return components.length === 5 &&
+
+    if (components.length === 3 && components[0] === "home" && components[2] === "Jobs") return true;
+    else return components.length === 5 &&
         components[0] === "projects" &&
         components[2] === "Personal" &&
-        components[3] === Client.username &&
         components[4] === "Jobs";
 }
 
 export function isSharesFolder(path: string): boolean {
-    const resolvedPath = resolvePath(path);
-    return resolvePath(Client.homeFolder + "/Shares") === resolvedPath;
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "home" && components[2] === "Shares";
 }
 
 export function isFavoritesFolder(path: string): boolean {
-    const resolvedPath = resolvePath(path);
-    return resolvePath(Client.homeFolder + "/Favorites") === resolvedPath;
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "home" && components[2] === "Favorites";
+}
+
+export function isProjectHome(path: string): boolean {
+    const components = pathComponents(path);
+    if (components.length === 3 && components[0] === "home" && components[2] === "Project") return true;
+    return components.length === 2 && components[0] === "projects";
 }

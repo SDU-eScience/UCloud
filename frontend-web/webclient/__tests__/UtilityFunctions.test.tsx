@@ -4,7 +4,7 @@ import {dateToString} from "../app/Utilities/DateUtilities";
 import {getFilenameFromPath, sizeToString} from "../app/Utilities/FileUtilities";
 import * as UF from "../app/UtilityFunctions";
 import {mockFilesSensitivityConfidential, newMockFile} from "./mock/Files";
-import {Client} from "../app/Authentication/HttpClientInstance";
+import { AccessRight } from "Types";
 
 // TO LOWER CASE AND CAPITALIZE
 
@@ -124,9 +124,8 @@ const mockAcls: Acl[] = [
     {
         entity: {username: "user3@test.dk"},
         rights: [
-            "READ"
-        ],
-        group: false
+            AccessRight.READ
+        ]
     }
 ];
 
@@ -206,13 +205,13 @@ describe("Icon from file path", () => {
     test("File with ext", () =>
         expect(UF.iconFromFilePath("home.txt", "FILE")).toStrictEqual({type: "FILE", ext: "txt"}));
     test("Jobs", () =>
-        expect(UF.iconFromFilePath("Home/Jobs", "DIRECTORY").type).toStrictEqual("RESULTFOLDER"));
+        expect(UF.iconFromFilePath("/home/user@user.dk/Jobs", "DIRECTORY").type).toStrictEqual("RESULTFOLDER"));
     test("Favorites", () =>
-        expect(UF.iconFromFilePath("Home/Favorites", "DIRECTORY").type).toStrictEqual("FAVFOLDER"));
+        expect(UF.iconFromFilePath("/home/user/Favorites", "DIRECTORY").type).toStrictEqual("FAVFOLDER"));
     test("Shares", () =>
-        expect(UF.iconFromFilePath("Home/Shares", "DIRECTORY").type).toStrictEqual("SHARESFOLDER"));
+        expect(UF.iconFromFilePath("/home/user/Shares", "DIRECTORY").type).toStrictEqual("SHARESFOLDER"));
     test("Trash", () =>
-        expect(UF.iconFromFilePath("Home/Trash", "DIRECTORY").type).toStrictEqual("TRASHFOLDER"));
+        expect(UF.iconFromFilePath("/home/user/Trash", "DIRECTORY").type).toStrictEqual("TRASHFOLDER"));
 });
 
 const HOME_FOLDER = "/home/user@test.dk/";

@@ -7,10 +7,8 @@ import {SidebarPages} from "../app/ui-components/Sidebar";
 describe("Initialize Redux Objects", () => {
     test("Dashboard", () => {
         expect(Defaults.initDashboard()).toEqual({
-            favoriteFiles: [],
             recentAnalyses: [],
             notifications: [],
-            favoriteLoading: false,
             analysesLoading: false,
         } as DashboardStateProps);
     });

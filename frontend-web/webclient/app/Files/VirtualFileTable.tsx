@@ -6,7 +6,7 @@ import {LowLevelFileTable, LowLevelFileTableProps} from "Files/LowLevelFileTable
 import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
 import {Page} from "Types";
-import {getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
+import {getParentPath, isProjectHome, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {listFavorites} from "Files/favorite";
 
@@ -100,7 +100,7 @@ export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
             return (await Client.get<Page<File>>(
                 buildQueryString("/shares/list-files", {page, itemsPerPage}))
             ).response;
-        } else if (folder === Client.projectFolder) {
+        } else if (isProjectHome(folder)) {
             try {
                 const {response} = await Client.get<Page<File>>(buildQueryString("/projects/repositories/list-files", {page, itemsPerPage}));
                 response.items.forEach(f => f.isRepo = true);

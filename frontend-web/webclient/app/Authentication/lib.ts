@@ -357,7 +357,7 @@ export default class HttpClient {
     }
 
     public get fakeFolders(): string[] {
-        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.projectFolder] : []);
+        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.projectFolder, this.currentProjectFolder] : []);
     }
 
     public get isLoggedIn(): boolean {

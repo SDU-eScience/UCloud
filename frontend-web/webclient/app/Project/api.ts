@@ -1,5 +1,5 @@
 import {APICallParameters} from "Authentication/DataHook";
-import {ProjectRole} from "Project/index";
+import {ProjectRole, UserGroupSummary, UserInProject} from "Project/index";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {PaginationRequest} from "Types";
 
@@ -98,5 +98,24 @@ export function groupSummaryRequest(payload: PaginationRequest): APICallParamete
         method: "GET",
         reloadId: Math.random(),
         payload
+    };
+}
+
+export interface UserStatusRequest {
+
+}
+
+export interface UserStatusResponse {
+    membership: UserInProject[];
+    groups: UserGroupSummary[];
+}
+
+export function userProjectStatus(request: UserStatusRequest): APICallParameters<UserStatusRequest> {
+    return {
+        reloadId: Math.random(),
+        path: "/projects/membership",
+        method: "POST",
+        parameters: request,
+        payload: request
     };
 }
