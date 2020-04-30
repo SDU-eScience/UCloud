@@ -45,6 +45,7 @@ import {
 } from "UtilityFunctions";
 import {DEV_SITE, STAGING_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 import {AltContextSwitcher} from "Project/ContextSwitcher";
+import {Truncate} from "ui-components";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -218,7 +219,10 @@ const LogoText = styled(ui.Text)`
 `;
 
 const Logo = (): JSX.Element => (
-    <Link to="/">
+    <Link
+        to="/"
+        width={[null, null, null, null, null, "190px"]}
+    >
         <ui.Flex alignItems="center" ml="15px">
             <ui.Icon name="logoEsc" size="38px" />
             <ui.Text color="headerText" fontSize={4} ml="8px">{PRODUCT_NAME}</ui.Text>

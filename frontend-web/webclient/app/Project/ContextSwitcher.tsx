@@ -6,7 +6,7 @@ import {inDevEnvironment, addTrailingSlash} from "UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
 import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
-import {Flex, Truncate, Text} from "ui-components";
+import {Flex, Truncate, Text, Icon, Divider} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import styled from "styled-components";
 import {useCloudAPI} from "Authentication/DataHook";
@@ -34,19 +34,23 @@ function _AltContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): 
 
     if (response.data.items.length === 0 && response.loading) return null;
 
-    const addMore = response.data.itemsInTotal > 10;
-
     return (
-        <Flex style={{border: "1px solid white", borderRadius: "8px"}} ml="25px" pr="12px">
-            <Link to="/projects"><HoverBox width="auto">{activeContext}</HoverBox></Link>
+        <Flex pr="12px" alignItems={"center"}>
             <ClickableDropdown
-                trigger={<div />}
-                chevron
+                trigger={
+                    <HoverBox>
+                        <Icon name={"projects"} mr={"4px"}/>
+                        <Truncate as={"span"} width={"80px"}>{activeContext}</Truncate>
+                        <Icon name={"chevronDown"} size={"10px"} ml={"4px"} />
+                    </HoverBox>
+                }
                 onTriggerClick={() => setFetchParams({...params})}
-                left="-136px"
+                left="0px"
                 width="250px"
             >
-                {props.activeProject ? <Text onClick={() => promptRedirect(history, () => props.setProject(), props.refresh)}>Personal project</Text> : null}
+                {props.activeProject ?
+                    <Text onClick={() => promptRedirect(history, () => props.setProject(), props.refresh)}>Personal
+                        project</Text> : null}
                 {response.data.items.filter(it => !(it.projectId === props.activeProject)).map(project =>
                     <Text
                         key={project.projectId}
@@ -55,7 +59,8 @@ function _AltContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): 
                         {project.projectId}
                     </Text>
                 )}
-                {addMore ? <Link to="/projects"><Text>More...</Text></Link> : null}
+                <Divider />
+                <Link to="/projects"><Text>See all</Text></Link>
             </ClickableDropdown>
         </Flex>
     );
@@ -73,16 +78,12 @@ function promptRedirect(history: History, setProject: () => void, refresh?: () =
     } else refresh?.();
 }
 
-const HoverBox = styled(Truncate)`
-    width: auto;
+const HoverBox = styled.div`
     color: white;
-    padding-left: 8px;
-    padding-right: 8px;
-    border-radius: 8px;
+    padding: 4px;
     cursor: pointer;
-    border-top-right-radius: 0px;
-    border-bottom-right-radius: 0px;
-    border-right: 1px solid white;
+    display: inline-block;
+    user-select: none;
     &:hover {
         background-color: rgba(255, 255, 255, .3);
         color: white;
