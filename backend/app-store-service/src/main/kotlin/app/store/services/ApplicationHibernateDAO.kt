@@ -722,12 +722,8 @@ class ApplicationHibernateDAO(
     }
 
     private fun cleanupBeforeDelete(session: HibernateSession, appName: String, appVersion: String) {
-
-
-
         val favoriteAppEntities = session.typedQuery<FavoriteApplicationEntity>(
             """
-            select *
             from FavoriteApplicationEntity as A
                 A.applicationName = :name
                 and A.applicationVersion= :version
