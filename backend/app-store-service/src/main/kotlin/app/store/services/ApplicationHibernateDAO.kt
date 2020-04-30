@@ -716,7 +716,29 @@ class ApplicationHibernateDAO(
 
         val existingApp = internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
 
+        cleanupBeforeDelete(session, existingApp.id.name, existingApp.id.version)
+
         session.delete(existingApp)
+    }
+
+    private fun cleanupBeforeDelete(session: HibernateSession, appName: String, appVersion: String) {
+
+
+
+        val favoriteAppEntities = session.typedQuery<FavoriteApplicationEntity>(
+            """
+            select *
+            from FavoriteApplicationEntity as A
+                A.applicationName = :name
+                and A.applicationVersion= :version
+        """.trimIndent()
+        ).setParameter("name", appName)
+            .setParameter("version", appVersion)
+            .resultList
+
+        favoriteAppEntities.forEach { favorite ->
+            session.delete(favorite)
+        }
     }
 
     override fun createTags(
