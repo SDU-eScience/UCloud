@@ -91,63 +91,63 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             headerSize={58}
             header={<div />}
             main={(
-                <Pagination.List
-                    page={response.data}
-                    pageRenderer={page => (
-                        <List>
-                            <ListRow
-                                icon={<Box width="24px" />}
-                                left={<Text>Personal project</Text>}
-                                leftSub={<Text color="gray" fontSize={0}><Icon size="10" name="id" /> {Client.username}</Text>}
-                                right={<Icon
-                                    mr="48px"
-                                    mt="5px"
-                                    name="check"
-                                    color={!props.project ? "green" : "gray"}
-                                    hoverColor="green"
-                                    cursor="pointer"
-                                    onClick={() => {
-                                        if (!props.project) return;
-                                        snackbarStore.addInformation("Personal project is now the active.", false);
-                                        props.setProject();
-                                    }}
-                                />}
-                            />
-                            {creatingProject ?
-                                <ListRow
-                                    icon={<Icon
-                                        cursor="pointer"
-                                        size="24"
-                                        name={"starEmpty"}
-                                        color={"midGray"}
-                                        hoverColor="blue"
-                                    />}
-                                    left={<form onSubmit={createProject}><Input
-                                        pt="0px"
-                                        pb="0px"
-                                        pr="0px"
-                                        pl="0px"
-                                        noBorder
-                                        fontSize={20}
-                                        maxLength={1024}
-                                        onKeyDown={e => {
-                                            if (e.keyCode === KeyCode.ESC) {
-                                                setCreatingProject(false);
-                                            }
-                                        }}
-                                        borderRadius="0px"
-                                        type="text"
-                                        width="100%"
-                                        autoFocus
-                                        ref={title}
-                                    /></form>}
-                                    right={<div />}
-                                    leftSub={<Text ml="4px" color="gray" fontSize={0}>
-                                        <Icon color="white" color2="gray" mt="-2px" size="10" name="user" />
-                                        {" "}{projectRoleToString(ProjectRole.PI)}
-                                    </Text>}
-                                /> : null}
-                            {page.items.map(e => {
+                <List>
+                    <ListRow
+                        icon={<Box width="24px" />}
+                        left={<Text>Personal project</Text>}
+                        leftSub={<Text color="gray" fontSize={0}><Icon size="10" name="id" /> {Client.username}</Text>}
+                        right={<Icon
+                            mr="48px"
+                            mt="5px"
+                            name="check"
+                            color={!props.project ? "green" : "gray"}
+                            hoverColor="green"
+                            cursor="pointer"
+                            onClick={() => {
+                                if (!props.project) return;
+                                snackbarStore.addInformation("Personal project is now the active.", false);
+                                props.setProject();
+                            }}
+                        />}
+                    />
+                    {creatingProject ?
+                        <ListRow
+                            icon={<Icon
+                                cursor="pointer"
+                                size="24"
+                                name={"starEmpty"}
+                                color={"midGray"}
+                                hoverColor="blue"
+                            />}
+                            left={<form onSubmit={createProject}><Input
+                                pt="0px"
+                                pb="0px"
+                                pr="0px"
+                                pl="0px"
+                                noBorder
+                                fontSize={20}
+                                maxLength={1024}
+                                onKeyDown={e => {
+                                    if (e.keyCode === KeyCode.ESC) {
+                                        setCreatingProject(false);
+                                    }
+                                }}
+                                borderRadius="0px"
+                                type="text"
+                                width="100%"
+                                autoFocus
+                                ref={title}
+                            /></form>}
+                            right={<div />}
+                            leftSub={<Text ml="4px" color="gray" fontSize={0}>
+                                <Icon color="white" color2="gray" mt="-2px" size="10" name="user" />
+                                {" "}{projectRoleToString(ProjectRole.PI)}
+                            </Text>}
+                        /> : null}
+                    <Pagination.List
+                        page={response.data}
+                        pageRenderer={page =>
+                            page.items.map(e => {
                                 const isActive = e.projectId === props.project;
                                 const isFavorite = favorites.items.findIndex(it => it === e.projectId) !== -1;
                                 return (
@@ -228,14 +228,14 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     />
                                 );
                             })}
-                        </List >
-                    )}
-                    loading={response.loading}
-                    onPageChanged={newPage => {
-                        setFetchParams(listProjects({page: newPage, itemsPerPage: response.data.itemsPerPage}));
-                        fetchFavorites(response.data.itemsPerPage, newPage);
-                    }}
-                />
+                        loading={response.loading}
+                        onPageChanged={newPage => {
+                            setFetchParams(listProjects({page: newPage, itemsPerPage: response.data.itemsPerPage}));
+                            fetchFavorites(response.data.itemsPerPage, newPage);
+                        }}
+                        customEmptyPage={<div />}
+                    />
+                </List >
             )}
             sidebar={(<>
                 <VerticalButtonGroup>
