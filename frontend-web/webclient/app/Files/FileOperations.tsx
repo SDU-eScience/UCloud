@@ -88,7 +88,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Rename",
         onClick: (files, cb) => cb.startRenaming(files[0]),
         disabled: (files: File[]) => files.length === 1 && !allFilesHasAccessRight(AccessRight.WRITE, files) ||
-            isAnyMockFile(files) || isAnyFixedFolder(files, Client),
+            isAnyMockFile(files) || isAnyFixedFolder(files),
         icon: "rename"
     },
     {
@@ -126,7 +126,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Share",
         onClick: (files) => shareFiles({files, client: Client}),
         disabled: (files) => !allFilesHasAccessRight("WRITE", files) || !allFilesHasAccessRight("READ", files) ||
-            isAnyMockFile(files) || isAnyFixedFolder(files, Client),
+            isAnyMockFile(files) || isAnyFixedFolder(files),
         icon: "share"
     },
     {
@@ -134,7 +134,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) =>
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
         disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) ||
-            isAnyFixedFolder(files, Client),
+            isAnyFixedFolder(files),
         icon: "sensitivity"
     },
     {
@@ -151,8 +151,7 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) ||
-            isAnyFixedFolder(files, Client),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) || isAnyFixedFolder(files),
         icon: "copy",
     },
     {
@@ -169,8 +168,7 @@ export const defaultFileOperations: FileOperation[] = [
                 }
             });
         },
-        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) ||
-            isAnyFixedFolder(files, Client),
+        disabled: (files) => !allFilesHasAccessRight("WRITE", files) || isAnyMockFile(files) || isAnyFixedFolder(files),
         icon: "move",
     },
     {
@@ -207,7 +205,7 @@ export const defaultFileOperations: FileOperation[] = [
         text: "Move to Trash",
         onClick: (files, cb) =>
             moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload()}),
-        disabled: (files) => (!allFilesHasAccessRight("WRITE", files) || isAnyFixedFolder(files, Client) ||
+        disabled: (files) => (!allFilesHasAccessRight("WRITE", files) || isAnyFixedFolder(files) ||
             files.every(({path}) => isTrashFolder(path))) || isAnyMockFile(files),
         icon: "trash",
         color: "red"
@@ -230,9 +228,9 @@ export const defaultFileOperations: FileOperation[] = [
                                 .then(it => it).catch(it => it);
                         const failures = promises.filter(it => it.status).length;
                         if (failures > 0) {
-                            snackbarStore.addFailure(promises.filter(it => it.response).map(it => it).join(", "));
+                            snackbarStore.addFailure(promises.filter(it => it.response).map(it => it).join(", "), false);
                         } else {
-                            snackbarStore.addSnack({message: "Files deleted", type: SnackType.Success});
+                            snackbarStore.addSuccess("Files deleted", false);
                         }
                     });
                 }
@@ -256,7 +254,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) =>
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
         disabled: files => isAnyMockFile(files) || !allFilesHasAccessRight("WRITE", files) ||
-            isAnyFixedFolder(files, Client),
+            isAnyFixedFolder(files),
         icon: "sensitivity",
         repositoryMode: true
     },

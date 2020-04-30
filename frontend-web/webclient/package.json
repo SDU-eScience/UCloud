@@ -5,6 +5,7 @@
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
         "start": "webpack-dev-server --config webpack.dev.js --inline --progress --port 9000",
+        "start_use_local_backend": "local_dev=true npm run start",
         "clean": "rm -rf dist/",
         "build": "npm run clean && webpack --config webpack.prod.js --progress --profile --bail",
         "test": "jest --maxWorkers=1",

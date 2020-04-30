@@ -272,7 +272,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
 
             const username = newShareUsername.current!.value;
             if (username.length === 0) {
-                snackbarStore.addFailure("Please fill out the username.");
+                snackbarStore.addFailure("Please fill out the username.", false);
                 return;
             }
 

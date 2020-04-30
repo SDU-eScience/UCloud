@@ -31,7 +31,7 @@ export const multipartUpload = async ({
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                snackbarStore.addFailure(statusToError(request.status));
+                snackbarStore.addFailure(statusToError(request.status), true);
         }
     };
     request.setRequestHeader("Authorization", `Bearer ${token}`);
@@ -70,7 +70,7 @@ export const bulkUpload = async ({
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status))
             !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                snackbarStore.addFailure(statusToError(request.status));
+                snackbarStore.addFailure(statusToError(request.status), true);
     };
     request.setRequestHeader("Authorization", `Bearer ${token}`);
     let nextProgressUpdate = new Date().getTime();
@@ -93,7 +93,7 @@ export const bulkUpload = async ({
     return request;
 };
 
-function statusToError(status: number) {
+function statusToError(status: number): string {
     switch (STATUS_CODES[status]) {
         case "Expectation Failed": {
             return "Expectation Failed";

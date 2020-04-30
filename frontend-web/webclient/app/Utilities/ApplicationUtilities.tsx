@@ -93,7 +93,7 @@ export async function favoriteApplicationFromPage<T>({
         await client.post(hpcFavoriteApp(name, version));
         a.favorite = !a.favorite;
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, `An error ocurred favoriting ${name}`));
+        snackbarStore.addFailure(errorMessageOrDefault(e, `An error occurred favoriting ${name}`), false);
     }
     return page;
 }
@@ -275,6 +275,7 @@ export function validateOptionalFields(
         snackbarStore.addFailure(
             `Invalid values for ${optionalErrors.slice(0, 3).join(", ")}
                     ${optionalErrors.length > 3 ? `and ${optionalErrors.length - 3} others` : ""}`,
+            false,
             5000
         );
         return false;
@@ -308,6 +309,7 @@ export function checkForMissingParameters(
         snackbarStore.addFailure(
             `Missing values for ${missingParameters.slice(0, 3).join(", ")}
                 ${missingParameters.length > 3 ? `and ${missingParameters.length - 3} others.` : ``}`,
+            false,
             5000
         );
         return false;

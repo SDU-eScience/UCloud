@@ -64,7 +64,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
             setFailedState(response.failedState);
         } catch (e) {
             if (e.isCanceled) return;
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching job"));
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching job"), false);
         }
     }
 
@@ -74,7 +74,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
             setInteractiveLink(response.path);
         } catch (e) {
             if (e.isCanceled) return;
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching weblink"));
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching weblink"), false);
         }
     }
 
@@ -87,7 +87,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
             setApplication(response);
         } catch (e) {
             if (e.isCanceled) return;
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching application"));
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching application"), false);
         }
     }
 
@@ -98,7 +98,7 @@ const DetailedResult: React.FunctionComponent<DetailedResultProps> = props => {
                 try {
                     await cancelJob(Client, jobId);
                 } catch (e) {
-                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job"));
+                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job"), false);
                 }
             }
         });

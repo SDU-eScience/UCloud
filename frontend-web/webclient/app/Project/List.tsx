@@ -22,7 +22,6 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {isAdminOrPI, toggleFavoriteProject} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
-import {SnackType} from "Snackbar/Snackbars";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {ThemeColor} from "ui-components/theme";
 import {usePromiseKeeper} from "PromiseKeeper";
@@ -42,7 +41,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             const r = await promises.makeCancelable(Client.post<Page<string>>("/project/favorite/list", {page, itemsPerPage})).promise;
             setFavorites(r.response);
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed fetching favorites"));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed fetching favorites"), false);
         }
     }
 
@@ -82,7 +81,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         color: "black",
         onClick: ([project]) => {
             if (props.project !== project.projectId) props.setProject(project.projectId);
-            snackbarStore.addInformation(`${project.projectId} set as active project.`);
+            snackbarStore.addInformation(`${project.projectId} set as active project.`, false);
             history.push("/projects/groups/");
         }
     }];
@@ -108,7 +107,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     hoverColor="green"
                                     onClick={() => {
                                         if (!props.project) return;
-                                        snackbarStore.addInformation(`Personal project is now the active.`);
+                                        snackbarStore.addInformation("Personal project is now the active.", false);
                                         props.setProject();
                                     }}
                                 />}
@@ -198,7 +197,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                     hoverColor="green"
                                                     onClick={() => {
                                                         if (isActive) return;
-                                                        snackbarStore.addInformation(`${e.projectId} is now the active project`);
+                                                        snackbarStore.addInformation(`${e.projectId} is now the active project`, false);
                                                         props.setProject(e.projectId);
                                                     }}
                                                 />
@@ -258,7 +257,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         if (response.loading) return;
         if (title.current == null) return;
         if (title.current.value === "") {
-            snackbarStore.addInformation("Project name can't be empty.");
+            snackbarStore.addInformation("Project name can't be empty.", false);
             return;
         }
 
@@ -268,15 +267,12 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                 principalInvestigator: Client.username!
             });
 
-            snackbarStore.addSnack({
-                message: "Group created.",
-                type: SnackType.Success
-            });
+            snackbarStore.addSuccess("Group created.", false);
             setCreatingProject(false);
             reload();
             props.setProject(res.response.id);
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to create project."));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to create project."), false);
         }
     }
 };

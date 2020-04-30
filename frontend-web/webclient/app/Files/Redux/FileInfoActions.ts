@@ -13,7 +13,7 @@ export async function fetchFileActivity(path: string): Promise<ReceiveFileActivi
         const {response} = await Client.get(activityStreamByPath(path));
         return receiveFileActivity(response);
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching activity."));
+        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching activity."), false);
         return fileInfoError();
     }
 }

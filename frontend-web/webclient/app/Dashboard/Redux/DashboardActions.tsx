@@ -43,7 +43,7 @@ export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Act
         const {response} = await Client.get(hpcJobsQuery(10, 0));
         return receiveRecentAnalyses(response.items);
     } catch (err) {
-        snackbarStore.addFailure("Could not retrieve recent jobs.");
+        snackbarStore.addFailure("Could not retrieve recent jobs.", false);
         return setErrorMessage(DASHBOARD_RECENT_JOBS_ERROR, errorMessageOrDefault(err, "An error occurred fetching recent analyses."));
     }
 };

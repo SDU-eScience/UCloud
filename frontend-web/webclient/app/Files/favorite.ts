@@ -4,7 +4,7 @@ import {Dictionary, PaginationRequest} from "Types";
 import {useCallback} from "react";
 import {useGlobal} from "Utilities/ReduxHooks";
 
-const fileFavoriteContext = "/files/favorite"
+const fileFavoriteContext = "/files/favorite";
 
 export interface FavoriteToggleRequest {
     path: string;
@@ -39,9 +39,7 @@ export function favoriteStatus(
     };
 }
 
-export interface ListFavoritesRequest extends PaginationRequest {
-
-}
+export type ListFavoritesRequest = PaginationRequest;
 
 export function listFavorites(
     request: ListFavoritesRequest
