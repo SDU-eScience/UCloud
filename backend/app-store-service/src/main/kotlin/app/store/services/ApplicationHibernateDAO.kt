@@ -169,13 +169,6 @@ class ApplicationHibernateDAO(
         memberGroups: List<String>,
         tags: List<String>
     ): List<String> {
-        println(user.username)
-        println(project)
-        println(memberGroups)
-        println(tags)
-        println(user.role)
-        println(Roles.PRIVILEDGED)
-
         return session.createNativeQuery<TagEntity>(
             """
             select T.application_name, T.tag, T.id from {h-schema}application_tags as T, {h-schema}applications as A
@@ -200,7 +193,7 @@ class ApplicationHibernateDAO(
             """.trimIndent(), TagEntity::class.java
         )
             .setParameter("user", user.username)
-            .setParameter("project", project)
+            .setParameter("project", project?:"")
             .setParameterList("groups", memberGroups)
             .setParameterList("tags", tags)
             .setParameter("role", user.role)
@@ -215,13 +208,14 @@ class ApplicationHibernateDAO(
         memberGroups: List<String>,
         applicationNames: List<String>
     ): Pair<Query<ApplicationEntity>, Int> {
-        val itemsInTotal = session.createNativeQuery<Long>(
+
+        val itemsInTotal = session.createNativeQuery<ApplicationEntity>(
             """
-            select count (A.title)
-            from applications as A
+            select A.*
+            from {h-schema}applications as A
             where (A.created_at) in (
                 select max(B.created_at)
-                from applications as B
+                from {h-schema}applications as B
                 where (A.title = B.title)
                 group by title
             ) and (A.name) in (:applications) and (
@@ -242,15 +236,15 @@ class ApplicationHibernateDAO(
                     :role in (:privileged)
                 ) 
             )
-            """.trimIndent(), Long::class.java
-        ).setParameterList("applications", applicationNames)
+            """.trimIndent(), ApplicationEntity::class.java
+        )
+            .setParameterList("applications", applicationNames)
             .setParameter("user", user.username)
-            .setParameter("project", project)
+            .setParameter("project", project ?: "")
             .setParameterList("groups", memberGroups)
             .setParameter("role", user.role)
             .setParameterList("privileged", Roles.PRIVILEDGED)
-            .uniqueResult()
-            .toInt()
+            .resultList.size
 
         return Pair(
             session.createNativeQuery<ApplicationEntity>("""
@@ -258,7 +252,7 @@ class ApplicationHibernateDAO(
                 from {h-schema}applications as A
                 where (A.created_at) in (
                     select max(created_at)
-                    from applications as B
+                    from {h-schema}applications as B
                     where (A.title= B.title)
                     group by title
                 ) and (A.name) in (:applications) and (
@@ -283,7 +277,7 @@ class ApplicationHibernateDAO(
             """.trimIndent(), ApplicationEntity::class.java)
                 .setParameterList("applications", applicationNames)
                 .setParameter("user", user.username)
-                .setParameter("project", project)
+                .setParameter("project", project ?: "")
                 .setParameterList("groups", memberGroups)
                 .setParameter("role", user.role)
                 .setParameterList("privileged", Roles.PRIVILEDGED)
@@ -306,9 +300,7 @@ class ApplicationHibernateDAO(
             memberGroups
         }
 
-        println("Finding app-names from tags")
         val applications = findAppNamesFromTags(session, user, project, groups, tags)
-        println("$applications")
 
         if (applications.isEmpty()) {
             return preparePageForUser(
@@ -323,7 +315,6 @@ class ApplicationHibernateDAO(
             ).mapItems { it.withoutInvocation() }
         }
 
-        println("Finding applications from app names")
         val (apps, itemsInTotal) = findAppsFromAppNames(session, user, project, groups, applications)
 
         val items = apps.paginatedList(paging)
@@ -766,9 +757,29 @@ class ApplicationHibernateDAO(
             projectGroups
         }
 
-        val count = session.createNativeQuery<Long>(
+        val userString = if (user != null) {
+            if (user.username != null) {
+                user.username
+            } else {
+                ""
+            }
+        } else {
+            ""
+        }
+
+        val cleanRole = if (user != null) {
+            if (user.role != null) {
+                user.role
+            } else {
+                Role.UNKNOWN
+            }
+        } else {
+            Role.UNKNOWN
+        }
+
+        val count = session.createNativeQuery<ApplicationEntity>(
             """
-                select count (A.name)
+                select A.*
                 from {h-schema}applications as A where (A.created_at) in (
                     select max(created_at)
                     from {h-schema}applications as B
@@ -777,11 +788,11 @@ class ApplicationHibernateDAO(
                             B.is_public = TRUE
                         ) or (
                             :project is null and :user in (
-                                select P1.username from app_store.permissions as P1 where P1.application_name = B.name
+                                select P1.username from {h-schema}permissions as P1 where P1.application_name = B.name
                             )
                         ) or (
                             :project is not null and exists (
-                                select P2.project_group from app_store.permissions as P2 where
+                                select P2.project_group from {h-schema}permissions as P2 where
                                     P2.application_name = B.name and
                                         P2.project = :project and
                                         P2.project_group in (:groups)
@@ -791,15 +802,13 @@ class ApplicationHibernateDAO(
                         )
                     )
                 )
-            """.trimIndent(), Long::class.java
-        ).setParameter("user", user?.username)
-            .setParameter("role", user?.role ?: Role.UNKNOWN)
-            .setParameter("project", currentProject)
+            """.trimIndent(), ApplicationEntity::class.java
+        ).setParameter("user", userString)
+            .setParameter("role", cleanRole)
+            .setParameter("project", currentProject ?: "")
             .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
-            .uniqueResult()
-            .toInt()
-
+            .list().size
 
         val items = session.createNativeQuery<ApplicationEntity>(
             """ select A.*
@@ -828,9 +837,9 @@ class ApplicationHibernateDAO(
                 )
                 order by A.name
             """.trimIndent(), ApplicationEntity::class.java
-        ).setParameter("user", user?.username ?: "")
-            .setParameter("role", user?.role ?: Role.UNKNOWN)
-            .setParameter("project", currentProject)
+        ).setParameter("user", userString)
+            .setParameter("role", cleanRole)
+            .setParameter("project", currentProject ?: "")
             .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
@@ -1146,16 +1155,16 @@ class ApplicationHibernateDAO(
             projectGroups
         }
 
-        val count = session.createNativeQuery<Long>(
+        val count = session.createNativeQuery<ApplicationEntity>(
             """
-                select count (A.name)
+                select A.*
                 from {h-schema}applications as A
                 where (A.created_at) in (
                     select max(created_at)
                     from {h-schema}applications as B
                     where A.name = B.name
                     group by name
-                ) and A.toolName = :toolName and (
+                ) and A.tool_name = :toolName and (
                     (
                         A.is_public = TRUE
                     ) or (
@@ -1173,18 +1182,17 @@ class ApplicationHibernateDAO(
                         :role in (:privileged)
                     ) 
                 )
-            """.trimIndent(), Long::class.java)
+            """.trimIndent(), ApplicationEntity::class.java)
             .setParameter("toolName", tool)
             .setParameter("user", user.username)
             .setParameter("role", user.role)
-            .setParameter("project", project)
+            .setParameter("project", project ?: "")
             .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
-            .uniqueResult()
-            .toInt()
+            .resultList.size
 
         val items = session.createNativeQuery<ApplicationEntity>(
-            """ select A.*
+            """select A.*
                 from {h-schema}applications as A 
                 where 
                     (A.created_at) in (
@@ -1197,11 +1205,13 @@ class ApplicationHibernateDAO(
                             A.is_public = TRUE
                         ) or (
                             :project is null and :user in (
-                                select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+                                select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                             )
                         ) or (
                             :project is not null and exists (
-                                select P2.project_group from app_store.permissions as P2 where
+                                select P2.project_group
+                                from {h-schema}permissions as P2
+                                where
                                     P2.application_name = A.name and
                                     P2.project = :project and
                                     P2.project_group in (:groups)
@@ -1210,16 +1220,18 @@ class ApplicationHibernateDAO(
                             :role in (:privileged)
                         ) 
                     )
-                order by A.id.name
+                order by A.name
             """.trimIndent(), ApplicationEntity::class.java)
             .setParameter("toolName", tool)
             .setParameter("user", user.username)
             .setParameter("role", user.role)
-            .setParameter("project", project)
+            .setParameter("project", project ?: "")
             .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
+
+            println("done")
 
         return Page(count, paging.itemsPerPage, paging.page, items)
     }
