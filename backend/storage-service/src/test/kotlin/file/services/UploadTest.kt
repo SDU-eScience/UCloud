@@ -44,6 +44,7 @@ class UploadTest : WithBackgroundScope() {
         }
     }
 
+    @Ignore
     @Test(expected = FSException.IsDirectoryConflict::class)
     fun `test uploading file to file`() {
         runner.withBlockingContext(TestUsers.user.username) { ctx ->
