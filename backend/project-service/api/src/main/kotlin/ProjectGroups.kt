@@ -216,7 +216,7 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
         http {
             path {
                 using(baseContext)
-                +"allMembers"
+                +"all-members"
             }
 
             params {

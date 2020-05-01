@@ -11,7 +11,9 @@ import {
     addGroupMember,
     removeGroupMemberRequest,
     ListGroupMembersRequestProps,
-    projectRoleToString
+    ListAllGroupMembersRequestProps,
+    projectRoleToString,
+    listAllGroupMembersRequest
 } from "./api";
 import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -22,7 +24,6 @@ import {Spacer} from "ui-components/Spacer";
 import {Avatar} from "AvataaarLib";
 import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {emptyPage} from "DefaultObjects";
-import {SnackType} from "Snackbar/Snackbars";
 import {useHistory} from "react-router";
 import {dialogStore} from "Dialog/DialogStore";
 import {buildQueryString} from "Utilities/URIUtilities";
@@ -43,20 +44,10 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
         emptyPage
     );
 
-    const [allGroupMembers, setAllGroupMembers] = React.useState<Set<string>>(new Set());
-
-    async function fetchEveryGroupMember(page: number): Promise<void> {
-        try {
-            const set = page === 0 ? new Set<string>() : allGroupMembers;
-            const request = listGroupMembersRequest({group: name ?? "", itemsPerPage: 100, page});
-            const response = await promises.makeCancelable(Client.get<Page<string>>(request.path!)).promise;
-            response.response.items.forEach(member => set.add(member));
-            setAllGroupMembers(new Set(set));
-            if (response.response.pageNumber < response.response.pagesInTotal - 1) fetchEveryGroupMember(page + 1);
-        } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to fetch group members."), false);
-        }
-    }
+    const [allGroupMembers, fetchAllGroupMembers, allGroupMembersParams] = useCloudAPI<string[], ListAllGroupMembersRequestProps>(
+        listAllGroupMembersRequest({group: name ?? ""}),
+        []
+    );
 
 
     const history = useHistory();
@@ -64,13 +55,13 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
 
     const reload = (): void => {
         fetchActiveGroup({...params});
-        fetchEveryGroupMember(0);
+        fetchAllGroupMembers({...allGroupMembersParams});
     };
 
     React.useEffect(() => {
         if (name) {
             fetchActiveGroup(listGroupMembersRequest({group: name ?? "", itemsPerPage: 25, page: 0}));
-            fetchEveryGroupMember(0);
+            fetchAllGroupMembers({...allGroupMembersParams});
         }
     }, [name]);
 
@@ -120,9 +111,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     />;
 
     function promptAddMember(): void {
-        dialogStore.addDialog(<AddMemberPrompt group={name} existingMembers={allGroupMembers} addMember={member =>
-            setAllGroupMembers(new Set([...allGroupMembers, member]))
-        }/>, reload);
+        dialogStore.addDialog(<AddMemberPrompt group={name} existingMembers={allGroupMembers.data} addMember={member => undefined} />, reload);
     }
 
     async function renameGroup(e: React.SyntheticEvent): Promise<void> {
@@ -194,7 +183,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
 
 interface AddMemberPromptProps {
     group: string;
-    existingMembers: Set<string>;
+    existingMembers: string[];
     addMember: (name: string) => void;
 }
 
@@ -229,8 +218,7 @@ function AddMemberPrompt(props: AddMemberPromptProps): JSX.Element {
                                 select={() => undefined}
                                 navigate={() => undefined}
                                 left={member}
-                                right={<Button disabled={props.existingMembers.has(member) || newlyAdded.has(member)}
-                                               onClick={() => addMember(member)} color="green">Add to group</Button>}
+                                right={<Button disabled={props.existingMembers.includes(member) || newlyAdded.has(member)} onClick={() => addMember(member)} color="green">Add to group</Button>}
                             />
                         )}
                     </List>
@@ -247,7 +235,7 @@ function AddMemberPrompt(props: AddMemberPromptProps): JSX.Element {
         const {path, payload} = addGroupMember({group: props.group, memberUsername: member});
         try {
             await promises.makeCancelable(Client.put(path!, payload)).promise;
-            snackbarStore.addSuccess(`${member} added to project.`, false);
+            snackbarStore.addSuccess(`${member} added to group.`, false);
             props.addMember(member);
             newlyAdded.add(member);
             setNewlyAdded(new Set(newlyAdded));

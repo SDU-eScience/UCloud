@@ -10,9 +10,11 @@ interface CreateGroupRequest {
     group: string;
 }
 
-export interface ListGroupMembersRequestProps extends PaginationRequest {
+export interface ListAllGroupMembersRequestProps {
     group: string;
 }
+
+export type ListGroupMembersRequestProps = ListAllGroupMembersRequestProps & PaginationRequest;
 
 export function createGroup(props: CreateGroupRequest): APICallParameters<{}> {
     return {
@@ -29,6 +31,17 @@ export function listGroupMembersRequest(
     return {
         method: "GET",
         path: buildQueryString(`${groupContext}members`, props),
+        reloadId: Math.random(),
+        parameters: props
+    };
+}
+
+export function listAllGroupMembersRequest(
+    props: ListAllGroupMembersRequestProps
+): APICallParameters<ListAllGroupMembersRequestProps> {
+    return {
+        method: "GET",
+        path: buildQueryString(`${groupContext}all-members`, props),
         reloadId: Math.random(),
         parameters: props
     };
