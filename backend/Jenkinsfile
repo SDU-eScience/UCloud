@@ -23,17 +23,17 @@ def initialize() {
         endIndex = log.length()-1
     }
     return 'FAILURE\n' + 'BackendFailed: \n' + log.substring(startIndex, endIndex)
-  } finally {
-    publishHTML([
-        allowmissing: false,
-        alwaysLinkToLastBuild: false,
-        keepAll: true,
-        reportDir: 'backend/build/reports/detekt',
-        reportFiles: 'detekt.html',
-        reportName: 'Backend Detekt',
-        reportTitles: ''
-    ])
-  }
+  } //finally {
+    //publishHTML([
+    //    allowmissing: false,
+    //    alwaysLinkToLastBuild: false,
+    //    keepAll: true,
+    //    reportDir: 'backend/build/reports/detekt',
+    //    reportFiles: 'detekt.html',
+    //    reportName: 'Backend Detekt',
+    //    reportTitles: ''
+    //])
+  //}
   return 'SUCCESS'
 }
 

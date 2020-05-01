@@ -34,6 +34,7 @@ import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import {GroupMembers} from "./DetailedGroupView";
 import {addStandardDialog} from "UtilityComponents";
+import {useAvatars} from "AvataaarLib/hook";
 
 const View: React.FunctionComponent<ViewOperations> = props => {
     const id = decodeURIComponent(useParams<{id: string}>().id);
@@ -47,8 +48,6 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     const allowManagement = role === ProjectRole.PI || role === ProjectRole.ADMIN;
     const newMemberRef = useRef<HTMLInputElement>(null);
     const [isCreatingNewMember, createNewMember] = useAsyncCommand();
-    const [avatars, setAvatars] = React.useState<{[username: string]: AvatarType}>({});
-    const promises = usePromiseKeeper();
     const [isLoading, runCommand] = useAsyncCommand();
 
     /* Contact book */
@@ -80,15 +79,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         props.setLoading(project.loading);
     }, [project.loading]);
 
-    React.useEffect(() => {
-        const usernames = project.data.members.map(it => it.username);
-        if (usernames.length === 0) return;
-        promises.makeCancelable(
-            Client.post<{avatars: {[key: string]: AvatarType}}>("/avatar/bulk", {usernames: project.data.members.map(it => it.username)})
-        ).promise.then(it =>
-            setAvatars(it.response.avatars)
-        ).catch(it => console.warn(it));
-    }, [project.data.members.length, id]);
+
 
     useEffect(() => reload(), [id]);
 

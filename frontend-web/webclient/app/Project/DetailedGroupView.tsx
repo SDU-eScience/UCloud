@@ -29,6 +29,9 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import {ListRow} from "ui-components/List";
 import {ProjectMember, ProjectRole, changeRoleInProject} from "Project";
 import ClickableDropdown from "ui-components/ClickableDropdown";
+import {useEffect} from "react";
+import {useAvatars} from "AvataaarLib/hook";
+import styled from "styled-components";
 
 interface DetailedGroupViewProps {
     name: string;
@@ -73,7 +76,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
 
     if (activeGroup.error) return <MainContainer main={
         <Text fontSize={"24px"}>Could not fetch &apos;{name}&apos;.</Text>
-    } />;
+    }/>;
 
     return <MainContainer
         main={
@@ -119,7 +122,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     function promptAddMember(): void {
         dialogStore.addDialog(<AddMemberPrompt group={name} existingMembers={allGroupMembers} addMember={member =>
             setAllGroupMembers(new Set([...allGroupMembers, member]))
-        } />, reload);
+        }/>, reload);
     }
 
     async function renameGroup(e: React.SyntheticEvent): Promise<void> {
@@ -215,7 +218,7 @@ function AddMemberPrompt(props: AddMemberPromptProps): JSX.Element {
 
     return (
         <Box width="400px" maxHeight="90vh">
-            <Input onKeyUp={onKeyUp} ref={textRef} />
+            <Input onKeyUp={onKeyUp} ref={textRef}/>
             <Pagination.List
                 pageRenderer={page =>
                     <List>
@@ -226,7 +229,8 @@ function AddMemberPrompt(props: AddMemberPromptProps): JSX.Element {
                                 select={() => undefined}
                                 navigate={() => undefined}
                                 left={member}
-                                right={<Button disabled={props.existingMembers.has(member) || newlyAdded.has(member)} onClick={() => addMember(member)} color="green">Add to group</Button>}
+                                right={<Button disabled={props.existingMembers.has(member) || newlyAdded.has(member)}
+                                               onClick={() => addMember(member)} color="green">Add to group</Button>}
                             />
                         )}
                     </List>
@@ -269,38 +273,40 @@ export function GroupMembers(props: Readonly<{
     reload: () => void;
     project: string;
 }>): JSX.Element {
-    const promises = usePromiseKeeper();
     const [isLoading, runCommand] = useAsyncCommand();
-    const [avatars, setAvatars] = React.useState<{[key: string]: AvatarType}>({});
+    const avatars = useAvatars();
 
-    React.useEffect(() => {
-        promises.makeCancelable(
-            Client.post<{avatars: {[key: string]: AvatarType}}>("/avatar/bulk", {usernames: props.members.map(it => it.username)})
-        ).promise.then(it =>
-            setAvatars(it.response.avatars)
-        ).catch(it => console.warn(it));
-    }, [props.members.length]);
+    useEffect(() => {
+        const usernames = props.members.map(it => it.username);
+        if (usernames.length === 0) return;
+        avatars.updateCache(usernames);
+    }, [props.members]);
+
     return (
-        <GridCardGroup minmax={220}>
+        <Flex>
             {props.members.map(member =>
-                <Card borderRadius="10px" height="auto" minWidth="220px" key={member.username}>
-                    <Spacer
-                        left={<Flex ml="88px" width="60px" alignItems="center" mt="8px" height="48px">
-                            <Avatar avatarStyle="Circle" {...avatars[member.username] ?? defaultAvatar} />
-                        </Flex>}
-                        right={!props.allowManagement || member.role === ProjectRole.PI ? null :
-                            <Icon
-                                cursor="pointer"
-                                mt="8px"
-                                mr="8px"
-                                color="red"
-                                name="close"
-                                onClick={() => props.promptRemoveMember(member.username)} size="20px"
-                            />
-                        }
+                <MemberBox>
+                    <Avatar
+                        style={{width: "64px", height: "64px", margin: "4px"}}
+                        avatarStyle="Circle"
+                        {...avatars.cache[member.username] ?? defaultAvatar}
                     />
-                    <Flex justifyContent="center"><Text fontSize="20px" mx="8px" mt="15px">{member.username}</Text></Flex>
-                    <Flex justifyContent="center" mb="4px">
+
+                    <Flex flexDirection={"column"} m={8} flexGrow={1}>
+                        <Flex alignItems={"center"}>
+                            <Box flexGrow={1}>{member.username}</Box>
+                            {!props.allowManagement || member.role === ProjectRole.PI ? null :
+                                <Icon
+                                    cursor="pointer"
+                                    mr="8px"
+                                    ml="8px"
+                                    color="red"
+                                    name="close"
+                                    onClick={() => props.promptRemoveMember(member.username)} size="20px"
+                                />
+                            }
+                        </Flex>
+
                         {!props.allowRoleManagement || member.role === ProjectRole.PI ? projectRoleToString(member.role) :
                             <ClickableDropdown
                                 chevron
@@ -323,10 +329,21 @@ export function GroupMembers(props: Readonly<{
                                 ]}
                             />}
                     </Flex>
-                </Card>
+                </MemberBox>
             )}
-        </GridCardGroup>
+        </Flex>
     );
 }
+
+const MemberBox = styled(Flex)`
+    min-width: 200px;
+    align-items: center;
+    border-radius: 8px;
+    
+    &:hover {
+        background-color: var(--lightBlue);
+        transition: background-color 0.2s;
+    }
+`;
 
 export default DetailedGroupView;
