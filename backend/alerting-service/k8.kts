@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "alerting"
-    version = "1.1.22"
+    version = "1.1.23"
 
     withAmbassador {}
 
