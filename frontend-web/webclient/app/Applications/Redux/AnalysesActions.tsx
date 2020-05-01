@@ -42,7 +42,7 @@ export const fetchAnalyses = async (
         );
         return receiveAnalyses(response, sortBy, sortOrder);
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "Retrieval of analyses failed, please try again later."));
+        snackbarStore.addFailure(errorMessageOrDefault(e, "Retrieval of analyses failed, please try again later."), false);
         return setError();
     }
 };

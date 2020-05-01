@@ -185,7 +185,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
     const projectEntityField = React.useRef<HTMLInputElement>(null);
     const groupEntityField = React.useRef<HTMLInputElement>(null);
 
-    async function loadAcl(serverId: string) {
+    async function loadAcl(serverId: string): Promise<void> {
         try {
             const {response} = await (
                 await promises.makeCancelable(
@@ -195,7 +195,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
             setAccessList(response);
         } catch (err) {
             if (!promises.canceledKeeper) {
-                snackbarStore.addFailure("Failed to load License Server Permissions");
+                snackbarStore.addFailure("Failed to load License Server Permissions", false);
             }
         }
     }
@@ -565,9 +565,7 @@ export default function LicenseServers(): JSX.Element | null {
                 await promiseKeeper.makeCancelable(
                     Client.post("/api/app/license/new", {name, address, port, license}, "")
                 ).promise;
-                snackbarStore.addSnack(
-                    {message: `License server '${name}' successfully added`, type: SnackType.Success}
-                );
+                snackbarStore.addSuccess(`License server '${name}' successfully added`, true);
                 setName("");
                 setAddress("");
                 setPort(0);

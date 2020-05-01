@@ -40,14 +40,14 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
         }
         promises.makeCancelable(statFileOrNull(path)).promise.then(stat => {
             if (stat === null) {
-                snackbarStore.addFailure("File not found");
+                snackbarStore.addFailure("File not found", false);
                 setError("File not found");
             } else if (isDirectory({fileType: stat.fileType})) {
-                snackbarStore.addFailure("Directories cannot be previewed.");
+                snackbarStore.addFailure("Directories cannot be previewed.", false);
                 setError("Preview for folders not supported");
                 setDownloadButton(true);
             } else if (stat.size! > PREVIEW_MAX_SIZE) {
-                snackbarStore.addFailure("File size too large. Download instead.");
+                snackbarStore.addFailure("File size too large. Download instead.", false);
                 setError("File size too large to preview.");
                 setDownloadButton(true);
             } else {
@@ -135,7 +135,7 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
     function onTryFullScreen(): void {
         requestFullScreen(
             document.getElementsByClassName("fullscreen")[0]!,
-            () => snackbarStore.addFailure("Failed to enter fullscreen.")
+            () => snackbarStore.addFailure("Failed to enter fullscreen.", false)
         );
     }
 

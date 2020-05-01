@@ -162,13 +162,13 @@ function Modification(props: AvataaarModificationOperations): JSX.Element {
         />
     );
 
-    async function fetchAvatar(promises: PromiseKeeper) {
+    async function fetchAvatar(promises: PromiseKeeper): Promise<void> {
         try {
             const r = await promises.makeCancelable(Client.get<AvatarType>(findAvatarQuery, undefined)).promise;
             setAvatar(r.response);
         } catch (e) {
             if (!e.isCanceled)
-                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching current Avatar"));
+                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred fetching current Avatar"), false);
         } finally {
             setLoading(false);
         }

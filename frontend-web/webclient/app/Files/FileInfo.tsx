@@ -130,7 +130,7 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
                 setFile({...response!, size: res.response.size});
             }
         } catch (e) {
-            errorMessageOrDefault(e, "An error ocurred fetching file info.");
+            errorMessageOrDefault(e, "An error occurred fetching file info.");
         } finally {
             props.setLoading(false);
         }
@@ -201,7 +201,7 @@ function FileView({file}: FileViewProps): JSX.Element | null {
             await reclassifyFile({file, sensitivity: val, client: Client});
             setSensitivity(val);
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to change sensitivity."));
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Failed to change sensitivity."), false);
         }
     }
 }

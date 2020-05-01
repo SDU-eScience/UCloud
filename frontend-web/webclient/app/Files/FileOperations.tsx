@@ -259,9 +259,9 @@ export const defaultFileOperations: FileOperation[] = [
                                 .then(it => it).catch(it => it);
                         const failures = promises.filter(it => it.status).length;
                         if (failures > 0) {
-                            snackbarStore.addFailure(promises.filter(it => it.response).map(it => it).join(", "));
+                            snackbarStore.addFailure(promises.filter(it => it.response).map(it => it).join(", "), false);
                         } else {
-                            snackbarStore.addSnack({message: "Files deleted", type: SnackType.Success});
+                            snackbarStore.addSuccess("Files deleted", false);
                         }
                     });
                 }

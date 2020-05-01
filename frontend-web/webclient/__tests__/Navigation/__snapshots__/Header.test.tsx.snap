@@ -13,7 +13,19 @@ exports[`Header Mount header 1`] = `
   align-items: center;
 }
 
-.c21 {
+.c6 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  padding-right: 12px;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+.c26 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -25,14 +37,14 @@ exports[`Header Mount header 1`] = `
   justify-content: center;
 }
 
-.c24 {
+.c29 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
 }
 
-.c27 {
+.c32 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -48,25 +60,25 @@ exports[`Header Mount header 1`] = `
   overflow: hidden;
 }
 
-.c6 {
+.c14 {
   margin-left: auto;
 }
 
-.c20 {
+.c25 {
   margin-right: auto;
 }
 
-.c22 {
+.c27 {
   width: 24px;
 }
 
-.c11 {
+.c19 {
   position: absolute;
   top: 7px;
   left: 6px;
 }
 
-.c16 {
+.c21 {
   position: absolute;
   top: -12.5px;
   bottom: 0;
@@ -82,7 +94,25 @@ exports[`Header Mount header 1`] = `
   cursor: inherit;
 }
 
-.c17 {
+.c11 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-right: 4px;
+}
+
+.c13 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: 4px;
+}
+
+.c22 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -90,7 +120,7 @@ exports[`Header Mount header 1`] = `
   cursor: pointer;
 }
 
-.c19 {
+.c24 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -99,7 +129,7 @@ exports[`Header Mount header 1`] = `
   margin-right: 3px;
 }
 
-.c23 {
+.c28 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -108,7 +138,7 @@ exports[`Header Mount header 1`] = `
   color: #fff;
 }
 
-.c26 {
+.c31 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -124,11 +154,11 @@ exports[`Header Mount header 1`] = `
   color: #fff;
 }
 
-.c15 {
+.c9 {
   cursor: pointer;
 }
 
-.c10 {
+.c18 {
   display: block;
   font-family: inherit;
   background-color: transparent;
@@ -143,28 +173,28 @@ exports[`Header Mount header 1`] = `
   width: 100%;
 }
 
-.c10::-webkit-input-placeholder {
+.c18::-webkit-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c10::-moz-placeholder {
+.c18::-moz-placeholder {
   color: var(--gray,#f00);
 }
 
-.c10:-ms-input-placeholder {
+.c18:-ms-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c10::placeholder {
+.c18::placeholder {
   color: var(--gray,#f00);
 }
 
-.c10:focus {
+.c18:focus {
   outline: none;
   background-color: transparent;
 }
 
-.c12 {
+.c20 {
   font-size: 10px;
   -webkit-letter-spacing: 0.2px;
   -moz-letter-spacing: 0.2px;
@@ -189,23 +219,52 @@ exports[`Header Mount header 1`] = `
   color: #006aff;
 }
 
-.c8 {
+.c16 {
   position: relative;
 }
 
-.c25 {
+.c30 {
   position: relative;
   top: 0;
   left: 0;
 }
 
-.c14 {
+.c12 {
+  cursor: inherit;
+  width: 80px;
+  -webkit-flex: 1;
+  -ms-flex: 1;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.c8 {
   position: relative;
   display: inline-block;
 }
 
-.c14:hover > div {
+.c8:hover > div {
   display: block;
+}
+
+.c10 {
+  color: white;
+  padding: 4px;
+  cursor: pointer;
+  display: inline-block;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.c10:hover {
+  background-color: rgba(255,255,255,.3);
+  color: white;
+  -webkit-transition: background-color 0.2s;
+  transition: background-color 0.2s;
 }
 
 .c0 {
@@ -227,7 +286,7 @@ exports[`Header Mount header 1`] = `
   box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
 }
 
-.c9 {
+.c17 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -245,81 +304,103 @@ exports[`Header Mount header 1`] = `
   border-radius: 5px;
 }
 
-.c9 > input::-webkit-input-placeholder,
-.c9 input::-moz-placeholder,
-.c9 input::-ms-input-placeholder,
-.c9 input:-moz-placeholder {
+.c17 > input::-webkit-input-placeholder,
+.c17 input::-moz-placeholder,
+.c17 input::-ms-input-placeholder,
+.c17 input:-moz-placeholder {
   color: white;
 }
 
-.c9 > input:focus::-webkit-input-placeholder,
-.c9 input:focus::-moz-placeholder,
-.c9 input:focus::-ms-input-placeholder,
-.c9 input:focus::-moz-placeholder {
+.c17 > input:focus::-webkit-input-placeholder,
+.c17 input:focus::-moz-placeholder,
+.c17 input:focus::-ms-input-placeholder,
+.c17 input:focus::-moz-placeholder {
   color: black;
 }
 
-.c9 > input:focus ~ div > span > div > svg,
-.c9 input:focus + div > label > svg {
+.c17 > input:focus ~ div > span > div > svg,
+.c17 input:focus + div > label > svg {
   color: black;
 }
 
-.c9 > input ~ div > span > div > svg,
-.c9 input + div > label > svg {
+.c17 > input ~ div > span > div > svg,
+.c17 input + div > label > svg {
   color: white;
 }
 
-.c9 > input:focus {
+.c17 > input:focus {
   color: black;
   background-color: white;
   -webkit-transition: 150ms;
   transition: 150ms;
 }
 
-.c9 > input {
+.c17 > input {
   color: white;
   -webkit-transition: 150ms;
   transition: 150ms;
 }
 
-.c9 > .c13 > .c4 > input {
+.c17 > .c7 > .c4 > input {
   width: 350px;
   height: 36px;
 }
 
 @media screen and (max-width:511px) {
-  .c7 {
+  .c15 {
     display: none;
   }
 }
 
 @media screen and (min-width:512px) and (max-width:639px) {
-  .c7 {
+  .c15 {
     display: none;
   }
 }
 
 @media screen and (min-width:640px) and (max-width:767px) {
-  .c7 {
+  .c15 {
     display: none;
   }
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c18 {
+  .c23 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c18 {
+  .c23 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c18 {
+  .c23 {
     display: none;
+  }
+}
+
+@media screen and (min-width:512px) {
+
+}
+
+@media screen and (min-width:640px) {
+
+}
+
+@media screen and (min-width:768px) {
+
+}
+
+@media screen and (min-width:1024px) {
+
+}
+
+@media screen and (min-width:1280px) {
+  .c1 {
+    width: 190px;
   }
 }
 
@@ -333,6 +414,16 @@ exports[`Header Mount header 1`] = `
     hoverColor="textHighlight"
     href="/"
     onClick={[Function]}
+    width={
+      Array [
+        null,
+        null,
+        null,
+        null,
+        null,
+        "190px",
+      ]
+    }
   >
     <div
       className="c2"
@@ -695,18 +786,90 @@ exports[`Header Mount header 1`] = `
   </a>
   <div
     className="c6"
-  />
-  <div
-    className="c7"
   >
     <div
-      className="c8"
+      className="c7 c8"
+      data-tag="dropdown"
+    >
+      <span
+        className="c4 c9"
+        cursor="pointer"
+        onClick={[Function]}
+      >
+        <div
+          className="c10"
+        >
+          <svg
+            className="c11"
+            clipRule="evenodd"
+            cursor="inherit"
+            fill="currentcolor"
+            fillRule="evenodd"
+            height={24}
+            mr="4px"
+            viewBox="0 0 25 24"
+            width={24}
+          >
+            <path
+              d="M11.985 17.95a7.032 7.032 0 01-3.485.919 7.033 7.033 0 01-3.485-.918C2.287 18.783.615 21.54 0 23.97h17c-.615-2.43-2.287-5.188-5.015-6.02z"
+              fillRule="nonzero"
+            />
+            <path
+              d="M12.945 17.287a7.616 7.616 0 002.643-3.418 7.03 7.03 0 003.398-.918c2.728.832 4.399 3.59 5.015 6.019h-8.25c-.801-.741-1.737-1.332-2.806-1.683z"
+              fill={null}
+              fillRule="nonzero"
+            />
+            <path
+              d="M8.5 5.025a6.1 6.1 0 100 12.197 6.1 6.1 0 100-12.197z"
+              fillRule="nonzero"
+            />
+            <path
+              d="M9.895 3.653a6.126 6.126 0 0111.73 2.47 6.123 6.123 0 01-5.604 6.101 7.6 7.6 0 00-6.126-8.571z"
+              fill={null}
+              fillRule="nonzero"
+            />
+          </svg>
+          <span
+            className="c4 c12"
+            cursor="inherit"
+            width="80px"
+          >
+            Personal Project
+          </span>
+          <svg
+            className="c13"
+            clipRule="evenodd"
+            cursor="inherit"
+            fill="currentcolor"
+            fillRule="evenodd"
+            height="10px"
+            ml="4px"
+            viewBox="0 0 24 20"
+            width="10px"
+          >
+            <path
+              d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+              fillRule="nonzero"
+            />
+          </svg>
+        </div>
+      </span>
+    </div>
+  </div>
+  <div
+    className="c14"
+  />
+  <div
+    className="c15"
+  >
+    <div
+      className="c16"
     >
       <div
-        className="c9"
+        className="c17"
       >
         <input
-          className="c10"
+          className="c18"
           id="search_input"
           onChange={[Function]}
           onKeyDown={[Function]}
@@ -715,10 +878,10 @@ exports[`Header Mount header 1`] = `
           width="100%"
         />
         <div
-          className="c11"
+          className="c19"
         >
           <label
-            className="c12"
+            className="c20"
             color="black"
             fontSize={1}
             fontWeight="bold"
@@ -740,19 +903,19 @@ exports[`Header Mount header 1`] = `
           </label>
         </div>
         <div
-          className="c13 c14"
+          className="c7 c8"
           data-tag="dropdown"
         >
           <span
-            className="c4 c15"
+            className="c4 c9"
             cursor="pointer"
             onClick={[Function]}
           >
             <div
-              className="c16"
+              className="c21"
             >
               <svg
-                className="c17"
+                className="c22"
                 clipRule="evenodd"
                 cursor="pointer"
                 fill="currentcolor"
@@ -773,10 +936,10 @@ exports[`Header Mount header 1`] = `
     </div>
   </div>
   <div
-    className="c18"
+    className="c23"
   >
     <svg
-      className="c19"
+      className="c24"
       cursor="pointer"
       fill="currentcolor"
       height="32"
@@ -791,32 +954,32 @@ exports[`Header Mount header 1`] = `
     </svg>
   </div>
   <div
-    className="c20"
+    className="c25"
   />
   <div
-    className="c21"
+    className="c26"
     width="48px"
   >
     <div
-      className="c22"
+      className="c27"
       width="24px"
     />
   </div>
   <div
-    className="c13 c14"
+    className="c7 c8"
     data-tag="dropdown"
   >
     <span
-      className="c4 c15"
+      className="c4 c9"
       cursor="pointer"
       onClick={[Function]}
     >
       <div
-        className="c21"
+        className="c26"
         width="48px"
       >
         <svg
-          className="c23"
+          className="c28"
           clipRule="evenodd"
           color="headerIconColor"
           color2=""
@@ -841,26 +1004,26 @@ exports[`Header Mount header 1`] = `
     </span>
   </div>
   <div
-    className="c13 c14"
+    className="c7 c8"
     data-tag="dropdown"
   >
     <span
-      className="c4 c15"
+      className="c4 c9"
       cursor="pointer"
       onClick={[Function]}
     >
       <div
-        className="c24"
+        className="c29"
       >
         <div
-          className="c25"
+          className="c30"
         >
           <div
-            className="c21"
+            className="c26"
             width="48px"
           >
             <svg
-              className="c26"
+              className="c31"
               clipRule="evenodd"
               color="headerIconColor"
               color2=""
@@ -887,19 +1050,19 @@ exports[`Header Mount header 1`] = `
     </span>
   </div>
   <div
-    className="c13 c14"
+    className="c7 c8"
     data-tag="dropdown"
   >
     <span
-      className="c4 c15"
+      className="c4 c9"
       cursor="pointer"
       onClick={[Function]}
     >
       <div
-        className="c24"
+        className="c29"
       >
         <div
-          className="c27"
+          className="c32"
           height="48px"
           width="60px"
         >

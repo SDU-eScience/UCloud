@@ -69,7 +69,7 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
 
     async function promptDeleteGroups(groups: GroupWithSummary[]): Promise<void> {
         if (groups.length === 0) {
-            snackbarStore.addFailure("You haven't selected any groups.");
+            snackbarStore.addFailure("You haven't selected any groups.", false);
             return;
         }
         addStandardDialog({
@@ -84,7 +84,7 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
                     await Client.delete(baseContext, {groups});
                     reload();
                 } catch (err) {
-                    snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred deleting groups"));
+                    snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred deleting groups"), false);
                 } finally {
                     setLoading(false);
                 }
@@ -179,16 +179,16 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
             setLoading(true);
             const groupName = createGroupRef.current?.value ?? "";
             if (!groupName) {
-                snackbarStore.addFailure("Groupname can't be empty");
+                snackbarStore.addFailure("Groupname can't be empty", false);
                 return;
             }
             await promises.makeCancelable(Client.put(baseContext, {group: groupName})).promise;
-            snackbarStore.addSnack({message: "Group created", type: SnackType.Success});
+            snackbarStore.addSuccess(`Group ${group} created`, true);
             createGroupRef.current!.value = "";
             setCreatingGroup(false);
             fetchSummaries({...params});
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Could not create group."));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Could not create group."), false);
         } finally {
             setLoading(false);
         }

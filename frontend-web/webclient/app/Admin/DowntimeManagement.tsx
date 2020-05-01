@@ -144,16 +144,16 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
         stopPropagationAndPreventDefault(e);
         const text = textRef.current?.value;
         if (start == null) {
-            snackbarStore.addFailure("Please add a starting time and date.");
+            snackbarStore.addFailure("Please add a starting time and date.", false);
             return;
         } else if (end == null) {
-            snackbarStore.addFailure("Please add an end time and date.");
+            snackbarStore.addFailure("Please add an end time and date.", false);
             return;
         } else if (text == null || text === "") {
-            snackbarStore.addFailure("Please fill out text field");
+            snackbarStore.addFailure("Please fill out text field", false);
             return;
         } else if (start.getTime() > end.getTime()) {
-            snackbarStore.addFailure("End time cannot be before start.");
+            snackbarStore.addFailure("End time cannot be before start.", false);
             return;
         }
 
@@ -161,11 +161,7 @@ function DowntimeManagement(props: {setActivePage: () => void}) {
             await promises.makeCancelable(
                 Client.put("/downtime", {start: start.getTime(), end: end.getTime(), text})
             ).promise;
-            snackbarStore.addSnack({
-                type: SnackType.Success,
-                message: "submitted",
-                lifetime: 2_000
-            });
+            snackbarStore.addSuccess("Submitted", false, 2_000);
             fetchDowntimes(downtimes.pageNumber, downtimes.itemsInTotal);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Could not add downtime.");

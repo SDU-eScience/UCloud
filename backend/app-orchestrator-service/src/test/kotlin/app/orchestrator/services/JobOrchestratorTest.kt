@@ -175,15 +175,6 @@ class JobOrchestratorTest {
             )
         }
         runBlocking {
-            retrySection {
-                orchestrator.handleProposedStateChange(
-                    JobStateChange(returnedID, JobState.PREPARED),
-                    "newStatus",
-                    TestUsers.user
-                )
-            }
-        }
-        runBlocking {
             // Same state for branch check
             orchestrator.handleProposedStateChange(
                 JobStateChange(returnedID, JobState.FAILURE),
@@ -201,7 +192,7 @@ class JobOrchestratorTest {
 
             retrySection {
                 val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
-                assertEquals("newFAILStatus", job.status)
+                assertEquals("newStatus", job.status)
             }
         }
 

@@ -247,7 +247,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                                 } catch (ex) {
                                                                     snackbarStore.addFailure(
                                                                         "Could not find a parameters file for this " +
-                                                                        "run. Try a different run."
+                                                                        "run. Try a different run.",
+                                                                        false
                                                                     );
                                                                 } finally {
                                                                     this.props.setLoading(false);
@@ -478,6 +479,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             if (this.state.url.current == null || this.state.url.current.value == "") {
                 snackbarStore.addFailure(
                     "Persistent URL is enabled, but not set",
+                    false,
                     5000
                 );
                 this.setState(() => ({jobSubmitted: false}));
@@ -487,6 +489,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             if (this.state.url.current.value.length < 5) {
                 snackbarStore.addFailure(
                     "URL identifier should be at least 5 characters",
+                    false,
                     5000
                 );
                 this.setState(() => ({jobSubmitted: false}));
@@ -506,7 +509,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         // Validate max time
         const maxTime = extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime.hours === 0 && maxTime.minutes === 0 && maxTime.seconds === 0) {
-            snackbarStore.addFailure("Scheduling times must be more than 0 seconds.", 5000);
+            snackbarStore.addFailure("Scheduling times must be more than 0 seconds.", false, 5000);
             return;
         }
 
@@ -533,6 +536,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 if (hostname === "" || jobId === "") {
                     snackbarStore.addFailure(
                         "A connection is missing a job or hostname",
+                        false,
                         5000
                     );
 
@@ -543,6 +547,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     snackbarStore.addFailure(
                         `The connection '${hostname}' has an invalid hostname.` +
                         `Hostnames cannot contain spaces or special characters.`,
+                        false,
                         5000
                     );
                     return;
@@ -598,7 +603,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                             this.props.history.push(`/applications/results/${rerunRequest.response.jobId}`);
                         } catch (rerunErr) {
                             snackbarStore.addFailure(
-                                errorMessageOrDefault(rerunErr, "An error occurred submitting the job.")
+                                errorMessageOrDefault(rerunErr, "An error occurred submitting the job."),
+                                false
                             );
                         }
                     },
@@ -608,7 +614,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 });
             } else {
                 snackbarStore.addFailure(
-                    errorMessageOrDefault(err, "An error occurred submitting the job.")
+                    errorMessageOrDefault(err, "An error occurred submitting the job."),
+                    false
                 );
                 this.setState(() => ({jobSubmitted: false}));
             }
@@ -625,7 +632,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             await this.state.promises.makeCancelable(Client.post(hpcFavoriteApp(name, version))).promise;
             this.setState(() => ({favorite: !this.state.favorite}));
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"));
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"), false);
         } finally {
             this.setState(() => ({favoriteLoading: false}));
         }
@@ -664,7 +671,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 url: this.state.url
             }));
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, `An error occurred fetching ${name}`));
+            snackbarStore.addFailure(errorMessageOrDefault(e, `An error occurred fetching ${name}`), false);
         } finally {
             this.props.setLoading(false);
         }
@@ -689,13 +696,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 } = JSON.parse(rawInputFile);
                 // Verify metadata
                 if (application.name !== thisApp.metadata.name) {
-                    snackbarStore.addFailure("Application name does not match");
+                    snackbarStore.addFailure("Application name does not match", false);
                     return;
                 } else if (application.version !== thisApp.metadata.version) {
-                    snackbarStore.addSnack({
-                        message: "Application version does not match. Some parameters may not be filled out correctly.",
-                        type: SnackType.Information
-                    });
+                    snackbarStore.addInformation(
+                        "Application version does not match. Some parameters may not be filled out correctly.",
+                        false,
+                    );
                 }
 
                 // Finds the values to parameters that are still valid in this version of the application.
@@ -728,7 +735,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     }
 
                     if (invalidFiles.length > 0) {
-                        snackbarStore.addFailure(`The following files don't exists: ${invalidFiles.join(", ")}`);
+                        snackbarStore.addFailure(`The following files don't exists: ${invalidFiles.join(", ")}`, false);
                     }
                 }
 
@@ -786,7 +793,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 }));
             } catch (e) {
                 console.warn(e);
-                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"));
+                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"), false);
             }
         };
         fileReader.readAsText(file);
@@ -808,7 +815,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
     private fetchAndImportParameters = async (file: { path: string }): Promise<void> => {
         const fileStat = await Client.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
-            snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed.");
+            snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed.", false);
             return;
         }
         const response = await fetchFileContent(file.path, Client);
@@ -1060,7 +1067,7 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                             if (e.target.files) {
                                 const file = e.target.files[0];
                                 if (file.size > 10_000_000) {
-                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
+                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.", false);
                                 } else {
                                     importParameters(file);
                                 }

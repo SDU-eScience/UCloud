@@ -335,7 +335,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 });
                 setApplications(newApplications);
             }).catch(e =>
-                snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred fetching Quicklaunch Apps")
+                snackbarStore.addFailure(
+                    UF.errorMessageOrDefault(e, "An error occurred fetching Quicklaunch Apps"), false
                 ));
         }
     }, [page]);
@@ -621,7 +622,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 setMember(response.member);
             } catch (err) {
                 if (promises.canceledKeeper) return;
-                snackbarStore.addFailure(UF.errorMessageOrDefault(err, "An error ocurred fetcing member info."));
+                snackbarStore.addFailure(UF.errorMessageOrDefault(err, "An error occurred fetcing member info."), false);
             }
         }
     }
