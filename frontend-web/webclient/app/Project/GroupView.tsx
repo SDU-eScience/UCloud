@@ -21,6 +21,8 @@ import {groupSummaryRequest} from "Project/api";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
+import {useState} from "react";
+import {BreadCrumbs, BreadCrumbsBase} from "ui-components/Breadcrumbs";
 
 interface GroupWithSummary {
     group: string;
@@ -32,7 +34,7 @@ const baseContext = "/projects/groups";
 
 function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
     const history = useHistory();
-    const {group} = useParams<{group?: string}>();
+    const {id, group} = useParams<{ id: string, group?: string}>();
     const [creatingGroup, setCreatingGroup] = React.useState(false);
     const [loading, setLoading] = React.useState(false);
     const createGroupRef = React.useRef<HTMLInputElement>(null);
@@ -94,84 +96,84 @@ function GroupsOverview(props: GroupViewOperations): JSX.Element | null {
         setSelectedGroups(new Set());
     }
 
-    if (group) return <DetailedGroupView name={group} />;
+    if (group) return <DetailedGroupView name={group}/>;
 
-    return <MainContainer
-        sidebar={<>
-            <Button disabled={loading} mb="5px" onClick={() => setCreatingGroup(true)} width="100%">New Group</Button>
-            {selectedGroups.size > 0 ? `${selectedGroups.size} group${selectedGroups.size > 1 ? "s" : ""} selected` : null}
-            <GroupOperations groupOperations={operations} selectedGroups={groupSummaries.data.items.filter(it => selectedGroups.has(it.group))} />
-        </>}
-        main={(<>
-            {groupSummaries.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
-            <List>
-                {creatingGroup ?
-                    <ListRow
-                        left={<form onSubmit={createGroup}><Input
-                            pt="0px"
-                            pb="0px"
-                            pr="0px"
-                            pl="0px"
-                            noBorder
-                            fontSize={20}
-                            maxLength={1024}
-                            onKeyDown={e => {
-                                if (e.keyCode === KeyCode.ESC) {
-                                    setCreatingGroup(false);
-                                }
-                            }}
-                            borderRadius="0px"
-                            type="text"
-                            width="100%"
-                            autoFocus
-                            ref={createGroupRef}
-                        /></form>}
-                        leftSub={
-                            <Text ml="4px" color="gray" fontSize={0}>
-                                <Icon color="gray" mt="-2px" size="10" name="projects" /> 0
-                            </Text>
-                        }
-                        right={<div />}
-                        isSelected={false}
-                        select={() => undefined}
-                    /> : null}
-                {groupSummaries.data.items.map(g => (<>
-                    <ListRow
-                        key={g.group}
-                        left={g.group}
-                        navigate={() => history.push(`/projects/groups/${encodeURI(g.group)}`)}
-                        leftSub={
-                            <Text ml="4px" color="gray" fontSize={0}>
-                                <Icon color="gray" mt="-2px" size="10" name="projects" /> {g.numberOfMembers}
-                            </Text>
-                        }
-                        right={selectedGroups.size === 0 ? <div onClick={stopPropagation}><ClickableDropdown
-                            width="125px"
-                            left="-105px"
-                            trigger={(
-                                <Icon
-                                    onClick={preventDefault}
-                                    mr="10px"
-                                    name="ellipsis"
-                                    size="1em"
-                                    rotation={90}
-                                />
-                            )}
-                        >
-                            <GroupOperations groupOperations={operations} selectedGroups={[g]} />
-                        </ClickableDropdown></div> : null}
-                        isSelected={selectedGroups.has(g.group)}
-                        select={() => {
-                            if (selectedGroups.has(g.group)) selectedGroups.delete(g.group);
-                            else selectedGroups.add(g.group);
-                            setSelectedGroups(new Set(selectedGroups));
+    return <>
+        <BreadCrumbsBase>
+            <li><span>Groups</span></li>
+        </BreadCrumbsBase>
+
+        {groupSummaries.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
+        <List>
+            {groupSummaries.data.items.map(g => (<>
+                <ListRow
+                    key={g.group}
+                    left={g.group}
+                    navigate={() => history.push(`/projects/view/${id}/${g.group}`)}
+                    leftSub={
+                        <Text ml="4px" color="gray" fontSize={0}>
+                            <Icon color="gray" mt="-2px" size="10" name="projects"/> {g.numberOfMembers}
+                        </Text>
+                    }
+                    right={selectedGroups.size === 0 ? <div onClick={stopPropagation}><ClickableDropdown
+                        width="125px"
+                        left="-105px"
+                        trigger={(
+                            <Icon
+                                onClick={preventDefault}
+                                mr="10px"
+                                name="ellipsis"
+                                size="1em"
+                                rotation={90}
+                            />
+                        )}
+                    >
+                        <GroupOperations groupOperations={operations} selectedGroups={[g]}/>
+                    </ClickableDropdown></div> : null}
+                    isSelected={selectedGroups.has(g.group)}
+                    select={() => {
+                        if (selectedGroups.has(g.group)) selectedGroups.delete(g.group);
+                        else selectedGroups.add(g.group);
+                        setSelectedGroups(new Set(selectedGroups));
+                    }}
+                />
+            </>))}
+
+            {creatingGroup ?
+                <ListRow
+                    left={<form onSubmit={createGroup}><Input
+                        pt="0px"
+                        pb="0px"
+                        pr="0px"
+                        pl="0px"
+                        noBorder
+                        fontSize={20}
+                        maxLength={1024}
+                        onKeyDown={e => {
+                            if (e.keyCode === KeyCode.ESC) {
+                                setCreatingGroup(false);
+                            }
                         }}
-                    />
-                </>))}
-            </List>
-        </>)}
-        header={<Heading.h3>Groups for {Client.projectId} </Heading.h3>}
-    />;
+                        borderRadius="0px"
+                        type="text"
+                        width="100%"
+                        autoFocus
+                        ref={createGroupRef}
+                    /></form>}
+                    leftSub={
+                        <Text ml="4px" color="gray" fontSize={0}>
+                            <Icon color="gray" mt="-2px" size="10" name="projects"/> 0
+                        </Text>
+                    }
+                    right={<div/>}
+                    isSelected={false}
+                    select={() => undefined}
+                /> : null}
+        </List>
+        <Flex justifyContent={"center"}>
+            <Button width={"50%"} onClick={() => setCreatingGroup(true)}>New Group</Button>
+        </Flex>
+    </>;
 
     async function createGroup(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
@@ -208,7 +210,7 @@ function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
     function GroupOp(op: GroupOperation): JSX.Element | null {
         if (op.disabled(props.selectedGroups, Client)) return null;
         return <span onClick={() => op.onClick(props.selectedGroups, Client)}>
-            <Icon size={16} mr="1em" color={op.color} name={op.icon} />{op.text}</span>;
+            <Icon size={16} mr="1em" color={op.color} name={op.icon}/>{op.text}</span>;
     }
 
     return (
@@ -226,6 +228,7 @@ function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
 interface GroupViewOperations {
     setLoading: (loading: boolean) => void;
     setRefresh: (refresh?: () => void) => void;
+
     setTitle(): void;
 }
 

@@ -1,6 +1,6 @@
 import * as React from "react";
 import {MainContainer} from "MainContainer/MainContainer";
-import {Text, Input, Box, Flex, Button, Card, Icon, List} from "ui-components";
+import {Text, Input, Box, Flex, Button, Card, Icon, List, Truncate, Link} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {defaultAvatar, AvatarType} from "UserSettings/Avataaar";
 import * as Pagination from "Pagination";
@@ -23,7 +23,7 @@ import {Avatar} from "AvataaarLib";
 import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {emptyPage} from "DefaultObjects";
 import {SnackType} from "Snackbar/Snackbars";
-import {useHistory} from "react-router";
+import {useHistory, useParams} from "react-router";
 import {dialogStore} from "Dialog/DialogStore";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {ListRow} from "ui-components/List";
@@ -32,12 +32,14 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {useEffect} from "react";
 import {useAvatars} from "AvataaarLib/hook";
 import styled from "styled-components";
+import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 
 interface DetailedGroupViewProps {
     name: string;
 }
 
 function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
+    const {id, group} = useParams<{ id: string, group?: string}>();
     const [activeGroup, fetchActiveGroup, params] = useCloudAPI<Page<string>, ListGroupMembersRequestProps>(
         listGroupMembersRequest({group: name ?? "", itemsPerPage: 25, page: 0}),
         emptyPage
@@ -58,7 +60,6 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
         }
     }
 
-
     const history = useHistory();
     const promises = usePromiseKeeper();
 
@@ -78,46 +79,38 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
         <Text fontSize={"24px"}>Could not fetch &apos;{name}&apos;.</Text>
     }/>;
 
-    return <MainContainer
-        main={
-            <Pagination.List
-                loading={activeGroup.loading}
-                onPageChanged={(newPage, page) => fetchActiveGroup(listGroupMembersRequest({
-                    group: name,
-                    itemsPerPage: page.itemsPerPage,
-                    page: newPage
-                }))}
-                customEmptyPage={<Text>No members in group.</Text>}
-                page={activeGroup.data}
-                pageRenderer={page =>
-                    <GroupMembers
-                        members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
-                        promptRemoveMember={promptRemoveMember}
-                        reload={reload}
-                        project={Client.projectId ?? ""}
-                        allowManagement
-                        allowRoleManagement={false}
-                    />
-                }
-            />
-        }
-        sidebar={<Box>
-            <Button onClick={promptAddMember} mb="5px" color="green" width="100%">Add member</Button>
-            <Button onClick={renameGroup} width="100%" mb="5px">Rename group</Button>
-            <Button onClick={promptDeleteGroup} width="100%" color="red">Delete group</Button>
-        </Box>}
-        headerSize={120}
-        header={<>
-            <Box>
-                <Text
-                    style={{wordBreak: "break-word"}}
-                    fontSize="25px"
-                    width="100%"
-                >{name}</Text>
-                <Heading.h5>Members: {activeGroup.data.itemsInTotal}</Heading.h5>
-            </Box>
-        </>}
-    />;
+    // <Box>
+    //     <Button onClick={promptAddMember} mb="5px" color="green" width="100%">Add member</Button>
+    //     <Button onClick={renameGroup} width="100%" mb="5px">Rename group</Button>
+    //     <Button onClick={promptDeleteGroup} width="100%" color="red">Delete group</Button>
+    // </Box>
+
+    return <>
+        <BreadCrumbsBase>
+            <li><span><Link to={`/projects/view/${id}`}>Groups</Link></span></li>
+            <li><span>{name}</span></li>
+        </BreadCrumbsBase>
+        <Pagination.List
+            loading={activeGroup.loading}
+            onPageChanged={(newPage, page) => fetchActiveGroup(listGroupMembersRequest({
+                group: name,
+                itemsPerPage: page.itemsPerPage,
+                page: newPage
+            }))}
+            customEmptyPage={<Text>No members in group.</Text>}
+            page={activeGroup.data}
+            pageRenderer={page =>
+                <GroupMembers
+                    members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
+                    promptRemoveMember={promptRemoveMember}
+                    reload={reload}
+                    project={Client.projectId ?? ""}
+                    allowManagement
+                    allowRoleManagement={false}
+                />
+            }
+        />
+    </>;
 
     function promptAddMember(): void {
         dialogStore.addDialog(<AddMemberPrompt group={name} existingMembers={allGroupMembers} addMember={member =>
@@ -283,18 +276,18 @@ export function GroupMembers(props: Readonly<{
     }, [props.members]);
 
     return (
-        <Flex>
+        <GridCardGroup minmax={260}>
             {props.members.map(member =>
                 <MemberBox>
                     <Avatar
-                        style={{width: "64px", height: "64px", margin: "4px"}}
+                        style={{width: "48px", height: "48px", margin: "4px", flexShrink: 0}}
                         avatarStyle="Circle"
                         {...avatars.cache[member.username] ?? defaultAvatar}
                     />
 
-                    <Flex flexDirection={"column"} m={8} flexGrow={1}>
+                    <Flex flexDirection={"column"} m={8}>
                         <Flex alignItems={"center"}>
-                            <Box flexGrow={1}>{member.username}</Box>
+                            <Truncate width={"160px"} title={member.username}>{member.username}</Truncate>
                             {!props.allowManagement || member.role === ProjectRole.PI ? null :
                                 <Icon
                                     cursor="pointer"
@@ -331,17 +324,18 @@ export function GroupMembers(props: Readonly<{
                     </Flex>
                 </MemberBox>
             )}
-        </Flex>
+        </GridCardGroup>
     );
 }
 
 const MemberBox = styled(Flex)`
-    min-width: 200px;
+    width: 260px;
     align-items: center;
     border-radius: 8px;
+    margin-right: 8px;
     
     &:hover {
-        background-color: var(--lightBlue);
+        background-color: var(--lightGray);
         transition: background-color 0.2s;
     }
 `;

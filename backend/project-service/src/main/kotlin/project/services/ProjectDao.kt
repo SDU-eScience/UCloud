@@ -69,7 +69,7 @@ class ProjectDao {
         val members = session
             .sendPreparedStatement(
                 { setParameter("project", projectId) },
-                "select * from project_members where project_id = ?project"
+                "select * from project_members where project_id = ?project order by role, created_at asc"
             )
             .rows
             .map { it.toProjectMember() }

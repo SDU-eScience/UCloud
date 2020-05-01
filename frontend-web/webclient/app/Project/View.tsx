@@ -2,11 +2,9 @@ import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "Authenticat
 import {LoadingMainContainer} from "MainContainer/MainContainer";
 import {
     addMemberInProject,
-    changeRoleInProject,
     deleteMemberInProject,
     emptyProject,
     Project,
-    ProjectMember,
     ProjectRole,
     roleInProject,
     viewProject
@@ -16,28 +14,27 @@ import * as React from "react";
 import {useEffect, useRef, useState} from "react";
 import {useParams} from "react-router";
 import {Box, Button, Flex, Input, Label} from "ui-components";
-import {AvatarType} from "UserSettings/Avataaar";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {usePromiseKeeper} from "PromiseKeeper";
 import {loadingAction} from "Loading";
 import {
     shouldVerifyMembership,
     ShouldVerifyMembershipResponse,
     verifyMembership
 } from "Project/api";
-import {Client} from "Authentication/HttpClientInstance";
 import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import {GroupMembers} from "./DetailedGroupView";
 import {addStandardDialog} from "UtilityComponents";
-import {useAvatars} from "AvataaarLib/hook";
+import styled from "styled-components";
+import GroupView from "Project/GroupView";
+import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 
 const View: React.FunctionComponent<ViewOperations> = props => {
-    const id = decodeURIComponent(useParams<{id: string}>().id);
+    const id = decodeURIComponent(useParams<{ id: string }>().id);
     const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
     const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
         shouldVerifyMembership(id),
@@ -53,7 +50,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     /* Contact book */
     const SERVICE = ServiceOrigin.PROJECT_SERVICE;
     const ref = React.useRef<number>(-1);
-    const [contacts, setFetchArgs,] = useCloudAPI<{contacts: string[]}>(
+    const [contacts, setFetchArgs,] = useCloudAPI<{ contacts: string[] }>(
         searchPreviousSharedUsers("", SERVICE),
         {contacts: []}
     );
@@ -78,8 +75,6 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     useEffect(() => {
         props.setLoading(project.loading);
     }, [project.loading]);
-
-
 
     useEffect(() => reload(), [id]);
 
@@ -109,63 +104,23 @@ const View: React.FunctionComponent<ViewOperations> = props => {
 
     return (
         <LoadingMainContainer
-            headerSize={66}
-            header={(
-                <>
-                    <Heading.h3>{project.data.id}</Heading.h3>
-                </>
-            )}
+            headerSize={0}
+            header={null}
             sidebar={null}
             loading={project.loading && project.data.members.length === 0}
             error={project.error ? project.error.why : undefined}
             main={(
                 <>
-                    {!allowManagement ? null : (
-                        <form onSubmit={onSubmit}>
-                            <Dropdown fullWidth hover={false}>
-                                <Label htmlFor={"new-project-member"}>Add new member</Label>
-                                <Flex mb="6px">
-                                    <Input
-                                        onKeyUp={onKeyUp}
-                                        id="new-project-member"
-                                        placeholder="Username"
-                                        ref={newMemberRef}
-                                        width="350px"
-                                        disabled={isCreatingNewMember}
-                                        rightLabel
-                                    />
-                                    <Button attached>Add</Button>
-                                </Flex>
-                            </Dropdown>
-                            <DropdownContent
-                                hover={false}
-                                colorOnHover={false}
-                                width="350px"
-                                visible={contacts.data.contacts.length > 0}
-                            >
-                                {contacts.data.contacts.map(it => (
-                                    <div
-                                        key={it}
-                                        onClick={() => {
-                                            newMemberRef.current!.value = it;
-                                            setFetchArgs(searchPreviousSharedUsers("", SERVICE));
-                                        }}
-                                    >
-                                        {it}
-                                    </div>
-                                ))}
-                            </DropdownContent>
-                        </form>
-                    )}
                     {!shouldVerify.data.shouldVerify ? null : (
-                        <Box backgroundColor={"orange"} color={"white"} p={32}>
+                        <Box backgroundColor={"orange"} color={"white"} p={32} m={16}>
                             <Heading.h4>Time for a review!</Heading.h4>
 
                             <ul>
                                 <li>PIs and admins are asked to occasionally review members of their project</li>
                                 <li>We ask you to ensure that only the people who need access have access</li>
-                                <li>If you find someone who should not have access then remove them by clicking 'Remove'
-                                next to their name
+                                <li>If you find someone who should not have access then remove them by clicking
+                                    'Remove'
+                                    next to their name
                                 </li>
                                 <li>
                                     When you are done, click below:
@@ -180,30 +135,109 @@ const View: React.FunctionComponent<ViewOperations> = props => {
 
                         </Box>
                     )}
-                    <GroupMembers
-                        members={project.data.members}
-                        promptRemoveMember={async member => addStandardDialog({
-                            title: "Remove member",
-                            message: `Remove ${member}?`,
-                            onConfirm: async () => {
-                                await runCommand(deleteMemberInProject({
-                                    projectId: id,
-                                    member
-                                }));
+                    <TwoColumnLayout>
+                        <Box className={"members"}>
+                            <BreadCrumbsBase>
+                                <li><span>Members of {project.data.title}</span></li>
+                            </BreadCrumbsBase>
+                            {!allowManagement ? null : (
+                                <form onSubmit={onSubmit}>
+                                    <Dropdown fullWidth hover={false}>
+                                        <Label htmlFor={"new-project-member"}>Add new member</Label>
+                                        <Flex mb="6px">
+                                            <Input
+                                                onKeyUp={onKeyUp}
+                                                id="new-project-member"
+                                                placeholder="Username"
+                                                ref={newMemberRef}
+                                                width="350px"
+                                                disabled={isCreatingNewMember}
+                                                rightLabel
+                                            />
+                                            <Button attached>Add</Button>
+                                        </Flex>
+                                    </Dropdown>
+                                    <DropdownContent
+                                        hover={false}
+                                        colorOnHover={false}
+                                        width="350px"
+                                        visible={contacts.data.contacts.length > 0}
+                                    >
+                                        {contacts.data.contacts.map(it => (
+                                            <div
+                                                key={it}
+                                                onClick={() => {
+                                                    newMemberRef.current!.value = it;
+                                                    setFetchArgs(searchPreviousSharedUsers("", SERVICE));
+                                                }}
+                                            >
+                                                {it}
+                                            </div>
+                                        ))}
+                                    </DropdownContent>
+                                </form>
+                            )}
 
-                                reload();
-                            }
-                        })}
-                        reload={reload}
-                        project={project.data.id}
-                        allowManagement={allowManagement}
-                        allowRoleManagement={allowManagement}
-                    />
+                            <GroupMembers
+                                members={project.data.members}
+                                promptRemoveMember={async member => addStandardDialog({
+                                    title: "Remove member",
+                                    message: `Remove ${member}?`,
+                                    onConfirm: async () => {
+                                        await runCommand(deleteMemberInProject({
+                                            projectId: id,
+                                            member
+                                        }));
+
+                                        reload();
+                                    }
+                                })}
+                                reload={reload}
+                                project={project.data.id}
+                                allowManagement={allowManagement}
+                                allowRoleManagement={allowManagement}
+                            />
+                        </Box>
+                        <Box className={"groups"}>
+                            <GroupView />
+                        </Box>
+                    </TwoColumnLayout>
                 </>
             )}
         />
     );
 };
+
+const TwoColumnLayout = styled.div`
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    
+    & > * {
+        flex-basis: 100%;
+    }
+    
+    @media screen and (min-width: 1200px) {
+        & {
+            height: calc(100vh - 140px);
+            overflow: hidden;
+        }
+        
+        & > .members {
+            height: 100%;
+            flex: 1;
+            overflow-y: scroll;
+            margin-right: 32px;
+        }
+        
+        & > .groups {
+            flex: 2;
+            height: 100%;
+            overflow: auto;
+        }
+    }
+`;
 
 interface ViewOperations {
     setRefresh: (refresh?: () => void) => void;

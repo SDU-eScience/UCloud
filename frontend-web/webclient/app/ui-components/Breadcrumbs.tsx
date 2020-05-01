@@ -5,13 +5,13 @@ import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import HttpClient from "Authentication/lib";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
-const BreadCrumbsBase = styled.ul`
+export const BreadCrumbsBase = styled.ul`
     padding: 0;
     padding-right: 10px;
     margin: 0;
     list-style: none;
     max-width: 85%;
-    height: 85px;
+    height: 60px;
     overflow-y: auto;
 
     & li {
