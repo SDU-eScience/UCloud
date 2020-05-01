@@ -56,7 +56,7 @@ function Installed(props: InstalledProps & {header: React.ReactNode}): JSX.Eleme
                 page.pageNumber : Math.max(page.pageNumber - 1, 0);
             props.fetchItems(pageNumber, page.itemsPerPage);
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "Could not favorite app"));
+            snackbarStore.addFailure(errorMessageOrDefault(e, "Could not favorite app"), false);
         }
     }
 

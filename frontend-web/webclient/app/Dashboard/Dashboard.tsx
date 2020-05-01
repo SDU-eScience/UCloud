@@ -42,7 +42,7 @@ import {listFavorites, useFavoriteStatus} from "Files/favorite";
 import {useCloudAPI} from "Authentication/DataHook";
 import {Page} from "Types";
 
-const DashboardCard: React.FunctionComponent<{title: string; isLoading: boolean}> = ({title, isLoading, children}) => (
+export const DashboardCard: React.FunctionComponent<{title: string; isLoading: boolean}> = ({title, isLoading, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
         <Flex bg="lightGray" px={3} py={2} alignItems="center">
             <Heading.h4>{title}</Heading.h4>

@@ -71,7 +71,6 @@ import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
 import {
-    repositoryName,
     createRepository,
     renameRepository,
     isAdminOrPI,
@@ -79,6 +78,7 @@ import {
 } from "Utilities/ProjectUtilities";
 import {ProjectMember, ProjectRole} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
+import {useFilePermissions} from "Files/permissions";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -335,7 +335,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 });
                 setApplications(newApplications);
             }).catch(e =>
-                snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred fetching Quicklaunch Apps")
+                snackbarStore.addFailure(
+                    UF.errorMessageOrDefault(e, "An error occurred fetching Quicklaunch Apps"), false
                 ));
         }
     }, [page]);
@@ -350,8 +351,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         return () => props.setUploaderCallback();
     }, []);
 
+    const permissions = useFilePermissions();
+
     // Callbacks for operations
     const callbacks: FileOperationCallback = {
+        permissions,
         invokeAsyncWork: fn => invokeWork(fn),
         requestReload: () => {
             setFileBeingRenamed(null);
@@ -618,7 +622,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 setMember(response.member);
             } catch (err) {
                 if (promises.canceledKeeper) return;
-                snackbarStore.addFailure(UF.errorMessageOrDefault(err, "An error ocurred fetcing member info."));
+                snackbarStore.addFailure(UF.errorMessageOrDefault(err, "An error occurred fetcing member info."), false);
             }
         }
     }
@@ -1107,7 +1111,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
         if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
-        if (fileOp.disabled(filesInCallback)) return null;
+        if (fileOp.disabled(filesInCallback, props.callback)) return null;
         // TODO Fixes complaints about not having a callable signature, but loses some typesafety.
         let As: StyledComponent<any, any>;
         if (fileOperations.length === 1) {

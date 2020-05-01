@@ -43,7 +43,7 @@ class TicketServiceTest {
         }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun `test create - failure - empty notifier list`() {
         val ticketService = TicketService(emptyList())
     }

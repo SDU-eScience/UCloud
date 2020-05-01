@@ -9,13 +9,12 @@ import {dialogStore} from "Dialog/DialogStore";
 import {Box, Button, List} from "ui-components";
 import {useCloudAPI} from "Authentication/DataHook";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
-import {File, Acl, ProjectEntity} from "Files";
+import {Acl, File, ProjectEntity} from "Files";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Spacer} from "ui-components/Spacer";
 import {ProjectRole} from "Project";
-import {pathComponents, resolvePath} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
+import {pathComponents} from "Utilities/FileUtilities";
 
 export function repositoryName(path: string): string {
     const components = pathComponents(path);
@@ -32,13 +31,10 @@ export function isRepository(path: string): boolean {
 export async function createRepository(client: HttpClient, name: string, reload: () => void): Promise<void> {
     try {
         await client.post("/projects/repositories", {name});
-        snackbarStore.addSnack({
-            type: SnackType.Success,
-            message: "Repository created"
-        });
+        snackbarStore.addSuccess(`Repository ${name} created`, true);
         reload();
     } catch (err) {
-        snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred creating."));
+        snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred creating."), false);
     }
 }
 
@@ -50,16 +46,16 @@ export function promptDeleteRepository(name: string, client: HttpClient, reload:
         onConfirm: async () => {
             try {
                 await client.delete("/projects/repositories", {name});
-                snackbarStore.addSuccess("Repository deleted");
+                snackbarStore.addSuccess(`Repository ${name} deleted`, true);
                 reload();
             } catch (err) {
-                snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete repository."));
+                snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete repository."), false);
             }
         }
     });
 }
 
-export function promptDeleteProject(id: string, client: HttpClient, reload: () => void): void {
+/* export function promptDeleteProject(id: string, client: HttpClient, reload: () => void): void {
     addStandardDialog({
         title: "Delete?",
         message: `Delete ${id} and EVERY associated job, repository and group? Cannot be undone.`,
@@ -67,14 +63,14 @@ export function promptDeleteProject(id: string, client: HttpClient, reload: () =
         onConfirm: async () => {
             try {
                 await client.delete(`/projects`, {id});
-                snackbarStore.addSuccess("Project deleted");
+                snackbarStore.addSuccess("Project deleted", false);
                 reload();
             } catch (err) {
-                snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete project."));
+                snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete project."), false);
             }
         }
     });
-}
+} */
 
 export async function renameRepository(
     oldName: string,
@@ -84,13 +80,10 @@ export async function renameRepository(
 ): Promise<void> {
     try {
         await client.post("/projects/repositories/update", {oldName, newName});
-        snackbarStore.addSnack({
-            type: SnackType.Success,
-            message: "Repository renamed"
-        });
+        snackbarStore.addSuccess("Repository renamed", false);
         reload();
     } catch (err) {
-        snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred renaming repository."));
+        snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred renaming repository."), false);
     }
 }
 
@@ -130,8 +123,8 @@ export function UpdatePermissionsDialog(props: {client: HttpClient; repository: 
                 {groups.data.map(g => {
                     const acl = newRights.get(g) ?? props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ?? [];
                     let rights = "None";
-                    if (acl.includes("READ")) rights = "Read";
-                    if (acl.includes("WRITE")) rights = "Edit";
+                    if (acl.includes(AccessRight.READ)) rights = "Read";
+                    if (acl.includes(AccessRight.WRITE)) rights = "Edit";
                     return (
                         <ListRow
                             key={g}
@@ -187,9 +180,9 @@ export async function updatePermissions(
             repository,
             newAcl
         } as UpdatePermissionsRequest);
-        snackbarStore.addSuccess("Updated permissions.");
+        snackbarStore.addSuccess("Updated permissions.", false);
     } catch (err) {
-        snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update permissions"));
+        snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update permissions"), false);
     }
 }
 
@@ -202,6 +195,6 @@ export async function toggleFavoriteProject(projectId: string, client: HttpClien
         await client.post("/project/favorite", {projectID: projectId});
         reload();
     } catch (err) {
-        snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to toggle favorite"));
+        snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to toggle favorite"), false);
     }
 }

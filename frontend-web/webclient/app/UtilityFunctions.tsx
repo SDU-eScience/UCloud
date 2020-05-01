@@ -1,4 +1,4 @@
-import {Client as currentClient} from "Authentication/HttpClientInstance";
+import {Client, Client as currentClient} from "Authentication/HttpClientInstance";
 import {SensitivityLevel} from "DefaultObjects";
 import {Acl, File, FileType, SortBy, UserEntity} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
@@ -353,7 +353,7 @@ export function defaultErrorHandler(
             }
         }
 
-        snackbarStore.addFailure(why);
+        snackbarStore.addFailure(why, false);
         return request.status;
     }
     return 500;
@@ -420,13 +420,14 @@ export function copyToClipboard({value, message}: CopyToClipboard): void {
     input.select();
     document.execCommand("copy");
     document.body.removeChild(input);
-    snackbarStore.addSnack({message, type: SnackType.Success});
+    snackbarStore.addSuccess(message, true);
 }
 
 export function errorMessageOrDefault(
     err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | string,
     defaultMessage: string
 ): string {
+    if (!navigator.onLine) return "You seem to be offline.";
     try {
         if (typeof err === "string") return err;
         if ("status" in err) {
@@ -471,7 +472,7 @@ export function stopPropagationAndPreventDefault(e: {preventDefault(): void; sto
 }
 
 export function displayErrorMessageOrDefault(e: any, fallback: string): void {
-    snackbarStore.addFailure(errorMessageOrDefault(e, fallback));
+    snackbarStore.addFailure(errorMessageOrDefault(e, fallback), false);
 }
 
 export function shouldHideSidebarAndHeader(): boolean {

@@ -41,7 +41,7 @@ export async function quickLaunchCallback(
         const req = await Client.post(hpcJobQueryPost, job);
         history.push(`/applications/results/${req.response.jobId}`);
     } catch (err) {
-        snackbarStore.addFailure(errorMessageOrDefault(err, "An error ocurred submitting the job."));
+        snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred submitting the job."), false);
     } finally {
         setLoading(false);
     }

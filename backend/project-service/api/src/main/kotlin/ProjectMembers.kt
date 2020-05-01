@@ -13,7 +13,7 @@ import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
 data class UserStatusRequest(
-    val username: String
+    val username: String?
 )
 
 data class UserStatusResponse(

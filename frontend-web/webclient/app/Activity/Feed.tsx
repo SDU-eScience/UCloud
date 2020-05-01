@@ -99,7 +99,11 @@ const OperationText: React.FunctionComponent<{event: Module.ActivityForFrontend}
         case Module.ActivityType.UPDATEDACL: {
             const update = (props.event.activityEvent as Module.UpdateAcl);
             if ("project" in update) {
-                return <span> had ACL for {update.acl.map(it => it.group).join(", ")} updated to {update.acl.map(it => it.rights)} by {update.username}</span>;
+                const rightText = update.acl.map(it => {
+                    if (it.rights.length === 0) return "none";
+                    return `(${it.rights.map(r => r.toLowerCase()).join(", ")})`;
+                }).join(", ");
+                return <span> had ACL for {update.acl.map(it => it.group).join(", ")} updated to {rightText} by {update.username}</span>;
             } else {
                 if (Client.hasActiveProject) {
                     return <span> had ACL for {update.rightsAndUser[0].user} updated to {update.rightsAndUser[0].rights} by {update.username}</span>;

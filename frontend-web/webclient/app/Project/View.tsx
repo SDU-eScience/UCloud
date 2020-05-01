@@ -107,7 +107,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
             inputField.value = "";
             reload();
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed adding new member"));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed adding new member"), false);
         }
     };
 

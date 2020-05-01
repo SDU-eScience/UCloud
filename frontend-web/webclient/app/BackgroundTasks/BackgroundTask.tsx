@@ -229,11 +229,11 @@ const mapDispatchToProps = (dispatch: Dispatch) => ({
             ).response;
             dispatch(taskLoadAction(result));
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Could not fetch background tasks."));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Could not fetch background tasks."), false);
         }
     }
 });
 
-const TasksIcon = () => <TasksIconBase name="notchedCircle" />;
+const TasksIcon = (): JSX.Element => <TasksIconBase name="notchedCircle" />;
 
 export default connect(mapStateToProps, mapDispatchToProps)(BackgroundTasks);

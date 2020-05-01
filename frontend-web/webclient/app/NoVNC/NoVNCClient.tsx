@@ -47,7 +47,7 @@ function NoVNCClient(props: RouterLocationProps): JSX.Element {
             setConnected(true);
         } catch (e) {
             console.warn(e);
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error ocurred connecting"));
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred connecting"), false);
         }
     }
 
@@ -59,7 +59,7 @@ function NoVNCClient(props: RouterLocationProps): JSX.Element {
     function toFullScreen(): void {
         requestFullScreen(
             document.getElementsByClassName("noVNC")[0]!,
-            () => snackbarStore.addFailure("Fullscreen is not supported for this browser.")
+            () => snackbarStore.addFailure("Fullscreen is not supported for this browser.", false)
         );
     }
 
@@ -70,14 +70,11 @@ function NoVNCClient(props: RouterLocationProps): JSX.Element {
             onConfirm: async () => {
                 try {
                     await Client.delete(cancelJobQuery, {jobId});
-                    snackbarStore.addSnack({
-                        type: SnackType.Success,
-                        message: "Job has been terminated"
-                    });
+                    snackbarStore.addSuccess("Job has been terminated", false);
                     setCancelled(true);
                     history.push(`/applications/results/${jobId}`);
                 } catch (e) {
-                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job."));
+                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred cancelling the job."), false);
                 }
             }
         });
@@ -95,7 +92,7 @@ function NoVNCClient(props: RouterLocationProps): JSX.Element {
                         {isCancelled ? null : (
                             <Button ml="8px" color="red" onClick={cancelJob}>
                                 Cancel Job
-                                </Button>
+                            </Button>
                         )}
                     </div>
                 )}

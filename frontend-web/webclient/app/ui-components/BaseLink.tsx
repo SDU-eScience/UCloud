@@ -1,7 +1,7 @@
 import styled from "styled-components";
-import {color, ColorProps, space, SpaceProps, style} from "styled-system";
+import {color, ColorProps, space, SpaceProps, style, width, WidthProps} from "styled-system";
 
-export interface BaseLinkProps extends SpaceProps, ColorProps {
+export interface BaseLinkProps extends SpaceProps, ColorProps, WidthProps {
     hoverColor?: string;
 }
 
@@ -16,6 +16,7 @@ const BaseLink = styled.a<BaseLinkProps>`
   text-decoration: none;
   ${space};
   ${color};
+  ${width};
 
   &:hover {
     ${hoverColor};

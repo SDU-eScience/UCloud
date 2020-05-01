@@ -136,7 +136,10 @@ class AclTest {
         val list = aclService.listAcl(serverId)
         assertThatPropertyEquals(list, { it.size }, 2)
 
-        assertTrue(AccessEntityWithPermission(AccessEntity("user", null, null), ServerAccessRight.READ_WRITE) in list)
-        assertTrue(AccessEntityWithPermission(AccessEntity("user2", null, null), ServerAccessRight.READ) in list)
+        assertEquals(user2.user, list.first().entity.user)
+        assertEquals(ServerAccessRight.READ, list.first().permission)
+
+        assertEquals(user.user, list.last().entity.user)
+        assertEquals(ServerAccessRight.READ_WRITE, list.last().permission)
     }
 }

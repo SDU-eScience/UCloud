@@ -14,6 +14,7 @@ import {Dictionary, Page, SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Upload} from "Uploader";
 import {defaultAvatar} from "UserSettings/Avataaar";
+import {ProjectCache} from "Project/cache";
 
 export enum KeyCode {
     ENTER = 13,
@@ -125,6 +126,7 @@ interface LegacyReducers {
  */
 export interface HookStore {
     fileFavoriteCache?: Dictionary<boolean>;
+    projectCache?: ProjectCache;
 }
 
 interface LegacyReduxObject {

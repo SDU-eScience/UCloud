@@ -1,22 +1,21 @@
 import {JobWithStatus} from "Applications";
-import {File} from "Files";
 import {Notification} from "Notifications"
 
 export type DashboardProps = DashboardOperations & DashboardStateProps;
 
 export interface DashboardStateProps {
-    recentAnalyses: JobWithStatus[]
-    notifications: Notification[]
-    analysesLoading: boolean
+    recentAnalyses: JobWithStatus[];
+    notifications: Notification[];
+    analysesLoading: boolean;
     recentJobsError?: string;
 }
 
 export interface DashboardOperations {
-    onInit: () => void
-    setAllLoading: (loading: boolean) => void
-    fetchUsage: () => void
-    fetchRecentAnalyses: () => void
-    notificationRead: (id: number) => void
-    readAll: () => void
-    setRefresh: (refresh?: () => void) => void
+    onInit: () => void;
+    setAllLoading: (loading: boolean) => void;
+    fetchUsage: () => void;
+    fetchRecentAnalyses: () => void;
+    notificationRead: (id: number) => void;
+    readAll: () => void;
+    setRefresh: (refresh?: () => void) => void;
 }

@@ -194,6 +194,14 @@ function GroupedShareCardWrapper(p: {
 }): JSX.Element {
     const [pageNumber, setPage] = useState(0);
     const pageSize = 5;
+
+    React.useEffect(() => {
+        if (pageNumber >= Math.ceil(p.shareByPath.shares.length / pageSize)) {
+            setPage(pageNumber - 1);
+        }
+    });
+
+
     return (
         <GroupedShareCard
             simple={p.simple}
@@ -218,7 +226,7 @@ function GroupedShareCardWrapper(p: {
                 </ShareRow>
             ))}
             <PaginationButtons
-                totalPages={Math.floor(p.shareByPath.shares.length / pageSize)}
+                totalPages={(Math.ceil(p.shareByPath.shares.length / pageSize))}
                 currentPage={pageNumber}
                 toPage={setPage}
             />
@@ -272,7 +280,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
 
             const username = newShareUsername.current!.value;
             if (username.length === 0) {
-                snackbarStore.addFailure("Please fill out the username.");
+                snackbarStore.addFailure("Please fill out the username.", false);
                 return;
             }
 
