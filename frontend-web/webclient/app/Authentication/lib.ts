@@ -142,7 +142,7 @@ export default class HttpClient {
         return this.receiveAccessTokenOrRefreshIt()
             .catch(it => {
                 console.warn(it);
-                snackbarStore.addFailure("Could not refresh login token.");
+                snackbarStore.addFailure("Could not refresh login token.", false);
                 if ([401, 403].includes(it.status)) HttpClient.clearTokens();
             }).then(token => {
                 return new Promise((resolve, reject) => {
@@ -575,7 +575,7 @@ export default class HttpClient {
             }
             throw Error("The server was unreachable, please try again later.");
         } catch (err) {
-            snackbarStore.addFailure(err.message);
+            snackbarStore.addFailure(err.message, false);
         }
     }
 

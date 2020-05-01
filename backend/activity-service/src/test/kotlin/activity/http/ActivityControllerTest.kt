@@ -121,9 +121,11 @@ class ActivityControllerTest {
 
                 val response = sendRequest(
                     method = HttpMethod.Get,
-                    path = "/api/activity/browse/user",
+                    path = "/api/activity/browse",
                     user = TestUsers.user,
-                    params = mapOf("scrollSize" to 250)
+                    params = mapOf(
+                        "user" to user,
+                        "scrollSize" to 250)
                 ) { addHeader("Job-Id", UUID.randomUUID().toString()) }
 
                 response.assertSuccess()

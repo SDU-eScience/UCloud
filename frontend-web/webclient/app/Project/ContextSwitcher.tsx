@@ -2,7 +2,7 @@ import {ReduxObject, emptyPage} from "DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
 import Link from "ui-components/Link";
-import {inDevEnvironment, addTrailingSlash} from "UtilityFunctions";
+import {addTrailingSlash} from "UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
 import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
@@ -18,7 +18,7 @@ import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 
 // eslint-disable-next-line no-underscore-dangle
-function _AltContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
+function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
     const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 10}),
         emptyPage
@@ -107,4 +107,4 @@ const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
     setProject: id => dispatchSetProjectAction(dispatch, id)
 });
 
-export const AltContextSwitcher = connect(mapStateToProps, mapDispatchToProps)(_AltContextSwitcher);
+export const ContextSwitcher = connect(mapStateToProps, mapDispatchToProps)(_ContextSwitcher);

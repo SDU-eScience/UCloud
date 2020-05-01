@@ -175,15 +175,6 @@ class JobOrchestratorTest {
             )
         }
         runBlocking {
-            retrySection {
-                orchestrator.handleProposedStateChange(
-                    JobStateChange(returnedID, JobState.PREPARED),
-                    "newStatus",
-                    TestUsers.user
-                )
-            }
-        }
-        runBlocking {
             // Same state for branch check
             orchestrator.handleProposedStateChange(
                 JobStateChange(returnedID, JobState.FAILURE),

@@ -113,7 +113,7 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
         setState({...state, [field]: value});
     }
 
-    async function submit(e: React.SyntheticEvent) {
+    async function submit(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
 
         let hasUsernameError = false;
@@ -123,11 +123,11 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
         if (!username) hasUsernameError = true;
         if (!password || password !== repeatedPassword) {
             hasPasswordError = true;
-            snackbarStore.addFailure("Passwords do not match.");
+            snackbarStore.addFailure("Passwords do not match.", false);
         }
         if (!email) {
             hasEmailError = true;
-            snackbarStore.addFailure("Email is required")
+            snackbarStore.addFailure("Email is required", false);
         }
         setState({...state, usernameError: hasUsernameError, passwordError: hasPasswordError, emailError: hasEmailError});
         if (!hasUsernameError && !hasPasswordError && !hasEmailError) {
@@ -137,10 +137,10 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
                 await promiseKeeper.makeCancelable(
                     Client.post("/auth/users/register", {username, password, email}, "")
                 ).promise;
-                snackbarStore.addSnack({message: `User '${username}' successfully created`, type: SnackType.Success});
+                snackbarStore.addSuccess(`User '${username}' successfully created`, false);
                 setState(initialState);
-            } catch (e) {
-                const status = defaultErrorHandler(e);
+            } catch (err) {
+                const status = defaultErrorHandler(err);
                 if (status === 409) setState({...state, usernameError: true});
             } finally {
                 props.setLoading(false);

@@ -8,7 +8,10 @@ import {activityQuery} from "Utilities/ActivityUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 
 // Request builders
-export const fetchActivity = async (scroll: ScrollRequest<number>, filter?: ActivityFilter) => {
+export const fetchActivity = async (
+    scroll: ScrollRequest<number>,
+    filter?: ActivityFilter
+): Promise<ReceiveActivityAction | ActivityError> => {
     try {
         const {response} = await Client.get(activityQuery(scroll, filter));
         response.items.forEach(it => {
@@ -18,7 +21,7 @@ export const fetchActivity = async (scroll: ScrollRequest<number>, filter?: Acti
         });
         return receiveActivity(response);
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "Could not fetch activity from server"));
+        snackbarStore.addFailure(errorMessageOrDefault(e, "Could not fetch activity from server"), false);
         return setErrorMessage();
     }
 };

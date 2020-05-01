@@ -49,11 +49,11 @@ export const loadingEvent = (loading: boolean): LoadableEventLoading => ({
 });
 
 export async function unwrapCall<T>(
-    httpResponse: Promise<{request: XMLHttpRequest, response: T}>
+    httpResponse: Promise<{request: XMLHttpRequest; response: T}>
 ): Promise<LoadableEvent<T>> {
     const message = await unwrap(httpResponse);
     if (isError(message)) {
-        snackbarStore.addFailure(`${message.statusCode}, ${message.errorMessage}`);
+        snackbarStore.addFailure(`${message.statusCode}, ${message.errorMessage}`, false);
         return {
             type: LoadableEventTag.ERROR
         };

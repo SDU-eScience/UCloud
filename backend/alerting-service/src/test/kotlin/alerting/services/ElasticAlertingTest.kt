@@ -121,19 +121,19 @@ class ElasticAlertingTest {
         assertEquals(Status.YELLOW, ea.getStatus())
         assertEquals(1, ea.getErrorCount())
 
-        ea.setErrorCount(10)
+        ea.setErrorCount(40)
         runBlocking {
             ea.alertOnClusterHealth()
         }
         assertEquals(Status.YELLOW, ea.getStatus())
-        assertEquals(10, ea.getErrorCount())
+        assertEquals(40, ea.getErrorCount())
 
         runBlocking {
             ea.alertOnClusterHealth()
         }
 
         assertEquals(Status.YELLOW, ea.getStatus())
-        assertEquals(10, ea.getErrorCount())
+        assertEquals(40, ea.getErrorCount())
     }
 
     @Test

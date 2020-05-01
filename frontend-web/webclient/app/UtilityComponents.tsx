@@ -106,7 +106,7 @@ export async function addStandardInputDialog({
                             dialogStore.success();
                             resolve({result: fieldValue});
                         }
-                        else snackbarStore.addFailure(validationFailureMessage);
+                        else snackbarStore.addFailure(validationFailureMessage, false);
                     }}
                     color="green"
                 >
@@ -312,15 +312,12 @@ export function SharePrompt({paths, client}: {paths: string[]; client: HttpClien
             };
             client.put(`/shares/`, body)
                 .then(() => {
-                    if (++successes === paths.length) snackbarStore.addSnack({
-                        message: "Files shared successfully",
-                        type: SnackType.Success
-                    });
+                    if (++successes === paths.length) snackbarStore.addSuccess("Files shared successfully", false);
                 })
                 .catch(e => {
                     failures++;
                     if (!(paths.length > 1 && "why" in e.response && e.response.why !== "Already exists"))
-                        snackbarStore.addFailure(e.response.why);
+                        snackbarStore.addFailure(e.response.why, false);
                 }).finally(() => {
                     if (!promises.canceledKeeper && failures + successes === paths.length) setLoading(false);
                 });

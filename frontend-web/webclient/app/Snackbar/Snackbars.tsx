@@ -66,6 +66,7 @@ interface DefaultSnack {
     type: SnackType.Success | SnackType.Information | SnackType.Failure;
     id?: number;
     lifetime?: number;
+    addAsNotification: boolean;
 }
 
 interface CustomSnack {
@@ -74,6 +75,7 @@ interface CustomSnack {
     id?: number;
     lifetime?: number;
     icon: IconName;
+    addAsNotification: boolean;
 }
 
 export type Snack = CustomSnack | DefaultSnack;

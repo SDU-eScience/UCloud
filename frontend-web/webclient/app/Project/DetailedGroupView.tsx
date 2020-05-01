@@ -51,7 +51,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
             setAllGroupMembers(new Set(set));
             if (response.response.pageNumber < response.response.pagesInTotal - 1) fetchEveryGroupMember(page + 1);
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to fetch group members."));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to fetch group members."), false);
         }
     }
 
@@ -142,13 +142,10 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
             await promises.makeCancelable(Client.post("/projects/groups/update-name", {
                 oldGroupName: name, newGroupName: result.result
             })).promise;
-            snackbarStore.addSnack({
-                message: "Group renamed",
-                type: SnackType.Success
-            });
+            snackbarStore.addSuccess("Group renamed", false);
             history.push(`/projects/groups/${encodeURI(result.result)}`);
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred renaming group"));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred renaming group"), false);
         }
     }
 
@@ -164,13 +161,10 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
     async function deleteGroup(): Promise<void> {
         try {
             await promises.makeCancelable(Client.delete("/projects/groups", {groups: [name]})).promise;
-            snackbarStore.addSnack({
-                type: SnackType.Success,
-                message: `Group '${name}' deleted`
-            });
+            snackbarStore.addSuccess(`Group '${name}' deleted`, true);
             history.push("/projects/groups/");
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred deleting group"));
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred deleting group"), false);
         }
     }
 
@@ -190,7 +184,7 @@ function DetailedGroupView({name}: DetailedGroupViewProps): JSX.Element {
             await promises.makeCancelable(Client.delete(path!, payload)).promise;
             reload();
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to remove member."));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to remove member."), false);
         }
     }
 }
@@ -249,12 +243,12 @@ function AddMemberPrompt(props: AddMemberPromptProps): JSX.Element {
         const {path, payload} = addGroupMember({group: props.group, memberUsername: member});
         try {
             await promises.makeCancelable(Client.put(path!, payload)).promise;
-            snackbarStore.addSnack({type: SnackType.Success, message: "User added to project."});
+            snackbarStore.addSuccess(`${member} added to project.`, false);
             props.addMember(member);
             newlyAdded.add(member);
             setNewlyAdded(new Set(newlyAdded));
         } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to add member."));
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to add member."), false);
         }
     }
 }
@@ -320,7 +314,7 @@ export function GroupMembers(props: Readonly<{
                                         }));
                                         props.reload();
                                     } catch (err) {
-                                        snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update role."));
+                                        snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update role."), false);
                                     }
                                 }}
                                 options={[

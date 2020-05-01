@@ -19,7 +19,7 @@ import java.util.*
 
 enum class Status(val isError: Boolean, val failuresForATrigger: Int) {
     RED(isError = true, failuresForATrigger = 2),
-    YELLOW(isError = true, failuresForATrigger = 20),
+    YELLOW(isError = true, failuresForATrigger = 40),
     GREEN(isError = false, failuresForATrigger = 0)
 }
 

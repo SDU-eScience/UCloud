@@ -44,8 +44,7 @@ import {
     stopPropagationAndPreventDefault
 } from "UtilityFunctions";
 import {DEV_SITE, STAGING_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
-import {AltContextSwitcher} from "Project/ContextSwitcher";
-import {Truncate} from "ui-components";
+import {ContextSwitcher} from "Project/ContextSwitcher";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -84,7 +83,7 @@ function Header(props: HeaderProps): JSX.Element | null {
     return (
         <HeaderContainer color="headerText" bg="headerBg">
             <Logo />
-            <AltContextSwitcher />
+            <ContextSwitcher />
             <ui.Box ml="auto" />
             <ui.Hide xs sm md>
                 <Search />

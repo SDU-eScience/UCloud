@@ -84,7 +84,7 @@ const Tool: React.FunctionComponent<RouteComponentProps<{name: string}> & ToolOp
                                     const file = target.files[0];
                                     target.value = "";
                                     if (file.size > 1024 * 512) {
-                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
                                     } else {
                                         if (await uploadLogo({name, file, type: "TOOL"})) {
                                             setLogoCacheBust("" + Date.now());
