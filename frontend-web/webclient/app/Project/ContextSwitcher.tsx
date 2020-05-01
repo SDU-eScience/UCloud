@@ -32,8 +32,6 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
 
     const history = useHistory();
 
-    if (response.data.items.length === 0 && response.loading) return null;
-
     return (
         <Flex pr="12px" alignItems={"center"}>
             <ClickableDropdown
@@ -59,7 +57,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         {project.projectId}
                     </Text>
                 )}
-                <Divider />
+                {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
                 <Link to="/projects"><Text>See all</Text></Link>
             </ClickableDropdown>
         </Flex>
