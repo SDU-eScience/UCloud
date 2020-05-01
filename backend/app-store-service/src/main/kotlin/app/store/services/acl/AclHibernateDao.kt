@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services.acl
 
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.AccessEntity
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.EntityWithPermission
@@ -29,14 +30,16 @@ data class PermissionEntry(
 class AclHibernateDao : AclDao<HibernateSession> {
     override fun hasPermission(
         session: HibernateSession,
-        accessEntity: AccessEntity,
+        user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>,
         applicationName: String,
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
         val result = session.criteria<PermissionEntry> {
-            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user) or (
-                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
-                            (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal user.username) or (
+                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal project) and
+                            (entity[PermissionEntry::key][PermissionEntry.Key::group] isInCollection memberGroups)
                     ) and (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName)
         }.uniqueResultOptional()
 

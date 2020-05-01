@@ -36,7 +36,7 @@ class AppStoreController<DBSession>(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AppStore.toggleFavorite) {
-            ok(appStore.toggleFavorite(ctx.securityPrincipal, request.appName, request.appVersion))
+            ok(appStore.toggleFavorite(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion))
         }
 
         implement(AppStore.retrieveFavorites) {
@@ -56,7 +56,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.hasPermission) {
-            ok(appStore.hasPermission(ctx.securityPrincipal, request.appName, request.appVersion, request.permission))
+            ok(appStore.hasPermission(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion, request.permission))
         }
 
         implement(AppStore.listAcl) {
@@ -147,7 +147,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.delete) {
-            appStore.delete(ctx.securityPrincipal, request.appName, request.appVersion)
+            appStore.delete(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion)
             ok(Unit)
         }
 

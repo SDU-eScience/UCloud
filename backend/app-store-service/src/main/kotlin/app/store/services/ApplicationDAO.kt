@@ -9,6 +9,8 @@ interface ApplicationDAO<Session> {
     fun toggleFavorite(
         session: Session,
         user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>,
         appName: String,
         appVersion: String
     )
@@ -107,6 +109,8 @@ interface ApplicationDAO<Session> {
     fun delete(
         session: Session,
         user: SecurityPrincipal,
+        project: String?,
+        projectGroups: List<String>,
         appName: String,
         appVersion: String
     )

@@ -19,8 +19,16 @@ class ApplicationHibernateDAO(
 ) : ApplicationDAO<HibernateSession> {
     private val byNameAndVersionCache = Collections.synchronizedMap(HashMap<NameAndVersion, Pair<Application, Long>>())
 
-    override fun toggleFavorite(session: HibernateSession, user: SecurityPrincipal, appName: String, appVersion: String) {
-        val foundApp = internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.BadApplication()
+    override fun toggleFavorite(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>,
+        appName: String,
+        appVersion: String
+    ) {
+        val foundApp =
+            internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.BadApplication()
 
         val isFavorite = isFavorite(session, user, appName, appVersion)
 
@@ -41,6 +49,8 @@ class ApplicationHibernateDAO(
             val userHasPermission = internalHasPermission(
                 session,
                 user,
+                project,
+                memberGroups,
                 foundApp.id.name,
                 foundApp.id.version,
                 ApplicationAccessRight.LAUNCH
@@ -66,6 +76,8 @@ class ApplicationHibernateDAO(
     private fun internalHasPermission(
         session: HibernateSession,
         user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>,
         appName: String,
         appVersion: String,
         permission: ApplicationAccessRight
@@ -74,13 +86,20 @@ class ApplicationHibernateDAO(
         if (isPublic(session, user, appName, appVersion)) return true
         return aclDAO.hasPermission(
             session,
-            AccessEntity(user.username, null, null),
+            user,
+            project,
+            memberGroups,
             appName,
             setOf(permission)
         )
     }
 
-    private fun isFavorite(session: HibernateSession, user: SecurityPrincipal, appName: String, appVersion: String): Boolean {
+    private fun isFavorite(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        appName: String,
+        appVersion: String
+    ): Boolean {
         return 0L != session.typedQuery<Long>(
             """
                 select count (A.applicationName)
@@ -107,9 +126,14 @@ class ApplicationHibernateDAO(
             criteria.select(count(entity))
         }.createQuery(session).uniqueResult()
 
-        val groups = if (memberGroups.isNotEmpty()) { memberGroups } else { listOf("") }
+        val groups = if (memberGroups.isNotEmpty()) {
+            memberGroups
+        } else {
+            listOf("")
+        }
 
-        val itemsWithoutTags = session.createNativeQuery<ApplicationEntity>("""
+        val itemsWithoutTags = session.createNativeQuery<ApplicationEntity>(
+            """
             select A.*
             from app_store.favorited_by as F, app_store.applications as A
             where
@@ -134,10 +158,11 @@ class ApplicationHibernateDAO(
                     )
                 )
                 order by F.application_name 
-        """.trimIndent(), ApplicationEntity::class.java)
+        """.trimIndent(), ApplicationEntity::class.java
+        )
             .setParameter("user", user.username)
             .setParameter("role", user.role)
-            .setParameter("project", project?:"")
+            .setParameter("project", project ?: "")
             .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
@@ -193,7 +218,7 @@ class ApplicationHibernateDAO(
             """.trimIndent(), TagEntity::class.java
         )
             .setParameter("user", user.username)
-            .setParameter("project", project?:"")
+            .setParameter("project", project ?: "")
             .setParameterList("groups", memberGroups)
             .setParameterList("tags", tags)
             .setParameter("role", user.role)
@@ -247,7 +272,8 @@ class ApplicationHibernateDAO(
             .resultList.size
 
         return Pair(
-            session.createNativeQuery<ApplicationEntity>("""
+            session.createNativeQuery<ApplicationEntity>(
+                """
                 select A.*
                 from {h-schema}applications as A
                 where (A.created_at) in (
@@ -274,7 +300,8 @@ class ApplicationHibernateDAO(
                     ) 
                 )
                 order by A.title
-            """.trimIndent(), ApplicationEntity::class.java)
+            """.trimIndent(), ApplicationEntity::class.java
+            )
                 .setParameterList("applications", applicationNames)
                 .setParameter("user", user.username)
                 .setParameter("project", project ?: "")
@@ -516,7 +543,8 @@ class ApplicationHibernateDAO(
                         :role in (:privileged)
                     ) 
                 )
-            """.trimIndent(), Long::class.java)
+            """.trimIndent(), Long::class.java
+        )
             .setParameter("query", normalizedQuery)
             .setParameter("user", user.username)
             .setParameter("project", currentProject)
@@ -600,29 +628,60 @@ class ApplicationHibernateDAO(
         appName: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        return internalFindAllByName(session, user, appName, paging).mapItems { it.withoutInvocation() }
+        return internalFindAllByName(
+            session,
+            user,
+            currentProject,
+            projectGroups,
+            appName,
+            paging
+        ).mapItems { it.withoutInvocation() }
     }
 
     private fun internalFindAllByName(
         session: HibernateSession,
         user: SecurityPrincipal?,
+        currentProject: String?,
+        projectGroups: List<String>,
         appName: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationWithFavoriteAndTags> {
+        val groups = if (projectGroups.isEmpty()) {
+            listOf("")
+        } else {
+            projectGroups
+        }
+
         return preparePageForUser(
             session,
             user?.username,
             session.createNativeQuery<ApplicationEntity>(
                 """
                     select * from {h-schema}applications as A
-                    where A.name = :name 
-                        and (A.is_public = true or :user in (
-                            select user from {h-schema}permissions as P where P.application_name = A.name
-                        ) or :role in (:privileged))
+                    where A.name = :name and (
+                        (
+                            A.is_public = TRUE
+                        ) or (
+                            :project is null and :user in (
+                                select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
+                            )
+                        ) or (
+                            :project is not null and exists (
+                                select P2.project_group from {h-schema}permissions as P2 where
+                                    P2.application_name = A.name and
+                                    P2.project = :project and
+                                    P2.project_group in (:groups)
+                            )
+                        ) or (
+                            :role in (:privileged)
+                        ) 
+                    )
                     order by A.created_at desc
                 """.trimIndent(), ApplicationEntity::class.java
             ).setParameter("user", user?.username ?: "")
                 .setParameter("name", appName)
+                .setParameter("project", currentProject ?: "")
+                .setParameterList("groups", groups)
                 .setParameter("role", user?.role ?: Role.UNKNOWN)
                 .setParameterList("privileged", Roles.PRIVILEDGED)
                 .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
@@ -643,6 +702,8 @@ class ApplicationHibernateDAO(
             if (internalHasPermission(
                     session,
                     user!!,
+                    currentProject,
+                    projectGroups,
                     cached.metadata.name,
                     cached.metadata.version,
                     ApplicationAccessRight.LAUNCH
@@ -658,6 +719,8 @@ class ApplicationHibernateDAO(
         if (internalHasPermission(
                 session,
                 user!!,
+                currentProject,
+                projectGroups,
                 result.metadata.name,
                 result.metadata.version,
                 ApplicationAccessRight.LAUNCH
@@ -732,6 +795,8 @@ class ApplicationHibernateDAO(
         if (!internalHasPermission(
                 session,
                 user,
+                currentProject,
+                projectGroups,
                 appName,
                 appVersion,
                 ApplicationAccessRight.LAUNCH
@@ -896,18 +961,34 @@ class ApplicationHibernateDAO(
         session.save(entity)
     }
 
-    override fun delete(session: HibernateSession, user: SecurityPrincipal, appName: String, appVersion: String) {
+    override fun delete(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        project: String?,
+        projectGroups: List<String>,
+        appName: String,
+        appVersion: String
+    ) {
         val existingOwner = findOwnerOfApplication(session, appName)
         if (existingOwner != null && !canUserPerformWriteOperation(existingOwner, user)) {
             throw ApplicationException.NotAllowed()
         }
 
         // Prevent deletion of last version of application
-        if (internalFindAllByName(session, user, appName, paging = NormalizedPaginationRequest(25, 0)).itemsInTotal <= 1) {
+        if (internalFindAllByName(
+                session,
+                user,
+                project,
+                projectGroups,
+                appName,
+                paging = NormalizedPaginationRequest(25, 0)
+            ).itemsInTotal <= 1
+        ) {
             throw ApplicationException.NotAllowed()
         }
 
-        val existingApp = internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
+        val existingApp =
+            internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
 
         session.delete(existingApp)
     }
@@ -1105,13 +1186,18 @@ class ApplicationHibernateDAO(
     override fun fetchLogo(session: HibernateSession, name: String): ByteArray? {
         val logoFromApp = ApplicationLogoEntity[session, name]?.data
         if (logoFromApp != null) return logoFromApp
-        val app = internalFindAllByName(session, null, name, PaginationRequest().normalize()).items.firstOrNull()
+        val app = internalFindAllByName(session, null, null, emptyList(), name, PaginationRequest().normalize()).items.firstOrNull()
             ?: return null
         val toolName = app.invocation.tool.name
         return ToolLogoEntity[session, toolName]?.data
     }
 
-    override fun isPublic(session: HibernateSession, user: SecurityPrincipal, appName: String, appVersion: String): Boolean {
+    override fun isPublic(
+        session: HibernateSession,
+        user: SecurityPrincipal,
+        appName: String,
+        appVersion: String
+    ): Boolean {
         val result = session.criteria<ApplicationEntity> {
             allOf(
                 entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal appName,
@@ -1182,7 +1268,8 @@ class ApplicationHibernateDAO(
                         :role in (:privileged)
                     ) 
                 )
-            """.trimIndent(), ApplicationEntity::class.java)
+            """.trimIndent(), ApplicationEntity::class.java
+        )
             .setParameter("toolName", tool)
             .setParameter("user", user.username)
             .setParameter("role", user.role)
@@ -1221,7 +1308,8 @@ class ApplicationHibernateDAO(
                         ) 
                     )
                 order by A.name
-            """.trimIndent(), ApplicationEntity::class.java)
+            """.trimIndent(), ApplicationEntity::class.java
+        )
             .setParameter("toolName", tool)
             .setParameter("user", user.username)
             .setParameter("role", user.role)
@@ -1230,8 +1318,6 @@ class ApplicationHibernateDAO(
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
-
-            println("done")
 
         return Page(count, paging.itemsPerPage, paging.page, items)
     }

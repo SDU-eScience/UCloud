@@ -35,11 +35,19 @@ class AppStoreService<DBSession>(
     private val aclDao: AclDao<DBSession>,
     private val elasticDAO: ElasticDAO
 ) {
-    suspend fun toggleFavorite(securityPrincipal: SecurityPrincipal, appName: String, appVersion: String) {
+    suspend fun toggleFavorite(securityPrincipal: SecurityPrincipal, project: String?, appName: String, appVersion: String) {
+        val projectGroups = if (project.isNullOrBlank()) {
+            emptyList()
+        } else {
+            retrieveUserProjectGroups(securityPrincipal, project)
+        }
+
         db.withTransaction { session ->
             applicationDAO.toggleFavorite(
                 session,
                 securityPrincipal,
+                project,
+                projectGroups,
                 appName,
                 appVersion
             )
@@ -52,11 +60,7 @@ class AppStoreService<DBSession>(
             authenticatedClient
         ).orRethrowAs {
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        }.groups.map {
-            if (it.projectId == project) {
-                it.group
-            }
-        } as List<String>
+        }.groups.filter { it.projectId == project }.map { it.group }
 
     suspend fun retrieveFavorites(
         securityPrincipal: SecurityPrincipal,
@@ -167,15 +171,24 @@ class AppStoreService<DBSession>(
 
     suspend fun hasPermission(
         securityPrincipal: SecurityPrincipal,
+        project: String?,
         appName: String,
         appVersion: String,
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
+        val projectGroups = if (project.isNullOrBlank()) {
+            emptyList()
+        } else {
+            retrieveUserProjectGroups(securityPrincipal, project)
+        }
+
         return db.withTransaction { session ->
             applicationDAO.isPublic(session, securityPrincipal, appName, appVersion) ||
                     aclDao.hasPermission(
                         session,
-                        AccessEntity(securityPrincipal.username, null, null),
+                        securityPrincipal,
+                        project,
+                        projectGroups,
                         appName,
                         permissions
                     )
@@ -372,6 +385,9 @@ class AppStoreService<DBSession>(
             retrieveUserProjectGroups(securityPrincipal, project)
         }
 
+
+        println(projectGroups)
+
         return db.withTransaction { session ->
             applicationDAO.listLatestVersion(
                 session,
@@ -395,9 +411,15 @@ class AppStoreService<DBSession>(
         )
     }
 
-    suspend fun delete(securityPrincipal: SecurityPrincipal, appName: String, appVersion: String) {
+    suspend fun delete(securityPrincipal: SecurityPrincipal, project: String?, appName: String, appVersion: String) {
+        val projectGroups = if (project.isNullOrBlank()) {
+            emptyList()
+        } else {
+            retrieveUserProjectGroups(securityPrincipal, project)
+        }
+
         db.withTransaction { session ->
-            applicationDAO.delete(session, securityPrincipal, appName, appVersion)
+            applicationDAO.delete(session, securityPrincipal, project, projectGroups, appName, appVersion)
         }
 
         elasticDAO.deleteApplicationInElastic(appName, appVersion)
@@ -508,7 +530,6 @@ class AppStoreService<DBSession>(
             return sortAndCreatePageByScore(applications, results, user, paging)
         }
     }
-
 
     private suspend fun sortAndCreatePageByScore(
         applications: List<ApplicationEntity>,

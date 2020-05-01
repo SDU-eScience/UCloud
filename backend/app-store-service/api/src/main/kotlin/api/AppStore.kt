@@ -25,11 +25,6 @@ data class AccessEntity(
     }
 }
 
-data class ProjectAndGroup(
-    val project: String,
-    val group: String
-)
-
 data class EntityWithPermission(
     val entity: AccessEntity,
     val permission: ApplicationAccessRight
