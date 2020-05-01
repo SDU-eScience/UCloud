@@ -389,7 +389,12 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                         <tbody>
                                             {permissionEntries.map((permissionEntry, index) => (
                                                 <TableRow key={index}>
-                                                    <TableCell>{permissionEntry.entity.user}</TableCell>
+                                                    <TableCell>
+                                                        {(permissionEntry.entity.user) ? (
+                                                            permissionEntry.entity.user
+                                                        ) : (
+                                                            `${permissionEntry.entity.project}/${permissionEntry.entity.group}`
+                                                        )}</TableCell>
                                                     <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
                                                     <TableCell textAlign="right">
                                                         <Button
