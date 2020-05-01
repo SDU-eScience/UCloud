@@ -273,7 +273,7 @@ export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
                         // Do nothing
                     }
 
-                    snackbarStore.addFailure(message);
+                    snackbarStore.addFailure(message, false);
                     resolve(false);
                 } else {
                     resolve(true);
@@ -325,7 +325,7 @@ export async function uploadDocument(props: UploadDocumentProps): Promise<boolea
                         console.log(request.responseText);
                         // Do nothing
                     }
-                    snackbarStore.addFailure(message);
+                    snackbarStore.addFailure(message, false);
                     resolve(false);
                 } else {
                     resolve(true);

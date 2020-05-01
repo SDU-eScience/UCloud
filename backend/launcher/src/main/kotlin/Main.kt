@@ -23,7 +23,7 @@ suspend fun main(args: Array<String>) {
 
         // The following 'services' are all essentially scripts that run in UCloud
         // None of them are meant to be run as a normal service.
-        AuditIngestionService,
+        //AuditIngestionService,
         RedisCleanerService,
         ElasticManagementService,
         KubernetesMonitorService

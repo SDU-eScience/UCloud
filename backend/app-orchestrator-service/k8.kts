@@ -17,7 +17,7 @@ bundle { ctx ->
 
     withPostgresMigration(deployment)
 
-    withConfigMap(name = "app-config", version = "2") {
+    withConfigMap(name = "app-config", version = "4") {
         data class MachineType(val name: String, val cpu: Int?, val memoryInGigs: Int?, val gpu: Int? = null)
         data class ComputeBackend(val name: String, val title: String, val useWorkspaces: Boolean)
 
@@ -70,7 +70,6 @@ bundle { ctx ->
                     "vasileios@bmb.sdu.dk",
                     "svensson@imada.sdu.dk",
                     "dthrane@imada.sdu.dk",
-                    "schweisfurth@mci.sdu.dk",
                     "alfal19@student.sdu.dk"
                 ),
                 "backends" to listOf(

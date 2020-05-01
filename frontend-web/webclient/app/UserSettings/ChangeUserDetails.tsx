@@ -61,9 +61,9 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
         }) !== null;
 
         if (!wasSuccessful) {
-            snackbarStore.addSnack({message: "Failed to update user information", type: SnackType.Failure});
+            snackbarStore.addFailure("Failed to update user information", false);
         } else {
-            snackbarStore.addSnack({message: "User information updated", type: SnackType.Failure});
+            snackbarStore.addSuccess("User information updated", false);
         }
 
 

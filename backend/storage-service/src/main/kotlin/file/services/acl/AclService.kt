@@ -137,7 +137,7 @@ class AclService(
 
             // Note: Even if username matches we must be a member of the project. This allows us to keep files after
             // a user leaves.
-            if (components.size > 5 && components[2] == PERSONAL_REPOSITORY && components[3] == username) {
+            if (components.size >= 4 && components[2] == PERSONAL_REPOSITORY && components[3] == username) {
                 log.debug("owner!")
                 return true
             }

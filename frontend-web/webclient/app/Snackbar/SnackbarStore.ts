@@ -24,26 +24,29 @@ class SnackbarStore {
         }
     }
 
-    public addFailure(message: string, lifetime?: number): void {
+    public addFailure(message: string, addAsNotification: boolean, lifetime?: number): void {
         this.addSnack({
             message,
             type: SnackType.Failure,
+            addAsNotification,
+            lifetime,
+        });
+    }
+
+    public addSuccess(message: string, addAsNotification: boolean, lifetime?: number): void {
+        this.addSnack({
+            message,
+            type: SnackType.Success,
+            addAsNotification,
             lifetime
         });
     }
 
-    public addSuccess(message: string, lifetime?: number): void {
+    public addInformation(message: string, addAsNotification: boolean, lifetime?: number): void {
         this.addSnack({
             message,
             type: SnackType.Success,
-            lifetime
-        });
-    }
-
-    public addInformation(message: string, lifetime?: number): void {
-        this.addSnack({
-            message,
-            type: SnackType.Success,
+            addAsNotification,
             lifetime
         });
     }

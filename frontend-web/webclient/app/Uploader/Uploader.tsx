@@ -236,26 +236,26 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
 
     private onFilesAdded = async (files: File[]): Promise<void> => {
         if (files.some(it => it.size === 0)) {
-            snackbarStore.addSnack({
-                message: "It is not possible to upload empty files.",
-                type: SnackType.Information
-            });
+            snackbarStore.addInformation(
+                "It is not possible to upload empty files.",
+                false
+            );
         }
 
         if (files.some(it => it.name.length > 1025)) {
-            snackbarStore.addSnack({
-                message: "Filenames can't exceed a length of 1024 characters.",
-                type: SnackType.Information
-            });
+            snackbarStore.addInformation(
+                "Filenames can't exceed a length of 1024 characters.",
+                false
+            );
         }
 
         const duplicates = this.checkForDuplicates(files);
 
         if (duplicates.length > 0) {
-            snackbarStore.addSnack({
-                message: `You are already added files ${duplicates.join(", ")}`,
-                type: SnackType.Information
-            });
+            snackbarStore.addInformation(
+                `You are already added files ${duplicates.join(", ")}`,
+                false
+            );
         }
 
         const filteredFiles = files
@@ -291,10 +291,7 @@ class Uploader extends React.Component<UploaderProps & RouteComponentProps, Uplo
         e.returnValue = "foo";
         const finished = finishedUploads(this.props.uploads);
         const total = this.props.uploads.length;
-        snackbarStore.addSnack({
-            message: `${finished} out of ${total} files uploaded`,
-            type: SnackType.Information
-        });
+        snackbarStore.addInformation(`${finished} out of ${total} files uploaded`, false);
         return e;
     }
 

@@ -73,7 +73,6 @@ class UserIterationService(
         cleaner.scheduleAtFixedRate({
             runBlocking {
                 try {
-                    log.debug("Running clean up script")
                     mutex.withLock {
                         val iterator = openIterators.iterator()
                         while (iterator.hasNext()) {

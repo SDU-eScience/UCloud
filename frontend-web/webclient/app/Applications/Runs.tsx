@@ -356,9 +356,9 @@ function AnalysisOperations({cancelableAnalyses, onFinished}: AnalysisOperations
                 onConfirm: async () => {
                     try {
                         await Promise.all(cancelableAnalyses.map(a => cancelJob(Client, a.jobId)));
-                        snackbarStore.addSnack({type: SnackType.Success, message: "Jobs cancelled"});
+                        snackbarStore.addSuccess("Jobs cancelled", false);
                     } catch (e) {
-                        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"));
+                        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred "), false);
                     } finally {
                         onFinished();
                     }

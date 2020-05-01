@@ -53,7 +53,7 @@ function Notifications(props: Notifications): JSX.Element {
             }
         });
         const subscriber = (snack?: Snack): void => {
-            if (snack)
+            if (snack && snack.addAsNotification) {
                 props.receiveNotification({
                     id: -new Date().getTime(),
                     message: snack.message,
@@ -62,6 +62,7 @@ function Notifications(props: Notifications): JSX.Element {
                     ts: new Date().getTime(),
                     meta: ""
                 });
+            }
         };
         snackbarStore.subscribe(subscriber);
 
@@ -81,7 +82,7 @@ function Notifications(props: Notifications): JSX.Element {
                 break;
             case "REVIEW_PROJECT":
                 reload();
-                history.push("/projects/view/" + encodeURIComponent(notification.meta["project"]));
+                history.push("/projects/view/" + encodeURIComponent(notification.meta.project));
                 break;
 
             case "SHARE_REQUEST":

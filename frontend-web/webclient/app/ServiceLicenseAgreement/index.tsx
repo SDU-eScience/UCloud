@@ -41,7 +41,7 @@ const ServiceLicenseAgreement: React.FunctionComponent<RouteComponentProps> = pr
         } catch (res) {
             const response = res.response;
             const why: string = response?.why ?? "Error while attempting to accept agreement";
-            snackbarStore.addFailure(why);
+            snackbarStore.addFailure(why, false);
         }
     }, [sla, invokeCommand, props.history]);
 
