@@ -68,6 +68,12 @@ interface JobDao<Session> {
         session: Session,
         urlId: String
     ): Boolean
+
+    suspend fun deleteJobInformation(
+        session: Session,
+        appName: String,
+        appVersion: String
+    )
 }
 
 suspend fun <Session> JobDao<Session>.findOrNull(

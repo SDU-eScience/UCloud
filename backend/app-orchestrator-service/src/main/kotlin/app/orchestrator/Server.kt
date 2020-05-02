@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator
 
+import app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
 import dk.sdu.cloud.app.orchestrator.rpc.CallbackController
 import dk.sdu.cloud.app.orchestrator.rpc.JobController
@@ -30,6 +31,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val db = micro.hibernateDatabase
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val serviceClientWS = micro.authenticator.authenticateClient(OutgoingWSCall)
+        val streams = micro.eventStreamService
         val appStoreService = AppStoreService(serviceClient)
         val toolStoreService = ToolStoreService(serviceClient)
         val jobHibernateDao = JobHibernateDao(appStoreService, toolStoreService)
@@ -95,6 +97,11 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                 jobQueryService,
                 micro.backgroundScope
             )
+
+        AppProcessor(
+            streams,
+            jobOrchestrator
+        )
 
 
         with(micro.server) {
