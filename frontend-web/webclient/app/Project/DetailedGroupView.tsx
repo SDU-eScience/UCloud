@@ -3,15 +3,12 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {Text, Flex, Icon, Truncate, Link} from "ui-components";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import * as Pagination from "Pagination";
-import {Page} from "Types";
-import {useCloudAPI, APICallParameters, useAsyncCommand, APICallState} from "Authentication/DataHook";
+import {APICallParameters, useAsyncCommand} from "Authentication/DataHook";
 import {
     listGroupMembersRequest,
     removeGroupMemberRequest,
-    ListGroupMembersRequestProps,
     projectRoleToString
 } from "./api";
-import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {GridCardGroup} from "ui-components/Grid";

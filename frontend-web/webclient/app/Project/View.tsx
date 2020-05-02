@@ -45,7 +45,7 @@ export function useProjectManagementStatus() {
 
     const [groupSummaries, fetchSummaries, groupSummaryParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
         "projectManagementGroupSummary",
-        groupSummaryRequest({itemsPerPage: 25, page: 0}),
+        groupSummaryRequest({itemsPerPage: 10, page: 0}),
         emptyPage
     );
 
@@ -75,7 +75,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         if (group !== undefined) {
             fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
         } else {
-            fetchSummaries(groupSummaryRequest({itemsPerPage: 25, page: 0}));
+            fetchSummaries(groupSummaryRequest({itemsPerPage: 10, page: 0}));
         }
     }, [projectId, group]);
     useEffect(() => setProjectParams(viewProject({id: projectId})), [projectId]);

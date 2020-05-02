@@ -1,4 +1,5 @@
 import * as React from "react";
+import * as Pagination from "Pagination";
 import {Button, Text, Input, List, Icon, Flex} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {Operation} from "Types";
@@ -14,6 +15,7 @@ import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "Project/View";
+import {groupSummaryRequest} from "Project/api";
 
 export interface GroupWithSummary {
     group: string;
@@ -66,7 +68,7 @@ const GroupsOverview: React.FunctionComponent = props => {
         });
     }
 
-    if (group) return <DetailedGroupView />;
+    if (group) return <DetailedGroupView/>;
 
     // TODO Paging is missing
     return <>
@@ -74,74 +76,85 @@ const GroupsOverview: React.FunctionComponent = props => {
             <li><span>Groups</span></li>
         </BreadCrumbsBase>
 
-        {groupSummaries.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
+        <Pagination.List
+            loading={groupSummaries.loading}
+            page={groupSummaries.data}
+            customEmptyPage={<Heading.h3>You have no groups to manage.</Heading.h3>}
+            onPageChanged={(newPage, oldPage) => {
+                fetchSummaries(groupSummaryRequest({page: newPage, itemsPerPage: oldPage.itemsPerPage}));
+            }}
+            pageRenderer={() => (<>
+                    <List>
+                        {groupSummaries.data.items.map(g => (<>
+                            <ListRow
+                                key={g.group}
+                                left={g.group}
+                                navigate={() => history.push(`/projects/view/${projectId}/${g.group}`)}
+                                leftSub={
+                                    <Text ml="4px" color="gray" fontSize={0}>
+                                        <Icon color="gray" mt="-2px" size="10" name="projects"/> {g.numberOfMembers}
+                                    </Text>
+                                }
+                                right={
+                                    <ClickableDropdown
+                                        width="125px"
+                                        left="-105px"
+                                        trigger={(
+                                            <Icon
+                                                onClick={preventDefault}
+                                                mr="10px"
+                                                name="ellipsis"
+                                                size="1em"
+                                                rotation={90}
+                                            />
+                                        )}
+                                    >
+                                        <GroupOperations groupOperations={operations} selectedGroups={[g]}/>
+                                    </ClickableDropdown>
+                                }
+                                isSelected={false}
+                            />
+                        </>))}
 
-        <List>
-            {groupSummaries.data.items.map(g => (<>
-                <ListRow
-                    key={g.group}
-                    left={g.group}
-                    navigate={() => history.push(`/projects/view/${projectId}/${g.group}`)}
-                    leftSub={
-                        <Text ml="4px" color="gray" fontSize={0}>
-                            <Icon color="gray" mt="-2px" size="10" name="projects"/> {g.numberOfMembers}
-                        </Text>
-                    }
-                    right={
-                        <ClickableDropdown
-                            width="125px"
-                            left="-105px"
-                            trigger={(
-                                <Icon
-                                    onClick={preventDefault}
-                                    mr="10px"
-                                    name="ellipsis"
-                                    size="1em"
-                                    rotation={90}
-                                />
-                            )}
-                        >
-                            <GroupOperations groupOperations={operations} selectedGroups={[g]}/>
-                        </ClickableDropdown>
-                    }
-                    isSelected={false}
-                />
-            </>))}
+                        {creatingGroup ?
+                            <ListRow
+                                left={<form onSubmit={createGroup}><Input
+                                    pt="0px"
+                                    pb="0px"
+                                    pr="0px"
+                                    pl="0px"
+                                    noBorder
+                                    fontSize={20}
+                                    maxLength={1024}
+                                    onKeyDown={e => {
+                                        if (e.keyCode === KeyCode.ESC) {
+                                            setCreatingGroup(false);
+                                        }
+                                    }}
+                                    borderRadius="0px"
+                                    type="text"
+                                    width="100%"
+                                    autoFocus
+                                    ref={createGroupRef}
+                                /></form>}
+                                leftSub={
+                                    <Text ml="4px" color="gray" fontSize={0}>
+                                        <Icon color="gray" mt="-2px" size="10" name="projects"/> 0
+                                    </Text>
+                                }
+                                right={<div/>}
+                                isSelected={false}
+                                select={() => undefined}
+                            /> : null}
+                    </List>
+                    <Flex justifyContent={"center"}>
+                        <Button width={"50%"} onClick={() => setCreatingGroup(true)}>New Group</Button>
+                    </Flex>
+                </>
+            )}
+        />
 
-            {creatingGroup ?
-                <ListRow
-                    left={<form onSubmit={createGroup}><Input
-                        pt="0px"
-                        pb="0px"
-                        pr="0px"
-                        pl="0px"
-                        noBorder
-                        fontSize={20}
-                        maxLength={1024}
-                        onKeyDown={e => {
-                            if (e.keyCode === KeyCode.ESC) {
-                                setCreatingGroup(false);
-                            }
-                        }}
-                        borderRadius="0px"
-                        type="text"
-                        width="100%"
-                        autoFocus
-                        ref={createGroupRef}
-                    /></form>}
-                    leftSub={
-                        <Text ml="4px" color="gray" fontSize={0}>
-                            <Icon color="gray" mt="-2px" size="10" name="projects"/> 0
-                        </Text>
-                    }
-                    right={<div/>}
-                    isSelected={false}
-                    select={() => undefined}
-                /> : null}
-        </List>
-        <Flex justifyContent={"center"}>
-            <Button width={"50%"} onClick={() => setCreatingGroup(true)}>New Group</Button>
-        </Flex>
+
     </>;
 
     async function createGroup(e: React.SyntheticEvent): Promise<void> {

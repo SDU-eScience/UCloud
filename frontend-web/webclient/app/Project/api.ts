@@ -94,7 +94,7 @@ export function projectRoleToString(role: ProjectRole): string {
 
 export function groupSummaryRequest(payload: PaginationRequest): APICallParameters<PaginationRequest> {
     return {
-        path: `${groupContext}/summary`,
+        path: buildQueryString(`${groupContext}/summary`, payload),
         method: "GET",
         reloadId: Math.random(),
         payload
