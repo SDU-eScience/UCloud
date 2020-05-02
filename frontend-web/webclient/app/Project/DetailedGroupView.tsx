@@ -30,6 +30,7 @@ const DetailedGroupView: React.FunctionComponent = props => {
     const {projectId, group, groupMembers, fetchGroupMembers, groupMembersParams} = useProjectManagementStatus();
     const activeGroup = groupMembers;
     const fetchActiveGroup = fetchGroupMembers;
+    const [isLoading, runCommand] = useAsyncCommand();
 
     if (!group || activeGroup.error) return <MainContainer main={
         <Text fontSize={"24px"}>Could not fetch &apos;{group}&apos;.</Text>
@@ -53,7 +54,6 @@ const DetailedGroupView: React.FunctionComponent = props => {
                 <GroupMembers
                     members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
                     onRemoveMember={promptRemoveMember}
-                    reload={() => {/* TODO */}}
                     project={projectId}
                     allowManagement
                     allowRoleManagement={false}
@@ -73,15 +73,10 @@ const DetailedGroupView: React.FunctionComponent = props => {
     }
 
     async function removeMember(member: string): Promise<void> {
-        /*
-        const {path, payload} = removeGroupMemberRequest({group, memberUsername: member});
-        try {
-            await promises.makeCancelable(Client.delete(path!, payload)).promise;
-            reload();
-        } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to remove member."), false);
-        }
-         */
+        if (group === undefined) return;
+
+        await runCommand(removeGroupMemberRequest({group: group!, memberUsername: member}));
+        fetchGroupMembers(groupMembersParams);
     }
 }
 
@@ -98,7 +93,7 @@ export function GroupMembers(props: Readonly<{
     onRemoveMember(member: string): void;
     allowManagement: boolean;
     allowRoleManagement: boolean;
-    reload: () => void;
+    reload?: () => void;
     project: string;
 }>): JSX.Element {
     const [, runCommand] = useAsyncCommand();
@@ -160,7 +155,7 @@ export function GroupMembers(props: Readonly<{
                                             member: member.username,
                                             newRole: value
                                         }));
-                                        props.reload();
+                                        if (props.reload) props.reload();
                                     } catch (err) {
                                         snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update role."), false);
                                     }
