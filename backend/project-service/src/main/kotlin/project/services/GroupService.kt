@@ -119,7 +119,7 @@ class GroupService(
     ): Page<UserGroupSummary> {
         db.withTransaction { session ->
             val isAdmin = projects.findRoleOfMember(session, projectId, principal.username)?.isAdmin() == true
-            if (!isAdmin) throw ProjectException.Unauthorized()
+            if (!isAdmin) throw ProjectException.Forbidden()
             return groups.listGroupMembers(session, pagination, projectId, group)
         }
     }

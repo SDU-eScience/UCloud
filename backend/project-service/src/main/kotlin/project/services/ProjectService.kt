@@ -175,9 +175,9 @@ class ProjectService(
         requiredRole: Set<ProjectRole>
     ): Project {
         val project = dao.findById(session, projectId)
-        val projectMember = project.members.find { it.username == user } ?: throw ProjectException.Unauthorized()
+        val projectMember = project.members.find { it.username == user } ?: throw ProjectException.Forbidden()
         if (projectMember.role !in requiredRole) {
-            throw ProjectException.Unauthorized()
+            throw ProjectException.Forbidden()
         }
 
         return project

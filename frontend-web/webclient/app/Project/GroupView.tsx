@@ -1,22 +1,21 @@
 import * as React from "react";
 import {Button, Text, Input, List, Icon, Flex} from "ui-components";
 import * as Heading from "ui-components/Heading";
-import {useCloudAPI} from "Authentication/DataHook";
-import {Page, Operation} from "Types";
-import {useHistory, useParams} from "react-router";
+import {Operation} from "Types";
+import {useHistory} from "react-router";
 import DetailedGroupView from "./DetailedGroupView";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault, stopPropagation} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Client} from "Authentication/HttpClientInstance";
 import {addStandardDialog} from "UtilityComponents";
-import {emptyPage, KeyCode} from "DefaultObjects";
-import {groupSummaryRequest} from "Project/api";
+import {KeyCode} from "DefaultObjects";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
+import {useProjectManagementStatus} from "Project/View";
 
-interface GroupWithSummary {
+export interface GroupWithSummary {
     group: string;
     numberOfMembers: number;
     members: string[];
@@ -26,21 +25,12 @@ const baseContext = "/projects/groups";
 
 const GroupsOverview: React.FunctionComponent = props => {
     const history = useHistory();
-    const locationParams = useParams<{ id: string, group?: string }>();
-    const id = decodeURIComponent(locationParams.id);
-    const group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
+    const {projectId, group, groupSummaries, fetchSummaries, groupSummaryParams} = useProjectManagementStatus();
 
     const [creatingGroup, setCreatingGroup] = React.useState(false);
     const [, setLoading] = React.useState(false);
     const createGroupRef = React.useRef<HTMLInputElement>(null);
     const promises = usePromiseKeeper();
-    const [groupSummaries, fetchSummaries, params] = useCloudAPI<Page<GroupWithSummary>>(groupSummaryRequest({
-        page: 0,
-        itemsPerPage: 25
-    }), emptyPage);
-
-    // set reload
-    const reload = (): void => fetchSummaries({...params});
 
     const operations: GroupOperation[] = [{
         disabled: groups => groups.length === 0,
@@ -65,7 +55,7 @@ const GroupsOverview: React.FunctionComponent = props => {
                 try {
                     setLoading(true);
                     await Client.delete(baseContext, {groups});
-                    reload();
+                    fetchSummaries({...groupSummaryParams});
                 } catch (err) {
                     snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred deleting groups"), false);
                 } finally {
@@ -78,6 +68,7 @@ const GroupsOverview: React.FunctionComponent = props => {
 
     if (group) return <DetailedGroupView />;
 
+    // TODO Paging is missing
     return <>
         <BreadCrumbsBase>
             <li><span>Groups</span></li>
@@ -90,7 +81,7 @@ const GroupsOverview: React.FunctionComponent = props => {
                 <ListRow
                     key={g.group}
                     left={g.group}
-                    navigate={() => history.push(`/projects/view/${id}/${g.group}`)}
+                    navigate={() => history.push(`/projects/view/${projectId}/${g.group}`)}
                     leftSub={
                         <Text ml="4px" color="gray" fontSize={0}>
                             <Icon color="gray" mt="-2px" size="10" name="projects"/> {g.numberOfMembers}
@@ -166,7 +157,7 @@ const GroupsOverview: React.FunctionComponent = props => {
             snackbarStore.addSuccess(`Group ${group} created`, true);
             createGroupRef.current!.value = "";
             setCreatingGroup(false);
-            fetchSummaries({...params});
+            fetchSummaries({...groupSummaryParams});
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Could not create group."), false);
         } finally {

@@ -1,10 +1,8 @@
-import {callAPIWithErrorHandler, useCloudAPI} from "Authentication/DataHook";
+import {callAPIWithErrorHandler, useCloudAPI, useGlobalCloudAPI} from "Authentication/DataHook";
 import {LoadingMainContainer} from "MainContainer/MainContainer";
 import {
     emptyProject,
     Project,
-    ProjectRole,
-    roleInProject,
     viewProject
 } from "Project/index";
 import * as Heading from "ui-components/Heading";
@@ -17,38 +15,90 @@ import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import {
+    groupSummaryRequest,
+    listGroupMembersRequest,
     shouldVerifyMembership,
     ShouldVerifyMembershipResponse,
     verifyMembership
 } from "Project/api";
 import styled from "styled-components";
-import GroupView from "Project/GroupView";
+import GroupView, {GroupWithSummary} from "Project/GroupView";
 import ProjectMembers from "./Members";
+import {Page} from "Types";
+import {emptyPage} from "DefaultObjects";
+
+export function useProjectManagementStatus() {
+    const locationParams = useParams<{ id: string, group: string }>();
+    const projectId = decodeURIComponent(locationParams.id);
+    const group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
+    const [project, setProjectParams] = useGlobalCloudAPI<Project>(
+        "projectManagement",
+        viewProject({id: projectId}),
+        emptyProject(projectId)
+    );
+
+    const [groupMembers, fetchGroupMembers, groupMembersParams] = useGlobalCloudAPI<Page<string>>(
+        "projectManagementGroupMembers",
+        {noop: true},
+        emptyPage
+    );
+
+    const [groupSummaries, fetchSummaries, groupSummaryParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
+        "projectManagementGroupSummary",
+        groupSummaryRequest({itemsPerPage: 25, page: 0}),
+        emptyPage
+    );
+
+    return {
+        locationParams, projectId, group, project, setProjectParams, groupMembers,
+        fetchGroupMembers, groupMembersParams, groupSummaries, fetchSummaries, groupSummaryParams
+    };
+}
 
 const View: React.FunctionComponent<ViewOperations> = props => {
-    const id = decodeURIComponent(useParams<{ id: string }>().id);
-    const [project, setProjectParams] = useCloudAPI<Project>(viewProject({id}), emptyProject(id));
+    const {
+        projectId,
+        group,
+        project,
+        setProjectParams,
+        groupMembers,
+        fetchGroupMembers,
+        fetchSummaries
+    } = useProjectManagementStatus();
+
     const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
-        shouldVerifyMembership(id),
+        shouldVerifyMembership(projectId),
         {shouldVerify: false}
     );
 
-    const reload = (): void => setProjectParams(viewProject({id}));
+    useEffect(() => {
+        if (group !== undefined) {
+            fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
+        } else {
+            fetchSummaries(groupSummaryRequest({itemsPerPage: 25, page: 0}));
+        }
+    }, [projectId, group]);
+    useEffect(() => setProjectParams(viewProject({id: projectId})), [projectId]);
+
+    useEffect(() => {
+        props.setLoading(project.loading || groupMembers.loading);
+    }, [project.loading, groupMembers.loading]);
+
+    const reload = (): void => {
+        setProjectParams(viewProject({id: projectId}));
+        if (group !== undefined) {
+            fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
+        }
+    };
 
     useEffect(() => {
         props.setRefresh(reload);
         return () => props.setRefresh();
-    }, []);
-
-    useEffect(() => {
-        props.setLoading(project.loading);
-    }, [project.loading]);
-
-    useEffect(() => reload(), [id]);
+    }, [projectId, group]);
 
     const onApprove = async (): Promise<void> => {
-        await callAPIWithErrorHandler(verifyMembership(id));
-        setShouldVerifyParams(shouldVerifyMembership(id));
+        await callAPIWithErrorHandler(verifyMembership(projectId));
+        setShouldVerifyParams(shouldVerifyMembership(projectId));
     };
 
     return (
@@ -86,10 +136,9 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                     )}
                     <TwoColumnLayout>
                         <Box className={"members"}>
-                            <ProjectMembers
-                                id={id}
-                                project={project}
-                                reload={reload} />
+                            <Box ml={8} mr={8}>
+                                <ProjectMembers/>
+                            </Box>
                         </Box>
                         <Box className={"groups"}>
                             <GroupView/>
@@ -113,7 +162,7 @@ const TwoColumnLayout = styled.div`
     
     @media screen and (min-width: 1200px) {
         & {
-            height: calc(100vh - 140px);
+            height: calc(100vh - 100px);
             overflow: hidden;
         }
         

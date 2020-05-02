@@ -1,5 +1,12 @@
-import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {addMemberInProject, deleteMemberInProject, Project, ProjectRole, roleInProject} from "Project/index";
+import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {
+    addMemberInProject,
+    deleteMemberInProject,
+    Project,
+    ProjectRole,
+    roleInProject,
+    viewProject
+} from "Project/index";
 import * as React from "react";
 import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -10,17 +17,19 @@ import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import {Button, Flex, Input, Label} from "ui-components";
 import {GroupMembers} from "Project/DetailedGroupView";
 import {addStandardDialog} from "UtilityComponents";
+import {useProjectManagementStatus} from "Project/View";
+import {addGroupMember} from "Project/api";
 
-interface ProjectMembersProps {
-    id: string;
-    project: APICallState<Project>;
-    reload: () => void;
-}
-
-const Members: React.FunctionComponent<ProjectMembersProps> = props => {
-    const {id, project, reload} = props;
+const Members: React.FunctionComponent = props => {
+    const {
+        projectId, project, group, fetchGroupMembers, groupMembersParams,
+        setProjectParams
+    } = useProjectManagementStatus();
     const [isLoading, runCommand] = useAsyncCommand();
     const newMemberRef = useRef<HTMLInputElement>(null);
+    const reloadMembers = () => {
+        setProjectParams(viewProject({id: projectId}));
+    };
 
     const role = roleInProject(project.data);
     const allowManagement = role === ProjectRole.PI || role === ProjectRole.ADMIN;
@@ -31,14 +40,14 @@ const Members: React.FunctionComponent<ProjectMembersProps> = props => {
         const username = inputField.value;
         try {
             await runCommand(addMemberInProject({
-                projectId: id,
+                projectId,
                 member: {
                     username,
                     role: ProjectRole.USER
                 }
             }));
             inputField.value = "";
-            reload();
+            reloadMembers();
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed adding new member"), false);
         }
@@ -106,22 +115,26 @@ const Members: React.FunctionComponent<ProjectMembersProps> = props => {
 
         <GroupMembers
             members={project.data.members}
-            promptRemoveMember={async member => addStandardDialog({
+            onRemoveMember={async member => addStandardDialog({
                 title: "Remove member",
                 message: `Remove ${member}?`,
                 onConfirm: async () => {
                     await runCommand(deleteMemberInProject({
-                        projectId: id,
+                        projectId,
                         member
                     }));
 
-                    reload();
+                    reloadMembers();
                 }
             })}
-            reload={reload}
+            reload={reloadMembers}
             project={project.data.id}
             allowManagement={allowManagement}
             allowRoleManagement={allowManagement}
+            onAddToGroup={!(allowManagement && !!group) ? undefined : async (memberUsername) => {
+                await runCommand(addGroupMember({group, memberUsername}));
+                fetchGroupMembers(groupMembersParams);
+            }}
         />
     </>;
 }

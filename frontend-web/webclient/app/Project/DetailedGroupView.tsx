@@ -4,7 +4,7 @@ import {Text, Flex, Icon, Truncate, Link} from "ui-components";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import * as Pagination from "Pagination";
 import {Page} from "Types";
-import {useCloudAPI, APICallParameters, useAsyncCommand} from "Authentication/DataHook";
+import {useCloudAPI, APICallParameters, useAsyncCommand, APICallState} from "Authentication/DataHook";
 import {
     listGroupMembersRequest,
     removeGroupMemberRequest,
@@ -15,11 +15,8 @@ import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {GridCardGroup} from "ui-components/Grid";
-import {usePromiseKeeper} from "PromiseKeeper";
 import {Avatar} from "AvataaarLib";
 import {addStandardDialog} from "UtilityComponents";
-import {emptyPage} from "DefaultObjects";
-import {useParams} from "react-router";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {ProjectMember, ProjectRole, changeRoleInProject} from "Project";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -27,34 +24,20 @@ import {useEffect} from "react";
 import {useAvatars} from "AvataaarLib/hook";
 import styled from "styled-components";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
+import {useProjectManagementStatus} from "Project/View";
 
 const DetailedGroupView: React.FunctionComponent = props => {
-    const locationParams = useParams<{ id: string, group: string }>();
-    const id = decodeURIComponent(locationParams.id);
-    const group = decodeURIComponent(locationParams.group);
+    const {projectId, group, groupMembers, fetchGroupMembers, groupMembersParams} = useProjectManagementStatus();
+    const activeGroup = groupMembers;
+    const fetchActiveGroup = fetchGroupMembers;
 
-    const [activeGroup, fetchActiveGroup, params] = useCloudAPI<Page<string>, ListGroupMembersRequestProps>(
-        listGroupMembersRequest({group, itemsPerPage: 25, page: 0}),
-        emptyPage
-    );
-
-    const promises = usePromiseKeeper();
-
-    const reload = (): void => {
-        fetchActiveGroup({...params});
-    };
-
-    useEffect(() => {
-        fetchActiveGroup(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
-    }, [group]);
-
-    if (activeGroup.error) return <MainContainer main={
+    if (!group || activeGroup.error) return <MainContainer main={
         <Text fontSize={"24px"}>Could not fetch &apos;{group}&apos;.</Text>
     }/>;
 
     return <>
         <BreadCrumbsBase>
-            <li><span><Link to={`/projects/view/${id}`}>Groups</Link></span></li>
+            <li><span><Link to={`/projects/view/${projectId}`}>Groups</Link></span></li>
             <li><span>{group}</span></li>
         </BreadCrumbsBase>
         <Pagination.List
@@ -69,9 +52,9 @@ const DetailedGroupView: React.FunctionComponent = props => {
             pageRenderer={page =>
                 <GroupMembers
                     members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
-                    promptRemoveMember={promptRemoveMember}
-                    reload={reload}
-                    project={Client.projectId ?? ""}
+                    onRemoveMember={promptRemoveMember}
+                    reload={() => {/* TODO */}}
+                    project={projectId}
                     allowManagement
                     allowRoleManagement={false}
                 />
@@ -90,6 +73,7 @@ const DetailedGroupView: React.FunctionComponent = props => {
     }
 
     async function removeMember(member: string): Promise<void> {
+        /*
         const {path, payload} = removeGroupMemberRequest({group, memberUsername: member});
         try {
             await promises.makeCancelable(Client.delete(path!, payload)).promise;
@@ -97,6 +81,7 @@ const DetailedGroupView: React.FunctionComponent = props => {
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to remove member."), false);
         }
+         */
     }
 }
 
@@ -109,7 +94,8 @@ function membershipSearch(query: string, page: number): APICallParameters {
 
 export function GroupMembers(props: Readonly<{
     members: ProjectMember[];
-    promptRemoveMember(member: string): void;
+    onAddToGroup?: (member: string) => void;
+    onRemoveMember(member: string): void;
     allowManagement: boolean;
     allowRoleManagement: boolean;
     reload: () => void;
@@ -136,7 +122,20 @@ export function GroupMembers(props: Readonly<{
 
                     <Flex flexDirection={"column"} m={8}>
                         <Flex alignItems={"center"}>
-                            <Truncate width={"160px"} title={member.username}>{member.username}</Truncate>
+                            <Truncate width={"125px"} title={member.username}>{member.username}</Truncate>
+                            {!props.onAddToGroup ? null :
+                                <Icon
+                                    cursor={"pointer"}
+                                    mr={"8px"}
+                                    ml={"8px"}
+                                    color={"green"}
+                                    name={"arrowDown"}
+                                    rotation={270}
+                                    title={"Add to group"}
+                                    size={"20px"}
+                                    onClick={() => props.onAddToGroup!(member.username)}
+                                />
+                            }
                             {!props.allowManagement || member.role === ProjectRole.PI ? null :
                                 <Icon
                                     cursor="pointer"
@@ -144,7 +143,8 @@ export function GroupMembers(props: Readonly<{
                                     ml="8px"
                                     color="red"
                                     name="close"
-                                    onClick={() => props.promptRemoveMember(member.username)} size="20px"
+                                    title={"Remove from project"}
+                                    onClick={() => props.onRemoveMember(member.username)} size="20px"
                                 />
                             }
                         </Flex>
@@ -174,6 +174,7 @@ export function GroupMembers(props: Readonly<{
                 </MemberBox>
             )}
         </GridCardGroup>
+
     );
 }
 
