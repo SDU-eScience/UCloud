@@ -279,15 +279,19 @@ export const reclassifyFile = async ({file, sensitivity, client}: ReclassifyFile
 };
 
 export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
+
 export const replaceHomeOrProjectFolder = (path: string, client: HttpClient): string =>
-    path.replace(client.homeFolder, "Home/").replace(client.currentProjectFolder, "Projects/");
+    path.replace(client.homeFolder, "Home/")
+        .replace(client.currentProjectFolder, `${client.projectId}/`);
+
 export const expandHomeOrProjectFolder = (path: string, client: HttpClient): string => {
-    if (path.startsWith("/Home/"))
+    if (path.startsWith("/Home/")) {
         return path.replace("/Home/", client.homeFolder);
-    if (path.startsWith("/Projects")) {
-        return `${Client.currentProjectFolder}/${path.substring(10)}`;
+    } else if (path.startsWith("/home/")) {
+        return path;
+    } else {
+        return "/projects" + path;
     }
-    return path;
 };
 
 const extractFilesQuery = "/files/extract";

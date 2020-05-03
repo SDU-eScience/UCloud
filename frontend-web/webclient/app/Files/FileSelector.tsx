@@ -9,7 +9,7 @@ import {addTrailingSlash} from "UtilityFunctions";
 import {File, FileSelectorProps} from ".";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
-    const [path, setPath] = useState<string>(Client.homeFolder);
+    const [path, setPath] = useState<string>(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder);
     useEffect(() => {
         if (props.initialPath !== undefined) setPath(props.initialPath);
     }, [props.initialPath]);
