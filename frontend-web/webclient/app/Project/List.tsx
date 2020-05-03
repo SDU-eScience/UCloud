@@ -27,7 +27,7 @@ import {ThemeColor} from "ui-components/theme";
 import {usePromiseKeeper} from "PromiseKeeper";
 
 // eslint-disable-next-line no-underscore-dangle
-const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
+const _List: React.FunctionComponent<DispatchProps & {projectMembers?: string}> = props => {
     const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 50}),
         emptyPage
@@ -80,7 +80,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         iconColor2: "white",
         color: "black",
         onClick: ([project]) => {
-            if (props.project !== project.projectId) props.setProject(project.projectId);
+            if (props.projectMembers !== project.projectId) props.setProject(project.projectId);
             snackbarStore.addInformation(`${project.projectId} set as active project.`, false);
             history.push("/projects/groups/");
         }
@@ -100,11 +100,11 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                             mr="48px"
                             mt="5px"
                             name="check"
-                            color={!props.project ? "green" : "gray"}
+                            color={!props.projectMembers ? "green" : "gray"}
                             hoverColor="green"
                             cursor="pointer"
                             onClick={() => {
-                                if (!props.project) return;
+                                if (!props.projectMembers) return;
                                 snackbarStore.addInformation("Personal project is now the active.", false);
                                 props.setProject();
                             }}
@@ -148,7 +148,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         page={response.data}
                         pageRenderer={page =>
                             page.items.map(e => {
-                                const isActive = e.projectId === props.project;
+                                const isActive = e.projectId === props.projectMembers;
                                 const isFavorite = favorites.items.findIndex(it => it === e.projectId) !== -1;
                                 return (
                                     <ListRow

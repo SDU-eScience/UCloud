@@ -6,7 +6,7 @@ import {
 } from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
-import {useEffect} from "react";
+import {useCallback, useEffect} from "react";
 import {useParams} from "react-router";
 import {Box, Button} from "ui-components";
 import {connect} from "react-redux";
@@ -32,7 +32,7 @@ export function useProjectManagementStatus() {
     const locationParams = useParams<{ id: string, group: string }>();
     const projectId = decodeURIComponent(locationParams.id);
     const group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
-    const [project, setProjectParams, projectMemberParams] = useGlobalCloudAPI<Page<ProjectMember>>(
+    const [projectMembers, setProjectMemberParams, projectMemberParams] = useGlobalCloudAPI<Page<ProjectMember>>(
         "projectManagement",
         membershipSearch({itemsPerPage: 100, page: 0, query: ""}),
         emptyPage
@@ -44,7 +44,7 @@ export function useProjectManagementStatus() {
         emptyPage
     );
 
-    const [groupSummaries, fetchSummaries, groupSummaryParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
+    const [groupList, fetchGroupList, groupListParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
         "projectManagementGroupSummary",
         groupSummaryRequest({itemsPerPage: 10, page: 0}),
         emptyPage
@@ -53,8 +53,8 @@ export function useProjectManagementStatus() {
     const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
 
     return {
-        locationParams, projectId, group, project, setProjectParams, groupMembers,
-        fetchGroupMembers, groupMembersParams, groupSummaries, fetchSummaries, groupSummaryParams,
+        locationParams, projectId, group, projectMembers, setProjectMemberParams, groupMembers,
+        fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
         projectMemberParams, memberSearchQuery, setMemberSearchQuery
     };
 }
@@ -63,13 +63,14 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     const {
         projectId,
         group,
-        project,
-        setProjectParams,
+        projectMembers,
+        setProjectMemberParams,
         projectMemberParams,
         groupMembers,
         fetchGroupMembers,
-        fetchSummaries,
-        memberSearchQuery
+        fetchGroupList,
+        memberSearchQuery,
+        groupMembersParams
     } = useProjectManagementStatus();
 
     const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
@@ -81,12 +82,12 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         if (group !== undefined) {
             fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
         } else {
-            fetchSummaries(groupSummaryRequest({itemsPerPage: 10, page: 0}));
+            fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
         }
     }, [projectId, group]);
 
     useEffect(() => {
-        setProjectParams(
+        setProjectMemberParams(
             membershipSearch({
                 ...projectMemberParams.parameters,
                 query: memberSearchQuery,
@@ -96,20 +97,20 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     }, [projectId, group, groupMembers.data, memberSearchQuery]);
 
     useEffect(() => {
-        props.setLoading(project.loading || groupMembers.loading);
-    }, [project.loading, groupMembers.loading]);
+        props.setLoading(projectMembers.loading || groupMembers.loading);
+    }, [projectMembers.loading, groupMembers.loading]);
 
-    const reload = (): void => {
-        setProjectParams(viewProject({id: projectId}));
+    const reload = useCallback(() => {
+        setProjectMemberParams(projectMemberParams);
         if (group !== undefined) {
-            fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
+            fetchGroupMembers(groupMembersParams);
         }
-    };
+    }, [projectMemberParams, groupMembersParams, setProjectMemberParams, group]);
 
     useEffect(() => {
         props.setRefresh(reload);
         return () => props.setRefresh();
-    }, [projectId, group]);
+    }, [reload]);
 
     const onApprove = async (): Promise<void> => {
         await callAPIWithErrorHandler(verifyMembership(projectId));

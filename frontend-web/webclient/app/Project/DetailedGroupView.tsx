@@ -56,7 +56,7 @@ const DetailedGroupView: React.FunctionComponent = props => {
                 <GroupMembers
                     members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
                     onRemoveMember={promptRemoveMember}
-                    project={projectId}
+                    projectMembers={projectId}
                     allowManagement
                     allowRoleManagement={false}
                     showRole={false}
@@ -91,7 +91,7 @@ export function GroupMembers(props: Readonly<{
     allowRoleManagement: boolean;
     reload?: () => void;
     showRole?: boolean;
-    project: string;
+    projectMembers: string;
 }>): JSX.Element {
     const [, runCommand] = useAsyncCommand();
     const avatars = useAvatars();
@@ -150,7 +150,7 @@ export function GroupMembers(props: Readonly<{
                                     onChange={async value => {
                                         try {
                                             await runCommand(changeRoleInProject({
-                                                projectId: props.project,
+                                                projectId: props.projectMembers,
                                                 member: member.username,
                                                 newRole: value
                                             }));

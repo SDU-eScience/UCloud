@@ -29,7 +29,7 @@ const baseContext = "/projects/groups";
 
 const GroupList: React.FunctionComponent = props => {
     const history = useHistory();
-    const {projectId, group, groupSummaries, fetchSummaries, groupSummaryParams} = useProjectManagementStatus();
+    const {projectId, group, groupList, fetchGroupList, groupListParams} = useProjectManagementStatus();
 
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [, setLoading] = useState(false);
@@ -64,15 +64,15 @@ const GroupList: React.FunctionComponent = props => {
         </BreadCrumbsBase>
 
         <Pagination.List
-            loading={groupSummaries.loading}
-            page={groupSummaries.data}
+            loading={groupList.loading}
+            page={groupList.data}
             customEmptyPage={<Heading.h3>You have no groups to manage.</Heading.h3>}
             onPageChanged={(newPage, oldPage) => {
-                fetchSummaries(groupSummaryRequest({page: newPage, itemsPerPage: oldPage.itemsPerPage}));
+                fetchGroupList(groupSummaryRequest({page: newPage, itemsPerPage: oldPage.itemsPerPage}));
             }}
             pageRenderer={() => (<>
                     <List>
-                        {groupSummaries.data.items.map(g => (<>
+                        {groupList.data.items.map(g => (<>
                             <ListRow
                                 key={g.group}
                                 left={
@@ -151,7 +151,7 @@ const GroupList: React.FunctionComponent = props => {
             </>,
             onConfirm: async () => {
                 await runCommand(deleteGroup({groups: groups.map(it => it.group)}));
-                fetchSummaries(groupSummaryParams);
+                fetchGroupList(groupListParams);
             },
             confirmText: "Delete"
         });
@@ -170,7 +170,7 @@ const GroupList: React.FunctionComponent = props => {
             snackbarStore.addSuccess(`Group created`, true);
             createGroupRef.current!.value = "";
             setCreatingGroup(false);
-            fetchSummaries({...groupSummaryParams});
+            fetchGroupList({...groupListParams});
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Could not create group."), false);
         } finally {
@@ -185,7 +185,7 @@ const GroupList: React.FunctionComponent = props => {
         if (!newGroupName) return;
 
         await runCommand(updateGroupName({oldGroupName, newGroupName}));
-        fetchSummaries(groupSummaryParams);
+        fetchGroupList(groupListParams);
     }
 }
 

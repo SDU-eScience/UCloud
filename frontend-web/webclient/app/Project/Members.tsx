@@ -19,18 +19,18 @@ import {addGroupMember} from "Project/api";
 
 const Members: React.FunctionComponent = props => {
     const {
-        projectId, project, group, fetchGroupMembers, groupMembersParams,
-        setProjectParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery
+        projectId, projectMembers, group, fetchGroupMembers, groupMembersParams,
+        setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery
     } = useProjectManagementStatus();
     const [isLoading, runCommand] = useAsyncCommand();
     const reloadMembers = () => {
-        setProjectParams(projectMemberParams);
+        setProjectMemberParams(projectMemberParams);
     };
 
     const newMemberRef = useRef<HTMLInputElement>(null);
 
     // TODO
-    const role = roleInProject(project.data.items);
+    const role = roleInProject(projectMembers.data.items);
     const allowManagement = true; //role === ProjectRole.PI || role === ProjectRole.ADMIN;
 
     const onSubmit = async (e: React.FormEvent): Promise<void> => {
@@ -79,7 +79,7 @@ const Members: React.FunctionComponent = props => {
         )}
 
         <GroupMembers
-            members={project.data.items}
+            members={projectMembers.data.items}
             onRemoveMember={async member => addStandardDialog({
                 title: "Remove member",
                 message: `Remove ${member}?`,
@@ -93,7 +93,7 @@ const Members: React.FunctionComponent = props => {
                 }
             })}
             reload={reloadMembers}
-            project={projectId}
+            projectMembers={projectId}
             allowManagement={allowManagement}
             allowRoleManagement={allowManagement}
             onAddToGroup={!(allowManagement && !!group) ? undefined : async (memberUsername) => {
