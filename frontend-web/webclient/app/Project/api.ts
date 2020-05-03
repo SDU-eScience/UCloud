@@ -148,3 +148,16 @@ export function updateGroupName(request: UpdateGroupNameRequest): APICallParamet
         payload: request
     };
 }
+
+export interface DeleteGroupRequest {
+    groups: string[];
+}
+
+export function deleteGroup(request: DeleteGroupRequest): APICallParameters<DeleteGroupRequest> {
+    return {
+        method: "DELETE",
+        path: "/projects/groups",
+        parameters: request,
+        payload: request
+    };
+}

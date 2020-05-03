@@ -1,28 +1,28 @@
 import {callAPIWithErrorHandler, useCloudAPI, useGlobalCloudAPI} from "Authentication/DataHook";
-import {LoadingMainContainer, MainContainer} from "MainContainer/MainContainer";
+import {MainContainer} from "MainContainer/MainContainer";
 import {
-    emptyProject,
-    Project, ProjectMember,
+    ProjectMember,
     viewProject
 } from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
-import {useEffect, useRef} from "react";
+import {useEffect} from "react";
 import {useParams} from "react-router";
-import {Box, Button, Flex, Input, Label} from "ui-components";
+import {Box, Button} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import {
     groupSummaryRequest,
-    listGroupMembersRequest, membershipSearch, MembershipSearchRequest,
+    listGroupMembersRequest,
+    membershipSearch,
     shouldVerifyMembership,
     ShouldVerifyMembershipResponse,
     verifyMembership
 } from "Project/api";
 import styled from "styled-components";
-import GroupView, {GroupWithSummary} from "Project/GroupView";
+import GroupView, {GroupWithSummary} from "./GroupList";
 import ProjectMembers from "./Members";
 import {Page} from "Types";
 import {emptyPage} from "DefaultObjects";

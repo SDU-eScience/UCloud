@@ -15,7 +15,7 @@ import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "Project/View";
-import {groupSummaryRequest, updateGroupName} from "Project/api";
+import {deleteGroup, groupSummaryRequest, updateGroupName} from "Project/api";
 import {MutableRefObject, useCallback, useRef, useState} from "react";
 import {useAsyncCommand} from "Authentication/DataHook";
 
@@ -27,7 +27,7 @@ export interface GroupWithSummary {
 
 const baseContext = "/projects/groups";
 
-const GroupsOverview: React.FunctionComponent = props => {
+const GroupList: React.FunctionComponent = props => {
     const history = useHistory();
     const {projectId, group, groupSummaries, fetchSummaries, groupSummaryParams} = useProjectManagementStatus();
 
@@ -150,15 +150,8 @@ const GroupsOverview: React.FunctionComponent = props => {
                 {groups.map(g => <Text key={g.group} fontSize="12px">{g.group}</Text>)}
             </>,
             onConfirm: async () => {
-                try {
-                    setLoading(true);
-                    await Client.delete(baseContext, {groups});
-                    fetchSummaries({...groupSummaryParams});
-                } catch (err) {
-                    snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred deleting groups"), false);
-                } finally {
-                    setLoading(false);
-                }
+                await runCommand(deleteGroup({groups: groups.map(it => it.group)}));
+                fetchSummaries(groupSummaryParams);
             },
             confirmText: "Delete"
         });
@@ -261,4 +254,4 @@ function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
     return <>{props.groupOperations.map(GroupOp)}</>;
 }
 
-export default GroupsOverview;
+export default GroupList;

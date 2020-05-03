@@ -45,7 +45,12 @@ const DetailedGroupView: React.FunctionComponent = props => {
                 itemsPerPage: page.itemsPerPage,
                 page: newPage
             }))}
-            customEmptyPage={<Text>No members in group.</Text>}
+            customEmptyPage={(
+                <Text>
+                    No members in group.
+                    You can add members by clicking on the green arrow in the 'Members of {projectId}' panel.
+                </Text>
+            )}
             page={activeGroup.data}
             pageRenderer={page =>
                 <GroupMembers

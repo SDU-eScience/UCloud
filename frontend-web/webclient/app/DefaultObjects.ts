@@ -15,10 +15,10 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {Upload} from "Uploader";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {ProjectCache} from "Project/cache";
-import {APICallState, APICallStateWithParams} from "Authentication/DataHook";
-import {Project, ProjectMember} from "Project";
+import {APICallStateWithParams} from "Authentication/DataHook";
+import {ProjectMember} from "Project";
 import {ListGroupMembersRequestProps} from "Project/api";
-import {GroupWithSummary} from "Project/GroupView";
+import {GroupWithSummary} from "Project/GroupList";
 
 export enum KeyCode {
     ENTER = 13,
