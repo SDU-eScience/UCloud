@@ -1,7 +1,7 @@
 import {APICallParameters} from "Authentication/DataHook";
-import {ProjectRole, UserGroupSummary, UserInProject} from "Project/index";
+import {ProjectMember, ProjectRole, UserGroupSummary, UserInProject} from "Project/index";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {PaginationRequest} from "Types";
+import {Page, PaginationRequest} from "Types";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -115,6 +115,35 @@ export function userProjectStatus(request: UserStatusRequest): APICallParameters
         reloadId: Math.random(),
         path: "/projects/membership",
         method: "POST",
+        parameters: request,
+        payload: request
+    };
+}
+
+export interface MembershipSearchRequest extends PaginationRequest {
+    query: string;
+    notInGroup?: string;
+}
+
+type MembershipResponse = Page<ProjectMember>;
+
+export function membershipSearch(request: MembershipSearchRequest): APICallParameters<MembershipSearchRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/projects/membership/search", request),
+        parameters: request
+    };
+}
+
+export interface UpdateGroupNameRequest {
+    oldGroupName: string;
+    newGroupName: string;
+}
+
+export function updateGroupName(request: UpdateGroupNameRequest): APICallParameters<UpdateGroupNameRequest> {
+    return {
+        method: "POST",
+        path: "/projects/groups/update-name",
         parameters: request,
         payload: request
     };

@@ -54,6 +54,7 @@ const DetailedGroupView: React.FunctionComponent = props => {
                     project={projectId}
                     allowManagement
                     allowRoleManagement={false}
+                    showRole={false}
                 />
             }
         />
@@ -77,13 +78,6 @@ const DetailedGroupView: React.FunctionComponent = props => {
     }
 }
 
-function membershipSearch(query: string, page: number): APICallParameters {
-    return {
-        method: "GET",
-        path: buildQueryString("/projects/membership/search", {query, itemsPerPage: 100, page})
-    };
-}
-
 export function GroupMembers(props: Readonly<{
     members: ProjectMember[];
     onAddToGroup?: (member: string) => void;
@@ -91,6 +85,7 @@ export function GroupMembers(props: Readonly<{
     allowManagement: boolean;
     allowRoleManagement: boolean;
     reload?: () => void;
+    showRole?: boolean;
     project: string;
 }>): JSX.Element {
     const [, runCommand] = useAsyncCommand();
@@ -141,27 +136,29 @@ export function GroupMembers(props: Readonly<{
                             }
                         </Flex>
 
-                        {!props.allowRoleManagement || member.role === ProjectRole.PI ? projectRoleToString(member.role) :
-                            <ClickableDropdown
-                                chevron
-                                trigger={projectRoleToString(member.role)}
-                                onChange={async value => {
-                                    try {
-                                        await runCommand(changeRoleInProject({
-                                            projectId: props.project,
-                                            member: member.username,
-                                            newRole: value
-                                        }));
-                                        if (props.reload) props.reload();
-                                    } catch (err) {
-                                        snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update role."), false);
-                                    }
-                                }}
-                                options={[
-                                    {text: "User", value: ProjectRole.USER},
-                                    {text: "Admin", value: ProjectRole.ADMIN}
-                                ]}
-                            />}
+                        {props.showRole === false ? null :
+                            !props.allowRoleManagement || member.role === ProjectRole.PI ? projectRoleToString(member.role)
+                                :
+                                <ClickableDropdown
+                                    chevron
+                                    trigger={projectRoleToString(member.role)}
+                                    onChange={async value => {
+                                        try {
+                                            await runCommand(changeRoleInProject({
+                                                projectId: props.project,
+                                                member: member.username,
+                                                newRole: value
+                                            }));
+                                            if (props.reload) props.reload();
+                                        } catch (err) {
+                                            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update role."), false);
+                                        }
+                                    }}
+                                    options={[
+                                        {text: "User", value: ProjectRole.USER},
+                                        {text: "Admin", value: ProjectRole.ADMIN}
+                                    ]}
+                                />}
                     </Flex>
                 </MemberBox>
             )}

@@ -16,7 +16,7 @@ import {Upload} from "Uploader";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {ProjectCache} from "Project/cache";
 import {APICallState, APICallStateWithParams} from "Authentication/DataHook";
-import {Project} from "Project";
+import {Project, ProjectMember} from "Project";
 import {ListGroupMembersRequestProps} from "Project/api";
 import {GroupWithSummary} from "Project/GroupView";
 
@@ -132,9 +132,10 @@ export interface HookStore {
     fileFavoriteCache?: Dictionary<boolean>;
     projectCache?: ProjectCache;
     avatarCache?: Dictionary<AvatarType>;
-    projectManagement?: APICallStateWithParams<Project>;
+    projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
     projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;
     projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>
+    projectManagementQuery?: string;
 }
 
 interface LegacyReduxObject {

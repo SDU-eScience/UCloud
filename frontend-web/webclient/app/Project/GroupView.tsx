@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as Pagination from "Pagination";
-import {Button, Text, Input, List, Icon, Flex} from "ui-components";
+import {Button, Text, Input, List, Icon, Flex, Box} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {Operation} from "Types";
 import {useHistory} from "react-router";
@@ -15,7 +15,9 @@ import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "Project/View";
-import {groupSummaryRequest} from "Project/api";
+import {groupSummaryRequest, updateGroupName} from "Project/api";
+import {MutableRefObject, useCallback, useRef, useState} from "react";
+import {useAsyncCommand} from "Authentication/DataHook";
 
 export interface GroupWithSummary {
     group: string;
@@ -29,48 +31,33 @@ const GroupsOverview: React.FunctionComponent = props => {
     const history = useHistory();
     const {projectId, group, groupSummaries, fetchSummaries, groupSummaryParams} = useProjectManagementStatus();
 
-    const [creatingGroup, setCreatingGroup] = React.useState(false);
-    const [, setLoading] = React.useState(false);
-    const createGroupRef = React.useRef<HTMLInputElement>(null);
+    const [creatingGroup, setCreatingGroup] = useState(false);
+    const [, setLoading] = useState(false);
+    const createGroupRef = useRef<HTMLInputElement>(null);
     const promises = usePromiseKeeper();
+    const [renamingGroup, setRenamingGroup] = useState<string | null>(null);
+    const renameRef = useRef<HTMLInputElement>(null);
+    const [, runCommand] = useAsyncCommand();
 
-    const operations: GroupOperation[] = [{
-        disabled: groups => groups.length === 0,
-        onClick: (groups) => promptDeleteGroups(groups),
-        icon: "trash",
-        text: "Delete",
-        color: "red"
-    }];
-
-    async function promptDeleteGroups(groups: GroupWithSummary[]): Promise<void> {
-        if (groups.length === 0) {
-            snackbarStore.addFailure("You haven't selected any groups.", false);
-            return;
+    const operations: GroupOperation[] = [
+        {
+            disabled: groups => groups.length !== 1,
+            onClick: (groups) => setRenamingGroup(groups[0].group),
+            icon: "rename",
+            text: "Rename"
+        },
+        {
+            disabled: groups => groups.length === 0,
+            onClick: (groups) => promptDeleteGroups(groups),
+            icon: "trash",
+            text: "Delete",
+            color: "red"
         }
-        addStandardDialog({
-            title: "Delete groups?",
-            message: <>
-                <Text mb="5px">Selected groups:</Text>
-                {groups.map(g => <Text key={g.group} fontSize="12px">{g.group}</Text>)}
-            </>,
-            onConfirm: async () => {
-                try {
-                    setLoading(true);
-                    await Client.delete(baseContext, {groups});
-                    fetchSummaries({...groupSummaryParams});
-                } catch (err) {
-                    snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred deleting groups"), false);
-                } finally {
-                    setLoading(false);
-                }
-            },
-            confirmText: "Delete"
-        });
-    }
+    ];
+
 
     if (group) return <DetailedGroupView/>;
 
-    // TODO Paging is missing
     return <>
         <BreadCrumbsBase>
             <li><span>Groups</span></li>
@@ -88,7 +75,15 @@ const GroupsOverview: React.FunctionComponent = props => {
                         {groupSummaries.data.items.map(g => (<>
                             <ListRow
                                 key={g.group}
-                                left={g.group}
+                                left={
+                                    renamingGroup !== g.group ? g.group : (
+                                        <NamingField
+                                            onCancel={() => setRenamingGroup(null)}
+                                            onSubmit={renameGroup}
+                                            inputRef={renameRef}
+                                        />
+                                    )
+                                }
                                 navigate={() => history.push(`/projects/view/${projectId}/${g.group}`)}
                                 leftSub={
                                     <Text ml="4px" color="gray" fontSize={0}>
@@ -118,25 +113,13 @@ const GroupsOverview: React.FunctionComponent = props => {
 
                         {creatingGroup ?
                             <ListRow
-                                left={<form onSubmit={createGroup}><Input
-                                    pt="0px"
-                                    pb="0px"
-                                    pr="0px"
-                                    pl="0px"
-                                    noBorder
-                                    fontSize={20}
-                                    maxLength={1024}
-                                    onKeyDown={e => {
-                                        if (e.keyCode === KeyCode.ESC) {
-                                            setCreatingGroup(false);
-                                        }
-                                    }}
-                                    borderRadius="0px"
-                                    type="text"
-                                    width="100%"
-                                    autoFocus
-                                    ref={createGroupRef}
-                                /></form>}
+                                left={
+                                    <NamingField
+                                        onSubmit={createGroup}
+                                        onCancel={() => setCreatingGroup(false)}
+                                        inputRef={createGroupRef}
+                                    />
+                                }
                                 leftSub={
                                     <Text ml="4px" color="gray" fontSize={0}>
                                         <Icon color="gray" mt="-2px" size="10" name="projects"/> 0
@@ -153,9 +136,33 @@ const GroupsOverview: React.FunctionComponent = props => {
                 </>
             )}
         />
-
-
     </>;
+
+    async function promptDeleteGroups(groups: GroupWithSummary[]): Promise<void> {
+        if (groups.length === 0) {
+            snackbarStore.addFailure("You haven't selected any groups.", false);
+            return;
+        }
+        addStandardDialog({
+            title: "Delete groups?",
+            message: <>
+                <Text mb="5px">Selected groups:</Text>
+                {groups.map(g => <Text key={g.group} fontSize="12px">{g.group}</Text>)}
+            </>,
+            onConfirm: async () => {
+                try {
+                    setLoading(true);
+                    await Client.delete(baseContext, {groups});
+                    fetchSummaries({...groupSummaryParams});
+                } catch (err) {
+                    snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred deleting groups"), false);
+                } finally {
+                    setLoading(false);
+                }
+            },
+            confirmText: "Delete"
+        });
+    }
 
     async function createGroup(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
@@ -167,7 +174,7 @@ const GroupsOverview: React.FunctionComponent = props => {
                 return;
             }
             await promises.makeCancelable(Client.put(baseContext, {group: groupName})).promise;
-            snackbarStore.addSuccess(`Group ${group} created`, true);
+            snackbarStore.addSuccess(`Group created`, true);
             createGroupRef.current!.value = "";
             setCreatingGroup(false);
             fetchSummaries({...groupSummaryParams});
@@ -177,6 +184,53 @@ const GroupsOverview: React.FunctionComponent = props => {
             setLoading(false);
         }
     }
+
+    async function renameGroup() {
+        const oldGroupName = renamingGroup;
+        if (!oldGroupName) return;
+        const newGroupName = renameRef.current?.value;
+        if (!newGroupName) return;
+
+        await runCommand(updateGroupName({oldGroupName, newGroupName}));
+        fetchSummaries(groupSummaryParams);
+    }
+}
+
+const NamingField: React.FunctionComponent<{
+    onCancel: () => void;
+    inputRef: MutableRefObject<HTMLInputElement | null>;
+    onSubmit: (e: React.SyntheticEvent) => void;
+}> = props => {
+    const submit = useCallback((e) => {
+        e.preventDefault();
+        props.onSubmit(e);
+    }, [props.onSubmit]);
+
+    const keyDown = useCallback((e) => {
+        if (e.keyCode === KeyCode.ESC) {
+            props.onCancel();
+        }
+    }, [props.onCancel]);
+
+    return (
+        <form onSubmit={submit}>
+            <Input
+                pt="0px"
+                pb="0px"
+                pr="0px"
+                pl="0px"
+                noBorder
+                fontSize={20}
+                maxLength={1024}
+                onKeyDown={keyDown}
+                borderRadius="0px"
+                type="text"
+                width="100%"
+                autoFocus
+                ref={props.inputRef}
+            />
+        </form>
+    );
 }
 
 type GroupOperation = Operation<GroupWithSummary>;
@@ -191,19 +245,20 @@ function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
 
     function GroupOp(op: GroupOperation): JSX.Element | null {
         if (op.disabled(props.selectedGroups, Client)) return null;
-        return <span onClick={() => op.onClick(props.selectedGroups, Client)}>
-            <Icon size={16} mr="1em" color={op.color} name={op.icon}/>{op.text}</span>;
+        return (
+            <Box
+                ml="-17px"
+                mr="-17px"
+                cursor="pointer"
+                pl="15px">
+                <span onClick={() => op.onClick(props.selectedGroups, Client)}>
+                    <Icon size={16} mr="1em" color={op.color} name={op.icon}/>{op.text}
+                </span>
+            </Box>
+        );
     }
 
-    return (
-        <Flex
-            ml="-17px"
-            mr="-17px"
-            cursor="pointer"
-            pl="15px">
-            {props.groupOperations.map(GroupOp)}
-        </Flex>
-    );
+    return <>{props.groupOperations.map(GroupOp)}</>;
 }
 
 export default GroupsOverview;

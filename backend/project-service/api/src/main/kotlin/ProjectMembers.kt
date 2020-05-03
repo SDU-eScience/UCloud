@@ -23,10 +23,11 @@ data class UserStatusResponse(
 
 data class SearchRequest(
     val query: String,
+    val notInGroup: String?,
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
-typealias SearchResponse = Page<String>
+typealias SearchResponse = Page<ProjectMember>
 
 /**
  * A service only API for querying about a user's project membership
@@ -64,6 +65,7 @@ object ProjectMembers : CallDescriptionContainer("project.members") {
                 +boundTo(SearchRequest::query)
                 +boundTo(SearchRequest::itemsPerPage)
                 +boundTo(SearchRequest::page)
+                +boundTo(SearchRequest::notInGroup)
             }
         }
     }

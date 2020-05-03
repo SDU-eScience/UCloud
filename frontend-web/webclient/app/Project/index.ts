@@ -96,8 +96,8 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
     disallowProjects: true
 });
 
-export const roleInProject = (project: Project): ProjectRole | undefined => {
-    const member = project.members.find(m => {
+export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined => {
+    const member = project.find(m => {
         return m.username === Client.username;
     });
 
