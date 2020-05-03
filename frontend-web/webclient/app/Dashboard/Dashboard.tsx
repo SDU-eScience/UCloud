@@ -84,7 +84,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 props.history.push("/shares");
                 break;
             case "REVIEW_PROJECT":
-                props.history.push("/projects/view/" + encodeURIComponent(notification.meta["project"]));
+                props.history.push("/projects/");
                 break;
         }
     };

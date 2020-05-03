@@ -1,17 +1,7 @@
-import {File} from "Files";
 import {Action, Dispatch} from "redux";
-import {Dictionary, Page} from "Types";
 
 export interface State {
     project?: string;
-    files?: Dictionary<ProjectFilesCacheEntry>;
-    shouldVerify?: boolean;
-}
-
-export interface ProjectFilesCacheEntry {
-    project: string;
-    path: string;
-    files: Page<File>;
 }
 
 export const initialState = {project: getStoredProject() ?? undefined};
@@ -30,7 +20,7 @@ export const reducer = (state: State = initialState, action: ProjectAction): Sta
     switch (action.type) {
         case "SET_PROJECT": {
             setStoredProject(action.project ?? null);
-            return {...state, project: action.project, shouldVerify: false};
+            return {...state, project: action.project};
         }
 
         default:

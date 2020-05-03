@@ -7,9 +7,9 @@ import {
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
-import {useParams} from "react-router";
+import {useHistory, useParams} from "react-router";
 import {Box, Button} from "ui-components";
-import {connect} from "react-redux";
+import {connect, useSelector} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
@@ -25,13 +25,14 @@ import styled from "styled-components";
 import GroupView, {GroupWithSummary} from "./GroupList";
 import ProjectMembers from "./Members";
 import {Page} from "Types";
-import {emptyPage} from "DefaultObjects";
+import {emptyPage, ReduxObject} from "DefaultObjects";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {dispatchSetProjectAction} from "Project/Redux";
 
 export function useProjectManagementStatus() {
-    const locationParams = useParams<{ id: string, group: string }>();
-    const projectId = decodeURIComponent(locationParams.id);
+    const history = useHistory();
+    const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
+    const locationParams = useParams<{ group: string }>();
     const group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
     const [projectMembers, setProjectMemberParams, projectMemberParams] = useGlobalCloudAPI<Page<ProjectMember>>(
         "projectManagement",
@@ -53,8 +54,12 @@ export function useProjectManagementStatus() {
 
     const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
 
+    if (projectId === undefined) {
+        history.push("/");
+    }
+
     return {
-        locationParams, projectId, group, projectMembers, setProjectMemberParams, groupMembers,
+        locationParams, projectId: projectId ?? "", group, projectMembers, setProjectMemberParams, groupMembers,
         fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
         projectMemberParams, memberSearchQuery, setMemberSearchQuery
     };
@@ -114,7 +119,9 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     }, [reload]);
 
     useEffect(() => {
-        props.setActiveProject(projectId);
+        if (projectId !== "") {
+            props.setActiveProject(projectId);
+        }
     }, [projectId]);
 
     const onApprove = async (): Promise<void> => {

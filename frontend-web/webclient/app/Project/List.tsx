@@ -159,7 +159,10 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                                             onClick={() => toggleFavoriteProject(e.projectId, Client, reload)}
                                             hoverColor="blue"
                                         />}
-                                        navigate={() => history.push(`/projects/view/${encodeURIComponent(e.projectId)}`)}
+                                        navigate={() => {
+                                            props.setProject(e.projectId);
+                                            history.push("/projects/view");
+                                        }}
                                         left={e.title}
                                         leftSub={
                                             <Text ml="4px" color="gray" fontSize={0}>

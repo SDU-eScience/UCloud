@@ -35,7 +35,7 @@ const DetailedGroupView: React.FunctionComponent = props => {
 
     return <>
         <BreadCrumbsBase>
-            <li><span><Link to={`/projects/view/${projectId}`}>Groups</Link></span></li>
+            <li><span><Link to={`/projects/view`}>Groups</Link></span></li>
             <li><span>{group}</span></li>
         </BreadCrumbsBase>
         <Pagination.List
