@@ -27,6 +27,7 @@ import ProjectMembers from "./Members";
 import {Page} from "Types";
 import {emptyPage} from "DefaultObjects";
 import {useGlobal} from "Utilities/ReduxHooks";
+import {dispatchSetProjectAction} from "Project/Redux";
 
 export function useProjectManagementStatus() {
     const locationParams = useParams<{ id: string, group: string }>();
@@ -111,6 +112,10 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         props.setRefresh(reload);
         return () => props.setRefresh();
     }, [reload]);
+
+    useEffect(() => {
+        props.setActiveProject(projectId);
+    }, [projectId]);
 
     const onApprove = async (): Promise<void> => {
         await callAPIWithErrorHandler(verifyMembership(projectId));
@@ -197,11 +202,13 @@ const TwoColumnLayout = styled.div`
 interface ViewOperations {
     setRefresh: (refresh?: () => void) => void;
     setLoading: (loading: boolean) => void;
+    setActiveProject: (project: string) => void;
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): ViewOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-    setLoading: loading => dispatch(loadingAction(loading))
+    setLoading: loading => dispatch(loadingAction(loading)),
+    setActiveProject: project => dispatchSetProjectAction(dispatch, project),
 });
 
 export default connect(null, mapDispatchToProps)(View);
