@@ -4,7 +4,7 @@ import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
 import {Box} from "ui-components";
-import {isDirectory, MOCK_RELATIVE, mockFile, resolvePath} from "Utilities/FileUtilities";
+import {isDirectory, MOCK_RELATIVE, MOCK_VIRTUAL, mockFile, pathComponents, resolvePath} from "Utilities/FileUtilities";
 import {addTrailingSlash} from "UtilityFunctions";
 import {File, FileSelectorProps} from ".";
 
@@ -32,6 +32,23 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
             fileId: "cwd",
             type: "DIRECTORY",
             tag: MOCK_RELATIVE
+        }));
+    }
+
+    const components = pathComponents(path);
+    if (Client.hasActiveProject && components.length === 2 && components[0] === "home") {
+        injectedFiles.push(mockFile({
+            path: Client.currentProjectFolder,
+            fileId: "project",
+            type: "DIRECTORY",
+            tag: MOCK_VIRTUAL
+        }));
+    } else if (Client.hasActiveProject && components.length === 2 && components[0] === "projects") {
+        injectedFiles.push(mockFile({
+            path: Client.homeFolder,
+            fileId: "project",
+            type: "DIRECTORY",
+            tag: MOCK_VIRTUAL
         }));
     }
 
