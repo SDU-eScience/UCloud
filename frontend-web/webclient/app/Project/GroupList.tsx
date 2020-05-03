@@ -58,6 +58,74 @@ const GroupList: React.FunctionComponent = props => {
 
     if (group) return <DetailedGroupView/>;
 
+    let content = (
+        <>
+            {groupList.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
+            <List>
+                {groupList.data.items.map(g => (<>
+                    <ListRow
+                        key={g.group}
+                        left={
+                            renamingGroup !== g.group ? g.group : (
+                                <NamingField
+                                    onCancel={() => setRenamingGroup(null)}
+                                    onSubmit={renameGroup}
+                                    inputRef={renameRef}
+                                />
+                            )
+                        }
+                        navigate={() => history.push(`/projects/view/${projectId}/${g.group}`)}
+                        leftSub={
+                            <Text ml="4px" color="gray" fontSize={0}>
+                                <Icon color="gray" mt="-2px" size="10" name="projects"/> {g.numberOfMembers}
+                            </Text>
+                        }
+                        right={
+                            <ClickableDropdown
+                                width="125px"
+                                left="-105px"
+                                trigger={(
+                                    <Icon
+                                        onClick={preventDefault}
+                                        mr="10px"
+                                        name="ellipsis"
+                                        size="1em"
+                                        rotation={90}
+                                    />
+                                )}
+                            >
+                                <GroupOperations groupOperations={operations} selectedGroups={[g]}/>
+                            </ClickableDropdown>
+                        }
+                        isSelected={false}
+                    />
+                </>))}
+
+                {creatingGroup ?
+                    <ListRow
+                        left={
+                            <NamingField
+                                onSubmit={createGroup}
+                                onCancel={() => setCreatingGroup(false)}
+                                inputRef={createGroupRef}
+                            />
+                        }
+                        leftSub={
+                            <Text ml="4px" color="gray" fontSize={0}>
+                                <Icon color="gray" mt="-2px" size="10" name="projects"/> 0
+                            </Text>
+                        }
+                        right={<div/>}
+                        isSelected={false}
+                        select={() => undefined}
+                    /> : null}
+            </List>
+
+            <Flex justifyContent={"center"}>
+                <Button width={"50%"} onClick={() => setCreatingGroup(true)}>New Group</Button>
+            </Flex>
+        </>
+    );
     return <>
         <BreadCrumbsBase>
             <li><span>Groups</span></li>
@@ -66,75 +134,11 @@ const GroupList: React.FunctionComponent = props => {
         <Pagination.List
             loading={groupList.loading}
             page={groupList.data}
-            customEmptyPage={<Heading.h3>You have no groups to manage.</Heading.h3>}
+            customEmptyPage={content}
             onPageChanged={(newPage, oldPage) => {
                 fetchGroupList(groupSummaryRequest({page: newPage, itemsPerPage: oldPage.itemsPerPage}));
             }}
-            pageRenderer={() => (<>
-                    <List>
-                        {groupList.data.items.map(g => (<>
-                            <ListRow
-                                key={g.group}
-                                left={
-                                    renamingGroup !== g.group ? g.group : (
-                                        <NamingField
-                                            onCancel={() => setRenamingGroup(null)}
-                                            onSubmit={renameGroup}
-                                            inputRef={renameRef}
-                                        />
-                                    )
-                                }
-                                navigate={() => history.push(`/projects/view/${projectId}/${g.group}`)}
-                                leftSub={
-                                    <Text ml="4px" color="gray" fontSize={0}>
-                                        <Icon color="gray" mt="-2px" size="10" name="projects"/> {g.numberOfMembers}
-                                    </Text>
-                                }
-                                right={
-                                    <ClickableDropdown
-                                        width="125px"
-                                        left="-105px"
-                                        trigger={(
-                                            <Icon
-                                                onClick={preventDefault}
-                                                mr="10px"
-                                                name="ellipsis"
-                                                size="1em"
-                                                rotation={90}
-                                            />
-                                        )}
-                                    >
-                                        <GroupOperations groupOperations={operations} selectedGroups={[g]}/>
-                                    </ClickableDropdown>
-                                }
-                                isSelected={false}
-                            />
-                        </>))}
-
-                        {creatingGroup ?
-                            <ListRow
-                                left={
-                                    <NamingField
-                                        onSubmit={createGroup}
-                                        onCancel={() => setCreatingGroup(false)}
-                                        inputRef={createGroupRef}
-                                    />
-                                }
-                                leftSub={
-                                    <Text ml="4px" color="gray" fontSize={0}>
-                                        <Icon color="gray" mt="-2px" size="10" name="projects"/> 0
-                                    </Text>
-                                }
-                                right={<div/>}
-                                isSelected={false}
-                                select={() => undefined}
-                            /> : null}
-                    </List>
-                    <Flex justifyContent={"center"}>
-                        <Button width={"50%"} onClick={() => setCreatingGroup(true)}>New Group</Button>
-                    </Flex>
-                </>
-            )}
+            pageRenderer={() => content}
         />
     </>;
 
