@@ -82,7 +82,7 @@ export async function addStandardInputDialog({
     cancelText = "Cancel",
     confirmText = "Submit",
     addToFront = false,
-    placeholder = "New repository name",
+    placeholder = "New folder name",
     validationFailureMessage,
     defaultValue
 }: InputDialog): Promise<{cancelled: true} | {result: string}> {

@@ -13,11 +13,8 @@ import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.flow
 import org.joda.time.DateTimeConstants
-import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
-import org.joda.time.Period
 
 data class ProjectForVerification(val projectId: String, val username: String, val role: ProjectRole)
 
@@ -66,14 +63,6 @@ class ProjectDao {
     }
 
     suspend fun findById(session: AsyncDBConnection, projectId: String): Project {
-        val members = session
-            .sendPreparedStatement(
-                { setParameter("project", projectId) },
-                "select * from project_members where project_id = ?project order by role, created_at asc"
-            )
-            .rows
-            .map { it.toProjectMember() }
-
         return session
             .sendPreparedStatement(
                 { setParameter("project", projectId) },
@@ -81,7 +70,7 @@ class ProjectDao {
             )
             .rows
             .singleOrNull()
-            ?.toProject(members)
+            ?.toProject()
             ?: throw ProjectException.NotFound()
     }
 
@@ -315,10 +304,9 @@ class ProjectDao {
         val modifiedAt = timestamp("modified_at")
     }
 
-    private fun RowData.toProject(members: List<ProjectMember>): Project = Project(
+    private fun RowData.toProject(): Project = Project(
         getField(ProjectTable.id),
-        getField(ProjectTable.title),
-        members
+        getField(ProjectTable.title)
     )
 
     private object ProjectMemberTable : SQLTable("project_members") {
@@ -328,11 +316,6 @@ class ProjectDao {
         val createdAt = timestamp("created_at")
         val modifiedAt = timestamp("modified_at")
     }
-
-    private fun RowData.toProjectMember(): ProjectMember = ProjectMember(
-        getField(ProjectMemberTable.username),
-        ProjectRole.valueOf(getField(ProjectMemberTable.role))
-    )
 
     companion object {
         const val VERIFICATION_REQUIRED_EVERY_X_DAYS = 30L

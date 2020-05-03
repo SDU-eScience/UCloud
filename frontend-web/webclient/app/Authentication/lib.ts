@@ -336,18 +336,9 @@ export default class HttpClient {
         return `/home/${this.username}/`;
     }
 
-    public get projectFolder(): string {
-        return `${this.homeFolder}Project`;
-    }
-
     public get currentProjectFolder(): string {
         return `/projects/${this.projectId}`;
     }
-
-    public get trashFolder(): string {
-        return `${this.homeFolder}Trash/`;
-    }
-
     public get sharesFolder(): string {
         return `${this.homeFolder}Shares`;
     }
@@ -357,7 +348,7 @@ export default class HttpClient {
     }
 
     public get fakeFolders(): string[] {
-        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.projectFolder, this.currentProjectFolder] : []);
+        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.currentProjectFolder] : []);
     }
 
     public get isLoggedIn(): boolean {

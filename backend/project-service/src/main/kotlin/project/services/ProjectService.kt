@@ -41,7 +41,7 @@ class ProjectService(
                 dao.create(session, title, title, principalInvestigator)
                 val piMember = ProjectMember(principalInvestigator, ProjectRole.PI)
 
-                val project = Project(title, title, listOf(piMember))
+                val project = Project(title, title)
                 eventProducer.produce(ProjectEvent.Created(project))
                 project
             } catch (ex: GenericDatabaseException) {
@@ -89,12 +89,10 @@ class ProjectService(
             db.withTransaction { session ->
                 val project =
                     findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
-                if (project.members.any { it.username == member.username }) throw ProjectException.AlreadyMember()
 
                 dao.addMember(session, projectId, member)
 
-                val projectWithNewMember = project.copy(members = project.members + member)
-                eventProducer.produce(ProjectEvent.MemberAdded(projectWithNewMember, member))
+                eventProducer.produce(ProjectEvent.MemberAdded(project, member))
 
                 ContactBookDescriptions.insert.call(
                     InsertRequest(user, listOf(member.username), ServiceOrigin.PROJECT_SERVICE),
@@ -114,14 +112,14 @@ class ProjectService(
     suspend fun deleteMember(user: String, projectId: String, member: String) {
         db.withTransaction { session ->
             val project = findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
-            val removedMember = project.members.find { it.username == member } ?: throw ProjectException.NotFound()
+            val removedMemberRole = dao.findRoleOfMember(session, projectId, member)
+                ?: throw ProjectException.NotFound()
 
-            if (removedMember.role == ProjectRole.PI) throw ProjectException.CantDeleteUserFromProject()
+            if (removedMemberRole == ProjectRole.PI) throw ProjectException.CantDeleteUserFromProject()
 
             dao.deleteMember(session, projectId, member)
 
-            val newProject = project.copy(members = project.members.filter { it.username == member })
-            eventProducer.produce(ProjectEvent.MemberDeleted(newProject, removedMember))
+            eventProducer.produce(ProjectEvent.MemberDeleted(project, ProjectMember(member, removedMemberRole)))
         }
     }
 
@@ -142,16 +140,19 @@ class ProjectService(
     suspend fun changeMemberRole(user: String, projectId: String, member: String, newRole: ProjectRole) {
         db.withTransaction { session ->
             val project = findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
-            val oldRole = project.members.find { it.username == member } ?: throw ProjectException.NotFound()
+            val oldRole = dao.findRoleOfMember(session, projectId, member) ?: throw ProjectException.NotFound()
 
-            if (oldRole.role == ProjectRole.PI) throw ProjectException.CantChangeRole()
+            if (oldRole == ProjectRole.PI) throw ProjectException.CantChangeRole()
 
             dao.changeMemberRole(session, projectId, member, newRole)
 
-            val newMember = ProjectMember(member, newRole)
-            val projectWithNewMember =
-                project.copy(members = project.members.filter { it.username == member } + newMember)
-            eventProducer.produce(ProjectEvent.MemberRoleUpdated(projectWithNewMember, oldRole, newMember))
+            eventProducer.produce(
+                ProjectEvent.MemberRoleUpdated(
+                    project,
+                    ProjectMember(member, oldRole),
+                    ProjectMember(member, newRole)
+                )
+            )
         }
     }
 
@@ -175,8 +176,8 @@ class ProjectService(
         requiredRole: Set<ProjectRole>
     ): Project {
         val project = dao.findById(session, projectId)
-        val projectMember = project.members.find { it.username == user } ?: throw ProjectException.Forbidden()
-        if (projectMember.role !in requiredRole) {
+        val projectMemberRole = dao.findRoleOfMember(session, projectId, user)
+        if (projectMemberRole !in requiredRole) {
             throw ProjectException.Forbidden()
         }
 

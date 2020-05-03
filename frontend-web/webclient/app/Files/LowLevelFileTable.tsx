@@ -63,7 +63,7 @@ import {
     moveFile,
     resolvePath,
     sizeToString,
-    MOCK_REPO_CREATE_TAG, MOCK_VIRTUAL
+    MOCK_REPO_CREATE_TAG, MOCK_VIRTUAL, isProjectHome
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon} from "UtilityComponents";
@@ -1032,10 +1032,10 @@ function RepositoryOperations(props: {
     createFolder: (isRepo?: boolean) => void;
     role: ProjectRole;
 }): JSX.Element | null {
-    if (props.path !== Client.projectFolder || ![ProjectRole.ADMIN, ProjectRole.PI].includes(props.role)) {
+    if (props.path === undefined || !isProjectHome(props.path) || ![ProjectRole.ADMIN, ProjectRole.PI].includes(props.role)) {
         return null;
     }
-    return <Button width="100%" onClick={() => props.createFolder(true)}>New Repository</Button>;
+    return <Button width="100%" onClick={() => props.createFolder(true)}>New Folder</Button>;
 }
 
 const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): JSX.Element => {
