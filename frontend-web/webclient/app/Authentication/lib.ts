@@ -3,6 +3,7 @@ import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {inRange, inSuccessRange, is5xxStatusCode} from "UtilityFunctions";
+import {setStoredProject} from "Project/Redux";
 
 export interface Override {
     path: string;
@@ -561,6 +562,7 @@ export default class HttpClient {
             if (!is5xxStatusCode(res.status)) {
                 window.localStorage.removeItem("accessToken");
                 window.localStorage.removeItem("csrfToken");
+                setStoredProject(null);
                 this.openBrowserLoginPage();
                 return;
             }
