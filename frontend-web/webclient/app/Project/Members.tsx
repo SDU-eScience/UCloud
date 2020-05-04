@@ -11,7 +11,7 @@ import {MutableRefObject, useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {Box, Button, Flex, Input} from "ui-components";
+import {Box, Button, Flex, Icon, Input} from "ui-components";
 import {GroupMembers} from "Project/DetailedGroupView";
 import {addStandardDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/View";
@@ -57,25 +57,37 @@ const Members: React.FunctionComponent = props => {
             <li><span>Members of {projectId}</span></li>
         </BreadCrumbsBase>
         {!allowManagement ? null : (
-            <form onSubmit={onSubmit}>
-                <Flex>
-                    <Box flexGrow={1}>
+            <Flex>
+                <Box flexGrow={1}>
+                    <form onSubmit={onSubmit} style={{display: "flex"}}>
                         <Input
                             id="new-project-member"
                             placeholder="Username"
-                            ref={newMemberRef}
                             disabled={isLoading}
-                            value={memberSearchQuery}
+                            ref={newMemberRef}
                             onChange={e => {
                                 newMemberRef.current!.value = e.target.value;
-                                setMemberSearchQuery(e.target.value);
                             }}
                             rightLabel
                         />
-                    </Box>
-                    <Button attached>Add</Button>
-                </Flex>
-            </form>
+                        <Button attached mr={2}>Add</Button>
+                    </form>
+                </Box>
+
+                <Box flexGrow={1} ml={2}>
+                    <Input
+                        id="new-project-member"
+                        placeholder="Enter username to search..."
+                        disabled={isLoading}
+                        value={memberSearchQuery}
+                        onChange={e => {
+                            setMemberSearchQuery(e.target.value);
+                        }}
+                        rightLabel
+                    />
+                </Box>
+                <Button attached><Icon name={"search"}/></Button>
+            </Flex>
         )}
 
         <GroupMembers

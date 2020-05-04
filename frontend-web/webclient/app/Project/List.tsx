@@ -9,7 +9,6 @@ import {Dispatch} from "redux";
 import {Page, Operation} from "Types";
 import Button from "ui-components/Button";
 import {Flex, Icon, List, Text, Input, Box} from "ui-components";
-import Link from "ui-components/Link";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -27,7 +26,7 @@ import {ThemeColor} from "ui-components/theme";
 import {usePromiseKeeper} from "PromiseKeeper";
 
 // eslint-disable-next-line no-underscore-dangle
-const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }> = props => {
+const _List: React.FunctionComponent<DispatchProps & { project?: string }> = props => {
     const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 50}),
         emptyPage
@@ -92,11 +91,11 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                             mr="48px"
                             mt="5px"
                             name="check"
-                            color={!props.projectMembers ? "green" : "gray"}
+                            color={!props.project ? "green" : "gray"}
                             hoverColor="green"
                             cursor="pointer"
                             onClick={() => {
-                                if (!props.projectMembers) return;
+                                if (!props.project) return;
                                 snackbarStore.addInformation("Personal project is now the active.", false);
                                 props.setProject();
                             }}
@@ -140,12 +139,12 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                         page={response.data}
                         pageRenderer={page =>
                             page.items.map(e => {
-                                const isActive = e.projectId === props.projectMembers;
+                                const isActive = e.projectId === props.project;
                                 const isFavorite = favorites.items.findIndex(it => it === e.projectId) !== -1;
                                 return (
                                     <ListRow
                                         key={e.projectId}
-                                        isSelected={selectedProjects.has(e.projectId)}
+                                        isSelected={false} // Disabled since we don't have bulk operations
                                         select={() => {
                                             if (selectedProjects.has(e.projectId)) selectedProjects.delete(e.projectId);
                                             else selectedProjects.add(e.projectId);
@@ -183,7 +182,8 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                                                     color={isActive ? "green" : "gray"}
                                                     hoverColor="green"
                                                     cursor="pointer"
-                                                    onClick={() => {
+                                                    onClick={ev => {
+                                                        ev.stopPropagation();
                                                         if (isActive) return;
                                                         snackbarStore.addInformation(`${e.projectId} is now the active project`, false);
                                                         props.setProject(e.projectId);
