@@ -588,3 +588,24 @@ export function isProjectHome(path: string): boolean {
     if (components.length === 3 && components[0] === "home" && components[2] === "Project") return true;
     return components.length === 2 && components[0] === "projects";
 }
+
+export function isMyPersonalFolder(path: string) {
+    const components = pathComponents(path);
+    return components.length === 4 && components[0] === "projects" && components[2] === "Personal" &&
+        components[3] === Client.username;
+}
+
+export function isPartOfSomePersonalFolder(path: string) {
+    const components = pathComponents(path);
+    return components.length >= 4 && components[0] === "projects" && components[2] === "Personal";
+}
+
+export function isPersonalRootFolder(path: string) {
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "projects" && components[2] === "Personal";
+}
+
+export function isPartOfProject(path: string) {
+    const components = pathComponents(path);
+    return components.length >= 2 && components[0] === "projects";
+}
