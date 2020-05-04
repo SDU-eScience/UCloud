@@ -7,7 +7,8 @@ type Action = GenericSetAction | GenericMergeAction;
 interface GenericSetAction {
     type: "GENERIC_SET";
     property: string;
-    newValue?: any;
+    newValue?: ValueOrSetter<any>;
+    defaultValue: any;
 }
 
 export interface GenericMergeAction {
@@ -16,17 +17,19 @@ export interface GenericMergeAction {
     newValue?: any;
 }
 
+export type ValueOrSetter<T> = T | ((oldValue: T) => T);
+
 export function useGlobal<Property extends keyof HookStore>(
     property: Property,
     defaultValue: NonNullable<HookStore[Property]>
-): [NonNullable<HookStore[Property]>, (newValue: HookStore[Property]) => void] {
+): [NonNullable<HookStore[Property]>, (newValue: ValueOrSetter<HookStore[Property]>) => void] {
     const value = useSelector<ReduxObject, HookStore[Property]>(it => {
         if (it.hookStore === undefined) return undefined;
         return it.hookStore[property];
     });
     const dispatch = useDispatch();
     const setter = useCallback((newValue: HookStore[Property]) => {
-        dispatch<GenericSetAction>({type: "GENERIC_SET", property, newValue});
+        dispatch<GenericSetAction>({type: "GENERIC_SET", property, newValue, defaultValue});
     }, [dispatch]);
 
     return [
@@ -36,12 +39,12 @@ export function useGlobal<Property extends keyof HookStore>(
 }
 
 /**
- * Similar to useGlobal but merges previous value with new value. Keys in the new object take precedense over old values.
+ * Similar to useGlobal but merges previous value with new value. Keys in the new object take precedence over old values.
  */
 export function useGlobalWithMerge<Property extends keyof HookStore>(
     property: Property,
     defaultValue: NonNullable<HookStore[Property]>
-): [NonNullable<HookStore[Property]>, (newValue: HookStore[Property]) => void] {
+): [NonNullable<HookStore[Property]>, (newValue: Partial<HookStore[Property]>) => void] {
     const value = useSelector<ReduxObject, HookStore[Property]>(it => {
         if (it.hookStore === undefined) return undefined;
         return it.hookStore[property];
@@ -61,7 +64,11 @@ const reducer = (state: HookStore = {}, action: Action): HookStore => {
     switch (action.type) {
         case "GENERIC_SET":
             const newState = {...state};
-            newState[action.property] = action.newValue;
+            if (typeof action.newValue === "function") {
+                newState[action.property] = action.newValue(newState[action.property] ?? action.defaultValue);
+            } else {
+                newState[action.property] = action.newValue;
+            }
             return newState;
 
         case "GENERIC_MERGE":

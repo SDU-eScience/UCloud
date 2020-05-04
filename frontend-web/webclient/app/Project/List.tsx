@@ -19,7 +19,7 @@ import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {projectRoleToString} from "Project/api";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {isAdminOrPI, toggleFavoriteProject} from "Utilities/ProjectUtilities";
+import {toggleFavoriteProject} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -27,7 +27,7 @@ import {ThemeColor} from "ui-components/theme";
 import {usePromiseKeeper} from "PromiseKeeper";
 
 // eslint-disable-next-line no-underscore-dangle
-const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
+const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }> = props => {
     const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 50}),
         emptyPage
@@ -38,7 +38,10 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
 
     async function fetchFavorites(itemsPerPage: number, page: number): Promise<void> {
         try {
-            const r = await promises.makeCancelable(Client.post<Page<string>>("/project/favorite/list", {page, itemsPerPage})).promise;
+            const r = await promises.makeCancelable(Client.post<Page<string>>("/project/favorite/list", {
+                page,
+                itemsPerPage
+            })).promise;
             setFavorites(r.response);
         } catch (err) {
             snackbarStore.addFailure(errorMessageOrDefault(err, "Failed fetching favorites"), false);
@@ -73,38 +76,27 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         return () => props.setRefresh();
     }, [reload]);
 
-    const projectOperations: ProjectOperation[] = [{
-        text: "Groups",
-        disabled: projects => projects.length !== 1 || !projects.every(it => isAdminOrPI(it.whoami.role)),
-        icon: "user",
-        iconColor2: "white",
-        color: "black",
-        onClick: ([project]) => {
-            if (props.project !== project.projectId) props.setProject(project.projectId);
-            snackbarStore.addInformation(`${project.projectId} set as active project.`, false);
-            history.push("/projects/groups/");
-        }
-    }];
+    const projectOperations: ProjectOperation[] = [];
 
     return (
         <MainContainer
             headerSize={58}
-            header={<div />}
+            header={<div/>}
             main={(
                 <List>
                     <ListRow
-                        icon={<Box width="24px" />}
+                        icon={<Box width="24px"/>}
                         left={<Text>Personal project</Text>}
-                        leftSub={<Text color="gray" fontSize={0}><Icon size="10" name="id" /> {Client.username}</Text>}
+                        leftSub={<Text color="gray" fontSize={0}><Icon size="10" name="id"/> {Client.username}</Text>}
                         right={<Icon
                             mr="48px"
                             mt="5px"
                             name="check"
-                            color={!props.project ? "green" : "gray"}
+                            color={!props.projectMembers ? "green" : "gray"}
                             hoverColor="green"
                             cursor="pointer"
                             onClick={() => {
-                                if (!props.project) return;
+                                if (!props.projectMembers) return;
                                 snackbarStore.addInformation("Personal project is now the active.", false);
                                 props.setProject();
                             }}
@@ -138,9 +130,9 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 autoFocus
                                 ref={title}
                             /></form>}
-                            right={<div />}
+                            right={<div/>}
                             leftSub={<Text ml="4px" color="gray" fontSize={0}>
-                                <Icon color="white" color2="gray" mt="-2px" size="10" name="user" />
+                                <Icon color="white" color2="gray" mt="-2px" size="10" name="user"/>
                                 {" "}{projectRoleToString(ProjectRole.PI)}
                             </Text>}
                         /> : null}
@@ -148,7 +140,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         page={response.data}
                         pageRenderer={page =>
                             page.items.map(e => {
-                                const isActive = e.projectId === props.project;
+                                const isActive = e.projectId === props.projectMembers;
                                 const isFavorite = favorites.items.findIndex(it => it === e.projectId) !== -1;
                                 return (
                                     <ListRow
@@ -167,29 +159,23 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                             onClick={() => toggleFavoriteProject(e.projectId, Client, reload)}
                                             hoverColor="blue"
                                         />}
-                                        navigate={() => history.push(`/projects/view/${encodeURIComponent(e.projectId)}`)}
+                                        navigate={() => {
+                                            props.setProject(e.projectId);
+                                            history.push("/projects/view");
+                                        }}
                                         left={e.title}
                                         leftSub={
                                             <Text ml="4px" color="gray" fontSize={0}>
-                                                <Icon color="white" color2="gray" mt="-2px" size="10" name="user" />
+                                                <Icon color="white" color2="gray" mt="-2px" size="10" name="user"/>
                                                 {" "}{projectRoleToString(e.whoami.role)}
                                             </Text>
                                         }
                                         right={<>
                                             <Flex alignItems={"center"}>
                                                 {!e.needsVerification ? null : (
-                                                    <Text fontSize={0} mr={8}><Icon name={"warning"} /> Attention required</Text>
+                                                    <Text fontSize={0} mr={8}><Icon name={"warning"}/> Attention
+                                                        required</Text>
                                                 )}
-                                                <Link
-                                                    to={`/projects/view/${encodeURIComponent(e.projectId)}`}
-                                                >
-                                                    <Icon
-                                                        cursor="pointer"
-                                                        color="black"
-                                                        name="projects"
-                                                        mr="15px"
-                                                    />
-                                                </Link>
                                                 <Icon
                                                     mr="20px"
                                                     mt="5px"
@@ -203,26 +189,28 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                         props.setProject(e.projectId);
                                                     }}
                                                 />
-                                                {selectedProjects.size === 0 ? <div onClick={stopPropagation}>
-                                                    <ClickableDropdown
-                                                        width="125px"
-                                                        left="-105px"
-                                                        trigger={(
-                                                            <Icon
-                                                                mr="10px"
-                                                                name="ellipsis"
-                                                                size="1em"
-                                                                rotation={90}
-                                                            />
-                                                        )}
-                                                    >
+                                                {selectedProjects.size === 0 && projectOperations.length > 0 ? (
+                                                    <div onClick={stopPropagation}>
+                                                        <ClickableDropdown
+                                                            width="125px"
+                                                            left="-105px"
+                                                            trigger={(
+                                                                <Icon
+                                                                    mr="10px"
+                                                                    name="ellipsis"
+                                                                    size="1em"
+                                                                    rotation={90}
+                                                                />
+                                                            )}
+                                                        >
 
-                                                        <ProjectOperations
-                                                            selectedProjects={[e]}
-                                                            projectOperations={projectOperations}
-                                                        />
-                                                    </ClickableDropdown>
-                                                </div> : <Box width="28px" />}
+                                                            <ProjectOperations
+                                                                selectedProjects={[e]}
+                                                                projectOperations={projectOperations}
+                                                            />
+                                                        </ClickableDropdown>
+                                                    </div>
+                                                ) : <Box width="28px"/>}
                                             </Flex>
                                         </>}
                                     />
@@ -233,9 +221,9 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                             setFetchParams(listProjects({page: newPage, itemsPerPage: response.data.itemsPerPage}));
                             fetchFavorites(response.data.itemsPerPage, newPage);
                         }}
-                        customEmptyPage={<div />}
+                        customEmptyPage={<div/>}
                     />
-                </List >
+                </List>
             )}
             sidebar={(<>
                 <VerticalButtonGroup>
@@ -264,7 +252,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         }
 
         try {
-            const res = await Client.post<{id: string}>("/projects", {
+            const res = await Client.post<{ id: string }>("/projects", {
                 title: title.current.value,
                 principalInvestigator: Client.username!
             });
@@ -294,7 +282,7 @@ function ProjectOperations(props: ProjectOperations): JSX.Element | null {
     function ProjectOp(op: ProjectOperation): JSX.Element | null {
         if (op.disabled(props.selectedProjects, Client)) return null;
         return <span onClick={() => op.onClick(props.selectedProjects, Client)}>
-            <Icon size={16} mr="0.5em" color={op.color} color2={op.iconColor2} name={op.icon} />{op.text}</span>;
+            <Icon size={16} mr="0.5em" color={op.color} color2={op.iconColor2} name={op.icon}/>{op.text}</span>;
     }
 
     return (
@@ -314,7 +302,7 @@ interface DispatchProps {
     setLoading: (loading: boolean) => void;
 }
 
-const mapStateToProps = (state: ReduxObject): {project?: string} => state.project;
+const mapStateToProps = (state: ReduxObject): { project?: string } => state.project;
 
 const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
     setPageTitle: () => dispatch(updatePageTitle("Projects")),

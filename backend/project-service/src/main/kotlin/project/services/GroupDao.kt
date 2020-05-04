@@ -1,19 +1,11 @@
 package dk.sdu.cloud.project.services
 
 import com.github.jasync.sql.db.RowData
-import dk.sdu.cloud.project.api.GroupWithSummary
-import dk.sdu.cloud.project.api.IsMemberQuery
-import dk.sdu.cloud.project.api.UserGroupSummary
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
-import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.insert
-import dk.sdu.cloud.service.db.async.paginatedQuery
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.text
+import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.offset
 import dk.sdu.cloud.service.paginate
@@ -335,23 +327,70 @@ class GroupDao {
         session: AsyncDBConnection,
         project: String,
         query: String,
+        notInGroup: String?,
         pagination: NormalizedPaginationRequest
-    ): Page<String> {
-        return session
-            .paginatedQuery(
-                pagination,
-                {
-                    setParameter("project", project)
-                    setParameter("usernameQuery", "%${query}%")
-                },
-                """
-                    from project_members
-                    where
-                        project_id = ?project and
-                        username ilike ?usernameQuery
-                """
-            )
-            .mapItems { it.getField(GroupMembershipTable.username) }
+    ): Page<ProjectMember> {
+        // TODO This gets quite ugly because we need to order by which paginated query doesn't currently support
+        val parameters: EnhancedPreparedStatement.() -> Unit = {
+            setParameter("project", project)
+            setParameter("usernameQuery", "%${query}%")
+            if (notInGroup != null) {
+                setParameter("notInGroup", notInGroup)
+            }
+        }
+
+        val baseQuery = if (notInGroup == null) {
+            """
+                from project_members pm
+                where
+                      pm.project_id = ?project and
+                      pm.username ilike ?usernameQuery
+            """
+        } else {
+            """
+                from project_members pm
+                where
+                pm.project_id = ?project and
+                pm.username ilike ?usernameQuery and
+                pm.username not in (
+                    select pm.username
+                        from group_members gm
+                        where
+                        gm.project = pm.project_id and
+                        gm.the_group = ?notInGroup and
+                        gm.username = pm.username
+                )
+            """
+        }
+
+        val itemsInTotal = session.sendPreparedStatement(
+            parameters,
+            "select count(*) $baseQuery"
+        ).rows.singleOrNull()?.getLong(0) ?: 0
+
+        val items = session.sendPreparedStatement(
+            {
+                parameters()
+                setParameter("limit", pagination.itemsPerPage)
+                setParameter("offset", pagination.itemsPerPage * pagination.page)
+            },
+            """
+                select * $baseQuery 
+                order by role, created_at
+                limit ?limit offset ?offset
+            """
+        )
+
+        return Page(
+            itemsInTotal.toInt(),
+            pagination.itemsPerPage,
+            pagination.page,
+            items.rows.map {  row ->
+                val username = row.getString("username")!!
+                val role = row.getString("role")!!.let { ProjectRole.valueOf(it) }
+                ProjectMember(username, role)
+            }
+        )
     }
 
     suspend fun renameGroup(

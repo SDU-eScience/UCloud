@@ -4,44 +4,61 @@ import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.HttpStatusCode
 
 sealed class ProjectException(why: String, statusCode: HttpStatusCode) : RPCException(why, statusCode) {
-    class NotFound : ProjectException("Not found",
+    class NotFound : ProjectException(
+        "Not found",
         HttpStatusCode.NotFound
     )
-    class Unauthorized : ProjectException("Unauthorized",
-        HttpStatusCode.Unauthorized
+
+    class Forbidden : ProjectException(
+        "Permission denied",
+        HttpStatusCode.Forbidden
     )
-    class UserDoesNotExist : ProjectException("User does not exist",
+
+    class UserDoesNotExist : ProjectException(
+        "User does not exist",
         HttpStatusCode.BadRequest
     )
+
     class CantAddUserToProject :
-        ProjectException("This user cannot be added to this project",
+        ProjectException(
+            "This user cannot be added to this project",
             HttpStatusCode.BadRequest
         )
 
     class CantDeleteUserFromProject :
-        ProjectException("This user cannot be deleted from the project",
+        ProjectException(
+            "This user cannot be deleted from the project",
             HttpStatusCode.BadRequest
         )
 
-    class CantChangeRole : ProjectException("Cannot change role of this user",
+    class CantChangeRole : ProjectException(
+        "Cannot change role of this user",
         HttpStatusCode.BadRequest
     )
 
-    class CantAddGroup : ProjectException("You are not allowed to create a group",
+    class CantAddGroup : ProjectException(
+        "You are not allowed to create a group",
         HttpStatusCode.Forbidden
     )
-    class CantDeleteGroup : ProjectException("You are not allowed to delete a group",
+
+    class CantDeleteGroup : ProjectException(
+        "You are not allowed to delete a group",
         HttpStatusCode.Forbidden
     )
+
     class CantChangeGroupMember :
-        ProjectException("You are not allowed to change group membership",
+        ProjectException(
+            "You are not allowed to change group membership",
             HttpStatusCode.Forbidden
         )
 
-    class AlreadyMember : ProjectException("User is already a member of this project",
+    class AlreadyMember : ProjectException(
+        "User is already a member of this project",
         HttpStatusCode.Conflict
     )
-    class InternalError : ProjectException("Internal Server Error",
+
+    class InternalError : ProjectException(
+        "Internal Server Error",
         HttpStatusCode.InternalServerError
     )
 }

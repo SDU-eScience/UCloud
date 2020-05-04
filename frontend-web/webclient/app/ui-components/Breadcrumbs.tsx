@@ -3,15 +3,17 @@ import styled from "styled-components";
 import {Box, Icon, Text} from "ui-components";
 import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import HttpClient from "Authentication/lib";
+import {isRepository} from "Utilities/ProjectUtilities";
+import {pathComponents} from "Utilities/FileUtilities";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
-const BreadCrumbsBase = styled.ul`
+export const BreadCrumbsBase = styled.ul`
     padding: 0;
     padding-right: 10px;
     margin: 0;
     list-style: none;
     max-width: 85%;
-    height: 85px;
+    height: 60px;
     overflow-y: auto;
 
     & li {
@@ -54,10 +56,9 @@ export const BreadCrumbs = ({
     client
 }: BreadcrumbsList): JSX.Element | null => {
     if (!currentPath) return null;
-    const isRepoFolder = client.projectFolder === currentPath;
+    const isRepoFolder = isRepository(currentPath);
 
-    const path = isRepoFolder ? `${client.homeFolder}${client.projectId}` : currentPath;
-    const pathsMapping = buildBreadCrumbs(path, client.homeFolder, client.projectId ?? "");
+    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, client.projectId ?? "");
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map((p, index) => (
@@ -68,7 +69,7 @@ export const BreadCrumbs = ({
         </li>
     ));
 
-    const addHomeFolderLink = !(path.startsWith(removeTrailingSlash(client.homeFolder)) || path.startsWith(client.currentProjectFolder));
+    const addHomeFolderLink = !(currentPath.startsWith(removeTrailingSlash(client.homeFolder)) || currentPath.startsWith(client.currentProjectFolder));
 
     return (
         <>
@@ -98,7 +99,7 @@ export const BreadCrumbs = ({
 };
 
 function buildBreadCrumbs(path: string, homeFolder: string, activeProject: string): BreadCrumbMapping[] {
-    const paths = path.split("/").filter(p => p !== "");
+    const paths = pathComponents(path);
     if (paths.length === 0) return [{actualPath: "/", local: "/"}];
 
     const pathsMapping: BreadCrumbMapping[] = [];
@@ -109,18 +110,18 @@ function buildBreadCrumbs(path: string, homeFolder: string, activeProject: strin
     }
 
     // Handle starts with home
-    if (addTrailingSlash(path).startsWith(homeFolder)) // remove first two indices
+    if (addTrailingSlash(path).startsWith(homeFolder)) { // remove first two indices
         return [{actualPath: homeFolder, local: "Home"}].concat(pathsMapping.slice(2));
-    else if (path.startsWith("/home") && pathsMapping.length >= 2)
+    } else if (path.startsWith("/home") && pathsMapping.length >= 2) {
         return [{
             actualPath: pathsMapping[1].actualPath,
             local: `Home of ${pathsMapping[1].local}`
         }].concat(pathsMapping.slice(2));
+    }
 
     // Handle starts with project
     if (addTrailingSlash(path).startsWith("/projects/")) {
         return [
-            {actualPath: homeFolder, local: "Home"},
             {actualPath: `/projects/${activeProject}/`, local: activeProject}
         ].concat(pathsMapping.slice(2));
     }

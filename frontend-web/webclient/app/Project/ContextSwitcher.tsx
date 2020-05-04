@@ -47,12 +47,12 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                 width="250px"
             >
                 {props.activeProject ?
-                    <Text onClick={() => promptRedirect(history, () => props.setProject(), props.refresh)}>Personal
+                    <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>Personal
                         project</Text> : null}
                 {response.data.items.filter(it => !(it.projectId === props.activeProject)).map(project =>
                     <Text
                         key={project.projectId}
-                        onClick={() => promptRedirect(history, () => props.setProject(project.projectId), props.refresh)}
+                        onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
                     >
                         {project.projectId}
                     </Text>
@@ -67,13 +67,14 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
 const filesPathname = "/app/files/";
 const filesSearch = "?path=";
 
-function promptRedirect(history: History, setProject: () => void, refresh?: () => void): void {
+function onProjectUpdated(history: History, runThisFunction: () => void, refresh?: () => void): void {
     const {pathname, search} = window.location;
-    // Edge cases
-    setProject();
+    runThisFunction();
     if (addTrailingSlash(pathname) === filesPathname && search.startsWith(filesSearch)) {
-        history.push(fileTablePage(Client.hasActiveProject ? Client.projectFolder : Client.homeFolder));
-    } else refresh?.();
+        history.push(fileTablePage(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder));
+    } else {
+        refresh?.();
+    }
 }
 
 const HoverBox = styled.div`

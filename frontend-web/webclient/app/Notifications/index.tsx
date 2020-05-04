@@ -82,7 +82,7 @@ function Notifications(props: Notifications): JSX.Element {
                 break;
             case "REVIEW_PROJECT":
                 reload();
-                history.push("/projects/view/" + encodeURIComponent(notification.meta.project));
+                history.push("/projects/");
                 break;
 
             case "SHARE_REQUEST":
