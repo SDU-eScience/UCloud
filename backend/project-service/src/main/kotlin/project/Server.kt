@@ -37,6 +37,7 @@ class Server(
         val projectService = ProjectService(
             db,
             projectDao,
+            groupDao,
             eventProducer,
             client
         )

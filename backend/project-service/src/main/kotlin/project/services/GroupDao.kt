@@ -485,6 +485,22 @@ class GroupDao {
             .size > 0
     }
 
+    suspend fun removeMember(session: AsyncDBConnection, project: String, username: String) {
+        session
+            .sendPreparedStatement(
+                {
+                    setParameter("username", username)
+                    setParameter("project", project)
+                },
+                """
+                    delete from group_members
+                    where
+                        username = ?username and
+                        project = ?project
+                """
+            )
+    }
+
     private fun RowData.toUserGroupSummary(): UserGroupSummary =
         UserGroupSummary(
             getField(GroupMembershipTable.project),

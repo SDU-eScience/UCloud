@@ -31,6 +31,7 @@ import io.ktor.http.HttpStatusCode
 class ProjectService(
     private val db: DBSessionFactory<AsyncDBConnection>,
     private val dao: ProjectDao,
+    private val groupDao: GroupDao,
     private val eventProducer: EventProducer<ProjectEvent>,
     private val serviceClient: AuthenticatedClient
 ) {
@@ -118,6 +119,7 @@ class ProjectService(
             if (removedMemberRole == ProjectRole.PI) throw ProjectException.CantDeleteUserFromProject()
 
             dao.deleteMember(session, projectId, member)
+            groupDao.removeMember(session, projectId, member)
 
             eventProducer.produce(ProjectEvent.MemberDeleted(project, ProjectMember(member, removedMemberRole)))
         }
