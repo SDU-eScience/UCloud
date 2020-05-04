@@ -1173,7 +1173,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
                 {...props}
             >
                 <AppToolLogo name={quickLaunchApp.metadata.name} size="20px" type="APPLICATION" />
-                <span style={{marginLeft: "5px", marginRight: "5px"}}>{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}</span>
+                <span style={{marginLeft: "5px", marginRight: "5px"}}>{quickLaunchApp.metadata.title}</span>
             </Flex>
         );
     };
