@@ -21,10 +21,10 @@ bundle { ctx ->
 
     withPostgresMigration(deployment)
 
-    withLocalServiceAccount {
+    withClusterServiceAccount {
         addRule(
             apiGroups = listOf(""),
-            resources = listOf("pods"),
+            resources = listOf("pods", "nodes"),
             verbs = listOf("get", "watch", "list")
         )
     }
