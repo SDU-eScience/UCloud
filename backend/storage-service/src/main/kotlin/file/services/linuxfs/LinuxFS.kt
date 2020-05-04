@@ -347,8 +347,7 @@ class LinuxFS(
                         components.isEmpty() -> SERVICE_USER
                         components.size < 2 -> SERVICE_USER
                         components.first() == "projects" -> {
-                            val projectId = components[1]
-                            if (projectCache.viewMember(projectId, ctx.user)?.role?.isAdmin() == true) {
+                            if (aclService.isOwner(realPath, ctx.user)) {
                                 ctx.user
                             } else {
                                 SERVICE_USER
