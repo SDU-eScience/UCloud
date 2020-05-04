@@ -40,12 +40,13 @@ const GroupList: React.FunctionComponent = props => {
     const [, runCommand] = useAsyncCommand();
 
     const operations: GroupOperation[] = [
-        {
+        /*{
             disabled: groups => groups.length !== 1,
             onClick: (groups) => setRenamingGroup(groups[0].group),
             icon: "rename",
             text: "Rename"
         },
+         */
         {
             disabled: groups => groups.length === 0,
             onClick: (groups) => promptDeleteGroups(groups),
