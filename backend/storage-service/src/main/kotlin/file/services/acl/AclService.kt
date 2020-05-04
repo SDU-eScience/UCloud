@@ -121,28 +121,21 @@ class AclService(
         val normalizedPath = path.normalize()
         if (normalizedPath.startsWith("/home/")) {
             val homeFolder = homeFolderService.findHomeFolder(username).normalize()
-            log.trace("user is '$username' requesting path '$normalizedPath' and home is '$homeFolder'")
             if (normalizedPath == homeFolder || normalizedPath.startsWith("$homeFolder/")) {
-                log.trace("We are the owner")
                 return true
             }
         } else if (normalizedPath.startsWith("/projects/")) {
-            log.debug("Path is project: $path $username")
             val components = normalizedPath.components()
             if (components.size < 2) return false
             val projectId = components[1]
-            log.debug("projectId: $projectId")
             val viewMember = projectCache.viewMember(projectId, username) ?: return false
-            log.debug("is member: $viewMember")
 
             // Note: Even if username matches we must be a member of the project. This allows us to keep files after
             // a user leaves.
             if (components.size >= 4 && components[2] == PERSONAL_REPOSITORY && components[3] == username) {
-                log.debug("owner!")
                 return true
             }
 
-            log.debug("are we member? $viewMember")
             return viewMember.role.isAdmin()
         }
 
@@ -153,6 +146,7 @@ class AclService(
         if (username == SERVICE_USER) return true
 
         val normalizedPath = path.normalize()
+
         if (isOwner(normalizedPath, username)) return true
         val relevantPaths = normalizedPath.parents().map { it.normalize() } + listOf(normalizedPath)
 

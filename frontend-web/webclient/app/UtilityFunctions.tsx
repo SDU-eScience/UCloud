@@ -142,6 +142,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "cxx":
         case "hxx":
         case "html":
+        case "htm":
         case "lhs":
         case "hs":
         case "sql":
@@ -164,6 +165,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "ppm":
         case "svg":
         case "jpg":
+        case "jpeg":
             return "image";
         case "txt":
         case "doc":
