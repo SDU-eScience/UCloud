@@ -3,6 +3,7 @@ import * as jwt from "jsonwebtoken";
 import {Store} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {inRange, inSuccessRange, is5xxStatusCode} from "UtilityFunctions";
+import {setStoredProject} from "Project/Redux";
 
 export interface Override {
     path: string;
@@ -336,18 +337,9 @@ export default class HttpClient {
         return `/home/${this.username}/`;
     }
 
-    public get projectFolder(): string {
-        return `${this.homeFolder}Project`;
-    }
-
     public get currentProjectFolder(): string {
         return `/projects/${this.projectId}`;
     }
-
-    public get trashFolder(): string {
-        return `${this.homeFolder}Trash/`;
-    }
-
     public get sharesFolder(): string {
         return `${this.homeFolder}Shares`;
     }
@@ -357,7 +349,7 @@ export default class HttpClient {
     }
 
     public get fakeFolders(): string[] {
-        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.projectFolder, this.currentProjectFolder] : []);
+        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.currentProjectFolder] : []);
     }
 
     public get isLoggedIn(): boolean {
@@ -570,6 +562,7 @@ export default class HttpClient {
             if (!is5xxStatusCode(res.status)) {
                 window.localStorage.removeItem("accessToken");
                 window.localStorage.removeItem("csrfToken");
+                setStoredProject(null);
                 this.openBrowserLoginPage();
                 return;
             }

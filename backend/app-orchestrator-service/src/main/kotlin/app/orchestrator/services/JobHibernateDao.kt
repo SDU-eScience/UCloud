@@ -21,6 +21,7 @@ import dk.sdu.cloud.service.db.WithTimestamps
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.paginatedCriteria
+import dk.sdu.cloud.service.db.typedQuery
 import dk.sdu.cloud.service.db.updateCriteria
 import kotlinx.coroutines.runBlocking
 import org.hibernate.ScrollMode
@@ -478,5 +479,16 @@ class JobHibernateDao(
                     ((entity[JobInformationEntity::state] notEqual JobState.SUCCESS) and
                             (entity[JobInformationEntity::state] notEqual JobState.FAILURE))
         }.list().isNotEmpty()
+    }
+
+    override suspend fun deleteJobInformation(session: HibernateSession, appName: String, appVersion: String) {
+        val em = EmbeddedNameAndVersion(appName, appVersion)
+        val jobInformationEntities = session.criteria<JobInformationEntity> {
+            (entity[JobInformationEntity::application] equal em)
+        }.resultList
+
+        jobInformationEntities.forEach { jobInfo ->
+            session.delete(jobInfo)
+        }
     }
 }

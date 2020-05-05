@@ -33,7 +33,8 @@ class AppStoreService<DBSession>(
     private val applicationDAO: ApplicationDAO<DBSession>,
     private val toolDao: ToolDAO<DBSession>,
     private val aclDao: AclDao<DBSession>,
-    private val elasticDAO: ElasticDAO
+    private val elasticDAO: ElasticDAO,
+    private val appEventProducer : AppEventProducer
 ) {
     suspend fun toggleFavorite(securityPrincipal: SecurityPrincipal, project: String?, appName: String, appVersion: String) {
         val projectGroups = if (project.isNullOrBlank()) {
@@ -421,6 +422,11 @@ class AppStoreService<DBSession>(
         db.withTransaction { session ->
             applicationDAO.delete(session, securityPrincipal, project, projectGroups, appName, appVersion)
         }
+
+        appEventProducer.produce(AppEvent.Deleted(
+            appName,
+            appVersion
+        ))
 
         elasticDAO.deleteApplicationInElastic(appName, appVersion)
     }

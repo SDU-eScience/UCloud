@@ -2,6 +2,7 @@ package dk.sdu.cloud.project.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.UserProjectSummary
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -29,12 +30,13 @@ class MembershipService(
         securityPrincipal: SecurityPrincipal,
         project: String,
         query: String,
+        notInGroup: String?,
         pagination: NormalizedPaginationRequest
-    ): Page<String> {
+    ): Page<ProjectMember> {
         return db.withTransaction { session ->
             val isAdmin = projects.findRoleOfMember(session, project, securityPrincipal.username)?.isAdmin() == true
             if (isAdmin) {
-                groups.searchForMembers(session, project, query, pagination)
+                groups.searchForMembers(session, project, query, notInGroup, pagination)
             } else {
                 null
             }

@@ -1,7 +1,6 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {File} from "Files/index";
 import * as H from "history";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {AccessRight} from "Types";
 import {IconName} from "ui-components/Icon";

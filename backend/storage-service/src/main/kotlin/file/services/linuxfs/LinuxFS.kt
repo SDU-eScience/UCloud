@@ -102,6 +102,14 @@ class LinuxFS(
         aclService.requirePermission(from.parent(), ctx.user, AccessRight.WRITE)
         aclService.requirePermission(to, ctx.user, AccessRight.WRITE)
 
+        val fromComponents = from.normalize().components()
+        val toComponents = to.normalize().components()
+        if ((fromComponents.size in setOf(3, 4) && fromComponents[0] == "projects" && fromComponents[2] == PERSONAL_REPOSITORY) ||
+            (toComponents.size in setOf(3, 4) && toComponents[0] == "projects" && toComponents[2] == PERSONAL_REPOSITORY)) {
+            // The personal repository and direct children can _only_ be changed by the service user
+            throw FSException.PermissionException()
+        }
+
         // We need to record some information from before the move
         val fromStat = stat(
             ctx,
@@ -347,8 +355,7 @@ class LinuxFS(
                         components.isEmpty() -> SERVICE_USER
                         components.size < 2 -> SERVICE_USER
                         components.first() == "projects" -> {
-                            val projectId = components[1]
-                            if (projectCache.viewMember(projectId, ctx.user)?.role?.isAdmin() == true) {
+                            if (aclService.isOwner(realPath, ctx.user)) {
                                 ctx.user
                             } else {
                                 SERVICE_USER
@@ -437,6 +444,15 @@ class LinuxFS(
         val systemFile = File(translateAndCheckFile(ctx, path))
         aclService.requirePermission(path, ctx.user, AccessRight.WRITE)
 
+        val components = path.normalize().components()
+        if (ctx.user != SERVICE_USER) {
+            if ((components.size == 3 && components[0] == "projects") ||
+                (components.size == 4 && components[0] == "projects" && components[2] == PERSONAL_REPOSITORY)
+            ) {
+                throw FSException.PermissionException()
+            }
+        }
+
         if (ctx.outputStream == null) {
             ctx.outputStream = BufferedOutputStream(NativeFS.openForWriting(systemFile, allowOverwrite))
             ctx.outputSystemFile = systemFile
@@ -505,6 +521,13 @@ class LinuxFS(
         path: String
     ) = ctx.submit {
         val systemFile = File(translateAndCheckFile(ctx, path))
+
+        val components = path.normalize().components()
+        if (ctx.user != SERVICE_USER && components.size == 3 && components[2] == PERSONAL_REPOSITORY) {
+            // The personal repository and direct children can _only_ be changed by the service user
+            throw FSException.PermissionException()
+        }
+
         aclService.requirePermission(path.parent(), ctx.user, AccessRight.WRITE)
         NativeFS.createDirectories(systemFile)
         Unit

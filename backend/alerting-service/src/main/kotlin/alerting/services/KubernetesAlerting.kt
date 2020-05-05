@@ -1,5 +1,7 @@
 package dk.sdu.cloud.alerting.services
 
+import dk.sdu.cloud.service.Loggable
+import io.fabric8.kubernetes.api.model.NodeCondition
 import io.fabric8.kubernetes.api.model.Pod
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 
@@ -61,4 +63,65 @@ class KubernetesAlerting {
         }
     }
 
+    suspend fun nodeStatus(alertService: AlertingService) {
+        val client = DefaultKubernetesClient()
+        val alerts = mutableListOf<String>()
+        while (true) {
+            val nodes = client.nodes().list().items
+            nodes.forEach { node ->
+                node.status.conditions.forEach {
+                    when (it.type) {
+                        "Ready" -> {
+                            if (it.status == "Unknown") {
+                                val alert = "${node.metadata.name} has unknown ready-state"
+                                alerts.add(alert)
+                            }
+                            else if (!it.status!!.toBoolean()) {
+                                val alert = "${node.metadata.name} is not ready"
+                                alerts.add(alert)
+                            }
+                        }
+                        "MemoryPressure" -> {
+                            if (it.status!!.toBoolean()) {
+                                val alert = "${node.metadata.name} has memory pressure. Node low on memory."
+                                alerts.add(alert)
+                            }
+                        }
+                        "PIDPressure" -> {
+                            if (it.status!!.toBoolean()) {
+                                val alert = "${node.metadata.name} has process pressure. To many processes on node."
+                                alerts.add(alert)
+                            }                        }
+                        "DiskPressure" -> {
+                            if (it.status!!.toBoolean()) {
+                                val alert = "${node.metadata.name} has disk pressure. Node disk cap is low."
+                                alerts.add(alert)
+                            }                         }
+                        "NetworkUnavailable" -> {
+                            if (it.status!!.toBoolean()) {
+                                val alert = "${node.metadata.name}'s network is not configured correctly."
+                                alerts.add(alert)
+                            }
+                        }
+                        else -> {
+                            log.warn("Found type not specified: ${it.type}")
+                        }
+                    }
+                }
+            }
+            if (alerts.isEmpty()) {
+                log.info("All nodes are fine")
+            }
+            else {
+                val allAlerts = alerts.joinToString("\n")
+                alertService.createAlert(Alert(allAlerts))
+            }
+            alerts.clear()
+            delay(FIVE_MIN)
+        }
+    }
+
+    companion object : Loggable {
+        override val log = ElasticAlerting.logger()
+    }
 }

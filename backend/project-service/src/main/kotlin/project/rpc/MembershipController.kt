@@ -27,7 +27,7 @@ class MembershipController(
 
         implement(ProjectMembers.search) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            ok(members.search(ctx.securityPrincipal, project, request.query, request.normalize()))
+            ok(members.search(ctx.securityPrincipal, project, request.query, request.notInGroup, request.normalize()))
         }
     }
 }

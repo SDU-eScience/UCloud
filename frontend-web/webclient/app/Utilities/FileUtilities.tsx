@@ -279,15 +279,19 @@ export const reclassifyFile = async ({file, sensitivity, client}: ReclassifyFile
 };
 
 export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
+
 export const replaceHomeOrProjectFolder = (path: string, client: HttpClient): string =>
-    path.replace(client.homeFolder, "Home/").replace(client.currentProjectFolder, "Projects/");
+    path.replace(client.homeFolder, "Home/")
+        .replace(client.currentProjectFolder, `${client.projectId}/`);
+
 export const expandHomeOrProjectFolder = (path: string, client: HttpClient): string => {
-    if (path.startsWith("/Home/"))
+    if (path.startsWith("/Home/")) {
         return path.replace("/Home/", client.homeFolder);
-    if (path.startsWith("/Projects")) {
-        return `${Client.currentProjectFolder}/${path.substring(10)}`;
+    } else if (path.startsWith("/home/")) {
+        return path;
+    } else {
+        return "/projects" + path;
     }
-    return path;
 };
 
 const extractFilesQuery = "/files/extract";
@@ -583,4 +587,25 @@ export function isProjectHome(path: string): boolean {
     const components = pathComponents(path);
     if (components.length === 3 && components[0] === "home" && components[2] === "Project") return true;
     return components.length === 2 && components[0] === "projects";
+}
+
+export function isMyPersonalFolder(path: string) {
+    const components = pathComponents(path);
+    return components.length === 4 && components[0] === "projects" && components[2] === "Personal" &&
+        components[3] === Client.username;
+}
+
+export function isPartOfSomePersonalFolder(path: string) {
+    const components = pathComponents(path);
+    return components.length >= 4 && components[0] === "projects" && components[2] === "Personal";
+}
+
+export function isPersonalRootFolder(path: string) {
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "projects" && components[2] === "Personal";
+}
+
+export function isPartOfProject(path: string) {
+    const components = pathComponents(path);
+    return components.length >= 2 && components[0] === "projects";
 }

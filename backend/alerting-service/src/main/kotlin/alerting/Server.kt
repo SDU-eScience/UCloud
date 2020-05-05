@@ -33,6 +33,19 @@ class Server(
 
         GlobalScope.launch {
             try {
+                log.info("Alert on nodes - starting up")
+                KubernetesAlerting().nodeStatus(alertService)
+            } catch (ex: Exception) {
+                log.warn(ex.stackTraceToString())
+                alertService.createAlert(
+                    Alert("WARNING: Alert on nodes caught exception: ${ex.stackTraceToString()}.")
+                )
+                exitProcess(1)
+            }
+        }
+
+        GlobalScope.launch {
+            try {
                 log.info("Alert on shard docs - starting up")
                 ElasticAlerting(elasticHighLevelClient, alertService).alertOnNumberOfDocs(elasticLowLevelClient)
             } catch (ex: Exception) {

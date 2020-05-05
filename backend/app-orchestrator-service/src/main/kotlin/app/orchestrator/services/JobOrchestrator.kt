@@ -491,6 +491,16 @@ class JobOrchestrator<DBSession>(
             JobState.SUCCESS to emptySet()
         )
     }
+
+    suspend fun deleteJobInformation(appName: String, appVersion: String) {
+        db.withTransaction { session ->
+            jobDao.deleteJobInformation(
+                session,
+                appName,
+                appVersion
+            )
+        }
+    }
 }
 
 suspend fun <DBSession> JobDao<DBSession>.find(
