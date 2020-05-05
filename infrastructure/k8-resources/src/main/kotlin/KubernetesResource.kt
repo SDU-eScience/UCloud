@@ -8,7 +8,8 @@ data class DeploymentContext(
     val client: KubernetesClient,
     val namespace: String,
     val remainingArgs: List<String>,
-    val environment: Environment
+    val environment: Environment,
+    val repositoryRoot: File
 )
 
 fun DeploymentContext.resourceNamespace(resource: HasMetadata): String {
