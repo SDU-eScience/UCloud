@@ -22,9 +22,12 @@ import {useAvatars} from "AvataaarLib/hook";
 import styled from "styled-components";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "Project/View";
+import {useProjectStatus} from "Project/cache";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
 const DetailedGroupView: React.FunctionComponent = props => {
-    const {projectId, group, groupMembers, fetchGroupMembers, groupMembersParams} = useProjectManagementStatus();
+    const {projectId, group, groupMembers, fetchGroupMembers, groupMembersParams,
+        allowManagement} = useProjectManagementStatus();
     const activeGroup = groupMembers;
     const fetchActiveGroup = fetchGroupMembers;
     const [isLoading, runCommand] = useAsyncCommand();
@@ -57,7 +60,7 @@ const DetailedGroupView: React.FunctionComponent = props => {
                     members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
                     onRemoveMember={promptRemoveMember}
                     projectMembers={projectId}
-                    allowManagement
+                    allowManagement={allowManagement}
                     allowRoleManagement={false}
                     showRole={false}
                 />

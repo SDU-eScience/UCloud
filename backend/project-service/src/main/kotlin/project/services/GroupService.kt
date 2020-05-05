@@ -61,8 +61,8 @@ class GroupService(
         project: String
     ): List<String> {
         return db.withTransaction { session ->
-            projects.findRoleOfMember(session, project, principal.username) ?: return@withTransaction null
-            groups.listGroups(session, project)
+            val role = projects.findRoleOfMember(session, project, principal.username) ?: return@withTransaction null
+            groups.listGroups(session, project, ProjectMember(principal.username, role))
         } ?: throw RPCException("Not found", HttpStatusCode.NotFound)
     }
 
@@ -72,8 +72,8 @@ class GroupService(
         pagination: NormalizedPaginationRequest
     ): Page<GroupWithSummary> {
         return db.withTransaction { session ->
-            projects.findRoleOfMember(session, project, principal.username) ?: return@withTransaction null
-            groups.listGroupsWithSummary(session, project, pagination)
+            val role = projects.findRoleOfMember(session, project, principal.username) ?: return@withTransaction null
+            groups.listGroupsWithSummary(session, project, pagination, ProjectMember(principal.username, role))
         } ?: throw RPCException("Not found", HttpStatusCode.NotFound)
     }
 
@@ -118,9 +118,16 @@ class GroupService(
         pagination: NormalizedPaginationRequest
     ): Page<UserGroupSummary> {
         db.withTransaction { session ->
-            val isAdmin = projects.findRoleOfMember(session, projectId, principal.username)?.isAdmin() == true
-            if (!isAdmin) throw ProjectException.Forbidden()
-            return groups.listGroupMembers(session, pagination, projectId, group)
+            val role =
+                projects.findRoleOfMember(session, projectId, principal.username) ?: throw ProjectException.NotFound()
+
+            return groups.listGroupMembers(
+                session,
+                pagination,
+                projectId,
+                group,
+                ProjectMember(principal.username, role)
+            )
         }
     }
 

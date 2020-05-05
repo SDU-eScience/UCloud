@@ -1,13 +1,7 @@
 import {useAsyncCommand} from "Authentication/DataHook";
-import {
-    addMemberInProject,
-    deleteMemberInProject,
-    ProjectRole,
-    roleInProject,
-    viewProject
-} from "Project/index";
+import {addMemberInProject, deleteMemberInProject, ProjectRole, roleInProject} from "Project/index";
 import * as React from "react";
-import {MutableRefObject, useRef} from "react";
+import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
@@ -20,7 +14,7 @@ import {addGroupMember} from "Project/api";
 const Members: React.FunctionComponent = props => {
     const {
         projectId, projectMembers, group, fetchGroupMembers, groupMembersParams,
-        setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery
+        setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement
     } = useProjectManagementStatus();
     const [isLoading, runCommand] = useAsyncCommand();
     const reloadMembers = () => {
@@ -28,10 +22,6 @@ const Members: React.FunctionComponent = props => {
     };
 
     const newMemberRef = useRef<HTMLInputElement>(null);
-
-    // TODO
-    const role = roleInProject(projectMembers.data.items);
-    const allowManagement = true; //role === ProjectRole.PI || role === ProjectRole.ADMIN;
 
     const onSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
@@ -56,8 +46,8 @@ const Members: React.FunctionComponent = props => {
         <BreadCrumbsBase>
             <li><span>Members of {projectId}</span></li>
         </BreadCrumbsBase>
-        {!allowManagement ? null : (
-            <Flex>
+        <Flex>
+            {!allowManagement ? null : (
                 <Box flexGrow={1}>
                     <form onSubmit={onSubmit} style={{display: "flex"}}>
                         <Input
@@ -73,22 +63,22 @@ const Members: React.FunctionComponent = props => {
                         <Button attached mr={2}>Add</Button>
                     </form>
                 </Box>
+            )}
 
-                <Box flexGrow={1} ml={2}>
-                    <Input
-                        id="new-project-member"
-                        placeholder="Enter username to search..."
-                        disabled={isLoading}
-                        value={memberSearchQuery}
-                        onChange={e => {
-                            setMemberSearchQuery(e.target.value);
-                        }}
-                        rightLabel
-                    />
-                </Box>
-                <Button attached><Icon name={"search"}/></Button>
-            </Flex>
-        )}
+            <Box flexGrow={1} ml={2}>
+                <Input
+                    id="project-member-search"
+                    placeholder="Enter username to search..."
+                    disabled={isLoading}
+                    value={memberSearchQuery}
+                    onChange={e => {
+                        setMemberSearchQuery(e.target.value);
+                    }}
+                    rightLabel
+                />
+            </Box>
+            <Button attached><Icon name={"search"}/></Button>
+        </Flex>
 
         <GroupMembers
             members={projectMembers.data.items}

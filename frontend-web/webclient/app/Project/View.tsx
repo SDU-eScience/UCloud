@@ -1,7 +1,7 @@
 import {callAPIWithErrorHandler, useCloudAPI, useGlobalCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
 import {
-    ProjectMember,
+    ProjectMember, ProjectRole,
     viewProject
 } from "Project/index";
 import * as Heading from "ui-components/Heading";
@@ -28,6 +28,8 @@ import {Page} from "Types";
 import {emptyPage, ReduxObject} from "DefaultObjects";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {dispatchSetProjectAction} from "Project/Redux";
+import {useProjectStatus} from "Project/cache";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
 export function useProjectManagementStatus() {
     const history = useHistory();
@@ -58,10 +60,16 @@ export function useProjectManagementStatus() {
         history.push("/");
     }
 
+    const projects = useProjectStatus();
+    const allowManagement = isAdminOrPI(
+        projects.fetch().membership.find(it => it.projectId === projectId)?.whoami?.role ?? ProjectRole.USER
+    );
+    const reloadProjectStatus = projects.reload;
+
     return {
         locationParams, projectId: projectId ?? "", group, projectMembers, setProjectMemberParams, groupMembers,
         fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
-        projectMemberParams, memberSearchQuery, setMemberSearchQuery
+        projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus
     };
 }
 
@@ -76,7 +84,8 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         fetchGroupMembers,
         fetchGroupList,
         memberSearchQuery,
-        groupMembersParams
+        groupMembersParams,
+        reloadProjectStatus
     } = useProjectManagementStatus();
 
     const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
@@ -90,6 +99,8 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         } else {
             fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
         }
+
+        reloadProjectStatus();
     }, [projectId, group]);
 
     useEffect(() => {
