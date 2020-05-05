@@ -6,7 +6,7 @@ import {SnackType} from "Snackbar/Snackbars";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {AccessRight} from "Types";
 import {dialogStore} from "Dialog/DialogStore";
-import {Box, Button, List} from "ui-components";
+import {Box, Button, Flex, List} from "ui-components";
 import {useCloudAPI} from "Authentication/DataHook";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {Acl, File, ProjectEntity} from "Files";
@@ -16,6 +16,8 @@ import {Spacer} from "ui-components/Spacer";
 import {ProjectRole} from "Project";
 import {pathComponents} from "Utilities/FileUtilities";
 import styled from "styled-components";
+import {useHistory} from "react-router";
+import {useCallback} from "react";
 
 export function repositoryName(path: string): string {
     const components = pathComponents(path);
@@ -121,12 +123,26 @@ const InnerProjectPermissionBox = styled.div`
 export function UpdatePermissionsDialog(props: { client: HttpClient; repository: string; rights: Acl[]; reload: () => void }): JSX.Element {
     const [groups] = useCloudAPI<string[]>({path: "/projects/groups", method: "GET"}, []);
     const [newRights, setNewRights] = React.useState<Map<string, AccessRight[]>>(new Map());
+    const history = useHistory();
 
+    const onCreateGroup = useCallback(() => {
+        history.push("/projects/view");
+        dialogStore.failure();
+    }, [history]);
     return (
         <Box width="auto" minWidth="300px">
             {groups.loading ? <LoadingSpinner size={24}/> : null}
             <InnerProjectPermissionBox>
-                <List>
+                <List height={"100%"}>
+                    {groups.data.length !== 0 ? null : (
+                        <Flex width={"100%"} height={"100%"} alignItems={"center"} justifyContent={"center"} flexDirection={"column"}>
+                            <Box>
+                                No groups exist for this project.
+                            </Box>
+
+                            <Button onClick={onCreateGroup}>Create group</Button>
+                        </Flex>
+                    )}
                     {groups.data.map(g => {
                         const acl = newRights.get(g) ?? props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ?? [];
                         let rights = "None";

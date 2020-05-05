@@ -289,6 +289,10 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             projects.fetch().membership.find(it => it.projectId === Client.projectId)?.whoami
     ) ?? {username: Client.username, role: ProjectRole.USER};
 
+    useEffect(() => {
+        projects.reload();
+    }, [Client.projectId]);
+
     const history = useHistory();
 
     const {page, error, pageLoading, setSorting, reload, sortBy, order, onPageChanged} =
