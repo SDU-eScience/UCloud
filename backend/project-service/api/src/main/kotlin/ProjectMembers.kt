@@ -37,7 +37,7 @@ object ProjectMembers : CallDescriptionContainer("project.members") {
 
     val userStatus = call<UserStatusRequest, UserStatusResponse, CommonErrorMessage>("userStatus") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 
