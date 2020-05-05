@@ -1030,7 +1030,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                                 {format(props.file.modifiedAt, "HH:mm:ss dd/MM/yyyy")}
                             </Text>
                         )}
-                        {!((props.file.acl?.length ?? 0) > 1) ? (
+                        {!((props.file.acl?.length ?? 0) > 0) ? (
                             !isPartOfProject(props.file.path) || isPartOfSomePersonalFolder(props.file.path) ||
                                 props.projectRole === undefined || !isAdminOrPI(props.projectRole) ?
                                 null :
