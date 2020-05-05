@@ -2,8 +2,7 @@ package dk.sdu.cloud.project.api
 
 data class Project(
     val id: String,
-    val title: String,
-    val members: List<ProjectMember> = emptyList()
+    val title: String
 )
 
 data class ProjectMember(

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "alerting"
-    version = "1.1.22"
+    version = "1.1.23"
 
     withAmbassador {}
 
@@ -21,10 +21,10 @@ bundle { ctx ->
 
     withPostgresMigration(deployment)
 
-    withLocalServiceAccount {
+    withClusterServiceAccount {
         addRule(
             apiGroups = listOf(""),
-            resources = listOf("pods"),
+            resources = listOf("pods", "nodes"),
             verbs = listOf("get", "watch", "list")
         )
     }

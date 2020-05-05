@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "share"
-    version = "1.7.1"
+    version = "1.7.2"
 
     withAmbassador(null) {
         services.add(

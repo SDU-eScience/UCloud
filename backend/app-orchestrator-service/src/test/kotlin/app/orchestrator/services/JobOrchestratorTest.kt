@@ -192,7 +192,7 @@ class JobOrchestratorTest {
 
             retrySection {
                 val job = orchestrator.lookupOwnJob(returnedID, TestUsers.user)
-                assertEquals("newFAILStatus", job.status)
+                assertEquals("newStatus", job.status)
             }
         }
 

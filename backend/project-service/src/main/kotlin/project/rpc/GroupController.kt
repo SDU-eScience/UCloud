@@ -47,6 +47,7 @@ class GroupController(private val groupService: GroupService) : Controller {
             ok(groupService.removeMember(ctx.securityPrincipal, project, request.group, request.memberUsername))
         }
 
+        /*
         implement(ProjectGroups.updateGroupName) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
             ok(groupService.updateGroupName(
@@ -56,6 +57,7 @@ class GroupController(private val groupService: GroupService) : Controller {
                 request.newGroupName
             ))
         }
+         */
 
         implement(ProjectGroups.listGroupMembers) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)

@@ -63,7 +63,12 @@ import {
     moveFile,
     resolvePath,
     sizeToString,
-    MOCK_REPO_CREATE_TAG, MOCK_VIRTUAL
+    MOCK_REPO_CREATE_TAG,
+    MOCK_VIRTUAL,
+    isProjectHome,
+    isMyPersonalFolder,
+    isPartOfProject,
+    isPartOfSomePersonalFolder
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon} from "UtilityComponents";
@@ -699,6 +704,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                             callbacks={callbacks}
                             fileBeingRenamed={fileBeingRenamed}
                             previewEnabled={props.previewEnabled}
+                            projectRole={projectMember.role}
                         />}
                         right={
                             (f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
@@ -918,6 +924,14 @@ const Shell: React.FunctionComponent<ShellProps> = props => {
     );
 };
 
+function getFileNameForNameBox(path: string) {
+    if (isMyPersonalFolder(path)) {
+        return `Personal Files (${Client.username})`
+    }
+
+    return getFilenameFromPath(path);
+}
+
 interface NameBoxProps {
     file: File;
     onRenameFile: (keycode: number, value: string) => void;
@@ -925,6 +939,7 @@ interface NameBoxProps {
     fileBeingRenamed: string | null;
     callbacks: FileOperationCallback;
     previewEnabled?: boolean;
+    projectRole?: ProjectRole;
 }
 
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
@@ -963,7 +978,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         />
     ) : (
             <Truncate width={1} mb="-4px" fontSize={20}>
-                {getFilenameFromPath(props.file.path)}
+                {getFileNameForNameBox(props.file.path)}
             </Truncate>
         );
 
@@ -1015,11 +1030,12 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                                 {format(props.file.modifiedAt, "HH:mm:ss dd/MM/yyyy")}
                             </Text>
                         )}
-                        {!((props.file.acl?.length ?? 0) > 1) ? null : (
-                            <Text title="Members" fontSize={0} mr="12px" color="gray">
-                                {props.file.acl?.length} members
-                            </Text>
-                        )}
+                        {!((props.file.acl?.length ?? 0) > 1) ? (
+                            !isPartOfProject(props.file.path) || isPartOfSomePersonalFolder(props.file.path) ||
+                                props.projectRole === undefined || !isAdminOrPI(props.projectRole) ?
+                                null :
+                                <Text color={"red"} mr={"12px"} fontSize={0}>PROJECT ADMINS ONLY</Text>
+                        ) : (<Text title="Members" fontSize={0} mr="12px" color="gray">{props.file.acl?.length} members</Text>)}
                     </Flex>
                 </Hide>
             </Box>
@@ -1032,10 +1048,10 @@ function RepositoryOperations(props: {
     createFolder: (isRepo?: boolean) => void;
     role: ProjectRole;
 }): JSX.Element | null {
-    if (props.path !== Client.projectFolder || ![ProjectRole.ADMIN, ProjectRole.PI].includes(props.role)) {
+    if (props.path === undefined || !isProjectHome(props.path) || ![ProjectRole.ADMIN, ProjectRole.PI].includes(props.role)) {
         return null;
     }
-    return <Button width="100%" onClick={() => props.createFolder(true)}>New Repository</Button>;
+    return <Button width="100%" onClick={() => props.createFolder(true)}>New Folder</Button>;
 }
 
 const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): JSX.Element => {
@@ -1173,7 +1189,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
                 {...props}
             >
                 <AppToolLogo name={quickLaunchApp.metadata.name} size="20px" type="APPLICATION" />
-                <span style={{marginLeft: "5px", marginRight: "5px"}}>{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}</span>
+                <span style={{marginLeft: "5px", marginRight: "5px"}}>{quickLaunchApp.metadata.title}</span>
             </Flex>
         );
     };

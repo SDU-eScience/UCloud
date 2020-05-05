@@ -573,7 +573,80 @@ class JobHibernateDaoTest {
         )
         jobHibDao.create(session, firstJob)
     }
+
+    @Test
+    fun `Add, retrieve and delete jobs`() = runBlocking {
+
+        db.withTransaction(autoFlush = true) {
+            val firstJob = VerifiedJobWithAccessToken(
+                VerifiedJob(
+                    systemId,
+                    null,
+                    user.username,
+                    normAppDesc,
+                    "abacus",
+                    1,
+                    SimpleDuration(0, 1, 0),
+                    1,
+                    MachineReservation.BURST,
+                    VerifiedJobInput(emptyMap()),
+                    emptySet(),
+                    emptySet(),
+                    emptySet(),
+                    JobState.VALIDATED,
+                    null,
+                    "Unknown",
+                    archiveInCollection = normAppDesc.metadata.title
+                ),
+                "token",
+                "token"
+            )
+            jobHibDao.create(it, firstJob)
+
+            Thread.sleep(10)
+
+            val secondJob = VerifiedJobWithAccessToken(
+                VerifiedJob(
+                    UUID.randomUUID().toString(),
+                    null,
+                    user.username,
+                    normAppDesc2,
+                    "abacus",
+                    1,
+                    SimpleDuration(0, 1, 0),
+                    1,
+                    MachineReservation.BURST,
+                    VerifiedJobInput(emptyMap()),
+                    emptySet(),
+                    emptySet(),
+                    emptySet(),
+                    JobState.VALIDATED,
+                    null,
+                    "Unknown",
+                    archiveInCollection = normAppDesc2.metadata.title
+                ),
+                "token",
+                "token"
+            )
+            jobHibDao.create(it, secondJob)
+        }
+
+        db.withTransaction(autoFlush = true) {
+            val jobs = fetchAllJobsInPage(it)
+
+            assertEquals(2, jobs.itemsInTotal)
+
+            jobHibDao.deleteJobInformation(it, normAppDesc.metadata.name, normAppDesc.metadata.version)
+
+            val jobsAfterDelete = fetchAllJobsInPage(it)
+
+            assertEquals(1, jobsAfterDelete.itemsInTotal)
+
+        }
+    }
 }
+
+
 
 fun SecurityPrincipal.createToken(): SecurityPrincipalToken = SecurityPrincipalToken(
     this,

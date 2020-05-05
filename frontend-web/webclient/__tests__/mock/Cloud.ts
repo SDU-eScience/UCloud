@@ -184,7 +184,7 @@ class MockHttpClient {
 
     public initializeStore(store: Store<ReduxObject>) {
         store.subscribe(() => {
-            const project = store.getState().project.project;
+            const project = store.getState().projectMembers.projectMembers;
             if (project !== this.projectId) {
                 this.projectId = project;
                 this.projectDecodedToken = undefined;

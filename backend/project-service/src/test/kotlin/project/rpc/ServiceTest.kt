@@ -23,6 +23,7 @@ import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
 import dk.sdu.cloud.project.api.ViewProjectResponse
+import dk.sdu.cloud.project.services.GroupDao
 import dk.sdu.cloud.project.services.ProjectDao
 import dk.sdu.cloud.project.services.ProjectService
 import dk.sdu.cloud.service.test.ClientMock
@@ -149,11 +150,13 @@ class ServiceTest {
     private fun setupServer(): KtorApplicationTestSetupContext.() -> List<ProjectController> {
         return {
             val projectDao = ProjectDao()
+            val groupDao = GroupDao()
             listOf(
                 ProjectController(
                     ProjectService(
                         TODO(),
                         projectDao,
+                        groupDao,
                         micro.eventStreamService.createProducer(ProjectEvents.events),
                         ClientMock.authenticatedClient
                     )
@@ -203,21 +206,11 @@ class ServiceTest {
                 val project = createProject(pi = principalInvestigator.username).id
 
                 val view1 = viewProject(project, principalInvestigator)
-                assertThatPropertyEquals(view1, { it.members.size }, 1)
-                assertThatProperty(view1, { it.members }, matcher = {
-                    val member = it.single()
-                    member.role == ProjectRole.PI && member.username == principalInvestigator.username
-                })
 
                 val memberToAdd = ProjectMember(userToAdd.username, ProjectRole.USER)
                 addMember(project, memberToAdd, principalInvestigator)
 
                 val view2 = viewProject(project, principalInvestigator)
-                assertThatPropertyEquals(view2, { it.members.size }, 2)
-                assertThatProperty(view2, { it.members }, matcher = {
-                    it.any { member -> member.role == ProjectRole.PI && member.username == principalInvestigator.username }
-                })
-                assertThatProperty(view2, { it.members }, matcher = { it.contains(memberToAdd) })
             }
         )
     }
@@ -382,12 +375,6 @@ class ServiceTest {
                     )
                 }.exceptionOrNull()!! as RPCException
                 assertEquals(HttpStatusCode.BadRequest, memberException.httpStatusCode)
-
-                val view = viewProject(project, principalInvestigator)
-                assertThatPropertyEquals(view, { it.members.size }, 1)
-                assertThatProperty(view, { it.members }, matcher = {
-                    it.any { member -> member.role == ProjectRole.PI && member.username == principalInvestigator.username }
-                })
             }
         )
     }
@@ -413,61 +400,6 @@ class ServiceTest {
                     )
                 }.exceptionOrNull()!! as RPCException
                 assertEquals(HttpStatusCode.BadRequest, memberException.httpStatusCode)
-
-                val view = viewProject(project, principalInvestigator)
-                assertThatPropertyEquals(view, { it.members.size }, 1)
-                assertThatProperty(view, { it.members }, matcher = {
-                    it.any { member -> member.role == ProjectRole.PI && member.username == principalInvestigator.username }
-                })
-            }
-        )
-    }
-
-    @Test
-    fun `test add duplicate`() {
-        withKtorTest(
-            microConfigure = configureMicro(),
-            setup = setupServer(),
-            test = {
-                val principalInvestigator = TestUsers.user
-                val userToAdd = TestUsers.user2
-                mockUsersExists(listOf(principalInvestigator, userToAdd))
-
-                val project = createProject(pi = principalInvestigator.username).id
-
-                val view1 = viewProject(project, principalInvestigator)
-                assertThatPropertyEquals(view1, { it.members.size }, 1)
-                assertThatProperty(view1, { it.members }, matcher = {
-                    val member = it.single()
-                    member.role == ProjectRole.PI && member.username == principalInvestigator.username
-                })
-
-                val memberToAdd = ProjectMember(userToAdd.username, ProjectRole.USER)
-                addMember(project, memberToAdd, principalInvestigator)
-
-                val view2 = viewProject(project, principalInvestigator)
-                assertThatPropertyEquals(view2, { it.members.size }, 2)
-                assertThatProperty(view2, { it.members }, matcher = {
-                    it.any { member -> member.role == ProjectRole.PI && member.username == principalInvestigator.username }
-                })
-                assertThatProperty(view2, { it.members }, matcher = { it.contains(memberToAdd) })
-
-                val addException = runCatching {
-                    addMember(
-                        project,
-                        memberToAdd,
-                        principalInvestigator
-                    )
-                }.exceptionOrNull()!! as RPCException
-
-                assertEquals(HttpStatusCode.Conflict, addException.httpStatusCode)
-
-                val view3 = viewProject(project, principalInvestigator)
-                assertThatPropertyEquals(view3, { it.members.size }, 2)
-                assertThatProperty(view3, { it.members }, matcher = {
-                    it.any { member -> member.role == ProjectRole.PI && member.username == principalInvestigator.username }
-                })
-                assertThatProperty(view3, { it.members }, matcher = { it.contains(memberToAdd) })
             }
         )
     }
@@ -484,10 +416,8 @@ class ServiceTest {
 
                 val project = createProject(pi = principalInvestigator.username).id
 
-                val view1 = viewProject(project, principalInvestigator)
-                assertThatPropertyEquals(view1, { it.members.size }, 1)
-                assertThatProperty(view1, { it.members }, matcher = {
-                    val member = it.single()
+                val view1 = viewMemberInProject(principalInvestigator, project, principalInvestigator.username)
+                assertThatProperty(view1, { it.member }, matcher = { member ->
                     member.role == ProjectRole.PI && member.username == principalInvestigator.username
                 })
 
@@ -501,12 +431,10 @@ class ServiceTest {
                     TestUsers.user
                 ).parseSuccessful<ChangeUserRoleResponse>()
 
-                val view2 = viewProject(project, principalInvestigator)
-                assertThatPropertyEquals(view2, { it.members.size }, 2)
-                assertThatProperty(view2, { it.members }, matcher = {
-                    it.any { member -> member.role == ProjectRole.PI && member.username == principalInvestigator.username }
+                val view2 = viewMemberInProject(principalInvestigator, project, memberToAdd.username)
+                assertThatProperty(view2, { it.member }, matcher = { member ->
+                    member.role == newRole && member.username == memberToAdd.username
                 })
-                assertThatProperty(view2, { it.members }, matcher = { it.contains(memberToAdd.copy(role = newRole)) })
             }
         )
     }

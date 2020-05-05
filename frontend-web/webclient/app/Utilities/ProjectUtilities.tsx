@@ -15,6 +15,7 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Spacer} from "ui-components/Spacer";
 import {ProjectRole} from "Project";
 import {pathComponents} from "Utilities/FileUtilities";
+import styled from "styled-components";
 
 export function repositoryName(path: string): string {
     const components = pathComponents(path);
@@ -112,53 +113,61 @@ export function updatePermissionsPrompt(client: HttpClient, file: File, reload: 
     );
 }
 
-export function UpdatePermissionsDialog(props: {client: HttpClient; repository: string; rights: Acl[]; reload: () => void}): JSX.Element {
+const InnerProjectPermissionBox = styled.div`
+    height: 300px;
+    overflow-y: auto;
+`;
+
+export function UpdatePermissionsDialog(props: { client: HttpClient; repository: string; rights: Acl[]; reload: () => void }): JSX.Element {
     const [groups] = useCloudAPI<string[]>({path: "/projects/groups", method: "GET"}, []);
     const [newRights, setNewRights] = React.useState<Map<string, AccessRight[]>>(new Map());
 
     return (
         <Box width="auto" minWidth="300px">
-            {groups.loading ? <LoadingSpinner size={24} /> : null}
-            <List>
-                {groups.data.map(g => {
-                    const acl = newRights.get(g) ?? props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ?? [];
-                    let rights = "None";
-                    if (acl.includes(AccessRight.READ)) rights = "Read";
-                    if (acl.includes(AccessRight.WRITE)) rights = "Edit";
-                    return (
-                        <ListRow
-                            key={g}
-                            left={g}
-                            select={() => undefined}
-                            isSelected={false}
-                            right={
-                                <ClickableDropdown
-                                    chevron
-                                    onChange={value => {
-                                        if (value === "") newRights.set(g, []);
-                                        else if (value === "READ") newRights.set(g, [AccessRight.READ]);
-                                        else if (value === "WRITE") newRights.set(g, [AccessRight.READ, AccessRight.WRITE]);
-                                        setNewRights(new Map(newRights));
-                                    }}
-                                    minWidth="75px"
-                                    width="75px"
-                                    options={[
-                                        {text: "Read", value: "READ"},
-                                        {text: "Edit", value: "WRITE"},
-                                        {text: "None", value: ""}
-                                    ]} trigger={rights}
-                                />
-                            }
-                            navigate={() => undefined}
-                        />
-                    );
-                })}
-                <Spacer
-                    mt="50px"
-                    left={<Button color="red" onClick={() => dialogStore.failure()}>Cancel</Button>}
-                    right={<Button disabled={newRights.size === 0} onClick={update}>Update</Button>}
-                />
-            </List>
+            {groups.loading ? <LoadingSpinner size={24}/> : null}
+            <InnerProjectPermissionBox>
+                <List>
+                    {groups.data.map(g => {
+                        const acl = newRights.get(g) ?? props.rights.find(a => (a.entity as ProjectEntity).group === g)?.rights ?? [];
+                        let rights = "None";
+                        if (acl.includes(AccessRight.READ)) rights = "Read";
+                        if (acl.includes(AccessRight.WRITE)) rights = "Edit";
+                        return (
+                            <ListRow
+                                key={g}
+                                left={g}
+                                select={() => undefined}
+                                isSelected={false}
+                                right={
+                                    <ClickableDropdown
+                                        chevron
+                                        onChange={value => {
+                                            if (value === "") newRights.set(g, []);
+                                            else if (value === "READ") newRights.set(g, [AccessRight.READ]);
+                                            else if (value === "WRITE") newRights.set(g, [AccessRight.READ, AccessRight.WRITE]);
+                                            setNewRights(new Map(newRights));
+                                        }}
+                                        minWidth="75px"
+                                        width="75px"
+                                        options={[
+                                            {text: "Read", value: "READ"},
+                                            {text: "Edit", value: "WRITE"},
+                                            {text: "None", value: ""}
+                                        ]} trigger={rights}
+                                    />
+                                }
+                                navigate={() => undefined}
+                            />
+                        );
+                    })}
+                </List>
+            </InnerProjectPermissionBox>
+
+            <Spacer
+                mt="25px"
+                left={<Button color="red" onClick={() => dialogStore.failure()}>Cancel</Button>}
+                right={<Button disabled={newRights.size === 0} onClick={update}>Update</Button>}
+            />
         </Box>
     );
 

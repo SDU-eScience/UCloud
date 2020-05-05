@@ -1,16 +1,13 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.app.store.api.AppStoreStreams
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.util.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.micro.ElasticFeature
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.elasticHighLevelClient
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.HibernateSession
@@ -42,7 +39,11 @@ class AppStoreTest {
             AppStoreService(
                 micro.hibernateDatabase,
                 authClient,
-                appDao, toolHibernateDAO, aclDao, elasticDAO
+                appDao,
+                toolHibernateDAO,
+                aclDao,
+                elasticDAO,
+                micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
             )
 
         runBlocking {
@@ -179,7 +180,11 @@ class AppStoreTest {
         return AppStoreService(
             micro.hibernateDatabase,
             authClient,
-            appDAO, toolHibernateDAO, aclDao, elasticDAO
+            appDAO,
+            toolHibernateDAO,
+            aclDao,
+            elasticDAO,
+            micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
         )
     }
 

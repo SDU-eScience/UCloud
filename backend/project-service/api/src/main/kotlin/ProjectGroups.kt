@@ -168,6 +168,7 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             }
         }
 
+    /*
     val updateGroupName = call<UpdateGroupNameRequest, UpdateGroupNameResponse, CommonErrorMessage>("updateGroupName") {
         auth {
             access = AccessRight.READ_WRITE
@@ -184,6 +185,7 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             body { bindEntireRequestFromBody() }
         }
     }
+     */
 
     val listGroupMembers =
         call<ListGroupMembersRequest, ListGroupMembersResponse, CommonErrorMessage>("listGroupMembers") {

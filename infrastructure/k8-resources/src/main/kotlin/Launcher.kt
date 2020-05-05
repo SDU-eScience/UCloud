@@ -88,17 +88,6 @@ fun main(args: Array<String>) {
             }
         }
 
-    val repositoryRoot = if (File(directory).list()?.any { it.endsWith("-service") } == true) {
-        File(directory)
-    } else {
-        val parentFile = File(directory).absoluteFile.normalize().parentFile
-        if (parentFile.list()?.any { it.endsWith("-service") } == true) {
-            parentFile
-        } else {
-            throw IllegalStateException("Could not find repository root")
-        }
-    }
-
     additionalFiles.forEach { allBundles.add(File(it)) }
 
     importBuilder.appendln("package dk.sdu.cloud.k8")
@@ -139,5 +128,5 @@ fun main(args: Array<String>) {
 
     System.err.println("k8.kts files are being compiled now...")
     engine.eval(importBuilder.toString() + "\n" + outputScript.toString())
-    runLauncher(launcherCommand, remainingArgs, skipUpToDateCheck, forceYes, environment, repositoryRoot)
+    runLauncher(launcherCommand, remainingArgs, skipUpToDateCheck, forceYes, environment)
 }

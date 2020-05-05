@@ -10,11 +10,15 @@ import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
 import {ScrollResult} from "Scroll/Types";
 import {SimpleSearchStateProps} from "Search";
-import {Dictionary, Page, SidebarOption} from "Types";
+import {Dictionary, Page, PaginationRequest, SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Upload} from "Uploader";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {ProjectCache} from "Project/cache";
+import {APICallStateWithParams} from "Authentication/DataHook";
+import {ProjectMember} from "Project";
+import {ListGroupMembersRequestProps} from "Project/api";
+import {GroupWithSummary} from "Project/GroupList";
 
 export enum KeyCode {
     ENTER = 13,
@@ -128,6 +132,10 @@ export interface HookStore {
     fileFavoriteCache?: Dictionary<boolean>;
     projectCache?: ProjectCache;
     avatarCache?: Dictionary<AvatarType>;
+    projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
+    projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;
+    projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>
+    projectManagementQuery?: string;
 }
 
 interface LegacyReduxObject {

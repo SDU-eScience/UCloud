@@ -11,6 +11,10 @@ class AppStoreService(
 ) {
     private val appMap = HashMap<NameAndVersion, Application>()
 
+    fun resetAppCache() {
+        appMap.clear()
+    }
+
     suspend fun findByNameAndVersion(name: String, version: String): Application? {
         val nameAndVersion = NameAndVersion(name, version)
         val cachedApp = appMap[nameAndVersion]

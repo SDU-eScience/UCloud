@@ -580,6 +580,8 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 roles = Roles.AUTHENTICATED
             }
 
+            websocket(wsBaseContext)
+
             http {
                 method = HttpMethod.Post
                 path {
@@ -600,6 +602,8 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 access = AccessRight.READ_WRITE
                 roles = Roles.PRIVILEDGED
             }
+
+            websocket(wsBaseContext)
 
             http {
                 method = HttpMethod.Post
