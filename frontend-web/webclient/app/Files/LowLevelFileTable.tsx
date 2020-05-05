@@ -11,8 +11,8 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
 import PromiseKeeper, {usePromiseKeeper} from "PromiseKeeper";
-import {useEffect, useState} from "react";
 import * as React from "react";
+import {useEffect, useState} from "react";
 import {connect} from "react-redux";
 import {useHistory} from "react-router";
 import {Dispatch} from "redux";
@@ -57,33 +57,29 @@ import {
     isDirectory,
     isFilePreviewSupported,
     isInvalidPathName,
+    isMyPersonalFolder,
+    isPartOfProject,
+    isPartOfSomePersonalFolder,
+    isProjectHome,
     MOCK_RELATIVE,
     MOCK_RENAME_TAG,
+    MOCK_REPO_CREATE_TAG,
+    MOCK_VIRTUAL,
     mockFile,
     moveFile,
     resolvePath,
-    sizeToString,
-    MOCK_REPO_CREATE_TAG,
-    MOCK_VIRTUAL,
-    isProjectHome,
-    isMyPersonalFolder,
-    isPartOfProject,
-    isPartOfSomePersonalFolder
+    sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
-import {
-    createRepository,
-    renameRepository,
-    isAdminOrPI,
-    isRepository
-} from "Utilities/ProjectUtilities";
-import {ProjectMember, ProjectRole} from "Project";
+import {createRepository, isAdminOrPI, isRepository, renameRepository} from "Utilities/ProjectUtilities";
+import {ProjectRole} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
+import {useProjectStatus} from "Project/cache";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -286,14 +282,12 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     const [workLoading, , invokeWork] = useAsyncWork();
     const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map());
     const favorites = useFavoriteStatus();
-
-    const promises = usePromiseKeeper();
-    const [projectMember, setMember] = React.useState<ProjectMember>({
-        role: ProjectRole.USER, username: Client.username ?? ""
-    });
-    React.useEffect(() => {
-        getProjectMember();
-    }, [Client.projectId]);
+    const projects = useProjectStatus();
+    const projectMember = (
+        !Client.projectId ?
+            undefined :
+            projects.fetch().membership.find(it => it.projectId === Client.projectId)?.whoami
+    ) ?? {username: Client.username, role: ProjectRole.USER};
 
     const history = useHistory();
 
@@ -617,20 +611,6 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     );
 
     // Private utility functions
-
-    async function getProjectMember(): Promise<void> {
-        if (!!Client.projectId && !!Client.username) {
-            try {
-                const {response} = await promises.makeCancelable(Client.get<{member: ProjectMember}>(
-                    `/projects/members?projectId=${encodeURIComponent(Client.projectId)}&username=${encodeURIComponent(Client.username)}`
-                )).promise;
-                setMember(response.member);
-            } catch (err) {
-                if (promises.canceledKeeper) return;
-                snackbarStore.addFailure(UF.errorMessageOrDefault(err, "An error occurred fetcing member info."), false);
-            }
-        }
-    }
 
     function setChecked(updatedFiles: File[], checkStatus?: boolean): void {
         const checked = new Set(checkedFiles);
