@@ -68,7 +68,7 @@ Array [
   margin: 0;
   list-style: none;
   max-width: 85%;
-  height: 85px;
+  height: 60px;
   overflow-y: auto;
 }
 
