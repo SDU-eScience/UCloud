@@ -4,7 +4,12 @@ import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
 import {emptyPage, KeyCode, ReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileType, SortBy, SortOrder} from "Files";
-import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
+import {
+    defaultFileOperations,
+    FileOperation,
+    FileOperationCallback,
+    FileOperationRepositoryMode
+} from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
 import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
@@ -1104,9 +1109,10 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
     const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
-        if (fileOp.repositoryMode && !isAdminOrPI(role)) return null;
-        if (fileOp.repositoryMode && files.some(it => !isRepository(it.path))) return null;
-        if (!fileOp.repositoryMode && files.some(it => isRepository(it.path))) return null;
+        const repoMode = fileOp.repositoryMode ?? FileOperationRepositoryMode.DISALLOW;
+        if (repoMode === FileOperationRepositoryMode.REQUIRED && !isAdminOrPI(role)) return null;
+        if (repoMode === FileOperationRepositoryMode.REQUIRED && files.some(it => !isRepository(it.path))) return null;
+        if (repoMode === FileOperationRepositoryMode.DISALLOW && files.some(it => isRepository(it.path))) return null;
 
         if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
