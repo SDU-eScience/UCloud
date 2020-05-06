@@ -16,7 +16,7 @@ import {ListRow} from "ui-components/List";
 import {useHistory} from "react-router";
 import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
-import {projectRoleToString} from "Project/api";
+import {projectRoleToString} from "Project";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {toggleFavoriteProject} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";

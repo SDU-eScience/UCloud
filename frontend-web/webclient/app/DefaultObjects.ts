@@ -16,8 +16,7 @@ import {Upload} from "Uploader";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {ProjectCache} from "Project/cache";
 import {APICallStateWithParams} from "Authentication/DataHook";
-import {ProjectMember} from "Project";
-import {ListGroupMembersRequestProps} from "Project/api";
+import {ListGroupMembersRequestProps, ProjectMember} from "Project";
 import {GroupWithSummary} from "Project/GroupList";
 
 export enum KeyCode {

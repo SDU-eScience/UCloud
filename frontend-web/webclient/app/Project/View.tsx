@@ -20,7 +20,7 @@ import {
     shouldVerifyMembership,
     ShouldVerifyMembershipResponse,
     verifyMembership
-} from "Project/api";
+} from "Project";
 import styled from "styled-components";
 import GroupView, {GroupWithSummary} from "./GroupList";
 import ProjectMembers from "./Members";

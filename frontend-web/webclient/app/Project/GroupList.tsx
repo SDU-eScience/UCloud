@@ -6,7 +6,7 @@ import {Operation} from "Types";
 import {useHistory} from "react-router";
 import DetailedGroupView from "./DetailedGroupView";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault, preventDefault, stopPropagation} from "UtilityFunctions";
+import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Client} from "Authentication/HttpClientInstance";
 import {addStandardDialog} from "UtilityComponents";
@@ -15,7 +15,7 @@ import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "Project/View";
-import {deleteGroup, groupSummaryRequest, updateGroupName} from "Project/api";
+import {deleteGroup, groupSummaryRequest, updateGroupName} from "Project";
 import {MutableRefObject, useCallback, useRef, useState} from "react";
 import {useAsyncCommand} from "Authentication/DataHook";
 

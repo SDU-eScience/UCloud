@@ -3,18 +3,17 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {Text, Flex, Icon, Truncate, Link} from "ui-components";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import * as Pagination from "Pagination";
-import {APICallParameters, useAsyncCommand} from "Authentication/DataHook";
+import {useAsyncCommand} from "Authentication/DataHook";
 import {
     listGroupMembersRequest,
     removeGroupMemberRequest,
     projectRoleToString
-} from "./api";
+} from "Project";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {GridCardGroup} from "ui-components/Grid";
 import {Avatar} from "AvataaarLib";
 import {addStandardDialog} from "UtilityComponents";
-import {buildQueryString} from "Utilities/URIUtilities";
 import {ProjectMember, ProjectRole, changeRoleInProject} from "Project";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {useEffect} from "react";
@@ -22,15 +21,13 @@ import {useAvatars} from "AvataaarLib/hook";
 import styled from "styled-components";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "Project/View";
-import {useProjectStatus} from "Project/cache";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
 const DetailedGroupView: React.FunctionComponent = props => {
     const {projectId, group, groupMembers, fetchGroupMembers, groupMembersParams,
         allowManagement} = useProjectManagementStatus();
     const activeGroup = groupMembers;
     const fetchActiveGroup = fetchGroupMembers;
-    const [isLoading, runCommand] = useAsyncCommand();
+    const [, runCommand] = useAsyncCommand();
 
     if (!group || activeGroup.error) return <MainContainer main={
         <Text fontSize={"24px"}>Could not fetch &apos;{group}&apos;.</Text>

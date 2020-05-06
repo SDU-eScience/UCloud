@@ -1,7 +1,7 @@
 /**
  * Cache for project and group membership.
  */
-import {userProjectStatus, UserStatusResponse} from "Project/api";
+import {userProjectStatus, UserStatusResponse} from "Project";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {useCallback} from "react";
 import {useAsyncCommand} from "Authentication/DataHook";

@@ -9,7 +9,7 @@ import {Box, Button, Flex, Icon, Input} from "ui-components";
 import {GroupMembers} from "Project/DetailedGroupView";
 import {addStandardDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/View";
-import {addGroupMember} from "Project/api";
+import {addGroupMember} from "Project";
 
 const Members: React.FunctionComponent = props => {
     const {
