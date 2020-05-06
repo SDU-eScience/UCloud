@@ -39,7 +39,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                     <HoverBox>
                         <Icon name={"projects"} mr={"4px"}/>
                         <Truncate as={"span"} width={"80px"}>{activeContext}</Truncate>
-                        <Icon name={"chevronDown"} size={"10px"} ml={"4px"} />
+                        <Icon name={"chevronDown"} size={"10px"} ml={"4px"}/>
                     </HoverBox>
                 }
                 onTriggerClick={() => setFetchParams({...params})}
@@ -47,8 +47,12 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                 width="250px"
             >
                 {props.activeProject ?
-                    <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>Personal
-                        project</Text> : null}
+                    (
+                        <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>
+                            Personal project
+                        </Text>
+                    ) : null
+                }
                 {response.data.items.filter(it => !(it.projectId === props.activeProject)).map(project =>
                     <Text
                         key={project.projectId}
@@ -57,7 +61,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         {project.projectId}
                     </Text>
                 )}
-                {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
+                {props.activeProject || response.data.items.length > 0 ? <Divider/> : null}
                 <Link to="/projects"><Text>See all</Text></Link>
             </ClickableDropdown>
         </Flex>

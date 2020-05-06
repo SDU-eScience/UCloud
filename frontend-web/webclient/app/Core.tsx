@@ -29,7 +29,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import NoVNCClient from "NoVNC/NoVNCClient";
 import {Playground} from "Playground/Playground";
-import ProjectList from "Project/List";
+import ProjectList from "Project/ProjectList";
 import ProjectView from "Project/View";
 import * as React from "react";
 import {Route, RouteComponentProps, Switch} from "react-router-dom";

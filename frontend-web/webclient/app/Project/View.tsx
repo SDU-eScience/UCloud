@@ -1,8 +1,8 @@
 import {callAPIWithErrorHandler, useCloudAPI, useGlobalCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
 import {
-    ProjectMember, ProjectRole,
-    viewProject
+    ProjectMember,
+    ProjectRole,
 } from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
@@ -23,7 +23,7 @@ import {
 } from "Project";
 import styled from "styled-components";
 import GroupView, {GroupWithSummary} from "./GroupList";
-import ProjectMembers from "./Members";
+import ProjectMembers from "./MembersPanel";
 import {Page} from "Types";
 import {emptyPage, ReduxObject} from "DefaultObjects";
 import {useGlobal} from "Utilities/ReduxHooks";

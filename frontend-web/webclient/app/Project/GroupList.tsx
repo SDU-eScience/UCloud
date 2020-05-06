@@ -4,7 +4,7 @@ import {Button, Text, Input, List, Icon, Flex, Box} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {Operation} from "Types";
 import {useHistory} from "react-router";
-import DetailedGroupView from "./DetailedGroupView";
+import GroupView from "./GroupView";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
@@ -57,7 +57,7 @@ const GroupList: React.FunctionComponent = props => {
     ];
 
 
-    if (group) return <DetailedGroupView/>;
+    if (group) return <GroupView/>;
 
     let content = (
         <>

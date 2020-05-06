@@ -6,12 +6,12 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {Box, Button, Flex, Icon, Input} from "ui-components";
-import {GroupMembers} from "Project/DetailedGroupView";
 import {addStandardDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/View";
 import {addGroupMember} from "Project";
+import {MembersList} from "Project/MembersList";
 
-const Members: React.FunctionComponent = props => {
+const MembersPanel: React.FunctionComponent = props => {
     const {
         projectId, projectMembers, group, fetchGroupMembers, groupMembersParams,
         setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement
@@ -80,7 +80,7 @@ const Members: React.FunctionComponent = props => {
             <Button attached><Icon name={"search"}/></Button>
         </Flex>
 
-        <GroupMembers
+        <MembersList
             members={projectMembers.data.items}
             onRemoveMember={async member => addStandardDialog({
                 title: "Remove member",
@@ -106,4 +106,4 @@ const Members: React.FunctionComponent = props => {
     </>;
 }
 
-export default Members;
+export default MembersPanel;
