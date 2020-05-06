@@ -5,7 +5,7 @@ import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {Box, Button, Flex, Icon, Input} from "ui-components";
+import {Box, Button, Flex, Icon, Input, Truncate} from "ui-components";
 import {addStandardDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/View";
 import {addGroupMember} from "Project";
@@ -60,7 +60,7 @@ const MembersPanel: React.FunctionComponent = props => {
 
     return <>
         <BreadCrumbsBase>
-            <li><span>Members of {projectId}</span></li>
+            <li><Truncate width={"500px"}>Members of {projectId}</Truncate></li>
         </BreadCrumbsBase>
         <SearchContainer>
             {!allowManagement ? null : (

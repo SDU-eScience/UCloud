@@ -38,7 +38,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                 trigger={
                     <HoverBox>
                         <Icon name={"projects"} mr={"4px"}/>
-                        <Truncate as={"span"} width={"80px"}>{activeContext}</Truncate>
+                        <Truncate width={"150px"}>{activeContext}</Truncate>
                         <Icon name={"chevronDown"} size={"10px"} ml={"4px"}/>
                     </HoverBox>
                 }
@@ -58,7 +58,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         key={project.projectId}
                         onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
                     >
-                        {project.projectId}
+                        <Truncate width={"215px"}>{project.projectId}</Truncate>
                     </Text>
                 )}
                 {props.activeProject || response.data.items.length > 0 ? <Divider/> : null}
@@ -82,11 +82,13 @@ function onProjectUpdated(history: History, runThisFunction: () => void, refresh
 }
 
 const HoverBox = styled.div`
+    display: inline-flex;
+    flex-wrap: none;
     color: white;
     padding: 4px;
     cursor: pointer;
-    display: inline-block;
     user-select: none;
+    align-items: center;
     &:hover {
         background-color: rgba(255, 255, 255, .3);
         color: white;

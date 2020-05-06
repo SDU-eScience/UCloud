@@ -1,6 +1,6 @@
 import * as React from "react";
 import {MainContainer} from "MainContainer/MainContainer";
-import {Text, Link} from "ui-components";
+import {Text, Link, Truncate} from "ui-components";
 import * as Pagination from "Pagination";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {
@@ -26,7 +26,7 @@ const GroupView: React.FunctionComponent = props => {
     const header = (
         <BreadCrumbsBase>
             <li><span><Link to={`/projects/view`}>Groups</Link></span></li>
-            <li><span>{group}</span></li>
+            <li><Truncate width={"500px"}>{group}</Truncate></li>
         </BreadCrumbsBase>
     );
 

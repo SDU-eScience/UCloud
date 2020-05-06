@@ -6,7 +6,7 @@ import {SnackType} from "Snackbar/Snackbars";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {AccessRight} from "Types";
 import {dialogStore} from "Dialog/DialogStore";
-import {Box, Button, Flex, List} from "ui-components";
+import {Box, Button, Flex, List, Truncate} from "ui-components";
 import {useCloudAPI} from "Authentication/DataHook";
 import LoadingSpinner from "LoadingIcon/LoadingIcon";
 import {Acl, File, ProjectEntity} from "Files";
@@ -151,7 +151,7 @@ export function UpdatePermissionsDialog(props: { client: HttpClient; repository:
                         return (
                             <ListRow
                                 key={g}
-                                left={g}
+                                left={<Truncate width={"300px"} mr={16} title={g}>{g}</Truncate>}
                                 select={() => undefined}
                                 isSelected={false}
                                 right={
