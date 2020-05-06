@@ -16,6 +16,7 @@ import dk.sdu.cloud.micro.elasticLowLevelClient
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.stackTraceToString
 import dk.sdu.cloud.service.startServices
+import elastic.management.services.ElasticEntryCleanupService
 import kotlin.system.exitProcess
 
 
@@ -31,6 +32,18 @@ class Server(
         val elasticLowLevelClient = micro.elasticLowLevelClient
 
         startServices(wait = false)
+
+        if (micro.commandLineArguments.contains("--entryDelete")) {
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                val eecService = ElasticEntryCleanupService(elasticHighLevelClient)
+                eecService.removeEntriesContaining(listOf("STATEMENT"), "stolon")
+                exitProcess(0)
+            } catch (ex: Exception) {
+                log.warn(ex.stackTraceToString())
+                exitProcess(1)
+            }
+        }
 
         if (micro.commandLineArguments.contains("--setup")) {
             @Suppress("TooGenericExceptionCaught")
