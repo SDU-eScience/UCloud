@@ -34,12 +34,8 @@ class MembershipService(
         pagination: NormalizedPaginationRequest
     ): Page<ProjectMember> {
         return db.withTransaction { session ->
-            val isAdmin = projects.findRoleOfMember(session, project, securityPrincipal.username)?.isAdmin() == true
-            if (isAdmin) {
-                groups.searchForMembers(session, project, query, notInGroup, pagination)
-            } else {
-                null
-            }
-        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            projects.findRoleOfMember(session, project, securityPrincipal.username) ?: throw ProjectException.NotFound()
+            groups.searchForMembers(session, project, query, notInGroup, pagination)
+        }
     }
 }

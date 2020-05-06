@@ -69,17 +69,25 @@ class GroupDao {
         )
     }
 
-    suspend fun listGroups(session: AsyncDBConnection, project: String): List<String> {
+    suspend fun listGroups(
+        session: AsyncDBConnection,
+        project: String,
+        requestedBy: ProjectMember
+    ): List<String> {
         return session
             .sendPreparedStatement(
                 {
                     setParameter("project", project)
+                    setParameter("userIsAdmin", requestedBy.role.isAdmin())
+                    setParameter("username", requestedBy.username)
                 },
 
                 """
                     select the_group
                     from groups g
-                    where g.project = ?project
+                    where 
+                        g.project = ?project and
+                        check_group_acl(?username, ?userIsAdmin, g.the_group)
                     order by g.the_group
                 """
             )
@@ -127,20 +135,24 @@ class GroupDao {
         session: AsyncDBConnection,
         pagination: NormalizedPaginationRequest,
         project: String,
-        groupFilter: String?
+        groupFilter: String?,
+        requestedBy: ProjectMember
     ): Page<UserGroupSummary> {
         val count = session
             .sendPreparedStatement(
                 {
                     setParameter("project", project)
                     setParameter("group", groupFilter ?: "")
+                    setParameter("userIsAdmin", requestedBy.role.isAdmin())
+                    setParameter("username", requestedBy.username)
                 },
                 """
                     select count(*) 
                     from group_members 
                     where 
                         project = ?project and
-                        (?group = '' or the_group = ?group)
+                        (?group = '' or the_group = ?group) and
+                        check_group_acl(?username, ?userIsAdmin, ?group)
                 """
             )
             .rows
@@ -154,13 +166,16 @@ class GroupDao {
                     setParameter("group", groupFilter ?: "")
                     setParameter("limit", pagination.itemsPerPage)
                     setParameter("offset", pagination.offset)
+                    setParameter("userIsAdmin", requestedBy.role.isAdmin())
+                    setParameter("username", requestedBy.username)
                 },
                 """
                     select *
                     from group_members
                     where
                         project = ?project and 
-                        (?group = '' or the_group = ?group)
+                        (?group = '' or the_group = ?group) and
+                        check_group_acl(?username, ?userIsAdmin, ?group)
                     order by
                         project, the_group, username
                     limit ?limit
@@ -230,18 +245,23 @@ class GroupDao {
     suspend fun listGroupsWithSummary(
         session: AsyncDBConnection,
         project: String,
-        pagination: NormalizedPaginationRequest
+        pagination: NormalizedPaginationRequest,
+        requestedBy: ProjectMember
     ): Page<GroupWithSummary> {
         // Count how many groups there are. We will use this for pagination
         val groupCount = session
             .sendPreparedStatement(
                 {
                     setParameter("project", project)
+                    setParameter("userIsAdmin", requestedBy.role.isAdmin())
+                    setParameter("username", requestedBy.username)
                 },
                 """
-                    select count(groups.the_group)
-                    from groups
-                    where groups.project = ?project
+                    select count(g.the_group)
+                    from groups g
+                    where
+                        g.project = ?project and
+                        check_group_acl(?username, ?userIsAdmin, g.the_group)
                 """
             )
             .rows
@@ -257,6 +277,8 @@ class GroupDao {
                     setParameter("limit", pagination.itemsPerPage)
                     setParameter("offset", pagination.itemsPerPage * pagination.page)
                     setParameter("project", project)
+                    setParameter("userIsAdmin", requestedBy.role.isAdmin())
+                    setParameter("username", requestedBy.username)
                 },
                 """
                     select 
@@ -268,9 +290,11 @@ class GroupDao {
                         group_members,
                          
                         (
-                            select groups.the_group
-                            from groups
-                            where project = ?project
+                            select g.the_group
+                            from groups g
+                            where 
+                                project = ?project and
+                                check_group_acl(?username, ?userIsAdmin, g.the_group)
                             limit ?limit
                             offset ?offset
                         ) group_filter left outer join 
@@ -312,7 +336,9 @@ class GroupDao {
             // This block deals with this edge case. TODO Just deal with it in the query.
 
             log.warn("Mismatch between number of groups")
-            return listGroups(session, project).paginate(pagination).mapItems { GroupWithSummary(it, 0, emptyList()) }
+            return listGroups(session, project, requestedBy)
+                .paginate(pagination)
+                .mapItems { GroupWithSummary(it, 0, emptyList()) }
         }
 
         return Page(

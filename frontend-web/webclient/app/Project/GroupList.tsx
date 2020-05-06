@@ -29,7 +29,7 @@ const baseContext = "/projects/groups";
 
 const GroupList: React.FunctionComponent = props => {
     const history = useHistory();
-    const {projectId, group, groupList, fetchGroupList, groupListParams} = useProjectManagementStatus();
+    const {allowManagement, group, groupList, fetchGroupList, groupListParams} = useProjectManagementStatus();
 
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [, setLoading] = useState(false);
@@ -48,7 +48,7 @@ const GroupList: React.FunctionComponent = props => {
         },
          */
         {
-            disabled: groups => groups.length === 0,
+            disabled: groups => groups.length === 0 || !allowManagement,
             onClick: (groups) => promptDeleteGroups(groups),
             icon: "trash",
             text: "Delete",
@@ -122,9 +122,11 @@ const GroupList: React.FunctionComponent = props => {
                     /> : null}
             </List>
 
-            <Flex justifyContent={"center"}>
-                <Button width={"50%"} onClick={() => setCreatingGroup(true)}>New Group</Button>
-            </Flex>
+            {!allowManagement ? null : (
+                <Flex justifyContent={"center"}>
+                    <Button width={"50%"} onClick={() => setCreatingGroup(true)}>New Group</Button>
+                </Flex>
+            )}
         </>
     );
     return <>
