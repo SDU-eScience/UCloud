@@ -143,14 +143,14 @@ class ApplicationHibernateDAO(
                     (
                         A.is_public = TRUE
                     ) or (
-                        :project is null and :user in (
+                        cast(:project as text) is null and :user in (
                             select P1.username from app_store.permissions as P1 where P1.application_name = A.name
                         )
                     ) or (
-                        :project is not null and exists (
+                        cast(:project as text) is not null and exists (
                             select P2.project_group from app_store.permissions as P2 where
                                 P2.application_name = A.name and
-                                    P2.project = :project and
+                                    P2.project = cast(:project as text) and
                                     P2.project_group in (:groups)
                         )
                     ) or (
@@ -162,7 +162,7 @@ class ApplicationHibernateDAO(
         )
             .setParameter("user", user.username)
             .setParameter("role", user.role)
-            .setParameter("project", project ?: "")
+            .setParameter("project", project)
             .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
@@ -201,14 +201,14 @@ class ApplicationHibernateDAO(
                 (
                     A.is_public = TRUE
                 ) or (
-                    :project is null and :user in (
+                    cast(:project as text) is null and :user in (
                         select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                     )
                 ) or (
-                    :project is not null and exists (
+                    cast(:project as text) is not null and exists (
                         select P2.project_group from {h-schema}permissions as P2 where
                             P2.application_name = A.name and
-                                P2.project = :project and
+                                P2.project = cast(:project as text) and
                                 P2.project_group in (:groups)
                     )
                 ) or (
@@ -218,7 +218,7 @@ class ApplicationHibernateDAO(
             """.trimIndent(), TagEntity::class.java
         )
             .setParameter("user", user.username)
-            .setParameter("project", project ?: "")
+            .setParameter("project", project)
             .setParameterList("groups", memberGroups)
             .setParameterList("tags", tags)
             .setParameter("role", user.role)
@@ -247,14 +247,14 @@ class ApplicationHibernateDAO(
                 (
                     A.is_public = TRUE
                 ) or (
-                    :project is null and :user in (
+                    cast(:project as text) is null and :user in (
                         select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                     )
                 ) or (
-                    :project is not null and exists (
+                    cast(:project as text) is not null and exists (
                         select P2.project_group from {h-schema}permissions as P2 where
                             P2.application_name = A.name and
-                                P2.project = :project and
+                                P2.project = cast(:project as text) and
                                 P2.project_group in (:groups)
                     )
                 ) or (
@@ -265,7 +265,7 @@ class ApplicationHibernateDAO(
         )
             .setParameterList("applications", applicationNames)
             .setParameter("user", user.username)
-            .setParameter("project", project ?: "")
+            .setParameter("project", project)
             .setParameterList("groups", memberGroups)
             .setParameter("role", user.role)
             .setParameterList("privileged", Roles.PRIVILEDGED)
@@ -285,14 +285,14 @@ class ApplicationHibernateDAO(
                     (
                         A.is_public = TRUE
                     ) or (
-                        :project is null and :user in (
+                        cast(:project as text) is null and :user in (
                             select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                         )
                     ) or (
-                        :project is not null and exists (
+                        cast(:project as text) is not null and exists (
                             select P2.project_group from {h-schema}permissions as P2 where
                                 P2.application_name = A.name and
-                                P2.project = :project and
+                                P2.project = cast(:project as text) and
                                 P2.project_group in (:groups)
                         )
                     ) or (
@@ -304,7 +304,7 @@ class ApplicationHibernateDAO(
             )
                 .setParameterList("applications", applicationNames)
                 .setParameter("user", user.username)
-                .setParameter("project", project ?: "")
+                .setParameter("project", project)
                 .setParameterList("groups", memberGroups)
                 .setParameter("role", user.role)
                 .setParameterList("privileged", Roles.PRIVILEDGED)
@@ -376,7 +376,7 @@ class ApplicationHibernateDAO(
             return doSearch(session, user, currentProject, projectGroups, trimmedNormalizedQuery, paging)
         }
         val firstTenKeywords = keywords.filter { !it.isBlank() }.take(10)
-        return doMultiKeywordSearch(session, user, firstTenKeywords, paging)
+        return doMultiKeywordSearch(session, user, currentProject, projectGroups, firstTenKeywords, paging)
     }
 
     override fun multiKeywordsearch(
@@ -392,6 +392,8 @@ class ApplicationHibernateDAO(
         return createMultiKeyWordApplicationEntityQuery(
             session,
             user,
+            currentProject,
+            projectGroups,
             keywords,
             keywordsQuery
         ).resultList
@@ -414,9 +416,17 @@ class ApplicationHibernateDAO(
     private fun createMultiKeyWordApplicationEntityQuery(
         session: HibernateSession,
         user: SecurityPrincipal,
+        project: String?,
+        projectGroups: List<String>,
         keywords: List<String>,
         keywordsQuery: String
     ): Query<ApplicationEntity> {
+        val groups = if (projectGroups.isEmpty()) {
+            listOf("")
+        } else {
+            projectGroups
+        }
+
         return session.typedQuery<ApplicationEntity>(
             """
                 from ApplicationEntity as A
@@ -425,13 +435,26 @@ class ApplicationHibernateDAO(
                     from ApplicationEntity as B
                     where A.title = B.title
                     group by title
-                ) and $keywordsQuery and
-                (A.isPublic = true or :user in (
-                    select P.key.user from PermissionEntry as P where P.key.applicationName = A.id.name
-                ) or :role in (:privileged))
-                order by A.title
+                ) and $keywordsQuery and (
+                    (A.isPublic = true or (
+                        cast(:project as text) is null and :user in (
+                            select P.key.user from PermissionEntry as P where P.key.applicationName = A.id.name
+                        )
+                    ) or (
+                        cast(:project as text) is not null and exists (
+                            select P2.key.group from PermissionEntry as P2 where
+                                P2.key.applicationName = A.id.name and
+                                P2.key.project = cast(:project as text) and
+                                P2.key.group in :groups
+                        ) or :role in (:privileged)
+                    )
+                )
+            )
+            order by A.title
             """.trimIndent()
         ).setParameter("user", user.username)
+            .setParameter("project", project)
+            .setParameter("groups", groups)
             .setParameter("role", user.role)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .also {
@@ -444,9 +467,16 @@ class ApplicationHibernateDAO(
     private fun doMultiKeywordSearch(
         session: HibernateSession,
         user: SecurityPrincipal,
+        project: String?,
+        projectGroups: List<String>,
         keywords: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
+        val groups = if (projectGroups.isEmpty()) {
+            listOf("")
+        } else {
+            projectGroups
+        }
 
         val keywordsQuery = createKeywordQuery(keywords)
         val count = session.typedQuery<Long>(
@@ -460,14 +490,14 @@ class ApplicationHibernateDAO(
                 group by title
             ) and $keywordsQuery and (
                 (A.isPublic = true or (
-                    :project is null and :user in (
+                    cast(:project as text) is null and :user in (
                         select P.key.user from PermissionEntry as P where P.key.applicationName = A.id.name
                     )
                 ) or (
-                    :project is not null and exists (
+                    cast(:project as text) is not null and exists (
                         select P2.key.group from PermissionEntry as P2 where
                             P2.key.applicationName = A.id.name and
-                            P2.key.project = :project and
+                            P2.key.project = cast(:project as text) and
                             P2.key.group in :groups
                         ) or :role in (:privileged)
                     )
@@ -475,6 +505,8 @@ class ApplicationHibernateDAO(
             )
             """.trimIndent()
         ).setParameter("user", user.username)
+            .setParameter("project", project)
+            .setParameter("groups", groups)
             .setParameter("role", user.role)
             .setParameterList("privileged", Roles.PRIVILEDGED).also {
                 for ((i, item) in keywords.withIndex()) {
@@ -485,6 +517,8 @@ class ApplicationHibernateDAO(
         val items = createMultiKeyWordApplicationEntityQuery(
             session,
             user,
+            project,
+            groups,
             keywords,
             keywordsQuery
         ).paginatedList(paging)
@@ -529,14 +563,14 @@ class ApplicationHibernateDAO(
                     (
                         A.is_public = TRUE
                     ) or (
-                        :project is null and :user in (
+                        cast(:project as text) is null and :user in (
                             select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                         )
                     ) or (
-                        :project is not null and exists (
+                        cast(:project as text) is not null and exists (
                             select P2.project_group from {h-schema}permissions as P2 where
                                 P2.application_name = A.name and
-                                P2.project = :project and
+                                P2.project = cast(:project as text) and
                                 P2.project_group in (:groups)
                         )
                     ) or (
@@ -553,6 +587,8 @@ class ApplicationHibernateDAO(
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .singleResult.toInt()
 
+        println(count)
+
         val items = session.createNativeQuery<ApplicationEntity>(
             """
                select * from {h-schema}applications as A
@@ -565,14 +601,14 @@ class ApplicationHibernateDAO(
                    (
                        A.is_public = TRUE
                    ) or (
-                       :project is null and :user in (
+                       cast(:project as text) is null and :user in (
                            select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                        )
                    ) or (
-                       :project is not null and exists (
+                       cast(:project as text) is not null and exists (
                            select P2.project_group from {h-schema}permissions as P2 where
                                P2.application_name = A.name and
-                               P2.project = :project and
+                               P2.project = cast(:project as text) and
                                P2.project_group in (:groups)
                        )
                    ) or (
@@ -662,14 +698,14 @@ class ApplicationHibernateDAO(
                         (
                             A.is_public = TRUE
                         ) or (
-                            :project is null and :user in (
+                            cast(:project as text) is null and :user in (
                                 select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                             )
                         ) or (
-                            :project is not null and exists (
+                            cast(:project as text) is not null and exists (
                                 select P2.project_group from {h-schema}permissions as P2 where
                                     P2.application_name = A.name and
-                                    P2.project = :project and
+                                    P2.project = cast(:project as text) and
                                     P2.project_group in (:groups)
                             )
                         ) or (
@@ -680,7 +716,7 @@ class ApplicationHibernateDAO(
                 """.trimIndent(), ApplicationEntity::class.java
             ).setParameter("user", user?.username ?: "")
                 .setParameter("name", appName)
-                .setParameter("project", currentProject ?: "")
+                .setParameter("project", currentProject)
                 .setParameterList("groups", groups)
                 .setParameter("role", user?.role ?: Role.UNKNOWN)
                 .setParameterList("privileged", Roles.PRIVILEDGED)
@@ -852,14 +888,14 @@ class ApplicationHibernateDAO(
                         (
                             B.is_public = TRUE
                         ) or (
-                            :project is null and :user in (
+                            cast(:project as text) is null and :user in (
                                 select P1.username from {h-schema}permissions as P1 where P1.application_name = B.name
                             )
                         ) or (
-                            :project is not null and exists (
+                            cast(:project as text) is not null and exists (
                                 select P2.project_group from {h-schema}permissions as P2 where
                                     P2.application_name = B.name and
-                                        P2.project = :project and
+                                        P2.project = cast(:project as text) and
                                         P2.project_group in (:groups)
                             )
                         ) or (
@@ -870,7 +906,7 @@ class ApplicationHibernateDAO(
             """.trimIndent(), ApplicationEntity::class.java
         ).setParameter("user", userString)
             .setParameter("role", cleanRole)
-            .setParameter("project", currentProject ?: "")
+            .setParameter("project", currentProject)
             .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .list().size
@@ -884,14 +920,14 @@ class ApplicationHibernateDAO(
                          (
                              B.is_public = TRUE
                          ) or (
-                             :project is null and :user in (
+                             cast(:project as text) is null and :user in (
                                  select P1.username from app_store.permissions as P1 where P1.application_name = B.name
                              )
                          ) or (
-                             :project is not null and exists (
+                             cast(:project as text) is not null and exists (
                                  select P2.project_group from app_store.permissions as P2 where
                                      P2.application_name = B.name and
-                                         P2.project = :project and
+                                         P2.project = cast(:project as text) and
                                          P2.project_group in (:groups)
                              )
                          ) or (
@@ -904,7 +940,7 @@ class ApplicationHibernateDAO(
             """.trimIndent(), ApplicationEntity::class.java
         ).setParameter("user", userString)
             .setParameter("role", cleanRole)
-            .setParameter("project", currentProject ?: "")
+            .setParameter("project", currentProject)
             .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
@@ -1272,14 +1308,14 @@ class ApplicationHibernateDAO(
                     (
                         A.is_public = TRUE
                     ) or (
-                        :project is null and :user in (
+                        cast(:project as text) is null and :user in (
                             select P1.username from app_store.permissions as P1 where P1.application_name = A.name
                         )
                     ) or (
-                        :project is not null and exists (
+                        cast(:project as text) is not null and exists (
                             select P2.project_group from app_store.permissions as P2 where
                                 P2.application_name = A.name and
-                                P2.project = :project and
+                                P2.project = cast(:project as text) and
                                 P2.project_group in (:groups)
                         )
                     ) or (
@@ -1291,7 +1327,7 @@ class ApplicationHibernateDAO(
             .setParameter("toolName", tool)
             .setParameter("user", user.username)
             .setParameter("role", user.role)
-            .setParameter("project", project ?: "")
+            .setParameter("project", project)
             .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .resultList.size
@@ -1309,16 +1345,16 @@ class ApplicationHibernateDAO(
                         (
                             A.is_public = TRUE
                         ) or (
-                            :project is null and :user in (
+                            cast(:project as text) is null and :user in (
                                 select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
                             )
                         ) or (
-                            :project is not null and exists (
+                            cast(:project as text) is not null and exists (
                                 select P2.project_group
                                 from {h-schema}permissions as P2
                                 where
                                     P2.application_name = A.name and
-                                    P2.project = :project and
+                                    P2.project = cast(:project as text) and
                                     P2.project_group in (:groups)
                             )
                         ) or (
@@ -1331,7 +1367,7 @@ class ApplicationHibernateDAO(
             .setParameter("toolName", tool)
             .setParameter("user", user.username)
             .setParameter("role", user.role)
-            .setParameter("project", project ?: "")
+            .setParameter("project", project)
             .setParameterList("groups", groups)
             .setParameterList("privileged", Roles.PRIVILEDGED)
             .paginatedList(paging)
