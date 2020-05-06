@@ -89,6 +89,11 @@ function Notifications(props: Notifications): JSX.Element {
                 reload();
                 history.push("/shares");
                 break;
+
+            case "PROJECT_INVITE":
+                reload();
+                history.push("/projects");
+                break;
         }
     }
 
@@ -207,6 +212,8 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
                 return {name: "projects", color: "black", color2: "black"};
             case "SHARE_REQUEST":
                 return {name: "share", color: "black", color2: "black"};
+            case "PROJECT_INVITE":
+                return {name: "projects", color: "black", color2: "black"};
             case "APP_COMPLETE":
             default:
                 return {name: "info", color: "white", color2: "black"};
