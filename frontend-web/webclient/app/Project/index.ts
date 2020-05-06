@@ -2,6 +2,8 @@ import {APICallParameters} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Page, PaginationRequest} from "Types";
 import {Client} from "Authentication/HttpClientInstance";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {errorMessageOrDefault} from "UtilityFunctions";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -190,6 +192,7 @@ export interface UserInProject {
     title: string;
     whoami: ProjectMember;
     needsVerification: boolean;
+    favorite: boolean;
 }
 
 export interface UserGroupSummary {
@@ -198,8 +201,7 @@ export interface UserGroupSummary {
     username: string;
 }
 
-// TODO This is a service only API. We need a gateway API which is responsible for also creating a data management plan
-export const createProject = (payload: {title: string; principalInvestigator: string}): APICallParameters => ({
+export const createProject = (payload: {title: string;}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,
@@ -264,3 +266,17 @@ export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined
     if (member === undefined) return undefined;
     return member.role;
 };
+
+
+export interface ToggleProjectFavorite{
+    projectId: string;
+}
+
+export function toggleFavoriteProject(request: ToggleProjectFavorite): APICallParameters<ToggleProjectFavorite> {
+    return {
+        method: "POST",
+        path: "/projects/favorite",
+        parameters: request,
+        payload: request
+    };
+}

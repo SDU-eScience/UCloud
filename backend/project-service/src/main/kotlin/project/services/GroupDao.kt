@@ -33,498 +33,525 @@ object GroupMembershipTable : SQLTable("group_members") {
 }
 
 class GroupDao {
-    suspend fun createGroup(session: AsyncDBConnection, project: String, group: String) {
-        session.insert(GroupTable) {
-            set(GroupTable.project, project)
-            set(GroupTable.group, group)
+    suspend fun createGroup(ctx: DBContext, project: String, group: String) {
+        ctx.withSession { session ->
+            session.insert(GroupTable) {
+                set(GroupTable.project, project)
+                set(GroupTable.group, group)
+            }
         }
     }
 
-    suspend fun deleteGroups(session: AsyncDBConnection, project: String, groups: Set<String>) {
-        session.sendPreparedStatement(
-            {
-                setParameter("project", project)
-                setParameter("groups", groups.toList())
-            },
-            """
-                delete from group_members
-                where
-                    project = ?project and
-                    the_group in (select * from unnest(?groups::text[]))
-            """
-        )
-
-        session.sendPreparedStatement(
-            {
-                setParameter("project", project)
-                setParameter("groups", groups.toList())
-            },
-
-            """
-                delete from groups
-                where 
-                    project = ?project and   
-                    the_group in (select * from unnest(?groups::text[]))
-            """
-        )
-    }
-
-    suspend fun listGroups(
-        session: AsyncDBConnection,
-        project: String,
-        requestedBy: ProjectMember
-    ): List<String> {
-        return session
-            .sendPreparedStatement(
+    suspend fun deleteGroups(ctx: DBContext, project: String, groups: Set<String>) {
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
                 {
                     setParameter("project", project)
-                    setParameter("userIsAdmin", requestedBy.role.isAdmin())
-                    setParameter("username", requestedBy.username)
-                },
-
-                """
-                    select the_group
-                    from groups g
-                    where 
-                        g.project = ?project and
-                        check_group_acl(?username, ?userIsAdmin, g.the_group)
-                    order by g.the_group
-                """
-            )
-            .rows
-            .map { it.getString(0)!! }
-    }
-
-    suspend fun addMemberToGroup(
-        session: AsyncDBConnection,
-        project: String,
-        username: String,
-        group: String
-    ) {
-        session.insert(GroupMembershipTable) {
-            set(GroupMembershipTable.group, group)
-            set(GroupMembershipTable.project, project)
-            set(GroupMembershipTable.username, username)
-        }
-    }
-
-    suspend fun removeMemberFromGroup(
-        session: AsyncDBConnection,
-        project: String,
-        username: String,
-        group: String
-    ) {
-        session
-            .sendPreparedStatement(
-                {
-                    setParameter("username", username)
-                    setParameter("project", project)
-                    setParameter("group", group)
+                    setParameter("groups", groups.toList())
                 },
                 """
                     delete from group_members
                     where
-                        username = ?username and
                         project = ?project and
-                        the_group = ?group
+                        the_group in (select * from unnest(?groups::text[]))
                 """
             )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                    setParameter("groups", groups.toList())
+                },
+
+                """
+                    delete from groups
+                    where 
+                        project = ?project and   
+                        the_group in (select * from unnest(?groups::text[]))
+                """
+            )
+        }
+    }
+
+    suspend fun listGroups(
+        ctx: DBContext,
+        project: String,
+        requestedBy: ProjectMember
+    ): List<String> {
+        ctx.withSession { session ->
+            return session
+                .sendPreparedStatement(
+                    {
+                        setParameter("project", project)
+                        setParameter("userIsAdmin", requestedBy.role.isAdmin())
+                        setParameter("username", requestedBy.username)
+                    },
+
+                    """
+                        select the_group
+                        from groups g
+                        where 
+                            g.project = ?project and
+                            check_group_acl(?username, ?userIsAdmin, g.the_group)
+                        order by g.the_group
+                    """
+                )
+                .rows
+                .map { it.getString(0)!! }
+        }
+    }
+
+    suspend fun addMemberToGroup(
+        ctx: DBContext,
+        project: String,
+        username: String,
+        group: String
+    ) {
+        ctx.withSession { session ->
+            session.insert(GroupMembershipTable) {
+                set(GroupMembershipTable.group, group)
+                set(GroupMembershipTable.project, project)
+                set(GroupMembershipTable.username, username)
+            }
+        }
+    }
+
+    suspend fun removeMemberFromGroup(
+        ctx: DBContext,
+        project: String,
+        username: String,
+        group: String
+    ) {
+        ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", username)
+                        setParameter("project", project)
+                        setParameter("group", group)
+                    },
+                    """
+                        delete from group_members
+                        where
+                            username = ?username and
+                            project = ?project and
+                            the_group = ?group
+                    """
+                )
+        }
     }
 
     suspend fun listGroupMembers(
-        session: AsyncDBConnection,
+        ctx: DBContext,
         pagination: NormalizedPaginationRequest,
         project: String,
         groupFilter: String?,
         requestedBy: ProjectMember
     ): Page<UserGroupSummary> {
-        val count = session
-            .sendPreparedStatement(
-                {
-                    setParameter("project", project)
-                    setParameter("group", groupFilter ?: "")
-                    setParameter("userIsAdmin", requestedBy.role.isAdmin())
-                    setParameter("username", requestedBy.username)
-                },
-                """
-                    select count(*) 
-                    from group_members 
-                    where 
-                        project = ?project and
-                        (?group = '' or the_group = ?group) and
-                        check_group_acl(?username, ?userIsAdmin, ?group)
-                """
-            )
-            .rows
-            .map { it.getLong(0)!!.toInt() }
-            .singleOrNull() ?: 0
-
-        val items = session
-            .sendPreparedStatement(
-                {
-                    setParameter("project", project)
-                    setParameter("group", groupFilter ?: "")
-                    setParameter("limit", pagination.itemsPerPage)
-                    setParameter("offset", pagination.offset)
-                    setParameter("userIsAdmin", requestedBy.role.isAdmin())
-                    setParameter("username", requestedBy.username)
-                },
-                """
-                    select *
-                    from group_members
-                    where
-                        project = ?project and 
-                        (?group = '' or the_group = ?group) and
-                        check_group_acl(?username, ?userIsAdmin, ?group)
-                    order by
-                        project, the_group, username
-                    limit ?limit
-                    offset ?offset
-                """
-            )
-            .rows
-            .map { it.toUserGroupSummary() }
-
-        return Page(count, pagination.itemsPerPage, pagination.page, items)
-    }
-
-    suspend fun listGroupsForUser(
-        session: AsyncDBConnection,
-        pagination: NormalizedPaginationRequest?,
-        username: String,
-        projectFilter: String? = null
-    ): Page<UserGroupSummary> {
-        val items = session
-            .sendPreparedStatement(
-                {
-                    setParameter("limit", pagination?.itemsPerPage ?: Int.MAX_VALUE)
-                    setParameter("offset", if (pagination == null) 0 else pagination.itemsPerPage * pagination.page)
-                    setParameter("project", projectFilter ?: "")
-                    setParameter("username", username)
-                },
-                """
-                    select *
-                    from group_members
-                    where
-                        (?project = '' or project = ?project) and
-                        username = ?username
-                    order by
-                        project, the_group, username
-                    limit ?limit
-                    offset ?offset
-                """
-            )
-            .rows
-            .map { it.toUserGroupSummary() }
-
-        val count = if (pagination == null) {
-            items.size
-        } else {
-            session
+        ctx.withSession { session ->
+            val count = session
                 .sendPreparedStatement(
                     {
-                        setParameter("project", projectFilter ?: "")
-                        setParameter("username", username)
+                        setParameter("project", project)
+                        setParameter("group", groupFilter ?: "")
+                        setParameter("userIsAdmin", requestedBy.role.isAdmin())
+                        setParameter("username", requestedBy.username)
                     },
                     """
-                        select count(*)
-                        from group_members
-                        where
-                            (?project = '' or project = ?project) and
-                            username = ?username
+                        select count(*) 
+                        from group_members 
+                        where 
+                            project = ?project and
+                            (?group = '' or the_group = ?group) and
+                            check_group_acl(?username, ?userIsAdmin, ?group)
                     """
                 )
                 .rows
                 .map { it.getLong(0)!!.toInt() }
                 .singleOrNull() ?: 0
-        }
 
-        return Page(count, pagination?.itemsPerPage ?: count, pagination?.page ?: 0, items)
+            val items = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("project", project)
+                        setParameter("group", groupFilter ?: "")
+                        setParameter("limit", pagination.itemsPerPage)
+                        setParameter("offset", pagination.offset)
+                        setParameter("userIsAdmin", requestedBy.role.isAdmin())
+                        setParameter("username", requestedBy.username)
+                    },
+                    """
+                        select *
+                        from group_members
+                        where
+                            project = ?project and 
+                            (?group = '' or the_group = ?group) and
+                            check_group_acl(?username, ?userIsAdmin, ?group)
+                        order by
+                            project, the_group, username
+                        limit ?limit
+                        offset ?offset
+                    """
+                )
+                .rows
+                .map { it.toUserGroupSummary() }
+
+            return Page(count, pagination.itemsPerPage, pagination.page, items)
+        }
+    }
+
+    suspend fun listGroupsForUser(
+        ctx: DBContext,
+        pagination: NormalizedPaginationRequest?,
+        username: String,
+        projectFilter: String? = null
+    ): Page<UserGroupSummary> {
+        ctx.withSession { session ->
+            val items = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("limit", pagination?.itemsPerPage ?: Int.MAX_VALUE)
+                        setParameter("offset", if (pagination == null) 0 else pagination.itemsPerPage * pagination.page)
+                        setParameter("project", projectFilter ?: "")
+                        setParameter("username", username)
+                    },
+                    """
+                        select *
+                        from group_members
+                        where
+                            (?project = '' or project = ?project) and
+                            username = ?username
+                        order by
+                            project, the_group, username
+                        limit ?limit
+                        offset ?offset
+                    """
+                )
+                .rows
+                .map { it.toUserGroupSummary() }
+
+            val count = if (pagination == null) {
+                items.size
+            } else {
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("project", projectFilter ?: "")
+                            setParameter("username", username)
+                        },
+                        """
+                            select count(*)
+                            from group_members
+                            where
+                                (?project = '' or project = ?project) and
+                                username = ?username
+                        """
+                    )
+                    .rows
+                    .map { it.getLong(0)!!.toInt() }
+                    .singleOrNull() ?: 0
+            }
+
+            return Page(count, pagination?.itemsPerPage ?: count, pagination?.page ?: 0, items)
+        }
     }
 
     suspend fun listGroupsWithSummary(
-        session: AsyncDBConnection,
+        ctx: DBContext,
         project: String,
         pagination: NormalizedPaginationRequest,
         requestedBy: ProjectMember
     ): Page<GroupWithSummary> {
-        // Count how many groups there are. We will use this for pagination
-        val groupCount = session
-            .sendPreparedStatement(
-                {
-                    setParameter("project", project)
-                    setParameter("userIsAdmin", requestedBy.role.isAdmin())
-                    setParameter("username", requestedBy.username)
-                },
-                """
-                    select count(g.the_group)
-                    from groups g
-                    where
-                        g.project = ?project and
-                        check_group_acl(?username, ?userIsAdmin, g.the_group)
-                """
-            )
-            .rows
-            .map { it.getLong(0)!!.toInt() }
-            .singleOrNull() ?: 0
-
-        // We will collect results in this:
-        val groupWithSummaryByGroup = HashMap<String, GroupWithSummary>()
-        // Find all the relevant information:
-        session
-            .sendPreparedStatement(
-                {
-                    setParameter("limit", pagination.itemsPerPage)
-                    setParameter("offset", pagination.itemsPerPage * pagination.page)
-                    setParameter("project", project)
-                    setParameter("userIsAdmin", requestedBy.role.isAdmin())
-                    setParameter("username", requestedBy.username)
-                },
-                """
-                    select 
-                        group_filter.the_group,
-                        rank_filter.username,
-                        count(rank_filter.username)
-
-                    from 
-                        group_members,
-                         
-                        (
-                            select g.the_group
-                            from groups g
-                            where 
-                                project = ?project and
-                                check_group_acl(?username, ?userIsAdmin, g.the_group)
-                            limit ?limit
-                            offset ?offset
-                        ) group_filter left outer join 
-                        (
-                            select group_members.the_group,
-                                   group_members.username,
-                                   rank() over (partition by the_group order by username) as rank
-                            from group_members
-                            where group_members.project = ?project
-                        ) rank_filter on (group_filter.the_group = rank_filter.the_group)
-
-                    where 
-                        (rank <= 5
-                            and group_members.the_group = rank_filter.the_group
-                            and group_filter.the_group = rank_filter.the_group)
-                        or (rank is null)
-
-                    group by group_filter.the_group, rank_filter.username
-                    order by group_filter.the_group;
-                """.trimIndent()
-            )
-            .rows
-            .forEach { row ->
-                val groupName = row.getString(0)!!
-                val username = row.getString(1)
-                val memberCount = row.getLong(2)?.toInt()
-
-                val existingSummary = groupWithSummaryByGroup[groupName] ?: GroupWithSummary(groupName, 0, emptyList())
-
-                val newMembers = if (username != null) listOf(username) else emptyList()
-                groupWithSummaryByGroup[groupName] = existingSummary.copy(
-                    numberOfMembers = memberCount ?: 0,
-                    memberPreview = existingSummary.memberPreview + newMembers
+        ctx.withSession { session ->
+            // Count how many groups there are. We will use this for pagination
+            val groupCount = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("project", project)
+                        setParameter("userIsAdmin", requestedBy.role.isAdmin())
+                        setParameter("username", requestedBy.username)
+                    },
+                    """
+                        select count(g.the_group)
+                        from groups g
+                        where
+                            g.project = ?project and
+                            check_group_acl(?username, ?userIsAdmin, g.the_group)
+                    """
                 )
+                .rows
+                .map { it.getLong(0)!!.toInt() }
+                .singleOrNull() ?: 0
+
+            // We will collect results in this:
+            val groupWithSummaryByGroup = HashMap<String, GroupWithSummary>()
+            // Find all the relevant information:
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("limit", pagination.itemsPerPage)
+                        setParameter("offset", pagination.itemsPerPage * pagination.page)
+                        setParameter("project", project)
+                        setParameter("userIsAdmin", requestedBy.role.isAdmin())
+                        setParameter("username", requestedBy.username)
+                    },
+                    """
+                        select 
+                            group_filter.the_group,
+                            rank_filter.username,
+                            count(rank_filter.username)
+
+                        from 
+                            group_members,
+                             
+                            (
+                                select g.the_group
+                                from groups g
+                                where 
+                                    project = ?project and
+                                    check_group_acl(?username, ?userIsAdmin, g.the_group)
+                                limit ?limit
+                                offset ?offset
+                            ) group_filter left outer join 
+                            (
+                                select group_members.the_group,
+                                       group_members.username,
+                                       rank() over (partition by the_group order by username) as rank
+                                from group_members
+                                where group_members.project = ?project
+                            ) rank_filter on (group_filter.the_group = rank_filter.the_group)
+
+                        where 
+                            (rank <= 5
+                                and group_members.the_group = rank_filter.the_group
+                                and group_filter.the_group = rank_filter.the_group)
+                            or (rank is null)
+
+                        group by group_filter.the_group, rank_filter.username
+                        order by group_filter.the_group;
+                    """
+                )
+                .rows
+                .forEach { row ->
+                    val groupName = row.getString(0)!!
+                    val username = row.getString(1)
+                    val memberCount = row.getLong(2)?.toInt()
+
+                    val existingSummary =
+                        groupWithSummaryByGroup[groupName] ?: GroupWithSummary(groupName, 0, emptyList())
+
+                    val newMembers = if (username != null) listOf(username) else emptyList()
+                    groupWithSummaryByGroup[groupName] = existingSummary.copy(
+                        numberOfMembers = memberCount ?: 0,
+                        memberPreview = existingSummary.memberPreview + newMembers
+                    )
+                }
+
+            if (groupWithSummaryByGroup.isEmpty() && groupCount != 0) {
+                // The above query doesn't work if _no_ group members exist (of any project)
+                // This block deals with this edge case. TODO Just deal with it in the query.
+
+                log.warn("Mismatch between number of groups")
+                return listGroups(session, project, requestedBy)
+                    .paginate(pagination)
+                    .mapItems { GroupWithSummary(it, 0, emptyList()) }
             }
 
-        if (groupWithSummaryByGroup.isEmpty() && groupCount != 0) {
-            // The above query doesn't work if _no_ group members exist (of any project)
-            // This block deals with this edge case. TODO Just deal with it in the query.
-
-            log.warn("Mismatch between number of groups")
-            return listGroups(session, project, requestedBy)
-                .paginate(pagination)
-                .mapItems { GroupWithSummary(it, 0, emptyList()) }
+            return Page(
+                groupCount,
+                pagination.itemsPerPage,
+                pagination.page,
+                groupWithSummaryByGroup.values.toList()
+            )
         }
-
-        return Page(
-            groupCount,
-            pagination.itemsPerPage,
-            pagination.page,
-            groupWithSummaryByGroup.values.toList()
-        )
     }
 
     suspend fun searchForMembers(
-        session: AsyncDBConnection,
+        ctx: DBContext,
         project: String,
         query: String,
         notInGroup: String?,
         pagination: NormalizedPaginationRequest
     ): Page<ProjectMember> {
-        // TODO This gets quite ugly because we need to order by which paginated query doesn't currently support
-        val parameters: EnhancedPreparedStatement.() -> Unit = {
-            setParameter("project", project)
-            setParameter("usernameQuery", "%${query}%")
-            if (notInGroup != null) {
-                setParameter("notInGroup", notInGroup)
+        ctx.withSession { session ->
+            // TODO This gets quite ugly because we need to order by which paginated query doesn't currently support
+            val parameters: EnhancedPreparedStatement.() -> Unit = {
+                setParameter("project", project)
+                setParameter("usernameQuery", "%${query}%")
+                if (notInGroup != null) {
+                    setParameter("notInGroup", notInGroup)
+                }
             }
-        }
 
-        val baseQuery = if (notInGroup == null) {
-            """
-                from project_members pm
-                where
-                      pm.project_id = ?project and
-                      pm.username ilike ?usernameQuery
-            """
-        } else {
-            """
-                from project_members pm
-                where
-                pm.project_id = ?project and
-                pm.username ilike ?usernameQuery and
-                pm.username not in (
-                    select pm.username
-                        from group_members gm
-                        where
-                        gm.project = pm.project_id and
-                        gm.the_group = ?notInGroup and
-                        gm.username = pm.username
-                )
-            """
-        }
-
-        val itemsInTotal = session.sendPreparedStatement(
-            parameters,
-            "select count(*) $baseQuery"
-        ).rows.singleOrNull()?.getLong(0) ?: 0
-
-        val items = session.sendPreparedStatement(
-            {
-                parameters()
-                setParameter("limit", pagination.itemsPerPage)
-                setParameter("offset", pagination.itemsPerPage * pagination.page)
-            },
-            """
-                select * $baseQuery 
-                order by role, created_at
-                limit ?limit offset ?offset
-            """
-        )
-
-        return Page(
-            itemsInTotal.toInt(),
-            pagination.itemsPerPage,
-            pagination.page,
-            items.rows.map {  row ->
-                val username = row.getString("username")!!
-                val role = row.getString("role")!!.let { ProjectRole.valueOf(it) }
-                ProjectMember(username, role)
+            val baseQuery = if (notInGroup == null) {
+                """
+                    from project_members pm
+                    where
+                          pm.project_id = ?project and
+                          pm.username ilike ?usernameQuery
+                """
+            } else {
+                """
+                    from project_members pm
+                    where
+                    pm.project_id = ?project and
+                    pm.username ilike ?usernameQuery and
+                    pm.username not in (
+                        select pm.username
+                            from group_members gm
+                            where
+                            gm.project = pm.project_id and
+                            gm.the_group = ?notInGroup and
+                            gm.username = pm.username
+                    )
+                """
             }
-        )
+
+            val itemsInTotal = session.sendPreparedStatement(
+                parameters,
+                "select count(*) $baseQuery"
+            ).rows.singleOrNull()?.getLong(0) ?: 0
+
+            val items = session.sendPreparedStatement(
+                {
+                    parameters()
+                    setParameter("limit", pagination.itemsPerPage)
+                    setParameter("offset", pagination.itemsPerPage * pagination.page)
+                },
+                """
+                    select * $baseQuery 
+                    order by role, created_at
+                    limit ?limit offset ?offset
+                """
+            )
+
+            return Page(
+                itemsInTotal.toInt(),
+                pagination.itemsPerPage,
+                pagination.page,
+                items.rows.map { row ->
+                    val username = row.getString("username")!!
+                    val role = row.getString("role")!!.let { ProjectRole.valueOf(it) }
+                    ProjectMember(username, role)
+                }
+            )
+        }
     }
 
     suspend fun renameGroup(
-        session: AsyncDBConnection,
+        ctx: DBContext,
         projectId: String,
         oldGroupName: String,
         newGroupName: String
     ) {
-        createGroup(session, projectId, newGroupName)
+        ctx.withSession { session ->
+            createGroup(session, projectId, newGroupName)
 
-        session
-            .sendPreparedStatement(
-                {
-                    setParameter("newGroup", newGroupName)
-                    setParameter("oldGroup", oldGroupName)
-                    setParameter("project", projectId)
-                },
-                """
-                    update group_members  
-                    set the_group = ?newGroup
-                    where
-                        the_group = ?oldGroup and
-                        project = ?project
-                """
-            )
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("newGroup", newGroupName)
+                        setParameter("oldGroup", oldGroupName)
+                        setParameter("project", projectId)
+                    },
+                    """
+                        update group_members  
+                        set the_group = ?newGroup
+                        where
+                            the_group = ?oldGroup and
+                            project = ?project
+                    """
+                )
 
-        deleteGroups(session, projectId, setOf(oldGroupName))
+            deleteGroups(session, projectId, setOf(oldGroupName))
+        }
     }
 
     suspend fun isMemberQuery(
-        session: AsyncDBConnection,
+        ctx: DBContext,
         queries: List<IsMemberQuery>
     ): List<Boolean> {
-        val response = ArrayList<Boolean>()
-        repeat(queries.size) {
-            response.add(false)
-        }
-
-        session
-            .sendPreparedStatement(
-                {
-                    setParameter("projects", queries.map { it.project })
-                    setParameter("groups", queries.map { it.group })
-                    setParameter("usernames", queries.map { it.username })
-                },
-                """
-                    select *
-                    from group_members gm
-                    where
-                        (gm.project, gm.the_group, gm.username) in (
-                            select
-                                unnest(?projects::text[]),
-                                unnest(?groups::text[]),
-                                unnest(?usernames::text[])
-                        )
-                """
-            )
-            .rows
-            .map { it.toUserGroupSummary() }
-            .forEach { row ->
-                val idx = queries.indexOfFirst {
-                    it.group == row.group && it.project == row.projectId && it.username == row.username
-                }
-
-                if (idx == -1) {
-                    log.warn("Could not find matching row in query. This probably shouldn't happen!")
-                    log.warn("row = $row, queries = $queries")
-                } else {
-                    response[idx] = true
-                }
+        ctx.withSession { session ->
+            val response = ArrayList<Boolean>()
+            repeat(queries.size) {
+                response.add(false)
             }
 
-        return response
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projects", queries.map { it.project })
+                        setParameter("groups", queries.map { it.group })
+                        setParameter("usernames", queries.map { it.username })
+                    },
+                    """
+                        select *
+                        from group_members gm
+                        where
+                            (gm.project, gm.the_group, gm.username) in (
+                                select
+                                    unnest(?projects::text[]),
+                                    unnest(?groups::text[]),
+                                    unnest(?usernames::text[])
+                            )
+                    """
+                )
+                .rows
+                .map { it.toUserGroupSummary() }
+                .forEach { row ->
+                    val idx = queries.indexOfFirst {
+                        it.group == row.group && it.project == row.projectId && it.username == row.username
+                    }
+
+                    if (idx == -1) {
+                        log.warn("Could not find matching row in query. This probably shouldn't happen!")
+                        log.warn("row = $row, queries = $queries")
+                    } else {
+                        response[idx] = true
+                    }
+                }
+
+            return response
+        }
     }
 
-    suspend fun exists(session: AsyncDBConnection, project: String, group: String): Boolean {
-        return session
-            .sendPreparedStatement(
-                {
-                    setParameter("group", group)
-                    setParameter("project", project)
-                },
-                """
-                    select *
-                    from groups
-                    where
-                        the_group = ?group and
-                        project = ?project
-                """
-            )
-            .rows
-            .size > 0
+    suspend fun exists(ctx: DBContext, project: String, group: String): Boolean {
+        ctx.withSession { session ->
+            return session
+                .sendPreparedStatement(
+                    {
+                        setParameter("group", group)
+                        setParameter("project", project)
+                    },
+                    """
+                        select *
+                        from groups
+                        where
+                            the_group = ?group and
+                            project = ?project
+                    """
+                )
+                .rows
+                .size > 0
+        }
     }
 
-    suspend fun removeMember(session: AsyncDBConnection, project: String, username: String) {
-        session
-            .sendPreparedStatement(
-                {
-                    setParameter("username", username)
-                    setParameter("project", project)
-                },
-                """
-                    delete from group_members
-                    where
-                        username = ?username and
-                        project = ?project
-                """
-            )
+    suspend fun removeMember(ctx: DBContext, project: String, username: String) {
+        ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", username)
+                        setParameter("project", project)
+                    },
+                    """
+                        delete from group_members
+                        where
+                            username = ?username and
+                            project = ?project
+                    """
+                )
+        }
     }
 
     private fun RowData.toUserGroupSummary(): UserGroupSummary =

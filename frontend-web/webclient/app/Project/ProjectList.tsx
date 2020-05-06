@@ -1,8 +1,8 @@
-import {useCloudAPI} from "Authentication/DataHook";
+import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {emptyPage, ReduxObject, KeyCode} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
-import {listProjects, ListProjectsRequest, UserInProject, ProjectRole} from "Project/index";
+import {listProjects, ListProjectsRequest, UserInProject, ProjectRole, createProject} from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
@@ -16,14 +16,13 @@ import {ListRow} from "ui-components/List";
 import {useHistory} from "react-router";
 import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
-import {projectRoleToString} from "Project";
+import {projectRoleToString, toggleFavoriteProject} from "Project";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {toggleFavoriteProject} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
-import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
+import {stopPropagation} from "UtilityFunctions";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {ThemeColor} from "ui-components/theme";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {useEffect} from "react";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & { project?: string }> = props => {
@@ -32,45 +31,26 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
         emptyPage
     );
 
-    const promises = usePromiseKeeper();
-    const [favorites, setFavorites] = React.useState<Page<string>>(emptyPage);
-
-    async function fetchFavorites(itemsPerPage: number, page: number): Promise<void> {
-        try {
-            const r = await promises.makeCancelable(Client.post<Page<string>>("/project/favorite/list", {
-                page,
-                itemsPerPage
-            })).promise;
-            setFavorites(r.response);
-        } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed fetching favorites"), false);
-        }
-    }
-
-    React.useEffect(() => {
-        fetchFavorites(response.data.itemsPerPage, response.data.pageNumber);
-    }, [response.data.items, response.data.pageNumber, response.data.itemsPerPage]);
-
     const [creatingProject, setCreatingProject] = React.useState(false);
     const title = React.useRef<HTMLInputElement>(null);
     const [selectedProjects, setSelectedProjects] = React.useState(new Set());
+    const [commandLoading, runCommand] = useAsyncCommand();
 
-    React.useEffect(() => {
+    useEffect(() => {
         props.setLoading(response.loading);
     }, [response.loading]);
 
     const history = useHistory();
 
     const reload = (): void => {
-        fetchFavorites(response.data.itemsPerPage, response.data.pageNumber);
         setFetchParams(listProjects({page: response.data.pageNumber, itemsPerPage: response.data.itemsPerPage}));
     };
 
-    React.useEffect(() => {
+    useEffect(() => {
         props.setPageTitle();
     }, []);
 
-    React.useEffect(() => {
+    useEffect(() => {
         props.setRefresh(reload);
         return () => props.setRefresh();
     }, [reload]);
@@ -110,7 +90,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                 color={"midGray"}
                                 hoverColor="blue"
                             />}
-                            left={<form onSubmit={createProject}><Input
+                            left={<form onSubmit={onCreateProject}><Input
                                 pt="0px"
                                 pb="0px"
                                 pr="0px"
@@ -138,9 +118,9 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                     <Pagination.List
                         page={response.data}
                         pageRenderer={page =>
-                            page.items.map(e => {
+                            page.items.map((e: UserInProject) => {
                                 const isActive = e.projectId === props.project;
-                                const isFavorite = favorites.items.findIndex(it => it === e.projectId) !== -1;
+                                const isFavorite = e.favorite;
                                 return (
                                     <ListRow
                                         key={e.projectId}
@@ -155,7 +135,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                             size="24"
                                             name={isFavorite ? "starFilled" : "starEmpty"}
                                             color={isFavorite ? "blue" : "midGray"}
-                                            onClick={() => toggleFavoriteProject(e.projectId, Client, reload)}
+                                            onClick={() => onToggleFavorite(e.projectId)}
                                             hoverColor="blue"
                                         />}
                                         navigate={() => {
@@ -172,8 +152,9 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                         right={<>
                                             <Flex alignItems={"center"}>
                                                 {!e.needsVerification ? null : (
-                                                    <Text fontSize={0} mr={8}><Icon name={"warning"}/> Attention
-                                                        required</Text>
+                                                    <Text fontSize={0} mr={8}>
+                                                        <Icon name={"warning"}/> Attention required
+                                                    </Text>
                                                 )}
                                                 <Icon
                                                     mr="20px"
@@ -219,7 +200,6 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                         loading={response.loading}
                         onPageChanged={newPage => {
                             setFetchParams(listProjects({page: newPage, itemsPerPage: response.data.itemsPerPage}));
-                            fetchFavorites(response.data.itemsPerPage, newPage);
                         }}
                         customEmptyPage={<div/>}
                     />
@@ -241,29 +221,24 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
         setCreatingProject(true);
     }
 
-
-    async function createProject(e: React.FormEvent): Promise<void> {
+    async function onCreateProject(e: React.FormEvent): Promise<void> {
         e.preventDefault();
-        if (response.loading) return;
-        if (title.current == null) return;
-        if (title.current.value === "") {
+        if (commandLoading) return;
+        const projectId = title.current?.value ?? "";
+        if (projectId === "") {
             snackbarStore.addInformation("Project name can't be empty.", false);
             return;
         }
 
-        try {
-            const res = await Client.post<{ id: string }>("/projects", {
-                title: title.current.value,
-                principalInvestigator: Client.username!
-            });
+        await runCommand(createProject({ title: projectId }))
+        setCreatingProject(false);
+        props.setProject(projectId);
+        history.push("/projects/view");
+    }
 
-            snackbarStore.addSuccess("Group created.", false);
-            setCreatingProject(false);
-            reload();
-            props.setProject(res.response.id);
-        } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to create project."), false);
-        }
+    async function onToggleFavorite(projectId: string) {
+        await runCommand(toggleFavoriteProject({projectId}));
+        reload();
     }
 };
 
