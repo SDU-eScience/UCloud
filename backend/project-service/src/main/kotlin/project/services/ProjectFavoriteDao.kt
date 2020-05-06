@@ -35,23 +35,17 @@ class ProjectFavoriteDao {
 
     private suspend fun isFavorite(ctx: DBContext, username: String, projectID: String): Boolean {
         return ctx.withSession { session ->
-            0L != session
+            session
                 .sendPreparedStatement(
                     {
                         setParameter("username", username)
                         setParameter("projectID", projectID)
                     },
-                    """
-                        select count(*)
-                        from project_favorite
-                        where 
-                            username = ?username and
-                            project_id = ?projectID
-                    """
+                    "select is_favorite(?username, ?projectID)"
                 )
                 .rows
-                .map { it.getLong(0) }
-                .singleOrNull()
+                .map { it.getBoolean(0)!! }
+                .single()
         }
     }
 }

@@ -3,13 +3,29 @@ import {addMemberInProject, deleteMemberInProject, ProjectRole, roleInProject} f
 import * as React from "react";
 import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {Box, Button, Flex, Icon, Input} from "ui-components";
 import {addStandardDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/View";
 import {addGroupMember} from "Project";
 import {MembersList} from "Project/MembersList";
+import styled from "styled-components";
+
+const SearchContainer = styled(Flex)`
+    flex-wrap: wrap;
+    
+    form {
+        flex-grow: 1;
+        flex-basis: 300px;
+        display: flex;
+    }
+    
+    form {
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+`;
 
 const MembersPanel: React.FunctionComponent = props => {
     const {
@@ -46,26 +62,24 @@ const MembersPanel: React.FunctionComponent = props => {
         <BreadCrumbsBase>
             <li><span>Members of {projectId}</span></li>
         </BreadCrumbsBase>
-        <Flex>
+        <SearchContainer>
             {!allowManagement ? null : (
-                <Box flexGrow={1}>
-                    <form onSubmit={onSubmit} style={{display: "flex"}}>
-                        <Input
-                            id="new-project-member"
-                            placeholder="Username"
-                            disabled={isLoading}
-                            ref={newMemberRef}
-                            onChange={e => {
-                                newMemberRef.current!.value = e.target.value;
-                            }}
-                            rightLabel
-                        />
-                        <Button attached mr={2}>Add</Button>
-                    </form>
-                </Box>
+                <form onSubmit={onSubmit}>
+                    <Input
+                        id="new-project-member"
+                        placeholder="Username"
+                        disabled={isLoading}
+                        ref={newMemberRef}
+                        onChange={e => {
+                            newMemberRef.current!.value = e.target.value;
+                        }}
+                        rightLabel
+                    />
+                    <Button attached>Add</Button>
+                </form>
             )}
 
-            <Box flexGrow={1} ml={2}>
+            <form onSubmit={preventDefault}>
                 <Input
                     id="project-member-search"
                     placeholder="Enter username to search..."
@@ -76,9 +90,9 @@ const MembersPanel: React.FunctionComponent = props => {
                     }}
                     rightLabel
                 />
-            </Box>
-            <Button attached><Icon name={"search"}/></Button>
-        </Flex>
+                <Button attached><Icon name={"search"}/></Button>
+            </form>
+        </SearchContainer>
 
         <MembersList
             members={projectMembers.data.items}

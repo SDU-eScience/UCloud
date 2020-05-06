@@ -84,7 +84,6 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                             repositoryMode: FileOperationRepositoryMode.ANY,
                             onClick: files => props.onFileSelect(files[0]),
                             disabled: files => {
-                                console.log("Checking", files);
                                 if (files.some(it => isProjectHome(it.path))) {
                                     return true;
                                 }

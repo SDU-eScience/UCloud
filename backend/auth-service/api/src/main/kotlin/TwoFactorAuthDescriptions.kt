@@ -17,7 +17,11 @@ data class Create2FACredentialsResponse(
     val challengeId: String
 )
 
-data class AnswerChallengeRequest(val challengeId: String, val verificationCode: Int)
+data class AnswerChallengeRequest(val challengeId: String, val verificationCode: Int) {
+    override fun toString(): String {
+        return "AnswerChallengeRequest(challengeId='$challengeId')"
+    }
+}
 data class TwoFactorStatusResponse(val connected: Boolean)
 
 object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.2fa") {
