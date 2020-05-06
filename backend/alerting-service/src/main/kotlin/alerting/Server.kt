@@ -118,13 +118,12 @@ class Server(
         GlobalScope.launch {
             try {
                 log.info("Alert on elastic indices count - starting up")
-                ElasticAlerting(elasticHighLevelClient, alertService).alertOnIndicesCount(elasticLowLevelClient, config)
+                ElasticAlerting(elasticHighLevelClient, alertService).alertOnIndicesCount(config)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on elastic indices count caught exception: ${ex}.")
                 alertService.createAlert(
                     Alert("WARNING: Alert on elastic indices caught exception: ${ex.stackTraceToString()}.")
                 )
-                elasticLowLevelClient.close()
                 exitProcess(1)
             }
         }
@@ -142,6 +141,5 @@ class Server(
                 exitProcess(1)
             }
         }
-
     }
 }
