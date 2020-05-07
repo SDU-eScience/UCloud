@@ -51,7 +51,6 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) : Activit
             if (call.usesAllDescendants) {
                 // Drop /home and /projects
                 val allParents = normalizedFilePath.parents().drop(1)
-
                 allParents.forEach { parent ->
                     call.jsonPathToAffectedFiles.forEach { jsonPath ->
                         query.should(
@@ -558,8 +557,14 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) : Activit
                         val startIndex = clearElement.indexOf("source=") + "source=".length
                         val sourceStartString = clearElement.substring(startIndex)
                         val path = sourceStartString.substring(0, sourceStartString.indexOf(", ")).normalize()
-                        if (path == normalizedFilePath || inUserSearch) {
+                        val allParents = normalizedFilePath.parents().drop(1)
+                        if (inUserSearch) {
                             return path
+                        }
+                        allParents.forEach { parentPath ->
+                            if (path == parentPath.normalize()) {
+                                return path
+                            }
                         }
                     }
                     return null

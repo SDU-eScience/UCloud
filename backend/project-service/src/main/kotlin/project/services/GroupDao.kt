@@ -283,10 +283,7 @@ class GroupDao {
                 .map { it.getLong(0)!!.toInt() }
                 .singleOrNull() ?: 0
 
-            // We will collect results in this:
-            val groupWithSummaryByGroup = HashMap<String, GroupWithSummary>()
-            // Find all the relevant information:
-            session
+            val items = session
                 .sendPreparedStatement(
                     {
                         setParameter("limit", pagination.itemsPerPage)
@@ -296,73 +293,26 @@ class GroupDao {
                         setParameter("username", requestedBy.username)
                     },
                     """
-                        select 
-                            group_filter.the_group,
-                            rank_filter.username,
-                            count(rank_filter.username)
-
-                        from 
-                            group_members,
-                             
-                            (
-                                select g.the_group
-                                from groups g
-                                where 
-                                    project = ?project and
-                                    check_group_acl(?username, ?userIsAdmin, g.the_group)
-                                limit ?limit
-                                offset ?offset
-                            ) group_filter left outer join 
-                            (
-                                select group_members.the_group,
-                                       group_members.username,
-                                       rank() over (partition by the_group order by username) as rank
-                                from group_members
-                                where group_members.project = ?project
-                            ) rank_filter on (group_filter.the_group = rank_filter.the_group)
-
-                        where 
-                            (rank <= 5
-                                and group_members.the_group = rank_filter.the_group
-                                and group_filter.the_group = rank_filter.the_group)
-                            or (rank is null)
-
-                        group by group_filter.the_group, rank_filter.username
-                        order by group_filter.the_group;
+                        select g.the_group, count(gm.username)
+                        from groups g left join group_members gm on g.project = gm.project and g.the_group = gm.the_group
+                        where
+                              g.project = ?project and
+                              check_group_acl(?username, ?userIsAdmin, g.the_group)
+                        group by g.the_group
+                        order by g.the_group
+                        offset ?offset
+                        limit ?limit
                     """
                 )
                 .rows
-                .forEach { row ->
+                .map { row ->
                     val groupName = row.getString(0)!!
-                    val username = row.getString(1)
-                    val memberCount = row.getLong(2)?.toInt()
+                    val memberCount = row.getLong(1)?.toInt() ?: 0
 
-                    val existingSummary =
-                        groupWithSummaryByGroup[groupName] ?: GroupWithSummary(groupName, 0, emptyList())
-
-                    val newMembers = if (username != null) listOf(username) else emptyList()
-                    groupWithSummaryByGroup[groupName] = existingSummary.copy(
-                        numberOfMembers = memberCount ?: 0,
-                        memberPreview = existingSummary.memberPreview + newMembers
-                    )
+                    GroupWithSummary(groupName, memberCount)
                 }
 
-            if (groupWithSummaryByGroup.isEmpty() && groupCount != 0) {
-                // The above query doesn't work if _no_ group members exist (of any project)
-                // This block deals with this edge case. TODO Just deal with it in the query.
-
-                log.warn("Mismatch between number of groups")
-                return listGroups(session, project, requestedBy)
-                    .paginate(pagination)
-                    .mapItems { GroupWithSummary(it, 0, emptyList()) }
-            }
-
-            return Page(
-                groupCount,
-                pagination.itemsPerPage,
-                pagination.page,
-                groupWithSummaryByGroup.values.toList()
-            )
+            return Page(groupCount, pagination.itemsPerPage, pagination.page, items)
         }
     }
 

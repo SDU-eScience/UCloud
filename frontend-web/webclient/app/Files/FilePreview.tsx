@@ -3,13 +3,13 @@ import LoadingIcon from "LoadingIcon/LoadingIcon";
 import {MainContainer} from "MainContainer/MainContainer";
 import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
-import {useLocation} from "react-router";
+import {useHistory, useLocation, useParams} from "react-router";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, Icon} from "ui-components";
+import {Box, Button, ContainerForText, Icon, Markdown} from "ui-components";
 import Error from "ui-components/Error";
 import {Spacer} from "ui-components/Spacer";
-import {downloadFiles, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
+import {downloadFiles, fileTablePage, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
 import {
     extensionFromPath,
     extensionTypeFromPath,
@@ -18,27 +18,39 @@ import {
     requestFullScreen
 } from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
+import SyntaxHighlighter from 'react-syntax-highlighter';
+import {BreadCrumbs} from "ui-components/Breadcrumbs";
+import {useAsyncCommand, useAsyncWork} from "Authentication/DataHook";
+import {buildQueryString, getQueryParam, getQueryParamOrElse} from "Utilities/URIUtilities";
+import {useEffect, useState} from "react";
+import {statFile} from "Files/LowLevelFileTable";
+import {quickLaunchCallback, quickLaunchFromParametersFile} from "Files/QuickLaunch";
 
 interface FilePreviewStateProps {
     isEmbedded?: boolean;
 }
 
-const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
+function useFileContent(){
+    const [, runCommand] = useAsyncCommand();
+    const [,, runWork] = useAsyncWork();
     const location = useLocation();
-    const [fileContent, setFileContent] = React.useState("");
-    const [error, setError] = React.useState("");
-    const [showDownloadButton, setDownloadButton] = React.useState(false);
-    const fileType = extensionTypeFromPath(filepath());
-    const promises = usePromiseKeeper();
+    const path = getQueryParamOrElse(location.search, "path", "");
+    const [error, setError] = useState<string | null>(null);
+    const [hasDownloadButton, setDownloadButton] = useState<boolean>(false);
+    const fileType = extensionTypeFromPath(path);
+    const [fileContent, setFileContent] = useState<string | null>("");
 
-    React.useEffect(() => {
-        const path = filepath();
-        if (!isExtPreviewSupported(extensionFromPath(path))) {
-            setError("Preview is not supported for file type.");
-            setDownloadButton(true);
-            return;
-        }
-        promises.makeCancelable(statFileOrNull(path)).promise.then(stat => {
+    useEffect(() => {
+        async function fetchData() {
+            if (path === null) return;
+
+            if (!isExtPreviewSupported(extensionFromPath(path))) {
+                setError("Preview is not supported for file type.");
+                setDownloadButton(true);
+                return;
+            }
+
+            const stat = await runCommand(statFile({path}));
             if (stat === null) {
                 snackbarStore.addFailure("File not found", false);
                 setError("File not found");
@@ -51,104 +63,86 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
                 setError("File size too large to preview.");
                 setDownloadButton(true);
             } else {
-                promises.makeCancelable(
-                    Client.createOneTimeTokenWithPermission("files.download:read")
-                ).promise.then((token: string) => {
-                    fetch(Client.computeURL(
-                        "/api", `/files/download?path=${encodeURIComponent(path)}&token=${encodeURIComponent(token)}`
-                    )).then(async content => {
-                        if (promises.canceledKeeper) return;
-                        switch (fileType) {
-                            case "image":
-                            case "audio":
-                            case "video":
-                            case "pdf":
-                                setFileContent(URL.createObjectURL(await content.blob()));
-                                break;
-                            case "code":
-                            case "text":
-                                setFileContent(await content.text());
-                                break;
-                            default:
-                                setError(`Preview not support for '${extensionFromPath(path)}'.`);
-                                setDownloadButton(true);
-                                break;
-                        }
-                    }).catch(it => {
-                        /* Must be solveable more elegantly */
-                        if (!it.isCanceled)
-                            setError(typeof it === "string" ? it : "An error occurred fetching file content");
-                    });
-                }).catch(it => {
-                    if (!it.isCanceled)
-                        setError(typeof it === "string" ? it : "An error occurred fetching permission");
+                let token: string = "";
+                await runWork(async () => {
+                    token = await Client.createOneTimeTokenWithPermission("files.download:read")
                 });
-            }
-        }).catch(it => {
-            if (!it.isCanceled)
-                setError(typeof it === "string" ? it : "An error occurred fetching info");
-        });
-    }, []);
 
-    function queryParams(): URLSearchParams {
-        return new URLSearchParams(location.search);
-    }
+                const content = await fetch(Client.computeURL(
+                    "/api",
+                    buildQueryString("/files/download", { path, token })
+                ));
+
+                switch (fileType) {
+                    case "image":
+                    case "audio":
+                    case "video":
+                    case "pdf":
+                        setFileContent(URL.createObjectURL(await content.blob()));
+                        break;
+                    case "code":
+                    case "text":
+                    case "application":
+                    case "markdown":
+                        setFileContent(await content.text());
+                        break;
+                    default:
+                        setError(`Preview not support for '${extensionFromPath(path)}'.`);
+                        setDownloadButton(true);
+                        break;
+                }
+            }
+        }
+
+        setFileContent(null);
+        fetchData();
+    }, [path]);
+    return {path, fileContent, hasDownloadButton, error, fileType};
+}
+
+const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
+    const {hasDownloadButton, fileContent, fileType, error, path} = useFileContent();
+    const history = useHistory();
 
     function showContent(): JSX.Element | null {
-        if (showDownloadButton) {
+        if (hasDownloadButton) {
             return (
-                <Button mt="10px" onClick={() => downloadFiles([{path: filepath()}], Client)}>
+                <Button mt="10px" onClick={() => downloadFiles([{path}], Client)}>
                     Download file
                 </Button>
             );
         } else if (error) return null;
-        else if (!fileContent) return (<LoadingIcon size={36} />);
+        else if (!fileContent) return (<LoadingIcon size={36}/>);
         switch (fileType) {
+            case "application":
+                quickLaunchFromParametersFile(fileContent, path, history);
+                return <></>;
             case "text":
             case "code":
-                /* TODO: Syntax highlighting (Google Prettify?) */
-                return <Code className="fullscreen">{fileContent}</Code>;
+                return <SyntaxHighlighter className="fullscreen">{fileContent}</SyntaxHighlighter>;
             case "image":
-                return <Img src={fileContent} className="fullscreen" />;
+                return <Img src={fileContent} className="fullscreen"/>;
             case "audio":
-                return <audio controls src={fileContent} />;
+                return <audio controls src={fileContent}/>;
             case "video":
-                return <Video src={fileContent} controls />;
+                return <Video src={fileContent} controls/>;
             case "pdf":
-                return <div><Embed className="fullscreen" src={fileContent} /></div>;
+                return <div><Embed className="fullscreen" src={fileContent}/></div>;
+            case "markdown":
+                return <Box maxWidth={"1200px"} m={"0 auto"}><Markdown>{fileContent}</Markdown></Box>;
             default:
                 return <div>Can't render content</div>;
         }
     }
 
-    function FullScreenIcon(): JSX.Element | null {
-        if (!fileContent) return null;
-        if (!["pdf", "text", "code", "image"].includes(fileType as string)) return null;
-        return (
-            <Spacer
-                left={<div />}
-                right={<ExpandingIcon mt="-60px" name="fullscreen" mb="5px" onClick={onTryFullScreen} />}
-            />
-        );
-    }
-
-    function onTryFullScreen(): void {
-        requestFullScreen(
-            document.getElementsByClassName("fullscreen")[0]!,
-            () => snackbarStore.addFailure("Failed to enter fullscreen.", false)
-        );
-    }
-
-    function filepath(): string {
-        const param = queryParams().get("path");
-        return param ? removeTrailingSlash(param) : "";
+    function onFileNavigation(newPath: string) {
+        history.push(fileTablePage(newPath));
     }
 
     if (props.isEmbedded) {
         return (
             <>
-                <Error error={error} />
-                <FullScreenIcon />
+                <Error error={error ?? undefined}/>
                 {showContent()}
             </>
         );
@@ -158,40 +152,19 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
         <MainContainer
             main={(
                 <>
-                    <Error error={error} />
-                    <Box height="50px" />
-                    <FullScreenIcon />
-                    <ContentWrapper>
-                        {showContent()}
-                    </ContentWrapper>
+                    <BreadCrumbs
+                        currentPath={path}
+                        navigate={onFileNavigation}
+                        client={Client}
+                    />
+
+                    <Error error={error ?? undefined}/>
+                    {showContent()}
                 </>
             )}
         />
     );
 };
-
-const ContentWrapper = styled.div`
-    display: flex;
-    width: 100%;
-    height: 80vh;
-    justify-items: center;
-    justify-content: center;
-    align-items: center;
-`;
-
-const ExpandingIcon = styled(Icon)`
-    &:hover {
-        transform: scale(1.05);
-        cursor: pointer;
-    }
-`;
-
-const Code = styled.code`
-    max-height: 90vh;
-    maxWidth: 90vw;
-    overflow-y: scroll;
-    white-space: pre-wrap;
-`;
 
 const Embed = styled.embed`
     width: 85vw;

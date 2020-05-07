@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "elastic-management"
-    version = "1.0.27"
+    version = "1.0.28"
 
     val deployment = withDeployment {
         injectSecret("elasticsearch-logging-cluster-credentials")
@@ -12,6 +12,7 @@ bundle {
 
     withAdHocJob(deployment, "elastic-insta-clean", { listOf("--cleanup")}) {}
 
+    withCronJob(deployment, "*/10 * * * *", listOf("--entryDelete"), name="elastic-entry-cleaner") {}
     withCronJob(deployment, "0 1 * * *", listOf("--cleanup"), name="elastic-cleanup") {}
     withCronJob(deployment, "0 3 * * 0", listOf("--reindex"), name="elastic-weekly-reindex") {}
     withCronJob(deployment, "0 4 7 * *", listOf("--monthlyReduce"), name="elastic-montly-reduce") {}

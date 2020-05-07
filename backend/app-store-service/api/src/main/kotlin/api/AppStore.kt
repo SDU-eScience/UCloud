@@ -15,18 +15,18 @@ import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
-enum class EntityType {
-    USER,
-    PROJECT_AND_GROUP
+data class AccessEntity(
+    val user: String?,
+    val project: String?,
+    val group: String?
+) {
+    init {
+        require(!user.isNullOrBlank() || (!project.isNullOrBlank() && !group.isNullOrBlank())) { "No access entity defined" }
+    }
 }
 
-data class UserEntity(
-    val id: String,
-    val type: EntityType
-)
-
 data class EntityWithPermission(
-    val entity: UserEntity,
+    val entity: AccessEntity,
     val permission: ApplicationAccessRight
 )
 
@@ -70,7 +70,7 @@ data class FavoriteRequest(
 )
 
 data class ACLEntryRequest(
-    val entity: UserEntity,
+    val entity: AccessEntity,
     val rights: ApplicationAccessRight,
     val revoke: Boolean = false
 )

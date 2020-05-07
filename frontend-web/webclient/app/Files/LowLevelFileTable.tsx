@@ -122,6 +122,13 @@ export interface ListDirectoryRequest {
     type?: FileType;
 }
 
+export const statFile = (request: { path: string }): APICallParameters<{ path: string }> => ({
+    method: "GET",
+    path: buildQueryString("/files/stat", request),
+    parameters: request,
+    reloadId: Math.random()
+});
+
 export const listDirectory = ({
     path,
     page,

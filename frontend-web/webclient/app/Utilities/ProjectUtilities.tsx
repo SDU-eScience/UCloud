@@ -2,7 +2,6 @@ import * as React from "react";
 import HttpClient from "Authentication/lib";
 import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {SnackType} from "Snackbar/Snackbars";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {AccessRight} from "Types";
 import {dialogStore} from "Dialog/DialogStore";
@@ -34,7 +33,7 @@ export function isRepository(path: string): boolean {
 export async function createRepository(client: HttpClient, name: string, reload: () => void): Promise<void> {
     try {
         await client.post("/projects/repositories", {name});
-        snackbarStore.addSuccess(`Repository ${name} created`, true);
+        snackbarStore.addSuccess(`Folder '${name}' created`, true);
         reload();
     } catch (err) {
         snackbarStore.addFailure(errorMessageOrDefault(err, "An error occurred creating."), false);
@@ -49,7 +48,7 @@ export function promptDeleteRepository(name: string, client: HttpClient, reload:
         onConfirm: async () => {
             try {
                 await client.delete("/projects/repositories", {name});
-                snackbarStore.addSuccess(`Repository ${name} deleted`, true);
+                snackbarStore.addSuccess(`Folder '${name}' deleted`, true);
                 reload();
             } catch (err) {
                 snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to delete repository."), false);
