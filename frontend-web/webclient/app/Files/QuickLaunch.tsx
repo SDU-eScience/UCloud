@@ -5,6 +5,25 @@ import {setLoading} from "Navigation/Redux/StatusActions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {hpcJobQueryPost} from "Utilities/ApplicationUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
+import {getFilenameFromPath, getParentPath, resolvePath} from "Utilities/FileUtilities";
+import {buildQueryString} from "Utilities/URIUtilities";
+
+export async function quickLaunchFromParametersFile(
+    fileContent: string,
+    path: string,
+    history: History
+): Promise<void> {
+    const {application,} = JSON.parse(fileContent);
+
+    const name = application.name;
+    const version = application.version;
+
+    if (name && version) {
+        history.push(buildQueryString(`/applications/${name}/${version}`, { paramsFile: path }));
+    } else {
+        snackbarStore.addFailure("Unable to load application", false);
+    }
+}
 
 export async function quickLaunchCallback(
     app: QuickLaunchApp,

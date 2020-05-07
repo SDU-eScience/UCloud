@@ -72,14 +72,17 @@ import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
 import {TextSpan} from "ui-components/Text";
 import Warning from "ui-components/Warning";
+import {useLocation} from "react-router";
+import {useEffect} from "react";
+import {getQueryParam, getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
     "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])\$"
 );
 
-class Run extends React.Component<RunAppProps, RunAppState> {
-    constructor(props: Readonly<RunAppProps>) {
+class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState> {
+    constructor(props: Readonly<RunAppProps & RouterLocationProps>) {
         super(props);
 
         this.state = {
@@ -116,11 +119,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
         this.state.promises.makeCancelable(this.retrieveApplication(name, version));
+
+        const paramsFile = getQueryParam(location.search, "paramsFile");
+        if (paramsFile !== null) {
+            this.fetchAndImportParameters({path: paramsFile});
+        } else {
+            console.log(paramsFile);
+        }
     }
 
     public componentWillUnmount = (): void => this.state.promises.cancelPromises();
 
-    public componentDidUpdate(prevProps: Readonly<RunAppProps>, prevState: Readonly<RunAppState>): void {
+    public componentDidUpdate(
+        prevProps: Readonly<RunAppProps & RouterLocationProps>,
+        prevState: Readonly<RunAppState>
+    ): void {
         if (prevProps.match.params.appName !== this.props.match.params.appName ||
             prevProps.match.params.appVersion !== this.props.match.params.appVersion) {
             this.state.promises.makeCancelable(
@@ -130,6 +143,14 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         if (prevState.application !== this.state.application && this.state.application !== undefined) {
             this.fetchPreviousRuns();
+        }
+
+        const paramsFile = getQueryParam(location.search, "paramsFile");
+        const prevParamsFile = getQueryParam(prevProps.location.search ?? "", "paramsFile");
+        if (paramsFile !== prevParamsFile && paramsFile !== null) {
+            this.fetchAndImportParameters({path: paramsFile});
+        } else {
+            console.log(paramsFile, prevParamsFile);
         }
     }
 
