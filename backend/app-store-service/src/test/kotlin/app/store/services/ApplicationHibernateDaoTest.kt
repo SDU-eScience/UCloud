@@ -49,7 +49,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Load from page
-                    val hits = appDAO.findAllByName(it, user, "name", NormalizedPaginationRequest(10, 0))
+                    val hits = appDAO.findAllByName(it, user, null, emptyList(), "name", NormalizedPaginationRequest(10, 0))
                     val loadedApp = hits.items.first().metadata.description
 
                     assertEquals("app description", loadedApp)
@@ -58,7 +58,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Load from specific version
-                    val loadedApp = appDAO.findByNameAndVersion(it, user, "name", "2.2")
+                    val loadedApp = appDAO.findByNameAndVersion(it, user, null, emptyList(), "name", "2.2")
                     assertEquals("app description", loadedApp.metadata.description)
                 }
 
@@ -66,7 +66,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Load from specific version after update
-                    val loadedApp = appDAO.findByNameAndVersion(it, user, "name", "2.2")
+                    val loadedApp = appDAO.findByNameAndVersion(it, user, null, emptyList(), "name", "2.2")
                     assertEquals("new description", loadedApp.metadata.description)
                     assertEquals("Authors", loadedApp.metadata.authors.first())
                 }
@@ -75,7 +75,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Load from specific version after another update
-                    val loadedApp = appDAO.findByNameAndVersion(it, user, "name", "2.2")
+                    val loadedApp = appDAO.findByNameAndVersion(it, user, null, emptyList(), "name", "2.2")
                     assertEquals("new description", loadedApp.metadata.description)
                     assertEquals("New Authors", loadedApp.metadata.authors.first())
                 }
@@ -101,7 +101,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Load from specific version
-                    val loadedApp = appDAO.findByNameAndVersionForUser(it, user, "name", "2.2")
+                    val loadedApp = appDAO.findByNameAndVersionForUser(it, user, null, emptyList(), "name", "2.2")
                     assertEquals("app description", loadedApp.metadata.description)
                 }
 
@@ -109,7 +109,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Load from specific version after update
-                    val loadedApp = appDAO.findByNameAndVersionForUser(it, user, "name", "2.2")
+                    val loadedApp = appDAO.findByNameAndVersionForUser(it, user, null, emptyList(), "name", "2.2")
                     assertEquals("new description", loadedApp.metadata.description)
                     assertEquals("Authors", loadedApp.metadata.authors.first())
                 }
@@ -129,7 +129,7 @@ class ApplicationHibernateDaoTest {
                 val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
                 run {
                     // Load from specific version
-                    val loadedApp = appDAO.findByNameAndVersionForUser(it, user, "name", "2.2")
+                    val loadedApp = appDAO.findByNameAndVersionForUser(it, user, null, emptyList(), "name", "2.2")
                     assertEquals("app description", loadedApp.metadata.description)
                 }
             }
@@ -156,7 +156,7 @@ class ApplicationHibernateDaoTest {
                 Thread.sleep(1000) // Wait a bit to make sure they get different createdAt
                 appDAO.create(it, user, version2)
 
-                val allListed = appDAO.listLatestVersion(it, user, NormalizedPaginationRequest(10, 0))
+                val allListed = appDAO.listLatestVersion(it, user, null, emptyList(), NormalizedPaginationRequest(10, 0))
                 assertEquals(1, allListed.itemsInTotal)
                 assertThatPropertyEquals(allListed.items.single(), { it.metadata.version }, version2.metadata.version)
             }
@@ -183,47 +183,47 @@ class ApplicationHibernateDaoTest {
                 appDAO.create(it, user, applicationB)
 
                 run {
-                    val searchResult = appDAO.search(it, user, "A", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, null, emptyList(), "A", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "AA", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, null, emptyList(), "AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "AAA", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, null, emptyList(), "AAA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "notPossible", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, null, emptyList(), "notPossible", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, searchResult.itemsInTotal)
                 }
                 //Spacing searches
                 run {
-                    val searchResult = appDAO.search(it, user, "AA   ", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, null, emptyList(), "AA   ", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
                 run {
-                    val searchResult = appDAO.search(it, user, "   AA", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, null, emptyList(), "   AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
                 run {
                     val searchResult =
-                        appDAO.search(it, user, "multiple one found AA", NormalizedPaginationRequest(10, 0))
+                        appDAO.search(it, user, null, emptyList(), "multiple one found AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
@@ -231,14 +231,14 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     val searchResult =
-                        appDAO.search(it, user, "   AA  A Extra    spacing   ", NormalizedPaginationRequest(10, 0))
+                        appDAO.search(it, user, null, emptyList(), "   AA  A Extra    spacing   ", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "AA BB", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, null, emptyList(), "AA BB", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(2, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
@@ -247,7 +247,7 @@ class ApplicationHibernateDaoTest {
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "  ", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, null, emptyList(), "  ", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, searchResult.itemsInTotal)
                 }
@@ -257,7 +257,7 @@ class ApplicationHibernateDaoTest {
                 appDAO.create(it, user, applicationANewVersion)
 
                 run {
-                    val searchResult = appDAO.search(it, user, "AA", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, null, emptyList(), "AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationANewVersion.metadata.title, searchResult.items.first().metadata.title)
@@ -265,7 +265,7 @@ class ApplicationHibernateDaoTest {
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, "AA BB", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appDAO.search(it, user, null, emptyList(), "AA BB", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(2, searchResult.itemsInTotal)
                     assertEquals(applicationANewVersion.metadata.title, searchResult.items.first().metadata.title)
@@ -340,7 +340,7 @@ class ApplicationHibernateDaoTest {
             db.withTransaction {
 
                 val appDAO = ApplicationHibernateDAO(ToolHibernateDAO(), AclHibernateDao())
-                appDAO.findByNameAndVersion(it, user, "name", "version")
+                appDAO.findByNameAndVersion(it, user, null, emptyList(), "name", "version")
             }
         }
     }
@@ -371,14 +371,14 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Search for no hits
-                    val hits = appDAO.searchTags(it, user, listOf("tag20"), NormalizedPaginationRequest(10, 0))
+                    val hits = appDAO.searchTags(it, user, null, emptyList(), listOf("tag20"), NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, hits.itemsInTotal)
                 }
 
                 run {
                     // Search for one hit tag
-                    val hits = appDAO.searchTags(it, user, listOf("A1"), NormalizedPaginationRequest(10, 0))
+                    val hits = appDAO.searchTags(it, user, null, emptyList(), listOf("A1"), NormalizedPaginationRequest(10, 0))
 
                     val result = hits.items.single().metadata
 
@@ -389,7 +389,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Search for multiple hit tag
-                    val hits = appDAO.searchTags(it, user, listOf(commonTag), NormalizedPaginationRequest(10, 0))
+                    val hits = appDAO.searchTags(it, user, null, emptyList(), listOf(commonTag), NormalizedPaginationRequest(10, 0))
 
                     assertEquals(2, hits.itemsInTotal)
                     assertEquals(appA.metadata.name, hits.items[0].metadata.name)
@@ -398,7 +398,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Search for empty tag. Should be empty since it is not a wildcard search
-                    val hits = appDAO.searchTags(it, user, listOf(""), NormalizedPaginationRequest(10, 0))
+                    val hits = appDAO.searchTags(it, user, null, emptyList(), listOf(""), NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, hits.itemsInTotal)
                 }
@@ -433,19 +433,19 @@ class ApplicationHibernateDaoTest {
 
                 listOf(userA, userB).forEach { currentUser ->
                     run {
-                        val favorites = appDAO.retrieveFavorites(it, currentUser, NormalizedPaginationRequest(10, 0))
+                        val favorites = appDAO.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
                         assertEquals(0, favorites.itemsInTotal)
                     }
 
                     run {
                         appDAO.toggleFavorite(it, currentUser, aVersion1.metadata.name, aVersion1.metadata.version)
-                        val favorites = appDAO.retrieveFavorites(it, currentUser, NormalizedPaginationRequest(10, 0))
+                        val favorites = appDAO.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
                         assertEquals(1, favorites.itemsInTotal)
                     }
 
                     run {
                         appDAO.toggleFavorite(it, currentUser, aVersion2.metadata.name, aVersion2.metadata.version)
-                        val favorites = appDAO.retrieveFavorites(it, currentUser, NormalizedPaginationRequest(10, 0))
+                        val favorites = appDAO.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
                         assertEquals(2, favorites.itemsInTotal)
                     }
                 }
@@ -586,7 +586,7 @@ class ApplicationHibernateDaoTest {
 
         runBlocking {
             db.withTransaction { session ->
-                val page = appDao.findLatestByTool(session, TestUsers.admin, t1, PaginationRequest().normalize())
+                val page = appDao.findLatestByTool(session, TestUsers.admin, null, emptyList(), t1, PaginationRequest().normalize())
 
                 assertThatInstance(page) { it.itemsInTotal == 1 }
                 assertThatInstance(page) { it.items.single().metadata.name == "a" }
@@ -596,7 +596,7 @@ class ApplicationHibernateDaoTest {
 
         runBlocking {
             db.withTransaction { session ->
-                val page = appDao.findLatestByTool(session, TestUsers.admin, t2, PaginationRequest().normalize())
+                val page = appDao.findLatestByTool(session, TestUsers.admin, null, emptyList(), t2, PaginationRequest().normalize())
 
                 assertThatInstance(page) { it.itemsInTotal == 1 }
                 assertThatInstance(page) { it.items.single().metadata.name == "b" }
@@ -606,7 +606,7 @@ class ApplicationHibernateDaoTest {
 
         runBlocking {
             db.withTransaction { session ->
-                val page = appDao.findLatestByTool(session, TestUsers.admin, "tool3", PaginationRequest().normalize())
+                val page = appDao.findLatestByTool(session, TestUsers.admin, null, emptyList(), "tool3", PaginationRequest().normalize())
 
                 assertThatInstance(page) { it.itemsInTotal == 0 }
             }
@@ -640,6 +640,8 @@ class ApplicationHibernateDaoTest {
                     appDAO.findBySupportedFileExtension(
                         it,
                         TestUsers.admin,
+                        null,
+                        emptyList(),
                         setOf("kt")
                     )
                 } catch (ex: Exception) {
@@ -673,6 +675,8 @@ class ApplicationHibernateDaoTest {
                 val page = appDAO.findLatestByTool(
                     it,
                     TestUsers.admin,
+                    null,
+                    emptyList(),
                     normToolDesc.info.name,
                     NormalizedPaginationRequest(10, 0)
                 )
@@ -888,6 +892,8 @@ class ApplicationHibernateDaoTest {
                 val ids1 = appDAO.findAllByID(
                     it,
                     TestUsers.admin,
+                    null,
+                    emptyList(),
                     listOf(EmbeddedNameAndVersion("anothername", "1.1")),
                     NormalizedPaginationRequest(10, 0)
                 )
@@ -897,6 +903,8 @@ class ApplicationHibernateDaoTest {
                 val ids2 = appDAO.findAllByID(
                     it,
                     TestUsers.admin,
+                    null,
+                    emptyList(),
                     listOf(EmbeddedNameAndVersion("name", "2.2"), EmbeddedNameAndVersion("anothername", "1.1")),
                     NormalizedPaginationRequest(10, 0)
                 )
@@ -906,6 +914,8 @@ class ApplicationHibernateDaoTest {
                 val ids3 = appDAO.findAllByID(
                     it,
                     TestUsers.admin,
+                    null,
+                    emptyList(),
                     listOf(EmbeddedNameAndVersion("name", "WRONG"), EmbeddedNameAndVersion("anothername", "1.1")),
                     NormalizedPaginationRequest(10, 0)
                 )
@@ -947,6 +957,8 @@ class ApplicationHibernateDaoTest {
                 val results = appDAO.findAllByID(
                     it,
                     TestUsers.admin,
+                    null,
+                    emptyList(),
                     emptyList(),
                     NormalizedPaginationRequest(10, 0)
                 )

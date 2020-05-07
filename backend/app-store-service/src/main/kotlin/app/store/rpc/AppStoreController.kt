@@ -14,6 +14,7 @@ import dk.sdu.cloud.app.store.services.LogoType
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Controller
@@ -35,27 +36,27 @@ class AppStoreController<DBSession>(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AppStore.toggleFavorite) {
-            ok(appStore.toggleFavorite(ctx.securityPrincipal, request.appName, request.appVersion))
+            ok(appStore.toggleFavorite(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion))
         }
 
         implement(AppStore.retrieveFavorites) {
-            ok(appStore.retrieveFavorites(ctx.securityPrincipal, request))
+            ok(appStore.retrieveFavorites(ctx.securityPrincipal, ctx.project, request))
         }
 
         implement(AppStore.searchTags) {
-            ok(appStore.searchTags(ctx.securityPrincipal, request.tags, request.normalize()))
+            ok(appStore.searchTags(ctx.securityPrincipal, ctx.project, request.tags, request.normalize()))
         }
 
         implement(AppStore.searchApps) {
-            ok(appStore.searchApps(ctx.securityPrincipal, request.query, request.normalize()))
+            ok(appStore.searchApps(ctx.securityPrincipal, ctx.project, request.query, request.normalize()))
         }
 
         implement(AppStore.findByNameAndVersion) {
-            ok(appStore.findByNameAndVersion(ctx.securityPrincipal, request.appName, request.appVersion))
+            ok(appStore.findByNameAndVersion(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion))
         }
 
         implement(AppStore.hasPermission) {
-            ok(appStore.hasPermission(ctx.securityPrincipal, request.appName, request.appVersion, request.permission))
+            ok(appStore.hasPermission(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion, request.permission))
         }
 
         implement(AppStore.listAcl) {
@@ -70,13 +71,14 @@ class AppStoreController<DBSession>(
             ok(
                 appStore.findBySupportedFileExtension(
                     ctx.securityPrincipal,
+                    ctx.project,
                     request.files
                 )
             )
         }
 
         implement(AppStore.findByName) {
-            ok(appStore.findByName(ctx.securityPrincipal, request.appName, request.normalize()))
+            ok(appStore.findByName(ctx.securityPrincipal, ctx.project, request.appName, request.normalize()))
         }
 
         implement(AppStore.isPublic) {
@@ -88,12 +90,13 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.listAll) {
-            ok(appStore.listAll(ctx.securityPrincipal, request.normalize()))
+            ok(appStore.listAll(ctx.securityPrincipal, ctx.project, request.normalize()))
         }
 
         implement(AppStore.advancedSearch) {
             ok(appStore.advancedSearch(
                 ctx.securityPrincipal,
+                ctx.project,
                 request.query,
                 request.tags,
                 request.showAllVersions,
@@ -144,7 +147,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.delete) {
-            appStore.delete(ctx.securityPrincipal, request.appName, request.appVersion)
+            appStore.delete(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion)
             ok(Unit)
         }
 
@@ -194,7 +197,7 @@ class AppStoreController<DBSession>(
         }
 
         implement(AppStore.findLatestByTool) {
-            ok(appStore.findLatestByTool(ctx.securityPrincipal, request.tool, request.normalize()))
+            ok(appStore.findLatestByTool(ctx.securityPrincipal, ctx.project, request.tool, request.normalize()))
         }
     }
 

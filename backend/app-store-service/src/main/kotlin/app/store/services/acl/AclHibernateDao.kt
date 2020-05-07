@@ -1,9 +1,9 @@
 package dk.sdu.cloud.app.store.services.acl
 
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.app.store.api.AccessEntity
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
-import dk.sdu.cloud.app.store.api.EntityType
 import dk.sdu.cloud.app.store.api.EntityWithPermission
-import dk.sdu.cloud.app.store.api.UserEntity
 import dk.sdu.cloud.service.db.*
 import java.io.Serializable
 import javax.persistence.*
@@ -18,8 +18,9 @@ data class PermissionEntry(
 
     @Embeddable
     data class Key(
-        @get:Column(name = "entity") var userEntity: String,
-        @get:Enumerated(EnumType.STRING) @Column(name = "entity_type") var entityType: EntityType,
+        @get:Column(name = "username") var user: String,
+        @get:Column(name = "project") var project: String,
+        @get:Column(name = "project_group") var group: String,
         @get:Column(name = "application_name") var applicationName: String,
         @get:Enumerated(EnumType.STRING) var permission: ApplicationAccessRight
     ) : Serializable
@@ -29,16 +30,17 @@ data class PermissionEntry(
 class AclHibernateDao : AclDao<HibernateSession> {
     override fun hasPermission(
         session: HibernateSession,
-        entity: UserEntity,
+        user: SecurityPrincipal,
+        project: String?,
+        memberGroups: List<String>,
         applicationName: String,
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
         val result = session.criteria<PermissionEntry> {
-            allOf(
-                (this.entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal entity.id),
-                (this.entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal entity.type),
-                (this.entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName)
-            )
+            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal user.username) or (
+                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal project) and
+                            (entity[PermissionEntry::key][PermissionEntry.Key::group] isInCollection memberGroups)
+                    ) and (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName)
         }.uniqueResultOptional()
 
         if (result.isPresent) {
@@ -47,17 +49,17 @@ class AclHibernateDao : AclDao<HibernateSession> {
         return false
     }
 
-
     override fun updatePermissions(
         session: HibernateSession,
-        userEntity: UserEntity,
+        accessEntity: AccessEntity,
         applicationName: String,
         permissions: ApplicationAccessRight
     ) {
         val permissionEntry = PermissionEntry(
             PermissionEntry.Key(
-                userEntity.id,
-                userEntity.type,
+                accessEntity.user ?: "",
+                accessEntity.project ?: "",
+                accessEntity.group ?: "",
                 applicationName,
                 permissions
             )
@@ -68,15 +70,17 @@ class AclHibernateDao : AclDao<HibernateSession> {
 
     override fun revokePermission(
         session: HibernateSession,
-        entity: UserEntity,
+        accessEntity: AccessEntity,
         applicationName: String
     ) {
         session.deleteCriteria<PermissionEntry> {
-            allOf(
-                (this.entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName),
-                (this.entity[PermissionEntry::key][PermissionEntry.Key::userEntity] equal entity.id),
-                (this.entity[PermissionEntry::key][PermissionEntry.Key::entityType] equal entity.type)
-            )
+            (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName) and
+                    if (accessEntity.user.isNullOrBlank()) {
+                        (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
+                                (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
+                    } else {
+                        (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user)
+                    }
         }.executeUpdate()
     }
 
@@ -90,7 +94,7 @@ class AclHibernateDao : AclDao<HibernateSession> {
             }
             .list()
             .map {
-                EntityWithPermission(UserEntity(it.key.userEntity, it.key.entityType), it.key.permission)
+                EntityWithPermission(AccessEntity(it.key.user, it.key.project, it.key.group), it.key.permission)
             }
     }
 }
