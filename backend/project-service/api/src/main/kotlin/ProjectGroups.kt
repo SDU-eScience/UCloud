@@ -32,7 +32,7 @@ data class ListGroupsWithSummaryRequest(
     override val page: Int?
 ) : WithPaginationRequest
 typealias ListGroupsWithSummaryResponse = Page<GroupWithSummary>
-data class GroupWithSummary(val group: String, val numberOfMembers: Int, val memberPreview: List<String>)
+data class GroupWithSummary(val group: String, val numberOfMembers: Int)
 
 data class DeleteGroupsRequest(val groups: Set<String>)
 typealias DeleteGroupsResponse = Unit
