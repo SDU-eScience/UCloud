@@ -164,6 +164,21 @@ class UserController<DBSession>(
             )
         }
 
+        implement(UserDescriptions.toggleEmail) {
+            db.withTransaction {
+
+            }
+            ok(Unit)
+        }
+
+        implement(UserDescriptions.wantEmails) {
+            ok(
+                db.withTransaction { session ->
+                    true
+                }
+            )
+        }
+
         implement(UserDescriptions.lookupUID) {
             ok(
                 db.withTransaction { session ->

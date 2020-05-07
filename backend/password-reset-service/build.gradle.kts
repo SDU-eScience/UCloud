@@ -1,4 +1,4 @@
-version = "0.1.0-PASSWORD-RESET-TEST-19"
+version = "0.1.1"
 
 application {
     mainClassName = "dk.sdu.cloud.password.reset.MainKt"

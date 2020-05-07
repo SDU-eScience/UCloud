@@ -66,7 +66,8 @@ class PasswordResetService<Session>(
                 |<p><a href="https://cloud.sdu.dk/app/login?password-reset=true&token=${token}">https://cloud.sdu.dk/app/login?password-reset=true&token=${token}</a></p>
                 |
                 |<p>If you did not initiate this request, feel free to disregard this email, or reply to this email for support.</p>
-                """.trimMargin()
+                """.trimMargin(),
+                true
             ), authenticatedClient
         ).orThrow()
     }

@@ -19,7 +19,9 @@ import org.junit.Test
 import java.util.*
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class UserHibernateDAOTest {
     private lateinit var db: DBSessionFactory<HibernateSession>
@@ -184,5 +186,34 @@ class UserHibernateDAOTest {
         val backToEntity = model.toEntity()
 
         assertEquals(entity.id, backToEntity.id)
+    }
+
+
+    @Test
+    fun `toggle emails`() {
+        val email = "test@testmail.com"
+        val person = personService.createUserByPassword(
+            "FirstName Middle",
+            "Lastname",
+            email,
+            Role.ADMIN,
+            "ThisIsMyPassword",
+            email = email
+        )
+        runBlocking {
+            db.withTransaction { session ->
+                userHibernate.insert(session, person)
+
+                assertTrue(userHibernate.wantEmails(session, person.id))
+
+                userHibernate.toggleEmail(session, person.id)
+
+                assertFalse(userHibernate.wantEmails(session, person.id))
+
+                userHibernate.toggleEmail(session, person.id)
+
+
+            }
+        }
     }
 }

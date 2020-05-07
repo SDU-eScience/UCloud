@@ -85,6 +85,7 @@ sealed class PersonEntity : PrincipalEntity() {
     abstract var orcId: String?
     abstract var email: String?
     abstract var serviceLicenseAgreement: Int
+    abstract var wantEmails: Boolean?
 }
 
 @Entity
@@ -101,6 +102,7 @@ data class PersonEntityByPassword(
     override var uid: Long = 0,
     override var email: String? = null,
     override var serviceLicenseAgreement: Int,
+    override var wantEmails: Boolean? = true,
 
     var hashedPassword: ByteArray,
     var salt: ByteArray
@@ -118,6 +120,7 @@ data class PersonEntityByPassword(
             uid,
             totpStatus,
             serviceLicenseAgreement,
+            wantEmails,
             hashedPassword,
             salt
         )
@@ -173,6 +176,7 @@ data class PersonEntityByWAYF(
     override var orcId: String?,
     override var uid: Long = 0,
     override var email: String? = null,
+    override var wantEmails: Boolean? = true,
     override var serviceLicenseAgreement: Int,
     var orgId: String,
     var wayfId: String
@@ -189,6 +193,7 @@ data class PersonEntityByWAYF(
             email,
             uid,
             serviceLicenseAgreement,
+            wantEmails,
             orgId,
             wayfId
         )
@@ -363,6 +368,21 @@ class UserHibernateDAO(
         entity.serviceLicenseAgreement = version
         session.update(entity)
     }
+
+    override fun toggleEmail(session: HibernateSession, username: String) {
+        val user = session
+            .criteria<PersonEntity> { entity[PersonEntity::id] equal username }
+            .singleResult
+
+        user.wantEmails = !user.wantEmails!!
+        session.update(user)
+    }
+
+    override fun wantEmails(session: HibernateSession, username: String): Boolean {
+        return session
+            .criteria<PersonEntity> { entity[PersonEntity::id] equal username}
+            .singleResult.wantEmails!!
+    }
 }
 
 fun Principal.toEntity(): PrincipalEntity {
@@ -379,6 +399,7 @@ fun Principal.toEntity(): PrincipalEntity {
             orcId,
             uid,
             email,
+            wantEmails,
             serviceLicenseAgreement,
             organizationId,
             wayfId
@@ -397,6 +418,7 @@ fun Principal.toEntity(): PrincipalEntity {
             uid,
             email,
             serviceLicenseAgreement,
+            wantEmails,
             password,
             salt
         )

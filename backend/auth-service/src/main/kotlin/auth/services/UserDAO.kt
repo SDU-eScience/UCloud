@@ -43,7 +43,8 @@ interface UserDAO<Session> {
         id: String,
         newPassword: String
     )
-
+    fun toggleEmail(session: Session, username: String)
+    fun wantEmails(session: Session, username: String): Boolean
 
     fun delete(session: Session, id: String)
     fun setAcceptedSlaVersion(session: Session, user: String, version: Int)
