@@ -4,9 +4,18 @@ import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
 import {Box} from "ui-components";
-import {isDirectory, MOCK_RELATIVE, MOCK_VIRTUAL, mockFile, pathComponents, resolvePath} from "Utilities/FileUtilities";
+import {
+    isDirectory,
+    isProjectHome,
+    MOCK_RELATIVE,
+    MOCK_VIRTUAL,
+    mockFile,
+    pathComponents,
+    resolvePath
+} from "Utilities/FileUtilities";
 import {addTrailingSlash} from "UtilityFunctions";
 import {File, FileSelectorProps} from ".";
+import {FileOperationRepositoryMode} from "Files/FileOperations";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
     const [path, setPath] = useState<string>(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder);
@@ -72,9 +81,10 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                         embedded
                         fileOperations={[{
                             text: "Select",
+                            repositoryMode: FileOperationRepositoryMode.ANY,
                             onClick: files => props.onFileSelect(files[0]),
                             disabled: files => {
-                                if (files.some(it => addTrailingSlash(resolvePath(it.path)) === Client.currentProjectFolder)) {
+                                if (files.some(it => isProjectHome(it.path))) {
                                     return true;
                                 }
 

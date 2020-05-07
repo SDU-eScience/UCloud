@@ -4,9 +4,9 @@ import {Button, Text, Input, List, Icon, Flex, Box} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {Operation} from "Types";
 import {useHistory} from "react-router";
-import DetailedGroupView from "./DetailedGroupView";
+import GroupView from "./GroupView";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault, preventDefault, stopPropagation} from "UtilityFunctions";
+import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Client} from "Authentication/HttpClientInstance";
 import {addStandardDialog} from "UtilityComponents";
@@ -15,7 +15,7 @@ import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "Project/View";
-import {deleteGroup, groupSummaryRequest, updateGroupName} from "Project/api";
+import {deleteGroup, groupSummaryRequest, updateGroupName} from "Project";
 import {MutableRefObject, useCallback, useRef, useState} from "react";
 import {useAsyncCommand} from "Authentication/DataHook";
 
@@ -29,7 +29,7 @@ const baseContext = "/projects/groups";
 
 const GroupList: React.FunctionComponent = props => {
     const history = useHistory();
-    const {projectId, group, groupList, fetchGroupList, groupListParams} = useProjectManagementStatus();
+    const {allowManagement, group, groupList, fetchGroupList, groupListParams} = useProjectManagementStatus();
 
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [, setLoading] = useState(false);
@@ -40,14 +40,15 @@ const GroupList: React.FunctionComponent = props => {
     const [, runCommand] = useAsyncCommand();
 
     const operations: GroupOperation[] = [
-        {
+        /*{
             disabled: groups => groups.length !== 1,
             onClick: (groups) => setRenamingGroup(groups[0].group),
             icon: "rename",
             text: "Rename"
         },
+         */
         {
-            disabled: groups => groups.length === 0,
+            disabled: groups => groups.length === 0 || !allowManagement,
             onClick: (groups) => promptDeleteGroups(groups),
             icon: "trash",
             text: "Delete",
@@ -56,7 +57,7 @@ const GroupList: React.FunctionComponent = props => {
     ];
 
 
-    if (group) return <DetailedGroupView/>;
+    if (group) return <GroupView/>;
 
     let content = (
         <>
@@ -121,9 +122,11 @@ const GroupList: React.FunctionComponent = props => {
                     /> : null}
             </List>
 
-            <Flex justifyContent={"center"}>
-                <Button width={"50%"} onClick={() => setCreatingGroup(true)}>New Group</Button>
-            </Flex>
+            {!allowManagement ? null : (
+                <Flex justifyContent={"center"}>
+                    <Button width={"50%"} onClick={() => setCreatingGroup(true)}>New Group</Button>
+                </Flex>
+            )}
         </>
     );
     return <>

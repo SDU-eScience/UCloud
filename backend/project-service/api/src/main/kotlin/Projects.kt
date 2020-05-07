@@ -56,7 +56,8 @@ data class UserProjectSummary(
     val projectId: String,
     val title: String,
     val whoami: ProjectMember,
-    val needsVerification: Boolean
+    val needsVerification: Boolean,
+    val isFavorite: Boolean
 )
 
 data class UserGroupSummary(val projectId: String, val group: String, val username: String)

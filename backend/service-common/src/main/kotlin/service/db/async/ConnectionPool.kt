@@ -10,14 +10,31 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.POSTGRES_9_5_DIALECT
 import dk.sdu.cloud.service.db.POSTGRES_DRIVER
+import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.future.await
 
-typealias AsyncDBConnection = SuspendingConnection
+sealed class DBContext
+
+suspend inline fun <R> DBContext.withSession(block: (session: AsyncDBConnection) -> R): R {
+    return when (this) {
+        is AsyncDBSessionFactory -> {
+            withTransaction<R, AsyncDBConnection> { session ->
+                block(session)
+            }
+        }
+
+        is AsyncDBConnection -> {
+            block(this)
+        }
+    }
+}
+
+data class AsyncDBConnection(val conn: SuspendingConnectionImpl) : DBContext(), SuspendingConnection by conn
 
 /**
  * A [DBSessionFactory] for the jasync library.
  */
-class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBConnection> {
+class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBConnection>, DBContext() {
     private val schema = config.defaultSchema
 
     init {
@@ -47,7 +64,7 @@ class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBCo
     }
 
     override suspend fun closeSession(session: AsyncDBConnection) {
-        pool.giveBack((session as SuspendingConnectionImpl).connection as PostgreSQLConnection)
+        pool.giveBack((session.conn).connection as PostgreSQLConnection)
     }
 
     override suspend fun commit(session: AsyncDBConnection) {
@@ -59,7 +76,7 @@ class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBCo
     }
 
     override suspend fun openSession(): AsyncDBConnection {
-        return pool.take().await().asSuspending
+        return AsyncDBConnection(pool.take().await().asSuspending as SuspendingConnectionImpl)
     }
 
     override suspend fun rollback(session: AsyncDBConnection) {

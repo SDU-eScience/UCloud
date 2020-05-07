@@ -86,6 +86,9 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             case "REVIEW_PROJECT":
                 props.history.push("/projects/");
                 break;
+            case "PROJECT_INVITE":
+                props.history.push("/projects/");
+                break;
         }
     };
 

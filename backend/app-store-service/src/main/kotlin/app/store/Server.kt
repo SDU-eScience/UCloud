@@ -3,6 +3,8 @@ package dk.sdu.cloud.app.store
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.app.store.api.AppEventProducer
+import dk.sdu.cloud.app.store.api.AppStoreStreams
 import dk.sdu.cloud.app.store.api.ApplicationDescription
 import dk.sdu.cloud.app.store.api.ToolDescription
 import dk.sdu.cloud.app.store.rpc.AppStoreController
@@ -38,7 +40,15 @@ class Server(override val micro: Micro) : CommonServer {
 
         val db = micro.hibernateDatabase
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val appStoreService = AppStoreService(db, authenticatedClient, applicationDAO, toolDAO, aclDao, elasticDAO)
+        val appStoreService = AppStoreService(
+            db,
+            authenticatedClient,
+            applicationDAO,
+            toolDAO,
+            aclDao,
+            elasticDAO,
+            micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
+        )
         val logoService = LogoService(db, applicationDAO, toolDAO)
 
         with(micro.server) {

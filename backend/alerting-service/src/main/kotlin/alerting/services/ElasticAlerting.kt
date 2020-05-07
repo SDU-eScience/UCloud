@@ -6,6 +6,7 @@ import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.delay
 import org.apache.http.util.EntityUtils
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
+import org.elasticsearch.action.admin.cluster.settings.ClusterGetSettingsRequest
 import org.elasticsearch.action.search.SearchRequest
 import org.elasticsearch.client.Request
 import org.elasticsearch.client.RequestOptions
@@ -170,33 +171,21 @@ class ElasticAlerting(
         }
     }
 
-    suspend fun alertOnIndicesCount(lowLevelClient: RestClient, configuration: Configuration) {
+    suspend fun alertOnIndicesCount(configuration: Configuration) {
         val alertLimit = configuration.limits?.alertWhenNumberOfShardsAvailableIsLessThan ?: 500
         var alertSent = false
         while (true) {
-            val healthResponse = lowLevelClient.performRequest(Request("GET", "/_cluster/health"))
-            if (healthResponse.statusLine.statusCode != 200) {
-                log.warn("Statuscode for health response was not 200")
-                delay( if(testMode) 1000 else ONE_HOUR)
-                if (!testMode) continue
-                else return
-            }
-            val responseForActiveShards = EntityUtils.toString(healthResponse.entity)
-            val numberOfActiveShards = defaultMapper.readTree(responseForActiveShards).findValue("active_shards").asInt()
-            val numberOfDataNodes = defaultMapper.readTree(responseForActiveShards).findValue("number_of_data_nodes").asInt()
+            val healthResponse = elastic.cluster().health(ClusterHealthRequest(), RequestOptions.DEFAULT)
 
-           log.info("Number of Active shards: $numberOfActiveShards")
+            val numberOfActiveShards = healthResponse.activeShards
+            val numberOfDataNodes = healthResponse.numberOfDataNodes
 
-            val settingsResponse = lowLevelClient.performRequest(Request("GET", "_cluster/settings?flat_settings=true"))
-            if (settingsResponse.statusLine.statusCode != 200) {
-                log.warn("Status code for settings response was not 200")
-                delay(ONE_HOUR)
-                continue
-            }
-            val responseForMaxShardsPerNode = EntityUtils.toString(settingsResponse.entity)
-            val maximumNumberOfShardsPerDataNode = defaultMapper.readTree(responseForMaxShardsPerNode).findValue("cluster.max_shards_per_node").asInt()
+            log.info("Number of Active shards: $numberOfActiveShards")
 
-            val totalMaximumNumberOfShards = maximumNumberOfShardsPerDataNode * numberOfDataNodes
+            val settingsResponse = elastic.cluster().getSettings(ClusterGetSettingsRequest(), RequestOptions.DEFAULT)
+            val maximumNumberOfShardsPerDataNode = settingsResponse.getSetting("cluster.max_shards_per_node")
+
+            val totalMaximumNumberOfShards = maximumNumberOfShardsPerDataNode.toInt() * numberOfDataNodes
 
             log.info("Total maximum number of shards for cluster: $totalMaximumNumberOfShards")
             log.info("Number of shards still available: ${totalMaximumNumberOfShards - numberOfActiveShards}")

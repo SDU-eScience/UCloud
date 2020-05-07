@@ -85,10 +85,10 @@ function Header(props: HeaderProps): JSX.Element | null {
             <Logo />
             <ContextSwitcher />
             <ui.Box ml="auto" />
-            <ui.Hide xs sm md>
+            <ui.Hide xs sm md lg>
                 <Search />
             </ui.Hide>
-            <ui.Hide lg xxl xl>
+            <ui.Hide xxl xl>
                 <ui.Icon
                     name="search"
                     size="32"
@@ -112,7 +112,9 @@ function Header(props: HeaderProps): JSX.Element | null {
                     </ui.Tooltip>
                 </Link>
             ) : null}
-            <DevelopmentBadge />
+            <ui.Hide xs sm md lg>
+                <DevelopmentBadge />
+            </ui.Hide>
             <BackgroundTask />
             <ui.Flex width="48px" justifyContent="center">
                 <Refresh spin={spin} onClick={refresh} headerLoading={props.statusLoading} />

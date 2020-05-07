@@ -32,7 +32,7 @@ export function getStoredProject(): string | null {
     return window.localStorage.getItem("project") ?? null;
 }
 
-function setStoredProject(value: string | null): void {
+export function setStoredProject(value: string | null): void {
     if (value === null) {
         window.localStorage.removeItem("project");
     } else {

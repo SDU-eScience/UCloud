@@ -7,6 +7,7 @@ import dk.sdu.cloud.alerting.services.KubernetesAlerting
 import dk.sdu.cloud.alerting.services.NetworkTrafficAlerts
 import dk.sdu.cloud.alerting.services.SlackNotifier
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.elasticLowLevelClient
 import dk.sdu.cloud.service.CommonServer
@@ -97,6 +98,7 @@ class Server(
                     Alert("WARNING: Alert on cluster storage caught exception: ${ex.stackTraceToString()}.")
                 )
                 elasticLowLevelClient.close()
+                exitProcess(1)
             }
         }
 
@@ -116,13 +118,13 @@ class Server(
         GlobalScope.launch {
             try {
                 log.info("Alert on elastic indices count - starting up")
-                ElasticAlerting(elasticHighLevelClient, alertService).alertOnIndicesCount(elasticLowLevelClient, config)
+                ElasticAlerting(elasticHighLevelClient, alertService).alertOnIndicesCount(config)
             } catch (ex: Exception) {
                 log.warn("WARNING: Alert on elastic indices count caught exception: ${ex}.")
                 alertService.createAlert(
-                    Alert("WARNING: Alert on cluster storage caught exception: ${ex.stackTraceToString()}.")
+                    Alert("WARNING: Alert on elastic indices caught exception: ${ex.stackTraceToString()}.")
                 )
-                elasticLowLevelClient.close()
+                exitProcess(1)
             }
         }
 
@@ -136,8 +138,8 @@ class Server(
                 alertService.createAlert(
                     Alert("WARNING: Alert on many 4xx through ambassador caught exception: ${ex.stackTraceToString()}.")
                 )
+                exitProcess(1)
             }
         }
-
     }
 }

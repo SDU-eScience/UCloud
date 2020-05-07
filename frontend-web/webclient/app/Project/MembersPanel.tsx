@@ -1,26 +1,36 @@
 import {useAsyncCommand} from "Authentication/DataHook";
-import {
-    addMemberInProject,
-    deleteMemberInProject,
-    ProjectRole,
-    roleInProject,
-    viewProject
-} from "Project/index";
+import {addMemberInProject, deleteMemberInProject, ProjectRole, roleInProject} from "Project/index";
 import * as React from "react";
-import {MutableRefObject, useRef} from "react";
+import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {Box, Button, Flex, Input} from "ui-components";
-import {GroupMembers} from "Project/DetailedGroupView";
+import {Box, Button, Flex, Icon, Input, Truncate} from "ui-components";
 import {addStandardDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/View";
-import {addGroupMember} from "Project/api";
+import {addGroupMember} from "Project";
+import {MembersList} from "Project/MembersList";
+import styled from "styled-components";
 
-const Members: React.FunctionComponent = props => {
+const SearchContainer = styled(Flex)`
+    flex-wrap: wrap;
+    
+    form {
+        flex-grow: 1;
+        flex-basis: 300px;
+        display: flex;
+    }
+    
+    form {
+        margin-right: 10px;
+        margin-bottom: 10px;
+    }
+`;
+
+const MembersPanel: React.FunctionComponent = props => {
     const {
         projectId, projectMembers, group, fetchGroupMembers, groupMembersParams,
-        setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery
+        setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement
     } = useProjectManagementStatus();
     const [isLoading, runCommand] = useAsyncCommand();
     const reloadMembers = () => {
@@ -28,10 +38,6 @@ const Members: React.FunctionComponent = props => {
     };
 
     const newMemberRef = useRef<HTMLInputElement>(null);
-
-    // TODO
-    const role = roleInProject(projectMembers.data.items);
-    const allowManagement = true; //role === ProjectRole.PI || role === ProjectRole.ADMIN;
 
     const onSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
@@ -54,31 +60,41 @@ const Members: React.FunctionComponent = props => {
 
     return <>
         <BreadCrumbsBase>
-            <li><span>Members of {projectId}</span></li>
+            <li><Truncate width={"500px"}>Members of {projectId}</Truncate></li>
         </BreadCrumbsBase>
-        {!allowManagement ? null : (
-            <form onSubmit={onSubmit}>
-                <Flex>
-                    <Box flexGrow={1}>
-                        <Input
-                            id="new-project-member"
-                            placeholder="Username"
-                            ref={newMemberRef}
-                            disabled={isLoading}
-                            value={memberSearchQuery}
-                            onChange={e => {
-                                newMemberRef.current!.value = e.target.value;
-                                setMemberSearchQuery(e.target.value);
-                            }}
-                            rightLabel
-                        />
-                    </Box>
+        <SearchContainer>
+            {!allowManagement ? null : (
+                <form onSubmit={onSubmit}>
+                    <Input
+                        id="new-project-member"
+                        placeholder="Username"
+                        disabled={isLoading}
+                        ref={newMemberRef}
+                        onChange={e => {
+                            newMemberRef.current!.value = e.target.value;
+                        }}
+                        rightLabel
+                    />
                     <Button attached>Add</Button>
-                </Flex>
-            </form>
-        )}
+                </form>
+            )}
 
-        <GroupMembers
+            <form onSubmit={preventDefault}>
+                <Input
+                    id="project-member-search"
+                    placeholder="Enter username to search..."
+                    disabled={isLoading}
+                    value={memberSearchQuery}
+                    onChange={e => {
+                        setMemberSearchQuery(e.target.value);
+                    }}
+                    rightLabel
+                />
+                <Button attached><Icon name={"search"}/></Button>
+            </form>
+        </SearchContainer>
+
+        <MembersList
             members={projectMembers.data.items}
             onRemoveMember={async member => addStandardDialog({
                 title: "Remove member",
@@ -104,4 +120,4 @@ const Members: React.FunctionComponent = props => {
     </>;
 }
 
-export default Members;
+export default MembersPanel;

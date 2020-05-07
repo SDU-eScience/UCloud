@@ -19,30 +19,13 @@ data class ListFavoritesRequest(
 typealias ListFavoritesResponse = Page<String>
 
 data class ToggleFavoriteRequest(
-    val projectID: String
+    val projectId: String
 )
 
 typealias ToggleFavoriteResponse = Unit
 
-object ProjectFavoriteDescriptions : CallDescriptionContainer("project.favorite") {
-    val baseContext = "/api/project/favorite"
-
-    val listFavorites = call<ListFavoritesRequest, ListFavoritesResponse, CommonErrorMessage>("listFavorites") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"list"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
+object ProjectFavorites : CallDescriptionContainer("project.favorite") {
+    val baseContext = "/api/projects/favorite"
 
     val toggleFavorite = call<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage>("toggleFavorite") {
         auth {

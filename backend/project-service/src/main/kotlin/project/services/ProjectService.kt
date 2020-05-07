@@ -12,6 +12,9 @@ import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
 import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.events.EventProducer
+import dk.sdu.cloud.notification.api.CreateNotification
+import dk.sdu.cloud.notification.api.Notification
+import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectMember
@@ -31,6 +34,7 @@ import io.ktor.http.HttpStatusCode
 class ProjectService(
     private val db: DBSessionFactory<AsyncDBConnection>,
     private val dao: ProjectDao,
+    private val groupDao: GroupDao,
     private val eventProducer: EventProducer<ProjectEvent>,
     private val serviceClient: AuthenticatedClient
 ) {
@@ -98,6 +102,21 @@ class ProjectService(
                     InsertRequest(user, listOf(member.username), ServiceOrigin.PROJECT_SERVICE),
                     serviceClient
                 )
+
+                NotificationDescriptions.create.call(
+                    CreateNotification(
+                        member.username,
+                        Notification(
+                            "PROJECT_INVITE",
+                            "$user has invited you to $projectId",
+                            meta = mapOf(
+                                "invitedBy" to user,
+                                "projectId" to projectId
+                            )
+                        )
+                    ),
+                    serviceClient
+                )
             }
         } catch (ex: GenericDatabaseException) {
             if (ex.errorMessage.fields['C'] == ALREADY_EXISTS_PSQL) {
@@ -118,6 +137,7 @@ class ProjectService(
             if (removedMemberRole == ProjectRole.PI) throw ProjectException.CantDeleteUserFromProject()
 
             dao.deleteMember(session, projectId, member)
+            groupDao.removeMember(session, projectId, member)
 
             eventProducer.produce(ProjectEvent.MemberDeleted(project, ProjectMember(member, removedMemberRole)))
         }

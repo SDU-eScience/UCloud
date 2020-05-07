@@ -4,15 +4,20 @@ import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
 import {emptyPage, KeyCode, ReduxObject, SensitivityLevelMap} from "DefaultObjects";
 import {File, FileType, SortBy, SortOrder} from "Files";
-import {defaultFileOperations, FileOperation, FileOperationCallback} from "Files/FileOperations";
+import {
+    defaultFileOperations,
+    FileOperation,
+    FileOperationCallback,
+    FileOperationRepositoryMode
+} from "Files/FileOperations";
 import {QuickLaunchApp, quickLaunchCallback} from "Files/QuickLaunch";
 import {History} from "history";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Refresh} from "Navigation/Header";
 import * as Pagination from "Pagination";
 import PromiseKeeper, {usePromiseKeeper} from "PromiseKeeper";
-import {useEffect, useState} from "react";
 import * as React from "react";
+import {useEffect, useState} from "react";
 import {connect} from "react-redux";
 import {useHistory} from "react-router";
 import {Dispatch} from "redux";
@@ -57,28 +62,29 @@ import {
     isDirectory,
     isFilePreviewSupported,
     isInvalidPathName,
+    isMyPersonalFolder,
+    isPartOfProject,
+    isPartOfSomePersonalFolder,
+    isProjectHome,
     MOCK_RELATIVE,
     MOCK_RENAME_TAG,
+    MOCK_REPO_CREATE_TAG,
+    MOCK_VIRTUAL,
     mockFile,
     moveFile,
     resolvePath,
-    sizeToString,
-    MOCK_REPO_CREATE_TAG, MOCK_VIRTUAL, isProjectHome
+    sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
-import {
-    createRepository,
-    renameRepository,
-    isAdminOrPI,
-    isRepository
-} from "Utilities/ProjectUtilities";
-import {ProjectMember, ProjectRole} from "Project";
+import {createRepository, isAdminOrPI, isRepository, renameRepository} from "Utilities/ProjectUtilities";
+import {ProjectRole} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
+import {useProjectStatus} from "Project/cache";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -281,13 +287,15 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     const [workLoading, , invokeWork] = useAsyncWork();
     const [applications, setApplications] = useState<Map<string, QuickLaunchApp[]>>(new Map());
     const favorites = useFavoriteStatus();
+    const projects = useProjectStatus();
+    const projectMember = (
+        !Client.projectId ?
+            undefined :
+            projects.fetch().membership.find(it => it.projectId === Client.projectId)?.whoami
+    ) ?? {username: Client.username, role: ProjectRole.USER};
 
-    const promises = usePromiseKeeper();
-    const [projectMember, setMember] = React.useState<ProjectMember>({
-        role: ProjectRole.USER, username: Client.username ?? ""
-    });
-    React.useEffect(() => {
-        getProjectMember();
+    useEffect(() => {
+        projects.reload();
     }, [Client.projectId]);
 
     const history = useHistory();
@@ -613,20 +621,6 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
     // Private utility functions
 
-    async function getProjectMember(): Promise<void> {
-        if (!!Client.projectId && !!Client.username) {
-            try {
-                const {response} = await promises.makeCancelable(Client.get<{member: ProjectMember}>(
-                    `/projects/members?projectId=${encodeURIComponent(Client.projectId)}&username=${encodeURIComponent(Client.username)}`
-                )).promise;
-                setMember(response.member);
-            } catch (err) {
-                if (promises.canceledKeeper) return;
-                snackbarStore.addFailure(UF.errorMessageOrDefault(err, "An error occurred fetcing member info."), false);
-            }
-        }
-    }
-
     function setChecked(updatedFiles: File[], checkStatus?: boolean): void {
         const checked = new Set(checkedFiles);
         if (checkStatus === false) {
@@ -699,6 +693,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                             callbacks={callbacks}
                             fileBeingRenamed={fileBeingRenamed}
                             previewEnabled={props.previewEnabled}
+                            projectRole={projectMember.role}
                         />}
                         right={
                             (f.mockTag !== undefined && f.mockTag !== MOCK_RELATIVE) ? null : (
@@ -918,6 +913,14 @@ const Shell: React.FunctionComponent<ShellProps> = props => {
     );
 };
 
+function getFileNameForNameBox(path: string) {
+    if (isMyPersonalFolder(path)) {
+        return `Personal Files (${Client.username})`
+    }
+
+    return getFilenameFromPath(path);
+}
+
 interface NameBoxProps {
     file: File;
     onRenameFile: (keycode: number, value: string) => void;
@@ -925,6 +928,7 @@ interface NameBoxProps {
     fileBeingRenamed: string | null;
     callbacks: FileOperationCallback;
     previewEnabled?: boolean;
+    projectRole?: ProjectRole;
 }
 
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
@@ -963,7 +967,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         />
     ) : (
             <Truncate width={1} mb="-4px" fontSize={20}>
-                {getFilenameFromPath(props.file.path)}
+                {getFileNameForNameBox(props.file.path)}
             </Truncate>
         );
 
@@ -1015,11 +1019,12 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                                 {format(props.file.modifiedAt, "HH:mm:ss dd/MM/yyyy")}
                             </Text>
                         )}
-                        {!((props.file.acl?.length ?? 0) > 1) ? null : (
-                            <Text title="Members" fontSize={0} mr="12px" color="gray">
-                                {props.file.acl?.length} members
-                            </Text>
-                        )}
+                        {!((props.file.acl?.length ?? 0) > 0) ? (
+                            !isPartOfProject(props.file.path) || isPartOfSomePersonalFolder(props.file.path) ||
+                                props.projectRole === undefined || !isAdminOrPI(props.projectRole) ?
+                                null :
+                                <Text color={"red"} mr={"12px"} fontSize={0}>PROJECT ADMINS ONLY</Text>
+                        ) : (<Text title="Members" fontSize={0} mr="12px" color="gray">{props.file.acl?.length} members</Text>)}
                     </Flex>
                 </Hide>
             </Box>
@@ -1104,9 +1109,10 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
     const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
-        if (fileOp.repositoryMode && !isAdminOrPI(role)) return null;
-        if (fileOp.repositoryMode && files.some(it => !isRepository(it.path))) return null;
-        if (!fileOp.repositoryMode && files.some(it => isRepository(it.path))) return null;
+        const repoMode = fileOp.repositoryMode ?? FileOperationRepositoryMode.DISALLOW;
+        if (repoMode === FileOperationRepositoryMode.REQUIRED && !isAdminOrPI(role)) return null;
+        if (repoMode === FileOperationRepositoryMode.REQUIRED && files.some(it => !isRepository(it.path))) return null;
+        if (repoMode === FileOperationRepositoryMode.DISALLOW && files.some(it => isRepository(it.path))) return null;
 
         if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
         if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
@@ -1173,7 +1179,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
                 {...props}
             >
                 <AppToolLogo name={quickLaunchApp.metadata.name} size="20px" type="APPLICATION" />
-                <span style={{marginLeft: "5px", marginRight: "5px"}}>{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}{quickLaunchApp.metadata.title}</span>
+                <span style={{marginLeft: "5px", marginRight: "5px"}}>{quickLaunchApp.metadata.title}</span>
             </Flex>
         );
     };

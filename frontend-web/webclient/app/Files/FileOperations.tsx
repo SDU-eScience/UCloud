@@ -44,6 +44,12 @@ export interface FileOperationCallback {
     history: H.History;
 }
 
+export enum FileOperationRepositoryMode {
+    REQUIRED,
+    DISALLOW,
+    ANY
+}
+
 export interface FileOperation {
     text: string;
     onClick: (selectedFiles: File[], cb: FileOperationCallback) => void;
@@ -52,7 +58,7 @@ export interface FileOperation {
     color?: string;
     outline?: boolean;
     currentDirectoryMode?: boolean;
-    repositoryMode?: true;
+    repositoryMode?: FileOperationRepositoryMode;
 }
 
 export const defaultFileOperations: FileOperation[] = [
@@ -276,7 +282,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: files => files.length !== 1,
         onClick: ([file], cb) => cb.startRenaming(file),
         icon: "rename",
-        repositoryMode: true
+        repositoryMode: FileOperationRepositoryMode.REQUIRED
     },
     {
         /* Update project sensitivity */
@@ -286,7 +292,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files, cb) => isAnyMockFile(files) || !cb.permissions.requireForAll(files, AccessRight.WRITE) ||
             isAnyFixedFolder(files, Client),
         icon: "sensitivity",
-        repositoryMode: true
+        repositoryMode: FileOperationRepositoryMode.REQUIRED
     },
     {
         /* Update repo permissions */
@@ -294,7 +300,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: files => files.length !== 1,
         onClick: ([file], cb) => updatePermissionsPrompt(Client, file, cb.requestReload),
         icon: "properties",
-        repositoryMode: true
+        repositoryMode: FileOperationRepositoryMode.REQUIRED
     },
     {
         /* Delete repo permission */
@@ -303,6 +309,6 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: files => files.length !== 1,
         icon: "trash",
         color: "red",
-        repositoryMode: true
+        repositoryMode: FileOperationRepositoryMode.REQUIRED
     }
 ];

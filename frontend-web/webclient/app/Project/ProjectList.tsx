@@ -1,15 +1,14 @@
-import {useCloudAPI} from "Authentication/DataHook";
+import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {emptyPage, ReduxObject, KeyCode} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
-import {listProjects, ListProjectsRequest, UserInProject, ProjectRole} from "Project/index";
+import {listProjects, ListProjectsRequest, UserInProject, ProjectRole, createProject} from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page, Operation} from "Types";
 import Button from "ui-components/Button";
 import {Flex, Icon, List, Text, Input, Box} from "ui-components";
-import Link from "ui-components/Link";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -17,61 +16,41 @@ import {ListRow} from "ui-components/List";
 import {useHistory} from "react-router";
 import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
-import {projectRoleToString} from "Project/api";
+import {projectRoleToString, toggleFavoriteProject} from "Project";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {toggleFavoriteProject} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
-import {errorMessageOrDefault, stopPropagation} from "UtilityFunctions";
+import {stopPropagation} from "UtilityFunctions";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {ThemeColor} from "ui-components/theme";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {useEffect} from "react";
 
 // eslint-disable-next-line no-underscore-dangle
-const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }> = props => {
+const _List: React.FunctionComponent<DispatchProps & { project?: string }> = props => {
     const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 50}),
         emptyPage
     );
 
-    const promises = usePromiseKeeper();
-    const [favorites, setFavorites] = React.useState<Page<string>>(emptyPage);
-
-    async function fetchFavorites(itemsPerPage: number, page: number): Promise<void> {
-        try {
-            const r = await promises.makeCancelable(Client.post<Page<string>>("/project/favorite/list", {
-                page,
-                itemsPerPage
-            })).promise;
-            setFavorites(r.response);
-        } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed fetching favorites"), false);
-        }
-    }
-
-    React.useEffect(() => {
-        fetchFavorites(response.data.itemsPerPage, response.data.pageNumber);
-    }, [response.data.items, response.data.pageNumber, response.data.itemsPerPage]);
-
     const [creatingProject, setCreatingProject] = React.useState(false);
     const title = React.useRef<HTMLInputElement>(null);
     const [selectedProjects, setSelectedProjects] = React.useState(new Set());
+    const [commandLoading, runCommand] = useAsyncCommand();
 
-    React.useEffect(() => {
+    useEffect(() => {
         props.setLoading(response.loading);
     }, [response.loading]);
 
     const history = useHistory();
 
     const reload = (): void => {
-        fetchFavorites(response.data.itemsPerPage, response.data.pageNumber);
         setFetchParams(listProjects({page: response.data.pageNumber, itemsPerPage: response.data.itemsPerPage}));
     };
 
-    React.useEffect(() => {
+    useEffect(() => {
         props.setPageTitle();
     }, []);
 
-    React.useEffect(() => {
+    useEffect(() => {
         props.setRefresh(reload);
         return () => props.setRefresh();
     }, [reload]);
@@ -92,11 +71,11 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                             mr="48px"
                             mt="5px"
                             name="check"
-                            color={!props.projectMembers ? "green" : "gray"}
+                            color={!props.project ? "green" : "gray"}
                             hoverColor="green"
                             cursor="pointer"
                             onClick={() => {
-                                if (!props.projectMembers) return;
+                                if (!props.project) return;
                                 snackbarStore.addInformation("Personal project is now the active.", false);
                                 props.setProject();
                             }}
@@ -111,7 +90,7 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                                 color={"midGray"}
                                 hoverColor="blue"
                             />}
-                            left={<form onSubmit={createProject}><Input
+                            left={<form onSubmit={onCreateProject}><Input
                                 pt="0px"
                                 pb="0px"
                                 pr="0px"
@@ -139,13 +118,13 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                     <Pagination.List
                         page={response.data}
                         pageRenderer={page =>
-                            page.items.map(e => {
-                                const isActive = e.projectId === props.projectMembers;
-                                const isFavorite = favorites.items.findIndex(it => it === e.projectId) !== -1;
+                            page.items.map((e: UserInProject) => {
+                                const isActive = e.projectId === props.project;
+                                const isFavorite = e.favorite;
                                 return (
                                     <ListRow
                                         key={e.projectId}
-                                        isSelected={selectedProjects.has(e.projectId)}
+                                        isSelected={false} // Disabled since we don't have bulk operations
                                         select={() => {
                                             if (selectedProjects.has(e.projectId)) selectedProjects.delete(e.projectId);
                                             else selectedProjects.add(e.projectId);
@@ -156,7 +135,7 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                                             size="24"
                                             name={isFavorite ? "starFilled" : "starEmpty"}
                                             color={isFavorite ? "blue" : "midGray"}
-                                            onClick={() => toggleFavoriteProject(e.projectId, Client, reload)}
+                                            onClick={() => onToggleFavorite(e.projectId)}
                                             hoverColor="blue"
                                         />}
                                         navigate={() => {
@@ -173,8 +152,9 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                                         right={<>
                                             <Flex alignItems={"center"}>
                                                 {!e.needsVerification ? null : (
-                                                    <Text fontSize={0} mr={8}><Icon name={"warning"}/> Attention
-                                                        required</Text>
+                                                    <Text fontSize={0} mr={8}>
+                                                        <Icon name={"warning"}/> Attention required
+                                                    </Text>
                                                 )}
                                                 <Icon
                                                     mr="20px"
@@ -183,7 +163,8 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                                                     color={isActive ? "green" : "gray"}
                                                     hoverColor="green"
                                                     cursor="pointer"
-                                                    onClick={() => {
+                                                    onClick={ev => {
+                                                        ev.stopPropagation();
                                                         if (isActive) return;
                                                         snackbarStore.addInformation(`${e.projectId} is now the active project`, false);
                                                         props.setProject(e.projectId);
@@ -219,7 +200,6 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
                         loading={response.loading}
                         onPageChanged={newPage => {
                             setFetchParams(listProjects({page: newPage, itemsPerPage: response.data.itemsPerPage}));
-                            fetchFavorites(response.data.itemsPerPage, newPage);
                         }}
                         customEmptyPage={<div/>}
                     />
@@ -241,29 +221,24 @@ const _List: React.FunctionComponent<DispatchProps & { projectMembers?: string }
         setCreatingProject(true);
     }
 
-
-    async function createProject(e: React.FormEvent): Promise<void> {
+    async function onCreateProject(e: React.FormEvent): Promise<void> {
         e.preventDefault();
-        if (response.loading) return;
-        if (title.current == null) return;
-        if (title.current.value === "") {
+        if (commandLoading) return;
+        const projectId = title.current?.value ?? "";
+        if (projectId === "") {
             snackbarStore.addInformation("Project name can't be empty.", false);
             return;
         }
 
-        try {
-            const res = await Client.post<{ id: string }>("/projects", {
-                title: title.current.value,
-                principalInvestigator: Client.username!
-            });
+        await runCommand(createProject({ title: projectId }))
+        setCreatingProject(false);
+        props.setProject(projectId);
+        history.push("/projects/view");
+    }
 
-            snackbarStore.addSuccess("Group created.", false);
-            setCreatingProject(false);
-            reload();
-            props.setProject(res.response.id);
-        } catch (err) {
-            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to create project."), false);
-        }
+    async function onToggleFavorite(projectId: string) {
+        await runCommand(toggleFavoriteProject({projectId}));
+        reload();
     }
 };
 

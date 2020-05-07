@@ -100,9 +100,9 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
         AppProcessor(
             streams,
-            jobOrchestrator
-        )
-
+            jobOrchestrator,
+            appStoreService
+        ).init()
 
         with(micro.server) {
             configureControllers(

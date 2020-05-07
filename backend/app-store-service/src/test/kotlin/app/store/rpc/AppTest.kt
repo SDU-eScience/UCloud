@@ -1,12 +1,7 @@
 package dk.sdu.cloud.app.store.rpc
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
-import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
-import dk.sdu.cloud.app.store.api.CreateTagsRequest
-import dk.sdu.cloud.app.store.api.DeleteAppRequest
-import dk.sdu.cloud.app.store.api.DeleteTagsRequest
-import dk.sdu.cloud.app.store.api.UploadApplicationLogoRequest
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.services.ApplicationHibernateDAO
 import dk.sdu.cloud.app.store.services.ElasticDAO
@@ -25,10 +20,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.micro.ElasticFeature
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateSession
@@ -65,7 +57,8 @@ private fun KtorApplicationTestSetupContext.configureAppServer(
         appDao,
         toolDao,
         aclDao,
-        elasticDAO
+        elasticDAO,
+        micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
     )
     val logoService = LogoService(micro.hibernateDatabase, appDao, toolDao)
     return listOf(AppStoreController(appStore, logoService))

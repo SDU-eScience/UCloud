@@ -23,6 +23,7 @@ import dk.sdu.cloud.project.api.ProjectMember
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
 import dk.sdu.cloud.project.api.ViewProjectResponse
+import dk.sdu.cloud.project.services.GroupDao
 import dk.sdu.cloud.project.services.ProjectDao
 import dk.sdu.cloud.project.services.ProjectService
 import dk.sdu.cloud.service.test.ClientMock
@@ -149,11 +150,13 @@ class ServiceTest {
     private fun setupServer(): KtorApplicationTestSetupContext.() -> List<ProjectController> {
         return {
             val projectDao = ProjectDao()
+            val groupDao = GroupDao()
             listOf(
                 ProjectController(
                     ProjectService(
                         TODO(),
                         projectDao,
+                        groupDao,
                         micro.eventStreamService.createProducer(ProjectEvents.events),
                         ClientMock.authenticatedClient
                     )

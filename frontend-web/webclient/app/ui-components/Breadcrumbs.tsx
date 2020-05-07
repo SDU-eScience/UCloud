@@ -15,14 +15,19 @@ export const BreadCrumbsBase = styled.ul`
     max-width: 85%;
     height: 60px;
     overflow-y: auto;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
 
     & li {
-        display: inline;
+        display: flex;
+        flex-direction: row;
         font-size: 25px;
     }
 
     & li + li:before {
-        padding: 8px;
+        padding: 0 8px;
+        vertical-align: top;
         color: var(--text, #f00);
         content: "/";
     }
