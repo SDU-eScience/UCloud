@@ -62,7 +62,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                     </Text>
                 )}
                 {props.activeProject || response.data.items.length > 0 ? <Divider/> : null}
-                <Link to="/projects"><Text>See all</Text></Link>
+                <Link to="/projects"><Text>Manage projects</Text></Link>
             </ClickableDropdown>
         </Flex>
     );

@@ -18,4 +18,9 @@ enum class ProjectRole {
     fun isAdmin(): Boolean {
         return this == PI || this == ADMIN
     }
+
+    companion object {
+        val ALL = setOf(PI, ADMIN, USER)
+        val ADMINS = setOf(PI, ADMIN)
+    }
 }
