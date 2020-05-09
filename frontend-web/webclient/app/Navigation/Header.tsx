@@ -151,7 +151,7 @@ function Header(props: HeaderProps): JSX.Element | null {
                 <ui.Flex ml="-17px" mr="-17px" pl="15px">
                     <Link to={"/users/avatar"}>
                         <ui.Flex color="black">
-                            <ui.Icon name="edit" mr="0.5em" my="0.2em" size="1.3em" />
+                            <ui.Icon name="user" color="white" color2="black" mr="0.5em" my="0.2em" size="1.3em" />
                             <TextSpan>Edit Avatar</TextSpan>
                         </ui.Flex>
                     </Link>
