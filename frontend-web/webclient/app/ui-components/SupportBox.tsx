@@ -96,16 +96,16 @@ export default function Support(): JSX.Element {
                             checked={type === SupportType.SUGGESTION}
                             onChange={setSuggestion}
                         />
+                        <Icon name="chat" color2="white" size="1.5em" mr=".5em" />
                         Suggestion
-                        <Icon name="suggestion" size="1.5em" ml=".5em" />
                     </Label>
                     <Label>
                         <Radio
                             checked={type === SupportType.BUG}
                             onChange={setBug}
                         />
+                        <Icon name="bug" size="1.5em" mr=".5em" />
                         Bug
-                        <Icon name="bug" size="1.5em" ml=".5em" />
                     </Label>
                 </Flex>
                 <TextDiv mt={"10px"}>
