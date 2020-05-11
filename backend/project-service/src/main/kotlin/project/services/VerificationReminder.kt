@@ -9,26 +9,23 @@ import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.create
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.flow.collect
 import org.joda.time.DateTimeConstants
 import org.joda.time.LocalDateTime
-import org.joda.time.Period
-import java.net.URLEncoder
+import dk.sdu.cloud.project.services.QueryService.Companion.VERIFICATION_REQUIRED_EVERY_X_DAYS
 
 class VerificationReminder(
     private val db: AsyncDBSessionFactory,
-    private val projects: ProjectDao,
+    private val queries: QueryService,
     private val mailCooldown: MailCooldownDao,
     private val serviceClient: AuthenticatedClient
 ) {
     suspend fun sendReminders() {
         db.withTransaction { session ->
-            projects.findProjectsInNeedOfVerification(session).collect { (project, user, role) ->
+            queries.findProjectsInNeedOfVerification(session).collect { (project, user, role) ->
                 if (mailCooldown.hasCooldown(session, user, project)) {
                     log.debug("Cooldown: $user in $project")
                     return@collect
@@ -77,9 +74,7 @@ class VerificationReminder(
                                 </li>
                                 <li>
                                     You can begin the review by clicking 
-                                    <a href="https://cloud.sdu.dk/app/projects/view/${URLEncoder.encode(project, "utf-8")}">
-                                        here 
-                                    </a>.
+                                    <a href="https://cloud.sdu.dk/app/projects}">here</a>.
                                 </li>
                             </ul>
  
@@ -106,10 +101,6 @@ class VerificationReminder(
     }
 }
 
-fun main() {
-    println(URLEncoder.encode("Test#9224", "utf-8"))
-}
-
 class MailCooldownDao {
     suspend fun hasCooldown(session: AsyncDBConnection, username: String, project: String): Boolean {
         val lastEntry = session
@@ -132,7 +123,7 @@ class MailCooldownDao {
             ?: return false
 
         return (System.currentTimeMillis() - lastEntry.toTimestamp()) <=
-                ProjectDao.VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
+                VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
     }
 
     suspend fun writeCooldown(session: AsyncDBConnection, username: String, project: String) {

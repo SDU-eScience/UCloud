@@ -28,36 +28,19 @@ class Server(
 
         val db = AsyncDBSessionFactory(micro.databaseConfig)
 
-        val projectDao = ProjectDao()
-        val groupDao = GroupDao()
         val eventProducer = eventStreamService.createProducer(ProjectEvents.events)
 
-        val projectService = ProjectService(
-            db,
-            projectDao,
-            groupDao,
-            eventProducer,
-            client
-        )
-
-        val groupService = GroupService(
-            db,
-            groupDao,
-            projectDao,
-            eventProducer,
-            micro.authenticator.authenticateClient(OutgoingHttpCall)
-        )
-
-        val favoriteDao = ProjectFavoriteDao()
-
-        val membershipService = MembershipService(db, groupDao, projectDao)
+        val projects = ProjectService(client, eventProducer)
+        val groups = GroupService(projects, eventProducer)
+        val favorites = FavoriteService()
+        val queries = QueryService(projects)
 
         if (micro.commandLineArguments.contains("--remind")) {
             try {
                 runBlocking<Nothing> {
                     val verificationReminder = VerificationReminder(
                         db,
-                        projectDao,
+                        queries,
                         MailCooldownDao(),
                         client
                     )
@@ -73,10 +56,10 @@ class Server(
 
         with(micro.server) {
             configureControllers(
-                ProjectController(projectService),
-                GroupController(groupService),
-                MembershipController(membershipService),
-                FavoritesController(db, favoriteDao)
+                ProjectController(db, projects, queries),
+                GroupController(db, groups, queries),
+                MembershipController(db, queries),
+                FavoritesController(db, favorites)
             )
         }
 

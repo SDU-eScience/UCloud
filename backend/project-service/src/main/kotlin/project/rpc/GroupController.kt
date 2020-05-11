@@ -9,61 +9,50 @@ import dk.sdu.cloud.project.api.IsMemberResponse
 import dk.sdu.cloud.project.api.ProjectGroups
 import dk.sdu.cloud.project.services.GroupService
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.project.services.QueryService
 
-class GroupController(private val groupService: GroupService) : Controller {
+class GroupController(
+    private val db: DBContext,
+    private val groups: GroupService,
+    private val queries: QueryService
+) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ProjectGroups.create) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            groupService.createGroup(ctx.securityPrincipal, project, request.group)
+            groups.createGroup(db, ctx.securityPrincipal.username, project, request.group)
             ok(Unit)
         }
 
         implement(ProjectGroups.delete) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            groupService.deleteGroups(ctx.securityPrincipal, project, request.groups)
+            groups.deleteGroups(db, ctx.securityPrincipal.username, project, request.groups)
             ok(Unit)
-        }
-
-        implement(ProjectGroups.list) {
-            val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            ok(groupService.listGroups(ctx.securityPrincipal, project))
         }
 
         implement(ProjectGroups.listGroupsWithSummary) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            ok(groupService.listGroupsWithSummary(ctx.securityPrincipal, project, request.normalize()))
+            ok(queries.listGroups(db, ctx.securityPrincipal.username, project, request.normalize()))
         }
 
         implement(ProjectGroups.addGroupMember) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-
-            ok(groupService.addMember(ctx.securityPrincipal, project, request.group, request.memberUsername))
+            ok(groups.addMember(db, ctx.securityPrincipal.username, project, request.group, request.memberUsername))
         }
 
         implement(ProjectGroups.removeGroupMember) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            ok(groupService.removeMember(ctx.securityPrincipal, project, request.group, request.memberUsername))
+            ok(groups.removeMember(db, ctx.securityPrincipal.username, project, request.group, request.memberUsername))
         }
-
-        /*
-        implement(ProjectGroups.updateGroupName) {
-            val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            ok(groupService.updateGroupName(
-                ctx.securityPrincipal,
-                project,
-                request.oldGroupName,
-                request.newGroupName
-            ))
-        }
-         */
 
         implement(ProjectGroups.listGroupMembers) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
             ok(
-                groupService.listGroupMembers(
-                    ctx.securityPrincipal,
+                queries.listGroupMembers(
+                    db,
+                    ctx.securityPrincipal.username,
                     project,
                     request.group,
                     request.normalize()
@@ -72,11 +61,11 @@ class GroupController(private val groupService: GroupService) : Controller {
         }
 
         implement(ProjectGroups.isMember) {
-            ok(IsMemberResponse(groupService.isMemberQuery(request.queries)))
+            ok(IsMemberResponse(queries.isMemberOfGroup(db, request.queries)))
         }
 
         implement(ProjectGroups.groupExists) {
-            ok(GroupExistsResponse(groupService.exists(request.project, request.group)))
+            ok(GroupExistsResponse(queries.groupExists(db, request.project, request.group)))
         }
     }
 }

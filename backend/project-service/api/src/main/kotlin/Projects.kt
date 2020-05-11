@@ -25,7 +25,7 @@ data class CreateProjectRequest(val title: String) {
     }
 }
 
-typealias CreateProjectResponse = FindByStringId
+typealias CreateProjectResponse = Unit
 
 typealias ViewProjectRequest = FindByStringId
 typealias ViewProjectResponse = Project
@@ -36,8 +36,8 @@ data class ViewMemberInProjectResponse(val member: ProjectMember)
 typealias DeleteProjectRequest = FindByStringId
 typealias DeleteProjectResponse = Unit
 
-data class AddMemberRequest(val projectId: String, val member: ProjectMember)
-typealias AddMemberResponse = Unit
+data class InviteRequest(val projectId: String, val username: String)
+typealias InviteResponse = Unit
 
 data class DeleteMemberRequest(val projectId: String, val member: String)
 typealias DeleteMemberResponse = Unit
@@ -60,7 +60,11 @@ data class UserProjectSummary(
     val isFavorite: Boolean
 )
 
-data class UserGroupSummary(val projectId: String, val group: String, val username: String)
+data class UserGroupSummary(
+    val projectId: String,
+    val group: String,
+    val username: String
+)
 
 data class ListProjectsRequest(
     val user: String?,
@@ -89,22 +93,6 @@ object Projects : CallDescriptionContainer("project") {
         }
     }
 
-    val view = call<ViewProjectRequest, ViewProjectResponse, CommonErrorMessage>("view") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-            }
-
-            params { +boundTo(ViewProjectRequest::id) }
-        }
-    }
-
     val viewMemberInProject =
         call<ViewMemberInProjectRequest, ViewMemberInProjectResponse, CommonErrorMessage>("viewMemberInProject") {
             auth {
@@ -127,7 +115,7 @@ object Projects : CallDescriptionContainer("project") {
             }
         }
 
-    val addMember = call<AddMemberRequest, AddMemberResponse, CommonErrorMessage>("addMember") {
+    val invite = call<InviteRequest, InviteResponse, CommonErrorMessage>("invite") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -137,7 +125,7 @@ object Projects : CallDescriptionContainer("project") {
 
             path {
                 using(baseContext)
-                +"members"
+                +"invite"
             }
 
             body { bindEntireRequestFromBody() }
@@ -198,22 +186,6 @@ object Projects : CallDescriptionContainer("project") {
             }
         }
     }
-
-    val shouldVerifyMembership =
-        call<Unit, ShouldVerifyMembershipResponse, CommonErrorMessage>("shouldVerifyMembership") {
-            auth {
-                access = AccessRight.READ
-            }
-
-            http {
-                method = HttpMethod.Get
-
-                path {
-                    using(baseContext)
-                    +"should-verify"
-                }
-            }
-        }
 
     val verifyMembership =
         call<Unit, Unit, CommonErrorMessage>("verifyMembership") {

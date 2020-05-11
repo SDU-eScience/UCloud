@@ -8,7 +8,7 @@ object FavoriteProjectTable : SQLTable("project_favorite") {
     val project = text("project_id")
 }
 
-class ProjectFavoriteDao {
+class FavoriteService {
     suspend fun toggleFavorite(ctx: DBContext, user: SecurityPrincipal, projectId: String) {
         ctx.withSession { session ->
             if (isFavorite(session, user.username, projectId)) {

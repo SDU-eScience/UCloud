@@ -1,10 +1,9 @@
 package dk.sdu.cloud.project.services
 
-import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
-import dk.sdu.cloud.Role
+import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
@@ -15,131 +14,265 @@ import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.project.api.Project
-import dk.sdu.cloud.project.api.ProjectEvent
-import dk.sdu.cloud.project.api.ProjectMember
-import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.api.UserProjectSummary
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
-import dk.sdu.cloud.service.db.async.PostgresErrorCodes
-import dk.sdu.cloud.service.db.async.errorCode
-import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.stackTraceToString
-import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.service.db.async.*
+import org.joda.time.DateTimeConstants
+import org.joda.time.LocalDateTime
+
+object ProjectMemberTable : SQLTable("project_members") {
+    val username = text("username")
+    val role = text("role")
+    val project = text("project_id")
+    val createdAt = timestamp("created_at")
+    val modifiedAt = timestamp("modified_at")
+}
+
+object ProjectTable : SQLTable("projects") {
+    val id = text("id")
+    val title = text("title")
+    val createdAt = timestamp("created_at")
+    val modifiedAt = timestamp("modified_at")
+}
+
+object ProjectMembershipVerified : SQLTable("project_membership_verification") {
+    val projectId = text("project_id")
+    val verification = timestamp("verification")
+    val verifiedBy = text("verified_by")
+}
 
 class ProjectService(
-    private val db: DBSessionFactory<AsyncDBConnection>,
-    private val dao: ProjectDao,
-    private val groupDao: GroupDao,
-    private val eventProducer: EventProducer<ProjectEvent>,
-    private val serviceClient: AuthenticatedClient
+    private val serviceClient: AuthenticatedClient,
+    private val eventProducer: EventProducer<ProjectEvent>
 ) {
-    suspend fun create(title: String, principalInvestigator: String): Project {
-        confirmUserExists(principalInvestigator)
-        return db.withTransaction { session ->
-            try {
-                dao.create(session, title, title, principalInvestigator)
-                val piMember = ProjectMember(principalInvestigator, ProjectRole.PI)
+    suspend fun create(
+        ctx: DBContext,
+        createdBy: SecurityPrincipal,
+        title: String
+    ) {
+        val id = title
 
-                val project = Project(title, title)
-                eventProducer.produce(ProjectEvent.Created(project))
-                project
-            } catch (ex: GenericDatabaseException) {
-                if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
-                    throw RPCException("Project already exists", HttpStatusCode.Conflict)
-                }
-
-                throw ex
+        ctx.withSession { session ->
+            session.insert(ProjectTable) {
+                set(ProjectTable.id, id)
+                set(ProjectTable.title, title)
+                set(ProjectTable.createdAt, LocalDateTime.now())
+                set(ProjectTable.modifiedAt, LocalDateTime.now())
             }
+
+            session.insert(ProjectMemberTable) {
+                set(ProjectMemberTable.username, createdBy.username)
+                set(ProjectMemberTable.role, ProjectRole.PI.name)
+                set(ProjectMemberTable.project, id)
+                set(ProjectMemberTable.createdAt, LocalDateTime.now())
+                set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
+            }
+
+            verifyMembership(session, "_project", id)
+        }
+
+        eventProducer.produce(ProjectEvent.Created(Project(id, title)))
+    }
+
+    suspend fun findRoleOfMember(ctx: DBContext, projectId: String, member: String): ProjectRole? {
+        ctx.withSession { session ->
+            return session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", member)
+                        setParameter("project", projectId)
+                    },
+                    """
+                        select role
+                        from project_members
+                        where 
+                            username = ?username and
+                            project_id = ?project
+                    """
+                )
+                .rows
+                .map { ProjectRole.valueOf(it.getString(0)!!) }
+                .singleOrNull()
         }
     }
 
-    suspend fun delete(projectId: String) {
-        db.withTransaction { session ->
-            val project = dao.findById(session, projectId)
-            dao.delete(session, projectId)
-            eventProducer.produce(ProjectEvent.Deleted(project))
+    suspend fun requireRole(
+        ctx: DBContext,
+        username: String,
+        projectId: String,
+        allowedRoles: Set<ProjectRole>
+    ): ProjectRole {
+        val role = findRoleOfMember(ctx, projectId, username)
+        if (role == null || role !in allowedRoles) {
+            throw ProjectException.Forbidden()
         }
+        return role
     }
 
-    suspend fun view(user: String, projectId: String): Project {
-        return db.withTransaction { session ->
-            dao.findRoleOfMember(session, projectId, user) ?: throw ProjectException.NotFound()
-            dao.findById(session, projectId)
+    suspend fun inviteMember(
+        ctx: DBContext,
+        inviteFrom: String,
+        projectId: String,
+        inviteTo: String
+    ) {
+        confirmUserExists(inviteTo)
+        ctx.withSession { session ->
+            requireRole(session, inviteFrom, projectId, ProjectRole.ADMINS)
+            // TODO Create invitiation
+            TODO()
         }
+        sendInviteNotifications(projectId, inviteFrom, inviteTo)
     }
 
-    suspend fun viewMemberInProject(user: String, projectId: String): ProjectMember {
-        return db.withTransaction { session ->
-            dao.findRoleOfMember(session, projectId, user)?.let { ProjectMember(user, it) }
-                ?: throw ProjectException.NotFound()
-        }
+    private suspend fun sendInviteNotifications(
+        projectId: String,
+        invitedBy: String,
+        member: String
+    ) {
+        ContactBookDescriptions.insert.call(
+            InsertRequest(invitedBy, listOf(member), ServiceOrigin.PROJECT_SERVICE),
+            serviceClient
+        )
+
+        NotificationDescriptions.create.call(
+            CreateNotification(
+                member,
+                Notification(
+                    "PROJECT_INVITE",
+                    "$invitedBy has invited you to $projectId",
+                    meta = mapOf(
+                        "invitedBy" to invitedBy,
+                        "projectId" to projectId
+                    )
+                )
+            ),
+            serviceClient
+        )
+        TODO()
     }
 
-    suspend fun listProjects(user: String, pagination: NormalizedPaginationRequest?): Page<UserProjectSummary> {
-        return db.withTransaction { session ->
-            dao.listProjectsForUser(session, pagination, user)
-        }
+    suspend fun acceptInvite() {
+        TODO()
     }
 
-    suspend fun addMember(user: String, projectId: String, member: ProjectMember) {
-        confirmUserExists(member.username)
+    suspend fun deleteMember(
+        ctx: DBContext,
+        deletedBy: String,
+        projectId: String,
+        userToDelete: String
+    ) {
+        // TODO Performance: This method is running way more queries than is actually needed
+        ctx.withSession { session ->
+            requireRole(ctx, deletedBy, projectId, ProjectRole.ADMINS)
 
-        try {
-            db.withTransaction { session ->
-                val project =
-                    findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
+            val userToDeleteRole = findRoleOfMember(ctx, projectId, userToDelete)
+            if (userToDeleteRole == ProjectRole.PI) {
+                throw ProjectException.CantDeleteUserFromProject()
+            } else if (userToDeleteRole == null) {
+                throw ProjectException.NotFound()
+            }
 
-                dao.addMember(session, projectId, member)
-
-                eventProducer.produce(ProjectEvent.MemberAdded(project, member))
-
-                ContactBookDescriptions.insert.call(
-                    InsertRequest(user, listOf(member.username), ServiceOrigin.PROJECT_SERVICE),
-                    serviceClient
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("project", projectId)
+                        setParameter("username", userToDelete)
+                    },
+                    """
+                        delete from project_members
+                        where project_id = ?project and username = ?username
+                    """
                 )
 
-                NotificationDescriptions.create.call(
-                    CreateNotification(
-                        member.username,
-                        Notification(
-                            "PROJECT_INVITE",
-                            "$user has invited you to $projectId",
-                            meta = mapOf(
-                                "invitedBy" to user,
-                                "projectId" to projectId
-                            )
-                        )
-                    ),
-                    serviceClient
+            eventProducer.produce(
+                ProjectEvent.MemberDeleted(
+                    Project(projectId, projectId),
+                    ProjectMember(userToDelete, userToDeleteRole)
                 )
-            }
-        } catch (ex: GenericDatabaseException) {
-            if (ex.errorMessage.fields['C'] == ALREADY_EXISTS_PSQL) {
-                throw RPCException("Member is already in group", HttpStatusCode.Conflict)
-            }
-
-            log.warn(ex.stackTraceToString())
-            throw RPCException("Internal Server Error", HttpStatusCode.InternalServerError)
+            )
         }
     }
 
-    suspend fun deleteMember(user: String, projectId: String, member: String) {
-        db.withTransaction { session ->
-            val project = findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
-            val removedMemberRole = dao.findRoleOfMember(session, projectId, member)
-                ?: throw ProjectException.NotFound()
+    suspend fun changeRoleOfMember(
+        ctx: DBContext,
+        updatedBy: String,
+        projectId: String,
+        memberToUpdate: String,
+        newRole: ProjectRole,
+        allowPiChange: Boolean = false
+    ) {
+        ctx.withSession { session ->
+            val updatedByRole = requireRole(session, updatedBy, projectId, ProjectRole.ADMINS)
+            val oldRole = if (updatedBy == memberToUpdate) {
+                updatedByRole
+            } else {
+                findRoleOfMember(session, projectId, memberToUpdate) ?: throw ProjectException.NotFound()
+            }
 
-            if (removedMemberRole == ProjectRole.PI) throw ProjectException.CantDeleteUserFromProject()
+            if (!allowPiChange && oldRole == ProjectRole.PI) throw ProjectException.CantChangeRole()
+            if (!allowPiChange && newRole == ProjectRole.PI) throw ProjectException.Forbidden()
+            if (oldRole == newRole) return
+            if (oldRole == ProjectRole.PI && updatedByRole != ProjectRole.PI) {
+                throw ProjectException.Forbidden()
+            }
 
-            dao.deleteMember(session, projectId, member)
-            groupDao.removeMember(session, projectId, member)
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("role", newRole.name)
+                        setParameter("username", memberToUpdate)
+                        setParameter("project", projectId)
+                    },
+                    """
+                        update project_members  
+                        set
+                            modified_at = now(),
+                            role = ?role
+                        where
+                            username = ?username and
+                            project_id = ?project
+                    """
+                )
 
-            eventProducer.produce(ProjectEvent.MemberDeleted(project, ProjectMember(member, removedMemberRole)))
+            eventProducer.produce(
+                ProjectEvent.MemberRoleUpdated(
+                    Project(projectId, projectId),
+                    ProjectMember(memberToUpdate, oldRole),
+                    ProjectMember(memberToUpdate, newRole)
+                )
+            )
+        }
+    }
+
+    suspend fun transferPrincipalInvestigatorRole(
+        ctx: DBContext,
+        initiatedBy: String,
+        projectId: String,
+        newPrincipalInvestigator: String
+    ) {
+        ctx.withSession { session ->
+            changeRoleOfMember(session, initiatedBy, projectId, newPrincipalInvestigator, ProjectRole.PI, true)
+            changeRoleOfMember(session, initiatedBy, projectId, initiatedBy, ProjectRole.ADMIN, true)
+        }
+    }
+
+    suspend fun verifyMembership(
+        ctx: DBContext,
+        verifiedBy: String,
+        project: String
+    ) {
+        ctx.withSession { session ->
+            if (!verifiedBy.startsWith("_")) {
+                requireRole(ctx, verifiedBy, project, ProjectRole.ADMINS)
+            }
+
+            session.insert(ProjectMembershipVerified) {
+                set(ProjectMembershipVerified.projectId, project)
+                set(ProjectMembershipVerified.verification, LocalDateTime.now())
+                set(ProjectMembershipVerified.verifiedBy, verifiedBy)
+            }
         }
     }
 
@@ -154,60 +287,10 @@ class ProjectService(
 
         val user = lookup.results[username] ?: throw ProjectException.UserDoesNotExist()
         log.debug("$username resolved to $user")
-        if (user.role !in ALLOWED_ROLES) throw ProjectException.CantAddUserToProject()
-    }
-
-    suspend fun changeMemberRole(user: String, projectId: String, member: String, newRole: ProjectRole) {
-        db.withTransaction { session ->
-            val project = findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
-            val oldRole = dao.findRoleOfMember(session, projectId, member) ?: throw ProjectException.NotFound()
-
-            if (oldRole == ProjectRole.PI) throw ProjectException.CantChangeRole()
-
-            dao.changeMemberRole(session, projectId, member, newRole)
-
-            eventProducer.produce(
-                ProjectEvent.MemberRoleUpdated(
-                    project,
-                    ProjectMember(member, oldRole),
-                    ProjectMember(member, newRole)
-                )
-            )
-        }
-    }
-
-    suspend fun shouldVerify(user: String, projectId: String): Boolean {
-        return db.withTransaction { session ->
-            findProjectAndRequireRole(session, user, projectId, setOf(ProjectRole.ADMIN, ProjectRole.PI))
-            dao.shouldVerify(session, projectId)
-        }
-    }
-
-    suspend fun verifyMembership(user: String, projectId: String) {
-        db.withTransaction { session ->
-            dao.verifyMembership(session, projectId, user)
-        }
-    }
-
-    private suspend fun findProjectAndRequireRole(
-        session: AsyncDBConnection,
-        user: String,
-        projectId: String,
-        requiredRole: Set<ProjectRole>
-    ): Project {
-        val project = dao.findById(session, projectId)
-        val projectMemberRole = dao.findRoleOfMember(session, projectId, user)
-        if (projectMemberRole !in requiredRole) {
-            throw ProjectException.Forbidden()
-        }
-
-        return project
+        if (user.role !in Roles.END_USER) throw ProjectException.CantAddUserToProject()
     }
 
     companion object : Loggable {
         override val log = logger()
-
-        private val ALLOWED_ROLES = setOf(Role.USER, Role.ADMIN)
     }
 }
-

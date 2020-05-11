@@ -6,12 +6,14 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.services.MembershipService
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
+import dk.sdu.cloud.project.services.QueryService
 
 class MembershipController(
-    private val members: MembershipService
+    private val db: DBContext,
+    private val queries: QueryService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ProjectMembers.userStatus) {
@@ -22,12 +24,21 @@ class MembershipController(
             }
 
             val username = inputUsername ?: ctx.securityPrincipal.username
-            ok(members.summarizeMembershipForUser(username))
+            ok(queries.summarizeMembershipForUser(db, username))
         }
 
         implement(ProjectMembers.search) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
-            ok(members.search(ctx.securityPrincipal, project, request.query, request.notInGroup, request.normalize()))
+            ok(
+                queries.membershipSearch(
+                    db,
+                    ctx.securityPrincipal.username,
+                    project,
+                    request.query,
+                    request.normalize(),
+                    request.notInGroup
+                )
+            )
         }
     }
 }

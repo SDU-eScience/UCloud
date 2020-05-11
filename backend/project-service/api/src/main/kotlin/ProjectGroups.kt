@@ -86,18 +86,6 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
         }
     }
 
-    val list = call<ListGroupsRequest, ListGroupsResponse, CommonErrorMessage>("list") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            path {
-                using(baseContext)
-            }
-        }
-    }
-
     val listGroupsWithSummary =
         call<ListGroupsWithSummaryRequest, ListGroupsWithSummaryResponse, CommonErrorMessage>("listGroupsWithSummary") {
             auth {

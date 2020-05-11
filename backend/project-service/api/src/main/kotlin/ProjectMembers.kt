@@ -16,8 +16,13 @@ data class UserStatusRequest(
     val username: String?
 )
 
+data class UserStatusInProject(
+    val projectId: String,
+    val whoami: ProjectMember
+)
+
 data class UserStatusResponse(
-    val membership: List<UserProjectSummary>,
+    val membership: List<UserStatusInProject>,
     val groups: List<UserGroupSummary>
 )
 
