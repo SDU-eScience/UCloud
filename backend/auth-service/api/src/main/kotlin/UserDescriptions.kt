@@ -51,13 +51,11 @@ data class GetUserInfoResponse(
 )
 
 data class WantEmailsRequest(
-    val username: String
+    val username: String?
 )
 typealias WantEmailsResponse = Boolean
 
-data class ToggleEmailRequest(
-    val username: String
-)
+typealias ToggleEmailRequest = Unit
 typealias ToggleEmailResponse = Unit
 
 class ChangePasswordAudit
@@ -218,7 +216,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
 
     val wantEmails = call<WantEmailsRequest, WantEmailsResponse, CommonErrorMessage>("wantEmails") {
         auth {
-            roles = setOf(Role.SERVICE)
+            roles = Roles.AUTHENTICATED
             access = AccessRight.READ
         }
 

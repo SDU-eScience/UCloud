@@ -2,11 +2,12 @@ import {useAsyncCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {useCallback, useEffect, useRef, useState} from "react";
 import * as React from "react";
-import {Box, Button, Icon, Input, Label} from "ui-components";
+import {Box, Button, Checkbox, Icon, Input, Label} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as UF from "UtilityFunctions";
 import {SnackType} from "Snackbar/Snackbars";
+import {stopPropagation} from "UtilityFunctions";
 
 export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: boolean) => void }> = props => {
 
@@ -20,6 +21,7 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
     const [placeHolderFirstNames, setPlaceHolderFirstNames] = useState("Enter First Name(s)");
     const [placeHolderLastName, setPlaceHolderLastName] = useState("Enter Last Name");
     const [placeHolderEmail, setPlaceHolderEmail] = useState("Enter Email");
+    const [placeHolderWantEmails, setWantEmail] = useState(true)
 
     const info = useCallback( async () => {
 
@@ -30,10 +32,26 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
             context: ""
         });
 
+        const wantEmails = await invokeCommand( {
+            method: "POST",
+            path: "/auth/users/wantEmails",
+            context: ""
+        });
+
+        setWantEmail(wantEmails ?? true);
         setPlaceHolderFirstNames(user.firstNames ?? "Enter First Name(s)");
         setPlaceHolderLastName(user.lastName ?? "Enter Last Name");
         setPlaceHolderEmail(user.email ?? "Enter Email");
     },[]);
+
+
+    const toogleSubscription = useCallback( async () => {
+        await invokeCommand( {
+            method: "POST",
+            path: "/auth/users/toggleEmail",
+            context: ""
+        });
+    }, []);
 
     useEffect(() => {
         info()
@@ -106,6 +124,15 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
                         />
                     </Label>
                 </Box>
+
+                <Label ml={10} width="auto">
+                    <Checkbox
+                        size={27}
+                        onClick={toogleSubscription}
+                        checked={placeHolderWantEmails}
+                    />
+                    <Box as={"span"}>Receive emails</Box>
+                </Label>
 
 
                 <Button
