@@ -321,33 +321,33 @@ class ProjectDao {
         }
     }
 
-    private object ProjectMembershipVerified : SQLTable("project_membership_verification") {
-        val projectId = text("project_id")
-        val verification = timestamp("verification")
-        val verifiedBy = text("verified_by")
-    }
-
-    private object ProjectTable : SQLTable("projects") {
-        val id = text("id")
-        val title = text("title")
-        val createdAt = timestamp("created_at")
-        val modifiedAt = timestamp("modified_at")
-    }
-
     private fun RowData.toProject(): Project = Project(
         getField(ProjectTable.id),
         getField(ProjectTable.title)
     )
 
-    private object ProjectMemberTable : SQLTable("project_members") {
-        val username = text("username")
-        val role = text("role")
-        val project = text("project_id")
-        val createdAt = timestamp("created_at")
-        val modifiedAt = timestamp("modified_at")
-    }
-
     companion object {
         const val VERIFICATION_REQUIRED_EVERY_X_DAYS = 30L
     }
+}
+
+object ProjectMemberTable : SQLTable("project_members") {
+    val username = text("username")
+    val role = text("role")
+    val project = text("project_id")
+    val createdAt = timestamp("created_at")
+    val modifiedAt = timestamp("modified_at")
+}
+
+object ProjectTable : SQLTable("projects") {
+    val id = text("id")
+    val title = text("title")
+    val createdAt = timestamp("created_at")
+    val modifiedAt = timestamp("modified_at")
+}
+
+object ProjectMembershipVerified : SQLTable("project_membership_verification") {
+    val projectId = text("project_id")
+    val verification = timestamp("verification")
+    val verifiedBy = text("verified_by")
 }
