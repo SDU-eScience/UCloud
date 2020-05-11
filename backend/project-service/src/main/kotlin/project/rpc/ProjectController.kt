@@ -1,6 +1,7 @@
 package dk.sdu.cloud.project.rpc
 
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
@@ -11,6 +12,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.project.services.QueryService
+import io.ktor.http.HttpStatusCode
 
 class ProjectController(
     private val db: DBContext,
@@ -59,7 +61,7 @@ class ProjectController(
 
             val pagination = when {
                 request.itemsPerPage == null && request.page == null &&
-                        ctx.securityPrincipal.role in Roles.PRIVILEDGED -> null
+                    ctx.securityPrincipal.role in Roles.PRIVILEDGED -> null
 
                 else -> request.normalize()
             }
@@ -75,6 +77,58 @@ class ProjectController(
                 projects.verifyMembership(db, ctx.securityPrincipal.username, project)
                 ok(Unit)
             }
+        }
+
+        implement(Projects.acceptInvite) {
+            projects.acceptInvite(db, ctx.securityPrincipal.username, request.projectId)
+            ok(Unit)
+        }
+
+        implement(Projects.rejectInvite) {
+            projects.rejectInvite(
+                db,
+                ctx.securityPrincipal.username,
+                request.projectId,
+                request.username ?: ctx.securityPrincipal.username
+            )
+
+            ok(Unit)
+        }
+
+        implement(Projects.leaveProject) {
+            projects.leaveProject(
+                db,
+                ctx.securityPrincipal.username,
+                ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
+            )
+
+            ok(Unit)
+        }
+
+        implement(Projects.listIngoingInvites) {
+            ok(queries.listIngoingInvites(db, ctx.securityPrincipal.username, request.normalize()))
+        }
+
+        implement(Projects.listOutgoingInvites) {
+            ok(
+                queries.listOutgoingInvites(
+                    db,
+                    ctx.securityPrincipal.username,
+                    ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest),
+                    request.normalize()
+                )
+            )
+        }
+
+        implement(Projects.transferPiRole) {
+            projects.transferPrincipalInvestigatorRole(
+                db,
+                ctx.securityPrincipal.username,
+                ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest),
+                request.newPrincipalInvestigator
+            )
+
+            ok(Unit)
         }
     }
 

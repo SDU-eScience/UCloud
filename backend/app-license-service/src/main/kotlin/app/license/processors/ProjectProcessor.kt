@@ -19,9 +19,9 @@ class ProjectProcessor(
     private suspend fun handleEvent(event: ProjectEvent) {
         when (event) {
             is ProjectEvent.GroupDeleted -> {
-                appLicenseService.deleteProjectGroupAclEntries(event.project.id, event.group)
-
+                appLicenseService.deleteProjectGroupAclEntries(event.projectId, event.group)
             }
+
             else -> {
                 log.debug("Discarding event: $event")
             }

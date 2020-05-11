@@ -20,6 +20,7 @@ data class CreateGroupRequest(val group: String) {
         if (group.isEmpty()) throw RPCException("Group cannot be empty", HttpStatusCode.BadRequest)
         if (group.contains('\n')) throw RPCException("Group cannot contain new lines", HttpStatusCode.BadRequest)
         if (group.size > 500) throw RPCException("Group name too long", HttpStatusCode.BadRequest)
+        if (group == "-") throw RPCException("Group cannot be '-'", HttpStatusCode.BadRequest)
     }
 }
 typealias CreateGroupResponse = Unit

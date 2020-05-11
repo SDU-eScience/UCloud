@@ -21,7 +21,7 @@ export function MembersList(props: Readonly<{
     allowRoleManagement: boolean;
     reload?: () => void;
     showRole?: boolean;
-    projectMembers: string;
+    projectId: string;
 }>): JSX.Element {
     const [, runCommand] = useAsyncCommand();
     const avatars = useAvatars();
@@ -34,7 +34,7 @@ export function MembersList(props: Readonly<{
     return (
         <GridCardGroup minmax={260}>
             {props.members.map(member =>
-                <MemberBox>
+                <MemberBox key={member.username}>
                     <Avatar
                         style={{width: "48px", height: "48px", margin: "4px", flexShrink: 0}}
                         avatarStyle="Circle"
@@ -72,7 +72,7 @@ export function MembersList(props: Readonly<{
                                     onChange={async value => {
                                         try {
                                             await runCommand(changeRoleInProject({
-                                                projectId: props.projectMembers,
+                                                projectId: props.projectId,
                                                 member: member.username,
                                                 newRole: value
                                             }));

@@ -2,11 +2,8 @@ package dk.sdu.cloud.project.services
 
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.services.*
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.offset
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -477,6 +474,63 @@ class QueryService(
                     )
                 }
             }
+        }
+    }
+
+    suspend fun listOutgoingInvites(
+        ctx: DBContext,
+        requestedBy: String,
+        projectId: String,
+        pagination: NormalizedPaginationRequest
+    ): Page<OutgoingInvite> {
+        return ctx.withSession { session ->
+            projects.requireRole(ctx, requestedBy, projectId, ProjectRole.ADMINS)
+
+            session
+                .paginatedQuery(
+                    pagination,
+                    {
+                        setParameter("project", projectId)
+                    },
+                    """
+                        from invites 
+                        where project_id = ?project
+                    """
+                )
+                .mapItems {
+                    OutgoingInvite(
+                        it.getField(ProjectInvite.username),
+                        it.getField(ProjectInvite.invitedBy),
+                        it.getField(ProjectInvite.createdAt).toTimestamp()
+                    )
+                }
+        }
+    }
+
+    suspend fun listIngoingInvites(
+        ctx: DBContext,
+        requestedBy: String,
+        pagination: NormalizedPaginationRequest
+    ): Page<IngoingInvite> {
+        return ctx.withSession { session ->
+            session
+                .paginatedQuery(
+                    pagination,
+                    {
+                        setParameter("username", requestedBy)
+                    },
+                    """
+                        from invites 
+                        where username = ?username
+                    """
+                )
+                .mapItems {
+                    IngoingInvite(
+                        it.getField(ProjectInvite.projectId),
+                        it.getField(ProjectInvite.invitedBy),
+                        it.getField(ProjectInvite.createdAt).toTimestamp()
+                    )
+                }
         }
     }
 

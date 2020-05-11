@@ -27,14 +27,8 @@ data class CreateProjectRequest(val title: String) {
 
 typealias CreateProjectResponse = Unit
 
-typealias ViewProjectRequest = FindByStringId
-typealias ViewProjectResponse = Project
-
 data class ViewMemberInProjectRequest(val projectId: String, val username: String)
 data class ViewMemberInProjectResponse(val member: ProjectMember)
-
-typealias DeleteProjectRequest = FindByStringId
-typealias DeleteProjectResponse = Unit
 
 data class InviteRequest(val projectId: String, val username: String)
 typealias InviteResponse = Unit
@@ -45,9 +39,20 @@ typealias DeleteMemberResponse = Unit
 data class ChangeUserRoleRequest(val projectId: String, val member: String, val newRole: ProjectRole)
 typealias ChangeUserRoleResponse = Unit
 
-data class ShouldVerifyMembershipResponse(
-    val shouldVerify: Boolean
+data class OutgoingInvite(
+    val username: String,
+    val invitedBy: String,
+    val timestamp: Long
 )
+
+data class IngoingInvite(
+    val project: String,
+    val invitedBy: String,
+    val timestamp: Long
+)
+
+data class TransferPiRoleRequest(val newPrincipalInvestigator: String)
+typealias TransferPiRoleResponse = Unit
 
 /**
  * A project summary from a user's perspective
@@ -73,6 +78,21 @@ data class ListProjectsRequest(
 ) : WithPaginationRequest
 
 typealias ListProjectsResponse = Page<UserProjectSummary>
+
+data class ListIngoingInvitesRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+typealias ListIngoingInvitesResponse = Page<IngoingInvite>
+
+data class ListOutgoingInvitesRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+typealias ListOutgoingInvitesResponse = Page<OutgoingInvite>
+
+data class AcceptInviteRequest(val projectId: String)
+typealias AcceptInviteResponse = Unit
+
+data class RejectInviteRequest(val username: String?, val projectId: String)
+typealias RejectInviteResponse = Unit
+
+typealias LeaveProjectRequest = Unit
+typealias LeaveProjectResponse = Unit
 
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
@@ -125,10 +145,120 @@ object Projects : CallDescriptionContainer("project") {
 
             path {
                 using(baseContext)
-                +"invite"
+                +"invites"
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val acceptInvite = call<AcceptInviteRequest, AcceptInviteResponse, CommonErrorMessage>("acceptInvite") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"invites"
+                +"accept"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val rejectInvite = call<RejectInviteRequest, RejectInviteResponse, CommonErrorMessage>("rejectInvite") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+                +"invites"
+                +"reject"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val listIngoingInvites = call<ListIngoingInvitesRequest, ListIngoingInvitesResponse, CommonErrorMessage>("listIngoingInvites") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"invites"
+                +"ingoing"
+            }
+
+            params {
+                +boundTo(ListIngoingInvitesRequest::itemsPerPage)
+                +boundTo(ListIngoingInvitesRequest::page)
+            }
+        }
+    }
+
+    val listOutgoingInvites = call<ListOutgoingInvitesRequest, ListOutgoingInvitesResponse, CommonErrorMessage>("listOutgoingInvites") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"invites"
+                +"outgoing"
+            }
+
+            params {
+                +boundTo(ListOutgoingInvitesRequest::itemsPerPage)
+                +boundTo(ListOutgoingInvitesRequest::page)
+            }
+        }
+    }
+
+    val transferPiRole = call<TransferPiRoleRequest, TransferPiRoleResponse, CommonErrorMessage>("transferPiRole") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"transfer-pi"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val leaveProject = call<LeaveProjectRequest, LeaveProjectResponse, CommonErrorMessage>("leaveProject") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+                +"leave"
+            }
         }
     }
 

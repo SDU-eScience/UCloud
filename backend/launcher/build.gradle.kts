@@ -1,3 +1,7 @@
+application {
+    mainClassName = "dk.sdu.cloud.MainKt"
+}
+
 dependencies {
     implementation(project(":service-common"))
 

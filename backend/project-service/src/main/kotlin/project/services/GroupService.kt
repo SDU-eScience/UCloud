@@ -3,7 +3,6 @@ package dk.sdu.cloud.project.services
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.events.EventProducer
-import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.service.Loggable
@@ -41,7 +40,7 @@ class GroupService(
                     set(GroupTable.group, group)
                 }
 
-                eventProducer.produce(ProjectEvent.GroupCreated(Project(projectId, projectId), group))
+                eventProducer.produce(ProjectEvent.GroupCreated(projectId, group))
             }
         } catch (ex: GenericDatabaseException) {
             if (ex.errorMessage.fields['C'] == PostgresErrorCodes.UNIQUE_VIOLATION) {
@@ -79,7 +78,7 @@ class GroupService(
 
         eventProducer.produce(groups.map { groupName ->
             ProjectEvent.GroupDeleted(
-                Project(projectId, projectId),
+                projectId,
                 groupName
             )
         })
@@ -104,7 +103,7 @@ class GroupService(
 
                 eventProducer.produce(
                     ProjectEvent.MemberAddedToGroup(
-                        Project(projectId, projectId),
+                        projectId,
                         newMember,
                         groupId
                     )
@@ -148,7 +147,7 @@ class GroupService(
 
             eventProducer.produce(
                 ProjectEvent.MemberRemovedFromGroup(
-                    Project(projectId, projectId),
+                    projectId,
                     memberToRemove,
                     groupId
                 )

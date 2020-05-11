@@ -1,9 +1,11 @@
 package dk.sdu.cloud.project.services
 
+import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
@@ -16,10 +18,9 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
-import org.joda.time.DateTimeConstants
+import dk.sdu.cloud.service.stackTraceToString
+import io.ktor.http.HttpStatusCode
 import org.joda.time.LocalDateTime
 
 object ProjectMemberTable : SQLTable("project_members") {
@@ -41,6 +42,13 @@ object ProjectMembershipVerified : SQLTable("project_membership_verification") {
     val projectId = text("project_id")
     val verification = timestamp("verification")
     val verifiedBy = text("verified_by")
+}
+
+object ProjectInvite : SQLTable("invites") {
+    val projectId = text("project_id")
+    val username = text("username")
+    val invitedBy = text("invited_by")
+    val createdAt = timestamp("created_at")
 }
 
 class ProjectService(
@@ -73,7 +81,7 @@ class ProjectService(
             verifyMembership(session, "_project", id)
         }
 
-        eventProducer.produce(ProjectEvent.Created(Project(id, title)))
+        eventProducer.produce(ProjectEvent.Created(id))
     }
 
     suspend fun findRoleOfMember(ctx: DBContext, projectId: String, member: String): ProjectRole? {
@@ -117,13 +125,30 @@ class ProjectService(
         projectId: String,
         inviteTo: String
     ) {
-        confirmUserExists(inviteTo)
-        ctx.withSession { session ->
-            requireRole(session, inviteFrom, projectId, ProjectRole.ADMINS)
-            // TODO Create invitiation
-            TODO()
+        try {
+            confirmUserExists(inviteTo)
+            ctx.withSession { session ->
+                requireRole(session, inviteFrom, projectId, ProjectRole.ADMINS)
+                val existingRole = findRoleOfMember(session, projectId, inviteTo)
+                if (existingRole != null) {
+                    throw ProjectException.AlreadyMember()
+                }
+
+                session.insert(ProjectInvite) {
+                    set(ProjectInvite.invitedBy, inviteFrom)
+                    set(ProjectInvite.projectId, projectId)
+                    set(ProjectInvite.username, inviteTo)
+                }
+            }
+            sendInviteNotifications(projectId, inviteFrom, inviteTo)
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+                throw ProjectException.AlreadyMember()
+            }
+
+            log.warn(ex.stackTraceToString())
+            throw RPCException("Internal Server Error", HttpStatusCode.InternalServerError)
         }
-        sendInviteNotifications(projectId, inviteFrom, inviteTo)
     }
 
     private suspend fun sendInviteNotifications(
@@ -150,11 +175,99 @@ class ProjectService(
             ),
             serviceClient
         )
-        TODO()
     }
 
-    suspend fun acceptInvite() {
-        TODO()
+    suspend fun acceptInvite(
+        ctx: DBContext,
+        invitedUser: String,
+        projectId: String
+    ) {
+        ctx.withSession { session ->
+            val hasInvite = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", invitedUser)
+                        setParameter("project", projectId)
+                    },
+                    """
+                        delete from invites
+                        where
+                            username = ?username and
+                            project_id = ?project
+                    """
+                )
+                .rowsAffected > 0
+
+            if (!hasInvite) throw ProjectException.NotFound()
+
+            session.insert(ProjectMemberTable) {
+                set(ProjectMemberTable.role, ProjectRole.USER.name)
+                set(ProjectMemberTable.project, projectId)
+                set(ProjectMemberTable.username, invitedUser)
+                set(ProjectMemberTable.createdAt, LocalDateTime.now())
+                set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
+            }
+        }
+    }
+
+    suspend fun rejectInvite(
+        ctx: DBContext,
+        rejectedBy: String,
+        projectId: String,
+        username: String
+    ) {
+        ctx.withSession { session ->
+            if (rejectedBy != username) {
+                requireRole(session, rejectedBy, projectId, ProjectRole.ADMINS)
+            }
+
+            val hasInvite = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", username)
+                        setParameter("project", projectId)
+                    },
+                    """
+                        delete from invites
+                        where
+                            username = ?username and
+                            project_id = ?project
+                    """
+                )
+                .rowsAffected > 0
+
+            if (!hasInvite) throw ProjectException.NotFound()
+        }
+    }
+
+    suspend fun leaveProject(
+        ctx: DBContext,
+        initiatedBy: String,
+        projectId: String
+    ) {
+        ctx.withSession { session ->
+            val existingRole = findRoleOfMember(session, projectId, initiatedBy) ?: throw ProjectException.NotFound()
+            if (existingRole == ProjectRole.PI) throw ProjectException.CantDeleteUserFromProject()
+
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("project", projectId)
+                        setParameter("username", initiatedBy)
+                    },
+                    """
+                        delete from project_members
+                        where project_id = ?project and username = ?username
+                    """
+                )
+
+            eventProducer.produce(
+                ProjectEvent.MemberDeleted(
+                    projectId,
+                    ProjectMember(initiatedBy, existingRole)
+                )
+            )
+        }
     }
 
     suspend fun deleteMember(
@@ -188,7 +301,7 @@ class ProjectService(
 
             eventProducer.produce(
                 ProjectEvent.MemberDeleted(
-                    Project(projectId, projectId),
+                    projectId,
                     ProjectMember(userToDelete, userToDeleteRole)
                 )
             )
@@ -238,7 +351,7 @@ class ProjectService(
 
             eventProducer.produce(
                 ProjectEvent.MemberRoleUpdated(
-                    Project(projectId, projectId),
+                    projectId,
                     ProjectMember(memberToUpdate, oldRole),
                     ProjectMember(memberToUpdate, newRole)
                 )

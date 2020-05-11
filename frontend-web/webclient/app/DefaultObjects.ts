@@ -16,7 +16,7 @@ import {Upload} from "Uploader";
 import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
 import {ProjectCache} from "Project/cache";
 import {APICallStateWithParams} from "Authentication/DataHook";
-import {ListGroupMembersRequestProps, ProjectMember} from "Project";
+import {ListGroupMembersRequestProps, ListOutgoingInvitesRequest, OutgoingInvite, ProjectMember} from "Project";
 import {GroupWithSummary} from "Project/GroupList";
 
 export enum KeyCode {
@@ -135,6 +135,7 @@ export interface HookStore {
     projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;
     projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>
     projectManagementQuery?: string;
+    projectManagementOutgoingInvites?: APICallStateWithParams<Page<OutgoingInvite>, ListOutgoingInvitesRequest>;
 }
 
 interface LegacyReduxObject {

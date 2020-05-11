@@ -29,7 +29,8 @@ const baseContext = "/projects/groups";
 
 const GroupList: React.FunctionComponent = props => {
     const history = useHistory();
-    const {allowManagement, group, groupList, fetchGroupList, groupListParams} = useProjectManagementStatus();
+    const {allowManagement, group, groupList, fetchGroupList, groupListParams,
+        membersPage} = useProjectManagementStatus();
 
     const [creatingGroup, setCreatingGroup] = useState(false);
     const [, setLoading] = useState(false);
@@ -75,7 +76,7 @@ const GroupList: React.FunctionComponent = props => {
                                 />
                             )
                         }
-                        navigate={() => history.push(`/projects/view/${g.group}`)}
+                        navigate={() => history.push(`/projects/view/${g.group}/${membersPage ?? ""}`)}
                         leftSub={
                             <Text ml="4px" color="gray" fontSize={0}>
                                 <Icon color="gray" mt="-2px" size="10" name="projects"/> {g.numberOfMembers}
@@ -247,6 +248,7 @@ function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
         if (op.disabled(props.selectedGroups, Client)) return null;
         return (
             <Box
+                key={op.text}
                 ml="-17px"
                 mr="-17px"
                 cursor="pointer"

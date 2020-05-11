@@ -216,9 +216,9 @@ export const viewProject = (payload: {id: string}): APICallParameters => ({
     disallowProjects: true
 });
 
-export const addMemberInProject = (payload: {projectId: string; member: ProjectMember}): APICallParameters => ({
+export const inviteMember = (payload: {projectId: string; username: string}): APICallParameters => ({
     method: "POST",
-    path: "/projects/members",
+    path: "/projects/invites",
     payload,
     reloadId: Math.random(),
     disallowProjects: true
@@ -276,6 +276,79 @@ export function toggleFavoriteProject(request: ToggleProjectFavorite): APICallPa
     return {
         method: "POST",
         path: "/projects/favorite",
+        parameters: request,
+        payload: request
+    };
+}
+
+export interface OutgoingInvite {
+    username: string;
+    invitedBy: string;
+    timestamp: number;
+}
+
+export interface ListOutgoingInvitesRequest extends PaginationRequest {
+
+}
+
+export function listOutgoingInvites(request: ListOutgoingInvitesRequest): APICallParameters<ListOutgoingInvitesRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/projects/invites/outgoing", request),
+        parameters: request
+    };
+}
+
+export interface IngoingInvite {
+    project: string;
+    invitedBy: string;
+    timestamp: string;
+}
+
+export interface ListIngoingInvitesRequest extends PaginationRequest {
+
+}
+
+export function listIngoingInvites(request: ListIngoingInvitesRequest): APICallParameters<ListIngoingInvitesRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/projects/invites/ingoing", request),
+        parameters: request
+    };
+}
+
+export interface AcceptInviteRequest {
+    projectId: string;
+}
+
+export function acceptInvite(request: AcceptInviteRequest): APICallParameters<AcceptInviteRequest> {
+    return {
+        method: "POST",
+        path: "/projects/invites/accept",
+        payload: request,
+        parameters: request
+    };
+}
+
+export interface RejectInviteRequest {
+    projectId: string;
+    username?: string;
+}
+
+export function rejectInvite(request: RejectInviteRequest): APICallParameters<RejectInviteRequest> {
+    return {
+        method: "DELETE",
+        path: "/projects/invites/reject",
+        parameters: request,
+        payload: request
+    };
+}
+
+type LeaveProjectRequest = {};
+export function leaveProject(request: LeaveProjectRequest): APICallParameters<LeaveProjectRequest> {
+    return {
+        method: "DELETE",
+        path: "/projects/leave",
         parameters: request,
         payload: request
     };

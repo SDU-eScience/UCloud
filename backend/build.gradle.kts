@@ -51,6 +51,10 @@ subprojects {
     apply(plugin = "jacoco")
     apply(plugin = "kotlin-jpa")
 
+    if (project.name == "launcher") {
+        apply(plugin = "application")
+    }
+
     if (project.name.endsWith("-service")) {
         run {
             val generated = sourceSets.create("generated")

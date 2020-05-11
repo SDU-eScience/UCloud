@@ -9,21 +9,7 @@ import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.eventStreamService
 import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.project.api.AddMemberRequest
-import dk.sdu.cloud.project.api.AddMemberResponse
-import dk.sdu.cloud.project.api.ChangeUserRoleRequest
-import dk.sdu.cloud.project.api.ChangeUserRoleResponse
-import dk.sdu.cloud.project.api.CreateProjectRequest
-import dk.sdu.cloud.project.api.CreateProjectResponse
-import dk.sdu.cloud.project.api.DeleteMemberRequest
-import dk.sdu.cloud.project.api.DeleteMemberResponse
-import dk.sdu.cloud.project.api.DeleteProjectResponse
-import dk.sdu.cloud.project.api.ProjectEvents
-import dk.sdu.cloud.project.api.ProjectMember
-import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.api.ViewMemberInProjectResponse
-import dk.sdu.cloud.project.api.ViewProjectResponse
-import dk.sdu.cloud.project.services.ProjectDao
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
@@ -54,34 +40,6 @@ class ServiceTest {
         ).parseSuccessful()
     }
 
-    private fun KtorApplicationTestContext.viewProject(
-        project: String,
-        principalInvestigator: SecurityPrincipal
-    ): ViewProjectResponse {
-        return sendRequest(
-            HttpMethod.Get,
-            "/api/projects",
-            user = principalInvestigator,
-            params = mapOf(
-                "id" to project
-            )
-        ).parseSuccessful()
-    }
-
-    private fun KtorApplicationTestContext.deleteProject(
-        project: String,
-        user: SecurityPrincipal
-    ): DeleteProjectResponse {
-        return sendRequest(
-            HttpMethod.Delete,
-            "/api/projects",
-            user = user,
-            params = mapOf(
-                "id" to project
-            )
-        ).parseSuccessful()
-    }
-
     private fun KtorApplicationTestContext.addMember(
         project: String,
         memberToAdd: ProjectMember,
@@ -90,7 +48,7 @@ class ServiceTest {
         sendJson(
             HttpMethod.Post,
             "/api/projects/members",
-            AddMemberRequest(project, memberToAdd),
+            InviteRequest(project, memberToAdd),
             principalInvestigator
         ).parseSuccessful<AddMemberResponse>()
     }

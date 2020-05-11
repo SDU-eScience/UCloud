@@ -4,6 +4,9 @@ import * as React from "react";
 import Flex from "./Flex";
 import Truncate from "./Truncate";
 import {stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {IconName} from "ui-components/Icon";
+import {Icon, Text} from "ui-components/index";
+import {Client} from "Authentication/HttpClientInstance";
 
 type StringOrNumber = string | number;
 
@@ -80,6 +83,23 @@ export function ListRow(props: ListRowProps): JSX.Element {
         </HoverColorFlex>
     );
 }
+
+
+export const ListRowStat: React.FunctionComponent<{ icon?: IconName, color?: string, color2?: string }> = props => {
+    const color = props.color ?? "gray";
+    const color2 = props.color2 ?? "white";
+    return (
+        <>
+            <Text color="gray" fontSize={0} mr={"4px"}>
+                {!props.icon ? null : (<>
+                    <Icon size={"10"} color={color} color2={color2} name={props.icon} mt={"-2px"} />
+                    {" "}
+                </>)}
+                {props.children}
+            </Text>
+        </>
+    );
+};
 
 const HoverColorFlex = styled(Flex) <{isSelected: boolean}>`
     transition: background-color 0.3s;

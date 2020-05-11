@@ -2,7 +2,14 @@ import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {emptyPage, ReduxObject, KeyCode} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
-import {listProjects, ListProjectsRequest, UserInProject, ProjectRole, createProject} from "Project/index";
+import {
+    listProjects,
+    ListProjectsRequest,
+    UserInProject,
+    ProjectRole,
+    createProject,
+    IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite
+} from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
@@ -12,7 +19,7 @@ import {Flex, Icon, List, Text, Input, Box} from "ui-components";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {ListRow} from "ui-components/List";
+import {ListRow, ListRowStat} from "ui-components/List";
 import {useHistory} from "react-router";
 import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
@@ -23,11 +30,17 @@ import {stopPropagation} from "UtilityFunctions";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {ThemeColor} from "ui-components/theme";
 import {useEffect} from "react";
+import * as Heading from "ui-components/Heading";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & { project?: string }> = props => {
     const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 50}),
+        emptyPage
+    );
+
+    const [ingoingInvites, fetchIngoingInvites, ingoingInvitesParams] = useCloudAPI<Page<IngoingInvite>>(
+        listIngoingInvites({page: 0, itemsPerPage: 10}),
         emptyPage
     );
 
@@ -44,6 +57,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
 
     const reload = (): void => {
         setFetchParams(listProjects({page: response.data.pageNumber, itemsPerPage: response.data.itemsPerPage}));
+        fetchIngoingInvites(listIngoingInvites({page: 0, itemsPerPage: 10}));
     };
 
     useEffect(() => {
@@ -60,150 +74,199 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
     return (
         <MainContainer
             headerSize={58}
-            header={<div/>}
+            header={<Heading.h3 mb={16}>Invitations</Heading.h3>}
             main={(
-                <List>
-                    <ListRow
-                        icon={<Box width="24px"/>}
-                        left={<Text>Personal project</Text>}
-                        leftSub={<Text color="gray" fontSize={0}><Icon size="10" name="id"/> {Client.username}</Text>}
-                        right={<Icon
-                            mr="48px"
-                            mt="5px"
-                            name="check"
-                            color={!props.project ? "green" : "gray"}
-                            hoverColor="green"
-                            cursor="pointer"
-                            onClick={() => {
-                                if (!props.project) return;
-                                snackbarStore.addInformation("Personal project is now the active.", false);
-                                props.setProject();
-                            }}
-                        />}
-                    />
-                    {creatingProject ?
-                        <ListRow
-                            icon={<Icon
-                                cursor="pointer"
-                                size="24"
-                                name={"starEmpty"}
-                                color={"midGray"}
-                                hoverColor="blue"
-                            />}
-                            left={<form onSubmit={onCreateProject}><Input
-                                pt="0px"
-                                pb="0px"
-                                pr="0px"
-                                pl="0px"
-                                noBorder
-                                fontSize={20}
-                                maxLength={1024}
-                                onKeyDown={e => {
-                                    if (e.keyCode === KeyCode.ESC) {
-                                        setCreatingProject(false);
-                                    }
-                                }}
-                                borderRadius="0px"
-                                type="text"
-                                width="100%"
-                                autoFocus
-                                ref={title}
-                            /></form>}
-                            right={<div/>}
-                            leftSub={<Text ml="4px" color="gray" fontSize={0}>
-                                <Icon color="white" color2="gray" mt="-2px" size="10" name="user"/>
-                                {" "}{projectRoleToString(ProjectRole.PI)}
-                            </Text>}
-                        /> : null}
+                <>
                     <Pagination.List
-                        page={response.data}
-                        pageRenderer={page =>
-                            page.items.map((e: UserInProject) => {
-                                const isActive = e.projectId === props.project;
-                                const isFavorite = e.favorite;
-                                return (
-                                    <ListRow
-                                        key={e.projectId}
-                                        isSelected={false} // Disabled since we don't have bulk operations
-                                        select={() => {
-                                            if (selectedProjects.has(e.projectId)) selectedProjects.delete(e.projectId);
-                                            else selectedProjects.add(e.projectId);
-                                            setSelectedProjects(new Set(selectedProjects));
-                                        }}
-                                        icon={<Icon
-                                            cursor="pointer"
-                                            size="24"
-                                            name={isFavorite ? "starFilled" : "starEmpty"}
-                                            color={isFavorite ? "blue" : "midGray"}
-                                            onClick={() => onToggleFavorite(e.projectId)}
-                                            hoverColor="blue"
-                                        />}
-                                        navigate={() => {
-                                            props.setProject(e.projectId);
-                                            history.push("/projects/view");
-                                        }}
-                                        left={e.title}
-                                        leftSub={
-                                            <Text ml="4px" color="gray" fontSize={0}>
-                                                <Icon color="white" color2="gray" mt="-2px" size="10" name="user"/>
-                                                {" "}{projectRoleToString(e.whoami.role)}
-                                            </Text>
-                                        }
-                                        right={<>
-                                            <Flex alignItems={"center"}>
-                                                {!e.needsVerification ? null : (
-                                                    <Text fontSize={0} mr={8}>
-                                                        <Icon name={"warning"}/> Attention required
-                                                    </Text>
-                                                )}
-                                                <Icon
-                                                    mr="20px"
-                                                    mt="5px"
-                                                    name="check"
-                                                    color={isActive ? "green" : "gray"}
-                                                    hoverColor="green"
-                                                    cursor="pointer"
-                                                    onClick={ev => {
-                                                        ev.stopPropagation();
-                                                        if (isActive) return;
-                                                        snackbarStore.addInformation(`${e.projectId} is now the active project`, false);
-                                                        props.setProject(e.projectId);
+                        customEmptyPage={<Box mb={32}>You have no invitations.</Box>}
+                        loading={ingoingInvites.loading}
+                        page={ingoingInvites.data}
+                        onPageChanged={newPage =>
+                            fetchIngoingInvites(listIngoingInvites({...ingoingInvitesParams.parameters, page: newPage}))
+                        }
+                        pageRenderer={() => (
+                            <Box mb={32}>
+                                <List>
+                                    {ingoingInvites.data.items.map(invite => (
+                                        <ListRow
+                                            icon={<Box width={"24px"} />}
+                                            key={invite.project}
+                                            left={invite.project}
+                                            leftSub={
+                                                <ListRowStat icon={"id"}>Invited by {invite.invitedBy}</ListRowStat>
+                                            }
+                                            right={(<>
+                                                <Button
+                                                    color={"green"}
+                                                    mr={8}
+                                                    onClick={async () => {
+                                                        await runCommand(acceptInvite({ projectId: invite.project }));
+                                                        reload();
                                                     }}
-                                                />
-                                                {selectedProjects.size === 0 && projectOperations.length > 0 ? (
-                                                    <div onClick={stopPropagation}>
-                                                        <ClickableDropdown
-                                                            width="125px"
-                                                            left="-105px"
-                                                            trigger={(
-                                                                <Icon
-                                                                    mr="10px"
-                                                                    name="ellipsis"
-                                                                    size="1em"
-                                                                    rotation={90}
-                                                                />
-                                                            )}
-                                                        >
-
-                                                            <ProjectOperations
-                                                                selectedProjects={[e]}
-                                                                projectOperations={projectOperations}
-                                                            />
-                                                        </ClickableDropdown>
-                                                    </div>
-                                                ) : <Box width="28px"/>}
-                                            </Flex>
-                                        </>}
-                                    />
-                                );
-                            })}
-                        loading={response.loading}
-                        onPageChanged={newPage => {
-                            setFetchParams(listProjects({page: newPage, itemsPerPage: response.data.itemsPerPage}));
-                        }}
-                        customEmptyPage={<div/>}
+                                                >
+                                                    Accept
+                                                </Button>
+                                                <Button
+                                                    color={"red"}
+                                                    onClick={async () => {
+                                                        await runCommand(rejectInvite({ projectId: invite.project }));
+                                                        reload();
+                                                    }}
+                                                >
+                                                    Reject
+                                                </Button>
+                                            </>)}
+                                        />
+                                    ))}
+                                </List>
+                            </Box>
+                        )}
                     />
-                </List>
+
+                    <Heading.h3 mb={16}>My Projects</Heading.h3>
+                    <List>
+                        <ListRow
+                            icon={<Box width="24px"/>}
+                            left={<Text>Personal project</Text>}
+                            leftSub={<ListRowStat icon={"id"}>{Client.username}</ListRowStat>}
+                            right={<Icon
+                                mr="48px"
+                                mt="5px"
+                                name="check"
+                                color={!props.project ? "green" : "gray"}
+                                hoverColor="green"
+                                cursor="pointer"
+                                onClick={() => {
+                                    if (!props.project) return;
+                                    snackbarStore.addInformation("Personal project is now the active.", false);
+                                    props.setProject();
+                                }}
+                            />}
+                        />
+                        {creatingProject ?
+                            <ListRow
+                                icon={<Icon
+                                    cursor="pointer"
+                                    size="24"
+                                    name={"starEmpty"}
+                                    color={"midGray"}
+                                    hoverColor="blue"
+                                />}
+                                left={<form onSubmit={onCreateProject}><Input
+                                    pt="0px"
+                                    pb="0px"
+                                    pr="0px"
+                                    pl="0px"
+                                    noBorder
+                                    fontSize={20}
+                                    maxLength={1024}
+                                    onKeyDown={e => {
+                                        if (e.keyCode === KeyCode.ESC) {
+                                            setCreatingProject(false);
+                                        }
+                                    }}
+                                    borderRadius="0px"
+                                    type="text"
+                                    width="100%"
+                                    autoFocus
+                                    ref={title}
+                                /></form>}
+                                right={<div/>}
+                                leftSub={<ListRowStat icon={"user"}>{projectRoleToString(ProjectRole.PI)}</ListRowStat>}
+                            /> : null}
+                        <Pagination.List
+                            page={response.data}
+                            pageRenderer={page =>
+                                page.items.map((e: UserInProject) => {
+                                    const isActive = e.projectId === props.project;
+                                    const isFavorite = e.favorite;
+                                    return (
+                                        <ListRow
+                                            key={e.projectId}
+                                            isSelected={false} // Disabled since we don't have bulk operations
+                                            select={() => {
+                                                if (selectedProjects.has(e.projectId)) selectedProjects.delete(e.projectId);
+                                                else selectedProjects.add(e.projectId);
+                                                setSelectedProjects(new Set(selectedProjects));
+                                            }}
+                                            icon={<Icon
+                                                cursor="pointer"
+                                                size="24"
+                                                name={isFavorite ? "starFilled" : "starEmpty"}
+                                                color={isFavorite ? "blue" : "midGray"}
+                                                onClick={() => onToggleFavorite(e.projectId)}
+                                                hoverColor="blue"
+                                            />}
+                                            navigate={() => {
+                                                props.setProject(e.projectId);
+                                                history.push("/projects/view");
+                                            }}
+                                            left={e.title}
+                                            leftSub={
+                                                <Text ml="4px" color="gray" fontSize={0}>
+                                                    <Icon color="white" color2="gray" mt="-2px" size="10" name="user"/>
+                                                    {" "}{projectRoleToString(e.whoami.role)}
+                                                </Text>
+                                            }
+                                            right={<>
+                                                <Flex alignItems={"center"}>
+                                                    {!e.needsVerification ? null : (
+                                                        <Text fontSize={0} mr={8}>
+                                                            <Icon name={"warning"}/> Attention required
+                                                        </Text>
+                                                    )}
+                                                    <Icon
+                                                        mr="20px"
+                                                        mt="5px"
+                                                        name="check"
+                                                        color={isActive ? "green" : "gray"}
+                                                        hoverColor="green"
+                                                        cursor="pointer"
+                                                        onClick={ev => {
+                                                            ev.stopPropagation();
+                                                            if (isActive) return;
+                                                            snackbarStore.addInformation(
+                                                                `${e.projectId} is now the active project`,
+                                                                false
+                                                            );
+                                                            props.setProject(e.projectId);
+                                                        }}
+                                                    />
+                                                    {selectedProjects.size === 0 && projectOperations.length > 0 ? (
+                                                        <div onClick={stopPropagation}>
+                                                            <ClickableDropdown
+                                                                width="125px"
+                                                                left="-105px"
+                                                                trigger={(
+                                                                    <Icon
+                                                                        mr="10px"
+                                                                        name="ellipsis"
+                                                                        size="1em"
+                                                                        rotation={90}
+                                                                    />
+                                                                )}
+                                                            >
+
+                                                                <ProjectOperations
+                                                                    selectedProjects={[e]}
+                                                                    projectOperations={projectOperations}
+                                                                />
+                                                            </ClickableDropdown>
+                                                        </div>
+                                                    ) : <Box width="28px"/>}
+                                                </Flex>
+                                            </>}
+                                        />
+                                    );
+                                })}
+                            loading={response.loading}
+                            onPageChanged={newPage => {
+                                setFetchParams(listProjects({page: newPage, itemsPerPage: response.data.itemsPerPage}));
+                            }}
+                            customEmptyPage={<div/>}
+                        />
+                    </List>
+                </>
             )}
             sidebar={(<>
                 <VerticalButtonGroup>
@@ -230,13 +293,13 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
             return;
         }
 
-        await runCommand(createProject({ title: projectId }))
+        await runCommand(createProject({title: projectId}));
         setCreatingProject(false);
         props.setProject(projectId);
         history.push("/projects/view");
     }
 
-    async function onToggleFavorite(projectId: string) {
+    async function onToggleFavorite(projectId: string): Promise<void> {
         await runCommand(toggleFavoriteProject({projectId}));
         reload();
     }

@@ -27,7 +27,7 @@ sealed class ProjectException(why: String, statusCode: HttpStatusCode) : RPCExce
 
     class CantDeleteUserFromProject :
         ProjectException(
-            "This user cannot be deleted from the project",
+            "This user cannot be removed from the project",
             HttpStatusCode.BadRequest
         )
 

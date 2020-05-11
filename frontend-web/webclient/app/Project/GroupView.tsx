@@ -17,7 +17,7 @@ import {errorMessageOrDefault} from "UtilityFunctions";
 const GroupView: React.FunctionComponent = props => {
     const {
         projectId, group, groupMembers, fetchGroupMembers, groupMembersParams,
-        allowManagement
+        allowManagement, membersPage
     } = useProjectManagementStatus();
     const activeGroup = groupMembers;
     const fetchActiveGroup = fetchGroupMembers;
@@ -25,7 +25,7 @@ const GroupView: React.FunctionComponent = props => {
 
     const header = (
         <BreadCrumbsBase>
-            <li><span><Link to={`/projects/view`}>Groups</Link></span></li>
+            <li><span><Link to={`/projects/view/-/${membersPage ?? ""}`}>Groups</Link></span></li>
             <li><Truncate width={"500px"}>{group}</Truncate></li>
         </BreadCrumbsBase>
     );
@@ -51,7 +51,7 @@ const GroupView: React.FunctionComponent = props => {
             customEmptyPage={(
                 <Text>
                     No members in group.
-                    You can add members by clicking on the green arrow in the 'Members of {projectId}' panel.
+                    You can add members by clicking on the green arrow in the &apos;Members of {projectId}&apos; panel.
                 </Text>
             )}
             page={activeGroup.data}
@@ -59,7 +59,7 @@ const GroupView: React.FunctionComponent = props => {
                 <MembersList
                     members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
                     onRemoveMember={promptRemoveMember}
-                    projectMembers={projectId}
+                    projectId={projectId}
                     allowManagement={allowManagement}
                     allowRoleManagement={false}
                     showRole={false}
