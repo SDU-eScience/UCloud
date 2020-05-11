@@ -188,7 +188,7 @@ test("No extension", () =>
 // Extension type from path
 
 test("Extract code type from path", () =>
-    expect(UF.extensionTypeFromPath("/Home/user@user.dk/README.md")).toBe("code")
+    expect(UF.extensionTypeFromPath("/Home/user@user.dk/README.md")).toBe("markdown")
 );
 
 test("Extract sound type from path", () =>
@@ -201,9 +201,9 @@ test("Extract no type from path", () =>
 
 describe("Icon from file path", () => {
     test("Dir", () => expect(UF.iconFromFilePath("home", "DIRECTORY").type).toBe("DIRECTORY"));
-    test("File", () => expect(UF.iconFromFilePath("home", "FILE")).toStrictEqual({type: "FILE"}));
+    test("File", () => expect(UF.iconFromFilePath("home", "FILE")).toStrictEqual({name: "home", type: "FILE"}));
     test("File with ext", () =>
-        expect(UF.iconFromFilePath("home.txt", "FILE")).toStrictEqual({type: "FILE", ext: "txt"}));
+        expect(UF.iconFromFilePath("home.txt", "FILE")).toStrictEqual({type: "FILE", name: "home.txt", ext: "txt"}));
     test("Jobs", () =>
         expect(UF.iconFromFilePath("/home/user@user.dk/Jobs", "DIRECTORY").type).toStrictEqual("RESULTFOLDER"));
     test("Favorites", () =>

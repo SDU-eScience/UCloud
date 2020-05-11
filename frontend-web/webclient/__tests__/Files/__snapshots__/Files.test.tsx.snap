@@ -269,15 +269,32 @@ exports[`Mount Files component 1`] = `
   max-width: 85%;
   height: 60px;
   overflow-y: auto;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-flex-direction: row;
+  -ms-flex-direction: row;
+  flex-direction: row;
+  -webkit-flex-wrap: wrap;
+  -ms-flex-wrap: wrap;
+  flex-wrap: wrap;
 }
 
 .c7 li {
-  display: inline;
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-flex-direction: row;
+  -ms-flex-direction: row;
+  flex-direction: row;
   font-size: 25px;
 }
 
 .c7 li + li:before {
-  padding: 8px;
+  padding: 0 8px;
+  vertical-align: top;
   color: var(--text,#f00);
   content: "/";
 }

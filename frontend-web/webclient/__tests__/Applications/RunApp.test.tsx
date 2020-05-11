@@ -19,8 +19,9 @@ describe("RunApp component", () => {
                                 params: {appName: "appName", appVersion: "appVersion"},
                                 isExact: true,
                                 path: "",
-                                url: "",
+                                url: ""
                             }}
+                            location={{search: ""}}
                             history={createMemoryHistory()}
                         />
                     </MemoryRouter>

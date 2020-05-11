@@ -27,7 +27,7 @@ const Files: React.FunctionComponent<FilesOperations> = props => {
     const urlPath = getQueryParamOrElse({history, location}, "path", Client.homeFolder);
     useEffect(() => props.onInit(), []);
     const components = pathComponents(urlPath);
-    if (components.length >= 2 && components[0] == "projects" && components[1] !== Client.projectId) {
+    if (components.length >= 2 && components[0] === "projects" && components[1] !== Client.projectId) {
         props.setActiveProject(components[1]);
     } else if (components.length >= 2 && components[0] === "home" && Client.hasActiveProject) {
         props.setActiveProject(undefined);

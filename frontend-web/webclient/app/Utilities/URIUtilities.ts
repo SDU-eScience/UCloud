@@ -4,7 +4,7 @@ export interface RouterLocationProps {
     history: History;
     location: {
         // TODO There is more here
-        search: string
+        search: string;
     };
 }
 

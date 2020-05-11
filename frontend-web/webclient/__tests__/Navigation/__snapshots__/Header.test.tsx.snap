@@ -231,7 +231,7 @@ exports[`Header Mount header 1`] = `
 
 .c12 {
   cursor: inherit;
-  width: 80px;
+  width: 150px;
   -webkit-flex: 1;
   -ms-flex: 1;
   flex: 1;
@@ -250,14 +250,24 @@ exports[`Header Mount header 1`] = `
 }
 
 .c10 {
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-flex-wrap: none;
+  -ms-flex-wrap: none;
+  flex-wrap: none;
   color: white;
   padding: 4px;
   cursor: pointer;
-  display: inline-block;
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
 }
 
 .c10:hover {
@@ -346,42 +356,6 @@ exports[`Header Mount header 1`] = `
   height: 36px;
 }
 
-@media screen and (max-width:511px) {
-  .c15 {
-    display: none;
-  }
-}
-
-@media screen and (min-width:512px) and (max-width:639px) {
-  .c15 {
-    display: none;
-  }
-}
-
-@media screen and (min-width:640px) and (max-width:767px) {
-  .c15 {
-    display: none;
-  }
-}
-
-@media screen and (min-width:768px) and (max-width:1023px) {
-  .c23 {
-    display: none;
-  }
-}
-
-@media screen and (min-width:1024px) and (max-width:1279px) {
-  .c23 {
-    display: none;
-  }
-}
-
-@media screen and (min-width:1280px) {
-  .c23 {
-    display: none;
-  }
-}
-
 @media screen and (min-width:512px) {
 
 }
@@ -401,6 +375,42 @@ exports[`Header Mount header 1`] = `
 @media screen and (min-width:1280px) {
   .c1 {
     width: 190px;
+  }
+}
+
+@media screen and (max-width:511px) {
+  .c15 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:512px) and (max-width:639px) {
+  .c15 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:640px) and (max-width:767px) {
+  .c15 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:768px) and (max-width:1023px) {
+  .c15 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1024px) and (max-width:1279px) {
+  .c23 {
+    display: none;
+  }
+}
+
+@media screen and (min-width:1280px) {
+  .c23 {
+    display: none;
   }
 }
 
@@ -829,13 +839,13 @@ exports[`Header Mount header 1`] = `
               fillRule="nonzero"
             />
           </svg>
-          <span
+          <div
             className="c4 c12"
             cursor="inherit"
-            width="80px"
+            width="150px"
           >
             Personal Project
-          </span>
+          </div>
           <svg
             className="c13"
             clipRule="evenodd"
@@ -955,6 +965,9 @@ exports[`Header Mount header 1`] = `
   </div>
   <div
     className="c25"
+  />
+  <div
+    className="c15"
   />
   <div
     className="c26"
