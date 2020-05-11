@@ -162,7 +162,7 @@ const SidebarPushToBottom = styled.div`
     flex-grow: 1;
 `;
 
-interface MenuElement {icon: IconName; label: string; to: string | (() => string)}
+interface MenuElement {icon: IconName; label: string; to: string | (() => string); show?: () => boolean}
 interface SidebarMenuElements {
     items: MenuElement[];
     predicate: () => boolean;
@@ -187,7 +187,8 @@ export const sideBarMenuElements: {
                 icon: "files", label: "Files", to: () =>
                     fileTablePage(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder)
             },
-            {icon: "shareMenu", label: "Shares", to: "/shares/"},
+            {icon: "projects", label: "Projects", to: "/projects", show: () => Client.hasActiveProject},
+            {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
             {icon: "results", label: "Runs", to: "/applications/results/"}
         ], predicate: () => Client.isLoggedIn
@@ -220,7 +221,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
         <SidebarContainer color="sidebar" flexDirection="column" width={190}>
             {sidebar.map((category, categoryIdx) => (
                 <React.Fragment key={categoryIdx}>
-                    {category.items.map(({icon, label, to}: MenuElement) => (
+                    {category.items.filter((it: MenuElement) => it?.show?.() ?? true).map(({icon, label, to}: MenuElement) => (
                         <React.Fragment key={label}>
                             <SidebarSpacer />
                             <SidebarElement
