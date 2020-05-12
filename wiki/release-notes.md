@@ -7,6 +7,15 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 12-05-20
+
+Bug fix for notifications.
+
+| Deployment | Image |
+| ---------- | ----- |
+| notification         |  registry.cloud.sdu.dk/sdu-cloud/notification-service:1.2.16 |
+
+
 ## 28-04-20
 
 Bug fix for app-kubernetes.
