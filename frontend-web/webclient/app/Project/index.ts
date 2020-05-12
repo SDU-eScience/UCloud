@@ -99,6 +99,7 @@ export function groupSummaryRequest(payload: PaginationRequest): APICallParamete
         path: buildQueryString(`${groupContext}/summary`, payload),
         method: "GET",
         reloadId: Math.random(),
+        parameters: payload,
         payload
     };
 }
