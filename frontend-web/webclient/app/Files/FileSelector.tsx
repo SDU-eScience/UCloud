@@ -1,5 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {VirtualFileTable, VirtualFolderDefinition} from "Files/VirtualFileTable";
+import {VirtualFileTable, VirtualFolderDefinition, defaultVirtualFolders} from "Files/VirtualFileTable";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
@@ -123,33 +123,16 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
 };
 
 const useVirtualFolders = (path: string): VirtualFolderDefinition => {
-    const fakeFolders = Client.fakeFolders;
+    const {fakeFolders, loadFolder} = defaultVirtualFolders();
     const [, projectName] = pathComponents(path);
     const homeProjectList = `${Client.homeFolder}Project List`;
     const projectProjectList = `/projects/${projectName}/Project List`;
-    fakeFolders.push(homeProjectList);
-    fakeFolders.push(projectProjectList);
+    fakeFolders!.push(homeProjectList);
+    fakeFolders!.push(projectProjectList);
     return {
         fakeFolders,
         loadFolder: async (folder, page, itemsPerPage): Promise<Page<File>> => {
-            if (folder === Client.favoritesFolder) {
-                const favs = (await callAPIWithErrorHandler<Page<File>>(listFavorites({page, itemsPerPage})));
-                return favs ?? emptyPage;
-            } else if (folder === Client.sharesFolder) {
-                return (await Client.get<Page<File>>(
-                    buildQueryString("/shares/list-files", {page, itemsPerPage}))
-                ).response;
-            } else if (isProjectHome(folder)) {
-                try {
-                    const response = await callAPI<Page<File>>(listRepositoryFiles({page, itemsPerPage}));
-                    response.items.forEach(f => f.isRepo = true);
-                    return response;
-                } catch (err) {
-                    // Edge case that no repos exist for for project, but we want it to be empty instead of non-existant.
-                    if (err.request.status === 404) return emptyPage;
-                    else throw err;
-                }
-            } else if ([homeProjectList, projectProjectList].includes(folder)) {
+            if ([homeProjectList, projectProjectList].includes(folder)) {
                 const {response} = await Client.get<Page<UserInProject>>(buildQueryString("/projects/list", {itemsPerPage, page}));
                 return {
                     ...response,
@@ -161,7 +144,7 @@ const useVirtualFolders = (path: string): VirtualFolderDefinition => {
                     }))
                 };
             } else {
-                return emptyPage;
+                return loadFolder!(folder, page, itemsPerPage);
             }
         }
     };
