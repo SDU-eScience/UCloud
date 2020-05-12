@@ -151,7 +151,8 @@ export default class HttpClient {
                     req.open(method, this.computeURL(context, path));
                     req.setRequestHeader("Authorization", `Bearer ${token}`);
                     req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
-                    if (!!this.projectId) req.setRequestHeader("Project", projectOverride ?? this.projectId);
+                    const projectId = projectOverride ?? this.projectId;
+                    if (projectId) req.setRequestHeader("Project", projectId);
                     req.responseType = "text"; // Explicitly set, otherwise issues with empty response
                     if (withCredentials) {
                         req.withCredentials = true;

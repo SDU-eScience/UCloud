@@ -48,13 +48,11 @@ interface SubscribeParameters<T = any> {
     call: string;
     payload: T | null;
     handler: (message: WebsocketResponse) => void;
-    disallowProjects?: boolean;
 }
 
 interface CallParameters<T = any> {
     call: string;
     payload: T | null;
-    disallowProjects?: boolean;
 }
 
 export class WebSocketConnection {

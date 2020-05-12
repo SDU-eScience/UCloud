@@ -1,4 +1,4 @@
-import {callAPIWithErrorHandler, useAsyncWork} from "Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {File} from "Files/index";
@@ -9,6 +9,7 @@ import {Page} from "Types";
 import {getParentPath, isProjectHome, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {listFavorites} from "Files/favorite";
+import {listRepositoryFiles} from "Project";
 
 export type VirtualFileTableProps = LowLevelFileTableProps & VirtualFolderDefinition;
 
@@ -102,7 +103,7 @@ export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
             ).response;
         } else if (isProjectHome(folder)) {
             try {
-                const {response} = await Client.get<Page<File>>(buildQueryString("/projects/repositories/list-files", {page, itemsPerPage}));
+                const response = await callAPI<Page<File>>(listRepositoryFiles({page, itemsPerPage}));
                 response.items.forEach(f => f.isRepo = true);
                 return response;
             } catch (err) {

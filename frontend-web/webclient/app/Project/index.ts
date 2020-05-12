@@ -201,35 +201,31 @@ export interface UserGroupSummary {
     username: string;
 }
 
-export const createProject = (payload: {title: string;}): APICallParameters => ({
+export const createProject = (payload: {title: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,
-    reloadId: Math.random(),
-    disallowProjects: true
+    reloadId: Math.random()
 });
 
 export const viewProject = (payload: {id: string}): APICallParameters => ({
     method: "GET",
     path: buildQueryString("/projects/", payload),
-    reloadId: Math.random(),
-    disallowProjects: true
+    reloadId: Math.random()
 });
 
 export const inviteMember = (payload: {projectId: string; username: string}): APICallParameters => ({
     method: "POST",
     path: "/projects/invites",
     payload,
-    reloadId: Math.random(),
-    disallowProjects: true
+    reloadId: Math.random()
 });
 
 export const deleteMemberInProject = (payload: {projectId: string; member: string}): APICallParameters => ({
     method: "DELETE",
     path: "/projects/members",
     payload,
-    reloadId: Math.random(),
-    disallowProjects: true
+    reloadId: Math.random()
 });
 
 export const changeRoleInProject = (
@@ -238,8 +234,7 @@ export const changeRoleInProject = (
     method: "POST",
     path: "/projects/members/change-role",
     payload,
-    reloadId: Math.random(),
-    disallowProjects: true
+    reloadId: Math.random()
 });
 
 export interface ListProjectsRequest {
@@ -254,8 +249,7 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
         parameters
     ),
     parameters,
-    reloadId: Math.random(),
-    disallowProjects: true
+    reloadId: Math.random()
 });
 
 export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined => {
@@ -364,5 +358,22 @@ export function transferPiRole(request: TransferPiRoleRequest): APICallParameter
         path: "/projects/transfer-pi",
         parameters: request,
         payload: request
+    };
+}
+
+export interface ListRepositoryRequest extends PaginationRequest {
+
+}
+
+export function listRepositoryFiles(
+    request: ListRepositoryRequest,
+    projectOverride?: string
+): APICallParameters<ListRepositoryRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/projects/repositories/list-files", request),
+        parameters: request,
+        reloadId: Math.random(),
+        projectOverride
     };
 }

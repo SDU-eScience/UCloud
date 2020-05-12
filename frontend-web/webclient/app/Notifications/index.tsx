@@ -43,7 +43,6 @@ function Notifications(props: Notifications): JSX.Element {
                 c.subscribe({
                     call: "notifications.subscription",
                     payload: {},
-                    disallowProjects: true,
                     handler: message => {
                         if (message.type === "message") {
                             props.receiveNotification(message.payload);

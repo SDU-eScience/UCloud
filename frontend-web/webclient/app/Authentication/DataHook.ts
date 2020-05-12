@@ -37,7 +37,6 @@ export interface APICallParameters<Parameters = any, Payload = any> {
     context?: string;
     maxRetries?: number;
     parameters?: Parameters;
-    disallowProjects?: boolean;
     reloadId?: number; // Can be used to force an ID by setting this to a random value
     noop?: boolean; // Used to indicate that this should not be run in a useCloudAPI hook.
     withCredentials?: boolean;

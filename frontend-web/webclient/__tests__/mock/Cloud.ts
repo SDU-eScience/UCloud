@@ -116,7 +116,6 @@ class MockHttpClient {
         body,
         context = this.apiContext,
         maxRetries = 5,
-        disallowProjects = false,
         withCredentials = false
     }): Promise<any> =>
         new Promise((resolve, reject) => {
@@ -231,11 +230,7 @@ class MockHttpClient {
     }
 
     private retrieveToken(disallowProjects: boolean): string {
-        if (this.useProjectToken(disallowProjects)) {
-            return this.projectAccessToken!;
-        } else {
-            return HttpClient.storedAccessToken;
-        }
+        return HttpClient.storedAccessToken;
     }
 
     private useProjectToken(disallowProjects: boolean): boolean {
