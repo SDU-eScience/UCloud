@@ -5,6 +5,8 @@ import {
     OutgoingInvite,
     ProjectMember,
     ProjectRole,
+    UserInProject,
+    viewProject,
 } from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
@@ -33,7 +35,10 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {useProjectStatus} from "Project/cache";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {ProjectSettings} from "Project/ProjectSettings";
+import {Client} from "Authentication/HttpClientInstance";
 
+// A lot easier to let typescript take care of the details for this one
+// eslint-disable-next-line
 export function useProjectManagementStatus() {
     const history = useHistory();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
@@ -47,6 +52,19 @@ export function useProjectManagementStatus() {
         "projectManagement",
         membershipSearch({itemsPerPage: 100, page: 0, query: ""}),
         emptyPage
+    );
+
+    const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
+        "projectManagementDetails",
+        {noop: true},
+        {
+            projectId: projectId ?? "",
+            favorite: false,
+            needsVerification: false,
+            title: projectId ?? "",
+            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
+            archived: false
+        }
     );
 
     const [groupMembers, fetchGroupMembers, groupMembersParams] = useGlobalCloudAPI<Page<string>>(
@@ -83,7 +101,8 @@ export function useProjectManagementStatus() {
         locationParams, projectId: projectId ?? "", group, projectMembers, setProjectMemberParams, groupMembers,
         fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
         projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
-        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole
+        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
+        projectDetails, projectDetailsParams, fetchProjectDetails
     };
 }
 
@@ -102,7 +121,9 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         reloadProjectStatus,
         fetchOutgoingInvites,
         outgoingInvitesParams,
-        membersPage
+        membersPage,
+        fetchProjectDetails,
+        projectDetailsParams
     } = useProjectManagementStatus();
 
     const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
@@ -119,6 +140,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
 
         reloadProjectStatus();
         fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
+        fetchProjectDetails(viewProject({id: projectId}));
     }, [projectId, group]);
 
     useEffect(() => {
@@ -138,6 +160,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     const reload = useCallback(() => {
         fetchOutgoingInvites(outgoingInvitesParams);
         setProjectMemberParams(projectMemberParams);
+        fetchProjectDetails(projectDetailsParams);
         if (group !== undefined) {
             fetchGroupMembers(groupMembersParams);
         }
@@ -192,7 +215,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                     <TwoColumnLayout>
                         <Box className={"members"}>
                             <Box ml={8} mr={8}>
-                                {membersPage === "settings" ? <ProjectSettings /> : <ProjectMembers/>}
+                                {membersPage === "settings" ? <ProjectSettings/> : <ProjectMembers/>}
                             </Box>
                         </Box>
                         <Box className={"groups"}>

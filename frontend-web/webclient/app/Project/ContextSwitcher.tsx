@@ -20,7 +20,7 @@ import {Client} from "Authentication/HttpClientInstance";
 // eslint-disable-next-line no-underscore-dangle
 function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
     const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
-        listProjects({page: 0, itemsPerPage: 10}),
+        listProjects({page: 0, itemsPerPage: 10, archived: false}),
         emptyPage
     );
     const activeContext = props.activeProject ?? "Personal Project";

@@ -15,7 +15,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page, Operation} from "Types";
 import Button from "ui-components/Button";
-import {Flex, Icon, List, Text, Input, Box} from "ui-components";
+import {Flex, Icon, List, Text, Input, Box, Checkbox, Label} from "ui-components";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -29,13 +29,14 @@ import {Client} from "Authentication/HttpClientInstance";
 import {stopPropagation} from "UtilityFunctions";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {ThemeColor} from "ui-components/theme";
-import {useEffect} from "react";
+import {useEffect, useState} from "react";
 import * as Heading from "ui-components/Heading";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & { project?: string }> = props => {
+    const [archived, setArchived] = useState<boolean>(false);
     const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
-        listProjects({page: 0, itemsPerPage: 50}),
+        {noop: true},
         emptyPage
     );
 
@@ -56,7 +57,11 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
     const history = useHistory();
 
     const reload = (): void => {
-        setFetchParams(listProjects({page: response.data.pageNumber, itemsPerPage: response.data.itemsPerPage}));
+        setFetchParams(listProjects({
+            page: response.data.pageNumber,
+            itemsPerPage: response.data.itemsPerPage,
+            archived
+        }));
         fetchIngoingInvites(listIngoingInvites({page: 0, itemsPerPage: 10}));
     };
 
@@ -68,6 +73,10 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
         props.setRefresh(reload);
         return () => props.setRefresh();
     }, [reload]);
+
+    useEffect(() => {
+        setFetchParams(listProjects({page: 0, itemsPerPage: 50, archived})) ;
+    }, [archived]);
 
     const projectOperations: ProjectOperation[] = [];
 
@@ -261,7 +270,13 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                 })}
                             loading={response.loading}
                             onPageChanged={newPage => {
-                                setFetchParams(listProjects({page: newPage, itemsPerPage: response.data.itemsPerPage}));
+                                setFetchParams(
+                                    listProjects({
+                                        page: newPage,
+                                        itemsPerPage: response.data.itemsPerPage,
+                                        archived
+                                    })
+                                );
                             }}
                             customEmptyPage={<div/>}
                         />
@@ -271,6 +286,10 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
             sidebar={(<>
                 <VerticalButtonGroup>
                     <Button onClick={startCreateProject}>Create project</Button>
+                    <Label fontSize={"100%"}>
+                        <Checkbox size={24} checked={archived} onChange={() => setArchived(!archived)} />
+                        Show archived
+                    </Label>
                     <ProjectOperations
                         selectedProjects={response.data.items.filter(it => selectedProjects.has(it.projectId))}
                         projectOperations={projectOperations}

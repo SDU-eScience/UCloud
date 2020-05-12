@@ -36,6 +36,7 @@ object ProjectTable : SQLTable("projects") {
     val title = text("title")
     val createdAt = timestamp("created_at")
     val modifiedAt = timestamp("modified_at")
+    val archived = bool("archived")
 }
 
 object ProjectMembershipVerified : SQLTable("project_membership_verification") {
@@ -390,6 +391,30 @@ class ProjectService(
                 set(ProjectMembershipVerified.verification, LocalDateTime.now())
                 set(ProjectMembershipVerified.verifiedBy, verifiedBy)
             }
+        }
+    }
+
+    suspend fun setArchiveStatus(
+        ctx: DBContext,
+        requestedBy: String,
+        projectId: String,
+        archiveStatus: Boolean
+    ) {
+        ctx.withSession { session ->
+            requireRole(session, requestedBy, projectId, ProjectRole.ADMINS)
+
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("project", projectId)
+                        setParameter("archiveStatus", archiveStatus)
+                    },
+                    """
+                        update projects 
+                        set archived = ?archiveStatus
+                        where id = ?project
+                    """
+                )
         }
     }
 

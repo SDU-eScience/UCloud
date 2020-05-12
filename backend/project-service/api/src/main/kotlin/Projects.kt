@@ -2,11 +2,9 @@ package dk.sdu.cloud.project.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
@@ -54,6 +52,9 @@ data class IngoingInvite(
 data class TransferPiRoleRequest(val newPrincipalInvestigator: String)
 typealias TransferPiRoleResponse = Unit
 
+data class ArchiveRequest(val archiveStatus: Boolean)
+typealias ArchiveResponse = Unit
+
 /**
  * A project summary from a user's perspective
  */
@@ -62,7 +63,8 @@ data class UserProjectSummary(
     val title: String,
     val whoami: ProjectMember,
     val needsVerification: Boolean,
-    val isFavorite: Boolean
+    val isFavorite: Boolean,
+    val archived: Boolean
 )
 
 data class UserGroupSummary(
@@ -74,10 +76,14 @@ data class UserGroupSummary(
 data class ListProjectsRequest(
     val user: String?,
     override val itemsPerPage: Int?,
-    override val page: Int?
+    override val page: Int?,
+    val archived: Boolean? = null
 ) : WithPaginationRequest
 
 typealias ListProjectsResponse = Page<UserProjectSummary>
+
+data class ViewProjectRequest(val id: String)
+typealias ViewProjectResponse = UserProjectSummary
 
 data class ListIngoingInvitesRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias ListIngoingInvitesResponse = Page<IngoingInvite>
@@ -313,6 +319,26 @@ object Projects : CallDescriptionContainer("project") {
                 +boundTo(ListProjectsRequest::itemsPerPage)
                 +boundTo(ListProjectsRequest::page)
                 +boundTo(ListProjectsRequest::user)
+                +boundTo(ListProjectsRequest::archived)
+            }
+        }
+    }
+
+    val viewProject = call<ViewProjectRequest, ViewProjectResponse, CommonErrorMessage>("viewProject") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"view"
+            }
+
+            params {
+                +boundTo(ViewProjectRequest::id)
             }
         }
     }
@@ -332,4 +358,21 @@ object Projects : CallDescriptionContainer("project") {
                 }
             }
         }
+
+    val archive = call<ArchiveRequest, ArchiveResponse, CommonErrorMessage>("archive") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"archive"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
 }

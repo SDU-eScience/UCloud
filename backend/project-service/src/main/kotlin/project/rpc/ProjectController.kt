@@ -52,6 +52,7 @@ class ProjectController(
         }
 
         implement(Projects.listProjects) {
+            val showArchived = request.archived ?: true
             val user = when (ctx.securityPrincipal.role) {
                 in Roles.PRIVILEDGED -> {
                     request.user ?: ctx.securityPrincipal.username
@@ -66,7 +67,7 @@ class ProjectController(
                 else -> request.normalize()
             }
 
-            ok(queries.listProjects(db, user, pagination))
+            ok(queries.listProjects(db, user, showArchived, pagination))
         }
 
         implement(Projects.verifyMembership) {
@@ -129,6 +130,29 @@ class ProjectController(
             )
 
             ok(Unit)
+        }
+
+        implement(Projects.archive) {
+            projects.setArchiveStatus(
+                db,
+                ctx.securityPrincipal.username,
+                ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest),
+                request.archiveStatus
+            )
+
+            ok(Unit)
+        }
+
+        implement(Projects.viewProject) {
+            ok(
+                queries.listProjects(
+                    db,
+                    ctx.securityPrincipal.username,
+                    true,
+                    null,
+                    request.id
+                ).items.singleOrNull() ?: throw ProjectException.NotFound()
+            )
         }
     }
 

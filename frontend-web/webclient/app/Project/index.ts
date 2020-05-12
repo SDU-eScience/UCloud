@@ -2,8 +2,6 @@ import {APICallParameters} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Page, PaginationRequest} from "Types";
 import {Client} from "Authentication/HttpClientInstance";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault} from "UtilityFunctions";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -194,6 +192,7 @@ export interface UserInProject {
     whoami: ProjectMember;
     needsVerification: boolean;
     favorite: boolean;
+    archived: boolean;
 }
 
 export interface UserGroupSummary {
@@ -206,12 +205,6 @@ export const createProject = (payload: {title: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,
-    reloadId: Math.random()
-});
-
-export const viewProject = (payload: {id: string}): APICallParameters => ({
-    method: "GET",
-    path: buildQueryString("/projects/", payload),
     reloadId: Math.random()
 });
 
@@ -238,9 +231,8 @@ export const changeRoleInProject = (
     reloadId: Math.random()
 });
 
-export interface ListProjectsRequest {
-    page: number;
-    itemsPerPage: number;
+export interface ListProjectsRequest extends PaginationRequest{
+    archived: boolean;
 }
 
 export const listProjects = (parameters: ListProjectsRequest): APICallParameters<ListProjectsRequest> => ({
@@ -376,5 +368,32 @@ export function listRepositoryFiles(
         parameters: request,
         reloadId: Math.random(),
         projectOverride
+    };
+}
+
+export interface ArchiveProjectRequest {
+    archiveStatus: boolean;
+}
+
+export function setProjectArchiveStatus(request: ArchiveProjectRequest): APICallParameters<ArchiveProjectRequest> {
+    return {
+        method: "POST",
+        path: "/projects/archive",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface ViewProjectRequest {
+    id: string;
+}
+
+export function viewProject(request: ViewProjectRequest): APICallParameters<ViewProjectRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/projects/view", request),
+        parameters: request,
+        reloadId: Math.random()
     };
 }

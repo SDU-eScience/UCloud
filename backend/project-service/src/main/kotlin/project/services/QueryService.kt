@@ -344,13 +344,20 @@ class QueryService(
     suspend fun listProjects(
         ctx: DBContext,
         username: String,
-        pagination: NormalizedPaginationRequest?
+        showArchived: Boolean,
+        pagination: NormalizedPaginationRequest?,
+        projectId: String? = null
     ): Page<UserProjectSummary> {
         ctx.withSession { session ->
+            val params: EnhancedPreparedStatement.() -> Unit = {
+                setParameter("username", username)
+                setParameter("showArchived", showArchived)
+                setParameter("projectId", projectId)
+            }
             val items = session
                 .sendPreparedStatement(
                     {
-                        setParameter("username", username)
+                        params()
                         setParameter("offset", if (pagination == null) 0 else pagination.page * pagination.itemsPerPage)
                         setParameter("limit", pagination?.itemsPerPage ?: Int.MAX_VALUE)
                     },
@@ -359,11 +366,14 @@ class QueryService(
                             mem.role, 
                             p.id, 
                             p.title, 
-                            is_favorite(mem.username, p.id) as is_fav
+                            is_favorite(mem.username, p.id) as is_fav,
+                            p.archived
                         from 
                             project_members mem inner join projects p on mem.project_id = p.id
                         where 
-                            mem.username = ?username
+                            mem.username = ?username and
+                            (?showArchived or p.archived = false) and
+                            (?projectId::text is null or p.id = ?projectId)
                         order by is_fav desc, p.id
                         offset ?offset
                         limit ?limit
@@ -375,6 +385,7 @@ class QueryService(
                     val id = it.getString(1)!!
                     val title = it.getString(2)!!
                     val isFavorite = it.getBoolean(3)!!
+                    val isArchived = it.getBoolean(4)!!
 
                     // TODO (Performance) Not ideal code
                     val needsVerification = if (role.isAdmin()) {
@@ -383,7 +394,14 @@ class QueryService(
                         false
                     }
 
-                    UserProjectSummary(id, title, ProjectMember(username, role), needsVerification, isFavorite)
+                    UserProjectSummary(
+                        id,
+                        title,
+                        ProjectMember(username, role),
+                        needsVerification,
+                        isFavorite,
+                        isArchived
+                    )
                 }
 
             val count = if (pagination == null) {
@@ -391,11 +409,17 @@ class QueryService(
             } else {
                 session
                     .sendPreparedStatement(
-                        { setParameter("username", username) },
+                        {
+                            params()
+                        },
                         """
                             select count(*)
-                            from project_members
-                            where username = ?username
+                            from
+                                project_members mem inner join projects p on mem.project_id = p.id
+                            where 
+                                username = ?username and
+                                (?showArchived or p.archived = false) and
+                                (?projectId::text is null or p.id = ?projectId)
                         """
                     )
                     .rows

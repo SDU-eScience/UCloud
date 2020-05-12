@@ -6,7 +6,7 @@ import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
 import {useAsyncCommand} from "Authentication/DataHook";
-import {leaveProject, ProjectRole} from "Project/index";
+import {leaveProject, ProjectRole, setProjectArchiveStatus} from "Project/index";
 import {useHistory} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
@@ -37,7 +37,7 @@ const ActionBox = styled.div`
 `;
 
 export const ProjectSettings: React.FunctionComponent = () => {
-    const {projectId, group, projectRole} = useProjectManagementStatus();
+    const {projectId, group, projectRole, projectDetails} = useProjectManagementStatus();
     const [, runCommand] = useAsyncCommand();
     const history = useHistory();
     return (
@@ -62,21 +62,69 @@ export const ProjectSettings: React.FunctionComponent = () => {
             </Flex>
 
             <ActionContainer>
-                {/*
-                <ActionBox>
-                    <Box flexGrow={1}>
-                        <Heading.h4>Project Archival</Heading.h4>
-                        <Text color={"gray"}>
-                            Help text goes here. Lorem ipsum dolor sit amet, consectetur adipisicing elit.
-                            Accusantium fuga magni nisi omnis, perferendis sed tempore voluptas voluptatem. Eaque, ipsa,
-                            ullam. Aspernatur dolores doloribus magni quos sapiente veritatis, voluptas voluptate!
-                        </Text>
-                    </Box>
-                    <Flex>
-                        <Button color={"orange"}>Archive</Button>
-                    </Flex>
-                </ActionBox>
-                */}
+                {projectRole === ProjectRole.USER ? null : (
+                    <ActionBox>
+                        <Box flexGrow={1}>
+                            <Heading.h4>Project Archival</Heading.h4>
+                            <Text>
+                                {!projectDetails.data.archived ? null : (
+                                    <>
+                                        Unarchiving a project will reverse the effects of archival.
+
+                                        <ul>
+                                            <li>
+                                                Your projects will, once again, by visible to you and project
+                                                collaborators
+                                            </li>
+                                            <li>This action <i>is</i> reversible</li>
+                                        </ul>
+                                    </>
+                                )}
+                                {projectDetails.data.archived ? null : (
+                                    <>
+                                        You can archive a project if it is no longer relevant for your day-to-day work.
+
+                                        <ul>
+                                            <li>
+                                                The project will, by default, be hidden for you and project
+                                                collaborators
+                                            </li>
+                                            <li>No data will be deleted from the project</li>
+                                            <li>This action <i>is</i> reversible</li>
+                                        </ul>
+                                    </>
+                                )}
+
+                            </Text>
+                        </Box>
+                        <Flex>
+                            <Button
+                                color={"orange"}
+                                onClick={() => {
+                                    addStandardDialog({
+                                        title: "Are you sure?",
+                                        message: `Are you sure you wish to ` +
+                                            `${projectDetails.data.archived ? "unarchive" : "archive"} ${projectId}?`,
+                                        onConfirm: async () => {
+                                            const success =
+                                                await runCommand(
+                                                    setProjectArchiveStatus({
+                                                        archiveStatus: !projectDetails.data.archived
+                                                    })
+                                                );
+                                            if (success) {
+                                                history.push("/projects");
+                                            }
+                                        },
+                                        confirmText: `${projectDetails.data.archived ? "Unarchive" : "Archive"} project`
+                                    });
+                                }}
+                            >
+                                {projectDetails.data.archived ? "Unarchive" : "Archive"}
+                            </Button>
+                        </Flex>
+                    </ActionBox>
+                )}
 
                 <ActionBox>
                     <Box flexGrow={1}>
