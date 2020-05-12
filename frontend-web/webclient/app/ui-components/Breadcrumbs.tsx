@@ -3,7 +3,6 @@ import styled from "styled-components";
 import {Box, Icon, Text} from "ui-components";
 import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import HttpClient from "Authentication/lib";
-import {isRepository} from "Utilities/ProjectUtilities";
 import {pathComponents} from "Utilities/FileUtilities";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
@@ -61,7 +60,6 @@ export const BreadCrumbs = ({
     client
 }: BreadcrumbsList): JSX.Element | null => {
     if (!currentPath) return null;
-    const isRepoFolder = isRepository(currentPath);
 
     const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, client.projectId ?? "");
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
@@ -74,7 +72,9 @@ export const BreadCrumbs = ({
         </li>
     ));
 
-    const addHomeFolderLink = !(currentPath.startsWith(removeTrailingSlash(client.homeFolder)) || currentPath.startsWith(client.currentProjectFolder));
+    const addHomeFolderLink = !(
+        currentPath.startsWith(removeTrailingSlash(client.homeFolder)) || currentPath.startsWith("/projects/")
+    );
 
     return (
         <>
@@ -126,10 +126,11 @@ function buildBreadCrumbs(path: string, homeFolder: string, activeProject: strin
 
     // Handle starts with project
     if (addTrailingSlash(path).startsWith("/projects/")) {
+        const [, projectInPath] = pathComponents(path);
+        const project = activeProject !== "" && path.includes(projectInPath) ? activeProject : projectInPath;
         return [
-            {actualPath: `/projects/${activeProject}/`, local: activeProject}
+            {actualPath: `/projects/${project}/`, local: project}
         ].concat(pathsMapping.slice(2));
     }
-
     return pathsMapping;
 }

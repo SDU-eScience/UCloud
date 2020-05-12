@@ -280,9 +280,12 @@ export const reclassifyFile = async ({file, sensitivity, client}: ReclassifyFile
 
 export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
 
-export const replaceHomeOrProjectFolder = (path: string, client: HttpClient): string =>
-    path.replace(client.homeFolder, "Home/")
-        .replace(client.currentProjectFolder, `${client.projectId}/`);
+export function replaceHomeOrProjectFolder(path: string, client: HttpClient): string {
+    const [,projectName] = pathComponents(path);
+    const replaced = path.replace(client.homeFolder, "Home/");
+    if (isProjectHome(path)) return replaced.replace(`/projects/${projectName}`, projectName);
+    else return replaced;
+}
 
 export const expandHomeOrProjectFolder = (path: string, client: HttpClient): string => {
     if (path.startsWith("/Home/")) {
@@ -589,23 +592,23 @@ export function isProjectHome(path: string): boolean {
     return components.length === 2 && components[0] === "projects";
 }
 
-export function isMyPersonalFolder(path: string) {
+export function isMyPersonalFolder(path: string): boolean {
     const components = pathComponents(path);
     return components.length === 4 && components[0] === "projects" && components[2] === "Personal" &&
         components[3] === Client.username;
 }
 
-export function isPartOfSomePersonalFolder(path: string) {
+export function isPartOfSomePersonalFolder(path: string): boolean {
     const components = pathComponents(path);
     return components.length >= 4 && components[0] === "projects" && components[2] === "Personal";
 }
 
-export function isPersonalRootFolder(path: string) {
+export function isPersonalRootFolder(path: string): boolean {
     const components = pathComponents(path);
     return components.length === 3 && components[0] === "projects" && components[2] === "Personal";
 }
 
-export function isPartOfProject(path: string) {
+export function isPartOfProject(path: string): boolean {
     const components = pathComponents(path);
     return components.length >= 2 && components[0] === "projects";
 }

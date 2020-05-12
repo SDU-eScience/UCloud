@@ -196,7 +196,7 @@ function useApiForComponent(
 ): InternalFileTableAPI {
     const promises = usePromiseKeeper();
     const [managedPage, setManagedPage] = useState<Page<File>>(emptyPage);
-    const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ? props.asyncWorker : useAsyncWork();
+    const [pageLoading, pageError, submitPageLoaderJob] = props.asyncWorker ?? useAsyncWork();
     const [pageParameters, setPageParameters] = useState<ListDirectoryRequest>({
         ...initialPageParameters,
         type: props.foldersOnly ? "DIRECTORY" : undefined,
@@ -313,8 +313,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     useEffect(() => {
         const isKnownToBeFavorite = props.path === Client.favoritesFolder;
         const files = page.items
-            .filter(it => it.mockTag == MOCK_VIRTUAL || it.mockTag === undefined)
-            .map(it => it.path)
+            .filter(it => it.mockTag === MOCK_VIRTUAL || it.mockTag === undefined)
+            .map(it => it.path);
 
         favorites.updateCache(files, isKnownToBeFavorite);
     }, [page]);

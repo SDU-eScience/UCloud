@@ -48,7 +48,8 @@ data class Repository(val name: String)
 data class RepositoryListRequest(
     val user: String?,
     override val itemsPerPage: Int?,
-    override val page: Int?
+    override val page: Int?,
+    val project: String?
 ) : WithPaginationRequest
 typealias RepositoryListResponse = Page<Repository>
 
@@ -137,6 +138,7 @@ object ProjectRepository : CallDescriptionContainer("project.repositories") {
                 +boundTo(RepositoryListRequest::itemsPerPage)
                 +boundTo(RepositoryListRequest::page)
                 +boundTo(RepositoryListRequest::user)
+                +boundTo(RepositoryListRequest::project)
             }
         }
     }
@@ -158,6 +160,7 @@ object ProjectRepository : CallDescriptionContainer("project.repositories") {
                 +boundTo(ListFilesRequest::itemsPerPage)
                 +boundTo(ListFilesRequest::page)
                 +boundTo(ListFilesRequest::user)
+                +boundTo(ListFilesRequest::project)
             }
         }
     }

@@ -68,7 +68,7 @@ class ProjectRepositoryController(
 
             val listRepositories = service.listRepositories(
                 username,
-                project
+                request.project ?: project
             )
 
             val page = if (paging == null) {
@@ -83,7 +83,7 @@ class ProjectRepositoryController(
         implement(ProjectRepository.listFiles) {
             ok(
                 service
-                    .listFiles(ctx.securityPrincipal.username, project, userClient())
+                    .listFiles(ctx.securityPrincipal.username, request.project ?: project, userClient())
                     .paginate(request.normalize())
             )
         }

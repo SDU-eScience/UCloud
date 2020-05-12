@@ -6,7 +6,13 @@ import {LowLevelFileTable, LowLevelFileTableProps} from "Files/LowLevelFileTable
 import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
 import {Page} from "Types";
-import {getParentPath, isProjectHome, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
+import {
+    getParentPath,
+    isProjectHome,
+    MOCK_VIRTUAL,
+    mockFile,
+    resolvePath
+} from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {listFavorites} from "Files/favorite";
 import {listRepositoryFiles} from "Project";
@@ -21,7 +27,7 @@ export interface VirtualFolderDefinition {
 export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = props => {
     const [loadedFakeFolder, setLoadedFakeFolder] = useState<Page<File> | undefined>(undefined);
     const mergedProperties = {...props};
-    const asyncWorker = props.asyncWorker ? props.asyncWorker : useAsyncWork();
+    const asyncWorker = props.asyncWorker ?? useAsyncWork();
     mergedProperties.asyncWorker = asyncWorker;
     const [, , submitPageLoaderJob] = asyncWorker;
 

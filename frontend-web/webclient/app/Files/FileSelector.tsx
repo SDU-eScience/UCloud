@@ -1,5 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
-import {defaultVirtualFolders, VirtualFileTable} from "Files/VirtualFileTable";
+import {VirtualFileTable, VirtualFolderDefinition} from "Files/VirtualFileTable";
 import * as React from "react";
 import {useEffect, useState} from "react";
 import * as ReactModal from "react-modal";
@@ -10,12 +10,18 @@ import {
     MOCK_RELATIVE,
     MOCK_VIRTUAL,
     mockFile,
-    pathComponents,
-    resolvePath
+    resolvePath,
+    pathComponents
 } from "Utilities/FileUtilities";
-import {addTrailingSlash} from "UtilityFunctions";
+import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import {File, FileSelectorProps} from ".";
 import {FileOperationRepositoryMode} from "Files/FileOperations";
+import {Page} from "Types";
+import {callAPIWithErrorHandler, callAPI} from "Authentication/DataHook";
+import {emptyPage} from "DefaultObjects";
+import {listFavorites} from "./favorite";
+import {buildQueryString} from "Utilities/URIUtilities";
+import {listRepositoryFiles, UserInProject} from "Project";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
     const [path, setPath] = useState<string>(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder);
@@ -23,9 +29,9 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
         if (props.initialPath !== undefined) setPath(props.initialPath);
     }, [props.initialPath]);
 
-    const virtualFolders = defaultVirtualFolders();
+    const virtualFolders = useVirtualFolders(path);
     const injectedFiles: File[] = [];
-    if (resolvePath(path) !== resolvePath(Client.homeFolder)) {
+    if (resolvePath(path) !== resolvePath(Client.homeFolder) && !isProjectHome(path)) {
         injectedFiles.push(mockFile({
             path: `${addTrailingSlash(path)}..`,
             fileId: "parent",
@@ -45,6 +51,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
     }
 
     const components = pathComponents(path);
+
     if (Client.hasActiveProject && components.length === 2 && components[0] === "home") {
         injectedFiles.push(mockFile({
             path: Client.currentProjectFolder,
@@ -52,7 +59,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
             type: "DIRECTORY",
             tag: MOCK_VIRTUAL
         }));
-    } else if (Client.hasActiveProject && components.length === 2 && components[0] === "projects") {
+    } else if (isProjectHome(path)) {
         injectedFiles.push(mockFile({
             path: Client.homeFolder,
             fileId: "project",
@@ -76,7 +83,8 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
             >
                 <Box>
                     <VirtualFileTable
-                        {...virtualFolders}
+                        loadFolder={virtualFolders.loadFolder}
+                        fakeFolders={virtualFolders.fakeFolders}
                         omitQuickLaunch
                         embedded
                         fileOperations={[{
@@ -85,6 +93,10 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                             onClick: files => props.onFileSelect(files[0]),
                             disabled: files => {
                                 if (files.some(it => isProjectHome(it.path))) {
+                                    return true;
+                                }
+
+                                if (files.some(it => removeTrailingSlash(resolvePath(it.path)) === "/projects")) {
                                     return true;
                                 }
 
@@ -108,6 +120,51 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
             </ReactModal>
         </>
     );
+};
+
+const useVirtualFolders = (path: string): VirtualFolderDefinition => {
+    const fakeFolders = Client.fakeFolders;
+    const [, projectName] = pathComponents(path);
+    const homeProjectList = `${Client.homeFolder}Project List`;
+    const projectProjectList = `/projects/${projectName}/Project List`;
+    fakeFolders.push(homeProjectList);
+    fakeFolders.push(projectProjectList);
+    return {
+        fakeFolders,
+        loadFolder: async (folder, page, itemsPerPage): Promise<Page<File>> => {
+            if (folder === Client.favoritesFolder) {
+                const favs = (await callAPIWithErrorHandler<Page<File>>(listFavorites({page, itemsPerPage})));
+                return favs ?? emptyPage;
+            } else if (folder === Client.sharesFolder) {
+                return (await Client.get<Page<File>>(
+                    buildQueryString("/shares/list-files", {page, itemsPerPage}))
+                ).response;
+            } else if (isProjectHome(folder)) {
+                try {
+                    const response = await callAPI<Page<File>>(listRepositoryFiles({page, itemsPerPage}));
+                    response.items.forEach(f => f.isRepo = true);
+                    return response;
+                } catch (err) {
+                    // Edge case that no repos exist for for project, but we want it to be empty instead of non-existant.
+                    if (err.request.status === 404) return emptyPage;
+                    else throw err;
+                }
+            } else if ([homeProjectList, projectProjectList].includes(folder)) {
+                const {response} = await Client.get<Page<UserInProject>>(buildQueryString("/projects/list", {itemsPerPage, page}));
+                return {
+                    ...response,
+                    items: response.items.map(it => mockFile({
+                        path: `/projects/${it.projectId}`,
+                        type: "DIRECTORY",
+                        fileId: it.projectId,
+                        tag: MOCK_VIRTUAL
+                    }))
+                };
+            } else {
+                return emptyPage;
+            }
+        }
+    };
 };
 
 const FileSelectorModalStyle = {
