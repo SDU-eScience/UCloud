@@ -51,7 +51,7 @@
 
 * [ISMS Introduction](infrastructure/wiki/isms_introduction.md)
 
-* [ISMS Committee](infrastructure/wiki/isms_committee_structure.md)
+<!-- * [ISMS Committee](infrastructure/wiki/isms_committee_structure.md) -->
 
 * [Acceptable usage](infrastructure/wiki/acceptableusage.md)
 
