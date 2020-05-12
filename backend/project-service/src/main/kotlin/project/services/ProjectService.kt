@@ -124,24 +124,27 @@ class ProjectService(
         ctx: DBContext,
         inviteFrom: String,
         projectId: String,
-        inviteTo: String
+        invitesTo: Set<String>
     ) {
         try {
-            confirmUserExists(inviteTo)
+            confirmUsersExist(invitesTo)
             ctx.withSession { session ->
                 requireRole(session, inviteFrom, projectId, ProjectRole.ADMINS)
-                val existingRole = findRoleOfMember(session, projectId, inviteTo)
-                if (existingRole != null) {
-                    throw ProjectException.AlreadyMember()
-                }
 
-                session.insert(ProjectInvite) {
-                    set(ProjectInvite.invitedBy, inviteFrom)
-                    set(ProjectInvite.projectId, projectId)
-                    set(ProjectInvite.username, inviteTo)
+                invitesTo.map { member ->
+                    val existingRole = findRoleOfMember(session, projectId, member)
+                    if (existingRole != null) {
+                        throw ProjectException.AlreadyMember()
+                    }
+
+                    session.insert(ProjectInvite) {
+                        set(ProjectInvite.invitedBy, inviteFrom)
+                        set(ProjectInvite.projectId, projectId)
+                        set(ProjectInvite.username, member)
+                    }
                 }
             }
-            sendInviteNotifications(projectId, inviteFrom, inviteTo)
+            sendInviteNotifications(projectId, inviteFrom, invitesTo)
         } catch (ex: GenericDatabaseException) {
             if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
                 throw ProjectException.AlreadyMember()
@@ -155,27 +158,29 @@ class ProjectService(
     private suspend fun sendInviteNotifications(
         projectId: String,
         invitedBy: String,
-        member: String
+        invitesTo: Set<String>
     ) {
-        ContactBookDescriptions.insert.call(
-            InsertRequest(invitedBy, listOf(member), ServiceOrigin.PROJECT_SERVICE),
-            serviceClient
-        )
+        invitesTo.forEach { member ->
+            ContactBookDescriptions.insert.call(
+                InsertRequest(invitedBy, listOf(member), ServiceOrigin.PROJECT_SERVICE),
+                serviceClient
+            )
 
-        NotificationDescriptions.create.call(
-            CreateNotification(
-                member,
-                Notification(
-                    "PROJECT_INVITE",
-                    "$invitedBy has invited you to $projectId",
-                    meta = mapOf(
-                        "invitedBy" to invitedBy,
-                        "projectId" to projectId
+            NotificationDescriptions.create.call(
+                CreateNotification(
+                    member,
+                    Notification(
+                        "PROJECT_INVITE",
+                        "$invitedBy has invited you to $projectId",
+                        meta = mapOf(
+                            "invitedBy" to invitedBy,
+                            "projectId" to projectId
+                        )
                     )
-                )
-            ),
-            serviceClient
-        )
+                ),
+                serviceClient
+            )
+        }
     }
 
     suspend fun acceptInvite(
@@ -418,18 +423,20 @@ class ProjectService(
         }
     }
 
-    private suspend fun confirmUserExists(username: String) {
+    private suspend fun confirmUsersExist(users: Set<String>) {
         val lookup = UserDescriptions.lookupUsers.call(
-            LookupUsersRequest(listOf(username)),
+            LookupUsersRequest(users.toList()),
             serviceClient
         ).orRethrowAs {
             log.warn("Caught the following error while looking up user: ${it.error} ${it.statusCode}")
             throw ProjectException.InternalError()
         }
 
-        val user = lookup.results[username] ?: throw ProjectException.UserDoesNotExist()
-        log.debug("$username resolved to $user")
-        if (user.role !in Roles.END_USER) throw ProjectException.CantAddUserToProject()
+        users.forEach { username ->
+            val user = lookup.results[username] ?: throw ProjectException.UserDoesNotExist()
+            log.debug("$username resolved to $user")
+            if (user.role !in Roles.END_USER) throw ProjectException.CantAddUserToProject()
+        }
     }
 
     companion object : Loggable {

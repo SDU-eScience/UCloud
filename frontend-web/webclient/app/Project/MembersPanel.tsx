@@ -6,7 +6,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {Box, Button, Flex, Icon, Input, Link} from "ui-components";
-import {addStandardDialog} from "UtilityComponents";
+import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/View";
 import {addGroupMember} from "Project";
 import {MembersList} from "Project/MembersList";
@@ -55,7 +55,7 @@ const MembersPanel: React.FunctionComponent = () => {
         try {
             await runCommand(inviteMember({
                 projectId,
-                username
+                usernames: [username]
             }));
             inputField.value = "";
             reloadMembers();
@@ -92,7 +92,36 @@ const MembersPanel: React.FunctionComponent = () => {
                         }}
                         rightLabel
                     />
-                    <Button attached>Add</Button>
+                    <Button
+                        attached
+                        color={"green"}
+                        type={"button"}
+                        title={"Bulk invite"}
+                        onClick={async () => {
+                            try {
+                                const res = await addStandardInputDialog({
+                                    title: "Bulk invite",
+                                    type: "textarea",
+                                    confirmText: "Invite users",
+                                    width: "450px",
+                                    help: (<>Enter usernames in the box below. One username per line.</>)
+                                });
+
+                                const usernames = res.result
+                                    .split("\n")
+                                    .map(it => it.trim())
+                                    .filter(it => it.length > 0);
+
+                                await runCommand(inviteMember({projectId, usernames}));
+                                reloadMembers();
+                            } catch (ignored) {
+                                // Ignored
+                            }
+                        }}
+                    >
+                        <Icon name={"open"} />
+                    </Button>
+                    <Button attached type={"submit"}>Add</Button>
                 </form>
             )}
 

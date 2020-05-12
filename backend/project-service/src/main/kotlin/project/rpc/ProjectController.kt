@@ -25,7 +25,7 @@ class ProjectController(
         }
 
         implement(Projects.invite) {
-            projects.inviteMember(db, ctx.securityPrincipal.username, request.projectId, request.username)
+            projects.inviteMember(db, ctx.securityPrincipal.username, request.projectId, request.usernames)
             ok(Unit)
         }
 

@@ -208,7 +208,7 @@ export const createProject = (payload: {title: string}): APICallParameters => ({
     reloadId: Math.random()
 });
 
-export const inviteMember = (payload: {projectId: string; username: string}): APICallParameters => ({
+export const inviteMember = (payload: {projectId: string; usernames: string[]}): APICallParameters => ({
     method: "POST",
     path: "/projects/invites",
     payload,

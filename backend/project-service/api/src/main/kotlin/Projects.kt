@@ -28,7 +28,12 @@ typealias CreateProjectResponse = Unit
 data class ViewMemberInProjectRequest(val projectId: String, val username: String)
 data class ViewMemberInProjectResponse(val member: ProjectMember)
 
-data class InviteRequest(val projectId: String, val username: String)
+data class InviteRequest(val projectId: String, val usernames: Set<String>) {
+    init {
+        if (usernames.size == 0) throw RPCException("No usernames supplied", HttpStatusCode.BadRequest)
+        if (usernames.size > 200) throw RPCException("Too many invites in a single request", HttpStatusCode.BadRequest)
+    }
+}
 typealias InviteResponse = Unit
 
 data class DeleteMemberRequest(val projectId: String, val member: String)

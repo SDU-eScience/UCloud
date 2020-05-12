@@ -18,6 +18,7 @@ import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreven
 import {usePromiseKeeper} from "PromiseKeeper";
 import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
 import {useCloudAPI} from "Authentication/DataHook";
+import {useRef} from "react";
 
 interface StandardDialog {
     title?: string;
@@ -67,34 +68,39 @@ export function addStandardDialog({
 
 interface InputDialog {
     title: string;
-    defaultValue: string;
-    placeholder: string;
-    cancelText: string;
-    confirmText: string;
-    validator: (val: string) => boolean;
-    validationFailureMessage: string;
-    addToFront: boolean;
+    placeholder?: string;
+    cancelText?: string;
+    confirmText?: string;
+    validator?: (val: string) => boolean;
+    validationFailureMessage?: string;
+    addToFront?: boolean;
+    type?: "input" | "textarea";
+    help?: JSX.Element;
+    width?: string;
 }
 
 export async function addStandardInputDialog({
     title,
-    validator,
+    help,
+    validator = () => true,
     cancelText = "Cancel",
     confirmText = "Submit",
     addToFront = false,
-    placeholder = "New folder name",
-    validationFailureMessage,
-    defaultValue
-}: InputDialog): Promise<{cancelled: true} | {result: string}> {
-    let fieldValue = defaultValue;
+    placeholder = "",
+    validationFailureMessage = "error",
+    type = "input",
+    width = "300px",
+}: InputDialog): Promise<{result: string}> {
     return new Promise((resolve, reject) => dialogStore.addDialog(
         <div>
             <div>
                 <Heading.h3>{title}</Heading.h3>
                 {title ? <Divider /> : null}
+                {help ? help : null}
                 <Input
-                    width="250px"
-                    onChange={e => fieldValue = e.target.value}
+                    id={"dialog-input"}
+                    as={type}
+                    width={width}
                     placeholder={placeholder}
                 />
             </div>
@@ -102,9 +108,10 @@ export async function addStandardInputDialog({
                 <Button onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
                 <Button
                     onClick={() => {
-                        if (validator(fieldValue)) {
+                        const elem = document.querySelector("#dialog-input") as HTMLInputElement;
+                        if (validator(elem.value)) {
                             dialogStore.success();
-                            resolve({result: fieldValue});
+                            resolve({result: elem.value});
                         }
                         else snackbarStore.addFailure(validationFailureMessage, false);
                     }}
