@@ -38,8 +38,8 @@ class ProjectController(
             projects.changeRoleOfMember(
                 db,
                 ctx.securityPrincipal.username,
-                request.member,
                 request.projectId,
+                request.member,
                 request.newRole
             )
             ok(Unit)

@@ -5,7 +5,7 @@ import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {Box, Button, Flex, Icon, Input, Link, Truncate} from "ui-components";
+import {Box, Button, Flex, Icon, Input, Link} from "ui-components";
 import {addStandardDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/View";
 import {addGroupMember} from "Project";
@@ -34,11 +34,11 @@ export const MembersBreadcrumbs = styled(BreadCrumbsBase)`
     flex-grow: 1;
 `;
 
-const MembersPanel: React.FunctionComponent = props => {
+const MembersPanel: React.FunctionComponent = () => {
     const {
         projectId, projectMembers, group, fetchGroupMembers, groupMembersParams,
         setProjectMemberParams, projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement,
-        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites
+        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, projectRole
     } = useProjectManagementStatus();
     const [isLoading, runCommand] = useAsyncCommand();
     const reloadMembers = (): void => {
@@ -127,7 +127,7 @@ const MembersPanel: React.FunctionComponent = props => {
             })}
             reload={reloadMembers}
             projectId={projectId}
-            allowManagement={allowManagement}
+            projectRole={projectRole}
             allowRoleManagement={allowManagement}
             onAddToGroup={!(allowManagement && !!group) ? undefined : async (memberUsername) => {
                 await runCommand(addGroupMember({group, memberUsername}));
@@ -154,7 +154,7 @@ const MembersPanel: React.FunctionComponent = props => {
                             await runCommand(rejectInvite({ projectId, username: member}));
                             reloadMembers();
                         }}
-                        allowManagement={true}
+                        projectRole={projectRole}
                         allowRoleManagement={false}
                         projectId={projectId}
                         showRole={false}
@@ -164,6 +164,6 @@ const MembersPanel: React.FunctionComponent = props => {
 
         />
     </>;
-}
+};
 
 export default MembersPanel;

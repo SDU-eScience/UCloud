@@ -1,5 +1,4 @@
 import * as React from "react";
-import {MainContainer} from "MainContainer/MainContainer";
 import {Text, Link, Truncate} from "ui-components";
 import * as Pagination from "Pagination";
 import {useAsyncCommand} from "Authentication/DataHook";
@@ -12,12 +11,11 @@ import {ProjectRole} from "Project";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "Project/View";
 import {MembersList} from "Project/MembersList";
-import {errorMessageOrDefault} from "UtilityFunctions";
 
-const GroupView: React.FunctionComponent = props => {
+const GroupView: React.FunctionComponent = () => {
     const {
         projectId, group, groupMembers, fetchGroupMembers, groupMembersParams,
-        allowManagement, membersPage
+        membersPage, projectRole
     } = useProjectManagementStatus();
     const activeGroup = groupMembers;
     const fetchActiveGroup = fetchGroupMembers;
@@ -60,7 +58,7 @@ const GroupView: React.FunctionComponent = props => {
                     members={page.items.map(it => ({role: ProjectRole.USER, username: it}))}
                     onRemoveMember={promptRemoveMember}
                     projectId={projectId}
-                    allowManagement={allowManagement}
+                    projectRole={projectRole}
                     allowRoleManagement={false}
                     showRole={false}
                 />
@@ -84,6 +82,6 @@ const GroupView: React.FunctionComponent = props => {
         await runCommand(removeGroupMemberRequest({group: group!, memberUsername: member}));
         fetchGroupMembers(groupMembersParams);
     }
-}
+};
 
 export default GroupView;

@@ -325,9 +325,13 @@ class ProjectService(
             }
 
             if (!allowPiChange && oldRole == ProjectRole.PI) throw ProjectException.CantChangeRole()
-            if (!allowPiChange && newRole == ProjectRole.PI) throw ProjectException.Forbidden()
+            if (!allowPiChange && newRole == ProjectRole.PI) {
+                log.info("1")
+                throw ProjectException.Forbidden()
+            }
             if (oldRole == newRole) return
             if (oldRole == ProjectRole.PI && updatedByRole != ProjectRole.PI) {
+                log.info("2")
                 throw ProjectException.Forbidden()
             }
 

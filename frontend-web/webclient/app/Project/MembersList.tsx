@@ -1,6 +1,7 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, projectRoleToString} from "Project/index";
+import {changeRoleInProject, ProjectMember, ProjectRole, projectRoleToString, transferPiRole} from "Project/index";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
+import * as React from "react";
 import {useEffect} from "react";
 import {GridCardGroup} from "ui-components/Grid";
 import {Avatar} from "AvataaarLib";
@@ -10,26 +11,37 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import styled from "styled-components";
-import * as React from "react";
 import {IconName} from "ui-components/Icon";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {addStandardDialog} from "UtilityComponents";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];
     onAddToGroup?: (member: string) => void;
     onRemoveMember(member: string): void;
-    allowManagement: boolean;
     allowRoleManagement: boolean;
+    projectRole: ProjectRole;
     reload?: () => void;
     showRole?: boolean;
     projectId: string;
 }>): JSX.Element {
     const [, runCommand] = useAsyncCommand();
     const avatars = useAvatars();
+    const allowManagement = isAdminOrPI(props.projectRole);
 
     useEffect(() => {
         const usernames = props.members.map(it => it.username);
         avatars.updateCache(usernames);
     }, [props.members]);
+
+    const options = [
+        {text: "User", value: ProjectRole.USER},
+        {text: "Admin", value: ProjectRole.ADMIN}
+    ];
+
+    if (props.projectRole === ProjectRole.PI) {
+        options.push({text: "PI", value: ProjectRole.PI});
+    }
 
     return (
         <GridCardGroup minmax={260}>
@@ -53,7 +65,7 @@ export function MembersList(props: Readonly<{
                                     onClick={() => props.onAddToGroup!(member.username)}
                                 />
                             }
-                            {!props.allowManagement || member.role === ProjectRole.PI ? null :
+                            {!allowManagement || member.role === ProjectRole.PI ? null :
                                 <ActionButton
                                     color={"red"}
                                     icon={"close"}
@@ -64,42 +76,61 @@ export function MembersList(props: Readonly<{
                         </Flex>
 
                         {props.showRole === false ? null :
-                            !props.allowRoleManagement || member.role === ProjectRole.PI ? projectRoleToString(member.role)
+                            !props.allowRoleManagement || member.role === ProjectRole.PI ?
+                                projectRoleToString(member.role)
                                 :
                                 <ClickableDropdown
                                     chevron
                                     trigger={projectRoleToString(member.role)}
                                     onChange={async value => {
                                         try {
-                                            await runCommand(changeRoleInProject({
-                                                projectId: props.projectId,
-                                                member: member.username,
-                                                newRole: value
-                                            }));
-                                            if (props.reload) props.reload();
+                                            if (value === ProjectRole.PI) {
+                                                addStandardDialog({
+                                                    title: "Transfer PI Role",
+                                                    message: "Are you sure you wish to transfer the PI role? " +
+                                                        "A project can only have one PI. " +
+                                                        "Your own user will be demoted to admin.",
+                                                    onConfirm: async () => {
+                                                        await runCommand(
+                                                            transferPiRole({newPrincipalInvestigator: member.username})
+                                                        );
+
+                                                        if (props.reload) props.reload();
+                                                    },
+                                                    confirmText: "Transfer PI role"
+                                                });
+                                            } else {
+                                                await runCommand(changeRoleInProject({
+                                                    projectId: props.projectId,
+                                                    member: member.username,
+                                                    newRole: value
+                                                }));
+                                                if (props.reload) props.reload();
+                                            }
                                         } catch (err) {
-                                            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed to update role."), false);
+                                            snackbarStore.addFailure(
+                                                errorMessageOrDefault(err, "Failed to update role."), false
+                                            );
                                         }
                                     }}
-                                    options={[
-                                        {text: "User", value: ProjectRole.USER},
-                                        {text: "Admin", value: ProjectRole.ADMIN}
-                                    ]}
-                                />}
+                                    options={options}
+                                />
+                        }
                     </Flex>
                 </MemberBox>
-            )}
+            )
+            }
         </GridCardGroup>
 
     );
 }
 
 const ActionButton: React.FunctionComponent<{
-    icon: IconName,
-    title: string,
-    onClick: () => void,
-    color: string
-    rotation?: number
+    icon: IconName;
+    title: string;
+    onClick: () => void;
+    color: string;
+    rotation?: number;
 }> = props => {
     return (
         <Icon
@@ -114,16 +145,16 @@ const ActionButton: React.FunctionComponent<{
             size="20px"
         />
     );
-}
+};
 
 const MemberBox = styled(Flex)`
-    width: 260px;
-    align-items: center;
-    border-radius: 8px;
-    margin-right: 8px;
-    
-    &:hover {
-        background-color: var(--lightGray);
-        transition: background-color 0.2s;
-    }
-`;
+                                        width: 260px;
+                                        align-items: center;
+                                        border-radius: 8px;
+                                        margin-right: 8px;
+
+                                        &:hover {
+                                        background-color: var(--lightGray);
+                                        transition: background-color 0.2s;
+                                        }
+                                        `;

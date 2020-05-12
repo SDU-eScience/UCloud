@@ -353,3 +353,16 @@ export function leaveProject(request: LeaveProjectRequest): APICallParameters<Le
         payload: request
     };
 }
+
+export interface TransferPiRoleRequest {
+    newPrincipalInvestigator: string;
+}
+
+export function transferPiRole(request: TransferPiRoleRequest): APICallParameters<TransferPiRoleRequest> {
+    return {
+        method: "POST",
+        path: "/projects/transfer-pi",
+        parameters: request,
+        payload: request
+    };
+}
