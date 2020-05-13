@@ -805,44 +805,14 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                         )
                                     }
                                     <SensitivityIcon sensitivity={f.sensitivityLevel} />
-                                    {checkedFiles.size !== 0 ? <Box width="38px" /> : fileOperations.length > 1 ? (
-                                        <Box>
-                                            <ClickableDropdown
-                                                width="175px"
-                                                left="-160px"
-                                                trigger={(
-                                                    <Icon
-                                                        onClick={UF.preventDefault}
-                                                        ml="10px"
-                                                        mr="10px"
-                                                        name="ellipsis"
-                                                        size="1em"
-                                                        rotation={90}
-                                                    />
-                                                )}
-                                            >
-                                                <FileOperations
-                                                    files={[f]}
-                                                    fileOperations={fileOperations}
-                                                    inDropdown
-                                                    ml="-17px"
-                                                    mr="-17px"
-                                                    pl="15px"
-                                                    callback={callbacks}
-                                                    role={projectMember.role}
-                                                />
-                                            </ClickableDropdown>
-                                        </Box>
-                                    ) : (
-                                            <Box mt="-2px" ml="5px">
-                                                <FileOperations
-                                                    role={projectMember.role}
-                                                    files={[f]}
-                                                    fileOperations={fileOperations}
-                                                    callback={callbacks}
-                                                />
-                                            </Box>
-                                        )}
+                                    {checkedFiles.size !== 0 ? <Box width="38px" /> :
+                                        <FileOperations
+                                            inDropdown={fileOperations.length > 1}
+                                            files={[f]}
+                                            fileOperations={fileOperations}
+                                            callback={callbacks}
+                                            role={projectMember.role}
+                                        />}
                                 </Flex>
                             )}
                     />
@@ -1100,7 +1070,7 @@ const SensitivityBadge = styled.div<{bg: string}>`
     border-radius: 100%;
 `;
 
-interface FileOperations extends SpaceProps {
+interface FileOperations {
     files: File[];
     fileOperations: FileOperation[];
     callback: FileOperationCallback;
@@ -1111,21 +1081,25 @@ interface FileOperations extends SpaceProps {
 
 const FileOperations = ({files, fileOperations, role, ...props}: FileOperations): JSX.Element | null => {
     if (fileOperations.length === 0) return null;
-
     const buttons: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode === true);
     const options: FileOperation[] = fileOperations.filter(it => it.currentDirectoryMode !== true);
 
-    const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
+    const isLegalOperation = (fileOp: FileOperation): boolean => {
         const repoMode = fileOp.repositoryMode ?? FileOperationRepositoryMode.DISALLOW;
-        if (repoMode === FileOperationRepositoryMode.REQUIRED && !isAdminOrPI(role)) return null;
-        if (repoMode === FileOperationRepositoryMode.REQUIRED && files.some(it => !isRepository(it.path))) return null;
-        if (repoMode === FileOperationRepositoryMode.DISALLOW && files.some(it => isRepository(it.path))) return null;
+        if (repoMode === FileOperationRepositoryMode.REQUIRED && !isAdminOrPI(role)) return false;
+        if (repoMode === FileOperationRepositoryMode.REQUIRED && files.some(it => !isRepository(it.path))) return false;
+        if (repoMode === FileOperationRepositoryMode.DISALLOW && files.some(it => isRepository(it.path))) return false;
 
-        if (fileOp.currentDirectoryMode === true && props.directory === undefined) return null;
-        if (fileOp.currentDirectoryMode !== true && files.length === 0) return null;
+        if (fileOp.currentDirectoryMode === true && props.directory === undefined) return false;
+        if (fileOp.currentDirectoryMode !== true && files.length === 0) return false;
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
-        if (fileOp.disabled(filesInCallback, props.callback)) return null;
+        if (fileOp.disabled(filesInCallback, props.callback)) return false;
+        return true;
+    };
+
+    const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
         // TODO Fixes complaints about not having a callable signature, but loses some typesafety.
+        const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
         let As: StyledComponent<any, any>;
         if (fileOperations.length === 1) {
             As = OutlineButton;
@@ -1148,6 +1122,9 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                 color={fileOp.color}
                 alignItems="center"
                 onClick={(): void => fileOp.onClick(filesInCallback, props.callback)}
+                ml={props.inDropdown ? "-17px" : undefined}
+                mr={props.inDropdown ? "-17px" : undefined}
+                pl={props.inDropdown ? "15px" : undefined}
                 {...props}
             >
                 {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName} /> : null}
@@ -1155,14 +1132,46 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
             </As>
         );
     };
-    return (
+
+    const filteredButtons = buttons.filter(it => isLegalOperation(it));
+    const filteredOptions = options.filter(it => isLegalOperation(it));
+    if (filteredButtons.length === 0 && filteredOptions.length === 0) {
+        return <Box width="38px" />;
+    }
+
+    const content = (
         <>
-            {buttons.map((op, i) => <Operation fileOp={op} key={i} />)}
+            {filteredButtons.map((op, i) => <Operation fileOp={op} key={i} />)}
             {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
                 <div><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></div>
             }
-            {options.map((op, i) => <Operation fileOp={op} key={i} />)}
+            {filteredOptions.map((op, i) => <Operation fileOp={op} key={i} />)}
         </>
+    );
+
+    return (props.inDropdown ?
+        <Box>
+            <ClickableDropdown
+                width="175px"
+                left="-160px"
+                trigger={(
+                    <Icon
+                        onClick={UF.preventDefault}
+                        ml="10px"
+                        mr="10px"
+                        name="ellipsis"
+                        size="1em"
+                        rotation={90}
+                    />
+                )}
+            >
+                {content}
+            </ClickableDropdown>
+        </Box> : (
+            <Box mt="-2px" ml="5px">
+                {content}
+            </Box>
+        )
     );
 };
 

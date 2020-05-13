@@ -222,7 +222,7 @@ export const defaultFileOperations: FileOperation[] = [
             else if (!cb.permissions.requireForAll(files, AccessRight.READ)) return true;
             else if (isAnyMockFile(files)) return true;
             else if (!UF.inRange({status: files[0].size ?? 0, min: 1, max: PREVIEW_MAX_SIZE})) return true;
-            return false
+            return false;
         },
         icon: "preview"
     },
