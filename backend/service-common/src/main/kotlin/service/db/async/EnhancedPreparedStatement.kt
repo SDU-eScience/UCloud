@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.QueryResult
+import dk.sdu.cloud.service.Loggable
 import java.time.LocalDateTime
 
 /**
@@ -135,7 +136,9 @@ class EnhancedPreparedStatement(statement: String) {
     }
 
     fun setParameterUntyped(name: String, value: Any?) {
-        val indices = parameterNamesToIndex[name] ?: throw IllegalArgumentException("Unknown parameter '$name'")
+        val indices = parameterNamesToIndex[name] ?: return run {
+            log.debug("Unused parameter '$name'")
+        }
         for (index in indices) {
             parameters[index] = value
         }
@@ -149,6 +152,10 @@ class EnhancedPreparedStatement(statement: String) {
                     "parameters: ${parameterNamesToIndex.keys}"
         }
         return session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 

@@ -15,8 +15,8 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.header
 
-class CallbackController<DBSession>(
-    private val jobOrchestrator: JobOrchestrator<DBSession>
+class CallbackController(
+    private val jobOrchestrator: JobOrchestrator
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(ComputationCallbackDescriptions.submitFile) {

@@ -18,8 +18,7 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.ViewMemberInProjectRequest
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
@@ -42,12 +41,12 @@ data class VerifiedJobWithAccessToken(
 
 private typealias ParameterWithTransfer = Pair<ApplicationParameter<FileTransferDescription>, FileTransferDescription>
 
-class JobVerificationService<Session>(
+class JobVerificationService(
     private val appStore: AppStoreService,
     private val toolStore: ToolStoreService,
     private val defaultBackend: String,
-    private val db: DBSessionFactory<Session>,
-    private val dao: JobDao<Session>,
+    private val db: DBContext,
+    private val dao: JobDao,
     private val serviceClient: AuthenticatedClient,
     private val machines: List<MachineReservation> = listOf(MachineReservation.BURST)
 ) {
@@ -96,10 +95,8 @@ class JobVerificationService<Session>(
                 throw RPCException("Provided url not allowed", HttpStatusCode.BadRequest)
             }
 
-            db.withTransaction { session ->
-                if(dao.isUrlOccupied(session, url)) {
-                    throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
-                }
+            if(dao.isUrlOccupied(db, url)) {
+                throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
             }
         }
 
@@ -125,9 +122,11 @@ class JobVerificationService<Session>(
                 )
             }
 
-            val resolvedPeers = db.withTransaction { session ->
-                dao.find(session, allPeers.map { it.jobId }, unverifiedJob.decodedToken)
-            }
+            val resolvedPeers = dao.find(
+                db,
+                allPeers.map { it.jobId },
+                unverifiedJob.decodedToken.principal.username
+            )
 
             val resolvedPeerIds = resolvedPeers.map { it.job.id }
 

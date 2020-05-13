@@ -31,7 +31,8 @@ import dk.sdu.cloud.service.Page
 suspend fun AsyncDBConnection.paginatedQuery(
     pagination: NormalizedPaginationRequest,
     block: EnhancedPreparedStatement.() -> Unit,
-    query: String
+    query: String,
+    orderBy: String? = null
 ): Page<RowData> {
     val itemsInTotal = sendPreparedStatement(
         block,
@@ -45,7 +46,7 @@ suspend fun AsyncDBConnection.paginatedQuery(
             setParameter("offset", pagination.itemsPerPage * pagination.page)
         },
 
-        "select * $query limit ?limit offset ?offset"
+        "select * $query ${orderBy ?: ""} limit ?limit offset ?offset"
     ).rows
 
     return Page(itemsInTotal.toInt(), pagination.itemsPerPage, pagination.page, items)

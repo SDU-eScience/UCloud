@@ -40,13 +40,13 @@ import org.hibernate.Session
 import org.junit.Test
 
 private fun KtorApplicationTestSetupContext.configureCallbackServer(
-    jobQueryService: JobQueryService<Session>,
-    orchestrator: JobOrchestrator<Session>,
+    jobQueryService: JobQueryService,
+    orchestrator: JobOrchestrator,
     streamFollowService: StreamFollowService,
     userClientFactory: (String?, String?) -> AuthenticatedClient,
     serviceClient: AuthenticatedClient,
-    vncService: VncService<Session>,
-    webService: WebService<Session>,
+    vncService: VncService,
+    webService: WebService,
     machineTypes: List<MachineReservation>
 ): List<Controller> {
     return listOf(JobController(
@@ -67,16 +67,16 @@ class JobTest{
     fun`start, find, listRecent, follow cancel job test Controller CC`() {
         withKtorTest(
             setup = {
-                val jobQueryService = mockk<JobQueryService<Session>>()
-                val orchestrator = mockk<JobOrchestrator<Session>>()
+                val jobQueryService = mockk<JobQueryService>()
+                val orchestrator = mockk<JobOrchestrator>()
                 val streamFollowService = mockk<StreamFollowService>()
                 val userClientFactory: (String?, String?) -> AuthenticatedClient =
                     { accessToken, refreshToken ->
                         ClientMock.authenticatedClient
                     }
                 val serviceClient = ClientMock.authenticatedClient
-                val vncService = mockk<VncService<Session>>()
-                val webService = mockk<WebService<Session>>()
+                val vncService = mockk<VncService>()
+                val webService = mockk<WebService>()
                 val machineTypes = listOf( MachineReservation("ReservationName", 2, 2))
 
                 ClientMock.mockCallSuccess(

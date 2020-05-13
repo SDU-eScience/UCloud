@@ -41,6 +41,7 @@ import javax.persistence.Id
 import javax.persistence.Table
 import javax.persistence.criteria.Predicate
 
+/*
 @Entity
 @Table(name = "job_information")
 data class JobInformationEntity(
@@ -492,3 +493,5 @@ class JobHibernateDao(
         }
     }
 }
+
+ */

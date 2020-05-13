@@ -35,7 +35,7 @@ class StreamFollowService(
     private val serviceClient: AuthenticatedClient,
     private val serviceClientWS: AuthenticatedClient,
     private val computationBackendService: ComputationBackendService,
-    private val jobQueryService: JobQueryService<*>,
+    private val jobQueryService: JobQueryService,
     private val backgroundScope: BackgroundScope
 ) {
     suspend fun followStreams(

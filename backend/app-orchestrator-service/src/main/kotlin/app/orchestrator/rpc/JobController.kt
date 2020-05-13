@@ -28,13 +28,13 @@ import io.ktor.http.HttpStatusCode
 internal const val JOB_MAX_TIME = 1000 * 60 * 60 * 200L
 
 class JobController(
-    private val jobQueryService: JobQueryService<*>,
-    private val jobOrchestrator: JobOrchestrator<*>,
+    private val jobQueryService: JobQueryService,
+    private val jobOrchestrator: JobOrchestrator,
     private val streamFollowService: StreamFollowService,
     private val userClientFactory: (String?, String?) -> AuthenticatedClient,
     private val serviceClient: AuthenticatedClient,
-    private val vncService: VncService<*>,
-    private val webService: WebService<*>,
+    private val vncService: VncService,
+    private val webService: WebService,
     private val machineTypes: List<MachineReservation> = listOf(MachineReservation.BURST),
     private val gpuWhitelist: List<String> = emptyList()
 ) : Controller {
