@@ -104,7 +104,7 @@ export default function Avatar(props: AvatarComponentProps): JSX.Element {
                                 graphic={props.clothesGraphic}
                             />
                             <Face eyebrow={props.eyebrows} eyes={props.eyes} mouth={props.mouthTypes} />
-                            <Top optionValue={props.top} facialHair={props.facialHair} {...props}>
+                            <Top optionValue={props.top} {...props}>
                                 <Accessories optionValue={props.topAccessory} />
                             </Top>
                         </g>

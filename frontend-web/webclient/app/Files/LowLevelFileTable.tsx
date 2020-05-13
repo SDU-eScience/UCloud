@@ -122,7 +122,7 @@ export interface ListDirectoryRequest {
     type?: FileType;
 }
 
-export const statFile = (request: { path: string }): APICallParameters<{ path: string }> => ({
+export const statFile = (request: {path: string}): APICallParameters<{path: string}> => ({
     method: "GET",
     path: buildQueryString("/files/stat", request),
     parameters: request,
@@ -920,7 +920,7 @@ const Shell: React.FunctionComponent<ShellProps> = props => {
     );
 };
 
-function getFileNameForNameBox(path: string) {
+function getFileNameForNameBox(path: string): string {
     if (isMyPersonalFolder(path)) {
         return `Personal Files (${Client.username})`
     }

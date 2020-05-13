@@ -133,7 +133,7 @@ const useVirtualFolders = (path: string): VirtualFolderDefinition => {
         isFakeFolder,
         loadFolder: async (folder, page, itemsPerPage): Promise<Page<File>> => {
             if ([homeProjectList, projectProjectList].includes(folder)) {
-                const response = await callAPI<Page<UserInProject>>(listProjects({itemsPerPage, page}));
+                const response = await callAPI<Page<UserInProject>>(listProjects({itemsPerPage, page, archived: true}));
                 return {
                     ...response,
                     items: response.items.map(it => mockFile({
