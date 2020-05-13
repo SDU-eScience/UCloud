@@ -191,7 +191,7 @@ class ElasticAlertingTest {
             response
         }
 
-        runBlocking {ea.alertOnIndicesCount(lowRest, Configuration())}
+        runBlocking {ea.alertOnIndicesCount(Configuration())}
 
     }
 

@@ -195,6 +195,7 @@ class AppStoreTest {
             appStoreService.create(TestUsers.admin, normAppDesc, "content")
             appStoreService.toggleFavorite(
                 TestUsers.user,
+                null,
                 normAppDesc.metadata.name,
                 normAppDesc.metadata.version
             )
@@ -206,6 +207,7 @@ class AppStoreTest {
 
             appStoreService.toggleFavorite(
                 TestUsers.user,
+                null,
                 normAppDesc.metadata.name,
                 normAppDesc.metadata.version
             )
@@ -352,7 +354,7 @@ class AppStoreTest {
     fun `test delete - not allowed`() {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
         runBlocking {
-            appStoreService.delete(TestUsers.admin, "name", "2.2")
+            appStoreService.delete(TestUsers.admin, null, "name", "2.2")
         }
     }
 
@@ -362,7 +364,7 @@ class AppStoreTest {
         runBlocking {
             appStoreService.create(TestUsers.admin, normAppDesc, "content")
             appStoreService.create(TestUsers.admin, normAppDescDiffVersion, "content")
-            appStoreService.delete(TestUsers.admin, "name", "0.0.0")
+            appStoreService.delete(TestUsers.admin, null, "name", "0.0.0")
         }
     }
 
@@ -372,7 +374,7 @@ class AppStoreTest {
         runBlocking {
             appStoreService.create(TestUsers.admin, normAppDesc, "content")
             appStoreService.create(TestUsers.admin, normAppDescDiffVersion, "content")
-            appStoreService.delete(TestUsers.admin, "name", "2.2")
+            appStoreService.delete(TestUsers.admin, null, "name", "2.2")
         }
     }
 
@@ -381,7 +383,7 @@ class AppStoreTest {
         val appStoreService = initAppStoreWithMockedElasticAndTool()
         runBlocking {
             appStoreService.create(TestUsers.user, normAppDesc, "content")
-            appStoreService.delete(TestUsers.user2, "name", "2.2")
+            appStoreService.delete(TestUsers.user2, null, "name", "2.2")
         }
     }
 /*

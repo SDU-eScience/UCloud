@@ -21,7 +21,7 @@ import {callAPIWithErrorHandler, callAPI} from "Authentication/DataHook";
 import {emptyPage} from "DefaultObjects";
 import {listFavorites} from "./favorite";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {listRepositoryFiles, UserInProject} from "Project";
+import {listProjects, listRepositoryFiles, UserInProject} from "Project";
 
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
     const [path, setPath] = useState<string>(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder);
@@ -83,8 +83,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
             >
                 <Box>
                     <VirtualFileTable
-                        loadFolder={virtualFolders.loadFolder}
-                        fakeFolders={virtualFolders.fakeFolders}
+                        {...virtualFolders}
                         omitQuickLaunch
                         embedded
                         fileOperations={[{
@@ -123,7 +122,7 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
 };
 
 const useVirtualFolders = (path: string): VirtualFolderDefinition => {
-    const {fakeFolders, loadFolder} = defaultVirtualFolders();
+    const {fakeFolders, loadFolder, isFakeFolder} = defaultVirtualFolders();
     const [, projectName] = pathComponents(path);
     const homeProjectList = `${Client.homeFolder}Project List`;
     const projectProjectList = `/projects/${projectName}/Project List`;
@@ -131,9 +130,10 @@ const useVirtualFolders = (path: string): VirtualFolderDefinition => {
     fakeFolders!.push(projectProjectList);
     return {
         fakeFolders,
+        isFakeFolder,
         loadFolder: async (folder, page, itemsPerPage): Promise<Page<File>> => {
             if ([homeProjectList, projectProjectList].includes(folder)) {
-                const {response} = await Client.get<Page<UserInProject>>(buildQueryString("/projects/list", {itemsPerPage, page}));
+                const response = await callAPI<Page<UserInProject>>(listProjects({itemsPerPage, page}));
                 return {
                     ...response,
                     items: response.items.map(it => mockFile({

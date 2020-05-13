@@ -592,6 +592,16 @@ export function isProjectHome(path: string): boolean {
     return components.length === 2 && components[0] === "projects";
 }
 
+export function projectIdFromPath(path: string): string | null {
+    const components = pathComponents(path);
+    if (components.length === 3 && components[0] === "home" && components[2] === "Project") return Client.projectId!;
+    if (components.length >= 2 && components[0] === "projects") {
+        return components[1];
+    }
+
+    return null;
+}
+
 export function isMyPersonalFolder(path: string): boolean {
     const components = pathComponents(path);
     return components.length === 4 && components[0] === "projects" && components[2] === "Personal" &&

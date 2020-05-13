@@ -438,13 +438,13 @@ class ApplicationHibernateDaoTest {
                     }
 
                     run {
-                        appDAO.toggleFavorite(it, currentUser, aVersion1.metadata.name, aVersion1.metadata.version)
+                        appDAO.toggleFavorite(it, currentUser, null, emptyList(), aVersion1.metadata.name, aVersion1.metadata.version)
                         val favorites = appDAO.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
                         assertEquals(1, favorites.itemsInTotal)
                     }
 
                     run {
-                        appDAO.toggleFavorite(it, currentUser, aVersion2.metadata.name, aVersion2.metadata.version)
+                        appDAO.toggleFavorite(it, currentUser, null, emptyList(), aVersion2.metadata.name, aVersion2.metadata.version)
                         val favorites = appDAO.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
                         assertEquals(2, favorites.itemsInTotal)
                     }
@@ -467,7 +467,7 @@ class ApplicationHibernateDaoTest {
 
                 val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
 
-                appDAO.toggleFavorite(it, user, "App1", "1.4")
+                appDAO.toggleFavorite(it, user, null, emptyList(), "App1", "1.4")
             }
         }
     }

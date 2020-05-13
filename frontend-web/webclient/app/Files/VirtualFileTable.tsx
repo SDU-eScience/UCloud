@@ -10,7 +10,7 @@ import {
     getParentPath,
     isProjectHome,
     MOCK_VIRTUAL,
-    mockFile,
+    mockFile, projectIdFromPath,
     resolvePath
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
@@ -21,6 +21,7 @@ export type VirtualFileTableProps = LowLevelFileTableProps & VirtualFolderDefini
 
 export interface VirtualFolderDefinition {
     fakeFolders?: string[];
+    isFakeFolder?: (folder: string) => boolean;
     loadFolder?: (folder: string, page: number, itemsPerPage: number) => Promise<Page<File>>;
 }
 
@@ -36,6 +37,10 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
         if (props.path !== undefined) {
             const resolvedPath = resolvePath(props.path);
             fakeFolderToUse = props.fakeFolders.find(it => resolvePath(it) === resolvedPath);
+
+            if (!fakeFolderToUse && props.isFakeFolder && props.isFakeFolder(resolvedPath)) {
+                fakeFolderToUse = resolvedPath;
+            }
         }
 
         mergedProperties.page = loadedFakeFolder;
@@ -99,6 +104,11 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
 export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
     fakeFolders: Client.fakeFolders,
 
+    isFakeFolder: folder => {
+        if (isProjectHome(folder)) return true;
+        return false;
+    },
+
     loadFolder: async (folder, page, itemsPerPage): Promise<Page<File>> => {
         if (folder === Client.favoritesFolder) {
             const favs = (await callAPIWithErrorHandler<Page<File>>(listFavorites({page, itemsPerPage})));
@@ -109,7 +119,8 @@ export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
             ).response;
         } else if (isProjectHome(folder)) {
             try {
-                const response = await callAPI<Page<File>>(listRepositoryFiles({page, itemsPerPage}));
+                const id = projectIdFromPath(folder)!;
+                const response = await callAPI<Page<File>>(listRepositoryFiles({page, itemsPerPage}, id));
                 response.items.forEach(f => f.isRepo = true);
                 return response;
             } catch (err) {
