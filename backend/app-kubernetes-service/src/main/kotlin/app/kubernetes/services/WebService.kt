@@ -35,7 +35,9 @@ class WebService(
     private val broadcastingStream: BroadcastingStream,
     private val cookieName: String = "appRefreshToken",
     private val prefix: String,
-    private val domain: String
+    private val domain: String,
+    private val k8: K8Dependencies,
+    private val devMode: Boolean = false
 ) {
     fun install(routing: Route): Unit = with(routing) {
         // Called when entering the application. This sets the cookie containing the refresh token.
@@ -50,36 +52,59 @@ class WebService(
                 return@get
             }
 
-            if (performAuthentication) {
-                val ingoingToken = call.request.cookies[SDU_CLOUD_REFRESH_TOKEN] ?: run {
-                    call.respond(HttpStatusCode.Unauthorized)
-                    return@get
+            if (!devMode) {
+                if (performAuthentication) {
+                    val ingoingToken = call.request.cookies[SDU_CLOUD_REFRESH_TOKEN] ?: run {
+                        call.respond(HttpStatusCode.Unauthorized)
+                        return@get
+                    }
+
+                    val validated = authenticationService.validate(ingoingToken)
+                    if (validated == null || job.owner != validated.principal.username) {
+                        call.respond(HttpStatusCode.Unauthorized)
+                        return@get
+                    }
+
+                    call.response.cookies.append(
+                        name = cookieName,
+                        value = ingoingToken,
+                        secure = call.request.origin.scheme == "https",
+                        httpOnly = true,
+                        expires = GMTDate(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
+                        path = "/",
+                        domain = domain
+                    )
                 }
 
-                val validated = authenticationService.validate(ingoingToken)
-                if (validated == null || job.owner != validated.principal.username) {
-                    call.respond(HttpStatusCode.Unauthorized)
-                    return@get
+                val urlId = if (job.url == null) {
+                    id
+                } else {
+                    job.url
                 }
 
-                call.response.cookies.append(
-                    name = cookieName,
-                    value = ingoingToken,
-                    secure = call.request.origin.scheme == "https",
-                    httpOnly = true,
-                    expires = GMTDate(System.currentTimeMillis() + (1000L * 60 * 60 * 24 * 30)),
-                    path = "/",
-                    domain = domain
-                )
-            }
-
-            val urlId = if (job.url == null) {
-                id
+                call.respondRedirect("http://$prefix$urlId.$domain/")
             } else {
-                job.url
-            }
+                // Development mode will attempt to use minikube and use node-port
+                @Suppress("BlockingMethodInNonBlockingContext")
+                run {
+                    log.info("Attempting to use minikube")
+                    val start = ProcessBuilder("minikube", "ip").start()
+                    val minikubeIpAddress = start.inputStream.bufferedReader().readText().lines().first()
+                    start.waitFor()
 
-            call.respondRedirect("http://$prefix$urlId.$domain/")
+                    val nodeport = k8.nameAllocator
+                        .findServices(job.id)
+                        .list()
+                        .items
+                        .first()
+                        .spec
+                        .ports
+                        .first()
+                        .nodePort
+
+                    call.respondRedirect("http://${minikubeIpAddress}:$nodeport")
+                }
+            }
         }
 
         // Called by envoy before every single request. We are allowed to control the "Cookie" header.

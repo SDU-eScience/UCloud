@@ -31,7 +31,8 @@ class K8JobCreationService(
     private val broadcastingStream: BroadcastingStream,
     private val hostAliasesService: HostAliasesService,
     private val workspaceService: WorkspaceService,
-    private val toleration: TolerationKeyAndValue? = null
+    private val toleration: TolerationKeyAndValue? = null,
+    private val devMode: Boolean = false
 ) {
     fun create(verifiedJob: VerifiedJob) {
         log.info("Creating new job with name: ${verifiedJob.id}")
@@ -452,20 +453,39 @@ class K8JobCreationService(
                         }
 
                         spec = ServiceSpec().apply {
-                            type = "ClusterIP"
-                            clusterIP = "None"
+                            if (!devMode) {
+                                type = "ClusterIP"
+                                clusterIP = "None"
+
+                                ports = listOf(
+                                    ServicePort().apply {
+                                        name = "placeholder"
+                                        port = 80
+                                        targetPort = IntOrString(80)
+                                        protocol = "TCP"
+                                    }
+                                )
+                            } else {
+                                // Dev mode is made to work well with minikube and allows us to expose it quite easily
+                                type = "LoadBalancer"
+
+                                val target = verifiedJob.application.invocation.web?.port
+                                    ?: verifiedJob.application.invocation.vnc?.port ?: 80
+
+                                ports = listOf(
+                                    ServicePort().apply {
+                                        name = "web"
+                                        port = 80
+                                        targetPort = IntOrString(target)
+                                        protocol = "TCP"
+                                    }
+                                )
+                            }
+
                             selector = mapOf(
                                 K8NameAllocator.ROLE_LABEL to k8.nameAllocator.appRole,
                                 K8NameAllocator.JOB_ID_LABEL to verifiedJob.id,
                                 K8NameAllocator.RANK_LABEL to pod.metadata.labels[K8NameAllocator.RANK_LABEL]
-                            )
-                            ports = listOf(
-                                ServicePort().apply {
-                                    name = "placeholder"
-                                    port = 80
-                                    targetPort = IntOrString(80)
-                                    protocol = "TCP"
-                                }
                             )
                         }
                     })

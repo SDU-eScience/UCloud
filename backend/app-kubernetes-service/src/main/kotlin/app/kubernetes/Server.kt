@@ -81,7 +81,8 @@ class Server(
             broadcastingStream,
             hostAliasesService,
             workspaceService,
-            configuration.toleration
+            configuration.toleration,
+            devMode = micro.developmentModeEnabled
         )
 
         val envoyConfigurationService = EnvoyConfigurationService(
@@ -125,7 +126,17 @@ class Server(
         }
 
         vncService = VncService(tunnelManager)
-        webService = WebService(authenticationService = authenticationService, performAuthentication = configuration.performAuthentication, cookieName = configuration.cookieName, prefix = configuration.prefix, domain = configuration.domain, broadcastingStream = broadcastingStream, jobCache = jobCache)
+        webService = WebService(
+            authenticationService = authenticationService,
+            performAuthentication = configuration.performAuthentication,
+            cookieName = configuration.cookieName,
+            prefix = configuration.prefix,
+            domain = configuration.domain,
+            broadcastingStream = broadcastingStream,
+            jobCache = jobCache,
+            k8 = k8Dependencies,
+            devMode = micro.developmentModeEnabled
+        )
 
         jobMonitoringService.initializeListeners()
 
