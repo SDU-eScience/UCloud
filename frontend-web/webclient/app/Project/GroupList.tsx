@@ -76,7 +76,7 @@ const GroupList: React.FunctionComponent = props => {
                                 />
                             )
                         }
-                        navigate={() => history.push(`/projects/view/${g.group}/${membersPage ?? ""}`)}
+                        navigate={() => history.push(`/projects/view/${encodeURIComponent(g.group)}/${membersPage ?? ""}`)}
                         leftSub={
                             <Text ml="4px" color="gray" fontSize={0}>
                                 <Icon color="gray" mt="-2px" size="10" name="projects"/> {g.numberOfMembers}

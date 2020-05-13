@@ -1,4 +1,4 @@
-version = "1.2.0-projects.2"
+version = "1.2.0-projects.3"
 
 application {
     mainClassName = "dk.sdu.cloud.filesearch.MainKt"
