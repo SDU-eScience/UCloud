@@ -17,7 +17,7 @@ import {Page, Operation} from "Types";
 import Button from "ui-components/Button";
 import {Flex, Icon, List, Text, Input, Box, Checkbox, Label} from "ui-components";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
-import {updatePageTitle} from "Navigation/Redux/StatusActions";
+import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {ListRow, ListRowStat} from "ui-components/List";
 import {useHistory} from "react-router";
@@ -31,9 +31,10 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import {ThemeColor} from "ui-components/theme";
 import {useEffect, useState} from "react";
 import * as Heading from "ui-components/Heading";
+import {SidebarPages} from "ui-components/Sidebar";
 
 // eslint-disable-next-line no-underscore-dangle
-const _List: React.FunctionComponent<DispatchProps & { project?: string }> = props => {
+const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
     const [archived, setArchived] = useState<boolean>(false);
     const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         {noop: true},
@@ -66,7 +67,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
     };
 
     useEffect(() => {
-        props.setPageTitle();
+        props.onInit();
     }, []);
 
     useEffect(() => {
@@ -75,7 +76,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
     }, [reload]);
 
     useEffect(() => {
-        setFetchParams(listProjects({page: 0, itemsPerPage: 50, archived})) ;
+        setFetchParams(listProjects({page: 0, itemsPerPage: 50, archived}));
     }, [archived]);
 
     const projectOperations: ProjectOperation[] = [];
@@ -109,7 +110,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                                     color={"green"}
                                                     mr={8}
                                                     onClick={async () => {
-                                                        await runCommand(acceptInvite({ projectId: invite.project }));
+                                                        await runCommand(acceptInvite({projectId: invite.project}));
                                                         reload();
                                                     }}
                                                 >
@@ -118,7 +119,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                                 <Button
                                                     color={"red"}
                                                     onClick={async () => {
-                                                        await runCommand(rejectInvite({ projectId: invite.project }));
+                                                        await runCommand(rejectInvite({projectId: invite.project}));
                                                         reload();
                                                     }}
                                                 >
@@ -135,7 +136,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                     <Heading.h3 mb={16}>My Projects</Heading.h3>
                     <List>
                         <ListRow
-                            icon={<Box width="24px"/>}
+                            icon={<Box width="24px" />}
                             left={<Text>Personal project</Text>}
                             leftSub={<ListRowStat icon={"id"}>{Client.username}</ListRowStat>}
                             right={<Icon
@@ -180,7 +181,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                     autoFocus
                                     ref={title}
                                 /></form>}
-                                right={<div/>}
+                                right={<div />}
                                 leftSub={<ListRowStat icon={"user"}>{projectRoleToString(ProjectRole.PI)}</ListRowStat>}
                             /> : null}
                         <Pagination.List
@@ -213,7 +214,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                             left={e.title}
                                             leftSub={
                                                 <Text ml="4px" color="gray" fontSize={0}>
-                                                    <Icon color="white" color2="gray" mt="-2px" size="10" name="user"/>
+                                                    <Icon color="white" color2="gray" mt="-2px" size="10" name="user" />
                                                     {" "}{projectRoleToString(e.whoami.role)}
                                                 </Text>
                                             }
@@ -221,7 +222,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                                 <Flex alignItems={"center"}>
                                                     {!e.needsVerification ? null : (
                                                         <Text fontSize={0} mr={8}>
-                                                            <Icon name={"warning"}/> Attention required
+                                                            <Icon name={"warning"} /> Attention required
                                                         </Text>
                                                     )}
                                                     <Icon
@@ -262,7 +263,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                                                 />
                                                             </ClickableDropdown>
                                                         </div>
-                                                    ) : <Box width="28px"/>}
+                                                    ) : <Box width="28px" />}
                                                 </Flex>
                                             </>}
                                         />
@@ -278,7 +279,7 @@ const _List: React.FunctionComponent<DispatchProps & { project?: string }> = pro
                                     })
                                 );
                             }}
-                            customEmptyPage={<div/>}
+                            customEmptyPage={<div />}
                         />
                     </List>
                 </>
@@ -339,7 +340,7 @@ function ProjectOperations(props: ProjectOperations): JSX.Element | null {
     function ProjectOp(op: ProjectOperation): JSX.Element | null {
         if (op.disabled(props.selectedProjects, Client)) return null;
         return <span onClick={() => op.onClick(props.selectedProjects, Client)}>
-            <Icon size={16} mr="0.5em" color={op.color} color2={op.iconColor2} name={op.icon}/>{op.text}</span>;
+            <Icon size={16} mr="0.5em" color={op.color} color2={op.iconColor2} name={op.icon} />{op.text}</span>;
     }
 
     return (
@@ -354,15 +355,18 @@ function ProjectOperations(props: ProjectOperations): JSX.Element | null {
 
 interface DispatchProps {
     setProject: (id?: string) => void;
-    setPageTitle: () => void;
+    onInit: () => void;
     setRefresh: (refresh?: () => void) => void;
     setLoading: (loading: boolean) => void;
 }
 
-const mapStateToProps = (state: ReduxObject): { project?: string } => state.project;
+const mapStateToProps = (state: ReduxObject): {project?: string} => state.project;
 
 const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
-    setPageTitle: () => dispatch(updatePageTitle("Projects")),
+    onInit: () => {
+        dispatch(updatePageTitle("Projects"));
+        dispatch(setActivePage(SidebarPages.Projects));
+    },
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     setLoading: loading => dispatch(loadingAction(loading)),
     setProject: id => dispatchSetProjectAction(dispatch, id)

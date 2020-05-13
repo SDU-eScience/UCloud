@@ -17,7 +17,7 @@ import Text, {EllipsedText} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 
-const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean}>`
+const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
     flex-flow: row;
     align-items: center;
@@ -141,6 +141,8 @@ function enumToLabel(value: SidebarPages): string {
             return "Files";
         case SidebarPages.Shares:
             return "Shares";
+        case SidebarPages.Projects:
+            return "Projects";
         case SidebarPages.AppStore:
             return "Apps";
         case SidebarPages.Runs:
@@ -304,6 +306,7 @@ const mapStateToProps = ({status, project}: ReduxObject): SidebarStateProps => (
 export const enum SidebarPages {
     Files,
     Shares,
+    Projects,
     AppStore,
     Runs,
     Publish,
