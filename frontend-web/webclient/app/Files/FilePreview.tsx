@@ -6,31 +6,28 @@ import * as React from "react";
 import {useHistory, useLocation, useParams} from "react-router";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Box, Button, ContainerForText, Icon, Markdown} from "ui-components";
+import {Box, Button, Markdown} from "ui-components";
 import Error from "ui-components/Error";
-import {Spacer} from "ui-components/Spacer";
-import {downloadFiles, fileTablePage, isDirectory, statFileOrNull} from "Utilities/FileUtilities";
+import {downloadFiles, fileTablePage, isDirectory} from "Utilities/FileUtilities";
 import {
     extensionFromPath,
     extensionTypeFromPath,
     isExtPreviewSupported,
-    removeTrailingSlash,
-    requestFullScreen
 } from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
-import SyntaxHighlighter from 'react-syntax-highlighter';
+import SyntaxHighlighter from "react-syntax-highlighter";
 import {BreadCrumbs} from "ui-components/Breadcrumbs";
 import {useAsyncCommand, useAsyncWork} from "Authentication/DataHook";
-import {buildQueryString, getQueryParam, getQueryParamOrElse} from "Utilities/URIUtilities";
+import {buildQueryString, getQueryParamOrElse} from "Utilities/URIUtilities";
 import {useEffect, useState} from "react";
 import {statFile} from "Files/LowLevelFileTable";
-import {quickLaunchCallback, quickLaunchFromParametersFile} from "Files/QuickLaunch";
+import {quickLaunchFromParametersFile} from "Files/QuickLaunch";
 
 interface FilePreviewStateProps {
     isEmbedded?: boolean;
 }
 
-function useFileContent(){
+function useFileContent() {
     const [, runCommand] = useAsyncCommand();
     const [,, runWork] = useAsyncWork();
     const location = useLocation();
@@ -41,7 +38,7 @@ function useFileContent(){
     const [fileContent, setFileContent] = useState<string | null>("");
 
     useEffect(() => {
-        async function fetchData() {
+        async function fetchData(): Promise<void> {
             if (path === null) return;
 
             if (!isExtPreviewSupported(extensionFromPath(path))) {
@@ -65,14 +62,13 @@ function useFileContent(){
             } else {
                 let token: string = "";
                 await runWork(async () => {
-                    token = await Client.createOneTimeTokenWithPermission("files.download:read")
+                    token = await Client.createOneTimeTokenWithPermission("files.download:read");
                 });
 
                 const content = await fetch(Client.computeURL(
                     "/api",
                     buildQueryString("/files/download", { path, token })
                 ));
-
                 switch (fileType) {
                     case "image":
                     case "audio":
@@ -135,7 +131,7 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
         }
     }
 
-    function onFileNavigation(newPath: string) {
+    function onFileNavigation(newPath: string): void {
         history.push(fileTablePage(newPath));
     }
 

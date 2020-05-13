@@ -123,7 +123,7 @@ type ExtensionType =
     | "markdown"
     | "application";
 export const extensionType = (ext: string): ExtensionType => {
-    switch (ext) {
+    switch (ext.toLowerCase()) {
         case "app":
             return "application";
         case "md":
@@ -212,7 +212,7 @@ export const extensionType = (ext: string): ExtensionType => {
 };
 
 export const isExtPreviewSupported = (ext: string): boolean => {
-    switch (ext) {
+    switch (ext.toLowerCase()) {
         case "app":
         case "md":
         case "swift":
