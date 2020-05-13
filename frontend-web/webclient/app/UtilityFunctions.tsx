@@ -1,18 +1,13 @@
-import {Client, Client as currentClient} from "Authentication/HttpClientInstance";
+import {Client as currentClient} from "Authentication/HttpClientInstance";
 import {SensitivityLevel} from "DefaultObjects";
 import {Acl, File, FileType, SortBy, UserEntity} from "Files";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {dateToString} from "Utilities/DateUtilities";
 import {
-    getFilenameFromPath,
-    isDirectory, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
-    isSharesFolder, isTrashFolder,
-    replaceHomeOrProjectFolder,
-    sizeToString
+    getFilenameFromPath, isDirectory, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
+    isSharesFolder, isTrashFolder, sizeToString
 } from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
-import HttpClient from "Authentication/lib";
 
 export function toggleCssColors(light: boolean): void {
     if (light) {

@@ -354,9 +354,7 @@ export function transferPiRole(request: TransferPiRoleRequest): APICallParameter
     };
 }
 
-export interface ListRepositoryRequest extends PaginationRequest {
-
-}
+export type ListRepositoryRequest = PaginationRequest;
 
 export function listRepositoryFiles(
     request: ListRepositoryRequest,

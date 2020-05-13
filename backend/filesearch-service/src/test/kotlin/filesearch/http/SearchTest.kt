@@ -8,12 +8,7 @@ import dk.sdu.cloud.filesearch.api.AdvancedSearchRequest
 import dk.sdu.cloud.filesearch.api.SearchResult
 import dk.sdu.cloud.indexing.api.QueryDescriptions
 import dk.sdu.cloud.indexing.api.QueryResponse
-import dk.sdu.cloud.project.api.ProjectMember
-import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.api.UserGroupSummary
-import dk.sdu.cloud.project.api.UserProjectSummary
-import dk.sdu.cloud.project.api.UserStatusResponse
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.test.ClientMock
@@ -248,11 +243,9 @@ class SearchTest {
                     ProjectMembers.userStatus,
                     UserStatusResponse(
                         listOf(
-                            UserProjectSummary(
+                            UserStatusInProject(
                                 "projectID",
-                                "title",
-                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN),
-                                false
+                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN)
                             )
                         ),
                         listOf(
@@ -303,11 +296,9 @@ class SearchTest {
                     ProjectMembers.userStatus,
                     UserStatusResponse(
                         listOf(
-                            UserProjectSummary(
+                            UserStatusInProject(
                                 "projectID",
-                                "title",
-                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN),
-                                false
+                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN)
                             )
                         ),
                         listOf(
@@ -355,11 +346,9 @@ class SearchTest {
                     ProjectMembers.userStatus,
                     UserStatusResponse(
                         listOf(
-                            UserProjectSummary(
+                            UserStatusInProject(
                                 "projectID",
-                                "title",
-                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN),
-                                false
+                                ProjectMember(TestUsers.user.username, ProjectRole.ADMIN)
                             )
                         ),
                         listOf(

@@ -634,7 +634,7 @@ class AppTest {
                 val appDao = mockk<ApplicationHibernateDAO>()
                 val elasticDAO = mockk<ElasticDAO>()
 
-                every { appDao.delete(any(), any(), any(), any()) } just runs
+                every { appDao.delete(any(), any(), any(), any(), any(), any()) } just runs
                 every { elasticDAO.deleteApplicationInElastic(any(), any()) } just runs
                 configureAppServer(appDao, elasticDAO)
             },

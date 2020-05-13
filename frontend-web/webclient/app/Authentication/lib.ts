@@ -341,6 +341,7 @@ export default class HttpClient {
     public get currentProjectFolder(): string {
         return `/projects/${this.projectId}`;
     }
+
     public get sharesFolder(): string {
         return `${this.homeFolder}Shares`;
     }

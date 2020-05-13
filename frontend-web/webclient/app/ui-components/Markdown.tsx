@@ -1,13 +1,13 @@
 import * as React from "react";
 import * as ReactMarkdown from "react-markdown";
 import ExternalLink from "./ExternalLink";
-import SyntaxHighlighter from 'react-syntax-highlighter';
+import SyntaxHighlighter from "react-syntax-highlighter";
 import {filePreviewPage, pathComponents, resolvePath} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {Link} from "ui-components/index";
 
-class CodeBlock extends React.PureComponent<{ value: string, language?: string }> {
-    render() {
+class CodeBlock extends React.PureComponent<{ value: string; language?: string }> {
+    public render(): JSX.Element {
         const { language, value } = this.props;
 
         return (

@@ -48,9 +48,9 @@ class ServiceTest {
         sendJson(
             HttpMethod.Post,
             "/api/projects/members",
-            InviteRequest(project, memberToAdd),
+            InviteRequest(project, memberToAdd.username),
             principalInvestigator
-        ).parseSuccessful<AddMemberResponse>()
+        ).parseSuccessful<InviteResponse>()
     }
 
     private fun KtorApplicationTestContext.deleteMember(
@@ -369,7 +369,7 @@ class ServiceTest {
                 val userToAdd = TestUsers.user2
                 mockUsersExists(listOf(principalInvestigator, userToAdd))
 
-                val project = createProject(pi = principalInvestigator.username).id
+                val project = createProject(pi = principalInvestigator.username)
 
                 val view1 = viewMemberInProject(principalInvestigator, project, principalInvestigator.username)
                 assertThatProperty(view1, { it.member }, matcher = { member ->
