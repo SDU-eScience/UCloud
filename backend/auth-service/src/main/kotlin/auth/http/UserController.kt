@@ -172,12 +172,10 @@ class UserController<DBSession>(
         }
 
         implement(UserDescriptions.wantEmails) {
-            println("WANT")
             val user =
                 if (ctx.securityPrincipal.role == Role.SERVICE) request.username ?: throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest, "Missing username") else ctx.securityPrincipal.username
 
-            println(user)
             ok(
                 db.withTransaction { session ->
                     userDAO.wantEmails(session, user)

@@ -35,7 +35,10 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
         const wantEmails = await invokeCommand( {
             method: "POST",
             path: "/auth/users/wantEmails",
-            context: ""
+            context: "",
+            payload: {
+                username: null
+            }
         });
 
         setWantEmail(wantEmails ?? true);
@@ -87,63 +90,80 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
 
     }, [commandLoading, userFirstNames.current, userLastName.current, userEmail.current]);
 
-    if (Client.principalType !== "password") return null;
-
-    return (
-        <Box mb={16}>
-            <Heading.h2>Change User Details</Heading.h2>
-            <form onSubmit={onSubmit}>
-                <Box mt="0.5em" pt="0.5em">
-                    <Label>
-                       First names
-                        <Input
-                            ref={userFirstNames}
-                            type="text"
-                            placeholder={placeHolderFirstNames}
+    if (Client.principalType !== "password") {
+        return (
+            <Box mb={16}>
+                <Heading.h2>Change User Details</Heading.h2>
+                    <Label ml={10} width="auto">
+                        <Checkbox
+                            size={27}
+                            onClick={toogleSubscription}
+                            checked={placeHolderWantEmails}
+                            onChange={info}
                         />
+                        <Box as={"span"}>Receive emails</Box>
                     </Label>
-                </Box>
+            </Box>
+        );
+    }
+    else {
+        return (
+            <Box mb={16}>
+                <Heading.h2>Change User Details</Heading.h2>
+                <form onSubmit={onSubmit}>
+                    <Box mt="0.5em" pt="0.5em">
+                        <Label>
+                            First names
+                            <Input
+                                ref={userFirstNames}
+                                type="text"
+                                placeholder={placeHolderFirstNames}
+                            />
+                        </Label>
+                    </Box>
 
-                <Box mt="0.5em" pt="0.5em">
-                    <Label>
-                        Last name
-                        <Input
-                            ref={userLastName}
-                            type="text"
-                            placeholder= {placeHolderLastName}
+                    <Box mt="0.5em" pt="0.5em">
+                        <Label>
+                            Last name
+                            <Input
+                                ref={userLastName}
+                                type="text"
+                                placeholder={placeHolderLastName}
+                            />
+                        </Label>
+                    </Box>
+                    <Box mt="0.5em" pt="0.5em">
+                        <Label>
+                            Email
+                            <Input
+                                ref={userEmail}
+                                type="email"
+                                placeholder={placeHolderEmail}
+                            />
+                        </Label>
+                    </Box>
+
+                    <Label ml={10} width="auto">
+                        <Checkbox
+                            size={27}
+                            onClick={toogleSubscription}
+                            checked={placeHolderWantEmails}
+                            onChange={info}
                         />
+                        <Box as={"span"}>Receive emails</Box>
                     </Label>
-                </Box>
-                <Box mt="0.5em" pt="0.5em">
-                    <Label>
-                        Email
-                        <Input
-                            ref={userEmail}
-                            type="email"
-                            placeholder={placeHolderEmail}
-                        />
-                    </Label>
-                </Box>
-
-                <Label ml={10} width="auto">
-                    <Checkbox
-                        size={27}
-                        onClick={toogleSubscription}
-                        checked={placeHolderWantEmails}
-                    />
-                    <Box as={"span"}>Receive emails</Box>
-                </Label>
 
 
-                <Button
-                    mt={"1em"}
-                    type={"submit"}
-                    color="green"
-                    disabled={commandLoading}
-                >
-                    Update Information
-                </Button>
-            </form>
-        </Box>
-    );
+                    <Button
+                        mt={"1em"}
+                        type={"submit"}
+                        color="green"
+                        disabled={commandLoading}
+                    >
+                        Update Information
+                    </Button>
+                </form>
+            </Box>
+        );
+    }
 };
