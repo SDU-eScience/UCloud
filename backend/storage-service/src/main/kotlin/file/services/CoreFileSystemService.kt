@@ -198,6 +198,11 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             // TODO This probably isn't the best place for this code
             metadataService.removeAllMetadataOfType(
                 from.normalize(),
+                "share"
+            )
+
+            metadataService.removeAllMetadataOfType(
+                from.normalize(),
                 AclService.USER_METADATA_TYPE
             )
         }
