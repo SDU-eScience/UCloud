@@ -2,11 +2,12 @@ import {useAsyncCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {useCallback, useEffect, useRef, useState} from "react";
 import * as React from "react";
-import {Box, Button, Icon, Input, Label} from "ui-components";
+import {Box, Button, Checkbox, Icon, Input, Label} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import * as UF from "UtilityFunctions";
 import {SnackType} from "Snackbar/Snackbars";
+import {stopPropagation} from "UtilityFunctions";
 
 export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: boolean) => void }> = props => {
 
@@ -20,6 +21,7 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
     const [placeHolderFirstNames, setPlaceHolderFirstNames] = useState("Enter First Name(s)");
     const [placeHolderLastName, setPlaceHolderLastName] = useState("Enter Last Name");
     const [placeHolderEmail, setPlaceHolderEmail] = useState("Enter Email");
+    const [wantsEmailsState, setWantsEmail] = useState(true);
 
     const info = useCallback( async () => {
 
@@ -30,10 +32,29 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
             context: ""
         });
 
+        const wantsEmails = await invokeCommand( {
+            method: "POST",
+            path: "/auth/users/wantsEmails",
+            context: "",
+            payload: {
+                username: null
+            }
+        });
+
+        setWantsEmail(wantsEmails);
         setPlaceHolderFirstNames(user.firstNames ?? "Enter First Name(s)");
         setPlaceHolderLastName(user.lastName ?? "Enter Last Name");
         setPlaceHolderEmail(user.email ?? "Enter Email");
     },[]);
+
+
+    const toogleSubscription = useCallback( async () => {
+        await invokeCommand( {
+            method: "POST",
+            path: "/auth/users/toggleEmailSubscription",
+            context: ""
+        });
+    }, []);
 
     useEffect(() => {
         info()
@@ -69,54 +90,80 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
 
     }, [commandLoading, userFirstNames.current, userLastName.current, userEmail.current]);
 
-    if (Client.principalType !== "password") return null;
-
-    return (
-        <Box mb={16}>
-            <Heading.h2>Change User Details</Heading.h2>
-            <form onSubmit={onSubmit}>
-                <Box mt="0.5em" pt="0.5em">
-                    <Label>
-                       First names
-                        <Input
-                            ref={userFirstNames}
-                            type="text"
-                            placeholder={placeHolderFirstNames}
+    if (Client.principalType !== "password") {
+        return (
+            <Box mb={16}>
+                <Heading.h2>Change User Details</Heading.h2>
+                    <Label ml={10} width="auto">
+                        <Checkbox
+                            size={27}
+                            onClick={toogleSubscription}
+                            checked={wantsEmailsState}
+                            onChange={info}
                         />
+                        <Box as={"span"}>Receive emails</Box>
                     </Label>
-                </Box>
+            </Box>
+        );
+    }
+    else {
+        return (
+            <Box mb={16}>
+                <Heading.h2>Change User Details</Heading.h2>
+                <form onSubmit={onSubmit}>
+                    <Box mt="0.5em" pt="0.5em">
+                        <Label>
+                            First names
+                            <Input
+                                ref={userFirstNames}
+                                type="text"
+                                placeholder={placeHolderFirstNames}
+                            />
+                        </Label>
+                    </Box>
 
-                <Box mt="0.5em" pt="0.5em">
-                    <Label>
-                        Last name
-                        <Input
-                            ref={userLastName}
-                            type="text"
-                            placeholder= {placeHolderLastName}
+                    <Box mt="0.5em" pt="0.5em">
+                        <Label>
+                            Last name
+                            <Input
+                                ref={userLastName}
+                                type="text"
+                                placeholder={placeHolderLastName}
+                            />
+                        </Label>
+                    </Box>
+                    <Box mt="0.5em" pt="0.5em">
+                        <Label>
+                            Email
+                            <Input
+                                ref={userEmail}
+                                type="email"
+                                placeholder={placeHolderEmail}
+                            />
+                        </Label>
+                    </Box>
+
+                    <Label ml={10} width="auto">
+                        <Checkbox
+                            size={27}
+                            onClick={toogleSubscription}
+                            checked={wantsEmailsState}
+                            onChange={info}
                         />
+                        <Box as={"span"}>Receive emails</Box>
                     </Label>
-                </Box>
-                <Box mt="0.5em" pt="0.5em">
-                    <Label>
-                        Email
-                        <Input
-                            ref={userEmail}
-                            type="email"
-                            placeholder={placeHolderEmail}
-                        />
-                    </Label>
-                </Box>
 
 
-                <Button
-                    mt={"1em"}
-                    type={"submit"}
-                    color="green"
-                    disabled={commandLoading}
-                >
-                    Update Information
-                </Button>
-            </form>
-        </Box>
-    );
+                    <Button
+                        mt={"1em"}
+                        type={"submit"}
+                        color="green"
+                        disabled={commandLoading}
+                    >
+                        Update Information
+                    </Button>
+                </form>
+            </Box>
+        );
+    }
 };

@@ -13,7 +13,8 @@ import io.ktor.http.HttpMethod
 data class SendRequest(
     val userId: String,
     val subject: String,
-    val message: String
+    val message: String,
+    val mandatory: Boolean? = false
 )
 
 object MailDescriptions : CallDescriptionContainer("mail") {

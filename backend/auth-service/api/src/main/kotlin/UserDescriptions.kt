@@ -50,6 +50,14 @@ data class GetUserInfoResponse(
     val lastName: String?
 )
 
+data class WantsEmailsRequest(
+    val username: String?
+)
+typealias WantsEmailsResponse = Boolean
+
+typealias ToggleEmailSubscriptionRequest = Unit
+typealias ToggleEmailSubscriptionResponse = Unit
+
 class ChangePasswordAudit
 
 data class ChangePasswordRequest(val currentPassword: String, val newPassword: String) {
@@ -183,6 +191,40 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
                 using(baseContext)
                 +"lookup"
                 +"email"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val toggleEmailSubscription = call<ToggleEmailSubscriptionRequest, ToggleEmailSubscriptionResponse, CommonErrorMessage>("toggleEmailSubscription") {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"toggleEmailSubscription"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+    //If expanded upon it should be moved out of AUTH
+    val wantsEmails = call<WantsEmailsRequest, WantsEmailsResponse, CommonErrorMessage>("wantsEmails") {
+        auth {
+            roles = Roles.AUTHENTICATED
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Post
+            path {
+                using(baseContext)
+                +"wantsEmails"
             }
 
             body { bindEntireRequestFromBody() }

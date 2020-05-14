@@ -3,10 +3,12 @@ package dk.sdu.cloud.mail.services
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupEmailRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.auth.api.WantsEmailsRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import java.io.File
 import java.nio.file.Files
@@ -73,9 +75,28 @@ class MailService(
         """.trimIndent()
     }
 
-    suspend fun send(principal: SecurityPrincipal, recipient: String, subject: String, text: String) {
+    suspend fun send(
+        principal: SecurityPrincipal,
+        recipient: String,
+        subject: String,
+        text: String,
+        emailRequestedByUser: Boolean
+    ) {
         if (principal.username !in whitelist) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
+        }
+
+        if (!emailRequestedByUser) {
+            //IF expanded upon it should be moved out of AUTH
+            val wantEmails = UserDescriptions.wantsEmails.call(
+                WantsEmailsRequest(principal.username),
+                authenticatedClient
+            ).orThrow()
+
+            if (!wantEmails) {
+                log.info("User: ${principal.username} does not want to receive emails")
+                return
+            }
         }
 
         val getEmail = UserDescriptions.lookupEmail.call(
@@ -127,5 +148,9 @@ class MailService(
         } catch (e: Throwable) {
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to send email")
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

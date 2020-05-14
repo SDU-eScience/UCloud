@@ -164,6 +164,29 @@ class UserController<DBSession>(
             )
         }
 
+        implement(UserDescriptions.toggleEmailSubscription) {
+            db.withTransaction { session ->
+                userDAO.toggleEmail(session, ctx.securityPrincipal.username)
+            }
+            ok(Unit)
+        }
+
+        implement(UserDescriptions.wantsEmails) {
+            val user =
+                if (ctx.securityPrincipal.role == Role.SERVICE) {
+                    request.username ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Missing username")
+                } else {
+                    ctx.securityPrincipal.username
+                }
+
+            ok(
+                db.withTransaction { session ->
+                    userDAO.wantEmails(session, user)
+                }
+            )
+
+        }
+
         implement(UserDescriptions.lookupUID) {
             ok(
                 db.withTransaction { session ->

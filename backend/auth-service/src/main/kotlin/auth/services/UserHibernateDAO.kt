@@ -5,11 +5,13 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
+import io.ktor.http.HttpStatusCode
 import org.hibernate.annotations.NaturalId
 import java.util.*
 import javax.persistence.Column
@@ -85,6 +87,7 @@ sealed class PersonEntity : PrincipalEntity() {
     abstract var orcId: String?
     abstract var email: String?
     abstract var serviceLicenseAgreement: Int
+    abstract var wantsEmails: Boolean?
 }
 
 @Entity
@@ -101,6 +104,7 @@ data class PersonEntityByPassword(
     override var uid: Long = 0,
     override var email: String? = null,
     override var serviceLicenseAgreement: Int,
+    override var wantsEmails: Boolean? = true,
 
     var hashedPassword: ByteArray,
     var salt: ByteArray
@@ -118,6 +122,7 @@ data class PersonEntityByPassword(
             uid,
             totpStatus,
             serviceLicenseAgreement,
+            wantsEmails,
             hashedPassword,
             salt
         )
@@ -173,6 +178,7 @@ data class PersonEntityByWAYF(
     override var orcId: String?,
     override var uid: Long = 0,
     override var email: String? = null,
+    override var wantsEmails: Boolean? = true,
     override var serviceLicenseAgreement: Int,
     var orgId: String,
     var wayfId: String
@@ -189,6 +195,7 @@ data class PersonEntityByWAYF(
             email,
             uid,
             serviceLicenseAgreement,
+            wantsEmails,
             orgId,
             wayfId
         )
@@ -363,6 +370,28 @@ class UserHibernateDAO(
         entity.serviceLicenseAgreement = version
         session.update(entity)
     }
+
+    //Should be moved out of AUTH in case of expanding functionalilty of subscriptions
+    override fun toggleEmail(session: HibernateSession, username: String) {
+        val user = session
+            .criteria<PersonEntity> { entity[PersonEntity::id] equal username }
+            .singleResult ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "User not found")
+
+        //Default value of true should be given to users but safety check is never a bad thing
+        val wantsEmails = user.wantsEmails
+        if (wantsEmails != null) {
+            user.wantsEmails = !wantsEmails
+            session.update(user)
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.NoContent, "User does not have a email subscription state")
+        }
+    }
+    //Should be moved out of AUTH in case of expanding functionalilty of subscriptions
+    override fun wantEmails(session: HibernateSession, username: String): Boolean {
+        return session
+            .criteria<PersonEntity> { entity[PersonEntity::id] equal username}
+            .singleResult.wantsEmails!!
+    }
 }
 
 fun Principal.toEntity(): PrincipalEntity {
@@ -379,6 +408,7 @@ fun Principal.toEntity(): PrincipalEntity {
             orcId,
             uid,
             email,
+            wantsEmails,
             serviceLicenseAgreement,
             organizationId,
             wayfId
@@ -397,6 +427,7 @@ fun Principal.toEntity(): PrincipalEntity {
             uid,
             email,
             serviceLicenseAgreement,
+            wantsEmails,
             password,
             salt
         )

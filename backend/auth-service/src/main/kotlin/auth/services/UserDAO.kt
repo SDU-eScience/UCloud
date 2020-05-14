@@ -43,7 +43,9 @@ interface UserDAO<Session> {
         id: String,
         newPassword: String
     )
-
+    //Should be moved out of AUTH in case of expanding functionalilty of subscriptions
+    fun toggleEmail(session: Session, username: String)
+    fun wantEmails(session: Session, username: String): Boolean
 
     fun delete(session: Session, id: String)
     fun setAcceptedSlaVersion(session: Session, user: String, version: Int)

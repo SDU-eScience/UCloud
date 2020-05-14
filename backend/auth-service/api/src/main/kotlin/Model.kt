@@ -60,6 +60,7 @@ sealed class Person : Principal() {
     abstract val orcId: String?
     abstract val email: String?
     abstract val serviceLicenseAgreement: Int
+    abstract val wantsEmails: Boolean?
 
     /**
      * Indicates if the Person is authenticated with more than one factor.
@@ -97,6 +98,7 @@ sealed class Person : Principal() {
         override val email: String? = null,
         override val uid: Long = 0,
         override val serviceLicenseAgreement: Int,
+        override val wantsEmails: Boolean? = true,
 
         /**
          * Given by WAYF in the property `schacHomeOrganization`
@@ -137,6 +139,7 @@ sealed class Person : Principal() {
         override val uid: Long = 0,
         override val twoFactorAuthentication: Boolean,
         override val serviceLicenseAgreement: Int,
+        override val wantsEmails: Boolean? = true,
 
         @JsonIgnore
         val password: ByteArray = ByteArray(0),
@@ -153,7 +156,7 @@ sealed class Person : Principal() {
         override fun toString(): String {
             return "ByPassword(id='$id', role=$role, title=$title, firstNames='$firstNames', " +
                     "lastName='$lastName', phoneNumber=$phoneNumber, orcId=$orcId, " +
-                    "email='$email')"
+                    "email='$email', wantEmails='$wantsEmails')"
         }
     }
 }
