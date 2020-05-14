@@ -219,7 +219,7 @@ class ShareService(
                 throw ex
             }
         }
-
+        invalidateShare(existingShare)
         deleteMetadata(path, sharedWith)
     }
 
