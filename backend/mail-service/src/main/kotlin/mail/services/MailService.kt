@@ -3,7 +3,7 @@ package dk.sdu.cloud.mail.services
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupEmailRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
-import dk.sdu.cloud.auth.api.WantEmailsRequest
+import dk.sdu.cloud.auth.api.WantsEmailsRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -75,14 +75,21 @@ class MailService(
         """.trimIndent()
     }
 
-    suspend fun send(principal: SecurityPrincipal, recipient: String, subject: String, text: String, mandatory: Boolean) {
+    suspend fun send(
+        principal: SecurityPrincipal,
+        recipient: String,
+        subject: String,
+        text: String,
+        emailRequestedByUser: Boolean
+    ) {
         if (principal.username !in whitelist) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
         }
 
-        if (!mandatory) {
-            val wantEmails = UserDescriptions.wantEmails.call(
-                WantEmailsRequest(principal.username),
+        if (!emailRequestedByUser) {
+            //IF expanded upon it should be moved out of AUTH
+            val wantEmails = UserDescriptions.wantsEmails.call(
+                WantsEmailsRequest(principal.username),
                 authenticatedClient
             ).orThrow()
 
