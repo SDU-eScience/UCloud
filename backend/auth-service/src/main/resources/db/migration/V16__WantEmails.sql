@@ -1,1 +1,1 @@
-alter table principals add column want_emails boolean default TRUE ;
+alter table principals add column wants_emails boolean default TRUE ;
