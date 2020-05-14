@@ -695,6 +695,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                         navigate={() => onFileNavigation(f.path)}
                         left={<NameBox
                             file={f}
+                            isEmbedded={props.embedded}
                             onRenameFile={onRenameFile}
                             onNavigate={onFileNavigation}
                             callbacks={callbacks}
@@ -906,6 +907,7 @@ interface NameBoxProps {
     callbacks: FileOperationCallback;
     previewEnabled?: boolean;
     projectRole?: ProjectRole;
+    isEmbedded?: boolean;
 }
 
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
@@ -949,7 +951,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         );
 
     return (
-        <Flex maxWidth="calc(100% - 210px)">
+        <Flex maxWidth={`calc(100% - ${220 + (props.isEmbedded ? 15 : 0)}px)`}>
             <Flex mx="10px" alignItems="center" >
                 {isAnyMockFile([props.file]) ? <Box width="24px" /> : (
                     <Icon

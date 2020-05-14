@@ -6,7 +6,6 @@ import Truncate from "./Truncate";
 import {stopPropagationAndPreventDefault} from "UtilityFunctions";
 import {IconName} from "ui-components/Icon";
 import {Icon, Text} from "ui-components/index";
-import {Client} from "Authentication/HttpClientInstance";
 
 type StringOrNumber = string | number;
 
