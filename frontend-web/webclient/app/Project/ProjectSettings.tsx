@@ -51,12 +51,12 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     </li>
                     <li>Settings</li>
                 </MembersBreadcrumbs>
-                <Link to={`/projects/view/${group ? encodeURIComponent(group) : "-"}/settings`}>
+                <Link to={"/projects/view/"}>
                     <Icon
-                        name={"properties"}
+                        name="properties"
                         m={8}
-                        hoverColor={"blue"}
-                        cursor={"pointer"}
+                        color="blue"
+                        cursor="pointer"
                     />
                 </Link>
             </Flex>
