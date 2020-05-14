@@ -93,7 +93,7 @@ const MembersPanel: React.FunctionComponent = () => {
                         rightLabel
                     />
                     <Button
-                        attached
+                        asSquare
                         color={"green"}
                         type={"button"}
                         title={"Bulk invite"}
