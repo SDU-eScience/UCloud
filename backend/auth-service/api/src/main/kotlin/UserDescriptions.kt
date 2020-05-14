@@ -50,13 +50,13 @@ data class GetUserInfoResponse(
     val lastName: String?
 )
 
-data class WantEmailsRequest(
+data class WantsEmailsRequest(
     val username: String?
 )
-typealias WantEmailsResponse = Boolean
+typealias WantsEmailsResponse = Boolean
 
-typealias ToggleEmailRequest = Unit
-typealias ToggleEmailResponse = Unit
+typealias ToggleEmailSubscriptionRequest = Unit
+typealias ToggleEmailSubscriptionResponse = Unit
 
 class ChangePasswordAudit
 
@@ -197,7 +197,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
         }
     }
 
-    val toggleEmail = call<ToggleEmailRequest, ToggleEmailResponse, CommonErrorMessage>("toggleEmail") {
+    val toggleEmailSubscription = call<ToggleEmailSubscriptionRequest, ToggleEmailSubscriptionResponse, CommonErrorMessage>("toggleEmailSubscription") {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ_WRITE
@@ -207,14 +207,14 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
             method = HttpMethod.Post
             path {
                 using(baseContext)
-                +"toggleEmail"
+                +"toggleEmailSubscription"
             }
 
             body { bindEntireRequestFromBody() }
         }
     }
-
-    val wantEmails = call<WantEmailsRequest, WantEmailsResponse, CommonErrorMessage>("wantEmails") {
+    //If expanded upon it should be moved out of AUTH
+    val wantsEmails = call<WantsEmailsRequest, WantsEmailsResponse, CommonErrorMessage>("wantsEmails") {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -224,7 +224,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
             method = HttpMethod.Post
             path {
                 using(baseContext)
-                +"wantEmails"
+                +"wantsEmails"
             }
 
             body { bindEntireRequestFromBody() }

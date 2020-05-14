@@ -43,6 +43,7 @@ interface UserDAO<Session> {
         id: String,
         newPassword: String
     )
+    //Should be moved out of AUTH in case of expanding functionalilty of subscriptions
     fun toggleEmail(session: Session, username: String)
     fun wantEmails(session: Session, username: String): Boolean
 

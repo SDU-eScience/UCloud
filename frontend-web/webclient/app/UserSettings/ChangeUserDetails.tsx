@@ -21,7 +21,7 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
     const [placeHolderFirstNames, setPlaceHolderFirstNames] = useState("Enter First Name(s)");
     const [placeHolderLastName, setPlaceHolderLastName] = useState("Enter Last Name");
     const [placeHolderEmail, setPlaceHolderEmail] = useState("Enter Email");
-    const [placeHolderWantEmails, setWantEmail] = useState(true)
+    const [wantsEmailsState, setWantsEmail] = useState(true);
 
     const info = useCallback( async () => {
 
@@ -32,16 +32,16 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
             context: ""
         });
 
-        const wantEmails = await invokeCommand( {
+        const wantsEmails = await invokeCommand( {
             method: "POST",
-            path: "/auth/users/wantEmails",
+            path: "/auth/users/wantsEmails",
             context: "",
             payload: {
                 username: null
             }
         });
 
-        setWantEmail(wantEmails ?? true);
+        setWantsEmail(wantsEmails);
         setPlaceHolderFirstNames(user.firstNames ?? "Enter First Name(s)");
         setPlaceHolderLastName(user.lastName ?? "Enter Last Name");
         setPlaceHolderEmail(user.email ?? "Enter Email");
@@ -51,7 +51,7 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
     const toogleSubscription = useCallback( async () => {
         await invokeCommand( {
             method: "POST",
-            path: "/auth/users/toggleEmail",
+            path: "/auth/users/toggleEmailSubscription",
             context: ""
         });
     }, []);
@@ -98,7 +98,7 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
                         <Checkbox
                             size={27}
                             onClick={toogleSubscription}
-                            checked={placeHolderWantEmails}
+                            checked={wantsEmailsState}
                             onChange={info}
                         />
                         <Box as={"span"}>Receive emails</Box>
@@ -147,7 +147,7 @@ export const ChangeUserDetails: React.FunctionComponent<{ setLoading: (loading: 
                         <Checkbox
                             size={27}
                             onClick={toogleSubscription}
-                            checked={placeHolderWantEmails}
+                            checked={wantsEmailsState}
                             onChange={info}
                         />
                         <Box as={"span"}>Receive emails</Box>
