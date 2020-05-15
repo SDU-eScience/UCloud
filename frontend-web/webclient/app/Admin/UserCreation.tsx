@@ -5,7 +5,6 @@ import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Button, Input, Label} from "ui-components";
 import * as Heading from "ui-components/Heading";
@@ -23,9 +22,32 @@ const initialState: UserCreationState = {
     emailError: false
 };
 
+type Action<T, B> = {payload: B; type: T};
+type UpdateUsername = Action<"UpdateUsername", {username: string}>;
+type UpdatePassword = Action<"UpdatePassword", {password: string}>;
+type UpdateRepeatedPassword = Action<"UpdateRepeatedPassword", {repeatedPassword: string}>;
+type UpdateEmail = Action<"UpdateEmail", {email: string}>;
+type UpdateErrors = Action<"UpdateErrors", {usernameError: boolean; passwordError: boolean; emailError: boolean}>;
+type Reset = Action<"Reset", {}>;
+type UserCreationActionType = |
+    UpdateUsername | UpdatePassword | UpdateRepeatedPassword | UpdateErrors | UpdateEmail | Reset;
+
+const reducer = (state: UserCreationState, action: UserCreationActionType): UserCreationState => {
+    switch (action.type) {
+        case "UpdateUsername":
+        case "UpdateRepeatedPassword":
+        case "UpdateErrors":
+        case "UpdateEmail":
+        case "UpdatePassword":
+            return {...state, ...action.payload};
+        case "Reset":
+            return initialState;
+
+    }
+};
+
 function UserCreation(props: UserCreationOperations): JSX.Element | null {
-    // FIXME: Use reducer instead, or break into smaller ones.
-    const [state, setState] = React.useState(initialState);
+    const [state, dispatch] = React.useReducer(reducer, initialState, () => initialState);
     const [submitted, setSubmitted] = React.useState(false);
     const promiseKeeper = usePromiseKeeper();
 
@@ -59,7 +81,7 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
                                 autocomplete="off"
                                 value={username}
                                 error={usernameError}
-                                onChange={e => updateField("username", e.target.value)}
+                                onChange={e => dispatch({type: "UpdateUsername", payload: {username: e.target.value}})}
                                 placeholder="Username..."
                             />
                         </Label>
@@ -69,7 +91,7 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
                                 value={password}
                                 type="password"
                                 error={passwordError}
-                                onChange={e => updateField("password", e.target.value)}
+                                onChange={e => dispatch({type: "UpdatePassword", payload: {password: e.target.value}})}
                                 placeholder="Password..."
                             />
                         </Label>
@@ -79,7 +101,7 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
                                 value={repeatedPassword}
                                 type="password"
                                 error={passwordError}
-                                onChange={e => updateField("repeatedPassword", e.target.value)}
+                                onChange={e => dispatch({type: "UpdateRepeatedPassword", payload: {repeatedPassword: e.target.value}})}
                                 placeholder="Repeat password..."
                             />
                         </Label>
@@ -89,7 +111,7 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
                                 value={email}
                                 type="email"
                                 error={emailError}
-                                onChange={e => updateField("email", e.target.value)}
+                                onChange={e => dispatch({type: "UpdateEmail", payload: {email: e.target.value}})}
                                 placeholder="Email..."
                             />
                         </Label>
@@ -105,13 +127,6 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
             )}
         />
     );
-
-    function updateField(field: keyof UserCreationState, value: string) {
-        if (field === "username") state.usernameError = false;
-        else if (field === "password" || field === "repeatedPassword") state.passwordError = false;
-        else if (field === "email") state.emailError = false
-        setState({...state, [field]: value});
-    }
 
     async function submit(e: React.SyntheticEvent): Promise<void> {
         e.preventDefault();
@@ -129,7 +144,11 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
             hasEmailError = true;
             snackbarStore.addFailure("Email is required", false);
         }
-        setState({...state, usernameError: hasUsernameError, passwordError: hasPasswordError, emailError: hasEmailError});
+        dispatch({
+            type: "UpdateErrors",
+            payload: {usernameError: hasUsernameError, passwordError: hasPasswordError, emailError: hasEmailError}
+        });
+
         if (!hasUsernameError && !hasPasswordError && !hasEmailError) {
             try {
                 props.setLoading(true);
@@ -138,10 +157,13 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
                     Client.post("/auth/users/register", {username, password, email}, "")
                 ).promise;
                 snackbarStore.addSuccess(`User '${username}' successfully created`, false);
-                setState(initialState);
+                dispatch({type: "Reset", payload: {}});
             } catch (err) {
                 const status = defaultErrorHandler(err);
-                if (status === 409) setState({...state, usernameError: true});
+                if (status === 409) dispatch({
+                    type: "UpdateErrors",
+                    payload: {usernameError: true, passwordError: false, emailError: false}
+                });
             } finally {
                 props.setLoading(false);
                 setSubmitted(false);
