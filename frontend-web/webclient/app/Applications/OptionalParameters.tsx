@@ -1,5 +1,5 @@
 import * as Types from "Applications/index";
-import * as Fuse from "fuse.js";
+import Fuse from "fuse.js";
 import * as React from "react";
 import {SyntheticEvent} from "react";
 import styled from "styled-components";
@@ -99,7 +99,7 @@ export class OptionalParameters extends React.Component<OptionalParametersProps,
         } else {
             this.currentTimeout = setTimeout(() => {
                 const results = this.fuse.search(searchTerm);
-                this.setState({results});
+                this.setState({results: results.map(it => it.item)});
             }, 300);
         }
     }
