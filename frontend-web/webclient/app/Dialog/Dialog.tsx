@@ -29,7 +29,8 @@ const Dialog: React.FunctionComponent = () => {
                     bottom: "auto",
                     marginRight: "-50%",
                     transform: "translate(-50%, -50%)",
-                    background: ""
+                    background: "",
+                    overflow: "visible"
                 }
             }}
         >

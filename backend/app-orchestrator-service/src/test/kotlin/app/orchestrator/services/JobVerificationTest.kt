@@ -25,6 +25,7 @@ import kotlin.test.assertTrue
 
 @Ignore("Need new testing strategy")
 class JobVerificationTest {
+    /*
     private val unverifiedJob = UnverifiedJob(
         StartJobRequest(
             NameAndVersion("name", "2.2"),
@@ -151,4 +152,5 @@ class JobVerificationTest {
             service.verifyOrThrow(unverifiedJobWithMissingNonOptional, cloud)
         }
     }
+     */
 }

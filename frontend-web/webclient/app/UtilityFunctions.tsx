@@ -333,7 +333,9 @@ export const addTrailingSlash = (path: string): string => {
     else return path.endsWith("/") ? path : `${path}/`;
 };
 
-export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
+export const looksLikeUUID = (uuid: string): boolean =>
+    /\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b/.test(uuid);
+export const shortUUID = (uuid: string): string => looksLikeUUID(uuid) ? uuid.substring(0, 8).toUpperCase() : uuid;
 export const is5xxStatusCode = (status: number): boolean => inRange({status, min: 500, max: 599});
 export const blankOrUndefined = (value?: string): boolean => value == null || value.length === 0 || /^\s*$/.test(value);
 

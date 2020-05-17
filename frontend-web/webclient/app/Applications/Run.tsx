@@ -53,7 +53,7 @@ import {
     statFileQuery
 } from "Utilities/FileUtilities";
 import {addStandardDialog} from "UtilityComponents";
-import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
+import {errorMessageOrDefault, preventDefault, removeTrailingSlash} from "UtilityFunctions";
 import {
     AdditionalMountedFolder,
     ApplicationParameter,
@@ -75,6 +75,7 @@ import Warning from "ui-components/Warning";
 import {useLocation} from "react-router";
 import {useEffect} from "react";
 import {getQueryParam, getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
+import * as PublicLinks from "Applications/PublicLinks/Management";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -497,19 +498,9 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         this.setState(() => ({initialSubmit: true}));
 
         if (this.state.useUrl) {
-            if (this.state.url.current == null || this.state.url.current.value == "") {
+            if (this.state.url.current == null || this.state.url.current.value === "") {
                 snackbarStore.addFailure(
-                    "Persistent URL is enabled, but not set",
-                    false,
-                    5000
-                );
-                this.setState(() => ({jobSubmitted: false}));
-                return;
-            }
-
-            if (this.state.url.current.value.length < 5) {
-                snackbarStore.addFailure(
-                    "URL identifier should be at least 5 characters",
+                    "Public link is enabled, but not set",
                     false,
                     5000
                 );
@@ -926,7 +917,7 @@ const ApplicationUrl: React.FunctionComponent<{
                             setUrl(urlify(props.jobName.current!.value));
                         }
                     }}/>
-                    <TextSpan>Persistent URL</TextSpan>
+                    <TextSpan>Public link</TextSpan>
                 </Label>
             </div>
 
@@ -938,7 +929,24 @@ const ApplicationUrl: React.FunctionComponent<{
                         <Label mt={20}>
                             <Flex>
                                 <TextSpan mt={10}>https://app-</TextSpan>
-                                <Input placeholder="Unique URL identifier" ref={props.inputRef} required/>
+                                <Input
+                                    placeholder="Unique URL identifier"
+                                    ref={props.inputRef}
+                                    required
+                                    onKeyDown={e => e.preventDefault()}
+                                    onClick={event => {
+                                        event.preventDefault();
+                                        dialogStore.addDialog(
+                                            <PublicLinks.PublicLinkManagement
+                                                onSelect={pl => {
+                                                    setUrl(pl.url);
+                                                    dialogStore.success();
+                                                }}
+                                            />,
+                                            () => 0
+                                        );
+                                    }}
+                                />
                                 <TextSpan mt={10}>.cloud.sdu.dk</TextSpan>
                             </Flex>
                         </Label>
@@ -976,11 +984,6 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     <Input
                         ref={name}
                         placeholder={"Example: Analysis with parameters XYZ"}
-                        onChange={(enteredName) => {
-                            if (props.url.current != null) {
-                                props.url.current!.value = urlify(enteredName.currentTarget.value)
-                            }
-                        }}
                     />
                 </Label>
             </Flex>

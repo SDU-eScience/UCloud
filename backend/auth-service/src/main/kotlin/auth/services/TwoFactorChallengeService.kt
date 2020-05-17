@@ -102,7 +102,7 @@ class TwoFactorChallengeService<DBSession>(
     suspend fun createLoginChallengeOrNull(username: String, service: String): String? {
         return db.withTransaction { dbSession ->
             val credentials = twoFactorDAO.findEnforcedCredentialsOrNull(dbSession, username)
-                ?: return null
+                ?: return@withTransaction null
 
             val challengeId = createChallengeId()
             twoFactorDAO.createChallenge(

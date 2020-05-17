@@ -5,10 +5,7 @@ import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
 import dk.sdu.cloud.app.license.api.LicenseServerRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.util.orThrowOnError
-import dk.sdu.cloud.app.store.api.Application
-import dk.sdu.cloud.app.store.api.ApplicationParameter
-import dk.sdu.cloud.app.store.api.FileTransferDescription
-import dk.sdu.cloud.app.store.api.ToolReference
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -42,11 +39,10 @@ data class VerifiedJobWithAccessToken(
 private typealias ParameterWithTransfer = Pair<ApplicationParameter<FileTransferDescription>, FileTransferDescription>
 
 class JobVerificationService(
-    private val appStore: AppStoreService,
-    private val toolStore: ToolStoreService,
+    private val appService: ApplicationService,
     private val defaultBackend: String,
     private val db: DBContext,
-    private val dao: JobDao,
+    private val jobs: JobQueryService,
     private val serviceClient: AuthenticatedClient,
     private val machines: List<MachineReservation> = listOf(MachineReservation.BURST)
 ) {
@@ -90,13 +86,12 @@ class JobVerificationService(
         // Check URL
         val url = unverifiedJob.request.url
         if (url != null) {
-            val validChars = Regex("([-_a-z0-9]){5,255}")
-            if (!url.toLowerCase().matches(validChars)) {
-                throw RPCException("Provided url not allowed", HttpStatusCode.BadRequest)
+            if (jobs.isUrlOccupied(db, url)) {
+                throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
             }
 
-            if(dao.isUrlOccupied(db, url)) {
-                throw RPCException("Provided url not available", HttpStatusCode.BadRequest)
+            if (!jobs.canUseUrl(db, unverifiedJob.decodedToken.principal.username, url)) {
+                throw RPCException("Not allowed to use selected URL", HttpStatusCode.BadRequest)
             }
         }
 
@@ -110,7 +105,9 @@ class JobVerificationService(
                     ApplicationPeer(parameter.name, peerApplicationParameter.peerJobId)
                 }
 
-            val allPeers = unverifiedJob.request.peers + parameterPeers
+            val allPeers = (unverifiedJob.request.peers + parameterPeers)
+                .map { ApplicationPeer(it.name.toLowerCase(), it.jobId) }
+
             val duplicatePeers = allPeers
                 .map { it.name }
                 .groupBy { it }
@@ -122,7 +119,7 @@ class JobVerificationService(
                 )
             }
 
-            val resolvedPeers = dao.find(
+            val resolvedPeers = jobs.find(
                 db,
                 allPeers.map { it.jobId },
                 unverifiedJob.decodedToken.principal.username
@@ -185,12 +182,12 @@ class JobVerificationService(
 
     private suspend fun findApplication(job: UnverifiedJob): Application {
         val result = with(job.request.application) {
-            appStore.findByNameAndVersion(name, version)
+            appService.apps.get(NameAndVersion(name, version))
         } ?: throw JobException.VerificationError("Application '${job.request.application}' does not exist")
 
         val toolName = result.invocation.tool.name
         val toolVersion = result.invocation.tool.version
-        val loadedTool = toolStore.findByNameAndVersion(toolName, toolVersion)
+        val loadedTool = appService.tools.get(NameAndVersion(toolName, toolVersion))
 
         return result.copy(invocation = result.invocation.copy(tool = ToolReference(toolName, toolVersion, loadedTool)))
     }

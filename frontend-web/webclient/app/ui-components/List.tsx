@@ -84,7 +84,7 @@ export function ListRow(props: ListRowProps): JSX.Element {
 }
 
 
-export const ListRowStat: React.FunctionComponent<{ icon?: IconName, color?: string, color2?: string }> = props => {
+export const ListRowStat: React.FunctionComponent<{ icon?: IconName; color?: string; color2?: string }> = props => {
     const color = props.color ?? "gray";
     const color2 = props.color2 ?? "white";
     return (

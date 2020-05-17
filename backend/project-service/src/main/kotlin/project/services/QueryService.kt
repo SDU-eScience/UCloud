@@ -18,7 +18,7 @@ class QueryService(
         ctx: DBContext,
         queries: List<IsMemberQuery>
     ): List<Boolean> {
-        ctx.withSession { session ->
+        return ctx.withSession { session ->
             val response = BooleanArray(queries.size)
 
             session
@@ -62,13 +62,13 @@ class QueryService(
                     }
                 }
 
-            return response.toList()
+            response.toList()
         }
     }
 
     suspend fun groupExists(ctx: DBContext, projectId: String, groupId: String): Boolean {
-        ctx.withSession { session ->
-            return session
+        return ctx.withSession { session ->
+            session
                 .sendPreparedStatement(
                     {
                         setParameter("group", groupId)
@@ -94,7 +94,7 @@ class QueryService(
         groupId: String,
         pagination: NormalizedPaginationRequest
     ): Page<UserGroupSummary> {
-        ctx.withSession { session ->
+        return ctx.withSession { session ->
             val requestedByRole = projects.requireRole(session, requestedBy, projectId, ProjectRole.ALL)
 
             val params: EnhancedPreparedStatement.() -> Unit = {
@@ -149,7 +149,7 @@ class QueryService(
                     )
                 }
 
-            return Page(count, pagination.itemsPerPage, pagination.page, items)
+            Page(count, pagination.itemsPerPage, pagination.page, items)
         }
     }
 
@@ -159,7 +159,7 @@ class QueryService(
         projectId: String,
         pagination: NormalizedPaginationRequest
     ): Page<GroupWithSummary> {
-        ctx.withSession { session ->
+        return ctx.withSession { session ->
             val requestedByRole = projects.requireRole(session, requestedBy, projectId, ProjectRole.ALL)
 
             val params: EnhancedPreparedStatement.() -> Unit = {
@@ -211,7 +211,7 @@ class QueryService(
                     GroupWithSummary(groupName, memberCount)
                 }
 
-            return Page(groupCount, pagination.itemsPerPage, pagination.page, items)
+            Page(groupCount, pagination.itemsPerPage, pagination.page, items)
         }
     }
 
@@ -223,7 +223,7 @@ class QueryService(
         pagination: NormalizedPaginationRequest,
         notInGroup: String? = null
     ): Page<ProjectMember> {
-        ctx.withSession { session ->
+        return ctx.withSession { session ->
             projects.requireRole(session, requestedBy, projectId, ProjectRole.ALL)
 
             // TODO This gets quite ugly because we need to order by which paginated query doesn't currently support
@@ -277,7 +277,7 @@ class QueryService(
                 """
             )
 
-            return Page(
+            Page(
                 itemsInTotal.toInt(),
                 pagination.itemsPerPage,
                 pagination.page,
@@ -348,7 +348,7 @@ class QueryService(
         pagination: NormalizedPaginationRequest?,
         projectId: String? = null
     ): Page<UserProjectSummary> {
-        ctx.withSession { session ->
+        return ctx.withSession { session ->
             val params: EnhancedPreparedStatement.() -> Unit = {
                 setParameter("username", username)
                 setParameter("showArchived", showArchived)
@@ -427,12 +427,12 @@ class QueryService(
                     .singleOrNull() ?: items.size
             }
 
-            return Page(count, pagination?.itemsPerPage ?: count, pagination?.page ?: 0, items)
+            Page(count, pagination?.itemsPerPage ?: count, pagination?.page ?: 0, items)
         }
     }
 
     suspend fun shouldVerify(ctx: DBContext, project: String): Boolean {
-        ctx.withSession { session ->
+        return ctx.withSession { session ->
             val latestVerification = session
                 .sendPreparedStatement(
                     {
@@ -452,18 +452,18 @@ class QueryService(
 
             if (latestVerification == null) {
                 projects.verifyMembership(session, "_project", project)
-                return false
+                return@withSession false
             }
 
-            return (System.currentTimeMillis() - latestVerification.toTimestamp()) >
+            return@withSession (System.currentTimeMillis() - latestVerification.toTimestamp()) >
                 VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
         }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun findProjectsInNeedOfVerification(ctx: DBContext): Flow<ProjectForVerification> {
-        ctx.withSession { session ->
-            return channelFlow {
+        return ctx.withSession { session ->
+            channelFlow {
                 session.sendPreparedStatement(
                     {
                         setParameter("days", VERIFICATION_REQUIRED_EVERY_X_DAYS)

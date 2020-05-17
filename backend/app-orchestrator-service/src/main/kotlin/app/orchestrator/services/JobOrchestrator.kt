@@ -25,6 +25,7 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.io.ByteReadChannel
@@ -71,7 +72,7 @@ class JobOrchestrator(
     private val computationBackendService: ComputationBackendService,
     private val jobFileService: JobFileService,
     private val jobDao: JobDao,
-    private val jobQueryService: JobQueryService, // TODO This dependency should be removed
+    private val jobQueryService: JobQueryService,
 
     private val defaultBackend: String,
 
@@ -99,7 +100,7 @@ class JobOrchestrator(
             try {
                 val existingJob = db.withSession { session ->
                     jobDao.updateStatus(session, jobId, message ?: "Internal error")
-                    jobDao.find(session, listOf(jobId), null).singleOrNull()
+                    jobQueryService.find(session, listOf(jobId), null).singleOrNull()
                 }
 
                 failJob(existingJob)
@@ -167,24 +168,36 @@ class JobOrchestrator(
         return initialState.systemId
     }
 
-    private fun checkForDuplicateJob(
+    private suspend fun checkForDuplicateJob(
         securityPrincipalToken: SecurityPrincipalToken,
         jobWithToken: VerifiedJobWithAccessToken
     ): Boolean {
-        val jobs = runBlocking {
-            findLast10JobsForUser(
-                securityPrincipalToken,
-                jobWithToken.job.application.metadata.name,
-                jobWithToken.job.application.metadata.version
-            )
-        }
+        val jobs = findLast10JobsForUser(
+            securityPrincipalToken,
+            jobWithToken.job.application.metadata.name,
+            jobWithToken.job.application.metadata.version
+        )
 
-        jobs.forEach { storedJob ->
-            if (storedJob.job == jobWithToken.job) {
-                return true
-            }
-        }
-        return false
+        return jobs.any { it.job == jobWithToken.job }
+    }
+
+    private suspend fun findLast10JobsForUser(
+        securityPrincipalToken: SecurityPrincipalToken,
+        application: String,
+        version: String
+    ): List<VerifiedJobWithAccessToken> {
+        return jobQueryService.list(
+            db,
+            securityPrincipalToken.principal.username,
+            PaginationRequest(10).normalize(),
+            ListRecentRequest(
+                sortBy = JobSortBy.CREATED_AT,
+                order = SortOrder.DESCENDING,
+                filter = JobState.RUNNING,
+                application = application,
+                version = version
+            )
+        ).items
     }
 
     suspend fun handleProposedStateChange(
@@ -387,7 +400,7 @@ class JobOrchestrator(
     suspend fun replayLostJobs() {
         log.info("Replaying jobs lost from last session...")
         var count = 0
-        jobDao.findJobsCreatedBefore(db, System.currentTimeMillis()).collect {jobWithToken ->
+        jobQueryService.findJobsCreatedBefore(db, System.currentTimeMillis()).collect { jobWithToken ->
             count++
             handleStateChange(
                 jobWithToken,
@@ -410,35 +423,16 @@ class JobOrchestrator(
         return jobWithToken.job
     }
 
-    private suspend fun findLast10JobsForUser(
-        securityPrincipalToken: SecurityPrincipalToken,
-        application: String,
-        version: String
-    ): List<VerifiedJobWithAccessToken> {
-        return jobDao.list(
-            db,
-            securityPrincipalToken.principal.username,
-            PaginationRequest(10).normalize(),
-            ListRecentRequest(
-                sortBy = JobSortBy.CREATED_AT,
-                order = SortOrder.DESCENDING,
-                filter = JobState.RUNNING,
-                application = application,
-                version = version
-            )
-        ).items
-    }
-
     suspend fun removeExpiredJobs() {
         val expired = System.currentTimeMillis() - JOB_MAX_TIME
-        jobDao.findJobsCreatedBefore(db, expired).collect { job ->
+        jobQueryService.findJobsCreatedBefore(db, expired).collect { job ->
             failJob(job)
         }
     }
 
     private suspend fun findJobForId(id: String, jobOwner: SecurityPrincipalToken? = null): VerifiedJobWithAccessToken {
         return if (jobOwner == null) {
-            jobDao.find(db, listOf(id), null).singleOrNull()
+            jobQueryService.find(db, listOf(id), null).singleOrNull()
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         } else {
             jobQueryService.findById(jobOwner, id)
@@ -448,9 +442,10 @@ class JobOrchestrator(
     private suspend fun findJobForUrl(
         urlId: String,
         jobOwner: SecurityPrincipalToken? = null
-    ): VerifiedJobWithAccessToken =
-        jobDao.findFromUrlId(db, urlId, jobOwner?.principal?.username)
+    ): VerifiedJobWithAccessToken {
+        return jobQueryService.findFromUrlId(db, urlId, jobOwner?.principal?.username)
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+    }
 
     companion object : Loggable {
         override val log = logger()

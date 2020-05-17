@@ -13,7 +13,7 @@ import io.ktor.http.HttpStatusCode
 class WebService(
     private val computationBackendService: ComputationBackendService,
     private val db: DBContext,
-    private val jobDao: JobDao,
+    private val jobDao: JobQueryService,
     private val serviceClient: AuthenticatedClient
 ) {
     suspend fun queryWebParameters(jobId: String, requestedBy: String): QueryInternalWebParametersResponse {

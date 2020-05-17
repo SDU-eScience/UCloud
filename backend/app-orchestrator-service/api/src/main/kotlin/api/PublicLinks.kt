@@ -13,13 +13,12 @@ data class CreateLinkRequest(val url: String)
 typealias CreateLinkResponse = Unit
 
 data class ListLinkRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
-typealias ListLinkResponse = Page<String>
+typealias ListLinkResponse = Page<PublicLink>
 
 data class DeleteLinkRequest(val url: String)
 typealias DeleteLinkResponse = Unit
 
-data class CanUseLinkRequest(val url: String, val username: String)
-data class CanUseLinkResponse(val hasPermissionToUse: Boolean)
+data class PublicLink(val url: String, val inUseBy: String?, val inUseByUIFriendly: String?)
 
 object PublicLinks : CallDescriptionContainer("hpc.urls") {
     const val baseContext = "/api/hpc/urls"
@@ -69,24 +68,6 @@ object PublicLinks : CallDescriptionContainer("hpc.urls") {
 
             path {
                 using(baseContext)
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-
-    val canUseLink = call<CanUseLinkRequest, CanUseLinkResponse, CommonErrorMessage>("canUseLink") {
-        auth {
-            access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEDGED
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"can-use"
             }
 
             body { bindEntireRequestFromBody() }

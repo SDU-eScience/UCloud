@@ -86,8 +86,8 @@ class ProjectService(
     }
 
     suspend fun findRoleOfMember(ctx: DBContext, projectId: String, member: String): ProjectRole? {
-        ctx.withSession { session ->
-            return session
+        return ctx.withSession { session ->
+            session
                 .sendPreparedStatement(
                     {
                         setParameter("username", member)
@@ -335,7 +335,7 @@ class ProjectService(
                 log.info("1")
                 throw ProjectException.Forbidden()
             }
-            if (oldRole == newRole) return
+            if (oldRole == newRole) return@withSession
             if (oldRole == ProjectRole.PI && updatedByRole != ProjectRole.PI) {
                 log.info("2")
                 throw ProjectException.Forbidden()

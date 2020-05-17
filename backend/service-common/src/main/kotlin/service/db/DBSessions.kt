@@ -24,11 +24,11 @@ suspend inline fun <R, Session> DBSessionFactory<Session>.withSession(closure: (
     }
 }
 
-suspend inline fun <R, Session> DBSessionFactory<Session>.withTransaction(
+suspend fun <R, Session> DBSessionFactory<Session>.withTransaction(
     session: Session,
     autoCommit: Boolean = true,
     autoFlush: Boolean = false,
-    closure: (Session) -> R
+    closure: suspend (Session) -> R
 ): R {
     openTransaction(session)
     try {
@@ -42,10 +42,10 @@ suspend inline fun <R, Session> DBSessionFactory<Session>.withTransaction(
     }
 }
 
-suspend inline fun <R, Session> DBSessionFactory<Session>.withTransaction(
+suspend fun <R, Session> DBSessionFactory<Session>.withTransaction(
     autoCommit: Boolean = true,
     autoFlush: Boolean = false,
-    closure: (Session) -> R
+    closure: suspend (Session) -> R
 ): R {
     return withSession { session ->
         withTransaction(session, autoCommit, autoFlush) {

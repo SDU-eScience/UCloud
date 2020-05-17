@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.processors
 
-import dk.sdu.cloud.app.orchestrator.services.AppStoreService
+import dk.sdu.cloud.app.orchestrator.services.ApplicationService
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.app.store.api.AppEvent
 import dk.sdu.cloud.app.store.api.AppStoreStreams
@@ -11,7 +11,7 @@ import dk.sdu.cloud.service.Loggable
 class AppProcessor(
     private val streams: EventStreamService,
     private val jobService: JobOrchestrator,
-    private val appStoreService: AppStoreService
+    private val appService: ApplicationService
 ) {
     fun init() {
         streams.subscribe(AppStoreStreams.AppDeletedStream, EventConsumer.Immediate(this::handleEvent))
@@ -25,7 +25,7 @@ class AppProcessor(
                 jobService.deleteJobInformation(event.appName, event.appVersion)
                 // appStoreService has a cache that removes the need to contact appStore.
                 // Resetting the cache would force us to see if an app is still there.
-                appStoreService.resetAppCache()
+                appService.apps.clearAll()
             }
             else ->
                 log.warn("Discarding event: $event")

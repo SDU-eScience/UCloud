@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator
 
+import app.orchestrator.rpc.PublicLinkController
 import dk.sdu.cloud.app.orchestrator.processors.AppProcessor
 import dk.sdu.cloud.app.orchestrator.services.JobDao
 import dk.sdu.cloud.app.orchestrator.api.AccountingEvents
@@ -28,9 +29,8 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val serviceClientWS = micro.authenticator.authenticateClient(OutgoingWSCall)
         val streams = micro.eventStreamService
-        val appStoreService = AppStoreService(serviceClient)
-        val toolStoreService = ToolStoreService(serviceClient)
-        val jobHibernateDao = JobDao(appStoreService, toolStoreService)
+        val applicationService = ApplicationService(serviceClient)
+        val jobHibernateDao = JobDao()
         val computationBackendService = ComputationBackendService(config.backends, micro.developmentModeEnabled)
         val userClientFactory: (String?, String?) -> AuthenticatedClient = { accessToken, refreshToken ->
             when {
@@ -54,18 +54,24 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
 
         val parameterExportService = ParameterExportService()
         val jobFileService = JobFileService(userClientFactory, parameterExportService, serviceClient)
+        val publicLinks = PublicLinkService()
 
-        val vncService = VncService(computationBackendService, db, jobHibernateDao, serviceClient)
-        val webService = WebService(computationBackendService, db, jobHibernateDao, serviceClient)
+        val jobQueryService = JobQueryService(
+            db,
+            jobFileService,
+            ProjectCache(serviceClient),
+            applicationService,
+            publicLinks
+        )
 
-        val jobQueryService = JobQueryService(db, jobHibernateDao, jobFileService, ProjectCache(serviceClient))
+        val vncService = VncService(computationBackendService, db, jobQueryService, serviceClient)
+        val webService = WebService(computationBackendService, db, jobQueryService, serviceClient)
 
         val jobVerificationService = JobVerificationService(
-            appStoreService,
-            toolStoreService,
+            applicationService,
             config.defaultBackend,
             db,
-            jobHibernateDao,
+            jobQueryService,
             serviceClient,
             config.machines
         )
@@ -97,7 +103,7 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
         AppProcessor(
             streams,
             jobOrchestrator,
-            appStoreService
+            applicationService
         ).init()
 
         with(micro.server) {
@@ -113,7 +119,14 @@ class Server(override val micro: Micro, val config: Configuration) : CommonServe
                     config.machines,
                     config.gpuWhitelist
                 ),
-                CallbackController(jobOrchestrator)
+
+                CallbackController(jobOrchestrator),
+
+                PublicLinkController(
+                    db,
+                    jobQueryService,
+                    publicLinks
+                )
             )
         }
 

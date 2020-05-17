@@ -7,6 +7,7 @@ import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.normTool
 import dk.sdu.cloud.app.orchestrator.utils.normToolDesc
 import dk.sdu.cloud.app.orchestrator.utils.startJobRequest
+import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.calls.RPCException
@@ -75,29 +76,30 @@ class JobOrchestratorTest {
             LongRunningResponse.Result(item = Unit)
         )
 
-        val toolDao = mockk<ToolStoreService>()
-        val appDao = mockk<AppStoreService>()
-        val jobDao = JobDao(appDao, toolDao)
+        val appService = mockk<ApplicationService>()
+        val jobDao = JobDao()
         val backendName = "backend"
         val compBackend = ComputationBackendService(listOf(ApplicationBackend(backendName)), true)
         val jobQueryService = JobQueryService(
             db,
-            jobDao,
             JobFileService(
                 { a, b -> ClientMock.authenticatedClient },
                 mockk(relaxed = true),
                 ClientMock.authenticatedClient
             ),
-            ProjectCache(ClientMock.authenticatedClient)
+            ProjectCache(ClientMock.authenticatedClient),
+            appService
         )
 
         coEvery {
-            appDao.findByNameAndVersion(
-                normAppDesc.metadata.name,
-                normAppDesc.metadata.version
+            appService.apps.get(
+                NameAndVersion(
+                    normAppDesc.metadata.name,
+                    normAppDesc.metadata.version
+                )
             )
         } returns normAppDesc
-        coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
+        coEvery { appService.tools.get(NameAndVersion(normToolDesc.info.name, normToolDesc.info.version)) } returns normTool
 
 
         val jobFileService =
@@ -106,7 +108,7 @@ class JobOrchestratorTest {
             client,
             EventServiceMock.createProducer(AccountingEvents.jobCompleted),
             db,
-            JobVerificationService(appDao, toolDao, backendName, db, jobDao, client),
+            JobVerificationService(appService, backendName, db, jobQueryService, client),
             compBackend,
             jobFileService,
             jobDao,

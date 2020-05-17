@@ -8,6 +8,7 @@ import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc2
 import dk.sdu.cloud.app.orchestrator.utils.normTool
 import dk.sdu.cloud.app.orchestrator.utils.normToolDesc
+import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.install
@@ -40,10 +41,10 @@ class JobHibernateDaoTest {
     private val appName2 = normAppDesc2.metadata.name
     private val version2 = normAppDesc2.metadata.version
 
-    private val toolDao: ToolStoreService = mockk()
-    private val appDao: AppStoreService = mockk()
+    private val appService: ApplicationService = mockk()
     private lateinit var db: DBContext
     private lateinit var jobHibDao: JobDao
+    private lateinit var jobQueryService: JobQueryService
 
     @BeforeTest
     fun beforeTest() {
@@ -52,22 +53,17 @@ class JobHibernateDaoTest {
         db = TODO()
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
 
-        jobHibDao = JobDao(appDao, toolDao)
+        jobHibDao = JobDao()
+        jobQueryService = TODO()
 
-        coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
+        coEvery { appService.tools.get(normToolDesc.info) } returns normTool
         coEvery {
-            appDao.findByNameAndVersion(
-                normAppDesc.metadata.name,
-                normAppDesc.metadata.version
+            appService.apps.get(
+                NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version)
             )
         } returns normAppDesc
-        coEvery { toolDao.findByNameAndVersion(normToolDesc.info.name, normToolDesc.info.version) } returns normTool
-        coEvery {
-            appDao.findByNameAndVersion(
-                appName2,
-                version2
-            )
-        } returns normAppDesc2
+        coEvery { appService.tools.get(NameAndVersion(normToolDesc.info.name, normToolDesc.info.version)) } returns normTool
+        coEvery { appService.apps.get(NameAndVersion(appName2, version2)) } returns normAppDesc2
     }
 
     @Test(expected = JobException.NotFound::class)
@@ -113,13 +109,13 @@ class JobHibernateDaoTest {
         }
 
         run {
-            val result = jobHibDao.find(db, listOf(systemId), user.username).singleOrNull()
+            val result = jobQueryService.find(db, listOf(systemId), user.username).singleOrNull()
             assertEquals(JobState.VALIDATED, result?.job?.currentState)
             assertEquals("good", result?.job?.status)
         }
 
         run {
-            val result = jobHibDao.findJobsCreatedBefore(db, System.currentTimeMillis() + 5000).toList()
+            val result = jobQueryService.findJobsCreatedBefore(db, System.currentTimeMillis() + 5000).toList()
             assertEquals(1, result.size)
         }
 
@@ -127,13 +123,13 @@ class JobHibernateDaoTest {
         jobHibDao.updateStatus(db, systemId, state = JobState.SUCCESS, status = "better")
 
         run {
-            val result = jobHibDao.find(db, listOf(systemId), user.username).singleOrNull()
+            val result = jobQueryService.find(db, listOf(systemId), user.username).singleOrNull()
             assertEquals(JobState.SUCCESS, result?.job?.currentState)
             assertEquals("better", result?.job?.status)
         }
 
         run {
-            val result = jobHibDao.list(
+            val result = jobQueryService.list(
                 db,
                 user.username,
                 NormalizedPaginationRequest(10, 0),
@@ -339,7 +335,7 @@ class JobHibernateDaoTest {
 
     private fun fetchAllJobsInPage(session: DBContext): Page<VerifiedJobWithAccessToken> {
         return runBlocking {
-            jobHibDao.list(
+            jobQueryService.list(
                 session,
                 user.username,
                 NormalizedPaginationRequest(100, 0),
@@ -356,7 +352,7 @@ class JobHibernateDaoTest {
         min: Long?,
         max: Long?
     ): Page<VerifiedJobWithAccessToken> {
-        return jobHibDao.list(
+        return jobQueryService.list(
             session,
             user.username,
             NormalizedPaginationRequest(10, 0),
@@ -380,7 +376,7 @@ class JobHibernateDaoTest {
             assertEquals(1, jobs.items.size)
 
             val jobByFilter = runBlocking {
-                jobHibDao.list(
+                jobQueryService.list(
                     it,
                     user.username,
                     NormalizedPaginationRequest(100, 0),
@@ -394,7 +390,7 @@ class JobHibernateDaoTest {
             assertEquals(1, jobByFilter.items.size)
 
             val noJobByFilter = runBlocking {
-                jobHibDao.list(
+                jobQueryService.list(
                     it,
                     user.username,
                     NormalizedPaginationRequest(100, 0),
@@ -447,7 +443,7 @@ class JobHibernateDaoTest {
 
         db.withSession {
             runBlocking {
-                val page = jobHibDao.list(
+                val page = jobQueryService.list(
                     it,
                     userToken.principal.username,
                     NormalizedPaginationRequest(10, 0),
@@ -460,7 +456,7 @@ class JobHibernateDaoTest {
             }
 
             runBlocking {
-                val page = jobHibDao.list(
+                val page = jobQueryService.list(
                     it,
                     userToken.principal.username,
                     NormalizedPaginationRequest(10, 0),
@@ -471,7 +467,7 @@ class JobHibernateDaoTest {
             }
 
             runBlocking {
-                val page = jobHibDao.list(
+                val page = jobQueryService.list(
                     it,
                     userToken.principal.username,
                     NormalizedPaginationRequest(10, 0),
@@ -482,7 +478,7 @@ class JobHibernateDaoTest {
             }
 
             runBlocking {
-                val page = jobHibDao.list(
+                val page = jobQueryService.list(
                     it,
                     userToken.principal.username,
                     NormalizedPaginationRequest(10, 0),
@@ -493,7 +489,7 @@ class JobHibernateDaoTest {
             }
 
             runBlocking {
-                val page = jobHibDao.list(
+                val page = jobQueryService.list(
                     it,
                     userToken.principal.username,
                     NormalizedPaginationRequest(10, 0),
@@ -504,7 +500,7 @@ class JobHibernateDaoTest {
             }
 
             runBlocking {
-                val page = jobHibDao.list(
+                val page = jobQueryService.list(
                     it,
                     userToken.principal.username,
                     NormalizedPaginationRequest(10, 0),
@@ -515,7 +511,7 @@ class JobHibernateDaoTest {
             }
 
             runBlocking {
-                val page = jobHibDao.list(
+                val page = jobQueryService.list(
                     it,
                     userToken.principal.username,
                     NormalizedPaginationRequest(10, 0),

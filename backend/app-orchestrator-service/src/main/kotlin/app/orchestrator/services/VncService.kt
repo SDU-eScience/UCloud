@@ -1,4 +1,5 @@
 package dk.sdu.cloud.app.orchestrator.services
+
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalVncParametersRequest
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalVncParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.QueryVncParametersResponse
@@ -12,11 +13,11 @@ import io.ktor.http.HttpStatusCode
 class VncService(
     private val computationBackendService: ComputationBackendService,
     private val db: DBContext,
-    private val jobDao: JobDao,
+    private val jobs: JobQueryService,
     private val serviceClient: AuthenticatedClient
 ) {
     suspend fun queryVncParameters(jobId: String, requestedBy: String): QueryInternalVncParametersResponse {
-        val (job) = jobDao.find(db, listOf(jobId), requestedBy).first()
+        val (job) = jobs.find(db, listOf(jobId), requestedBy).first()
         if (job.owner != requestedBy) throw RPCException("Not found", HttpStatusCode.NotFound)
 
         val backend = computationBackendService.getAndVerifyByName(job.backend)

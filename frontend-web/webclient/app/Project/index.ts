@@ -232,7 +232,7 @@ export const changeRoleInProject = (
 });
 
 export interface ListProjectsRequest extends PaginationRequest{
-    archived: boolean;
+    archived?: boolean;
 }
 
 export const listProjects = (parameters: ListProjectsRequest): APICallParameters<ListProjectsRequest> => ({

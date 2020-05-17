@@ -145,7 +145,7 @@ class AppStoreService<DBSession>(
             retrieveUserProjectGroups(securityPrincipal, project)
         }
 
-        db.withTransaction { session ->
+        return db.withTransaction { session ->
             val result = applicationDAO.findByNameAndVersionForUser(
                 session,
                 securityPrincipal,
@@ -158,7 +158,7 @@ class AppStoreService<DBSession>(
             val toolRef = result.invocation.tool
             val tool = toolDao.findByNameAndVersion(session, securityPrincipal, toolRef.name, toolRef.version)
 
-            return result.copy(
+            result.copy(
                 invocation = result.invocation.copy(
                     tool = ToolReference(
                         toolRef.name,

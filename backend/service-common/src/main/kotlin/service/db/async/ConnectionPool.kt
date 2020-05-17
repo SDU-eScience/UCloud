@@ -15,7 +15,7 @@ import kotlinx.coroutines.future.await
 
 sealed class DBContext
 
-suspend inline fun <R> DBContext.withSession(block: (session: AsyncDBConnection) -> R): R {
+suspend fun <R> DBContext.withSession(block: suspend (session: AsyncDBConnection) -> R): R {
     return when (this) {
         is AsyncDBSessionFactory -> {
             withTransaction<R, AsyncDBConnection> { session ->
