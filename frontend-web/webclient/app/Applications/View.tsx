@@ -162,14 +162,15 @@ const Sidebar: React.FunctionComponent<MainContentProps> = props => (
             {props.application.favorite ? "Remove from favorites" : "Add to favorites"}
         </ActionButton>
 
+        {!props.application.metadata.website ? null : (
+            <ExternalLink href={props.application.metadata.website}>
+                <OutlineButton fullWidth color={"blue"}>Documentation</OutlineButton>
+            </ExternalLink>
+        )}
+
         <Link to={Pages.runApplication(props.application.metadata)}>
             <OutlineButton fullWidth color={"blue"}>Run Application</OutlineButton>
         </Link>
-        {!props.application.metadata.website ? null : (
-            <ExternalLink href={props.application.metadata.website}>
-                <OutlineButton fullWidth color={"blue"}>Website</OutlineButton>
-            </ExternalLink>
-        )}
     </VerticalButtonGroup>
 );
 
