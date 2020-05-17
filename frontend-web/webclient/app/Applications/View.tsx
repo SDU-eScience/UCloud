@@ -143,9 +143,7 @@ export const AppHeader: React.FunctionComponent<MainContentProps & {slim?: boole
                             <Heading.h2>{props.application.metadata.title}</Heading.h2>
                             <Heading.h3>v{props.application.metadata.version}</Heading.h3>
                             <TextSpan>{props.application.metadata.authors.join(", ")}</TextSpan>
-                            <Heading.h6>
-                                <Tags tags={props.application.tags} />
-                            </Heading.h6>
+                            <Tags tags={props.application.tags} />
                         </>
                     )}
             </AppHeaderDetails>

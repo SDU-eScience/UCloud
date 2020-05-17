@@ -20,7 +20,7 @@ RatingBadge.defaultProps = {
     px: 2,
     color: "white",
     bg: "blue",
-    borderRadius: "1em"
+    borderRadius: "0.3em"
 };
 
 RatingBadge.displayName = "RatingBadge";

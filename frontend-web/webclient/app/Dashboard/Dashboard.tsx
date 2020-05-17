@@ -15,7 +15,7 @@ import {notificationRead, readAllNotifications} from "Notifications/Redux/Notifi
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Card, Flex, Icon, Link, Text} from "ui-components";
+import {Box, Button, Card, Flex, Icon, Link, Text, theme} from "ui-components";
 import Error from "ui-components/Error";
 import {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
@@ -42,14 +42,13 @@ import {listFavorites, useFavoriteStatus} from "Files/favorite";
 import {useCloudAPI} from "Authentication/DataHook";
 import {Page} from "Types";
 
-export const DashboardCard: React.FunctionComponent<{title: string; isLoading: boolean}> = ({title, isLoading, children}) => (
-    <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6}>
-        <Flex bg="lightGray" px={3} py={2} alignItems="center">
-            <Heading.h4>{title}</Heading.h4>
+export const DashboardCard: React.FunctionComponent<{title: string; color: string; isLoading: boolean}> = ({title, color, isLoading, children}) => (
+    <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={0} borderRadius={6}>
+        <Flex px={3} py={2} alignItems="center" style={{borderTop:`5px solid ${color}`}} >
+            <Heading.h3>{title}</Heading.h3>
         </Flex>
-        <Box px={3} py={1}>
-            <Box pb="0.5em" />
-            {!isLoading ? children : <Spinner />}
+        <Box px={3} py={1}>         
+            {!isLoading ? children : <Spinner /> }
         </Box>
     </Card>
 );
@@ -125,7 +124,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                     notifications={notifications}
                     readAll={props.readAll}
                 />
-                <DashboardCard title="Resources" isLoading={false}>
+                <DashboardCard title="Resources"  color={theme.colors.red} isLoading={false}>
                     <Accounting.Usage resource="storage" subResource="bytesUsed" renderTitle/>
                     <Box pb="12px"/>
                     <Accounting.Usage resource="compute" subResource="timeUsed" renderTitle/>
@@ -144,7 +143,7 @@ const DashboardFavoriteFiles = ({
     favorite,
     error
 }: {files: File[]; isLoading: boolean; favorite: (file: File) => void; error?: string}): JSX.Element => (
-        <DashboardCard title="Favorite Files" isLoading={isLoading}>
+        <DashboardCard title="Favorite Files" color={theme.colors.blue} isLoading={isLoading}>
             {files.length || error ? null : (
                 <NoEntries
                     text="Your favorite files will appear here"
@@ -203,7 +202,7 @@ const DashboardAnalyses = ({
     isLoading,
     error,
 }: {analyses: JobWithStatus[]; isLoading: boolean; error?: string}): JSX.Element => (
-        <DashboardCard title="Recent Jobs" isLoading={isLoading}>
+        <DashboardCard title="Recent Jobs"  color={theme.colors.purple} isLoading={isLoading}>
             {analyses.length || error ? null : (
                 <NoEntries
                     text="No recent jobs"
@@ -244,9 +243,9 @@ interface DashboardNotificationProps {
 }
 
 const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element => (
-    <Card height="auto" width={1} overflow="hidden" boxShadow="sm" borderWidth={1} borderRadius={6}>
-        <Flex bg="lightGray" px={3} py={2}>
-            <Heading.h4>Recent Notifications</Heading.h4>
+    <Card height="auto" width={1} overflow="hidden" boxShadow="sm" borderWidth={0} borderRadius={6}>
+        <Flex px={3} py={2} style={{borderTop:`5px solid ${theme.colors.darkGreen}`}}>
+            <Heading.h3>Recent Notifications</Heading.h3>
             <Box ml="auto" />
             <Icon
                 name="checkDouble"
