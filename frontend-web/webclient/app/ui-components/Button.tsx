@@ -36,8 +36,7 @@ export const fullWidth = (props: {fullWidth?: boolean}) => props.fullWidth ? {wi
 
 export const attached = (props: {attached?: boolean}) => props.attached ?
     `border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-    margin-left: -5px;`
+    border-bottom-left-radius: 0;`
     : null;
 
 export const asSquare = (props: {asSquare?: boolean}) => props.asSquare ? {
