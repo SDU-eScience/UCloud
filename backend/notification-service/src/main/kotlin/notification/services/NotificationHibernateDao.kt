@@ -8,7 +8,6 @@ import dk.sdu.cloud.notification.api.NotificationId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
@@ -37,7 +36,7 @@ object NotificationTable : SQLTable("notifications") {
     val id = long("id")
 }
 
-class NotificationHibernateDAO : NotificationDAO<HibernateSession> {
+class NotificationHibernateDAO : NotificationDAO {
     override suspend fun findNotifications(
         ctx: DBContext,
         user: String,

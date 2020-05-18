@@ -8,7 +8,7 @@ import dk.sdu.cloud.service.db.async.DBContext
 
 val FIRST_PAGE = NormalizedPaginationRequest(null, null)
 
-interface NotificationDAO<Session> {
+interface NotificationDAO {
     /**
      * Retrieves a page of notifications. The notifications must be sorted by descending time stamp
      *
