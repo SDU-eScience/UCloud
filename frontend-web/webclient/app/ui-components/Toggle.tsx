@@ -2,6 +2,7 @@ import * as React from "react";
 import styled from "styled-components";
 import {HiddenInputField} from "./Input";
 import Label from "./Label";
+import {ThemeColor} from "./theme";
 
 // https://www.w3schools.com/howto/howto_css_switch.asp
 const ToggleLabel = styled(Label) <{scale: number}>`
@@ -41,13 +42,13 @@ const RoundSlider = styled.span<{scale: number}>`
 
 RoundSlider.displayName = "RoundSlider";
 
-const ToggleInput = styled(HiddenInputField) <{scale: number}>`
+const ToggleInput = styled(HiddenInputField) <{scale: number; activeColor: ThemeColor}>`
     &:checked + ${RoundSlider} {
-        background-color: #2196F3;
+        background-color: var(--${props => props.activeColor});
     }
 
     &:focus + ${RoundSlider} {
-        box-shadow: 0 0 1px #2196F3;
+        box-shadow: 0 0 1px var(--${props => props.activeColor});
     }
 
     &:checked + ${RoundSlider}:before {
@@ -59,10 +60,10 @@ const ToggleInput = styled(HiddenInputField) <{scale: number}>`
 
 ToggleInput.displayName = "ToggleInput";
 
-interface ToggleProps {checked?: boolean; onChange: () => void; scale?: number;}
-export const Toggle = ({checked, onChange, scale = 1}: ToggleProps) => (
+interface ToggleProps {checked?: boolean; onChange: () => void; scale?: number; activeColor?: ThemeColor}
+export const Toggle: React.FC<ToggleProps> = ({checked, onChange, scale = 1, activeColor = "blue"}) => (
     <ToggleLabel scale={scale}>
-        <ToggleInput scale={scale} type="checkbox" checked={checked} onChange={onChange} />
+        <ToggleInput scale={scale} type="checkbox" checked={checked} onChange={onChange} activeColor={activeColor} />
         <RoundSlider scale={scale} />
     </ToggleLabel>
 );

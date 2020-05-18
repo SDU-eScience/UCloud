@@ -54,7 +54,7 @@ export function ListRow(props: ListRowProps): JSX.Element {
         <Box maxWidth="calc(100% - 180px)" width="auto">
             <Truncate
                 cursor={props.navigate ? "pointer" : "default"}
-                onClick={e => {props.navigate?.(); e.stopPropagation()}}
+                onClick={e => {props.navigate?.(); e.stopPropagation();}}
                 mb="-4px"
                 width={1}
                 fontSize={20}
@@ -73,7 +73,7 @@ export function ListRow(props: ListRowProps): JSX.Element {
             width="100%"
             alignItems="center"
         >
-            {props.icon ? <Box onClick={stopPropagationAndPreventDefault} mx="8px" mt="4px">{props.icon}</Box> : <Box width="4px" />}
+            {props.icon ? <Box onClick={stopPropagationAndPreventDefault} mx="8px" mt={props.leftSub ? "4px" : "-4px"}>{props.icon}</Box> : <Box width="4px" />}
             {left}
             <Box ml="auto" />
             <Flex mr="8px">
@@ -84,7 +84,7 @@ export function ListRow(props: ListRowProps): JSX.Element {
 }
 
 
-export const ListRowStat: React.FunctionComponent<{ icon?: IconName; color?: string; color2?: string }> = props => {
+export const ListRowStat: React.FunctionComponent<{icon?: IconName; color?: string; color2?: string}> = props => {
     const color = props.color ?? "gray";
     const color2 = props.color2 ?? "white";
     return (

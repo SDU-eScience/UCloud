@@ -15,7 +15,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page, Operation} from "Types";
 import Button from "ui-components/Button";
-import {Flex, Icon, List, Text, Input, Box, Checkbox, Label} from "ui-components";
+import {Flex, Icon, List, Text, Input, Box, Checkbox, Label, Link} from "ui-components";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -32,6 +32,7 @@ import {ThemeColor} from "ui-components/theme";
 import {useEffect, useState} from "react";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
+import {Toggle} from "ui-components/Toggle";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -79,7 +80,15 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         setFetchParams(listProjects({page: 0, itemsPerPage: 50, archived}));
     }, [archived]);
 
-    const projectOperations: ProjectOperation[] = [];
+    const projectOperations: ProjectOperation[] = [{
+        text: "Settings",
+        disabled: projects => projects.length !== 1,
+        icon: "properties",
+        onClick: ([project]) => {
+            props.setProject(project.projectId);
+            history.push("/projects/view/-/settings");
+        }
+    }];
 
     return (
         <MainContainer
@@ -138,20 +147,15 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         <ListRow
                             icon={<Box width="24px" />}
                             left={<Text>Personal project</Text>}
-                            leftSub={<ListRowStat icon={"id"}>{Client.username}</ListRowStat>}
-                            right={<Icon
-                                mr="48px"
-                                mt="5px"
-                                name="check"
-                                color={!props.project ? "green" : "gray"}
-                                hoverColor="green"
-                                cursor="pointer"
-                                onClick={() => {
+                            leftSub={<div />}
+                            right={<>
+                                <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
                                     if (!props.project) return;
                                     snackbarStore.addInformation("Personal project is now the active.", false);
                                     props.setProject();
-                                }}
-                            />}
+                                }} />
+                                <Box width="28px" />
+                            </>}
                         />
                         {creatingProject ?
                             <ListRow
@@ -181,24 +185,23 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     autoFocus
                                     ref={title}
                                 /></form>}
-                                right={<div />}
-                                leftSub={<ListRowStat icon={"user"}>{projectRoleToString(ProjectRole.PI)}</ListRowStat>}
+                                right={<ListRowStat icon={"user"}>{projectRoleToString(ProjectRole.PI)}</ListRowStat>}
                             /> : null}
                         <Pagination.List
                             page={response.data}
                             pageRenderer={page =>
-                                page.items.map((e: UserInProject) => {
+                                page.items.map(e => {
                                     const isActive = e.projectId === props.project;
                                     const isFavorite = e.favorite;
                                     return (
                                         <ListRow
                                             key={e.projectId}
-                                            isSelected={false} // Disabled since we don't have bulk operations
                                             select={() => {
                                                 if (selectedProjects.has(e.projectId)) selectedProjects.delete(e.projectId);
                                                 else selectedProjects.add(e.projectId);
                                                 setSelectedProjects(new Set(selectedProjects));
                                             }}
+                                            isSelected={selectedProjects.has(e.projectId)}
                                             icon={<Icon
                                                 cursor="pointer"
                                                 size="24"
@@ -207,33 +210,37 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                 onClick={() => onToggleFavorite(e.projectId)}
                                                 hoverColor="blue"
                                             />}
-                                            navigate={() => {
-                                                props.setProject(e.projectId);
-                                                history.push("/projects/view");
-                                            }}
-                                            left={e.title}
-                                            leftSub={
-                                                <Text ml="4px" color="gray" fontSize={0}>
-                                                    <Icon color="white" color2="gray" mt="-2px" size="10" name="user" />
-                                                    {" "}{projectRoleToString(e.whoami.role)}
-                                                </Text>
+                                            left={
+                                                <Box
+                                                    onClick={() => {
+                                                        props.setProject(e.projectId);
+                                                        snackbarStore.addInformation(
+                                                            `${e.projectId} is now the active project`,
+                                                            false
+                                                        );
+                                                    }}
+                                                    height="30px"
+                                                >
+                                                    <Link to="/projects/view">
+                                                        {e.title}
+                                                    </Link>
+                                                </Box>
                                             }
-                                            right={<>
+                                            right={
                                                 <Flex alignItems={"center"}>
                                                     {!e.needsVerification ? null : (
                                                         <Text fontSize={0} mr={8}>
                                                             <Icon name={"warning"} /> Attention required
                                                         </Text>
                                                     )}
-                                                    <Icon
-                                                        mr="20px"
-                                                        mt="5px"
-                                                        name="check"
-                                                        color={isActive ? "green" : "gray"}
-                                                        hoverColor="green"
-                                                        cursor="pointer"
-                                                        onClick={ev => {
-                                                            ev.stopPropagation();
+                                                    <Flex mx="6px" my="6px" px="4px" width="78px" style={{borderRadius: "8px", border: "1px solid var(--black)"}} ml="4px">
+                                                        <Box ml="auto" />{projectRoleToString(e.whoami.role)}<Box mr="auto" />
+                                                    </Flex>
+                                                    <Toggle
+                                                        scale={1.5}
+                                                        activeColor="green"
+                                                        checked={isActive}
+                                                        onChange={() => {
                                                             if (isActive) return;
                                                             snackbarStore.addInformation(
                                                                 `${e.projectId} is now the active project`,
@@ -264,8 +271,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                             </ClickableDropdown>
                                                         </div>
                                                     ) : <Box width="28px" />}
-                                                </Flex>
-                                            </>}
+                                                </Flex>}
                                         />
                                     );
                                 })}
@@ -291,6 +297,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         <Checkbox size={24} checked={archived} onChange={() => setArchived(!archived)} />
                         Show archived
                     </Label>
+                    {selectedProjects.size > 0 ? `${selectedProjects.size} project${selectedProjects.size > 1 ? "s" : ""} selected` : null}
                     <ProjectOperations
                         selectedProjects={response.data.items.filter(it => selectedProjects.has(it.projectId))}
                         projectOperations={projectOperations}
