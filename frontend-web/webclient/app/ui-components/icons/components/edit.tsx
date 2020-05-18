@@ -10,7 +10,7 @@ const SvgEdit = (props: any) => (
   >
     <path
       d="M23.6 5.4a1.289 1.289 0 000-1.867L20.467.4A1.289 1.289 0 0018.6.4l-2.467 2.467 5 5L23.6 5.4z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
     />
     <path

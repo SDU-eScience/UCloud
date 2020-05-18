@@ -15,7 +15,7 @@ const SvgNotification = (props: any) => (
     />
     <path
       d="M12 24c1.56 0 2.823-1.194 2.823-2.667H9.176C9.176 22.806 10.44 24 12 24"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
     />
   </svg>

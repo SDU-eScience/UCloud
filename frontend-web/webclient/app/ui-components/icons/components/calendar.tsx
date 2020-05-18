@@ -14,7 +14,7 @@ const SvgCalendar = (props: any) => (
       fillRule="nonzero"
     />
     <path
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
       d="M13 13h6v6h-6z"
     />

@@ -15,7 +15,7 @@ const SvgChat = (props: any) => (
     />
     <path
       d="M4.8 8.4h14.4v2.4H4.8V8.4zm9.6 6H4.8V12h9.6v2.4zm4.8-7.2H4.8V4.8h14.4v2.4z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
     />
   </svg>

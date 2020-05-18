@@ -10,7 +10,7 @@ const SvgShareMenu = (props: any) => (
   >
     <path
       d="M0 19h3v2h1.5v3H2.244A2.271 2.271 0 010 21.743V19zM4.5 3H3v8H0V2.258A2.245 2.245 0 012.244 0H4.5v3z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
     />
     <path
       d="M6 7V2.257A2.245 2.245 0 018.242 0h13.512A2.26 2.26 0 0124 2.257v19.485c0 1.223-.95 2.203-2.244 2.258H8.243A2.271 2.271 0 016 21.742V16h3v5h12V3H9v4H6z"
