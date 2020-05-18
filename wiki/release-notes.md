@@ -9,6 +9,15 @@ For details look in the `k8.kts` folders of each microservice.
 
 ## 18-05-20
 
+Improvements to UI.
+
+```
+✅  Deployment(webclient, 0.37.13) (UP-TO-DATE)
+```
+
+
+## 18-05-20
+
 Release of several new UCloud features, including public links. Output of
 release notes has changed slightly to match our deployment tools.
 
