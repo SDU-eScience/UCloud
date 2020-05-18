@@ -214,16 +214,7 @@ describe("Icon from file path", () => {
         expect(UF.iconFromFilePath("/home/user/Trash", "DIRECTORY").type).toStrictEqual("TRASHFOLDER"));
 });
 
-const HOME_FOLDER = "/home/user@test.dk/";
-
-
-// Short UUID
-
-test("To shortened UUID", () =>
-    expect(UF.shortUUID("abcd-abcd-abcd")).toBe("ABCD-ABC")
-);
-
-test("To same UUDI", () =>
+test("To same UUID", () =>
     expect(UF.shortUUID("ABC")).toBe("ABC")
 );
 

@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Dashboard Dashboard mount 1`] = `
-.c18 {
+.c17 {
   width: 32px;
   height: 32px;
   margin: 20px auto;
@@ -9,126 +9,126 @@ exports[`Dashboard Dashboard mount 1`] = `
   animation-name: jkjquP;
 }
 
-.c18 > svg path:nth-child(1) {
+.c17 > svg path:nth-child(1) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.04s;
   animation-delay: -0.04s;
 }
 
-.c18 > svg path:nth-child(2) {
+.c17 > svg path:nth-child(2) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.08s;
   animation-delay: -0.08s;
 }
 
-.c18 > svg path:nth-child(3) {
+.c17 > svg path:nth-child(3) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.12s;
   animation-delay: -0.12s;
 }
 
-.c18 > svg path:nth-child(4) {
+.c17 > svg path:nth-child(4) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.16s;
   animation-delay: -0.16s;
 }
 
-.c18 > svg path:nth-child(5) {
+.c17 > svg path:nth-child(5) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.2s;
   animation-delay: -0.2s;
 }
 
-.c18 > svg path:nth-child(6) {
+.c17 > svg path:nth-child(6) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.24s;
   animation-delay: -0.24s;
 }
 
-.c18 > svg path:nth-child(7) {
+.c17 > svg path:nth-child(7) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.28s;
   animation-delay: -0.28s;
 }
 
-.c18 > svg path:nth-child(8) {
+.c17 > svg path:nth-child(8) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.32s;
   animation-delay: -0.32s;
 }
 
-.c18 > svg path:nth-child(9) {
+.c17 > svg path:nth-child(9) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.36s;
   animation-delay: -0.36s;
 }
 
-.c18 > svg path:nth-child(10) {
+.c17 > svg path:nth-child(10) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.4s;
   animation-delay: -0.4s;
 }
 
-.c18 > svg path:nth-child(11) {
+.c17 > svg path:nth-child(11) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.44s;
   animation-delay: -0.44s;
 }
 
-.c18 > svg path:nth-child(12) {
+.c17 > svg path:nth-child(12) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.48s;
   animation-delay: -0.48s;
 }
 
-.c18 > svg path:nth-child(13) {
+.c17 > svg path:nth-child(13) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.52s;
   animation-delay: -0.52s;
 }
 
-.c18 > svg path:nth-child(14) {
+.c17 > svg path:nth-child(14) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.56s;
   animation-delay: -0.56s;
 }
 
-.c18 > svg path:nth-child(15) {
+.c17 > svg path:nth-child(15) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.6s;
   animation-delay: -0.6s;
 }
 
-.c18 > svg path:nth-child(16) {
+.c17 > svg path:nth-child(16) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.64s;
   animation-delay: -0.64s;
 }
 
-.c18 > svg path:nth-child(17) {
+.c17 > svg path:nth-child(17) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.68s;
   animation-delay: -0.68s;
 }
 
-.c18 > svg path:nth-child(18) {
+.c17 > svg path:nth-child(18) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.72s;
@@ -157,22 +157,18 @@ exports[`Dashboard Dashboard mount 1`] = `
 }
 
 .c8 {
-  padding-bottom: 0.5em;
-}
-
-.c9 {
   text-align: center;
 }
 
-.c15 {
+.c14 {
   margin-left: auto;
 }
 
-.c19 {
+.c18 {
   padding-bottom: 12px;
 }
 
-.c12 {
+.c11 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -204,21 +200,21 @@ exports[`Dashboard Dashboard mount 1`] = `
   padding: 9.5px 18px;
 }
 
-.c12:disabled {
+.c11:disabled {
   opacity: 0.25;
 }
 
-.c12:focus {
+.c11:focus {
   outline: none;
 }
 
-.c12:hover {
+.c11:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c16 {
+.c15 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -233,7 +229,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   overflow: hidden;
   height: auto;
   box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
-  border: 1px solid #c9d3df;
+  border: 0px solid #c9d3df;
   border-radius: 6px;
 }
 
@@ -246,14 +242,13 @@ exports[`Dashboard Dashboard mount 1`] = `
   padding-right: 16px;
   padding-top: 8px;
   padding-bottom: 8px;
-  background-color: #f5f7f9;
   -webkit-align-items: center;
   -webkit-box-align: center;
   -ms-flex-align: center;
   align-items: center;
 }
 
-.c14 {
+.c13 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -262,7 +257,6 @@ exports[`Dashboard Dashboard mount 1`] = `
   padding-right: 16px;
   padding-top: 8px;
   padding-bottom: 8px;
-  background-color: #f5f7f9;
 }
 
 .c3 {
@@ -275,19 +269,19 @@ exports[`Dashboard Dashboard mount 1`] = `
 
 .c6 {
   cursor: inherit;
-  font-size: 20px;
+  font-size: 24px;
   margin: 0;
   font-weight: 400;
 }
 
-.c10 {
+.c9 {
   cursor: inherit;
   font-size: 16px;
   margin-top: 8px;
   margin-bottom: 8px;
 }
 
-.c17 {
+.c16 {
   cursor: inherit;
   font-size: 10px;
   margin: 0;
@@ -297,26 +291,26 @@ exports[`Dashboard Dashboard mount 1`] = `
   font-weight: 700;
 }
 
-.c11 {
+.c10 {
   cursor: pointer;
   -webkit-text-decoration: none;
   text-decoration: none;
   color: #1e252e;
 }
 
-.c11:hover {
+.c10:hover {
   color: #006aff;
 }
 
-.c13 {
+.c12 {
   font-size: large;
 }
 
-.c13 > * {
+.c12 > * {
   border-bottom: 1px solid lightGrey;
 }
 
-.c13 > *:last-child {
+.c12 > *:last-child {
   border-bottom: 0px;
 }
 
@@ -359,40 +353,42 @@ exports[`Dashboard Dashboard mount 1`] = `
       >
         <div
           className="c5"
+          style={
+            Object {
+              "borderTop": "5px solid #006aff",
+            }
+          }
         >
-          <h4
+          <h3
             className="c6"
             cursor="inherit"
-            fontSize={3}
+            fontSize={4}
           >
             Favorite Files
-          </h4>
+          </h3>
         </div>
         <div
           className="c7"
         >
           <div
             className="c8"
-          />
-          <div
-            className="c9"
           >
             <div
-              className="c10"
+              className="c9"
               cursor="inherit"
               fontSize="16px"
             >
               Your favorite files will appear here
             </div>
             <a
-              className="c11"
+              className="c10"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Ftest%40test.dk"
               onClick={[Function]}
             >
               <button
-                className="c12"
+                className="c11"
                 color="blue"
               >
                 Explore files
@@ -400,7 +396,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             </a>
           </div>
           <div
-            className="c13"
+            className="c12"
             fontSize="large"
           />
         </div>
@@ -413,40 +409,42 @@ exports[`Dashboard Dashboard mount 1`] = `
       >
         <div
           className="c5"
+          style={
+            Object {
+              "borderTop": "5px solid #70b",
+            }
+          }
         >
-          <h4
+          <h3
             className="c6"
             cursor="inherit"
-            fontSize={3}
+            fontSize={4}
           >
             Recent Jobs
-          </h4>
+          </h3>
         </div>
         <div
           className="c7"
         >
           <div
             className="c8"
-          />
-          <div
-            className="c9"
           >
             <div
-              className="c10"
+              className="c9"
               cursor="inherit"
               fontSize="16px"
             >
               No recent jobs
             </div>
             <a
-              className="c11"
+              className="c10"
               color="text"
               hoverColor="textHighlight"
               href="/applications/overview"
               onClick={[Function]}
             >
               <button
-                className="c12"
+                className="c11"
                 color="blue"
               >
                 Explore apps
@@ -454,7 +452,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             </a>
           </div>
           <div
-            className="c13"
+            className="c12"
             fontSize="large"
           />
         </div>
@@ -466,20 +464,25 @@ exports[`Dashboard Dashboard mount 1`] = `
         width={1}
       >
         <div
-          className="c14"
+          className="c13"
+          style={
+            Object {
+              "borderTop": "5px solid #00823c",
+            }
+          }
         >
-          <h4
+          <h3
             className="c6"
             cursor="inherit"
-            fontSize={3}
+            fontSize={4}
           >
             Recent Notifications
-          </h4>
+          </h3>
           <div
-            className="c15"
+            className="c14"
           />
           <svg
-            className="c16"
+            className="c15"
             clipRule="evenodd"
             color="iconColor"
             color2=""
@@ -504,14 +507,14 @@ exports[`Dashboard Dashboard mount 1`] = `
           </svg>
         </div>
         <h6
-          className="c17"
+          className="c16"
           cursor="inherit"
           fontSize={0}
         >
           No notifications
         </h6>
         <div
-          className="c13"
+          className="c12"
           fontSize="large"
         />
       </div>
@@ -523,26 +526,28 @@ exports[`Dashboard Dashboard mount 1`] = `
       >
         <div
           className="c5"
+          style={
+            Object {
+              "borderTop": "5px solid #c00",
+            }
+          }
         >
-          <h4
+          <h3
             className="c6"
             cursor="inherit"
-            fontSize={3}
+            fontSize={4}
           >
             Resources
-          </h4>
+          </h3>
         </div>
         <div
           className="c7"
         >
           <div
             className="c8"
-          />
-          <div
-            className="c9"
           >
             <div
-              className="c18"
+              className="c17"
               height={32}
               width={32}
             >
@@ -613,13 +618,13 @@ exports[`Dashboard Dashboard mount 1`] = `
             </div>
           </div>
           <div
-            className="c19"
+            className="c18"
           />
           <div
-            className="c9"
+            className="c8"
           >
             <div
-              className="c18"
+              className="c17"
               height={32}
               width={32}
             >
