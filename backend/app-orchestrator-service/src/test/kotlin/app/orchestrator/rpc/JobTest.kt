@@ -1,18 +1,15 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
+import dk.sdu.cloud.accounting.compute.MachineReservation
+import dk.sdu.cloud.accounting.compute.MachineTypes
 import dk.sdu.cloud.app.orchestrator.api.CancelRequest
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsResponse
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.ListRecentRequest
-import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalVncParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.QueryInternalWebParametersResponse
 import dk.sdu.cloud.app.orchestrator.api.StartJobRequest
-import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
-import dk.sdu.cloud.app.orchestrator.services.JobQueryService
-import dk.sdu.cloud.app.orchestrator.services.StreamFollowService
-import dk.sdu.cloud.app.orchestrator.services.VncService
-import dk.sdu.cloud.app.orchestrator.services.WebService
+import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.app.orchestrator.utils.jobWithStatus
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.verifiedJobWithAccessToken
@@ -49,6 +46,16 @@ private fun KtorApplicationTestSetupContext.configureCallbackServer(
     webService: WebService,
     machineTypes: List<MachineReservation>
 ): List<Controller> {
+    ClientMock.mockCallSuccess(
+        MachineTypes.listMachines,
+        machineTypes
+    )
+
+    ClientMock.mockCallSuccess(
+        MachineTypes.defaultMachine,
+        machineTypes.first()
+    )
+
     return listOf(JobController(
         jobQueryService,
         orchestrator,
@@ -57,7 +64,7 @@ private fun KtorApplicationTestSetupContext.configureCallbackServer(
         serviceClient,
         vncService,
         webService,
-        machineTypes
+        MachineTypeCache(ClientMock.authenticatedClient)
     ))
 }
 

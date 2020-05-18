@@ -1,4 +1,4 @@
-version = "0.1.10"
+version = "0.1.12"
 
 application {
     mainClassName = "dk.sdu.cloud.app.license.MainKt"

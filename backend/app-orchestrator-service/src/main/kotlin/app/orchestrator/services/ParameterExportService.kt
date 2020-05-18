@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.app.orchestrator.api.MachineReservation
+import dk.sdu.cloud.accounting.compute.MachineReservation
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration

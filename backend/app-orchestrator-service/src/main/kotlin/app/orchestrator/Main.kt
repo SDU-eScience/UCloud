@@ -1,17 +1,15 @@
 package dk.sdu.cloud.app.orchestrator
 
+import dk.sdu.cloud.accounting.compute.MachineReservation
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.app.orchestrator.api.AppOrchestratorServiceDescription
 import dk.sdu.cloud.app.orchestrator.api.ApplicationBackend
-import dk.sdu.cloud.app.orchestrator.api.MachineReservation
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 
 data class Configuration(
     val backends: List<ApplicationBackend> = emptyList(),
-    val defaultBackend: String = "kubernetes",
-    val machines: List<MachineReservation> = listOf(MachineReservation.BURST),
-    val gpuWhitelist: List<String> = emptyList()
+    val defaultBackend: String = "kubernetes"
 )
 
 object AppOrchestratorService : Service {

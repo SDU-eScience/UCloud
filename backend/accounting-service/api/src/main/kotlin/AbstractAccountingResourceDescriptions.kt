@@ -24,46 +24,15 @@ data class UsageResponse(
 internal const val ACCOUNTING_NAMESPACE = "accounting"
 
 /**
- * An accounting event. Contains basic information that is required.
- *
- * Implementations are encouraged to add any other relevant data as well. This is only the absolute minimum to help
- * enforce a unified API.
- */
-interface AccountingEvent {
-    /**
-     * A title for the event. This should contain a brief description of the type of event.
-     *
-     * Example: "Job Completed"
-     */
-    val title: String
-
-    /**
-     * A description of the event.
-     *
-     * If included this hints to the UI that it should display this description along with the event.
-     *
-     * Example: "Application 'foo@1.0.0' used 42:10:30 across 5 nodes."
-     */
-    val description: String? get() = null
-
-    /**
-     * Unix timestamp in milliseconds of when the event occurred
-     */
-    val timestamp: Long
-}
-
-/**
  * [CallDescriptionContainer] for a single sub-resource.
  *
  * @param namespace The namespace of this resource. Should not include "accounting". Valid example: "compute".
  * @param resourceType The resource type that this interface implements. Valid example: "timeUsed".
  */
-abstract class AbstractAccountingResourceDescriptions<Event : AccountingEvent>(
+abstract class AbstractAccountingResourceDescriptions(
     namespace: String,
-    val resourceType: String
+    resourceType: String
 ) : CallDescriptionContainer("$ACCOUNTING_NAMESPACE.$namespace.$resourceType") {
-    // TODO This stuff does not work well for auditing.
-
     val baseContext: String = "/api/$ACCOUNTING_NAMESPACE/$namespace/$resourceType"
 
     /**

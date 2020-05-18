@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.accounting.compute.MachineReservation
 import dk.sdu.cloud.app.store.api.ApplicationMetadata
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.WithAppMetadata

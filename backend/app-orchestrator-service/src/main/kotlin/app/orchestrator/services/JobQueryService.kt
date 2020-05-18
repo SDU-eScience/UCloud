@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityPrincipalToken
+import dk.sdu.cloud.accounting.compute.MachineReservation
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration

@@ -5,7 +5,6 @@ import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.SortOrder
 import dk.sdu.cloud.app.orchestrator.rpc.JOB_MAX_TIME
-import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.calls.RPCException
@@ -16,7 +15,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.throwIfInternal
 import dk.sdu.cloud.calls.client.withoutAuthentication
-import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.service.Loggable
@@ -25,12 +23,10 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.io.ByteReadChannel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 /**
  * The job orchestrator is responsible for the orchestration of computation backends.
@@ -58,25 +54,20 @@ import kotlinx.coroutines.runBlocking
  *   - In this state we will accept output files via [ComputationCallbackDescriptions.submitFile]
  *
  * - Computation backend notifies us of final result ([JobState.FAILURE], [JobState.SUCCESS])
- *   - Accounting backends are notified (See [AccountingEvents])
  *   - Backends are asked to clean up temporary files via [ComputationDescriptions.cleanup]
  *
  */
 class JobOrchestrator(
     private val serviceClient: AuthenticatedClient,
-
-    private val accountingEventProducer: EventProducer<JobCompletedEvent>,
-
     private val db: DBContext,
     private val jobVerificationService: JobVerificationService,
     private val computationBackendService: ComputationBackendService,
     private val jobFileService: JobFileService,
     private val jobDao: JobDao,
     private val jobQueryService: JobQueryService,
-
     private val defaultBackend: String,
-
-    private val scope: BackgroundScope
+    private val scope: BackgroundScope,
+    private val paymentService: PaymentService
 ) {
     /**
      * Shared error handling for methods that work with a live job.
@@ -153,6 +144,7 @@ class JobOrchestrator(
         jobFileService.exportParameterFile(outputFolder, jobWithToken, req.parameters)
         val jobWithOutputFolder = jobWithToken.job.copy(outputFolder = outputFolder)
         val jobWithTokenAndFolder = jobWithToken.copy(job = jobWithOutputFolder)
+        paymentService.reserve(jobWithOutputFolder)
 
         log.debug("Notifying compute")
         val initialState = JobStateChange(jobWithToken.job.id, JobState.PREPARED)
@@ -282,19 +274,7 @@ class JobOrchestrator(
                 securityPrincipal
             )
 
-            accountingEventProducer.produce(
-                JobCompletedEvent(
-                    jobId,
-                    job.owner,
-                    actualDuration,
-                    job.nodes,
-                    System.currentTimeMillis(),
-                    NameAndVersion(job.application.metadata.name, job.application.metadata.version),
-                    success,
-                    job.reservation,
-                    job.project
-                )
-            )
+            paymentService.charge(job, actualDuration.toMillis())
         }
     }
 

@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.accounting.compute.MachineReservation
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc
 import dk.sdu.cloud.app.orchestrator.utils.normAppDesc2
@@ -88,7 +89,7 @@ class JobHibernateDaoTest {
                 1,
                 SimpleDuration(0, 1, 0),
                 1,
-                MachineReservation.BURST,
+                MachineReservation("u1-standard-burst"),
                 VerifiedJobInput(emptyMap()),
                 emptySet(),
                 emptySet(),
@@ -152,7 +153,7 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
-                    MachineReservation.BURST,
+                    MachineReservation("u1-standard-burst"),
                     VerifiedJobInput(emptyMap()),
                     emptySet(),
                     emptySet(),
@@ -179,7 +180,7 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
-                    MachineReservation.BURST,
+                    MachineReservation("u1-standard-burst"),
                     VerifiedJobInput(emptyMap()),
                     emptySet(),
                     emptySet(),
@@ -245,7 +246,7 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
-                    MachineReservation.BURST,
+                    MachineReservation("u1-standard-burst"),
                     VerifiedJobInput(emptyMap()),
                     emptySet(),
                     emptySet(),
@@ -272,7 +273,7 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
-                    MachineReservation.BURST,
+                    MachineReservation("u1-standard-burst"),
                     VerifiedJobInput(emptyMap()),
                     emptySet(),
                     emptySet(),
@@ -425,7 +426,7 @@ class JobHibernateDaoTest {
                         1,
                         SimpleDuration(0, 1, 0),
                         1,
-                        MachineReservation.BURST,
+                        MachineReservation("u1-standard-burst"),
                         VerifiedJobInput(emptyMap()),
                         emptySet(),
                         emptySet(),
@@ -535,7 +536,7 @@ class JobHibernateDaoTest {
                 1,
                 SimpleDuration(0, 1, 0),
                 1,
-                MachineReservation.BURST,
+                MachineReservation("u1-standard-burst"),
                 VerifiedJobInput(emptyMap()),
                 emptySet(),
                 emptySet(),
@@ -565,7 +566,7 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
-                    MachineReservation.BURST,
+                    MachineReservation("u1-standard-burst"),
                     VerifiedJobInput(emptyMap()),
                     emptySet(),
                     emptySet(),
@@ -592,7 +593,7 @@ class JobHibernateDaoTest {
                     1,
                     SimpleDuration(0, 1, 0),
                     1,
-                    MachineReservation.BURST,
+                    MachineReservation("u1-standard-burst"),
                     VerifiedJobInput(emptyMap()),
                     emptySet(),
                     emptySet(),

@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.orchestrator.api
 
 import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonProperty
+import dk.sdu.cloud.accounting.compute.MachineReservation
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import kotlin.math.max
@@ -47,7 +48,7 @@ data class VerifiedJob(
      */
     val tasksPerNode: Int,
 
-    val reservation: MachineReservation = MachineReservation.BURST,
+    val reservation: MachineReservation = MachineReservation("u1-standard-burst"),
 
     /**
      * The input values for this job.

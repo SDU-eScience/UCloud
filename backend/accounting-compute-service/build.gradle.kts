@@ -5,7 +5,5 @@ application {
 }
 
 dependencies {
-    api(project(":accounting-service:api"))
-    implementation(project(":app-orchestrator-service:api"))
     implementation(project(":auth-service:api"))
 }

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.utils
 
+import dk.sdu.cloud.accounting.compute.MachineReservation
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.VerifiedJobWithAccessToken
@@ -111,7 +112,7 @@ fun verifiedJobForTestGenerator(
     mounts: List<ValidatedFileForUpload>? = null,
     startedAt: Long = 123456789,
     peers: List<ApplicationPeer>? = null,
-    reservation: MachineReservation = MachineReservation.BURST
+    reservation: MachineReservation = MachineReservation("u1-standard-burst")
 ):VerifiedJob {
     return VerifiedJob(
         application = application ?: normAppDesc,
