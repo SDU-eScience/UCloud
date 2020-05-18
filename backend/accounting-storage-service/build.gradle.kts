@@ -1,4 +1,4 @@
-version = "1.4.0-projects.3"
+version = "1.4.0"
 
 application {
     mainClassName = "dk.sdu.cloud.accounting.storage.MainKt"

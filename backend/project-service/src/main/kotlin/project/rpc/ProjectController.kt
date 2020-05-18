@@ -2,9 +2,11 @@ package dk.sdu.cloud.project.rpc
 
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.project.Configuration
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.services.ProjectException
 import dk.sdu.cloud.project.services.ProjectService
@@ -17,10 +19,12 @@ import io.ktor.http.HttpStatusCode
 class ProjectController(
     private val db: DBContext,
     private val projects: ProjectService,
-    private val queries: QueryService
+    private val queries: QueryService,
+    private val configuration: Configuration
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {
+            checkEnabled(configuration)
             ok(projects.create(db, ctx.securityPrincipal, request.title))
         }
 
@@ -158,5 +162,11 @@ class ProjectController(
 
     companion object : Loggable {
         override val log = logger()
+    }
+}
+
+private fun CallHandler<*, *, *>.checkEnabled(configuration: Configuration) {
+    if (!configuration.enabled && ctx.securityPrincipal.role !in Roles.ADMIN) {
+        throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 }

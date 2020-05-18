@@ -2,7 +2,7 @@ import {ReduxObject, emptyPage} from "DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
 import Link from "ui-components/Link";
-import {addTrailingSlash} from "UtilityFunctions";
+import {addTrailingSlash, inDevEnvironment} from "UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
 import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
@@ -11,14 +11,17 @@ import ClickableDropdown from "ui-components/ClickableDropdown";
 import styled from "styled-components";
 import {useCloudAPI} from "Authentication/DataHook";
 import {Page} from "Types";
-import {UserInProject, ListProjectsRequest, listProjects} from "Project";
+import {UserInProject, ListProjectsRequest, listProjects, areProjectsEnabled} from "Project";
 import {useHistory} from "react-router";
 import {History} from "history";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
+import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
 
 // eslint-disable-next-line no-underscore-dangle
 function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
+    if (!areProjectsEnabled()) return null;
+
     const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 10, archived: false}),
         emptyPage

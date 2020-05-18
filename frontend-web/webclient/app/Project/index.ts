@@ -2,6 +2,8 @@ import {APICallParameters} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Page, PaginationRequest} from "Types";
 import {Client} from "Authentication/HttpClientInstance";
+import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
+import {inDevEnvironment} from "UtilityFunctions";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -394,4 +396,11 @@ export function viewProject(request: ViewProjectRequest): APICallParameters<View
         parameters: request,
         reloadId: Math.random()
     };
+}
+
+export function areProjectsEnabled(): boolean {
+    if ([DEV_SITE, STAGING_SITE].includes(window.location.host) || inDevEnvironment()) {
+        return true;
+    }
+    return Client.userRole === "ADMIN";
 }

@@ -18,7 +18,8 @@ import project.rpc.FavoritesController
 import kotlin.system.exitProcess
 
 class Server(
-    override val micro: Micro
+    override val micro: Micro,
+    private val configuration: Configuration
 ) : CommonServer {
     override val log = logger()
 
@@ -56,7 +57,7 @@ class Server(
 
         with(micro.server) {
             configureControllers(
-                ProjectController(db, projects, queries),
+                ProjectController(db, projects, queries, configuration),
                 GroupController(db, groups, queries),
                 MembershipController(db, queries),
                 FavoritesController(db, favorites)

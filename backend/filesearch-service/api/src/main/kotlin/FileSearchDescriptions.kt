@@ -14,15 +14,6 @@ import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
 /**
- * @see FileSearchDescriptions.simpleSearch
- */
-data class SimpleSearchRequest(
-    val query: String,
-    override val itemsPerPage: Int?,
-    override val page: Int?
-) : WithPaginationRequest
-
-/**
  * @see FileSearchDescriptions.advancedSearch
  */
 data class AdvancedSearchRequest(
@@ -43,26 +34,6 @@ typealias SearchResult = StorageFile
  */
 object FileSearchDescriptions : CallDescriptionContainer("fileSearch") {
     const val baseContext: String = "/api/file-search"
-
-    val simpleSearch = call<SimpleSearchRequest, Page<SearchResult>, CommonErrorMessage>("simpleSearch") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-            }
-
-            params {
-                +boundTo(SimpleSearchRequest::query)
-                +boundTo(SimpleSearchRequest::itemsPerPage)
-                +boundTo(SimpleSearchRequest::page)
-            }
-        }
-    }
 
     val advancedSearch = call<AdvancedSearchRequest, Page<SearchResult>, CommonErrorMessage>("advancedSearch") {
         auth {

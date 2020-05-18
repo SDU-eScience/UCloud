@@ -7,6 +7,44 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 18-05-20
+
+Release of several new UCloud features, including public links. Output of
+release notes has changed slightly to match our deployment tools.
+
+```
+✅  Deployment(task, 0.2.5) (UP-TO-DATE)
+✅  Deployment(mail, 0.1.2) (UP-TO-DATE)
+✅  Deployment(notification, 1.2.16) (UP-TO-DATE)
+✅  Deployment(accounting-storage, 1.4.0) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.2.0) (UP-TO-DATE)
+✅  Deployment(project, 3.0.0) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.1.11) (UP-TO-DATE)
+✅  Deployment(webdav, 0.1.14) (UP-TO-DATE)
+✅  Deployment(alerting, 1.1.25) (UP-TO-DATE)
+✅  Deployment(kubernetes-monitor, 0.1.3) (UP-TO-DATE)
+✅  Deployment(app-license, 0.1.10) (UP-TO-DATE)
+✅  Deployment(storage, 4.1.0) (UP-TO-DATE)
+✅  Deployment(activity, 1.4.15) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.2.0) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.18.4) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.1.1) (UP-TO-DATE)
+✅  Deployment(avatar, 1.3.8) (UP-TO-DATE)
+✅  Deployment(file-trash, 1.4.6) (UP-TO-DATE)
+✅  Deployment(downtime-management, 0.1.6) (UP-TO-DATE)
+✅  Deployment(share, 1.7.2) (UP-TO-DATE)
+✅  Deployment(app-kubernetes-watcher, 0.1.7) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.1.15) (UP-TO-DATE)
+✅  Deployment(auth, 1.27.11) (UP-TO-DATE)
+✅  Deployment(app-store, 0.13.3) (UP-TO-DATE)
+✅  Deployment(support, 1.3.4) (UP-TO-DATE)
+✅  Deployment(accounting-compute, 1.3.0) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.1.0) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.1.18) (UP-TO-DATE)
+✅  Deployment(indexing, 1.16.4) (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.5.4) (UP-TO-DATE)
+```
+
 ## 12-05-20
 
 Bug fix for notifications.

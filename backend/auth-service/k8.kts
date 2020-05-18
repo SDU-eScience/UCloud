@@ -31,6 +31,8 @@ bundle { ctx ->
     }
 
     withPostgresMigration(deployment) {
+        // This code no longer works
+        /*
         val volumeBlacklist = setOf(
             "auth-wayf",
             "auth-wayf-config"
@@ -43,6 +45,7 @@ bundle { ctx ->
                             emptyDir = EmptyDirVolumeSource()
                         }
                     }
+        */
     }
 
     withCronJob(deployment, "0 2 * * 1", listOf("--tokenScan")) {}

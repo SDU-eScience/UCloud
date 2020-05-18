@@ -3,28 +3,9 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "filesearch"
-    version = "1.2.0-projects.3"
+    version = "1.2.0"
 
-    withAmbassador(null) {
-        services.add(
-            AmbassadorMapping(
-                """
-                ---
-                apiVersion: ambassador/v1
-                kind: Mapping
-                name: filesearch
-                prefix: ^/api/file-search(/.*)?${'$'}
-                prefix_regex: true
-                service: filesearch:8080
-                rewrite: ""
-                precedence: 10
-                headers:
-                  x-no-load: true
-                  
-                """.trimIndent()
-            )
-        )
-    }
+    withAmbassador("/api/file-search") {}
 
     val deployment = withDeployment {
         deployment.spec.replicas = 2
