@@ -1,23 +1,24 @@
 package dk.sdu.cloud.notification.services
 
+import TestDB
+import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.notification.api.Notification
-import dk.sdu.cloud.service.db.H2_TEST_CONFIG
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.db.get
+import dk.sdu.cloud.service.db.POSTGRES_9_5_DIALECT
+import dk.sdu.cloud.service.db.POSTGRES_DRIVER
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withSession
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.initializeMicro
-import io.mockk.MockKAnnotations
 import kotlinx.coroutines.runBlocking
-import org.junit.Ignore
 import org.junit.Test
-import java.util.*
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import java.io.File
+import java.net.URL
+import kotlin.test.BeforeTest
+
 
 private fun withDatabase(closure: suspend (HibernateSessionFactory) -> Unit) {
     val micro = initializeMicro()
@@ -28,7 +29,7 @@ private fun withDatabase(closure: suspend (HibernateSessionFactory) -> Unit) {
     }
 }
 
-@Ignore("Testing strategy for new db")
+//@Ignore("Testing strategy for new db")
 class NotificationHibernateDAOTest {
     private val user = "user"
     private val notificationInstance = Notification(
@@ -41,9 +42,34 @@ class NotificationHibernateDAOTest {
         "You got mail again!"
     )
 
-    /*@Test
+
+    @Test
     fun `create , find, mark, delete test`() {
-        withDatabase { db ->
+        println("start test")
+
+        val db = TestDB().getTestDB("db/migration")
+        val workingdb = AsyncDBSessionFactory(
+            DatabaseConfig(
+                jdbcUrl = db.getJdbcUrl("postgres", "postgres"),
+                defaultSchema = "notification",
+                recreateSchema = false,
+                driver = POSTGRES_DRIVER,
+                dialect = POSTGRES_9_5_DIALECT,
+                username = "postgres",
+                password = "postgres"
+            )
+        )
+
+        runBlocking {
+            workingdb.withSession { session ->
+                val results = NotificationHibernateDAO().findNotifications(session, "user", paginationRequest = NormalizedPaginationRequest(10,0))
+                println( results)
+            }
+        }
+        println("done")
+
+
+        /*withDatabase { db ->
             db.withSession {
                 val dao = NotificationHibernateDAO()
 
@@ -154,6 +180,6 @@ class NotificationHibernateDAOTest {
                 assertEquals(2, results.items.first().id)
                 assertEquals("You got mail again!", results.items.first().message)
             }
-        }
-    }*/
+        }*/
+    }
 }

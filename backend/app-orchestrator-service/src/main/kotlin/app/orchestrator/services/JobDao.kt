@@ -99,7 +99,7 @@ class JobDao {
         }
     }
 
-    suspend fun updateStatus(
+    suspend fun     updateStatus(
         ctx: DBContext,
         systemId: String,
         status: String? = null,

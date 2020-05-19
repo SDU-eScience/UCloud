@@ -53,26 +53,29 @@ class NotificationHibernateDAO : NotificationDAO {
                     setParameter("type", type)
                 },
                 """
-                    from notifications
-                    (where owner = ?owner) 
-                    and
-                    (
-                    ?since::bigint is null or
-                    created_at >= to_timestamp(?since)
-                    )
-                    and
-                    (
-                    ?type::string is null or
-                    type = ?type 
-                    )
-                """.trimIndent(),
-                orderBy = "created_at DESC"
+                    FROM notification.notifications
+                    WHERE (
+                        (owner = ?owner) 
+                        AND
+                        (
+                            ?since::bigint is null or
+                            created_at >= to_timestamp(?since)
+                        )
+                        AND
+                        (
+                            ?type::text is null or
+                            type = ?type 
+                        )
+                        )
+                    GROUP BY created_at, id
+                    ORDER BY created_at DESC
+                """.trimIndent()
             ).mapItems { it.toNotification() }
         }
     }
 
     override suspend fun create(ctx: DBContext, user: String, notification: Notification): NotificationId {
-        val id = ctx.withSession{ it.allocateId()}
+        val id = ctx.withSession{ it.allocateId("notification.hibernate_sequence")}
         ctx.withSession{ session ->
             session.insert(NotificationTable) {
                 set(NotificationTable.message, notification.message)
