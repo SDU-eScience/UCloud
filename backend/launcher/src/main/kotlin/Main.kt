@@ -1,6 +1,5 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.audit.ingestion.AuditIngestionService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.kubernetes.monitor.KubernetesMonitorService
 import dk.sdu.cloud.micro.Service
@@ -16,6 +15,11 @@ object Launcher : Loggable {
 }
 
 suspend fun main(args: Array<String>) {
+    if (args.contains("--run-script") && args.contains("migrate-db")) {
+        println("REFUSING TO START LAUNCHER WHEN MIGRATING DB")
+        return
+    }
+
     val reg = ServiceRegistry(args)
     val blacklist = setOf(
         // WebDav needs to run as a standalone server

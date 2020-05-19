@@ -14,7 +14,7 @@ const SvgTrash = (props: any) => (
     />
     <path
       d="M6.5 8h2v11H7L6.5 8zM10 8h2v11h-2V8zm3.5 0h2L15 19h-1.5V8z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
     />
   </svg>
 );

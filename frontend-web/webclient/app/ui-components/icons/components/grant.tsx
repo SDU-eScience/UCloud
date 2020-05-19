@@ -14,7 +14,7 @@ const SvgGrant = (props: any) => (
       fillRule="nonzero"
     />
     <path
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
       d="M0 15.428h24v1.715H0z"
     />

@@ -35,7 +35,7 @@ module.exports = {
     replaceAttrValues: {
         "#001833": "{undefined}",
         "#53657d": "{undefined}",
-        "#8393a7": "{props.color2 ? props.color2 : null }"
+        "#8393a7": "{props.color2 ? props.color2 : \"currentcolor\" }"
     },
     // do not write width and height in svg
     dimensions: false,

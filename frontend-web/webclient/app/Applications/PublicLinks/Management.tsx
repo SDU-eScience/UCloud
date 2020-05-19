@@ -36,20 +36,23 @@ export const PublicLinkManagement: React.FunctionComponent<PublicLinkManagementP
         fetchLinks(listPublicLinks({...linksParams.parameters}));
     };
 
+    const create = async (e): Promise<void> => {
+        e.preventDefault();
+        await runCommand(createPublicLink({url: title.current!.value}));
+        reload();
+        setCreatingItem(false);
+    };
+
     return (
         <Wrapper>
             {creatingItem ?
                 <ListRow
                     left={(
-                        <form onSubmit={async (e) => {
-                            e.preventDefault();
-                            await runCommand(createPublicLink({url: title.current!.value}));
-                            reload();
-                            setCreatingItem(false);
-                        }}>
+                        <form onSubmit={create}>
                             <Flex alignItems={"center"}>
                                 <TextSpan color={"gray"}>https://app-</TextSpan>
                                 <Input
+                                    onBlur={create}
                                     pt="0px"
                                     pb="0px"
                                     pr="0px"
@@ -166,7 +169,7 @@ export const PublicLinkManagement: React.FunctionComponent<PublicLinkManagementP
                 width={"100%"}
                 onClick={() => setCreatingItem(true)}
             >
-                Create link
+                New link
             </Button>
         </Wrapper>
     );

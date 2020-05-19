@@ -9,12 +9,12 @@ const SvgChrono = (props: any) => (
     {...props}
   >
     <path
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
       d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
     />
     <path
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
       d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
     />
@@ -24,7 +24,7 @@ const SvgChrono = (props: any) => (
       fillRule="nonzero"
     />
     <path
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
       d="M6.857 0h6.858v2.572H6.857z"
     />

@@ -27,7 +27,10 @@ const SvgMail = (props: any) => (
         gradientUnits="userSpaceOnUse"
         gradientTransform="matrix(7 -6 6 7 7.996 13.785)"
       >
-        <stop offset={0} stopColor={props.color2 ? props.color2 : null} />
+        <stop
+          offset={0}
+          stopColor={props.color2 ? props.color2 : "currentcolor"}
+        />
         <stop offset={1} stopColor="#3d4b5c" />
       </linearGradient>
     </defs>

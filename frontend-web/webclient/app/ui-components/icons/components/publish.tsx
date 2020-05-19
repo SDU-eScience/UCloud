@@ -14,7 +14,7 @@ const SvgPublish = (props: any) => (
     />
     <path
       d="M12.6 19.774l-.641-.506-7.16-5.652v4.226L12.6 24l7.8-6.158v-4.226l-7.159 5.652-.64.506z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
     />
   </svg>
 );
