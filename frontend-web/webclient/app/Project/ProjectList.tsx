@@ -23,7 +23,7 @@ import {ListRow, ListRowStat} from "ui-components/List";
 import {useHistory} from "react-router";
 import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
-import {projectRoleToString, toggleFavoriteProject} from "Project";
+import {projectRoleToString, projectRoleToStringIcon, toggleFavoriteProject} from "Project";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Client} from "Authentication/HttpClientInstance";
 import {stopPropagation} from "UtilityFunctions";
@@ -266,9 +266,14 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                             <Icon name={"warning"} /> Attention required
                                                         </Text>
                                                     )}
-                                                    <Flex mx="6px" my="6px" px="4px" width="78px" style={{borderRadius: "8px", border: "1px solid var(--black)"}} ml="4px">
-                                                        <Box ml="auto" />{projectRoleToString(e.whoami.role)}<Box mr="auto" />
-                                                    </Flex>
+                                                    <Icon
+                                                        size="30"
+                                                        squared={false}
+                                                        name={projectRoleToStringIcon(e.whoami.role)}
+                                                        color="gray"
+                                                        color2="midGray"
+                                                        mr=".5em"
+                                                    />
                                                     <Toggle
                                                         scale={1.5}
                                                         activeColor="green"
@@ -289,6 +294,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                                 left="-105px"
                                                                 trigger={(
                                                                     <Icon
+                                                                        ml="0.5em"
                                                                         mr="10px"
                                                                         name="ellipsis"
                                                                         size="1em"
