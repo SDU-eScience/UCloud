@@ -180,11 +180,6 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
     );
 };
 
-function AvatarComponent(p: {username: string; avatars: Dictionary<AvatarType>}): JSX.Element {
-    const avatar = p.avatars[p.username] ?? defaultAvatar;
-    return <UserAvatar avatar={avatar} mr="10px" />;
-}
-
 function GroupedShareCardWrapper(p: {
     shareByPath: SharesByPath;
     simple: boolean;
@@ -211,6 +206,7 @@ function GroupedShareCardWrapper(p: {
         >
             {p.shareByPath.shares.slice(pageSize * pageNumber, pageSize * pageNumber + pageSize).map(share => (
                 <ShareRow
+                    avatar={p.avatars[p.sharedByMe ? share.sharedWith : p.shareByPath.sharedBy] ?? defaultAvatar}
                     path={p.shareByPath.path}
                     simple={p.simple}
                     key={share.sharedWith}
@@ -218,12 +214,7 @@ function GroupedShareCardWrapper(p: {
                     onUpdate={p.refresh}
                     share={share}
                     sharedByMe={p.sharedByMe}
-                >
-                    <AvatarComponent
-                        avatars={p.avatars}
-                        username={p.sharedByMe ? share.sharedWith : p.shareByPath.sharedBy}
-                    />
-                </ShareRow>
+                />
             ))}
             <PaginationButtons
                 totalPages={(Math.ceil(p.shareByPath.shares.length / pageSize))}
@@ -322,7 +313,11 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const {path} = groupedShare;
     const sharedByMe = groupedShare.sharedByMe;
     const folderLink = (groupedShare.shares[0].state === ShareState.ACCEPTED) || sharedByMe ? (
-        <Link to={fileTablePage(!sharedByMe ? Client.sharesFolder : (isDirectory({fileType}) ? path : getParentPath(path)))}>
+        <Link
+            to={fileTablePage(!sharedByMe && !isDirectory({fileType}) ?
+                Client.sharesFolder : isDirectory({fileType}) ?
+                    path : getParentPath(path))}
+        >
             {getFilenameFromPath(path)}
         </Link>
     ) : <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
@@ -426,6 +421,7 @@ export const ShareRow: React.FunctionComponent<{
     path: string;
     sharedByMe: boolean;
     sharedBy: string;
+    avatar: AvatarType;
     onUpdate: () => void;
     revokeAsIcon?: boolean;
     simple: boolean;
@@ -514,7 +510,7 @@ export const ShareRow: React.FunctionComponent<{
                 ) : (
                         <Button color="red" ml="16px" onClick={doRevoke}>
                             <Icon name="close" size="1em" mr=".7em" />
-                        Revoke
+                            Revoke
                         </Button>
                     )}
             </>
@@ -523,7 +519,7 @@ export const ShareRow: React.FunctionComponent<{
 
     return (
         <Flex alignItems="center" mb="16px">
-            {props.children}
+            <UserAvatar avatar={props.avatar} mr="10px" />
 
             <div>
                 <Text bold>{sharedByMe ? share.sharedWith : sharedBy}</Text>
