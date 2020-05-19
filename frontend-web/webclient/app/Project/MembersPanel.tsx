@@ -5,7 +5,7 @@ import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {Box, Button, Flex, Icon, Input, Link} from "ui-components";
+import {Box, Button, Flex, Icon, Input, Absolute, Label, Relative} from "ui-components";
 import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {useProjectManagementStatus} from "Project/View";
 import {addGroupMember} from "Project";
@@ -65,20 +65,6 @@ const MembersPanel: React.FunctionComponent = () => {
     };
 
     return <>
-        <Flex>
-            <MembersBreadcrumbs>
-                <li>Members of {`${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`}</li>
-            </MembersBreadcrumbs>
-            <Link to={`/projects/view/${group ? encodeURIComponent(group) : "-"}/settings`}>
-                <Icon
-                    name={"properties"}
-                    m={8}
-                    hoverColor={"blue"}
-                    cursor={"pointer"}
-                />
-            </Link>
-        </Flex>
-
         <SearchContainer>
             {!allowManagement ? null : (
                 <form onSubmit={onSubmit}>
@@ -124,19 +110,25 @@ const MembersPanel: React.FunctionComponent = () => {
                     <Button attached type={"submit"}>Add</Button>
                 </form>
             )}
-
             <form onSubmit={preventDefault}>
                 <Input
                     id="project-member-search"
                     placeholder="Enter username to search..."
+                    pr="30px"
+                    autocomplete="off"
                     disabled={isLoading}
                     value={memberSearchQuery}
                     onChange={e => {
                         setMemberSearchQuery(e.target.value);
                     }}
-                    rightLabel
                 />
-                <Button attached><Icon name={"search"}/></Button>
+                <Relative>
+                    <Absolute right="6px" top="10px">
+                        <Label htmlFor="project-member-search">
+                            <Icon name="search" size="24" />
+                        </Label>
+                    </Absolute>
+                </Relative>
             </form>
         </SearchContainer>
 
@@ -180,7 +172,7 @@ const MembersPanel: React.FunctionComponent = () => {
                             role: ProjectRole.USER
                         }))}
                         onRemoveMember={async (member) => {
-                            await runCommand(rejectInvite({ projectId, username: member}));
+                            await runCommand(rejectInvite({projectId, username: member}));
                             reloadMembers();
                         }}
                         projectRole={projectRole}

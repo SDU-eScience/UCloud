@@ -12,7 +12,7 @@ import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
 import {useHistory, useParams} from "react-router";
-import {Box, Button} from "ui-components";
+import {Box, Button, Link, Flex, Icon} from "ui-components";
 import {connect, useSelector} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -27,7 +27,7 @@ import {
 } from "Project";
 import styled from "styled-components";
 import GroupView, {GroupWithSummary} from "./GroupList";
-import ProjectMembers from "./MembersPanel";
+import ProjectMembers, {MembersBreadcrumbs} from "./MembersPanel";
 import {Page} from "Types";
 import {emptyPage, ReduxObject} from "DefaultObjects";
 import {useGlobal} from "Utilities/ReduxHooks";
@@ -42,7 +42,7 @@ import {Client} from "Authentication/HttpClientInstance";
 export function useProjectManagementStatus() {
     const history = useHistory();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
-    const locationParams = useParams<{ group: string; member?: string }>();
+    const locationParams = useParams<{group: string; member?: string}>();
     let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
     let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
     if (group === '-') group = undefined;
@@ -182,10 +182,31 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         setShouldVerifyParams(shouldVerifyMembership(projectId));
     };
 
+    const isSettingsPage = membersPage === "settings";
+
     return (
         <MainContainer
-            headerSize={0}
-            header={null}
+            header={<Flex>
+                <MembersBreadcrumbs>
+                    <li>
+                        <Link to={`/projects/view/${group ? encodeURIComponent(group) : "-"}`}>
+                            Members of {`${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`}
+                        </Link>
+                    </li>
+                    {isSettingsPage ? <li>Settings</li> : null}
+                </MembersBreadcrumbs>
+                <Flex>
+                    <Link to={isSettingsPage ? "/projects/view/" : "/projects/view/-/settings"}>
+                        <Icon
+                            name="properties"
+                            m={8}
+                            color={isSettingsPage ? "blue" : undefined}
+                            hoverColor="blue"
+                            cursor="pointer"
+                        />
+                    </Link>
+                </Flex>
+            </Flex>}
             sidebar={null}
             main={(
                 <>
@@ -197,7 +218,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                                 <li>PIs and admins are asked to occasionally review members of their project</li>
                                 <li>We ask you to ensure that only the people who need access have access</li>
                                 <li>If you find someone who should not have access then remove them by clicking
-                                    &apos;X&apos; next to their name
+                                &apos;X&apos; next to their name
                                 </li>
                                 <li>
                                     When you are done, click below:
@@ -215,11 +236,11 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                     <TwoColumnLayout>
                         <Box className={"members"}>
                             <Box ml={8} mr={8}>
-                                {membersPage === "settings" ? <ProjectSettings/> : <ProjectMembers/>}
+                                {isSettingsPage ? <ProjectSettings /> : <ProjectMembers />}
                             </Box>
                         </Box>
                         <Box className={"groups"}>
-                            <GroupView/>
+                            <GroupView />
                         </Box>
                     </TwoColumnLayout>
                 </>
@@ -252,7 +273,7 @@ const TwoColumnLayout = styled.div`
         }
         
         & > .groups {
-            flex: 2;
+            flex: 1;
             height: 100%;
             overflow: auto;
         }

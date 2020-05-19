@@ -423,7 +423,7 @@ function inCancelableState(state: ShareState): boolean {
 
 export const ShareRow: React.FunctionComponent<{
     share: MinimalShare;
-    path: string,
+    path: string;
     sharedByMe: boolean;
     sharedBy: string;
     onUpdate: () => void;
@@ -440,15 +440,15 @@ export const ShareRow: React.FunctionComponent<{
     const doAccept = (): Promise<void> => sendCommandAndUpdate(acceptShare(path));
     const doRevoke = (e: React.MouseEvent<HTMLButtonElement, MouseEvent>): void => {
         e.preventDefault();
-        if (props.simple) sendCommandAndUpdate(revokeShare({path: path, sharedWith: share.sharedWith}));
+        if (props.simple) sendCommandAndUpdate(revokeShare({path, sharedWith: share.sharedWith}));
         else addStandardDialog({
             title: "Revoke?",
             message: "Remove share?",
-            onConfirm: () => sendCommandAndUpdate(revokeShare({path: path, sharedWith: share.sharedWith}))
+            onConfirm: () => sendCommandAndUpdate(revokeShare({path, sharedWith: share.sharedWith}))
         });
     };
     const doUpdate = (newRights: AccessRight[]): Promise<void> =>
-        sendCommandAndUpdate(updateShare({path: path, rights: newRights, sharedWith: share.sharedWith}));
+        sendCommandAndUpdate(updateShare({path, rights: newRights, sharedWith: share.sharedWith}));
 
     let permissionsBlock: JSX.Element | string | null = null;
 
@@ -507,7 +507,7 @@ export const ShareRow: React.FunctionComponent<{
                         color="red"
                         cursor="pointer"
                         onClick={() => sendCommandAndUpdate(revokeShare({
-                            path: path,
+                            path,
                             sharedWith: share.sharedWith
                         }))}
                     />
