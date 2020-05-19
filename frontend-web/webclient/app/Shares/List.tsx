@@ -322,14 +322,8 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         </Link>
     ) : <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
     return (
-        <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} mb={12}>
-            <BorderedFlex
-                bg="lightGray"
-                color="darkGray"
-                px={3}
-                py={2}
-                alignItems="center"
-            >
+        <ShareCardBase
+            title={<>
                 <Box ml="3px" mr="10px">
                     <FileIcon
                         key={fileType}
@@ -340,9 +334,8 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                 <Box ml="auto" />
                 {groupedShare.sharedByMe ?
                     `${groupedShare.shares.length} ${groupedShare.shares.length > 1 ?
-                        "collaborators" : "collaborator"}` : sharePermissionsToText(groupedShare.shares[0].rights)}
-            </BorderedFlex>
-            <Box px={3} pt={3}>
+                        "collaborators" : "collaborator"}` : sharePermissionsToText(groupedShare.shares[0].rights)}</>}
+            body={<>
                 {!groupedShare.sharedByMe || props.simple ? null : (
                     <form onSubmit={doCreateShare}>
                         <Flex mb="16px" alignItems="center">
@@ -383,8 +376,8 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                     </form>
                 )}
                 {props.children}
-            </Box>
-            {!(groupedShare.sharedByMe &&
+            </>}
+            bottom={!(groupedShare.sharedByMe &&
                 groupedShare.shares.some(it => inCancelableState(it.state)) &&
                 groupedShare.shares.length > 1) ? null : (
                     <Spacer
@@ -404,9 +397,33 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                         )}
                     />
                 )}
-        </Card>
+        />
     );
 };
+
+interface ShareCardBaseProps {
+    title: JSX.Element | string | null;
+    body: JSX.Element | null;
+    bottom: JSX.Element | null;
+}
+
+export const ShareCardBase: React.FC<ShareCardBaseProps> = props => (
+    <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={1} borderRadius={6} mb={12}>
+        <BorderedFlex
+            bg="lightGray"
+            color="darkGray"
+            px={3}
+            py={2}
+            alignItems="center"
+        >
+            {props.title}
+        </BorderedFlex>
+        <Box px={3} pt={3}>
+            {props.body}
+        </Box>
+        {props.bottom}
+    </Card>
+);
 
 const BorderedFlex = styled(Flex)`
     borderRadius: 6px 6px 0px 0px;

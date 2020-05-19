@@ -13,7 +13,7 @@ import {
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Page, Operation} from "Types";
+import {Page, Operation, Dictionary} from "Types";
 import Button from "ui-components/Button";
 import {Flex, Icon, List, Text, Input, Box, Checkbox, Label, Link} from "ui-components";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
@@ -33,6 +33,11 @@ import {useEffect, useState} from "react";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Toggle} from "ui-components/Toggle";
+import {Spacer} from "ui-components/Spacer";
+import {ShareCardBase} from "Shares/List";
+import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {loadAvatars} from "Shares";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -46,6 +51,18 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         listIngoingInvites({page: 0, itemsPerPage: 10}),
         emptyPage
     );
+
+    const usernames = ingoingInvites.data.items.map(it => it.invitedBy);
+
+    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<{avatars: Dictionary<AvatarType>}>(
+        loadAvatars({usernames: new Set(usernames)}), {avatars: {}}
+    );
+
+    React.useEffect(() => {
+        if (usernames.length === 0) return;
+        setAvatarParams(loadAvatars({usernames: new Set(usernames)}));
+    }, [usernames.length]);
+
 
     const [creatingProject, setCreatingProject] = React.useState(false);
     const title = React.useRef<HTMLInputElement>(null);
@@ -105,39 +122,44 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         }
                         pageRenderer={() => (
                             <Box mb={32}>
-                                <List>
-                                    {ingoingInvites.data.items.map(invite => (
-                                        <ListRow
-                                            icon={<Box width={"24px"} />}
-                                            key={invite.project}
-                                            left={invite.project}
-                                            leftSub={
-                                                <ListRowStat icon={"id"}>Invited by {invite.invitedBy}</ListRowStat>
-                                            }
-                                            right={(<>
-                                                <Button
-                                                    color={"green"}
-                                                    mr={8}
-                                                    onClick={async () => {
-                                                        await runCommand(acceptInvite({projectId: invite.project}));
-                                                        reload();
-                                                    }}
-                                                >
-                                                    Accept
-                                                </Button>
-                                                <Button
-                                                    color={"red"}
-                                                    onClick={async () => {
-                                                        await runCommand(rejectInvite({projectId: invite.project}));
-                                                        reload();
-                                                    }}
-                                                >
-                                                    Reject
-                                                </Button>
-                                            </>)}
-                                        />
-                                    ))}
-                                </List>
+                                {ingoingInvites.data.items.map(invite => (
+                                    <ShareCardBase
+                                        key={invite.project}
+                                        title={invite.project}
+                                        body={
+                                            <Spacer
+                                                left={<>
+                                                    <UserAvatar avatar={avatars.data.avatars[invite.invitedBy] ?? defaultAvatar} mr="10px" />
+                                                    <Flex alignItems="center">Invited by {invite.invitedBy}</Flex>
+                                                </>}
+                                                right={<Flex alignItems="center">
+                                                    <Button
+                                                        color="green"
+                                                        height="42px"
+                                                        mr={8}
+                                                        onClick={async () => {
+                                                            await runCommand(acceptInvite({projectId: invite.project}));
+                                                            reload();
+                                                        }}
+                                                    >
+                                                        Accept
+                                                    </Button>
+                                                    <Button
+                                                        color="red"
+                                                        height="42px"
+                                                        onClick={async () => {
+                                                            await runCommand(rejectInvite({projectId: invite.project}));
+                                                            reload();
+                                                        }}
+                                                    >
+                                                        Reject
+                                                    </Button>
+                                                </Flex>}
+                                            />
+                                        }
+                                        bottom={<Box height="16px" />}
+                                    />
+                                ))}
                             </Box>
                         )}
                     />
@@ -146,7 +168,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     <List>
                         <ListRow
                             icon={<Box width="24px" />}
-                            left={<Text>Personal project</Text>}
+                            left={<Box height="41px" mb="-6px" alignItems="bottom"><Text>Personal project</Text></Box>}
                             leftSub={<div />}
                             right={<>
                                 <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
@@ -166,26 +188,37 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     color={"midGray"}
                                     hoverColor="blue"
                                 />}
-                                left={<form onSubmit={onCreateProject}><Input
-                                    pt="0px"
-                                    pb="0px"
-                                    pr="0px"
-                                    pl="0px"
-                                    noBorder
-                                    fontSize={20}
-                                    maxLength={1024}
-                                    onKeyDown={e => {
-                                        if (e.keyCode === KeyCode.ESC) {
-                                            setCreatingProject(false);
-                                        }
-                                    }}
-                                    borderRadius="0px"
-                                    type="text"
-                                    width="100%"
-                                    autoFocus
-                                    ref={title}
-                                /></form>}
-                                right={<ListRowStat icon={"user"}>{projectRoleToString(ProjectRole.PI)}</ListRowStat>}
+                                left={<form onSubmit={onCreateProject}>
+                                    <Box height="38px">
+                                        <Input
+                                            my="3px"
+                                            pt="0px"
+                                            pb="0px"
+                                            pr="0px"
+                                            pl="0px"
+                                            noBorder
+                                            fontSize={20}
+                                            maxLength={1024}
+                                            onKeyDown={e => {
+                                                if (e.keyCode === KeyCode.ESC) {
+                                                    setCreatingProject(false);
+                                                }
+                                            }}
+                                            borderRadius="0px"
+                                            type="text"
+                                            width="100%"
+                                            autoFocus
+                                            ref={title}
+                                        />
+                                    </Box>
+                                </form>}
+                                right={<>
+                                    <Toggle
+                                        scale={1.5}
+                                        activeColor="green"
+                                        checked={false}
+                                        onChange={() => undefined}
+                                    /><Box width="28px" /> </>}
                             /> : null}
                         <Pagination.List
                             page={response.data}
