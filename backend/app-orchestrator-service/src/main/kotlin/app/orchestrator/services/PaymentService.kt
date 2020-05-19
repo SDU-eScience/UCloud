@@ -1,9 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.accounting.compute.api.AccountType
-import dk.sdu.cloud.accounting.compute.api.AccountingCompute
-import dk.sdu.cloud.accounting.compute.api.ChargeReservationRequest
-import dk.sdu.cloud.accounting.compute.api.ReserveCreditsRequest
+import dk.sdu.cloud.accounting.compute.api.*
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -68,8 +65,11 @@ class PaymentService(
                 job.id,
                 price,
                 job.maxTime.toMillis() * 3,
-                job.project ?: job.owner,
-                if (job.project != null) AccountType.PROJECT else AccountType.USER,
+                CreditsAccount(
+                    job.project ?: job.owner,
+                    if (job.project != null) AccountType.PROJECT else AccountType.USER,
+                    job.reservation.type
+                ),
                 job.owner
             ),
             serviceClient

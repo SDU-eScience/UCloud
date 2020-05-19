@@ -54,6 +54,12 @@ data class ComputeChartResponse(
     val cumulative: List<ComputeChartPoint>
 )
 
+data class CreditsAccount(
+    val id: String,
+    val type: AccountType,
+    val machineType: MachineType
+)
+
 enum class AccountType {
     USER,
     PROJECT
@@ -74,16 +80,15 @@ data class RetrieveBalanceResponse(
 )
 
 data class GrantCreditsRequest(
-    val id: String,
-    val type: AccountType,
+    val account: CreditsAccount,
     val credits: Long
 )
 
 typealias GrantCreditsResponse = Unit
 
 data class SetBalanceRequest(
-    val id: String,
-    val type: AccountType,
+    val account: CreditsAccount,
+    val lastKnownBalance: Long,
     val newBalance: Long
 )
 
@@ -100,8 +105,7 @@ data class ReserveCreditsRequest(
     val jobId: String,
     val amount: Long,
     val expiresAt: Long,
-    val accountId: String,
-    val accountType: AccountType,
+    val account: CreditsAccount,
     val jobInitiatedBy: String
 )
 
