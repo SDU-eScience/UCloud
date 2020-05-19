@@ -19,11 +19,8 @@ const SearchContainer = styled(Flex)`
     
     form {
         flex-grow: 1;
-        flex-basis: 300px;
+        flex-basis: 350px;
         display: flex;
-    }
-    
-    form {
         margin-right: 10px;
         margin-bottom: 10px;
     }

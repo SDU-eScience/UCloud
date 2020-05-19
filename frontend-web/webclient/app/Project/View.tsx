@@ -211,7 +211,7 @@ const View: React.FunctionComponent<ViewOperations> = props => {
             main={(
                 <>
                     {!shouldVerify.data.shouldVerify ? null : (
-                        <Box backgroundColor={"orange"} color={"white"} p={32} m={16}>
+                        <Box backgroundColor="orange" color="white" p={32} m={16}>
                             <Heading.h4>Time for a review!</Heading.h4>
 
                             <ul>
@@ -234,12 +234,12 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                         </Box>
                     )}
                     <TwoColumnLayout>
-                        <Box className={"members"}>
+                        <Box className="members">
                             <Box ml={8} mr={8}>
                                 {isSettingsPage ? <ProjectSettings /> : <ProjectMembers />}
                             </Box>
                         </Box>
-                        <Box className={"groups"}>
+                        <Box className="groups">
                             <GroupView />
                         </Box>
                     </TwoColumnLayout>
@@ -258,6 +258,10 @@ const TwoColumnLayout = styled.div`
     & > * {
         flex-basis: 100%;
     }
+
+    & > .groups {
+        overflow: auto;
+    }
     
     @media screen and (min-width: 1200px) {
         & {
@@ -275,7 +279,6 @@ const TwoColumnLayout = styled.div`
         & > .groups {
             flex: 1;
             height: 100%;
-            overflow: auto;
         }
     }
 `;

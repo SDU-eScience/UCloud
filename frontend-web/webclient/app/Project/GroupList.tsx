@@ -18,6 +18,7 @@ import {useProjectManagementStatus} from "Project/View";
 import {deleteGroup, groupSummaryRequest, updateGroupName} from "Project";
 import {MutableRefObject, useCallback, useRef, useState} from "react";
 import {useAsyncCommand} from "Authentication/DataHook";
+import {Spacer} from "ui-components/Spacer";
 
 export interface GroupWithSummary {
     group: string;
@@ -27,7 +28,7 @@ export interface GroupWithSummary {
 
 const baseContext = "/projects/groups";
 
-const GroupList: React.FunctionComponent = props => {
+const GroupList: React.FunctionComponent = () => {
     const history = useHistory();
     const {allowManagement, group, groupList, fetchGroupList, groupListParams,
         membersPage} = useProjectManagementStatus();
@@ -41,13 +42,12 @@ const GroupList: React.FunctionComponent = props => {
     const [, runCommand] = useAsyncCommand();
 
     const operations: GroupOperation[] = [
-        /*{
+        /* {
             disabled: groups => groups.length !== 1,
             onClick: (groups) => setRenamingGroup(groups[0].group),
             icon: "rename",
             text: "Rename"
-        },
-         */
+        }, */
         {
             disabled: groups => groups.length === 0 || !allowManagement,
             onClick: (groups) => promptDeleteGroups(groups),
@@ -58,9 +58,9 @@ const GroupList: React.FunctionComponent = props => {
     ];
 
 
-    if (group) return <GroupView/>;
+    if (group) return <GroupView />;
 
-    let content = (
+    const content = (
         <>
             {groupList.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
             <List>
@@ -79,7 +79,7 @@ const GroupList: React.FunctionComponent = props => {
                         navigate={() => history.push(`/projects/view/${encodeURIComponent(g.group)}/${membersPage ?? ""}`)}
                         leftSub={
                             <Text ml="4px" color="gray" fontSize={0}>
-                                <Icon color="gray" mt="-2px" size="10" name="projects"/> {g.numberOfMembers}
+                                <Icon color="gray" mt="-2px" size="10" name="projects" /> {g.numberOfMembers}
                             </Text>
                         }
                         right={
@@ -96,7 +96,7 @@ const GroupList: React.FunctionComponent = props => {
                                     />
                                 )}
                             >
-                                <GroupOperations groupOperations={operations} selectedGroups={[g]}/>
+                                <GroupOperations groupOperations={operations} selectedGroups={[g]} />
                             </ClickableDropdown>
                         }
                         isSelected={false}
@@ -114,26 +114,28 @@ const GroupList: React.FunctionComponent = props => {
                         }
                         leftSub={
                             <Text ml="4px" color="gray" fontSize={0}>
-                                <Icon color="gray" mt="-2px" size="10" name="projects"/> 0
+                                <Icon color="gray" mt="-2px" size="10" name="projects" /> 0
                             </Text>
                         }
-                        right={<div/>}
+                        right={<div />}
                         isSelected={false}
                         select={() => undefined}
                     /> : null}
             </List>
-
-            {!allowManagement ? null : (
-                <Flex justifyContent={"center"}>
-                    <Button width={"50%"} onClick={() => setCreatingGroup(true)}>New Group</Button>
-                </Flex>
-            )}
         </>
     );
     return <>
-        <BreadCrumbsBase>
-            <li><span>Groups</span></li>
-        </BreadCrumbsBase>
+        <Spacer
+            left={
+                <BreadCrumbsBase>
+                    <li><span>Groups</span></li>
+                </BreadCrumbsBase>
+            }
+
+            right={!allowManagement ? null : (
+                <Button height="40px" width="120px" onClick={() => setCreatingGroup(true)}>New Group</Button>
+            )}
+        />
 
         <Pagination.List
             loading={groupList.loading}
@@ -186,7 +188,7 @@ const GroupList: React.FunctionComponent = props => {
         }
     }
 
-    async function renameGroup() {
+    async function renameGroup(): Promise<void> {
         const oldGroupName = renamingGroup;
         if (!oldGroupName) return;
         const newGroupName = renameRef.current?.value;
@@ -195,7 +197,7 @@ const GroupList: React.FunctionComponent = props => {
         await runCommand(updateGroupName({oldGroupName, newGroupName}));
         fetchGroupList(groupListParams);
     }
-}
+};
 
 const NamingField: React.FunctionComponent<{
     onCancel: () => void;
@@ -232,7 +234,7 @@ const NamingField: React.FunctionComponent<{
             />
         </form>
     );
-}
+};
 
 type GroupOperation = Operation<GroupWithSummary>;
 
@@ -254,7 +256,7 @@ function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
                 cursor="pointer"
                 pl="15px">
                 <span onClick={() => op.onClick(props.selectedGroups, Client)}>
-                    <Icon size={16} mr="1em" color={op.color} name={op.icon}/>{op.text}
+                    <Icon size={16} mr="1em" color={op.color} name={op.icon} />{op.text}
                 </span>
             </Box>
         );
