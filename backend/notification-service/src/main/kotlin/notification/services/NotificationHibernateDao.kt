@@ -25,14 +25,14 @@ import dk.sdu.cloud.service.mapItems
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
-object NotificationTable : SQLTable("notifications") {
+object NotificationTable : SQLTable("notification.notifications") {
     val type = text("type", notNull = true)
     val message = text("message", notNull = true)
     val owner = text("owner", notNull = true)
     val meta = jsonb("meta")
     val read = bool("read", notNull = true)
-    val createdAt = timestamp("createdAt", notNull = true)
-    val modifiedAt = timestamp("modifiedAt", notNull = true)
+    val createdAt = timestamp("created_at", notNull = true)
+    val modifiedAt = timestamp("modified_at", notNull = true)
     val id = long("id")
 }
 
@@ -45,7 +45,31 @@ class NotificationHibernateDAO : NotificationDAO {
         paginationRequest: NormalizedPaginationRequest
     ): Page<Notification> {
         return ctx.withSession { session ->
-            session.paginatedQuery(
+            val itemsInTotal = session.sendPreparedStatement(
+                {
+                    setParameter("owner", user)
+                    setParameter("since", since)
+                    setParameter("type", type)
+                },
+                """
+                    SELECT COUNT(*)
+                    FROM notification.notifications
+                    WHERE (
+                        (owner = ?owner) 
+                        AND
+                        (
+                            ?since::bigint is null or
+                            created_at >= to_timestamp(?since)
+                        )
+                        AND
+                        (
+                            ?type::text is null or
+                            type = ?type 
+                        )
+                    )
+                """.trimIndent()
+            )
+            val item = session.paginatedQuery(
                 paginationRequest,
                 {
                     setParameter("owner", user)
@@ -66,22 +90,28 @@ class NotificationHibernateDAO : NotificationDAO {
                             ?type::text is null or
                             type = ?type 
                         )
-                        )
+                    )
                     GROUP BY created_at, id
                     ORDER BY created_at DESC
                 """.trimIndent()
             ).mapItems { it.toNotification() }
+            //Need to be done since test DB required GROUPBY and that ruined the pageQuery function. Multiple count rows
+            //resulting in itemsInTotal was set to 0. Possible fix is to sum on the rows.
+            item.copy(itemsInTotal = itemsInTotal.rows.singleOrNull()?.getLong(0)?.toInt() ?: 0)
         }
     }
 
     override suspend fun create(ctx: DBContext, user: String, notification: Notification): NotificationId {
         val id = ctx.withSession{ it.allocateId("notification.hibernate_sequence")}
+        println("ID: $id")
         ctx.withSession{ session ->
             session.insert(NotificationTable) {
+                set(NotificationTable.owner, user)
                 set(NotificationTable.message, notification.message)
                 set(NotificationTable.meta, defaultMapper.writeValueAsString(notification.meta))
                 set(NotificationTable.read, notification.read)
                 set(NotificationTable.createdAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(NotificationTable.modifiedAt, LocalDateTime.now(DateTimeZone.UTC))
                 set(NotificationTable.type, notification.type)
                 set(NotificationTable.id, id)
             }
@@ -96,7 +126,7 @@ class NotificationHibernateDAO : NotificationDAO {
                     setParameter("id", id)
                 },
                 """
-                    DELETE FROM notifications where id=?id
+                    DELETE FROM notification.notifications where id=?id
                     
                 """.trimIndent()
             )
@@ -112,7 +142,7 @@ class NotificationHibernateDAO : NotificationDAO {
                     setParameter("owner", user)
                 },
                 """
-                    UPDATE notifications
+                    UPDATE notification.notifications
                     SET read = ?read
                     WHERE id = ?id and owner = ?owner
                 """.trimIndent()
@@ -128,7 +158,7 @@ class NotificationHibernateDAO : NotificationDAO {
                     setParameter("owner", user)
                 },
                 """
-                    UPDATE notifications
+                    UPDATE notification.notifications
                     SET read = ?read
                     WHERE owner = ?owner
                 """.trimIndent()

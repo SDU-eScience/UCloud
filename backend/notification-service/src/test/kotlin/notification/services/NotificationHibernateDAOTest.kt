@@ -6,18 +6,18 @@ import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.notification.api.Notification
-import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.POSTGRES_9_5_DIALECT
 import dk.sdu.cloud.service.db.POSTGRES_DRIVER
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withSession
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
-import java.io.File
-import java.net.URL
-import kotlin.test.BeforeTest
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 
 private fun withDatabase(closure: suspend (HibernateSessionFactory) -> Unit) {
@@ -45,8 +45,6 @@ class NotificationHibernateDAOTest {
 
     @Test
     fun `create , find, mark, delete test`() {
-        println("start test")
-
         val db = TestDB().getTestDB("db/migration")
         val workingdb = AsyncDBSessionFactory(
             DatabaseConfig(
@@ -59,14 +57,29 @@ class NotificationHibernateDAOTest {
                 password = "postgres"
             )
         )
-
+        val dao = NotificationHibernateDAO()
         runBlocking {
             workingdb.withSession { session ->
-                val results = NotificationHibernateDAO().findNotifications(session, "user", paginationRequest = NormalizedPaginationRequest(10,0))
-                println( results)
+                val id1 = dao.create(session, TestUsers.user.username, notificationInstance)
+                val id2 = dao.create(session, TestUsers.user.username, notificationInstance2)
+
+                val results = dao.findNotifications(session, TestUsers.user.username)
+                println(results)
+                assertEquals(2, results.itemsInTotal)
+                assertTrue(results.items.first().ts >= results.items.last().ts )
+
+                dao.delete(session, id1)
+                val resultsAfterDelete = dao.findNotifications(session, TestUsers.user.username)
+                assertEquals(1, resultsAfterDelete.itemsInTotal)
+                assertEquals(resultsAfterDelete.items.first().id, id2)
+
+                assertFalse(resultsAfterDelete.items.first().read)
+                dao.markAsRead(session, TestUsers.user.username, id2)
+
+                val resultsAfterRead = dao.findNotifications(session, TestUsers.user.username)
+                assertTrue(resultsAfterRead.items.first().read)
             }
         }
-        println("done")
 
 
         /*withDatabase { db ->
