@@ -6,7 +6,7 @@ import {useEffect} from "react";
 import {GridCardGroup} from "ui-components/Grid";
 import {Avatar} from "AvataaarLib";
 import {defaultAvatar} from "UserSettings/Avataaar";
-import {Flex, Icon, Truncate} from "ui-components";
+import {Flex, Icon, Text, Truncate, Box, Button} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
@@ -14,6 +14,7 @@ import styled from "styled-components";
 import {IconName} from "ui-components/Icon";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {addStandardDialog} from "UtilityComponents";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];
@@ -43,38 +44,13 @@ export function MembersList(props: Readonly<{
         options.push({text: "PI", value: ProjectRole.PI});
     }
 
-    return (
-        <GridCardGroup minmax={260}>
-            {props.members.map(member =>
-                <MemberBox key={member.username}>
-                    <Avatar
-                        style={{width: "48px", height: "48px", margin: "4px", flexShrink: 0}}
-                        avatarStyle="Circle"
-                        {...avatars.cache[member.username] ?? defaultAvatar}
-                    />
-
-                    <Flex flexDirection={"column"} m={8}>
-                        <Flex alignItems={"center"}>
-                            <Truncate width={"125px"} title={member.username}>{member.username}</Truncate>
-                            {!props.onAddToGroup ? null :
-                                <ActionButton
-                                    color={"green"}
-                                    icon={"arrowDown"}
-                                    rotation={270}
-                                    title={"Add to group"}
-                                    onClick={() => props.onAddToGroup!(member.username)}
-                                />
-                            }
-                            {!allowManagement || member.role === ProjectRole.PI ? null :
-                                <ActionButton
-                                    color={"red"}
-                                    icon={"close"}
-                                    title={"Remove from project"}
-                                    onClick={() => props.onRemoveMember(member.username)}
-                                />
-                            }
-                        </Flex>
-
+    return (<>
+        {props.members.map(member =>
+            <>
+                <Flex alignItems="center" mb="16px">
+                    <UserAvatar avatar={avatars.cache[member.username] ?? defaultAvatar} mr="10px" />
+                    <div>
+                        <Text bold>{member.username}</Text>
                         {props.showRole === false ? null :
                             !props.allowRoleManagement || member.role === ProjectRole.PI ?
                                 projectRoleToString(member.role)
@@ -116,45 +92,45 @@ export function MembersList(props: Readonly<{
                                     options={options}
                                 />
                         }
-                    </Flex>
-                </MemberBox>
-            )
-            }
-        </GridCardGroup>
+                    </div>
 
-    );
+                    <Box flexGrow={1} />
+
+                    <Flex alignItems={"center"}>
+                        {!props.onAddToGroup ? null :
+                            <Button color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
+                                <Icon
+                                    color="white"
+                                    name="arrowDown"
+                                    rotation={270}
+                                    title="Add to group"
+                                />
+                            </Button>
+                        }
+                        {!allowManagement || member.role === ProjectRole.PI ? null :
+                            <Button ml="5px" color="red" width="35px" height="35px" onClick={() => props.onRemoveMember(member.username)}>
+                                <Icon
+                                    color="white"
+                                    name={"close"}
+                                    title={"Remove from project"}
+                                />
+                            </Button>
+                        }
+                    </Flex>
+                </Flex>
+            </>
+        )}
+    </>);
 }
 
-const ActionButton: React.FunctionComponent<{
-    icon: IconName;
-    title: string;
-    onClick: () => void;
-    color: string;
-    rotation?: number;
-}> = props => {
-    return (
-        <Icon
-            cursor="pointer"
-            mr="8px"
-            ml="8px"
-            color={props.color}
-            name={props.icon}
-            title={props.title}
-            onClick={props.onClick}
-            rotation={props.rotation}
-            size="20px"
-        />
-    );
-};
-
 const MemberBox = styled(Flex)`
-                                        width: 260px;
-                                        align-items: center;
-                                        border-radius: 8px;
-                                        margin-right: 8px;
+    width: 260px;
+    align-items: center;
+    border-radius: 8px;
+    margin-right: 8px;
 
-                                        &:hover {
-                                        background-color: var(--lightGray);
-                                        transition: background-color 0.2s;
-                                        }
-                                        `;
+    &:hover {
+        background-color: var(--lightGray);
+        transition: background-color 0.2s;
+    }
+`;
