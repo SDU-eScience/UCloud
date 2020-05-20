@@ -16,7 +16,7 @@ class VisualizationService(
 ) {
     suspend fun dailyUsage(
         ctx: DBContext,
-        requestedBy: String,
+        requestedBy: Actor,
         accountId: String,
         accountType: AccountType,
         groupFilter: String?,
@@ -73,7 +73,7 @@ class VisualizationService(
 
     suspend fun cumulativeUsage(
         ctx: DBContext,
-        requestedBy: String,
+        requestedBy: Actor,
         accountId: String,
         accountType: AccountType,
         groupFilter: String?,
@@ -134,7 +134,7 @@ class VisualizationService(
 
     suspend fun usageBreakdown(
         ctx: DBContext,
-        requestedBy: String,
+        requestedBy: Actor,
         accountId: String,
         accountType: AccountType,
         groupFilter: String?,

@@ -2,8 +2,10 @@ package dk.sdu.cloud.accounting.compute.rpc
 
 import dk.sdu.cloud.accounting.compute.MachineType
 import dk.sdu.cloud.accounting.compute.api.*
+import dk.sdu.cloud.accounting.compute.services.Actor
 import dk.sdu.cloud.accounting.compute.services.BalanceService
 import dk.sdu.cloud.accounting.compute.services.VisualizationService
+import dk.sdu.cloud.accounting.compute.services.toActor
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
@@ -17,14 +19,14 @@ class AccountingController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(AccountingCompute.grantCredits) {
-            balance.addToBalance(db, ctx.securityPrincipal.username, request.account, request.credits)
+            balance.addToBalance(db, ctx.securityPrincipal.toActor(), request.account, request.credits)
             ok(Unit)
         }
 
         implement(AccountingCompute.reserveCredits) {
             balance.reserveCredits(
                 db,
-                request.jobInitiatedBy,
+                Actor.SystemOnBehalfOfUser(request.jobInitiatedBy),
                 request.account,
                 request.jobId,
                 request.amount,
@@ -47,9 +49,9 @@ class AccountingController(
         implement(AccountingCompute.retrieveBalance) {
             val balances = db.withSession { session ->
                 MachineType.values().map { machineType ->
-                    val balance = balance.getBalance(
+                    val (balance, _) = balance.getBalance(
                         session,
-                        ctx.securityPrincipal.username,
+                        ctx.securityPrincipal.toActor(),
                         CreditsAccount(request.id, request.type, machineType)
                     )
 
@@ -63,7 +65,7 @@ class AccountingController(
         implement(AccountingCompute.setBalance) {
             balance.setBalance(
                 db,
-                ctx.securityPrincipal.username,
+                ctx.securityPrincipal.toActor(),
                 request.account,
                 request.lastKnownBalance,
                 request.newBalance
@@ -77,7 +79,7 @@ class AccountingController(
                 DailyComputeChart(
                     visualization.dailyUsage(
                         db,
-                        ctx.securityPrincipal.username,
+                        ctx.securityPrincipal.toActor(),
                         request.project ?: ctx.securityPrincipal.username,
                         if (request.project != null) AccountType.PROJECT else AccountType.USER,
                         request.group,
@@ -93,7 +95,7 @@ class AccountingController(
                 CumulativeUsageChart(
                     visualization.cumulativeUsage(
                         db,
-                        ctx.securityPrincipal.username,
+                        ctx.securityPrincipal.toActor(),
                         request.project ?: ctx.securityPrincipal.username,
                         if (request.project != null) AccountType.PROJECT else AccountType.USER,
                         request.group,
@@ -109,7 +111,7 @@ class AccountingController(
                 BreakdownResponse(
                     visualization.usageBreakdown(
                         db,
-                        ctx.securityPrincipal.username,
+                        ctx.securityPrincipal.toActor(),
                         request.project,
                         AccountType.PROJECT,
                         request.group,

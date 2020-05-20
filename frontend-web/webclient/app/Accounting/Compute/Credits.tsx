@@ -1,11 +1,25 @@
 import * as React from "react";
 import {useState, useEffect, useRef} from "react";
 import {Client} from "Authentication/HttpClientInstance";
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {APICallState, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
-import {grantCredits, retrieveBalance, RetrieveBalanceResponse, setCredits} from "Accounting/Compute/index";
-import {Input} from "ui-components";
+import {
+    AccountType,
+    grantCredits,
+    retrieveBalance,
+    RetrieveBalanceResponse,
+    setCredits
+} from "Accounting/Compute/index";
+import {Box, Flex, Input} from "ui-components";
+import styled from "styled-components";
+
+const WalletContainer = styled.div`
+    display: grid;
+    margin-bottom: 16px;
+    grid-gap: 20px;
+    grid-template-columns: repeat(2, 2fr);
+`;
 
 export const Credits: React.FunctionComponent = () => {
     console.log("Hello!");
@@ -27,69 +41,33 @@ export const Credits: React.FunctionComponent = () => {
 
     useEffect(() => {
         if (username === "") return;
-        console.log(username);
         fetchUserBalance(retrieveBalance({id: username, type: "USER"}));
     }, [username]);
 
     useEffect(() => {
         if (project === "") return;
-        fetchUserBalance(retrieveBalance({id: project, type: "PROJECT"}));
+        fetchProjectBalance(retrieveBalance({id: project, type: "PROJECT"}));
     }, [project]);
 
     const reload = (): void => {
         fetchUserBalance(retrieveBalance({id: username, type: "USER"}));
-        fetchUserBalance(retrieveBalance({id: project, type: "PROJECT"}));
+        fetchProjectBalance(retrieveBalance({id: project, type: "PROJECT"}));
     };
 
     return <MainContainer
         header={<Heading.h2>Compute Credits (Admin Prototype UI)</Heading.h2>}
         main={(
             <>
-                <Heading.h4>Credits for Users</Heading.h4>
+                <Heading.h3>Credits for Users</Heading.h3>
                 <form onSubmit={e => {
                     e.preventDefault();
-                    setUsername(usernameRef.current!.value)
+                    setUsername(usernameRef.current!.value);
                 }}>
                     <Input placeholder={"Username"} ref={usernameRef}/>
                 </form>
                 {username === "" ? null : (
                     <>
-                        <div>
-                            {currentUserBalance.data.balance.map(it => (
-                                <div key={it.type}>
-                                    <div>Balance ({it.type}): {it.creditsRemaining}</div>
-                                    <form onSubmit={async e => {
-                                        e.preventDefault();
-                                        const field = (e.target as HTMLFormElement)
-                                            .querySelector(`#add-${it.type}`) as HTMLInputElement;
-
-                                        const value = parseInt(field.value, 10);
-                                        await runCommand(grantCredits({
-                                            account: {id: username, type: "USER", machineType: it.type},
-                                            credits: value
-                                        }));
-                                        reload();
-                                    }}>
-                                        <Input placeholder={"Add credits"} id={`add-${it.type}`}/>
-                                    </form>
-
-                                    <form onSubmit={async e => {
-                                        e.preventDefault();
-                                        const field = (e.target as HTMLFormElement)
-                                            .querySelector(`#set-${it.type}`) as HTMLInputElement;
-                                        const value = parseInt(field.value, 10);
-                                        await runCommand(setCredits({
-                                            account: {id: username, type: "USER", machineType: it.type},
-                                            lastKnownBalance: it.creditsRemaining,
-                                            newBalance: value
-                                        }));
-                                        reload();
-                                    }}>
-                                        <Input placeholder={"Set credits"} id={`set-${it.type}`}/>
-                                    </form>
-                                </div>
-                            ))}
-                        </div>
+                        <BalanceForAccount reload={reload} id={username} type={"USER"} balance={currentUserBalance} />
                     </>
                 )}
 
@@ -97,4 +75,52 @@ export const Credits: React.FunctionComponent = () => {
             </>
         )}
     />;
+};
+
+export const BalanceForAccount: React.FunctionComponent<{
+    reload: () => void;
+    id: string;
+    type: AccountType;
+    balance: APICallState<RetrieveBalanceResponse>;
+}> = props => {
+    const [, runCommand] = useAsyncCommand();
+    return <div>
+        {props.balance.data.balance.map(it => (
+            <Box key={it.type} mt={8} mb={8}>
+                <Heading.h4>Balance ({it.type}): {it.creditsRemaining}</Heading.h4>
+
+                <WalletContainer>
+                    <form onSubmit={async e => {
+                        e.preventDefault();
+                        const field = (e.target as HTMLFormElement)
+                            .querySelector("input") as HTMLInputElement;
+
+                        const value = parseInt(field.value, 10);
+                        await runCommand(grantCredits({
+                            account: {id: props.id, type: props.type, machineType: it.type},
+                            credits: value
+                        }));
+                        props.reload();
+                    }}>
+                        <Input placeholder={"Add credits"} />
+                    </form>
+
+                    <form onSubmit={async e => {
+                        e.preventDefault();
+                        const field = (e.target as HTMLFormElement)
+                            .querySelector("input") as HTMLInputElement;
+                        const value = parseInt(field.value, 10);
+                        await runCommand(setCredits({
+                            account: {id: props.id, type: props.type, machineType: it.type},
+                            lastKnownBalance: it.creditsRemaining,
+                            newBalance: value
+                        }));
+                        props.reload();
+                    }}>
+                        <Input placeholder={"Set credits"} />
+                    </form>
+                </WalletContainer>
+            </Box>
+        ))}
+    </div>;
 };

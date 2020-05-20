@@ -1,6 +1,9 @@
 package dk.sdu.cloud.accounting.compute.services
 
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
+import dk.sdu.cloud.Roles
+import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.accounting.compute.api.AccountType
 import dk.sdu.cloud.accounting.compute.api.CreditsAccount
 import dk.sdu.cloud.calls.RPCException
@@ -34,19 +37,51 @@ object GrantAdminTable : SQLTable("grant_administrators") {
     val username = text("username")
 }
 
+// Note(Dan): Trying out an abstraction for who is performing an action within the system.
+sealed class Actor {
+    abstract val username: String
+
+    /**
+     * Performed by the system itself. Should bypass all permission checks.
+     */
+    object System : Actor() {
+        override val username: String
+            get() = throw IllegalStateException("No username associated with system")
+    }
+
+    /**
+     * Performed by the system on behalf of a user.
+     * This should use permission checks against the user.
+     */
+    class SystemOnBehalfOfUser(override val username: String) : Actor()
+
+    /**
+     * Performed by the user. Should check permissions against the user.
+     */
+    class User(val principal: SecurityPrincipal) : Actor() {
+        override val username = principal.username
+    }
+}
+
+fun SecurityPrincipalToken.toActor(): Actor = Actor.User(principal)
+fun SecurityPrincipal.toActor(): Actor = Actor.User(this)
+
 class BalanceService(
     private val projectCache: ProjectCache
 ) {
     suspend fun requirePermissionToReadBalance(
         ctx: DBContext,
-        initiatedBy: String,
+        initiatedBy: Actor,
         accountId: String,
         accountType: AccountType
     ) {
-        if (accountType == AccountType.USER && initiatedBy == accountId) return
+        if (initiatedBy == Actor.System) return
+        if (initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEDGED) return
+
+        if (accountType == AccountType.USER && initiatedBy.username == accountId) return
         if (isGrantAdministrator(ctx, initiatedBy)) return
         if (accountType == AccountType.PROJECT) {
-            val memberStatus = projectCache.memberStatus.get(initiatedBy)
+            val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
             val project = memberStatus?.membership?.find { it.projectId == accountId }
             if (project != null && project.whoami.role.isAdmin()) {
                 return
@@ -57,9 +92,9 @@ class BalanceService(
 
     suspend fun getBalance(
         ctx: DBContext,
-        initiatedBy: String,
+        initiatedBy: Actor,
         account: CreditsAccount
-    ): Long {
+    ): Pair<Long, Boolean> {
         return ctx.withSession { session ->
             requirePermissionToReadBalance(session, initiatedBy, account.id, account.type)
 
@@ -82,43 +117,42 @@ class BalanceService(
                 )
                 .rows
                 .firstOrNull()
-                ?.let { it.getLong(0)!! }
-                ?: throw RPCException("Account not found", HttpStatusCode.NotFound)
+                ?.let { Pair(it.getLong(0)!!, true) }
+                ?: Pair(0L, false)
         }
     }
 
     suspend fun setBalance(
         ctx: DBContext,
-        initiatedBy: String,
+        initiatedBy: Actor,
         account: CreditsAccount,
         lastKnownBalance: Long,
         amount: Long
     ) {
         ctx.withSession { session ->
             if (!isGrantAdministrator(ctx, initiatedBy)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-            try {
-                val currentBalance = getBalance(session, initiatedBy, account)
-                if (currentBalance != lastKnownBalance) {
-                    throw RPCException("Balance has been updated since you last viewed it!", HttpStatusCode.Conflict)
-                }
-            } catch (ex: RPCException) {
-                if (ex.httpStatusCode == HttpStatusCode.NotFound) {
-                    if (lastKnownBalance != 0L) {
-                        throw RPCException("Balance has been updated since you last viewed it!", HttpStatusCode.Conflict)
-                    }
+            val (currentBalance, exists) = getBalance(session, initiatedBy, account)
+            if (currentBalance != lastKnownBalance) {
+                throw RPCException("Balance has been updated since you last viewed it!", HttpStatusCode.Conflict)
+            }
 
-                    // TODO Verify account exists
-                    session.insert(BalanceTable) {
-                        set(BalanceTable.accountId, account.id)
-                        set(BalanceTable.accountType, account.type.name)
-                        set(BalanceTable.accountMachineType, account.machineType.name)
-                        set(BalanceTable.balance, amount)
-                    }
-
-                    return@withSession
+            if (!exists) {
+                if (lastKnownBalance != 0L) {
+                    throw RPCException(
+                        "Balance has been updated since you last viewed it!",
+                        HttpStatusCode.Conflict
+                    )
                 }
 
-                throw ex
+                // TODO Verify account exists
+                session.insert(BalanceTable) {
+                    set(BalanceTable.accountId, account.id)
+                    set(BalanceTable.accountType, account.type.name)
+                    set(BalanceTable.accountMachineType, account.machineType.name)
+                    set(BalanceTable.balance, amount)
+                }
+
+                return@withSession
             }
 
             session
@@ -144,7 +178,7 @@ class BalanceService(
 
     suspend fun addToBalance(
         ctx: DBContext,
-        initiatedBy: String,
+        initiatedBy: Actor,
         account: CreditsAccount,
         amount: Long
     ) {
@@ -224,14 +258,18 @@ class BalanceService(
 
     suspend fun reserveCredits(
         ctx: DBContext,
-        initiatedBy: String,
+        initiatedBy: Actor,
         account: CreditsAccount,
         reservationId: String,
         amount: Long,
         expiresAt: Long
     ) {
+        if (initiatedBy == Actor.System) {
+            throw IllegalStateException("System cannot initiate a reservation")
+        }
+
         ctx.withSession { session ->
-            val balance = getBalance(ctx, initiatedBy, account)
+            val (balance, _) = getBalance(ctx, initiatedBy, account)
             val reserved = getReservedCredits(ctx, account)
             if (reserved + amount > balance) {
                 throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
@@ -243,7 +281,7 @@ class BalanceService(
                 set(TransactionTable.accountMachineType, account.machineType.name)
                 set(TransactionTable.amount, amount)
                 set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
-                set(TransactionTable.initiatedBy, initiatedBy)
+                set(TransactionTable.initiatedBy, initiatedBy.username)
                 set(TransactionTable.isReserved, true)
                 set(TransactionTable.completedAt, LocalDateTime.now(DateTimeZone.UTC))
                 set(TransactionTable.reservationId, reservationId)
@@ -302,8 +340,13 @@ class BalanceService(
 
     suspend fun addGrantAdministrator(
         ctx: DBContext,
+        initiatedBy: Actor,
         username: String
     ) {
+        if (!(initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEDGED)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
         try {
             ctx.withSession { session ->
                 session.insert(GrantAdminTable) {
@@ -322,13 +365,16 @@ class BalanceService(
 
     private suspend fun isGrantAdministrator(
         ctx: DBContext,
-        username: String
+        actor: Actor
     ): Boolean {
+        if (actor is Actor.User && actor.principal.role in Roles.PRIVILEDGED) return true
+        if (actor == Actor.System) return true
+
         return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("username", username)
+                        setParameter("username", actor.username)
                     },
 
                     """
