@@ -4,6 +4,7 @@ import {Page, PaginationRequest} from "Types";
 import {Client} from "Authentication/HttpClientInstance";
 import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
 import {inDevEnvironment} from "UtilityFunctions";
+import {IconName} from "ui-components/Icon";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -91,6 +92,14 @@ export function projectRoleToString(role: ProjectRole): string {
         case ProjectRole.PI: return "PI";
         case ProjectRole.ADMIN: return "Admin";
         case ProjectRole.USER: return "User";
+    }
+}
+
+export function projectRoleToStringIcon(role: ProjectRole): IconName {
+    switch (role) {
+        case ProjectRole.PI: return "userPi";
+        case ProjectRole.ADMIN: return "userAdmin";
+        case ProjectRole.USER: return "user";
     }
 }
 
