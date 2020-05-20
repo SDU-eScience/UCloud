@@ -1351,7 +1351,7 @@ Array [
       width={24}
     >
       <clipPath
-        id="FtFileSystem_svg__a"
+        id="ftFileSystem_svg__a"
       >
         <path
           clipRule="nonzero"
@@ -1359,13 +1359,13 @@ Array [
         />
       </clipPath>
       <g
-        clipPath="url(#FtFileSystem_svg__a)"
+        clipPath="url(#ftFileSystem_svg__a)"
       >
         <use
           height={20.507}
           transform="scale(1 .97654)"
           width={24}
-          xlinkHref="#FtFileSystem_svg___Image2"
+          xlinkHref="#ftFileSystem_svg___Image2"
         />
       </g>
       <g
@@ -1379,7 +1379,7 @@ Array [
       <defs>
         <image
           height={21}
-          id="FtFileSystem_svg___Image2"
+          id="ftFileSystem_svg___Image2"
           width={24}
           xlinkHref="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAVCAYAAABc6S4mAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABYUlEQVQ4jY2Uy3XFMAhEZzguIA2l/5Ky8YMsjKTR188bW5bQABfg389vAARAkPkGAZp851vWgE17z7dBn8vjbkbxXBogCEcRBiz/EUGCQUD2nz3LtYsYcUV85KCLmF6sYkSk902s2fZixBVxV++Kt10Uk9jOe4htE7siboCGiExBiUKMT1HUtJCI8Ens8vi8GxcxceTIoIolgwpQUtD/s1lscOTIoPOeVsGN8DtjEgjf8BsZ7ACSYOwBMi8t1aT8GgN8wPiCAX0htoCfGShiUqbWNdGRAX1I4y4Dpo3WAwQt638PsKVxlwFvo0KNS+hvACuDRRUOVdQbT6FLXS+7feF9Ecs+cJAGxAvAarzp9ixdPb9gsIminMnZtO324kiKLRm0S04zyIdzCt81RTODdROtZpBEQRcxaTQACHjm/9smeplZMkYuDI+K9eN6bqLzzHqimARGuacI0AM8ed9Vl+MfWQ8XicMWet0AAAAASUVORK5CYII="
         />
@@ -4232,6 +4232,128 @@ Array [
         fill="currentcolor"
         fillRule="nonzero"
       />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      userAdmin
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 27"
+      width={24}
+    >
+      <path
+        d="M9.293 17.19a1.848 1.848 0 00-.278-.65l-.151-.227c-.834-.96-1.292-2.353-1.533-4.071l.018-.007c.198-.077.386-.157.57-.24 4.687-2.089 5.765-5.764 5.765-5.764s1.238 2.082 2.115 4.086l.08.184.008.021c-.153 2.526-.607 4.529-1.705 5.79l-.15.23a1.84 1.84 0 00-.282.66c-.04.226-.054.451-.055.674a30.352 30.352 0 005.03-1.23c0-17.284-7.202-14.002-7.202-14.002S4.32-.638 4.32 16.645a30.337 30.337 0 005.03 1.231 3.838 3.838 0 00-.058-.686zM21.399 22.16c-.926-.795-3.648-1.372-5.471-1.683-.14 2.322-2.048 4.167-4.406 4.167-2.357 0-4.265-1.845-4.405-4.167-1.823.31-4.545.888-5.472 1.683C.207 23.396 0 26.417 0 26.417h23.045s-.207-3.02-1.646-4.257z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M11.523 23.736c-1.862 0-3.408-1.464-3.52-3.334l-.006-.088c.527-.08.867-.123.867-.123s.496-1.094.487-2.315a3.838 3.838 0 00-.058-.686 1.848 1.848 0 00-.278-.65l-.151-.227c-.834-.96-1.292-2.353-1.533-4.071l.018-.007c.198-.077.386-.157.57-.24 4.687-2.089 5.765-5.764 5.765-5.764s1.238 2.082 2.115 4.086l.08.184.008.021c-.153 2.526-.607 4.529-1.705 5.79l-.15.23a1.84 1.84 0 00-.282.66c-.04.226-.054.451-.055.674-.007 1.22.487 2.315.487 2.315s.34.042.867.123l-.006.088c-.112 1.87-1.658 3.334-3.52 3.334z"
+        fill="currentcolor"
+        fillRule="nonzero"
+      />
+      <g
+        transform="matrix(1.14755 0 0 1.14755 -617.335 -644.666)"
+      >
+        <path
+          d="M542.001 568.072c-6 1.939 18 1.939 12 0 0 0-.999-5.933-6-5.933-5 0-6 5.933-6 5.933z"
+          fill="#ffc300"
+        />
+        <clipPath
+          id="userAdmin_svg__a"
+        >
+          <path
+            d="M542.001 568.072c-6 1.939 18 1.939 12 0 0 0-.999-5.933-6-5.933-5 0-6 5.933-6 5.933z"
+          />
+        </clipPath>
+        <g
+          clipPath="url(#userAdmin_svg__a)"
+        >
+          <path
+            d="M549.744 561.776h1.743v5.43h-1.743zM544.516 561.776h1.743v5.43h-1.743z"
+            fill="#ffae00"
+          />
+        </g>
+      </g>
+      <path
+        d="M10.524 0h2v6.231h-2z"
+        fill="#ffae00"
+      />
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
+      userPi
+    </span>
+    : 
+    <svg
+      className="c0"
+      clipRule="evenodd"
+      cursor="inherit"
+      fill="currentcolor"
+      fillRule="evenodd"
+      height={24}
+      viewBox="0 0 24 29"
+      width={24}
+    >
+      <path
+        d="M9.293 18.795a1.848 1.848 0 00-.278-.65l-.151-.227c-.834-.96-1.292-2.353-1.533-4.071l.018-.007c.198-.077.386-.157.57-.24 4.687-2.089 5.765-5.764 5.765-5.764s1.238 2.082 2.115 4.086l.08.184.008.021c-.153 2.526-.607 4.529-1.705 5.79l-.15.23a1.84 1.84 0 00-.282.66c-.04.226-.054.451-.055.674a30.352 30.352 0 005.03-1.23c0-17.284-7.202-14.002-7.202-14.002S4.32.967 4.32 18.25a30.337 30.337 0 005.03 1.231 3.838 3.838 0 00-.058-.686zM21.399 23.765c-.926-.795-3.648-1.372-5.471-1.683-.14 2.322-2.048 4.167-4.406 4.167-2.357 0-4.265-1.845-4.405-4.167-1.823.31-4.545.888-5.472 1.683C.207 25 0 28.022 0 28.022h23.045s-.207-3.02-1.646-4.257z"
+        fillRule="nonzero"
+      />
+      <path
+        d="M11.523 25.341c-1.862 0-3.408-1.464-3.52-3.334l-.006-.088c.527-.08.867-.123.867-.123s.496-1.094.487-2.315a3.838 3.838 0 00-.058-.686 1.848 1.848 0 00-.278-.65l-.151-.227c-.834-.96-1.292-2.353-1.533-4.071l.018-.007c.198-.077.386-.157.57-.24 4.687-2.089 5.765-5.764 5.765-5.764s1.238 2.082 2.115 4.086l.08.184.008.021c-.153 2.526-.607 4.529-1.705 5.79l-.15.23a1.84 1.84 0 00-.282.66c-.04.226-.054.451-.055.674-.007 1.22.487 2.315.487 2.315s.34.042.867.123l-.006.088c-.112 1.87-1.658 3.334-3.52 3.334z"
+        fill="currentcolor"
+        fillRule="nonzero"
+      />
+      <path
+        d="M540.511 560.511a.2.2 0 00-.336.19l1.787 7.147c.022.09.102.152.194.152h11.688a.199.199 0 00.194-.152l1.787-7.147a.2.2 0 00-.336-.19l-3.347 3.347a.2.2 0 01-.283 0l-3.717-3.727a.205.205 0 00-.142-.059.205.205 0 00-.142.059l-3.717 3.727a.2.2 0 01-.283 0l-3.347-3.347z"
+        fill="url(#userPi_svg___Linear1)"
+        transform="matrix(1 0 0 1 -536.477 -559.989)"
+      />
+      <defs>
+        <linearGradient
+          gradientTransform="matrix(11.6954 3.6538 -1.82938 5.85566 540.799 561.583)"
+          gradientUnits="userSpaceOnUse"
+          id="userPi_svg___Linear1"
+          x1={0}
+          x2={1}
+          y1={0}
+          y2={0}
+        >
+          <stop
+            offset={0}
+            stopColor="#fa0"
+          />
+          <stop
+            offset={1}
+            stopColor="#ffc300"
+          />
+        </linearGradient>
+      </defs>
     </svg>
     , 
   </span>,
