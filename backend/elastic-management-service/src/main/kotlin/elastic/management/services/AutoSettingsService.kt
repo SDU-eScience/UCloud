@@ -53,8 +53,8 @@ class AutoSettingsService(
             PutIndexTemplateRequest("production-template")
                 .patterns(listOf("kubernetes-production*"))
                 .settings(Settings.builder()
-                    .put("index.number_of_shards", 1)
-                    .put("index.number_of_replicas", 2)
+                    .put("index.number_of_shards", 3)
+                    .put("index.number_of_replicas", 1)
                     .put("index.refresh_interval", "30s")
                 )
 
@@ -80,6 +80,17 @@ class AutoSettingsService(
                 )
 
         elastic.indices().putTemplate(filebeatTemplate, RequestOptions.DEFAULT)
+
+        val infrastructureTemplate =
+            PutIndexTemplateRequest("infrastructure-template")
+                .patterns(listOf("infrastructure*"))
+                .settings(Settings.builder()
+                    .put("index.number_of_shards", 3)
+                    .put("index.number_of_replicas", 1)
+                    .put("index.refresh_interval", "30s")
+                )
+
+        elastic.indices().putTemplate(infrastructureTemplate, RequestOptions.DEFAULT)
     }
 
     fun removeFloodLimitationOnAll() {

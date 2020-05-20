@@ -6,11 +6,11 @@ masterService: "elasticsearch-master"
 
 #esMajorVersion: 6
 #imageTag: "6.8.1"
-#imageTag: "7.4.0"
+imageTag: "7.6.0"
 
 roles:
   master: "false"
-  ingest: "false"
+  ingest: "true"
   data: "false"
 
 esJavaOpts: "-Xmx8g -Xms8g"

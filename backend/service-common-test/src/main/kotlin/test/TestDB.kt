@@ -1,36 +1,33 @@
+import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.micro.DatabaseConfig
+import dk.sdu.cloud.micro.HibernateFeature.Feature.safeSchemaName
+import dk.sdu.cloud.service.db.POSTGRES_9_5_DIALECT
+import dk.sdu.cloud.service.db.POSTGRES_DRIVER
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
-import java.io.File
-import java.lang.IllegalArgumentException
-import java.util.*
+import org.flywaydb.core.Flyway
 
-class TestDB {
-
-    private fun getResourceFolderFiles(folder: String): Array<File?> {
-        val loader = Thread.currentThread().contextClassLoader
-        val url = loader.getResource(folder)
-        val path: String = url?.path ?: "notta"
-        return File(path).listFiles() ?: throw IllegalArgumentException("No files found")
-    }
-
-    private fun runMigrate(path: String, db: EmbeddedPostgres) {
-        val connection = db.postgresDatabase.connection
-        val files = getResourceFolderFiles(path)
-        files.sort()
-        files.forEach { file ->
-            if (file != null) {
-                val sc = Scanner(file)
-                var query = ""
-                while (sc.hasNextLine()) {
-                    query += sc.nextLine()
-                }
-                connection.createStatement().executeUpdate(query)
-            }
-        }
-    }
-
-    fun getTestDB(resourcePath: String): EmbeddedPostgres {
+object TestDB {
+    fun from(serviceDescription: ServiceDescription): Pair<AsyncDBSessionFactory, EmbeddedPostgres> {
         val db = EmbeddedPostgres.start()
-        runMigrate(resourcePath, db)
-        return db
+        val flyway = Flyway.configure().apply {
+            dataSource(db.postgresDatabase)
+            schemas(safeSchemaName(serviceDescription))
+        }.load()
+        flyway.migrate()
+        return Pair<AsyncDBSessionFactory, EmbeddedPostgres>(
+            AsyncDBSessionFactory(
+                DatabaseConfig(
+                    jdbcUrl = db.getJdbcUrl("postgres", "postgres"),
+                    defaultSchema = safeSchemaName(serviceDescription),
+                    recreateSchema = false,
+                    driver = POSTGRES_DRIVER,
+                    dialect = POSTGRES_9_5_DIALECT,
+                    username = "postgres",
+                    password = "postgres"
+                )
+            ),
+            db
+        )
     }
 }

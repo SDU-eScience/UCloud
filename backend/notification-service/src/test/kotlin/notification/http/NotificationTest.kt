@@ -33,17 +33,38 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationCall
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NotificationTest {
+    private lateinit var db: AsyncDBSessionFactory
+    private lateinit var embDB: EmbeddedPostgres
+
+    @BeforeTest
+    fun before() {
+        val (db,embDB) = TestDB.from(NotificationServiceDescription)
+        this.db = db
+        this.embDB = embDB
+    }
+
+    @AfterTest
+    fun after() {
+        runBlocking {
+            db.close()
+        }
+        embDB.close()
+    }
 
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
-        micro.install(HibernateFeature)
+        val notificationDao = NotificationHibernateDAO()
         val subscriptionService = mockk<SubscriptionService>()
-        val notificationService = mockk<NotificationService>()
+        val notificationService = NotificationService(db, notificationDao, subscriptionService)
         listOf(NotificationController(notificationService, subscriptionService))
     }
 

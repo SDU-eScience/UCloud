@@ -16,16 +16,15 @@ import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.jsonb
 import dk.sdu.cloud.service.db.async.long
-import dk.sdu.cloud.service.db.async.paginatedQuery
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.offset
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
-object NotificationTable : SQLTable("notification.notifications") {
+object NotificationTable : SQLTable("notifications") {
     val type = text("type", notNull = true)
     val message = text("message", notNull = true)
     val owner = text("owner", notNull = true)
@@ -48,12 +47,12 @@ class NotificationHibernateDAO : NotificationDAO {
             val itemsInTotal = session.sendPreparedStatement(
                 {
                     setParameter("owner", user)
-                    setParameter("since", since)
+                    setParameter("since", since?.let { it/1000 })
                     setParameter("type", type)
                 },
                 """
                     SELECT COUNT(*)
-                    FROM notification.notifications
+                    FROM notifications
                     WHERE (
                         (owner = ?owner) 
                         AND
@@ -69,15 +68,17 @@ class NotificationHibernateDAO : NotificationDAO {
                     )
                 """.trimIndent()
             )
-            val item = session.paginatedQuery(
-                paginationRequest,
+            val items = session.sendPreparedStatement(
                 {
                     setParameter("owner", user)
-                    setParameter("since", since)
+                    setParameter("since", since?.let { it/1000 })
                     setParameter("type", type)
+                    setParameter("limit", paginationRequest.itemsPerPage)
+                    setParameter("offset", paginationRequest.offset)
                 },
                 """
-                    FROM notification.notifications
+                    SELECT *
+                    FROM notifications
                     WHERE (
                         (owner = ?owner) 
                         AND
@@ -91,19 +92,22 @@ class NotificationHibernateDAO : NotificationDAO {
                             type = ?type 
                         )
                     )
-                    GROUP BY created_at, id
                     ORDER BY created_at DESC
+                    LIMIT ?limit
+                    OFFSET ?offset
                 """.trimIndent()
-            ).mapItems { it.toNotification() }
-            //Need to be done since test DB required GROUPBY and that ruined the pageQuery function. Multiple count rows
-            //resulting in itemsInTotal was set to 0. Possible fix is to sum on the rows.
-            item.copy(itemsInTotal = itemsInTotal.rows.singleOrNull()?.getLong(0)?.toInt() ?: 0)
+            ).rows.map { it.toNotification() }
+            Page(
+                itemsInTotal.rows.singleOrNull()?.getLong(0)?.toInt() ?: 0,
+                paginationRequest.itemsPerPage,
+                paginationRequest.page,
+                items
+            )
         }
     }
 
     override suspend fun create(ctx: DBContext, user: String, notification: Notification): NotificationId {
-        val id = ctx.withSession{ it.allocateId("notification.hibernate_sequence")}
-        println("ID: $id")
+        val id = ctx.withSession{ it.allocateId("hibernate_sequence")}
         ctx.withSession{ session ->
             session.insert(NotificationTable) {
                 set(NotificationTable.owner, user)
@@ -126,7 +130,7 @@ class NotificationHibernateDAO : NotificationDAO {
                     setParameter("id", id)
                 },
                 """
-                    DELETE FROM notification.notifications where id=?id
+                    DELETE FROM notifications where id=?id
                     
                 """.trimIndent()
             )
@@ -142,7 +146,7 @@ class NotificationHibernateDAO : NotificationDAO {
                     setParameter("owner", user)
                 },
                 """
-                    UPDATE notification.notifications
+                    UPDATE notifications
                     SET read = ?read
                     WHERE id = ?id and owner = ?owner
                 """.trimIndent()
@@ -158,7 +162,7 @@ class NotificationHibernateDAO : NotificationDAO {
                     setParameter("owner", user)
                 },
                 """
-                    UPDATE notification.notifications
+                    UPDATE notifications
                     SET read = ?read
                     WHERE owner = ?owner
                 """.trimIndent()
@@ -184,7 +188,7 @@ class NotificationHibernateDAO : NotificationDAO {
             getField(NotificationTable.message),
             getField(NotificationTable.id),
             meta,
-            getField(NotificationTable.createdAt).toDate().time,
+            getField(NotificationTable.createdAt).toDateTime(DateTimeZone.UTC).millis,
             getField(NotificationTable.read)
         )
     }
