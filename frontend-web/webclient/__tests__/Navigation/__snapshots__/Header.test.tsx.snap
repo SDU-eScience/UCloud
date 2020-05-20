@@ -868,7 +868,7 @@ exports[`Header Mount header 1`] = `
           />
           <path
             d="M4.8 8.4h14.4v2.4H4.8V8.4zm9.6 6H4.8V12h9.6v2.4zm4.8-7.2H4.8V4.8h14.4v2.4z"
-            fill={null}
+            fill="currentcolor"
             fillRule="nonzero"
           />
         </svg>
@@ -912,7 +912,7 @@ exports[`Header Mount header 1`] = `
               />
               <path
                 d="M12 24c1.56 0 2.823-1.194 2.823-2.667H9.176C9.176 22.806 10.44 24 12 24"
-                fill={null}
+                fill="currentcolor"
                 fillRule="nonzero"
               />
             </svg>
