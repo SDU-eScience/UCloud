@@ -112,7 +112,7 @@ const MembersPanel: React.FunctionComponent = () => {
                     id="project-member-search"
                     placeholder="Enter username to search..."
                     pr="30px"
-                    autocomplete="off"
+                    autoComplete="off"
                     disabled={isLoading}
                     value={memberSearchQuery}
                     onChange={e => {
