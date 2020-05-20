@@ -19,7 +19,7 @@ import {Spacer} from "ui-components/Spacer";
 import {EllipsedText} from "ui-components/Text";
 import theme from "ui-components/theme";
 import {favoriteApplicationFromPage, toolImageQuery} from "Utilities/ApplicationUtilities";
-import {getQueryParam, getQueryParamOrElse, RouterLocationProps, } from "Utilities/URIUtilities";
+import {RouterLocationProps} from "Utilities/URIUtilities";
 import {FullAppInfo, WithAppMetadata} from ".";
 import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import Installed from "./Installed";

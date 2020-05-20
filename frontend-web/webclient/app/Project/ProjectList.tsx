@@ -6,7 +6,6 @@ import {
     listProjects,
     ListProjectsRequest,
     UserInProject,
-    ProjectRole,
     createProject,
     IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite
 } from "Project/index";
@@ -19,11 +18,11 @@ import {Flex, Icon, List, Text, Input, Box, Checkbox, Label, Link} from "ui-comp
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {ListRow, ListRowStat} from "ui-components/List";
+import {ListRow} from "ui-components/List";
 import {useHistory} from "react-router";
 import {loadingAction} from "Loading";
 import {dispatchSetProjectAction} from "Project/Redux";
-import {projectRoleToString, projectRoleToStringIcon, toggleFavoriteProject} from "Project";
+import {projectRoleToStringIcon, toggleFavoriteProject} from "Project";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Client} from "Authentication/HttpClientInstance";
 import {stopPropagation} from "UtilityFunctions";
@@ -189,7 +188,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     hoverColor="blue"
                                 />}
                                 left={<form onSubmit={onCreateProject}>
-                                    <Box height="38px">
+                                    <Flex height="38px">
                                         <Input
                                             my="3px"
                                             pt="0px"
@@ -210,7 +209,15 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                             autoFocus
                                             ref={title}
                                         />
-                                    </Box>
+                                        <Icon
+                                            ml="10px"
+                                            mt="7px"
+                                            cursor="pointer"
+                                            name="close"
+                                            color="red"
+                                            onClick={() => setCreatingProject(false)}
+                                        />
+                                    </Flex>
                                 </form>}
                                 right={<>
                                     <Toggle
