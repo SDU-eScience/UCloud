@@ -607,7 +607,7 @@ class Server(override val micro: Micro) : CommonServer {
         try {
             val authHeader = call.request.header(HttpHeaders.Authorization) ?:
                 throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-            if (authHeader.startsWith("Basic ")) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+            if (!authHeader.startsWith("Basic ")) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
             val credentials = authHeader.substringAfter("Basic ")
             val decoded = Base64.getDecoder().decode(credentials).toString(Charsets.ISO_8859_1)
             val token = decoded.substringAfterLast(":")
