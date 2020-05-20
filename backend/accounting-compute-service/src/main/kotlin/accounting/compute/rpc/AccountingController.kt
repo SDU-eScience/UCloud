@@ -52,7 +52,8 @@ class AccountingController(
                     val (balance, _) = balance.getBalance(
                         session,
                         ctx.securityPrincipal.toActor(),
-                        CreditsAccount(request.id, request.type, machineType)
+                        CreditsAccount(request.id, request.type, machineType),
+                        true
                     )
 
                     ComputeBalance(machineType, balance)

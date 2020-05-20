@@ -2,8 +2,22 @@ import {APICallParameters} from "Authentication/DataHook";
 import {Dictionary} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
 
-export type MachineType = "STANDARD" | "HIGH_MEMORY" | "GPU";
+export enum MachineType { STANDARD = "STANDARD", HIGH_MEMORY = "HIGH_MEMORY", GPU = "GPU" }
+
 export type AccountType = "USER" | "PROJECT";
+
+export function humanReadableMachineType(type: MachineType): string {
+    switch (type) {
+        case "HIGH_MEMORY":
+            return "High memory";
+        case "STANDARD":
+            return "Standard";
+        case "GPU":
+            return "GPU";
+        default:
+            return "";
+    }
+}
 
 export interface CreditsAccount {
     id: string;
@@ -143,6 +157,100 @@ export function retrieveCredits(request: RetrieveCreditsRequest): APICallParamet
         method: "GET",
         path: buildQueryString("/accounting/compute/balance", request),
         parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+// Machines
+
+export interface MachineReservation {
+    name: string;
+    cpu?: number;
+    memoryInGigs?: number;
+    gpu?: number;
+    pricePerHour: number;
+    type: MachineType;
+}
+
+export type CreateMachineRequest = MachineReservation;
+export type CreateMachineResponse = {};
+
+export function createMachine(request: CreateMachineRequest): APICallParameters<CreateMachineRequest> {
+    return {
+        method: "PUT",
+        path: "/accounting/compute/machines",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
+export type DefaultMachineRequest = {};
+export type DefaultMachineResponse = MachineReservation;
+
+export function defaultMachine(request: DefaultMachineRequest): APICallParameters<DefaultMachineRequest> {
+    return {
+        method: "GET",
+        path: "/accounting/compute/machines/default-machine",
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export type ListMachinesRequest = {};
+export type ListMachinesResponse = MachineReservation[];
+
+export function listMachines(request: ListMachinesRequest): APICallParameters<ListMachinesRequest> {
+    return {
+        method: "GET",
+        path: "/accounting/compute/machines",
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface FindMachineRequest {
+    name: string;
+}
+
+export type FindMachineResponse = MachineReservation;
+
+export function findMachine(request: FindMachineRequest): APICallParameters<FindMachineRequest> {
+    return {
+        method: "GET",
+        path: `/accounting/compute/machines/${encodeURIComponent(request.name)}`,
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface MarkMachineAsInactiveRequest {
+    name: string;
+}
+
+export type MarkMachineAsInactiveResponse = {};
+
+export function markMachineAsInactive(request: MarkMachineAsInactiveRequest): APICallParameters<MarkMachineAsInactiveRequest> {
+    return {
+        method: "POST",
+        path: "/accounting/compute/machines/mark-as-inactive",
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface SetMachineAsDefaultRequest {
+    name: string;
+}
+
+export type SetMachineAsDefaultResponse = {};
+
+export function setMachineAsDefault(request: SetMachineAsDefaultRequest): APICallParameters<SetMachineAsDefaultRequest> {
+    return {
+        method: "POST",
+        path: "/accounting/compute/machines/set-as-default",
+        parameters: request,
+        payload: request,
         reloadId: Math.random()
     };
 }

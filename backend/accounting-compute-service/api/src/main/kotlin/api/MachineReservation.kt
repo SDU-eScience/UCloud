@@ -43,6 +43,9 @@ typealias FindMachineResponse = MachineReservation
 typealias DefaultMachineRequest = Unit
 typealias DefaultMachineResponse = MachineReservation
 
+data class SetAsDefaultRequest(val name: String)
+typealias SetAsDefaultResponse = Unit
+
 object MachineTypes : CallDescriptionContainer("accounting.compute.machines") {
     val baseContext = "/api/accounting/compute/machines"
 
@@ -58,6 +61,8 @@ object MachineTypes : CallDescriptionContainer("accounting.compute.machines") {
             path {
                 using(baseContext)
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 
@@ -121,6 +126,24 @@ object MachineTypes : CallDescriptionContainer("accounting.compute.machines") {
             path {
                 using(baseContext)
                 +"mark-as-inactive"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val setAsDefault = call<SetAsDefaultRequest, SetAsDefaultResponse, CommonErrorMessage>("setAsDefault") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEDGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"mark-as-default"
             }
 
             body { bindEntireRequestFromBody() }

@@ -560,6 +560,22 @@ class QueryService(
         }
     }
 
+    suspend fun exists(
+        ctx: DBContext,
+        projectId: String
+    ): Boolean {
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    { setParameter("projectId", projectId) },
+                    "select count(*) from projects where id = ?projectId"
+                )
+                .rows
+                .single()
+                .let { it.getLong(0)!! } > 0L
+        }
+    }
+
     companion object : Loggable {
         override val log = logger()
         const val VERIFICATION_REQUIRED_EVERY_X_DAYS = 30L

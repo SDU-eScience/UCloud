@@ -1,4 +1,3 @@
-import {MachineReservation, machineTypes} from "Applications/api";
 import {useCloudAPI} from "Authentication/DataHook";
 import * as React from "react";
 import {useEffect, useState} from "react";
@@ -8,20 +7,20 @@ import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
 import {HiddenInputField} from "ui-components/Input";
+import {listMachines, MachineReservation, MachineType} from "Accounting/Compute";
 
 export const MachineTypes: React.FunctionComponent<{
     inputRef: React.RefObject<HTMLInputElement>;
     runAsRoot: boolean;
 }> = props => {
-    const [machines] = useCloudAPI<MachineReservation[]>(machineTypes(), []);
+    const [machines] = useCloudAPI<MachineReservation[]>(listMachines({}), []);
     const [selected, setSelected] = useState<string>("");
 
     const selectedMachineFromList = machines.data.find(it => it.name === selected);
     const selectedMachine: MachineReservation = selectedMachineFromList ? selectedMachineFromList : {
         name: "Default",
-        memoryInGigs: null,
-        cpu: null,
-        gpu: null
+        pricePerHour: 0,
+        type: MachineType.STANDARD
     };
 
     useEffect(() => {

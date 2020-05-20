@@ -70,7 +70,7 @@ class GroupService(
                 """
                     delete from groups
                     where 
-                        project = ?project and   
+                        lower(project) = lower(?project) and   
                         the_group in (select * from unnest(?groups::text[]))
                 """
             )
@@ -140,7 +140,7 @@ class GroupService(
                         delete from group_members
                         where
                             username = ?username and
-                            project = ?project and
+                            lower(project) = lower(?project) and
                             the_group = ?group
                     """
                 )

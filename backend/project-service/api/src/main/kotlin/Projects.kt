@@ -105,6 +105,9 @@ typealias RejectInviteResponse = Unit
 typealias LeaveProjectRequest = Unit
 typealias LeaveProjectResponse = Unit
 
+data class ExistsRequest(val projectId: String)
+data class ExistsResponse(val exists: Boolean)
+
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
 
@@ -375,6 +378,24 @@ object Projects : CallDescriptionContainer("project") {
             path {
                 using(baseContext)
                 +"archive"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val exists = call<ExistsRequest, ExistsResponse, CommonErrorMessage>("exists") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEDGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"exists"
             }
 
             body { bindEntireRequestFromBody() }

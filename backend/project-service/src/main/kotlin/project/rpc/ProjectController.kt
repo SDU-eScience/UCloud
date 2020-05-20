@@ -38,6 +38,11 @@ class ProjectController(
             ok(Unit)
         }
 
+        implement(Projects.exists) {
+            val exists = queries.exists(db, request.projectId)
+            ok(ExistsResponse(exists))
+        }
+
         implement(Projects.changeUserRole) {
             projects.changeRoleOfMember(
                 db,

@@ -66,12 +66,22 @@ export const Credits: React.FunctionComponent = () => {
                     <Input placeholder={"Username"} ref={usernameRef}/>
                 </form>
                 {username === "" ? null : (
-                    <>
-                        <BalanceForAccount reload={reload} id={username} type={"USER"} balance={currentUserBalance} />
-                    </>
+                    <BalanceForAccount reload={reload} id={username} type={"USER"} balance={currentUserBalance} />
                 )}
 
-                <Heading.h4>Credits for Projects</Heading.h4>
+                <Box mt={16}>
+                    <Heading.h4>Credits for Projects</Heading.h4>
+                    <form onSubmit={e => {
+                        e.preventDefault();
+                        setProject(projectRef.current!.value);
+                    }}>
+                        <Input placeholder={"Project"} ref={projectRef}/>
+                    </form>
+                    {project === "" ? null : (
+                        <BalanceForAccount reload={reload} id={project} type={"PROJECT"}
+                                           balance={currentProjectBalance} />
+                    )}
+                </Box>
             </>
         )}
     />;
@@ -85,7 +95,9 @@ export const BalanceForAccount: React.FunctionComponent<{
 }> = props => {
     const [, runCommand] = useAsyncCommand();
     return <div>
-        {props.balance.data.balance.map(it => (
+        {!props.balance.error ? null : <>{props.balance.error.why}</>}
+
+        {props.balance.error ? null : props.balance.data.balance.map(it => (
             <Box key={it.type} mt={8} mb={8}>
                 <Heading.h4>Balance ({it.type}): {it.creditsRemaining}</Heading.h4>
 

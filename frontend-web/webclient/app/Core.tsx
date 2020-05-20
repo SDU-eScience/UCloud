@@ -44,6 +44,8 @@ import UserSettings from "UserSettings/UserSettings";
 import {inDevEnvironment} from "UtilityFunctions";
 import {areProjectsEnabled} from "Project";
 import {Credits} from "Accounting/Compute/Credits";
+import {MachineTypes} from "Applications/MachineTypes";
+import {MachineAdmin} from "Accounting/Compute/Machines";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
 
@@ -97,6 +99,7 @@ const Core = (): JSX.Element => (
                 <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)}/>
                 <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)}/>
                 <Route exact path="/admin/downtime" component={requireAuth(DowntimeManagement)}/>
+                <Route exact path="/admin/machines" component={requireAuth(MachineAdmin)}/>
 
                 <Route exact path="/downtime/detailed/:id" component={requireAuth(DetailedDowntime)}/>
 

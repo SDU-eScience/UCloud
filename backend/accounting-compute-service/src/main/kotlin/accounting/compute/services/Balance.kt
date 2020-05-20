@@ -67,7 +67,8 @@ fun SecurityPrincipalToken.toActor(): Actor = Actor.User(principal)
 fun SecurityPrincipal.toActor(): Actor = Actor.User(this)
 
 class BalanceService(
-    private val projectCache: ProjectCache
+    private val projectCache: ProjectCache,
+    private val verificationService: VerificationService
 ) {
     suspend fun requirePermissionToReadBalance(
         ctx: DBContext,
@@ -93,7 +94,8 @@ class BalanceService(
     suspend fun getBalance(
         ctx: DBContext,
         initiatedBy: Actor,
-        account: CreditsAccount
+        account: CreditsAccount,
+        verify: Boolean = true
     ): Pair<Long, Boolean> {
         return ctx.withSession { session ->
             requirePermissionToReadBalance(session, initiatedBy, account.id, account.type)
@@ -118,7 +120,12 @@ class BalanceService(
                 .rows
                 .firstOrNull()
                 ?.let { Pair(it.getLong(0)!!, true) }
-                ?: Pair(0L, false)
+                ?: run {
+                    if (verify) {
+                        verificationService.verify(account.id, account.type)
+                    }
+                    Pair(0L, false)
+                }
         }
     }
 
@@ -131,7 +138,7 @@ class BalanceService(
     ) {
         ctx.withSession { session ->
             if (!isGrantAdministrator(ctx, initiatedBy)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-            val (currentBalance, exists) = getBalance(session, initiatedBy, account)
+            val (currentBalance, exists) = getBalance(session, initiatedBy, account, true)
             if (currentBalance != lastKnownBalance) {
                 throw RPCException("Balance has been updated since you last viewed it!", HttpStatusCode.Conflict)
             }
@@ -269,7 +276,7 @@ class BalanceService(
         }
 
         ctx.withSession { session ->
-            val (balance, _) = getBalance(ctx, initiatedBy, account)
+            val (balance, _) = getBalance(ctx, initiatedBy, account, true)
             val reserved = getReservedCredits(ctx, account)
             if (reserved + amount > balance) {
                 throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
