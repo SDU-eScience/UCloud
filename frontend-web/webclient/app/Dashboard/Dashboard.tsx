@@ -1,5 +1,3 @@
-import * as Accounting from "Accounting";
-import {fetchUsage} from "Accounting/Redux/AccountingActions";
 import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatDistanceToNow} from "date-fns/esm";
@@ -47,7 +45,7 @@ export const DashboardCard: React.FunctionComponent<{title: string; color: strin
         <Flex px={3} py={2} alignItems="center" style={{borderTop:`5px solid ${color}`}} >
             <Heading.h3>{title}</Heading.h3>
         </Flex>
-        <Box px={3} py={1}>         
+        <Box px={3} py={1}>
             {!isLoading ? children : <Spinner /> }
         </Box>
     </Card>
@@ -70,7 +68,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         props.setAllLoading(loading);
         setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
         props.fetchRecentAnalyses();
-        props.fetchUsage();
     }
 
     const onNotificationAction = (notification: Notification): void => {
@@ -124,10 +121,8 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                     notifications={notifications}
                     readAll={props.readAll}
                 />
-                <DashboardCard title="Resources"  color={theme.colors.red} isLoading={false}>
-                    <Accounting.Usage resource="storage" subResource="bytesUsed" renderTitle/>
-                    <Box pb="12px"/>
-                    <Accounting.Usage resource="compute" subResource="timeUsed" renderTitle/>
+                <DashboardCard title="Resources" color={theme.colors.red} isLoading={false}>
+
                 </DashboardCard>
             </GridCardGroup>
         </>
@@ -274,10 +269,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     setAllLoading: loading => dispatch(setAllLoading(loading)),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
-    fetchUsage: async () => {
-        dispatch(await fetchUsage("storage", "bytesUsed"));
-        dispatch(await fetchUsage("compute", "timeUsed"));
-    },
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))

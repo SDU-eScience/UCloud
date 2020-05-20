@@ -9,25 +9,6 @@ import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 
-data class ComputeOverviewRequest(
-    val project: String?,
-    val group: String?
-) {
-    init {
-        if (project == null && group != null) {
-            throw RPCException("Group supplied without a project", HttpStatusCode.BadRequest)
-        }
-    }
-}
-
-data class OverviewByType(
-    val type: MachineType,
-    val creditsUsed: Long,
-    val creditsRemaining: Long
-)
-
-data class ComputeOverviewResponse(val overview: List<OverviewByType>)
-
 data class ComputeChartRequest(
     val project: String?,
     val group: String?,
@@ -49,10 +30,8 @@ data class ComputeChartPoint(
     val creditsUsed: Long
 )
 
-data class ComputeChartResponse(
-    val daily: List<ComputeChartPoint>,
-    val cumulative: List<ComputeChartPoint>
-)
+data class DailyComputeChart(val chart: Map<MachineType, List<ComputeChartPoint>>)
+data class CumulativeUsageChart(val chart: Map<MachineType, List<ComputeChartPoint>>)
 
 data class CreditsAccount(
     val id: String,
@@ -98,8 +77,21 @@ data class BreakdownPoint(
     val username: String,
     val creditsUsed: Long
 )
-data class BreakdownRequest(val project: String)
-data class BreakdownResponse(val points: List<BreakdownPoint>)
+data class BreakdownRequest(
+    val project: String,
+    val group: String?,
+    val pStart: Long,
+    val pEnd: Long
+) {
+    init {
+        if (pStart < -1L || pEnd < -1L) throw RPCException("Invalid period", HttpStatusCode.BadRequest)
+        if (pEnd < pStart) throw RPCException("Invalid period", HttpStatusCode.BadRequest)
+    }
+}
+
+data class BreakdownResponse(
+    val chart: Map<MachineType, List<BreakdownPoint>>
+)
 
 data class ReserveCreditsRequest(
     val jobId: String,
@@ -117,7 +109,7 @@ typealias ChargeReservationResponse = Unit
 object AccountingCompute : CallDescriptionContainer("accounting.compute") {
     const val baseContext = "/api/accounting/compute"
 
-    val computeOverview = call<ComputeOverviewRequest, ComputeOverviewResponse, CommonErrorMessage>("computeOverview") {
+    val dailyUsage = call<ComputeChartRequest, DailyComputeChart, CommonErrorMessage>("dailyUsage") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -127,16 +119,19 @@ object AccountingCompute : CallDescriptionContainer("accounting.compute") {
 
             path {
                 using(baseContext)
+                +"daily"
             }
 
             params {
-                +boundTo(ComputeOverviewRequest::project)
-                +boundTo(ComputeOverviewRequest::group)
+                +boundTo(ComputeChartRequest::project)
+                +boundTo(ComputeChartRequest::group)
+                +boundTo(ComputeChartRequest::pStart)
+                +boundTo(ComputeChartRequest::pEnd)
             }
         }
     }
 
-    val computeChart = call<ComputeChartRequest, ComputeChartResponse, CommonErrorMessage>("computeChart") {
+    val cumulativeUsage = call<ComputeChartRequest, CumulativeUsageChart, CommonErrorMessage>("cumulativeUsage") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -146,7 +141,7 @@ object AccountingCompute : CallDescriptionContainer("accounting.compute") {
 
             path {
                 using(baseContext)
-                +"chart"
+                +"cumulative"
             }
 
             params {

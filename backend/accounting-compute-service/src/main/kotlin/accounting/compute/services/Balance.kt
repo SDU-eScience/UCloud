@@ -34,20 +34,25 @@ object GrantAdminTable : SQLTable("grant_administrators") {
     val username = text("username")
 }
 
-class BalanceService {
+class BalanceService(
+    private val projectCache: ProjectCache
+) {
     suspend fun requirePermissionToReadBalance(
         ctx: DBContext,
         initiatedBy: String,
-        account: CreditsAccount
+        accountId: String,
+        accountType: AccountType
     ) {
-        if (!(account.type == AccountType.USER && initiatedBy == account.id)) {
-            if (!isGrantAdministrator(ctx, initiatedBy)) {
-                if (account.type == AccountType.PROJECT) {
-                    // TODO Check if we can access project
-                }
-                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        if (accountType == AccountType.USER && initiatedBy == accountId) return
+        if (isGrantAdministrator(ctx, initiatedBy)) return
+        if (accountType == AccountType.PROJECT) {
+            val memberStatus = projectCache.memberStatus.get(initiatedBy)
+            val project = memberStatus?.membership?.find { it.projectId == accountId }
+            if (project != null && project.whoami.role.isAdmin()) {
+                return
             }
         }
+        throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
     suspend fun getBalance(
@@ -56,7 +61,7 @@ class BalanceService {
         account: CreditsAccount
     ): Long {
         return ctx.withSession { session ->
-            requirePermissionToReadBalance(session, initiatedBy, account)
+            requirePermissionToReadBalance(session, initiatedBy, account.id, account.type)
 
             session
                 .sendPreparedStatement(

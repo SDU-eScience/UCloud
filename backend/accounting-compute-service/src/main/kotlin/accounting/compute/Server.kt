@@ -2,6 +2,8 @@ package dk.sdu.cloud.accounting.compute
 
 import dk.sdu.cloud.accounting.compute.rpc.AccountingController
 import dk.sdu.cloud.accounting.compute.services.BalanceService
+import dk.sdu.cloud.accounting.compute.services.ProjectCache
+import dk.sdu.cloud.accounting.compute.services.VisualizationService
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.Micro
@@ -21,11 +23,13 @@ class Server(
     override fun start() {
         val db = AsyncDBSessionFactory(micro.databaseConfig)
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val balanceService = BalanceService()
+        val projectCache = ProjectCache(client)
+        val balanceService = BalanceService(projectCache)
+        val visualizationService = VisualizationService(balanceService, projectCache)
 
         with(micro.server) {
             configureControllers(
-                AccountingController(db, balanceService)
+                AccountingController(db, balanceService, visualizationService)
             )
         }
 

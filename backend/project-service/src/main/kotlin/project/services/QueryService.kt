@@ -89,13 +89,15 @@ class QueryService(
 
     suspend fun listGroupMembers(
         ctx: DBContext,
-        requestedBy: String,
+        requestedBy: String?,
         projectId: String,
         groupId: String,
-        pagination: NormalizedPaginationRequest
+        pagination: NormalizedPaginationRequest?
     ): Page<UserGroupSummary> {
         return ctx.withSession { session ->
-            val requestedByRole = projects.requireRole(session, requestedBy, projectId, ProjectRole.ALL)
+            val requestedByRole =
+                if (requestedBy == null) ProjectRole.ADMIN
+                else projects.requireRole(session, requestedBy, projectId, ProjectRole.ALL)
 
             val params: EnhancedPreparedStatement.() -> Unit = {
                 setParameter("project", projectId)
@@ -113,7 +115,7 @@ class QueryService(
                         where 
                             project = ?project and
                             (?group = '' or the_group = ?group) and
-                            check_group_acl(?username, ?userIsAdmin, ?group)
+                            (?username::text is null or check_group_acl(?username, ?userIsAdmin, ?group))
                     """
                 )
                 .rows
@@ -124,8 +126,8 @@ class QueryService(
                 .sendPreparedStatement(
                     {
                         params()
-                        setParameter("limit", pagination.itemsPerPage)
-                        setParameter("offset", pagination.offset)
+                        setParameter("limit", pagination?.itemsPerPage ?: Int.MAX_VALUE)
+                        setParameter("offset", pagination?.offset ?: 0)
                     },
                     """
                         select *
@@ -133,7 +135,7 @@ class QueryService(
                         where
                             project = ?project and 
                             (?group = '' or the_group = ?group) and
-                            check_group_acl(?username, ?userIsAdmin, ?group)
+                            (?username::text is null or check_group_acl(?username, ?userIsAdmin, ?group))
                         order by
                             project, the_group, username
                         limit ?limit
@@ -149,7 +151,7 @@ class QueryService(
                     )
                 }
 
-            Page(count, pagination.itemsPerPage, pagination.page, items)
+            Page(count, pagination?.itemsPerPage ?: items.size, pagination?.page ?: 0, items)
         }
     }
 

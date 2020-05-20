@@ -2,7 +2,7 @@ package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.QueryResult
 import dk.sdu.cloud.service.Loggable
-import java.time.LocalDateTime
+import org.joda.time.LocalDateTime
 
 /**
  * Provides an enhanced prepared statement adding support for named parameters.

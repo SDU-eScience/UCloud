@@ -47,6 +47,18 @@ class GroupController(
             ok(groups.removeMember(db, ctx.securityPrincipal.username, project, request.group, request.memberUsername))
         }
 
+        implement(ProjectGroups.listAllGroupMembers) {
+            ok(
+                queries.listGroupMembers(
+                    db,
+                    null,
+                    request.project,
+                    request.group,
+                    null
+                ).items.map { it.username }
+            )
+        }
+
         implement(ProjectGroups.listGroupMembers) {
             val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
             ok(

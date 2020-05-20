@@ -1,4 +1,3 @@
-import * as AccountingRedux from "Accounting/Redux";
 import activity from "Activity/Redux/ActivityReducer";
 import * as AppRedux from "Applications/Redux";
 import analyses from "Applications/Redux/AnalysesReducer";
@@ -59,7 +58,6 @@ export const store = configureStore(initObject(), {
     fileInfo,
     hookStore,
     ...AppRedux.reducers,
-    ...AccountingRedux.reducers,
     avatar,
     loading,
     tasks: TaskRedux.reducer,

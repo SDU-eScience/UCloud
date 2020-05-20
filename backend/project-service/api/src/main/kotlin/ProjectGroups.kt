@@ -68,6 +68,9 @@ data class IsMemberResponse(val responses: List<Boolean>)
 data class GroupExistsRequest(val project: String, val group: String)
 data class GroupExistsResponse(val exists: Boolean)
 
+data class ListAllGroupMembersRequest(val project: String, val group: String)
+typealias ListAllGroupMembersResponse = List<String>
+
 object ProjectGroups : CallDescriptionContainer("project.group") {
     val baseContext = "/api/projects/groups"
 
@@ -105,6 +108,24 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
                 }
             }
         }
+
+    val listAllGroupMembers = call<ListAllGroupMembersRequest, ListAllGroupMembersResponse, CommonErrorMessage>(
+        "listAllGroupMembers"
+    ) {
+        auth {
+            roles = Roles.PRIVILEDGED
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"list-all-group-members"
+            }
+        }
+    }
 
     val delete = call<DeleteGroupsRequest, DeleteGroupsResponse, CommonErrorMessage>("delete") {
         auth {

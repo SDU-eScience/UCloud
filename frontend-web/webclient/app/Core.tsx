@@ -43,6 +43,7 @@ import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
 import {inDevEnvironment} from "UtilityFunctions";
 import {areProjectsEnabled} from "Project";
+import {Credits} from "Accounting/Compute/Credits";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
 
@@ -107,6 +108,7 @@ const Core = (): JSX.Element => (
                 <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)}/>
 
                 <Route exact path="/search/:priority" component={requireAuth(Search)}/>
+                <Route exact path={"/accounting/compute/credits"} component={requireAuth(Credits)} />
 
                 {areProjectsEnabled() ? (
                         <>

@@ -1,4 +1,3 @@
-import * as AccountingRedux from "Accounting/Redux";
 import {ActivityFilter, ActivityForFrontend} from "Activity";
 import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
 import * as ApplicationRedux from "Applications/Redux";
@@ -140,7 +139,7 @@ export interface HookStore {
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
     projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
     projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;
-    projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>
+    projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>;
     projectManagementQuery?: string;
     projectManagementOutgoingInvites?: APICallStateWithParams<Page<OutgoingInvite>, ListOutgoingInvitesRequest>;
 }
@@ -168,7 +167,6 @@ interface LegacyReduxObject {
 export type ReduxObject =
     LegacyReduxObject &
     ApplicationRedux.Objects &
-    AccountingRedux.Objects &
     TaskReduxState;
 
 export const initActivity = (): ActivityReduxObject => ({
@@ -216,7 +214,6 @@ export function initObject(): ReduxObject {
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         ...ApplicationRedux.init(),
-        ...AccountingRedux.init(),
         responsive: undefined,
     };
 }

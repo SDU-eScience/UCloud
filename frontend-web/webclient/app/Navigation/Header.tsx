@@ -443,8 +443,6 @@ const isAnyLoading = (rO: ReduxObject): boolean =>
     || rO.simpleSearch.applicationsLoading || rO.activity.loading
     || rO.analyses.loading || rO.dashboard.analysesLoading
     || rO.applicationsFavorite.applications.loading || rO.applicationsBrowse.loading
-    || rO.applicationsFavorite.applications.loading || /* rO.applicationsBrowse.applicationsPage.loading */ false
-    || rO.accounting.resources["compute/timeUsed"].events.loading
-    || rO.accounting.resources["storage/bytesUsed"].events.loading;
+    || rO.applicationsFavorite.applications.loading || /* rO.applicationsBrowse.applicationsPage.loading */ false;
 
 export default connect<HeaderStateToProps, HeaderOperations>(mapStateToProps, mapDispatchToProps)(Header);
