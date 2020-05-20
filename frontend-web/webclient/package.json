@@ -1,6 +1,6 @@
 {
     "name": "ucloud",
-    "version": "0.37.12",
+    "version": "0.37.13",
     "description": "UCloud",
     "author": "IMADA - eScience Center, SDU",
     "scripts": {
@@ -11,7 +11,7 @@
         "test": "jest --maxWorkers=1",
         "prepare-icons": "npm run icons-clean && npm run icons-components && npm run icons-index",
         "icons-clean": "cd app/ui-components/icons; rm -rf components index.ts",
-        "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components",
+        "icons-components": "cd app/ui-components/icons; svgr . --ext=tsx --filename-case camel -d components && rm -f components/index.tsx",
         "icons-index": "node scripts/create-icons-index.js"
     },
     "dependencies": {

@@ -143,7 +143,7 @@ function Header(props: HeaderProps): JSX.Element | null {
                 <ui.Box ml="-17px" mr="-17px" pl="15px">
                     <Link color="black" to="/users/settings">
                         <ui.Flex color="black">
-                            <ui.Icon name="properties" mr="0.5em" my="0.2em" size="1.3em" />
+                            <ui.Icon name="properties" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                             <TextSpan>Settings</TextSpan>
                         </ui.Flex>
                     </Link>
@@ -151,13 +151,13 @@ function Header(props: HeaderProps): JSX.Element | null {
                 <ui.Flex ml="-17px" mr="-17px" pl="15px">
                     <Link to={"/users/avatar"}>
                         <ui.Flex color="black">
-                            <ui.Icon name="user" color="white" color2="black" mr="0.5em" my="0.2em" size="1.3em" />
+                            <ui.Icon name="user" color="black" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                             <TextSpan>Edit Avatar</TextSpan>
                         </ui.Flex>
                     </Link>
                 </ui.Flex>
                 <ui.Flex ml="-17px" mr="-17px" pl="15px" onClick={() => Client.logout()}>
-                    <ui.Icon name="logout" mr="0.5em" my="0.2em" size="1.3em" />
+                    <ui.Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </ui.Flex>
                 <ui.Divider />

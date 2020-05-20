@@ -14,12 +14,12 @@ const SvgLicense = (props: any) => (
     />
     <path
       d="M16.91 17.894H7.09c-.602 0-1.09-.648-1.09-1.447S6.488 15 7.09 15h9.82c.602 0 1.09.648 1.09 1.447s-.488 1.447-1.09 1.447z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
     />
     <path
       d="M11.952 5.728l1.902 1.382-.951 1.31 1.538.5-.726 2.235-1.54-.5v1.618h-2.35v-1.618l-1.54.5L7.56 8.92l1.538-.5-.951-1.309 1.902-1.382.95 1.31.953-1.31z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
     />
   </svg>
 );

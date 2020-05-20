@@ -15,11 +15,11 @@ const SvgHourglass = (props: any) => (
     />
     <path
       d="M2.67 6.472l10.669-.006L8 11.388 2.67 6.472zM2.67 18.533h10.662v3.125H2.67z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
     />
     <path
       d="M8 12.618l1 6.915H7l1-6.915z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
     />
   </svg>
 );

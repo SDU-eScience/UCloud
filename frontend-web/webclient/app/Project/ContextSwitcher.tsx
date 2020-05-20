@@ -40,9 +40,9 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
             <ClickableDropdown
                 trigger={
                     <HoverBox>
-                        <Icon name={"projects"} mr={"4px"}/>
+                        <Icon name={"projects"} color2="midGray" mr={".5em"}/>
                         <Truncate width={"150px"}>{activeContext}</Truncate>
-                        <Icon name={"chevronDown"} size={"10px"} ml={"4px"}/>
+                        <Icon name={"chevronDown"} size={"12px"} ml={"4px"}/>
                     </HoverBox>
                 }
                 onTriggerClick={() => setFetchParams({...params})}
@@ -88,12 +88,13 @@ const HoverBox = styled.div`
     display: inline-flex;
     flex-wrap: none;
     color: white;
-    padding: 4px;
+    padding: 6px 8px;
     cursor: pointer;
     user-select: none;
     align-items: center;
+    border-radius: 5px;
     &:hover {
-        background-color: rgba(255, 255, 255, .3);
+        background-color: rgba(236, 239, 244, 0.25);
         color: white;
         transition: background-color 0.2s;
     }

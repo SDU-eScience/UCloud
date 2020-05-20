@@ -18,12 +18,12 @@ const SvgActivity = (props: any) => (
       fill={undefined}
     />
     <path
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
       d="M14.873 15.442l-2.358 1.026-1.994-4.585 2.358-1.026z"
     />
     <path
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
       d="M14.359 6.05l2.146 1.416-3.854 5.843-2.147-1.416z"
     />

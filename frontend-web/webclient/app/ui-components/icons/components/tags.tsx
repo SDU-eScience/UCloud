@@ -10,7 +10,7 @@ const SvgTags = (props: any) => (
   >
     <path
       d="M21.964 3.404v8.135l-11.4 11.752c.429.461 1.114.71 1.543.71.429 0 1.221-.214 1.682-.71l10.21-10.368V5.54l-2.035-2.135z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
     />
     <path
