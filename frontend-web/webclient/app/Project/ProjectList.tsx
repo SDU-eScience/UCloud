@@ -175,7 +175,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     snackbarStore.addInformation("Personal project is now the active.", false);
                                     props.setProject();
                                 }} />
-                                <Box width="28px" />
+                                <Box width="37px" />
                             </>}
                         />
                         {creatingProject ?
@@ -329,7 +329,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                                 />
                                                             </ClickableDropdown>
                                                         </div>
-                                                    ) : <Box width="28px" />}
+                                                    ) : <Box width="37px" />}
                                                 </Flex>}
                                         />
                                     );
