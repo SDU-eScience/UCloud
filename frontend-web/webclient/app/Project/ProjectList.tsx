@@ -14,7 +14,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page, Operation, Dictionary} from "Types";
 import Button from "ui-components/Button";
-import {Flex, Icon, List, Text, Input, Box, Checkbox, Label, Link} from "ui-components";
+import {Flex, Icon, List, Text, Input, Box, Checkbox, Label, Link, Tooltip} from "ui-components";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -273,14 +273,27 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                             <Icon name={"warning"} /> Attention required
                                                         </Text>
                                                     )}
-                                                    <Icon
-                                                        size="30"
-                                                        squared={false}
-                                                        name={projectRoleToStringIcon(e.whoami.role)}
-                                                        color="gray"
-                                                        color2="midGray"
-                                                        mr=".5em"
-                                                    />
+                                                    <Tooltip
+                                                        tooltipContentWidth="80px"
+                                                        wrapperOffsetLeft="0"
+                                                        wrapperOffsetTop="4px"
+                                                        right="0"
+                                                        top="1"
+                                                        mb="50px"
+                                                        trigger={(
+                                                            <Icon
+                                                                size="30"
+                                                                squared={false}
+                                                                name={projectRoleToStringIcon(e.whoami.role)}
+                                                                color="gray"
+                                                                color2="midGray"
+                                                                mr=".5em"
+                                                            />
+                                                        )}
+                                                    >
+                                                        <Text fontSize={2}>{e.whoami.role}</Text>
+                                                    </Tooltip>
+
                                                     <Toggle
                                                         scale={1.5}
                                                         activeColor="green"
