@@ -77,27 +77,31 @@ const GroupList: React.FunctionComponent = () => {
                             )
                         }
                         navigate={() => history.push(`/projects/view/${encodeURIComponent(g.group)}/${membersPage ?? ""}`)}
-                        leftSub={
-                            <Text ml="4px" color="gray" fontSize={0}>
-                                <Icon color="gray" mt="-2px" size="10" name="projects" /> {g.numberOfMembers}
-                            </Text>
-                        }
+                        leftSub={<div />}
                         right={
-                            <ClickableDropdown
-                                width="125px"
-                                left="-105px"
-                                trigger={(
-                                    <Icon
-                                        onClick={preventDefault}
-                                        mr="10px"
-                                        name="ellipsis"
-                                        size="1em"
-                                        rotation={90}
-                                    />
-                                )}
-                            >
-                                <GroupOperations groupOperations={operations} selectedGroups={[g]} />
-                            </ClickableDropdown>
+                            <>
+                                {g.numberOfMembers === 0 ? null :
+                                    <Flex>
+                                        <Icon mt="4px" mr="4px" size="18" name="user" /> {g.numberOfMembers}
+                                    </Flex>
+                                }
+                                <ClickableDropdown
+                                    width="125px"
+                                    left="-105px"
+                                    trigger={(
+                                        <Icon
+                                            onClick={preventDefault}
+                                            mr="10px"
+                                            ml="12px"
+                                            name="ellipsis"
+                                            size="1em"
+                                            rotation={90}
+                                        />
+                                    )}
+                                >
+                                    <GroupOperations groupOperations={operations} selectedGroups={[g]} />
+                                </ClickableDropdown>
+                            </>
                         }
                         isSelected={false}
                     />
