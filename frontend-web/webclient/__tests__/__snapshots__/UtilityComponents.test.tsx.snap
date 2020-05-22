@@ -672,6 +672,7 @@ exports[`Share prompt 1`] = `
             className="c6"
           >
             <input
+              autoComplete="off"
               className="c7"
               id="default"
               onKeyUp={[Function]}

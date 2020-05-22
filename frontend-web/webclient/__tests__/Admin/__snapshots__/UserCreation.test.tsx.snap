@@ -197,6 +197,7 @@ exports[`UserCreation Mount 1`] = `
       >
         Username
         <input
+          autoComplete="off"
           className="c6"
           id="default"
           onChange={[Function]}
