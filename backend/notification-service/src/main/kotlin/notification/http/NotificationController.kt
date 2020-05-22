@@ -14,9 +14,9 @@ import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.delay
 import org.slf4j.Logger
 
-class NotificationController<DBSession>(
-    private val service: NotificationService<DBSession>,
-    private val subscriptionService: SubscriptionService<DBSession>
+class NotificationController(
+    private val service: NotificationService,
+    private val subscriptionService: SubscriptionService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(NotificationDescriptions.list) {

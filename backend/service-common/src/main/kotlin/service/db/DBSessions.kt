@@ -15,7 +15,7 @@ interface DBSessionFactory<Session> {
     suspend fun flush(session: Session) {}
 }
 
-suspend inline fun <R, Session> DBSessionFactory<Session>.withSession(closure: (Session) -> R): R {
+suspend inline fun <R, Session> DBSessionFactory<Session>.usingSession(closure: (Session) -> R): R {
     val session = openSession()
     return try {
         closure(session)
@@ -47,7 +47,7 @@ suspend fun <R, Session> DBSessionFactory<Session>.withTransaction(
     autoFlush: Boolean = false,
     closure: suspend (Session) -> R
 ): R {
-    return withSession { session ->
+    return usingSession { session ->
         withTransaction(session, autoCommit, autoFlush) {
             closure(it)
         }
