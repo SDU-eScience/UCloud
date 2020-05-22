@@ -161,25 +161,22 @@ const MembersPanel: React.FunctionComponent = () => {
             }}
             customEmptyPage={<></>}
             pageRenderer={() => (
-                <Box mt={32}>
-                    <Heading.h4>Outgoing Invites</Heading.h4>
-                    <MembersList
-                        members={outgoingInvites.data.items.map(it => ({
-                            username: it.username,
-                            role: ProjectRole.USER
-                        }))}
-                        onRemoveMember={async (member) => {
-                            await runCommand(rejectInvite({projectId, username: member}));
-                            reloadMembers();
-                        }}
-                        projectRole={projectRole}
-                        allowRoleManagement={false}
-                        projectId={projectId}
-                        showRole={false}
-                    />
-                </Box>
+                <MembersList
+                    isOutgoingInvites
+                    members={outgoingInvites.data.items.map(it => ({
+                        username: it.username,
+                        role: ProjectRole.USER
+                    }))}
+                    onRemoveMember={async (member) => {
+                        await runCommand(rejectInvite({projectId, username: member}));
+                        reloadMembers();
+                    }}
+                    projectRole={projectRole}
+                    allowRoleManagement={false}
+                    projectId={projectId}
+                    showRole={false}
+                />
             )}
-
         />
     </>;
 };

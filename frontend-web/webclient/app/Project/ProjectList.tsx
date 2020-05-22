@@ -12,7 +12,7 @@ import {
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Page, Operation, Dictionary} from "Types";
+import {Page, Operation} from "Types";
 import Button from "ui-components/Button";
 import {Flex, Icon, List, Text, Input, Box, Checkbox, Label, Link, Tooltip} from "ui-components";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
@@ -34,9 +34,9 @@ import {SidebarPages} from "ui-components/Sidebar";
 import {Toggle} from "ui-components/Toggle";
 import {Spacer} from "ui-components/Spacer";
 import {ShareCardBase} from "Shares/List";
-import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
+import {defaultAvatar} from "UserSettings/Avataaar";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {loadAvatars} from "Shares";
+import {useAvatars} from "AvataaarLib/hook";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -53,14 +53,12 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
 
     const usernames = ingoingInvites.data.items.map(it => it.invitedBy);
 
-    const [avatars, setAvatarParams, avatarParams] = useCloudAPI<{avatars: Dictionary<AvatarType>}>(
-        loadAvatars({usernames: new Set(usernames)}), {avatars: {}}
-    );
 
-    React.useEffect(() => {
-        if (usernames.length === 0) return;
-        setAvatarParams(loadAvatars({usernames: new Set(usernames)}));
-    }, [usernames.length]);
+    const avatars = useAvatars();
+
+    useEffect(() => {
+        avatars.updateCache(usernames);
+    }, [usernames]);
 
 
     const [creatingProject, setCreatingProject] = React.useState(false);
@@ -128,7 +126,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         body={
                                             <Spacer
                                                 left={<>
-                                                    <UserAvatar avatar={avatars.data.avatars[invite.invitedBy] ?? defaultAvatar} mr="10px" />
+                                                    <UserAvatar avatar={avatars.cache[invite.invitedBy] ?? defaultAvatar} mr="10px" />
                                                     <Flex alignItems="center">Invited by {invite.invitedBy}</Flex>
                                                 </>}
                                                 right={<Flex alignItems="center">

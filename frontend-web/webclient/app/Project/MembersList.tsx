@@ -3,15 +3,11 @@ import {useAsyncCommand} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
 import * as React from "react";
 import {useEffect} from "react";
-import {GridCardGroup} from "ui-components/Grid";
-import {Avatar} from "AvataaarLib";
 import {defaultAvatar} from "UserSettings/Avataaar";
-import {Flex, Icon, Text, Truncate, Box, Button} from "ui-components";
+import {Flex, Icon, Text, Box, Button} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import styled from "styled-components";
-import {IconName} from "ui-components/Icon";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
@@ -23,6 +19,7 @@ export function MembersList(props: Readonly<{
     allowRoleManagement: boolean;
     projectRole: ProjectRole;
     reload?: () => void;
+    isOutgoingInvites?: boolean;
     showRole?: boolean;
     projectId: string;
 }>): JSX.Element {
@@ -49,8 +46,15 @@ export function MembersList(props: Readonly<{
             <>
                 <Flex alignItems="center" mb="16px">
                     <UserAvatar avatar={avatars.cache[member.username] ?? defaultAvatar} mr="10px" />
-                    <div>
-                        <Text bold>{member.username}</Text>
+                    {!props.isOutgoingInvites ? <Text bold>{member.username}</Text> :
+                        <div>
+                            <Text bold>{member.username}</Text>
+                            Invited to join
+                        </div>
+                    }
+
+                    <Box flexGrow={1} />
+                    <Box mr="10px">
                         {props.showRole === false ? null :
                             !props.allowRoleManagement || member.role === ProjectRole.PI ?
                                 projectRoleToString(member.role)
@@ -92,10 +96,7 @@ export function MembersList(props: Readonly<{
                                     options={options}
                                 />
                         }
-                    </div>
-
-                    <Box flexGrow={1} />
-
+                    </Box>
                     <Flex alignItems={"center"}>
                         {!props.onAddToGroup ? null :
                             <Button color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
@@ -122,15 +123,3 @@ export function MembersList(props: Readonly<{
         )}
     </>);
 }
-
-const MemberBox = styled(Flex)`
-    width: 260px;
-    align-items: center;
-    border-radius: 8px;
-    margin-right: 8px;
-
-    &:hover {
-        background-color: var(--lightGray);
-        transition: background-color 0.2s;
-    }
-`;
