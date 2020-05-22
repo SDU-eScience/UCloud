@@ -1,11 +1,11 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, projectRoleToString, transferPiRole} from "Project/index";
+import {changeRoleInProject, ProjectMember, ProjectRole, projectRoleToString, transferPiRole, projectStringToRole} from "Project/index";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
 import * as React from "react";
 import {useEffect} from "react";
 import {defaultAvatar} from "UserSettings/Avataaar";
-import {Flex, Icon, Text, Box, Button} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "ui-components";
+import {IconName} from "ui-components/Icon";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
@@ -33,13 +33,13 @@ export function MembersList(props: Readonly<{
         avatars.updateCache(usernames);
     }, [props.members]);
 
-    const options = [
-        {text: "User", value: ProjectRole.USER},
-        {text: "Admin", value: ProjectRole.ADMIN}
+    const options: {text: string; icon: IconName; value: ProjectRole}[] = [
+        {text: "User", icon: "user", value: ProjectRole.USER},
+        {text: "Admin", icon: "userAdmin", value: ProjectRole.ADMIN}
     ];
 
     if (props.projectRole === ProjectRole.PI) {
-        options.push({text: "PI", value: ProjectRole.PI});
+        options.push({text: "PI", icon: "userPi", value: ProjectRole.PI});
     }
 
     return (<>
@@ -55,49 +55,56 @@ export function MembersList(props: Readonly<{
                     }
 
                     <Box flexGrow={1} />
-                    <Box mr="10px">
-                        {props.showRole === false ? null :
-                            !props.allowRoleManagement || member.role === ProjectRole.PI ?
-                                projectRoleToString(member.role)
-                                :
-                                <ClickableDropdown
-                                    chevron
-                                    trigger={projectRoleToString(member.role)}
-                                    onChange={async value => {
-                                        try {
-                                            if (value === ProjectRole.PI) {
-                                                addStandardDialog({
-                                                    title: "Transfer PI Role",
-                                                    message: "Are you sure you wish to transfer the PI role? " +
-                                                        "A project can only have one PI. " +
-                                                        "Your own user will be demoted to admin.",
-                                                    onConfirm: async () => {
-                                                        await runCommand(
-                                                            transferPiRole({newPrincipalInvestigator: member.username})
-                                                        );
 
+                    {props.showRole === false ? null :
+                        !props.allowRoleManagement || member.role === ProjectRole.PI ?
+                            projectRoleToString(member.role)
+                            :
+                            <>
+                                <RadioTilesContainer height="44px">
+                                    {options.map(role =>
+                                        <RadioTile key={role.text}
+                                            label={role.text}
+                                            icon={role.icon}
+                                            checked={role.value === member.role}
+                                            onChange={async event => {
+                                                try {
+                                                    if (event.currentTarget.value === "PI") {
+                                                        addStandardDialog({
+                                                            title: "Transfer PI Role",
+                                                            message: "Are you sure you wish to transfer the PI role? " +
+                                                                "A project can only have one PI. " +
+                                                                "Your own user will be demoted to admin.",
+                                                            onConfirm: async () => {
+                                                                await runCommand(
+                                                                    transferPiRole({ newPrincipalInvestigator: member.username })
+                                                                );
+
+                                                                if (props.reload) props.reload();
+                                                            },
+                                                            confirmText: "Transfer PI role"
+                                                        });
+                                                    } else {
+                                                        await runCommand(changeRoleInProject({
+                                                            projectId: props.projectId,
+                                                            member: member.username,
+                                                            newRole: projectStringToRole(event.currentTarget.value)
+                                                        }));
                                                         if (props.reload) props.reload();
-                                                    },
-                                                    confirmText: "Transfer PI role"
-                                                });
-                                            } else {
-                                                await runCommand(changeRoleInProject({
-                                                    projectId: props.projectId,
-                                                    member: member.username,
-                                                    newRole: value
-                                                }));
-                                                if (props.reload) props.reload();
-                                            }
-                                        } catch (err) {
-                                            snackbarStore.addFailure(
-                                                errorMessageOrDefault(err, "Failed to update role."), false
-                                            );
-                                        }
-                                    }}
-                                    options={options}
-                                />
-                        }
-                    </Box>
+                                                    }
+                                                } catch (err) {
+                                                    snackbarStore.addFailure(
+                                                        errorMessageOrDefault(err, "Failed to update role."), false
+                                                    );
+                                                }
+                                            }}
+                                        />
+                                    )
+                                    }
+                                </RadioTilesContainer>
+                            </>
+                    }
+
                     <Flex alignItems={"center"}>
                         {!props.onAddToGroup ? null :
                             <Button color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
