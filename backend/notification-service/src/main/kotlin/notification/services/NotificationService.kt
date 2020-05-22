@@ -6,15 +6,17 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
-class NotificationService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val notificationDAO: NotificationDAO<DBSession>,
-    private val subscriptionService: SubscriptionService<DBSession>
+class NotificationService(
+    private val db: DBContext,
+    private val notificationDAO: NotificationHibernateDAO,
+    private val subscriptionService: SubscriptionService
 ) {
 
     suspend fun listNotifications(
@@ -23,7 +25,7 @@ class NotificationService<DBSession>(
         since: Long?,
         pagination: NormalizedPaginationRequest
     ): Page<Notification> {
-        return db.withTransaction {
+        return db.withSession {
             notificationDAO.findNotifications(
                 it,
                 user,
@@ -41,7 +43,7 @@ class NotificationService<DBSession>(
         // TODO Optimize this
         val failedMarkings = mutableListOf<Long>()
         val isTrue: (Boolean) -> Boolean = { it }
-        val success = db.withTransaction { session ->
+        val success = db.withSession { session ->
             ids.map { id ->
                 val accepted = notificationDAO.markAsRead(session, user, id)
                 if (!accepted) failedMarkings.add(id)
@@ -54,7 +56,7 @@ class NotificationService<DBSession>(
     }
 
     suspend fun markAllAsRead(user: String) {
-        db.withTransaction {
+        db.withSession {
             notificationDAO.markAllAsRead(it, user)
         }
     }
@@ -64,7 +66,7 @@ class NotificationService<DBSession>(
         notification: Notification
     ): FindByNotificationId {
         val result =
-            db.withTransaction { FindByNotificationId(notificationDAO.create(it, user, notification)) }
+            db.withSession { FindByNotificationId(notificationDAO.create(it, user, notification)) }
 
         GlobalScope.launch {
             subscriptionService.onNotification(
@@ -82,7 +84,7 @@ class NotificationService<DBSession>(
     ): List<Long> {
         val failedDeletions = mutableListOf<Long>()
         val isTrue: (Boolean) -> Boolean = { it }
-        val success = db.withTransaction { session ->
+        val success = db.withSession { session ->
             ids.map { id ->
                 val deleted = notificationDAO.delete(session, id)
                 if (!deleted) failedDeletions.add(id)

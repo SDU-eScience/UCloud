@@ -88,7 +88,8 @@ class JobOrchestratorTest {
                 ClientMock.authenticatedClient
             ),
             ProjectCache(ClientMock.authenticatedClient),
-            appService
+            appService,
+            PublicLinkService()
         )
 
         coEvery {

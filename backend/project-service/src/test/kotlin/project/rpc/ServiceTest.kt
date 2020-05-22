@@ -40,7 +40,7 @@ class ServiceTest {
         ).parseSuccessful()
     }
 
-    private fun KtorApplicationTestContext.addMember(
+    /*private fun KtorApplicationTestContext.addMember(
         project: String,
         memberToAdd: ProjectMember,
         principalInvestigator: SecurityPrincipal
@@ -392,5 +392,5 @@ class ServiceTest {
                 })
             }
         )
-    }
+    }*/
 }

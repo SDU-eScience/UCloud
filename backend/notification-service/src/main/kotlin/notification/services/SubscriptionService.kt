@@ -14,6 +14,10 @@ import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.SubscriptionResponse
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -30,11 +34,11 @@ data class LocalSubscription(
     val id: Long
 )
 
-class SubscriptionService<Session>(
+class SubscriptionService(
     private val localhost: HostInfo,
     private val wsServiceClient: AuthenticatedClient,
-    private val db: DBSessionFactory<Session>,
-    private val subscriptionDao: SubscriptionDao<Session>
+    private val db: DBContext,
+    private val subscriptionDao: SubscriptionDao
 ) : Closeable {
     private var isRunning: Boolean = true
 
@@ -43,7 +47,7 @@ class SubscriptionService<Session>(
 
         GlobalScope.launch {
             while (isActive && isRunning) {
-                db.withTransaction { subscriptionDao.refreshSessions(it, localhost.host, localhost.port!!) }
+                subscriptionDao.refreshSessions(db, localhost.host, localhost.port!!)
                 delay(3000)
             }
         }
@@ -58,7 +62,7 @@ class SubscriptionService<Session>(
     }
 
     suspend fun onConnection(user: String, handler: CallHandler<*, SubscriptionResponse, *>) {
-        db.withTransaction { session ->
+        db.withSession { session ->
             val id = subscriptionDao.open(session, user, localhost.host, localhost.port!!)
             lock.withLock {
                 val localSubscription = LocalSubscription(user, handler, id)
@@ -81,11 +85,11 @@ class SubscriptionService<Session>(
         }
 
         // It is safe to close it multiple times.
-        if (id != null) db.withTransaction { subscriptionDao.close(it, id) }
+        if (id != null) db.withSession { subscriptionDao.close(it, id) }
     }
 
     suspend fun onNotification(user: String, notification: Notification, allowRemoteCalls: Boolean) {
-        val subscriptions = db.withTransaction {
+        val subscriptions = db.withSession {
             subscriptionDao.findConnections(it, user)
         }
 
@@ -108,7 +112,7 @@ class SubscriptionService<Session>(
             }
 
             if (invalidSubscriptions.isNotEmpty()) {
-                db.withTransaction { session ->
+                db.withSession { session ->
                     invalidSubscriptions.forEach { id ->
                         log.debug("Closing dead session: $id")
                         subscriptionDao.close(session, id)

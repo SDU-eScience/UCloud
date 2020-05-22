@@ -4,10 +4,11 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationId
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.async.DBContext
 
 val FIRST_PAGE = NormalizedPaginationRequest(null, null)
 
-interface NotificationDAO<Session> {
+interface NotificationDAO {
     /**
      * Retrieves a page of notifications. The notifications must be sorted by descending time stamp
      *
@@ -16,8 +17,8 @@ interface NotificationDAO<Session> {
      * @param since Don't return notifications from before this timestamp
      * @param paginationRequest Controls pagination of results
      */
-    fun findNotifications(
-        session: Session,
+    suspend fun findNotifications(
+        ctx: DBContext,
         user: String,
         type: String? = null,
         since: Long? = null,
@@ -31,14 +32,14 @@ interface NotificationDAO<Session> {
      *
      * @return The ID of the newly created notification
      */
-    fun create(session: Session, user: String, notification: Notification): NotificationId
+    suspend fun create(ctx: DBContext, user: String, notification: Notification): NotificationId
 
     /**
      * Deletes a notification with [id]
      *
      * @return `true` if the notification exists and was deleted, `false` if the notification does not exist
      */
-    fun delete(session: Session, id: NotificationId): Boolean
+    suspend fun delete(ctx: DBContext, id: NotificationId): Boolean
 
     /**
      * Marks a notification with [id] for [user] as read
@@ -46,7 +47,7 @@ interface NotificationDAO<Session> {
      * @return `true` if the notification exists and was marked as read. `false` will be returned if the
      * notification doesn't exist
      */
-    fun markAsRead(session: Session, user: String, id: NotificationId): Boolean
+    suspend fun markAsRead(ctx: DBContext, user: String, id: NotificationId): Boolean
 
-    fun markAllAsRead(session: Session, user: String)
+    suspend fun markAllAsRead(ctx: DBContext, user: String)
 }
