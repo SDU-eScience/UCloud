@@ -6,6 +6,7 @@ import styled from "styled-components";
 import {Button, Flex, Icon} from "ui-components";
 import Input, {InputLabel} from "ui-components/Input";
 import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
+import {SpaceProps, HeightProps, WidthProps} from "styled-system";
 
 interface FileInputSelectorProps {
     path: string; // selected file
@@ -83,6 +84,8 @@ interface FileSelectorButton {
     onClick: () => void;
 }
 
-const RemoveButton = ({onClick}: FileSelectorButton): JSX.Element => (
-    <Button color="red" ml="8px" onClick={onClick}><Icon name="close" size="1em" /></Button>
+export const RemoveButton = ({
+    onClick, ...props
+}: FileSelectorButton & SpaceProps & WidthProps & HeightProps): JSX.Element => (
+    <Button color="red" ml="8px" onClick={onClick} {...props}><Icon name="close" size="1em" /></Button>
 );

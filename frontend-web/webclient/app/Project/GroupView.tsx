@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Text, Link, Truncate} from "ui-components";
+import {Text, Link, Truncate, Flex} from "ui-components";
 import * as Pagination from "Pagination";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {
@@ -8,7 +8,6 @@ import {
 } from "Project";
 import {addStandardDialog} from "UtilityComponents";
 import {ProjectRole} from "Project";
-import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "Project/View";
 import {MembersList} from "Project/MembersList";
 
@@ -22,10 +21,11 @@ const GroupView: React.FunctionComponent = () => {
     const [, runCommand] = useAsyncCommand();
 
     const header = (
-        <BreadCrumbsBase>
-            <li><span><Link to={`/projects/view/-/${membersPage ?? ""}`}>Groups</Link></span></li>
-            <li><Truncate width={"500px"}>{group}</Truncate></li>
-        </BreadCrumbsBase>
+        <Flex>
+            <Link to={`/projects/view/-/${membersPage ?? ""}`}><Text fontSize={"25px"}>Groups</Text></Link>
+            <Text mx="8px" fontSize="25px">/</Text>
+            <Flex width={"100%"}><Truncate fontSize="25px" width={1}>{group}</Truncate></Flex>
+        </Flex>
     );
 
     if (!group || activeGroup.error) {

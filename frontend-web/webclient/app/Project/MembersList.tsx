@@ -11,6 +11,7 @@ import {errorMessageOrDefault} from "UtilityFunctions";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {RemoveButton} from "Files/FileInputSelector";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];
@@ -104,22 +105,18 @@ export function MembersList(props: Readonly<{
                                     color="white"
                                     name="arrowDown"
                                     rotation={270}
+                                    width="1em"
                                     title="Add to group"
                                 />
                             </Button>
                         }
                         {!allowManagement || member.role === ProjectRole.PI ? null :
-                            <Button ml="5px" color="red" width="35px" height="35px" onClick={() => props.onRemoveMember(member.username)}>
-                                <Icon
-                                    color="white"
-                                    name={"close"}
-                                    title={"Remove from project"}
-                                />
-                            </Button>
+                            <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveMember(member.username)} />
                         }
                     </Flex>
                 </Flex>
             </>
-        )}
+        )
+        }
     </>);
 }
