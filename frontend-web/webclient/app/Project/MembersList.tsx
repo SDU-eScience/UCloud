@@ -109,7 +109,8 @@ export function MembersList(props: Readonly<{
                     }
 
                     <Flex alignItems={"center"}>
-                        {!props.onAddToGroup ? null :
+                        {!props.onAddToGroup ? !allowManagement || member.role === ProjectRole.PI ? null :
+                            <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveMember(member.username)} /> :
                             <Button color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
                                 <Icon
                                     color="white"
@@ -119,9 +120,6 @@ export function MembersList(props: Readonly<{
                                     title="Add to group"
                                 />
                             </Button>
-                        }
-                        {!allowManagement || member.role === ProjectRole.PI ? null :
-                            <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveMember(member.username)} />
                         }
                     </Flex>
                 </Flex>

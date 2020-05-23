@@ -153,31 +153,33 @@ const MembersPanel: React.FunctionComponent = () => {
             }}
         />
 
-        <Pagination.List
-            loading={outgoingInvites.loading}
-            page={outgoingInvites.data}
-            onPageChanged={(newPage) => {
-                fetchOutgoingInvites(listOutgoingInvites({...outgoingInvitesParams.parameters, page: newPage}));
-            }}
-            customEmptyPage={<></>}
-            pageRenderer={() => (
-                <MembersList
-                    isOutgoingInvites
-                    members={outgoingInvites.data.items.map(it => ({
-                        username: it.username,
-                        role: ProjectRole.USER
-                    }))}
-                    onRemoveMember={async (member) => {
-                        await runCommand(rejectInvite({projectId, username: member}));
-                        reloadMembers();
-                    }}
-                    projectRole={projectRole}
-                    allowRoleManagement={false}
-                    projectId={projectId}
-                    showRole={false}
-                />
-            )}
-        />
+        {group ? null :
+            <Pagination.List
+                loading={outgoingInvites.loading}
+                page={outgoingInvites.data}
+                onPageChanged={(newPage) => {
+                    fetchOutgoingInvites(listOutgoingInvites({ ...outgoingInvitesParams.parameters, page: newPage }));
+                }}
+                customEmptyPage={<></>}
+                pageRenderer={() => (
+                    <MembersList
+                        isOutgoingInvites
+                        members={outgoingInvites.data.items.map(it => ({
+                            username: it.username,
+                            role: ProjectRole.USER
+                        }))}
+                        onRemoveMember={async (member) => {
+                            await runCommand(rejectInvite({ projectId, username: member }));
+                            reloadMembers();
+                        }}
+                        projectRole={projectRole}
+                        allowRoleManagement={false}
+                        projectId={projectId}
+                        showRole={false}
+                    />
+                )}
+            />
+        }
     </>;
 };
 
