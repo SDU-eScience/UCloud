@@ -398,7 +398,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
 
                             {!application.invocation.shouldAllowAdditionalPeers ? null : (
                                 <RunSection>
-                                    <Flex>
+                                    <Flex alignItems={"center"}>
                                         <Box flexGrow={1}>
                                             <Heading.h4>Connect to other jobs</Heading.h4>
                                         </Box>
@@ -927,9 +927,10 @@ const ApplicationUrl: React.FunctionComponent<{
                         <Warning
                             warning="By enabling this setting, anyone with a link can gain access to the application."/>
                         <Label mt={20}>
-                            <Flex>
-                                <TextSpan mt={10}>https://app-</TextSpan>
+                            <Flex alignItems={"center"}>
+                                <TextSpan>https://app-</TextSpan>
                                 <Input
+                                    mx={"2px"}
                                     placeholder="Unique URL identifier"
                                     ref={props.inputRef}
                                     required
@@ -947,7 +948,7 @@ const ApplicationUrl: React.FunctionComponent<{
                                         );
                                     }}
                                 />
-                                <TextSpan mt={10}>.cloud.sdu.dk</TextSpan>
+                                <TextSpan>.cloud.sdu.dk</TextSpan>
                             </Flex>
                         </Label>
                     </>
