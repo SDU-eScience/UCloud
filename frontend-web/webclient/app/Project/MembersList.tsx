@@ -61,9 +61,10 @@ export function MembersList(props: Readonly<{
                             projectRoleToString(member.role)
                             :
                             <>
-                                <RadioTilesContainer height="44px">
+                                <RadioTilesContainer height="48px">
                                     {options.map(role =>
                                         <RadioTile key={role.text}
+                                            labeled={true}
                                             label={role.text}
                                             icon={role.icon}
                                             checked={role.value === member.role}

@@ -11,15 +11,15 @@ const RadioTilesContainer = styled(Flex)`
 `;
 
 
-const RadioTile= (props: RadioTileWrapProps & { onChange: (value: React.ChangeEvent<HTMLInputElement> ) => void }): JSX.Element => {
+const RadioTile= (props: RadioTileProps ): JSX.Element => {
   const { label, icon, checked, disabled, onChange } = props;
 
   return (
-    <RadioTileWrap label={label} icon={icon} checked={checked} disabled={disabled}>
-      <RadioTileInput type="radio" name="test" value={label} checked={checked} disabled={disabled} onChange={onChange}/>
-      <RadioTileIcon label={label} icon={icon} checked={checked} disabled={disabled}>
-        <Icon name={icon} size={"50%"} />
-        <RadioTileLabel>
+    <RadioTileWrap checked={checked} disabled={disabled}>
+      <RadioTileInput type="radio" name="test" id={label} value={label} checked={checked} disabled={disabled} onChange={onChange}/>
+      <RadioTileIcon>
+        <Icon name={icon} size={props.labeled ? "65%" : "85%"} />
+        <RadioTileLabel htmlFor={label}>
           {props.labeled ? label : undefined }
         </RadioTileLabel>
       </RadioTileIcon>
@@ -27,19 +27,24 @@ const RadioTile= (props: RadioTileWrapProps & { onChange: (value: React.ChangeEv
   );
 };
 
-interface RadioTileWrapProps {
+interface RadioTileProps extends RadioTileWrapProps {
     label: string;
     icon: IconName;
-    checked: boolean;
-    disabled?: boolean;
     labeled?: boolean;
+    onChange: (value: React.ChangeEvent<HTMLInputElement> ) => void; 
 }
+
+interface RadioTileWrapProps {
+  checked: boolean;
+  disabled?: boolean;
+}
+
 
 RadioTile.defaultProps = {
   labeled: true
 };
 
-const RadioTileIcon = styled.div<RadioTileWrapProps>`
+const RadioTileIcon = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -54,15 +59,15 @@ const RadioTileIcon = styled.div<RadioTileWrapProps>`
 
 const RadioTileWrap = styled.div<RadioTileWrapProps>`
     position: relative;
-    height:  35px;
-    width:  35px;
+    height:  40px;
+    width:  40px;
     margin: 5px;
     transition: transform 300ms ease;
 
     &:hover {
       ${props => props.checked || props.disabled ? null :
         `
-          transform: scale(1.2, 1.2);
+          transform: scale(1.0, 1.0);
         `
     }
 
