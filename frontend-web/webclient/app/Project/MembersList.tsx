@@ -64,8 +64,10 @@ export function MembersList(props: Readonly<{
                                 <RadioTilesContainer height="48px">
                                     {options.map(role =>
                                         <RadioTile key={role.text}
+                                            height={40}
                                             labeled={true}
                                             label={role.text}
+                                            fontSize={"0.5em"}
                                             icon={role.icon}
                                             checked={role.value === member.role}
                                             onChange={async event => {

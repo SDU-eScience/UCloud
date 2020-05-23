@@ -1,7 +1,8 @@
 import * as React from "react";
 import styled from "styled-components";
 import Icon, { IconName } from "./Icon";
-import {Flex, Label} from "ui-components";
+import { Flex } from "ui-components";
+import { FontSizeProps, fontSize } from "styled-system";
 
 const RadioTilesContainer = styled(Flex)`
   flex-wrap: nowrap;
@@ -12,14 +13,17 @@ const RadioTilesContainer = styled(Flex)`
 
 
 const RadioTile= (props: RadioTileProps ): JSX.Element => {
-  const { label, icon, checked, disabled, onChange } = props;
+  const { height, label, icon, checked, disabled, fontSize, onChange } = props;
 
   return (
-    <RadioTileWrap checked={checked} disabled={disabled}>
-      <RadioTileInput type="radio" name="test" id={label} value={label} checked={checked} disabled={disabled} onChange={onChange}/>
+    <RadioTileWrap height={height} checked={checked} disabled={disabled}>
+      <RadioTileInput type="radio" name="test"
+                      id={label} value={label}
+                      checked={checked} disabled={disabled}
+                      onChange={onChange}/>
       <RadioTileIcon>
         <Icon name={icon} size={props.labeled ? "65%" : "85%"} />
-        <RadioTileLabel htmlFor={label}>
+        <RadioTileLabel htmlFor={label} fontSize={fontSize}>
           {props.labeled ? label : undefined }
         </RadioTileLabel>
       </RadioTileIcon>
@@ -27,14 +31,15 @@ const RadioTile= (props: RadioTileProps ): JSX.Element => {
   );
 };
 
-interface RadioTileProps extends RadioTileWrapProps {
-    label: string;
-    icon: IconName;
-    labeled?: boolean;
-    onChange: (value: React.ChangeEvent<HTMLInputElement> ) => void; 
+interface RadioTileProps extends RadioTileWrapProps, FontSizeProps {
+  label: string;
+  icon: IconName;
+  labeled?: boolean;
+  onChange: (value: React.ChangeEvent<HTMLInputElement> ) => void; 
 }
 
 interface RadioTileWrapProps {
+  height: number;
   checked: boolean;
   disabled?: boolean;
 }
@@ -58,53 +63,54 @@ const RadioTileIcon = styled.div`
 `;
 
 const RadioTileWrap = styled.div<RadioTileWrapProps>`
-    position: relative;
-    height:  40px;
-    width:  40px;
-    margin: 5px;
-    transition: transform 300ms ease;
+  position: relative;
+  height:  ${props => props.height}px;
+  width:  ${props => props.height}px;
+  margin: 5px;
+  transition: transform 300ms ease;
 
-    &:hover {
-      ${props => props.checked || props.disabled ? null :
-        `
-          transform: scale(1.0, 1.0);
-        `
-    }
+  &:hover {
+    ${props => props.checked || props.disabled ? null :
+      `
+        transform: scale(1.2, 1.2);
+      `
+  }
 
-    &:hover > ${RadioTileIcon} {
-      ${props => props.checked || props.disabled ? null :
-        `
-          color: var(--blue, #f00); 
-          border: 1px solid var(--blue, #f00);
-        `
-      };
-    }
+  &:hover > ${RadioTileIcon} {
+    ${props => props.checked || props.disabled ? null :
+      `
+        color: var(--blue, #f00); 
+        border: 1px solid var(--blue, #f00);
+      `
+    };
+  }
 `;
 
 const RadioTileInput = styled.input`
-    opacity: 0;
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 100%;
-    margin: 0;
-    cursor: pointer;
+  opacity: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  cursor: pointer;
 
-    &:checked + ${RadioTileIcon} {
-      background-color: var(--blue, #f00);
-      border: 0px solid white;
-      color: white;
-      transform: scale(1.2, 1.2);
-    }
-  
-  `;
+  &:checked + ${RadioTileIcon} {
+    background-color: var(--blue, #f00);
+    border: 0px solid white;
+    color: white;
+    transform: scale(1.2, 1.2);
+  }
+`;
 
+interface RadioTileLabelProps {
+  fontSize: FontSizeProps;
+}
 
-
-const RadioTileLabel = styled.label`
+const RadioTileLabel = styled.label<FontSizeProps>`
   text-align: center;
-  font-size: 0.5rem;
+  ${fontSize};
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 1px;
