@@ -15,8 +15,8 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.HibernateSession
 import io.ktor.http.HttpStatusCode
 
-class AvatarController<DBSession>(
-    private val avatarService: AvatarService<DBSession>
+class AvatarController(
+    private val avatarService: AvatarService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
