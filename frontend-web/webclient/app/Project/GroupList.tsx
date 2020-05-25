@@ -59,7 +59,7 @@ const GroupList: React.FunctionComponent = () => {
 
 
     if (group) return <GroupView />;
-
+    const [trashOp] = operations;
     const content = (
         <>
             {groupList.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
@@ -85,22 +85,33 @@ const GroupList: React.FunctionComponent = () => {
                                         <Icon mt="4px" mr="4px" size="18" name="user" /> {g.numberOfMembers}
                                     </Flex>
                                 }
-                                <ClickableDropdown
-                                    width="125px"
-                                    left="-105px"
-                                    trigger={(
+                                {operations.length === 0 ? null :
+                                    operations.length > 1 ? <ClickableDropdown
+                                        width="125px"
+                                        left="-105px"
+                                        trigger={(
+                                            <Icon
+                                                onClick={preventDefault}
+                                                mr="10px"
+                                                ml="12px"
+                                                name="ellipsis"
+                                                size="1em"
+                                                rotation={90}
+                                            />
+                                        )}
+                                    >
+                                        <GroupOperations groupOperations={operations} selectedGroups={[g]} />
+                                    </ClickableDropdown> :
                                         <Icon
-                                            onClick={preventDefault}
-                                            mr="10px"
-                                            ml="12px"
-                                            name="ellipsis"
-                                            size="1em"
-                                            rotation={90}
+                                            cursor="pointer"
+                                            onClick={() => trashOp.onClick([g], Client)}
+                                            size={20}
+                                            mr="1em"
+                                            ml="0.5em"
+                                            color={trashOp.color}
+                                            name={trashOp.icon}
                                         />
-                                    )}
-                                >
-                                    <GroupOperations groupOperations={operations} selectedGroups={[g]} />
-                                </ClickableDropdown>
+                                }
                             </>
                         }
                         isSelected={false}

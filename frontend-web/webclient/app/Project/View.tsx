@@ -184,14 +184,26 @@ const View: React.FunctionComponent<ViewOperations> = props => {
 
     const isSettingsPage = membersPage === "settings";
 
+    const memberText = `Members of ${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`;
+
     return (
         <MainContainer
             header={<Flex>
                 <MembersBreadcrumbs>
                     <li>
-                        <Link to={`/projects/view/${group ? encodeURIComponent(group) : "-"}`}>
-                            Members of {`${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`}
+                        <Link to="/projects">
+                            My Projects
                         </Link>
+                    </li>
+                    <li>
+                        {isSettingsPage ?
+                            <Link to={`/projects/view/${group ? encodeURIComponent(group) : "-"}`}>
+                                {memberText}
+                            </Link> :
+                            <li>
+                                {memberText}
+                            </li>
+                        }
                     </li>
                     {isSettingsPage ? <li>Settings</li> : null}
                 </MembersBreadcrumbs>
