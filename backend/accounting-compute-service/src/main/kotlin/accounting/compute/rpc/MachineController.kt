@@ -37,6 +37,10 @@ class MachineController(
             ok(machines.markAsDefault(db, ctx.securityToken.toActor(), request.name))
         }
 
+        implement(MachineTypes.updateMachine) {
+            ok(machines.updateMachine(db, ctx.securityToken.toActor(), request))
+        }
+
         return@with
     }
 }

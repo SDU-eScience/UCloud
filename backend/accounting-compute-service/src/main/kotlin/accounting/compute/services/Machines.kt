@@ -126,6 +126,40 @@ class MachineService {
         }
     }
 
+    suspend fun updateMachine(
+        ctx: DBContext,
+        initiatedBy: Actor,
+        updatedMachine: MachineReservation
+    ) {
+        verifyWriteAccess(initiatedBy)
+        ctx.withSession { session ->
+            val success = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("cpu", updatedMachine.cpu)
+                        setParameter("memoryInGigs", updatedMachine.memoryInGigs)
+                        setParameter("gpu", updatedMachine.gpu)
+                        setParameter("pricePerHour", updatedMachine.pricePerHour)
+                        setParameter("type", updatedMachine.type.name)
+                    },
+
+                    """
+                        update machines
+                        set 
+                            cpu = ?cpu,
+                            memory_in_gigs = ?memoryInGigs,
+                            gpu = ?gpu,
+                            price_per_hour = ?pricePerHour,
+                            type = ?type
+                        where name = ?name
+                    """
+                )
+                .rowsAffected > 0L
+
+            if (!success) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
+    }
+
     private fun verifyWriteAccess(actor: Actor) {
         if (actor is Actor.User && actor.principal.role in Roles.PRIVILEDGED) return
         if (actor == Actor.System) return

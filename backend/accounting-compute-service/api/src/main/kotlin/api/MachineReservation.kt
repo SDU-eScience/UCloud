@@ -46,6 +46,9 @@ typealias DefaultMachineResponse = MachineReservation
 data class SetAsDefaultRequest(val name: String)
 typealias SetAsDefaultResponse = Unit
 
+typealias UpdateMachineRequest = MachineReservation
+typealias UpdateMachineResponse = Unit
+
 object MachineTypes : CallDescriptionContainer("accounting.compute.machines") {
     val baseContext = "/api/accounting/compute/machines"
 
@@ -144,6 +147,24 @@ object MachineTypes : CallDescriptionContainer("accounting.compute.machines") {
             path {
                 using(baseContext)
                 +"mark-as-default"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val updateMachine = call<UpdateMachineRequest, UpdateMachineResponse, CommonErrorMessage>("updateMachine") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEDGED
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"update"
             }
 
             body { bindEntireRequestFromBody() }

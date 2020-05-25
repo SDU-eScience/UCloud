@@ -6,7 +6,7 @@ import {
     humanReadableMachineType,
     listMachines,
     MachineReservation,
-    MachineType
+    MachineType, updateMachine
 } from "Accounting/Compute/index";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Box, Button, Icon, IconButton, Input, Label, List} from "ui-components";
@@ -87,7 +87,11 @@ export const MachineAdmin: React.FunctionComponent = () => {
                                 <MachineActions>
                                     <IconButton name={"edit"} onClick={() => {
                                         dialogStore.addDialog(
-                                            <MachineEditor isEdit={true} machine={machine} onSubmit={console.log} />,
+                                            <MachineEditor isEdit={true} machine={machine} onSubmit={async machine => {
+                                                await runCommand(updateMachine(machine));
+                                                reload();
+                                                dialogStore.success();
+                                            }} />,
                                             () => false,
                                             true
                                         );

@@ -254,3 +254,15 @@ export function setMachineAsDefault(request: SetMachineAsDefaultRequest): APICal
         reloadId: Math.random()
     };
 }
+
+export type UpdateMachineRequest = MachineReservation;
+export type UpdateMachineResponse = {};
+export function updateMachine(request: UpdateMachineRequest): APICallParameters<UpdateMachineRequest> {
+    return {
+        method: "POST",
+        path: "/accounting/compute/machines/update",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
