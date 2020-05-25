@@ -159,6 +159,15 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                             </code>
 
                             <p>
+                                Using your preferred text-editor, open <code>/etc/davfs2/davfs2.conf</code> as root, and
+                                add the following line:
+                            </p>
+
+                            <code>
+                                <pre>use_locks    0</pre>
+                            </code>
+
+                            <p>
                                 To mount {PRODUCT_NAME} enter in the following command:
                             </p>
 
