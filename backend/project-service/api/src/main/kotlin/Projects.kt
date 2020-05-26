@@ -4,6 +4,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.project.favorite.api.ListFavoritesRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -82,10 +83,20 @@ data class ListProjectsRequest(
     val user: String?,
     override val itemsPerPage: Int?,
     override val page: Int?,
-    val archived: Boolean? = null
+    val archived: Boolean? = null,
+    val noFavorites: Boolean? = null
 ) : WithPaginationRequest
 
 typealias ListProjectsResponse = Page<UserProjectSummary>
+
+data class ListFavoriteProjectsRequest(
+    val user: String?,
+    override val itemsPerPage: Int,
+    override val page: Int,
+    val archived: Boolean
+) : WithPaginationRequest
+
+typealias ListFavoriteProjectsResponse = ListProjectsResponse
 
 data class ViewProjectRequest(val id: String)
 typealias ViewProjectResponse = UserProjectSummary
@@ -307,6 +318,28 @@ object Projects : CallDescriptionContainer("project") {
         }
     }
 
+    val listFavoriteProjects = call<ListFavoriteProjectsRequest, ListFavoriteProjectsResponse, CommonErrorMessage>("listFavoriteProjects") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listFavorites"
+            }
+
+            params {
+                +boundTo(ListFavoriteProjectsRequest::itemsPerPage)
+                +boundTo(ListFavoriteProjectsRequest::page)
+                +boundTo(ListFavoriteProjectsRequest::user)
+                +boundTo(ListFavoriteProjectsRequest::archived)
+            }
+        }
+    }
+
     val listProjects = call<ListProjectsRequest, ListProjectsResponse, CommonErrorMessage>("listProjects") {
         auth {
             access = AccessRight.READ
@@ -325,6 +358,7 @@ object Projects : CallDescriptionContainer("project") {
                 +boundTo(ListProjectsRequest::page)
                 +boundTo(ListProjectsRequest::user)
                 +boundTo(ListProjectsRequest::archived)
+                +boundTo(ListProjectsRequest::noFavorites)
             }
         }
     }

@@ -244,12 +244,27 @@ export const changeRoleInProject = (
 
 export interface ListProjectsRequest extends PaginationRequest{
     archived?: boolean;
+    noFavorites?: boolean;
 }
 
 export const listProjects = (parameters: ListProjectsRequest): APICallParameters<ListProjectsRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/projects/list",
+        parameters
+    ),
+    parameters,
+    reloadId: Math.random()
+});
+
+export interface ListFavoriteProjectsRequest extends PaginationRequest {
+    archived: boolean;
+}
+
+export const listFavoriteProjects = (parameters: ListFavoriteProjectsRequest): APICallParameters<ListFavoriteProjectsRequest> => ({
+    method: "GET",
+    path: buildQueryString(
+        "/projects/listFavorites",
         parameters
     ),
     parameters,
