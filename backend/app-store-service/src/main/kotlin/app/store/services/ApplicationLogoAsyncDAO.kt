@@ -3,43 +3,111 @@ package app.store.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.services.ApplicationLogoDAO
+import dk.sdu.cloud.app.store.services.ApplicationLogosTable
+import dk.sdu.cloud.app.store.services.ToolLogoTable
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.insert
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
 
 class ApplicationLogoAsyncDAO() : ApplicationLogoDAO {
 
     override suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal, name: String, imageBytes: ByteArray) {
-        val application =
+        val applicationOwner = ctx.withSession { session ->
             findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
 
-        if (application != user.username && user.role != Role.ADMIN) {
+        if (applicationOwner != user.username && user.role != Role.ADMIN) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
-        session.saveOrUpdate(
-            ApplicationLogoEntity(name, imageBytes)
-        )
+        val exists = fetchLogo(ctx, name)
+        if (exists != null) {
+            ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("bytes", imageBytes)
+                        setParameter("appname", name)
+                    },
+                    """
+                        UPDATE application_logos
+                        SET data = ?bytes
+                        WHERE application = ?appname
+                    """.trimIndent()
+                )
+            }
+        } else {
+            ctx.withSession { session ->
+                session.insert(ApplicationLogosTable) {
+                    set(ApplicationLogosTable.application, name)
+                    set(ApplicationLogosTable.data, imageBytes)
+                }
+            }
+        }
     }
 
     override suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
         val application =
-            findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
+            ctx.withSession { session ->
+                findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
         if (application != user.username && user.role != Role.ADMIN) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
-        session.delete(ApplicationLogoEntity[session, name] ?: return)
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appname", name)
+                },
+                """
+                    DELETE FROM application_logos
+                    WHERE application = ?appname
+                """.trimIndent()
+            )
+        }
     }
 
     override suspend fun fetchLogo(ctx: DBContext, name: String): ByteArray? {
-        val logoFromApp = ApplicationLogoEntity[session, name]?.data
+        val logoFromApp = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appname", name)
+                },
+                """
+                    SELECT *
+                    FROM application_logos
+                    WHERE application = ?appname
+                """.trimIndent()
+            ).rows.singleOrNull()?.getField(ApplicationLogosTable.data)
+        }
         if (logoFromApp != null) return logoFromApp
-        val app = internalFindAllByName(session, null, null, emptyList(), name, PaginationRequest().normalize()).items.firstOrNull()
-            ?: return null
+        val app = ctx.withSession { session ->
+            internalFindAllByName(
+                session,
+                null,
+                null,
+                emptyList(),
+                name,
+                PaginationRequest().normalize()
+            ).items.firstOrNull()
+        } ?: return null
         val toolName = app.invocation.tool.name
-        return ToolLogoEntity[session, toolName]?.data
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("toolname", toolName)
+                },
+                """
+                    SELECT *
+                    FROM tool_logos
+                    WHERE application = ?toolname
+                """.trimIndent()
+            )
+        }.rows.singleOrNull()?.getField(ToolLogoTable.data)
     }
 }
