@@ -4,10 +4,11 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.async.DBContext
 
-interface ApplicationDAO<Session> {
-    fun toggleFavorite(
-        session: Session,
+interface FavoriteDAO {
+    suspend fun toggleFavorite(
+        ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
         memberGroups: List<String>,
@@ -15,16 +16,69 @@ interface ApplicationDAO<Session> {
         appVersion: String
     )
 
-    fun retrieveFavorites(
-        session: Session,
+    suspend fun retrieveFavorites(
+        ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
         memberGroups: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
+}
 
-    fun searchTags(
-        session: Session,
+interface TagsDAO {
+    suspend fun createTags(
+        ctx: DBContext,
+        user: SecurityPrincipal,
+        applicationName: String,
+        tags: List<String>
+    )
+
+    suspend fun deleteTags(
+        ctx: DBContext,
+        user: SecurityPrincipal,
+        applicationName: String,
+        tags: List<String>
+    )
+
+    suspend fun findTagsForApp(
+        ctx: DBContext,
+        applicationName: String
+    ) : List<TagEntity>
+}
+
+interface ApplicationLogoDAO {
+    suspend fun createLogo(
+        ctx: DBContext,
+        user: SecurityPrincipal,
+        name: String,
+        imageBytes: ByteArray
+    )
+
+    suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String)
+
+    suspend fun fetchLogo(ctx: DBContext, name: String): ByteArray?
+}
+
+interface PublicDAO {
+    suspend fun isPublic(
+        ctx: DBContext,
+        user: SecurityPrincipal,
+        appName: String,
+        appVersion: String
+    ): Boolean
+
+    suspend fun setPublic(
+        ctx: DBContext,
+        user: SecurityPrincipal,
+        appName: String,
+        appVersion: String,
+        public: Boolean
+    )
+}
+
+interface SearchDAO {
+    suspend fun searchByTags(
+        ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
         memberGroups: List<String>,
@@ -32,8 +86,8 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
-    fun search(
-        session: Session,
+    suspend fun search(
+        ctx: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
         projectGroups: List<String>,
@@ -41,8 +95,8 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
-    fun multiKeywordsearch(
-        session: Session,
+    suspend fun multiKeywordsearch(
+        ctx: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
         projectGroups: List<String>,
@@ -50,8 +104,12 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): List<ApplicationEntity>
 
-    fun findAllByName(
-        session: Session,
+}
+
+interface ApplicationDAO {
+
+    suspend fun findAllByName(
+        ctx: DBContext,
         user: SecurityPrincipal?,
         currentProject: String?,
         projectGroups: List<String>,
@@ -59,16 +117,16 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
-    fun findBySupportedFileExtension(
-        session: Session,
+    suspend fun findBySupportedFileExtension(
+        ctx: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
         projectGroups: List<String>,
         fileExtensions: Set<String>
     ): List<ApplicationWithExtension>
 
-    fun findByNameAndVersion(
-        session: Session,
+    suspend fun findByNameAndVersion(
+        ctx: DBContext,
         user: SecurityPrincipal?,
         currentProject: String?,
         projectGroups: List<String>,
@@ -76,8 +134,8 @@ interface ApplicationDAO<Session> {
         appVersion: String
     ): Application
 
-    fun findByNameAndVersionForUser(
-        session: Session,
+    suspend fun findByNameAndVersionForUser(
+        ctx: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
         projectGroups: List<String>,
@@ -85,29 +143,29 @@ interface ApplicationDAO<Session> {
         appVersion: String
     ): ApplicationWithFavoriteAndTags
 
-    fun listLatestVersion(
-        session: Session,
+    suspend fun listLatestVersion(
+        ctx: DBContext,
         user: SecurityPrincipal?,
         currentProject: String?,
         projectGroups: List<String>,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite>
 
-    fun isOwnerOfApplication(
-        session: Session,
+    suspend fun isOwnerOfApplication(
+        ctx: DBContext,
         user: SecurityPrincipal,
         appName: String
     ): Boolean
 
-    fun create(
-        session: Session,
+    suspend fun create(
+        ctx: DBContext,
         user: SecurityPrincipal,
         description: Application,
         originalDocument: String = ""
     )
 
-    fun delete(
-        session: Session,
+    suspend fun delete(
+        ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
         projectGroups: List<String>,
@@ -115,27 +173,8 @@ interface ApplicationDAO<Session> {
         appVersion: String
     )
 
-    fun createTags(
-        session: Session,
-        user: SecurityPrincipal,
-        applicationName: String,
-        tags: List<String>
-    )
-
-    fun deleteTags(
-        session: Session,
-        user: SecurityPrincipal,
-        applicationName: String,
-        tags: List<String>
-    )
-
-    fun findTagsForApp(
-        session: Session,
-        applicationName: String
-    ) : List<TagEntity>
-
-    fun updateDescription(
-        session: Session,
+    suspend fun updateDescription(
+        ctx: DBContext,
         user: SecurityPrincipal,
 
         appName: String,
@@ -145,34 +184,8 @@ interface ApplicationDAO<Session> {
         newAuthors: List<String>? = null
     )
 
-    fun createLogo(
-        session: Session,
-        user: SecurityPrincipal,
-        name: String,
-        imageBytes: ByteArray
-    )
-
-    fun clearLogo(session: Session, user: SecurityPrincipal, name: String)
-
-    fun fetchLogo(session: Session, name: String): ByteArray?
-
-    fun isPublic(
-        session: Session,
-        user: SecurityPrincipal,
-        appName: String,
-        appVersion: String
-    ): Boolean
-
-    fun setPublic(
-        session: Session,
-        user: SecurityPrincipal,
-        appName: String,
-        appVersion: String,
-        public: Boolean
-    )
-
-    fun findAllByID(
-        session: Session,
+    suspend fun findAllByID(
+        ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
         projectGroups: List<String>,
@@ -180,8 +193,8 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): List<ApplicationEntity>
 
-    fun findLatestByTool(
-        session: Session,
+    suspend fun findLatestByTool(
+        ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
         projectGroups: List<String>,
@@ -189,8 +202,8 @@ interface ApplicationDAO<Session> {
         paging: NormalizedPaginationRequest
     ): Page<Application>
 
-    fun preparePageForUser(
-        session: Session,
+    suspend fun preparePageForUser(
+        ctx: DBContext,
         user: String?,
         page: Page<Application>
     ): Page<ApplicationWithFavoriteAndTags>
