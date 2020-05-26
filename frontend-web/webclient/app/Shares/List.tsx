@@ -41,6 +41,7 @@ import {defaultErrorHandler, iconFromFilePath} from "UtilityFunctions";
 import {ListProps, ListSharesParams, loadAvatars, MinimalShare, SharesByPath, ShareState} from ".";
 import {acceptShare, createShare, findShare, listShares, revokeShare, updateShare} from "./index";
 import Warning from "ui-components/Warning";
+import {Toggle} from "ui-components/Toggle";
 
 export const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?
@@ -465,7 +466,7 @@ export const ShareRow: React.FunctionComponent<{
 
     let permissionsBlock: JSX.Element | string | null = null;
 
-    if (share.state === ShareState.UPDATING || isLoading) {
+    if (share.state === ShareState.UPDATING) {
         permissionsBlock = null;
     } else if (!sharedByMe) {
         if (share.state === ShareState.REQUEST_SENT) {
@@ -498,19 +499,19 @@ export const ShareRow: React.FunctionComponent<{
             );
         }
     } else {
+        const hasWriteRights = share.rights.indexOf(AccessRight.WRITE) !== -1;
         permissionsBlock = (
             <>
-                <ClickableDropdown
-                    right="0px"
-                    chevron
-                    width="100px"
-                    trigger={sharePermissionsToText(share.rights)}
-                >
-                    {share.rights.indexOf(AccessRight.WRITE) !== -1 ?
-                        <OptionItem onClick={() => doUpdate(AccessRights.READ_RIGHTS)} text={CAN_VIEW_TEXT} /> :
-                        <OptionItem onClick={() => doUpdate(AccessRights.WRITE_RIGHTS)} text={CAN_EDIT_TEXT} />
-                    }
-                </ClickableDropdown>
+                <Flex>
+                    <Text mr="5px">View</Text>
+                    <Toggle
+                        scale={1.3}
+                        disabledColor="green"
+                        onChange={() => doUpdate(hasWriteRights ? AccessRights.READ_RIGHTS : AccessRights.WRITE_RIGHTS)}
+                        checked={hasWriteRights}
+                    />
+                    <Text ml="5px">Edit</Text>
+                </Flex>
                 {props.revokeAsIcon ? (
                     <Icon
                         name="close"

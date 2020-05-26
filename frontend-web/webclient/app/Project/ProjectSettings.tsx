@@ -37,126 +37,157 @@ const ActionBox = styled.div`
 
 export const ProjectSettings: React.FunctionComponent = () => {
     const {projectId, projectRole, projectDetails} = useProjectManagementStatus();
-    const [, runCommand] = useAsyncCommand();
     const history = useHistory();
     return (
         <ActionContainer>
-            {projectRole === ProjectRole.USER ? null : (
-                <ActionBox>
-                    <Box flexGrow={1}>
-                        <Heading.h4>Project Archival</Heading.h4>
-                        <Text>
-                            {!projectDetails.data.archived ? null : (
-                                <>
-                                    Unarchiving a project will reverse the effects of archival.
-                                    <ul>
-                                        <li>
-                                            Your projects will, once again, by visible to you and project
-                                            collaborators
-                                        </li>
-                                        <li>This action <i>is</i> reversible</li>
-                                    </ul>
-                                </>
-                            )}
-                            {projectDetails.data.archived ? null : (
-                                <>
-                                    You can archive a project if it is no longer relevant for your day-to-day work.
+            <ArchiveProject
+                isArchived={projectDetails.data.archived}
+                projectId={projectId}
+                projectRole={projectRole}
+                onSuccess={() => history.push("/projects")}
+            />
+            <LeaveProject
+                onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
+                projectId={projectId}
+                projectRole={projectRole}
+            />
+        </ActionContainer>
+    );
+};
 
-                                    <ul>
-                                        <li>
-                                            The project will, by default, be hidden for you and project
-                                            collaborators
-                                        </li>
-                                        <li>No data will be deleted from the project</li>
-                                        <li>This action <i>is</i> reversible</li>
-                                    </ul>
-                                </>
-                            )}
+interface ArchiveProjectProps {
+    isArchived: boolean;
+    projectRole: ProjectRole;
+    projectId: string;
+    onSuccess: () => void;
+}
 
-                        </Text>
-                    </Box>
-                    <Flex>
-                        <Button
-                            color={"orange"}
-                            onClick={() => {
-                                addStandardDialog({
-                                    title: "Are you sure?",
-                                    message: `Are you sure you wish to ` +
-                                        `${projectDetails.data.archived ? "unarchive" : "archive"} ${projectId}?`,
-                                    onConfirm: async () => {
-                                        const success =
-                                            await runCommand(
-                                                setProjectArchiveStatus({
-                                                    archiveStatus: !projectDetails.data.archived
-                                                })
-                                            );
-                                        if (success) {
-                                            history.push("/projects");
-                                        }
-                                    },
-                                    confirmText: `${projectDetails.data.archived ? "Unarchive" : "Archive"} project`
-                                });
-                            }}
-                        >
-                            {projectDetails.data.archived ? "Unarchive" : "Archive"}
-                        </Button>
-                    </Flex>
-                </ActionBox>
-            )}
-
+export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
+    const [, runCommand] = useAsyncCommand();
+    return <>
+        {props.projectRole === ProjectRole.USER ? null : (
             <ActionBox>
                 <Box flexGrow={1}>
-                    <Heading.h4>Leave Project</Heading.h4>
+                    <Heading.h4>Project Archival</Heading.h4>
                     <Text>
-                        If you leave the project the following will happen:
+                        {!props.isArchived ? null : (
+                            <>
+                                Unarchiving a project will reverse the effects of archival.
+                            <ul>
+                                    <li>
+                                        Your projects will, once again, by visible to you and project
+                                        collaborators
+                                </li>
+                                    <li>This action <i>is</i> reversible</li>
+                                </ul>
+                            </>
+                        )}
+                        {props.isArchived ? null : (
+                            <>
+                                You can archive a project if it is no longer relevant for your day-to-day work.
 
-                        <ul>
-                            <li>
-                                All files and compute resources owned by the project become
-                                inaccessible to you
-                            </li>
-
-                            <li>
-                                None of your files in the project will be deleted
-                            </li>
-
-                            <li>
-                                Project administrators can recover files from your personal directory in
-                                the project
-                            </li>
-                        </ul>
+                                <ul>
+                                    <li>
+                                        The project will, by default, be hidden for you and project
+                                        collaborators
+                                    </li>
+                                    <li>No data will be deleted from the project</li>
+                                    <li>This action <i>is</i> reversible</li>
+                                </ul>
+                            </>
+                        )}
                     </Text>
-
-                    {projectRole !== ProjectRole.PI ? null : (
-                        <Text>
-                            <b>You must transfer the principal investigator role to another member before
-                            leaving the project!
-                            </b>
-                        </Text>
-                    )}
                 </Box>
                 <Flex>
                     <Button
-                        color={"red"}
-                        disabled={projectRole === ProjectRole.PI}
+                        color={"orange"}
                         onClick={() => {
                             addStandardDialog({
                                 title: "Are you sure?",
-                                message: `Are you sure you wish to leave ${projectId}?`,
+                                message: `Are you sure you wish to ` +
+                                    `${props.isArchived ? "unarchive" : "archive"} ${props.projectId}?`,
                                 onConfirm: async () => {
-                                    const success = await runCommand(leaveProject({}));
+                                    const success = await runCommand(
+                                        setProjectArchiveStatus({
+                                            archiveStatus: !props.isArchived
+                                        })
+                                    );
                                     if (success) {
-                                        history.push(fileTablePage(Client.homeFolder));
+                                        props.onSuccess();
                                     }
                                 },
-                                confirmText: "Leave project"
+                                confirmText: `${props.isArchived ? "Unarchive" : "Archive"} project`
                             });
                         }}
                     >
-                        Leave
+                        {props.isArchived ? "Unarchive" : "Archive"}
                     </Button>
                 </Flex>
             </ActionBox>
-        </ActionContainer>
+        )}
+    </>;
+};
+
+interface LeaveProjectProps {
+    projectRole: ProjectRole;
+    projectId: string;
+    onSuccess: () => void;
+}
+
+export const LeaveProject: React.FC<LeaveProjectProps> = props => {
+    const [, runCommand] = useAsyncCommand();
+    return (
+        <ActionBox>
+            <Box flexGrow={1}>
+                <Heading.h4>Leave Project</Heading.h4>
+                <Text>
+                    If you leave the project the following will happen:
+
+                    <ul>
+                        <li>
+                            All files and compute resources owned by the project become
+                            inaccessible to you
+                        </li>
+
+                        <li>
+                            None of your files in the project will be deleted
+                        </li>
+
+                        <li>
+                            Project administrators can recover files from your personal directory in
+                            the project
+                        </li>
+                    </ul>
+                </Text>
+
+                {props.projectRole !== ProjectRole.PI ? null : (
+                    <Text>
+                        <b>You must transfer the principal investigator role to another member before
+                        leaving the project!</b>
+                    </Text>
+                )}
+            </Box>
+            <Flex>
+                <Button
+                    color="red"
+                    disabled={props.projectRole === ProjectRole.PI}
+                    onClick={() => {
+                        addStandardDialog({
+                            title: "Are you sure?",
+                            message: `Are you sure you wish to leave ${props.projectId}?`,
+                            onConfirm: async () => {
+                                const success = await runCommand(leaveProject({}));
+                                if (success) {
+                                    props.onSuccess();
+                                }
+                            },
+                            confirmText: "Leave project"
+                        });
+                    }}
+                >
+                    Leave
+                </Button>
+            </Flex>
+        </ActionBox>
     );
 };

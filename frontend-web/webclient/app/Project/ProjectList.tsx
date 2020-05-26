@@ -37,6 +37,8 @@ import {ShareCardBase} from "Shares/List";
 import {defaultAvatar} from "UserSettings/Avataaar";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {useAvatars} from "AvataaarLib/hook";
+import {dialogStore} from "Dialog/DialogStore";
+import {ArchiveProject, LeaveProject} from "./ProjectSettings";
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -94,15 +96,66 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         setFetchParams(listProjects({page: 0, itemsPerPage: 50, archived}));
     }, [archived]);
 
-    const projectOperations: ProjectOperation[] = [{
-        text: "Settings",
-        disabled: projects => projects.length !== 1,
-        icon: "properties",
-        onClick: ([project]) => {
-            props.setProject(project.projectId);
-            history.push("/projects/view/-/settings");
+    const projectOperations: ProjectOperation[] = [
+        /* {
+            text: "Settings",
+            disabled: projects => projects.length !== 1,
+            icon: "properties",
+            onClick: ([project]) => {
+                props.setProject(project.projectId);
+                history.push("/projects/view/-/settings");
+            }
+        }, */
+        {
+            text: "Archive",
+            disabled: projects => projects.length !== 1 || projects.every(it => it.archived),
+            icon: "tags",
+            onClick: ([project]) => dialogStore.addDialog(
+                <ArchiveProject
+                    onSuccess={() => dialogStore.success()}
+                    isArchived={project.archived}
+                    projectId={project.projectId}
+                    projectRole={project.whoami.role}
+                />,
+                () => undefined
+            )
+        },
+        {
+            text: "Unarchive",
+            disabled: projects => projects.length !== 1 || projects.every(it => !it.archived),
+            icon: "tags",
+            onClick: ([project]) => dialogStore.addDialog(
+                <ArchiveProject
+                    onSuccess={() => dialogStore.success()}
+                    isArchived={project.archived}
+                    projectId={project.projectId}
+                    projectRole={project.whoami.role}
+                />,
+                () => undefined
+            )
+        },
+        {
+            text: "Leave",
+            disabled: projects => projects.length !== 1,
+            icon: "open",
+            onClick: ([project]) => dialogStore.addDialog(
+                <LeaveProject
+                    onSuccess={() => dialogStore.success()}
+                    projectId={project.projectId}
+                    projectRole={project.whoami.role}
+                />,
+                () => undefined)
+        },
+        {
+            text: "Manage",
+            disabled: projects => projects.length !== 1,
+            icon: "properties",
+            onClick: ([project]) => {
+                props.setProject(project.projectId);
+                history.push("/projects/view");
+            }
         }
-    }];
+    ];
 
     return (
         <MainContainer
@@ -251,11 +304,13 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                             left={
                                                 <Box
                                                     onClick={() => {
-                                                        props.setProject(e.projectId);
-                                                        snackbarStore.addInformation(
-                                                            `${e.projectId} is now the active project`,
-                                                            false
-                                                        );
+                                                        if (e.projectId !== props.project) {
+                                                            props.setProject(e.projectId);
+                                                            snackbarStore.addInformation(
+                                                                `${e.projectId} is now the active project`,
+                                                                false
+                                                            );
+                                                        }
                                                     }}
                                                     height="30px"
                                                 >
@@ -320,7 +375,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                                     />
                                                                 )}
                                                             >
-
                                                                 <ProjectOperations
                                                                     selectedProjects={[e]}
                                                                     projectOperations={projectOperations}
@@ -403,17 +457,30 @@ function ProjectOperations(props: ProjectOperations): JSX.Element | null {
 
     function ProjectOp(op: ProjectOperation): JSX.Element | null {
         if (op.disabled(props.selectedProjects, Client)) return null;
-        return <span onClick={() => op.onClick(props.selectedProjects, Client)}>
-            <Icon size={16} mr="0.5em" color={op.color} color2={op.iconColor2} name={op.icon} />{op.text}</span>;
+        return (
+            <Box
+                ml="-17px"
+                mr="-17px"
+                pl="15px"
+                cursor="pointer"
+                onClick={() => op.onClick(props.selectedProjects, Client)}
+            >
+                <Icon
+                    size={16}
+                    mr="0.5em"
+                    color={op.color}
+                    color2={op.iconColor2}
+                    name={op.icon}
+                />
+                {op.text}
+            </Box>
+        );
     }
 
     return (
-        <Flex
-            ml="-17px"
-            mr="-17px"
-            pl="15px">
+        <>
             {props.projectOperations.map(ProjectOp)}
-        </Flex>
+        </>
     );
 }
 
