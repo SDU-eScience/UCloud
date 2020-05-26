@@ -52,8 +52,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         emptyPage
     );
 
-    console.log(favorites);
-
     const [ingoingInvites, fetchIngoingInvites, ingoingInvitesParams] = useCloudAPI<Page<IngoingInvite>>(
         listIngoingInvites({page: 0, itemsPerPage: 10}),
         emptyPage
