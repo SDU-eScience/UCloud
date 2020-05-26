@@ -5,40 +5,40 @@ import dk.sdu.cloud.app.store.api.NormalizedToolDescription
 import dk.sdu.cloud.app.store.api.Tool
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.async.DBContext
 
-interface ToolDAO<Session> {
-    fun findAllByName(
-        session: Session,
+interface ToolDAO {
+    suspend fun findAllByName(
+        ctx: DBContext,
         user: SecurityPrincipal?,
-
         name: String,
         paging: NormalizedPaginationRequest
     ): Page<Tool>
 
-    fun findByNameAndVersion(
-        session: Session,
+    suspend fun findByNameAndVersion(
+        ctx: DBContext,
         user: SecurityPrincipal?,
 
         name: String,
         version: String
     ): Tool
 
-    fun listLatestVersion(
-        session: Session,
+    suspend fun listLatestVersion(
+        ctx: DBContext,
         user: SecurityPrincipal?,
 
         paging: NormalizedPaginationRequest
     ): Page<Tool>
 
-    fun create(
-        session: Session,
+    suspend fun create(
+        ctx: DBContext,
         user: SecurityPrincipal,
         description: NormalizedToolDescription,
         originalDocument: String = ""
     )
 
-    fun updateDescription(
-        session: Session,
+    suspend fun updateDescription(
+        ctx: DBContext,
         user: SecurityPrincipal,
 
         name: String,
@@ -48,15 +48,15 @@ interface ToolDAO<Session> {
         newAuthors: List<String>? = null
     )
 
-    fun createLogo(
-        session: Session,
+    suspend fun createLogo(
+        ctx: DBContext,
         user: SecurityPrincipal,
 
         name: String,
         imageBytes: ByteArray
     )
 
-    fun clearLogo(session: Session, user: SecurityPrincipal, name: String)
+    suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String)
 
-    fun fetchLogo(session: Session, name: String): ByteArray?
+    suspend fun fetchLogo(ctx: DBContext, name: String): ByteArray?
 }

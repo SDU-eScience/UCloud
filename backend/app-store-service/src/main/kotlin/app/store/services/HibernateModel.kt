@@ -5,6 +5,13 @@ import dk.sdu.cloud.app.store.api.NormalizedToolDescription
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.JSONB_TYPE
 import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.async.SQLTable
+import dk.sdu.cloud.service.db.async.bool
+import dk.sdu.cloud.service.db.async.byteArray
+import dk.sdu.cloud.service.db.async.jsonb
+import dk.sdu.cloud.service.db.async.long
+import dk.sdu.cloud.service.db.async.text
+import dk.sdu.cloud.service.db.async.timestamp
 import org.hibernate.annotations.Type
 import java.io.Serializable
 import java.util.*
@@ -15,59 +22,28 @@ import javax.persistence.*
  *
  * - V4__Tools.sql
  */
-@Entity
-@Table(name = "tools")
-data class ToolEntity(
-    var owner: String,
 
-    @Temporal(TemporalType.TIMESTAMP)
-    var createdAt: Date,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var modifiedAt: Date,
-
-    @Type(type = JSONB_TYPE)
-    var tool: NormalizedToolDescription,
-
-    @Column(length = 1024 * 64)
-    var originalDocument: String,
-
-    @EmbeddedId
-    var id: EmbeddedNameAndVersion
-) {
-    companion object : HibernateEntity<ToolEntity>, WithId<EmbeddedNameAndVersion>
+object ToolTable : SQLTable("tools") {
+    val owner = text("owner", notNull = true)
+    val createdAt = timestamp("created_at", notNull = true)
+    val modifiedAt = timestamp("modified_at", notNull = true)
+    val tool = jsonb("tool", notNull = true)
+    val originalDocument = text("original_document", notNull = true)
+    val idName = text("name", notNull = true)
+    val idVersion = text("version", notNull = true)
 }
 
-@Entity
-@Table(name = "favorited_by")
-class FavoriteApplicationEntity(
-    var applicationName: String,
-
-    var applicationVersion: String,
-
-    @Column(name = "the_user")
-    var user: String,
-
-    @Id
-    @GeneratedValue
-    var id: Long? = null
-) {
-    companion object : HibernateEntity<FavoriteApplicationEntity>, WithId<Long>
+object FavoriteApplicationTable : SQLTable("favorited_by") {
+    val applicationName = text("application_name", notNull = true)
+    val applicationVersion = text("application_version", notNull = true)
+    val user = text("the_user", notNull = true)
+    val id = long("id")
 }
 
-@Entity
-@Table(name = "application_tags")
-class TagEntity(
-    var applicationName: String,
-
-    @Column(name = "tag")
-    var tag: String,
-
-    @Id
-    @GeneratedValue
-    var id: Long? = null
-) {
-    companion object : HibernateEntity<TagEntity>, WithId<Long>
+object TagTable : SQLTable("application_tags") {
+    val applicationName = text("application_name", notNull = true)
+    val tag = text("tag", notNull = true)
+    val id = long("id")
 }
 
 /**
@@ -76,72 +52,30 @@ class TagEntity(
  * - V3__Applications.sql
  * - V4__Tools.sql
  */
-@Entity
-@Table(
-    name = "applications",
-    indexes = [
-        Index(name = "application_file_extensions", columnList = "application")
-    ]
-)
-class ApplicationEntity(
-    var owner: String,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var createdAt: Date,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    var modifiedAt: Date,
-
-    @Type(type = JSONB_TYPE)
-    var authors: List<String>,
-
-    var title: String,
-
-    @Column(length = 1024 * 64)
-    var description: String,
-
-    var website: String?,
-
-    @Type(type = JSONB_TYPE)
-    var application: ApplicationInvocationDescription,
-
-    @Column(name = "tool_name")
-    var toolName: String,
-
-    @Column(name = "tool_version")
-    var toolVersion: String,
-
-    @Column(name = "is_public")
-    var isPublic: Boolean,
-
-    @EmbeddedId
-    var id: EmbeddedNameAndVersion
-) {
-    companion object : HibernateEntity<ApplicationEntity>, WithId<EmbeddedNameAndVersion>
+object ApplicationTable : SQLTable("applications") {
+    val owner = text("owner", notNull = true)
+    val createdAt = timestamp("created_at", notNull = true)
+    val modifiedAt = timestamp("modified_at", notNull = true)
+    val authors = jsonb("authors", notNull = true)
+    val title = text("title", notNull = true)
+    val description = text("description", notNull = true)
+    val website = text("website")
+    val application = jsonb("application", notNull = true)
+    val toolName = text("tool_name", notNull = true)
+    val toolVersion  = text("tool_version")
+    val isPublic = bool("is_public", notNull = true)
+    val idName = text("name", notNull = true)
+    val idVersion = text("version", notNull = true)
 }
 
-@Entity
-@Table(name = "application_logos")
-class ApplicationLogoEntity(
-    @Id
-    var application: String,
-
-    @Column(length = LOGO_MAX_SIZE)
-    var data: ByteArray
-) {
-    companion object : HibernateEntity<ApplicationLogoEntity>, WithId<String>
+object ApplicationLogosTable : SQLTable("application_logos") {
+    val application = text("application", notNull = true)
+    val data = byteArray("data", notNull = true)
 }
 
-@Entity
-@Table(name = "tool_logos")
-class ToolLogoEntity(
-    @Id
-    var application: String,
-
-    @Column(length = LOGO_MAX_SIZE)
-    var data: ByteArray
-) {
-    companion object : HibernateEntity<ToolLogoEntity>, WithId<String>
+object ToolLogoTable : SQLTable("tool_logos") {
+    val application = text("application", notNull = true)
+    val data = byteArray("data", notNull = true)
 }
 
 data class EmbeddedNameAndVersion(
