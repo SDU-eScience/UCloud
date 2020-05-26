@@ -17,24 +17,15 @@ fun runLauncher(
     args: List<String>,
     skipUpToDateCheck: Boolean,
     forceYes: Boolean,
-    environment: Environment,
-    repositoryRoot: File
+    ctx: DeploymentContext
 ) {
     try {
         val checkmark = "✅ "
         val question = "❓ "
         val cross = "❌ "
 
-        val kubeConfig = File(System.getProperty("user.home"), ".kube/config").readText()
         val scanner = Scanner(System.`in`)
         val serviceArg = args.firstOrNull() ?: ""
-        val ctx = DeploymentContext(
-            DefaultKubernetesClient(Config.fromKubeconfig(environment.name.toLowerCase(), kubeConfig, null)),
-            "default",
-            if (args.size <= 1) emptyList() else args.subList(1, args.size),
-            environment,
-            repositoryRoot
-        )
 
         BundleRegistry.listBundles().forEach { (bundle, init) ->
             init(bundle, ctx)

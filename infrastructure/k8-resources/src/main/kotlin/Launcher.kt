@@ -1,5 +1,7 @@
 package dk.sdu.cloud.k8
 
+import io.fabric8.kubernetes.client.Config
+import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import java.io.*
 import javax.script.ScriptEngineManager
 import kotlin.system.exitProcess
@@ -11,12 +13,6 @@ enum class LauncherCommand(val cmd: String) {
     AD_HOC_JOB("job")
 }
 
-enum class Environment {
-    DEVELOPMENT,
-    PRODUCTION,
-    TEST
-}
-
 fun main(args: Array<String>) {
     var directory = "."
     val freeformArgs = ArrayList<String>()
@@ -24,7 +20,7 @@ fun main(args: Array<String>) {
     val importBuilder = StringBuilder()
     val outputScript = StringBuilder()
     var forceYes = false
-    var environment = Environment.DEVELOPMENT
+    var environment = "development"
     val imports = HashSet<String>()
 
     val engine = ScriptEngineManager().getEngineByExtension("kts")!!
@@ -57,13 +53,7 @@ fun main(args: Array<String>) {
                     val envString = args.getOrNull(i + 1)
                     i++
 
-                    val foundEnvironment = Environment.values().find { it.name.equals(envString, ignoreCase = true) }
-                    if (foundEnvironment == null) {
-                        System.err.println("Could not find environment: $envString")
-                        exitProcess(1)
-                    }
-
-                    environment = foundEnvironment
+                    environment = envString ?: throw IllegalStateException("No environment passed")
                 }
 
                 else -> {
@@ -75,16 +65,21 @@ fun main(args: Array<String>) {
         }
     }
 
+    fun File.needsToBeLoaded(): Boolean {
+        return name == "k8.kts" && isFile
+    }
+
     val allBundles = ArrayList<File>()
     File(directory).list()
-        ?.filter { it.endsWith("-service") || it == "frontend-web" || it == "k8.kts" || it == "infrastructure" }
+        ?.filter {
+            it.endsWith("-service") || it == "frontend-web" || it == "k8.kts" || it == "infrastructure"
+        }
         ?.forEach { folder ->
             val thisFile = File(directory, folder)
-            if (folder == "k8.kts" && thisFile.isFile) {
+            if (thisFile.needsToBeLoaded()) {
                 allBundles.add(thisFile)
             } else {
-                val k8 = File(thisFile, "k8.kts")
-                allBundles.add(k8)
+                thisFile.listFiles()?.filter { it.needsToBeLoaded() }?.forEach { allBundles.add(it) }
             }
         }
 
@@ -145,6 +140,17 @@ fun main(args: Array<String>) {
     require(launcherCommand != null) { "No such command '$command'" }
 
     System.err.println("k8.kts files are being compiled now...")
+
+    val kubeConfig = File(System.getProperty("user.home"), ".kube/config").readText()
     engine.eval(importBuilder.toString() + "\n" + outputScript.toString())
-    runLauncher(launcherCommand, remainingArgs, skipUpToDateCheck, forceYes, environment, repositoryRoot)
+    val ctx = DeploymentContext(
+        DefaultKubernetesClient(Config.fromKubeconfig(environment.toLowerCase(), kubeConfig, null)),
+        "default",
+        if (remainingArgs.size <= 1) emptyList() else remainingArgs.subList(1, args.size),
+        environment,
+        repositoryRoot
+    )
+
+    Configuration.runBlocks(ctx)
+    runLauncher(launcherCommand, remainingArgs, skipUpToDateCheck, forceYes, ctx)
 }

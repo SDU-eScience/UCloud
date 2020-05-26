@@ -5,16 +5,19 @@ bundle { ctx ->
     name = "activity"
     version = "1.4.15"
 
+    // Fetch configuration from audit-ingestion
+    val elasticCredentials = Configuration.retrieve<String>(
+        "audit-ingestion.secret",
+        "Secret name for elasticsearch credentials",
+        "elasticsearch-credentials"
+    )
+
     withAmbassador {}
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1
 
-        if (ctx.environment != Environment.PRODUCTION) {
-            injectSecret("elasticsearch-credentials")
-        } else {
-            injectSecret("elasticsearch-logging-cluster-credentials")
-        }
+        injectSecret(elasticCredentials)
     }
 
     withPostgresMigration(deployment)

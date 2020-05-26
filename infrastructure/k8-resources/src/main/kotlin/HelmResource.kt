@@ -54,7 +54,7 @@ class HelmResource(
         })
 
         Helm.installChart(
-            environment.name.toLowerCase(),
+            environment.toLowerCase(),
             name,
             this@HelmResource.namespace,
             chart.removePrefix(repo.name + "/").let { "${repo.name}/${it}" },
@@ -65,7 +65,7 @@ class HelmResource(
     }
 
     override fun DeploymentContext.delete() {
-        Helm.delete(environment.name.toLowerCase(), name)
+        Helm.delete(environment.toLowerCase(), name)
         with(cm) { delete() }
     }
 

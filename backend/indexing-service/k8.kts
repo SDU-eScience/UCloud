@@ -1,4 +1,4 @@
-//DEPS dk.sdu.cloud:k8-resources:0.1.1
+//DEPS dk.sdu.cloud:k8-resources:0.1.2
 package dk.sdu.cloud.k8
 
 bundle { ctx ->
@@ -62,17 +62,8 @@ bundle { ctx ->
     withAdHocJob(deploymentWithMount, "scan-now", { listOf("--scan", "--debug") }) {
     }
 
-    val numberOfShards = when (ctx.environment) {
-        Environment.DEVELOPMENT -> 5
-        Environment.PRODUCTION -> 5
-        Environment.TEST -> 2
-    }
-
-    val numberOfReplicas = when (ctx.environment) {
-        Environment.PRODUCTION -> 2
-        Environment.DEVELOPMENT -> 2
-        Environment.TEST -> 1
-    }
+    val numberOfShards = Configuration.retrieve("indexing.numberOfShards", "number of shared for index", 5)
+    val numberOfReplicas = Configuration.retrieve("indexing.numberOfReplicas", "number of replicas for index", 2)
 
     withMigration(
         deployment,
