@@ -11,21 +11,17 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.paginatedQuery
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.paginatedCriteria
-import dk.sdu.cloud.service.db.paginatedList
-import dk.sdu.cloud.service.db.typedQuery
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.offset
 import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
+import org.joda.time.LocalDateTime
 import java.util.*
 
 class ToolHibernateDAO : ToolDAO {
@@ -123,24 +119,31 @@ class ToolHibernateDAO : ToolDAO {
         description: NormalizedToolDescription,
         originalDocument: String
     ) {
-        val existingOwner = findOwner(session, description.info.name)
+        val existingOwner =
+            ctx.withSession { session ->
+                findOwner(session, description.info.name)
+            }
         if (existingOwner != null && !canUserPerformWrite(existingOwner, user)) {
             throw ToolException.NotAllowed()
         }
 
-        val existing = internalByNameAndVersion(session, description.info.name, description.info.version)
+        val existing =
+            ctx.withSession { session ->
+                internalByNameAndVersion(session, description.info.name, description.info.version)
+            }
         if (existing != null) throw ToolException.AlreadyExists()
 
-        session.save(
-            ToolEntity(
-                user.username,
-                Date(),
-                Date(),
-                description,
-                originalDocument,
-                EmbeddedNameAndVersion(description.info.name, description.info.version)
-            )
-        )
+        ctx.withSession { session ->
+            session.insert(ToolTable) {
+                set(ToolTable.owner, user.username)
+                set(ToolTable.createdAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(ToolTable.modifiedAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(ToolTable.tool, defaultMapper.writeValueAsString(description))
+                set(ToolTable.originalDocument, originalDocument)
+                set(ToolTable.idName, description.info.name)
+                set(ToolTable.idVersion, description.info.version)
+            }
+        }
     }
 
     override suspend fun updateDescription(
@@ -151,57 +154,121 @@ class ToolHibernateDAO : ToolDAO {
         newDescription: String?,
         newAuthors: List<String>?
     ) {
-        val existing = internalByNameAndVersion(session, name, version) ?: throw ToolException.NotFound()
-        if (!canUserPerformWrite(existing.owner, user)) throw ToolException.NotAllowed()
-
-        val newTool = existing.tool.let {
-            if (newDescription != null) {
-                it.copy(description = newDescription)
-            } else {
-                it
+        val existing =
+            ctx.withSession { session ->
+                internalByNameAndVersion(session, name, version) ?: throw ToolException.NotFound()
             }
-        }.let {
-            if (newAuthors != null) {
-                it.copy(authors = newAuthors)
-            } else {
-                it
+        if (!canUserPerformWrite(existing.getField(ToolTable.owner), user)) throw ToolException.NotAllowed()
+
+        if (newDescription != null) {
+            ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("description", defaultMapper.writeValueAsString(newDescription))
+                        setParameter("name", name)
+                        setParameter("version", version)
+                    },
+                    """
+                        UPDATE tools
+                        SET tool = jsonb_set(tool, '{description}', ?description)
+                        WHERE (name = ?name) AND (version = ?version) 
+                    """.trimIndent()
+                )
             }
         }
-
-        existing.tool = newTool
-
+        if (!newAuthors.isNullOrEmpty()) {
+            ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("authors", defaultMapper.writeValueAsString(newAuthors))
+                        setParameter("name", name)
+                        setParameter("version", version)
+                    },
+                    """
+                        UPDATE tools
+                        SET tool = jsonb_set(tool, '{authors}', ?authors)
+                        WHERE (name = ?name) AND (version = ?version) 
+                    """.trimIndent()
+                )
+            }
+        }
         // We allow for this to be cached for some time. But this instance might as well clear the cache now.
         byNameAndVersionCache.remove(NameAndVersion(name, version))
-
-        session.update(existing)
     }
 
     override suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal, name: String, imageBytes: ByteArray) {
         val tool =
-            findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            ctx.withSession { session ->
+                findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
 
         if (tool != user.username && user.role != Role.ADMIN) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
-        session.saveOrUpdate(
-            ToolLogoEntity(name, imageBytes)
-        )
+        val logo = ctx.withSession { session ->
+            fetchLogo(session, name)
+        }
+        if (logo != null) {
+            ctx.withSession{ session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("appname", name)
+                        setParameter("bytes", imageBytes)
+                    },
+                    """
+                        UPDATE tool_logos
+                        SET data = ?bytes
+                        WHERE (application = ?appname)
+                    """.trimIndent()
+                )
+            }
+        } else {
+            ctx.withSession { session ->
+                session.insert(ToolLogoTable) {
+                    set(ToolLogoTable.application, name)
+                    set(ToolLogoTable.data, imageBytes)
+                }
+            }
+        }
     }
 
     override suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
         val application =
-            findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-
+            ctx.withSession { session ->
+                findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
         if (application != user.username && user.role != Role.ADMIN) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
-        session.delete(ToolLogoEntity[session, name] ?: return)
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appname", name)
+                },
+                """
+                    DELETE FROM tool_logos
+                    WHERE application ?= ?appname
+                """.trimIndent()
+            )
+        }
     }
 
     override suspend fun fetchLogo(ctx: DBContext, name: String): ByteArray? {
-        return ToolLogoEntity[session, name]?.data
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appname", name)
+                },
+                """
+                    SELECT data
+                    FROM tool_logos
+                    WHERE (application = ?appname)
+                """.trimIndent()
+            )
+        }.rows.singleOrNull()?.getField(ToolLogoTable.data)
+
     }
 
     internal suspend fun internalByNameAndVersion(ctx: DBContext, name: String, version: String): RowData? {
@@ -227,21 +294,18 @@ class ToolHibernateDAO : ToolDAO {
         return owner == user.username
     }
 
-    private fun findOwner(ctx: DBContext, name: String): String? {
+    private suspend fun findOwner(ctx: DBContext, name: String): String? {
         return ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
+                    setParameter("name", name)
                 },
                 """
                     SELECT * 
-                    FROM 
+                    FROM tools
+                    WHERE name = ?name
                 """.trimIndent()
-            )
-        }
-                entity[ToolEntity::id][EmbeddedNameAndVersion::name] equal name
-            }.apply {
-                maxResults = 1
-            }.uniqueResult()?.owner
+            ).rows.singleOrNull()?.getField(ToolTable.owner)
         }
     }
 }
@@ -252,7 +316,7 @@ internal fun RowData.toTool(): Tool {
     return Tool(
         getField(ToolTable.owner),
         getField(ToolTable.createdAt).toDateTime(DateTimeZone.UTC).millis,
-        getField(ToolTable.modifiedAt).toDateTime(DateTimeZone.UTC).millis, ,
+        getField(ToolTable.modifiedAt).toDateTime(DateTimeZone.UTC).millis,
         normalizedToolDesc
     )
 }
