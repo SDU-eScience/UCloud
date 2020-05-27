@@ -7,31 +7,25 @@ import {theme} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
-import {HiddenInputField} from "ui-components/Input";
+
+const defaultMachine = {
+    name: "Default",
+    memoryInGigs: null,
+    cpu: null,
+    gpu: null
+};
 
 export const MachineTypes: React.FunctionComponent<{
-    inputRef: React.RefObject<HTMLInputElement>;
+    reservation: string;
+    setReservation: (name: string) => void;
     runAsRoot: boolean;
 }> = props => {
     const [machines] = useCloudAPI<MachineReservation[]>(machineTypes(), []);
-    const [selected, setSelected] = useState<string>("");
-
-    const selectedMachineFromList = machines.data.find(it => it.name === selected);
-    const selectedMachine: MachineReservation = selectedMachineFromList ? selectedMachineFromList : {
-        name: "Default",
-        memoryInGigs: null,
-        cpu: null,
-        gpu: null
-    };
+    const [selected, setSelected] = useState<MachineReservation>(defaultMachine);
 
     useEffect(() => {
-        if (!props.inputRef) return;
-
-        const current = props.inputRef.current;
-        if (current === null) return;
-
-        current.value = selected;
-    }, [props.inputRef, selected]);
+        setSelected(machines.data.find(it => it.name === props.reservation) ?? defaultMachine);
+    }, [props.reservation]);
 
     const filteredMachines = machines.data.filter(m => !(m.name === "Unspecified" && props.runAsRoot));
 
@@ -40,15 +34,14 @@ export const MachineTypes: React.FunctionComponent<{
             fullWidth
             trigger={(
                 <MachineDropdown>
-                    <MachineBox machine={selectedMachine} />
+                    <MachineBox machine={selected} />
 
                     <Icon name="chevronDown" />
-                    <HiddenInputField ref={props.inputRef} />
                 </MachineDropdown>
             )}
         >
             {filteredMachines.map(machine => (
-                <Box key={machine.name} onClick={() => setSelected(machine.name)}>
+                <Box key={machine.name} onClick={() => props.setReservation(machine.name)}>
                     <MachineBox machine={machine} />
                 </Box>
             ))}
@@ -67,7 +60,7 @@ const MachineBox: React.FunctionComponent<{machine: MachineReservation}> = ({mac
             <>
                 CPU: {machine.cpu}<br />
                 Memory: {machine.memoryInGigs} GB memory
-                </>
+            </>
         ) : null}
         {machine.gpu ? (
             <>
