@@ -4,20 +4,21 @@ export interface RouterLocationProps {
     history: History;
     location: {
         // TODO There is more here
-        search: string
+        search: string;
     };
 }
 
 export const getQueryParam = (
-    props: RouterLocationProps,
+    props: RouterLocationProps | string,
     key: string
 ): string | null => {
-    const parsed = new URLSearchParams(props.location.search);
+    const search = typeof props === "object" ? props.location.search : props;
+    const parsed = new URLSearchParams(search);
     return parsed.get(key);
 };
 
 export const getQueryParamOrElse = (
-    props: RouterLocationProps,
+    props: RouterLocationProps | string,
     key: string,
     defaultValue: string
 ): string => {

@@ -5,6 +5,7 @@ import {extensionType, FtIconProps as UFFtIconProps} from "UtilityFunctions";
 import Icon from "./Icon";
 import theme from "./theme";
 import {Cursor} from "./Types";
+import {AppToolLogo} from "Applications/AppToolLogo";
 
 
 const ftColor = (fType: string): string => {
@@ -154,6 +155,7 @@ const SvgFtType = ({type}: {type: string}): JSX.Element | null => {
                 </>
             );
         case "code":
+        case "markdown":
             return (
                 <>
                     <text textAnchor="middle" x="21.5" y="27" style={{fontSize: "24px"}} fill="#3d4d65" >{"{ }"}</text>
@@ -211,6 +213,10 @@ const FtIconBase = ({fileIcon, size, ...props}): JSX.Element => {
     const hasExt = fileIcon.ext ? true : false;
     const ext4 = hasExt ? fileIcon.ext.substring(0, 4) : undefined;
     const type = hasExt ? extensionType(fileIcon.ext.toLocaleLowerCase()) : undefined;
+
+    if (type === "application") {
+        return <AppToolLogo name={fileIcon.name} type={"APPLICATION"} size={size} />;
+    }
 
     switch (fileIcon.type) {
         case "SHARESFOLDER":

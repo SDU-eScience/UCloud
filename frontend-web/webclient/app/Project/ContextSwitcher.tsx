@@ -1,40 +1,119 @@
-import {ReduxObject} from "DefaultObjects";
+import {ReduxObject, emptyPage} from "DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
-import Box from "ui-components/Box";
 import Link from "ui-components/Link";
-import {SidebarTextLabel} from "ui-components/Sidebar";
-import {EllipsedText} from "ui-components/Text";
-import {inDevEnvironment} from "UtilityFunctions";
+import {addTrailingSlash, inDevEnvironment} from "UtilityFunctions";
+import {useEffect} from "react";
+import {Dispatch} from "redux";
+import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
+import {Flex, Truncate, Text, Icon, Divider} from "ui-components";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import styled from "styled-components";
+import {useCloudAPI} from "Authentication/DataHook";
+import {Page} from "Types";
+import {UserInProject, ListProjectsRequest, listProjects, areProjectsEnabled} from "Project";
+import {useHistory} from "react-router";
+import {History} from "history";
+import {fileTablePage} from "Utilities/FileUtilities";
+import {Client} from "Authentication/HttpClientInstance";
+import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
 
 // eslint-disable-next-line no-underscore-dangle
-const _ContextSwitcher: React.FunctionComponent<{maxSize: number} & ContextSwitcherReduxProps> = props => {
-    if (!inDevEnvironment()) return null;
+function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
+    if (!areProjectsEnabled()) return null;
 
-    const userContext = props.activeProject || "Personal Project";
+    const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
+        listProjects({page: 0, itemsPerPage: 10, archived: false}),
+        emptyPage
+    );
+    const activeContext = props.activeProject ?? "Personal Project";
+
+    useEffect(() => {
+        const storedProject = getStoredProject();
+        props.setProject(storedProject ?? undefined);
+    }, []);
+
+    const history = useHistory();
 
     return (
-        <SidebarTextLabel icon="projects" height="25px" textSize={1} iconSize="1em" space=".5em">
-            <Link to="/projects">
-                <Box cursor="pointer">
-                    <EllipsedText
-                        width={props.maxSize - 20}
-                        fontSize="14px"
-                        as="span"
-                        title={userContext}
+        <Flex pr="12px" alignItems={"center"}>
+            <ClickableDropdown
+                trigger={
+                    <HoverBox>
+                        <Icon name={"projects"} color2="midGray" mr={".5em"}/>
+                        <Truncate width={"150px"}>{activeContext}</Truncate>
+                        <Icon name={"chevronDown"} size={"12px"} ml={"4px"}/>
+                    </HoverBox>
+                }
+                onTriggerClick={() => setFetchParams({...params})}
+                left="0px"
+                width="250px"
+            >
+                {props.activeProject ?
+                    (
+                        <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>
+                            Personal project
+                        </Text>
+                    ) : null
+                }
+                {response.data.items.filter(it => !(it.projectId === props.activeProject)).map(project =>
+                    <Text
+                        key={project.projectId}
+                        onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
                     >
-                        {userContext}
-                    </EllipsedText>
-                </Box>
-            </Link>
-        </SidebarTextLabel>
+                        <Truncate width={"215px"}>{project.projectId}</Truncate>
+                    </Text>
+                )}
+                {props.activeProject || response.data.items.length > 0 ? <Divider/> : null}
+                <Link to="/projects"><Text>Manage projects</Text></Link>
+            </ClickableDropdown>
+        </Flex>
     );
-};
+}
+
+const filesPathname = "/app/files/";
+const filesSearch = "?path=";
+
+function onProjectUpdated(history: History, runThisFunction: () => void, refresh?: () => void): void {
+    const {pathname, search} = window.location;
+    runThisFunction();
+    if (addTrailingSlash(pathname) === filesPathname && search.startsWith(filesSearch)) {
+        history.push(fileTablePage(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder));
+    } else {
+        refresh?.();
+    }
+}
+
+const HoverBox = styled.div`
+    display: inline-flex;
+    flex-wrap: none;
+    color: white;
+    padding: 6px 8px;
+    cursor: pointer;
+    user-select: none;
+    align-items: center;
+    border-radius: 5px;
+    &:hover {
+        background-color: rgba(236, 239, 244, 0.25);
+        color: white;
+        transition: background-color 0.2s;
+    }
+`;
 
 interface ContextSwitcherReduxProps {
     activeProject?: string;
+    refresh?: () => void;
 }
 
-const mapStateToProps = (state: ReduxObject): {activeProject?: string} => ({activeProject: state.project.project});
+interface DispatchProps {
+    setProject: (id?: string) => void;
+}
 
-export const ContextSwitcher = connect(mapStateToProps)(_ContextSwitcher);
+const mapStateToProps = (state: ReduxObject): ContextSwitcherReduxProps =>
+    ({activeProject: state.project.project, refresh: state.header.refresh});
+
+const mapDispatchToProps = (dispatch: Dispatch): DispatchProps => ({
+    setProject: id => dispatchSetProjectAction(dispatch, id)
+});
+
+export const ContextSwitcher = connect(mapStateToProps, mapDispatchToProps)(_ContextSwitcher);

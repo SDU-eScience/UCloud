@@ -31,11 +31,14 @@ module.exports = webpackMerge(commonConfig, {
         //     chunkFilename: "[id].css"
         // }),
         // Copies individual files or entire directories to the build directory
-        new CopyWebpackPlugin([{
-            from: "mock-api",
-            to: "mock-api",
-            context: path.join(__dirname, "app")
-        }])
+        new CopyWebpackPlugin({
+            patterns: [{
+                from: "mock-api",
+                to: "mock-api",
+                context: path.join(__dirname, "app")
+            }],
+            options: {}
+        })
     ],
 
     devServer: {
@@ -53,7 +56,7 @@ module.exports = webpackMerge(commonConfig, {
         inline: true,
         proxy: [{
             context: ["/auth", "/api"],
-            target: `https://${DEV_SITE}`,
+            target: process.env["local_dev"] !== undefined ? `http://localhost:8080` : `https://${DEV_SITE}`,
             secure: false,
             changeOrigin: true,
             ws: true,

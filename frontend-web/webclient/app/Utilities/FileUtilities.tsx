@@ -1,10 +1,9 @@
 import {Client} from "Authentication/HttpClientInstance";
 import HttpClient from "Authentication/lib";
 import {SensitivityLevelMap} from "DefaultObjects";
-import {File, FileResource, FileType} from "Files";
+import {File, FileType, UserEntity} from "Files";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page} from "Types";
 import {UploadPolicy} from "Uploader/api";
 import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
@@ -36,7 +35,7 @@ export async function copyOrMoveFilesNew(
     const filesToCopy: File[] = [];
     if (files.length === 1) {
         if (isDirectory(files[0]) && targetPathFolder.startsWith(files[0].path)) {
-            snackbarStore.addFailure("Copy of directory into itself is not allowed.");
+            snackbarStore.addFailure("Copy of directory into itself is not allowed.", false);
             return;
         }
     }
@@ -79,7 +78,7 @@ export async function copyOrMoveFilesNew(
         if (exists && !applyToAll) {
             const result = await rewritePolicyDialog({
                 path: newPathForFile,
-                homeFolder: Client.homeFolder,
+                client: Client,
                 filesRemaining: filesToCopy.length - i,
                 allowOverwrite
             });
@@ -97,10 +96,10 @@ export async function copyOrMoveFilesNew(
             try {
                 const {request} = await Client.post(copyOrMoveQuery(f.path, newPathForFile, policy));
                 successes++;
-                if (request.status === 202) snackbarStore.addSnack({
-                    message: `Operation for ${f.path} is in progress.`,
-                    type: SnackType.Success
-                });
+                if (request.status === 202) snackbarStore.addSuccess(
+                    `Operation for ${f.path} is in progress.`,
+                    true
+                );
             } catch {
                 failures++;
                 failurePaths.push(getFilenameFromPath(f.path));
@@ -112,7 +111,8 @@ export async function copyOrMoveFilesNew(
         onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: filesToCopy.length});
     } else if (failures) {
         snackbarStore.addFailure(
-            `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`
+            `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`,
+            true
         );
     }
 }
@@ -134,7 +134,7 @@ async function moveCopySetup({targetPath, path}: MoveCopySetup): Promise<{
 }
 
 function onOnlySuccess({operation, fileCount}: {operation: string; fileCount: number}): void {
-    snackbarStore.addSnack({message: `${operation} ${fileCount} file${fileCount === 1 ? "" : "s"}`, type: SnackType.Success});
+    snackbarStore.addSuccess(`${operation} ${fileCount} file${fileCount === 1 ? "" : "s"}`, false);
 }
 
 export const statFileOrNull = async (path: string): Promise<File | null> => {
@@ -154,73 +154,6 @@ export const checkIfFileExists = async (path: string, client: HttpClient): Promi
         return !(e.request.status === 404 || e.request.status === 403);
     }
 };
-
-export type AccessRight = "READ" | "WRITE";
-
-function hasAccess(accessRight: AccessRight, file: File): boolean {
-    const username = Client.activeUsername;
-    if (file.ownerName === username) return true;
-    if (file.acl === null) return true; // If ACL is null, we are still fetching the ACL
-
-    const relevantEntries = file.acl.filter(item => !item.group && item.entity === username);
-    return relevantEntries.some(entry => entry.rights.includes(accessRight));
-}
-
-export const allFilesHasAccessRight = (accessRight: AccessRight, files: File[]): boolean =>
-    files.every(f => hasAccess(accessRight, f));
-
-export function mergeFilePages(
-    basePage: Page<File>,
-    additionalPage: Page<File>,
-    attributesToCopy: FileResource[]
-): Page<File> {
-    const items = basePage.items.map(base => {
-        const additionalFile = additionalPage.items.find(it => it.path === base.path);
-        if (additionalFile !== undefined) {
-            return mergeFile(base, additionalFile, attributesToCopy);
-        } else {
-            return base;
-        }
-    });
-
-    return {...basePage, items};
-}
-
-export function mergeFile(base: File, additional: File, attributesToCopy: FileResource[]): File {
-    const result: File = {...base};
-    attributesToCopy.forEach(attr => {
-        switch (attr) {
-            case FileResource.FAVORITED:
-                result.favorited = additional.favorited;
-                break;
-            case FileResource.FILE_TYPE:
-                result.fileType = additional.fileType;
-                break;
-            case FileResource.PATH:
-                result.path = additional.path;
-                break;
-            case FileResource.MODIFIED_AT:
-                result.modifiedAt = additional.modifiedAt;
-                break;
-            case FileResource.OWNER_NAME:
-                result.ownerName = additional.ownerName;
-                break;
-            case FileResource.SIZE:
-                result.size = additional.size;
-                break;
-            case FileResource.ACL:
-                result.acl = additional.acl;
-                break;
-            case FileResource.SENSITIVITY_LEVEL:
-                result.sensitivityLevel = additional.sensitivityLevel;
-                break;
-            case FileResource.OWN_SENSITIVITY_LEVEL:
-                result.ownSensitivityLevel = additional.ownSensitivityLevel;
-                break;
-        }
-    });
-    return result;
-}
 
 /**
  * Used for resolving paths, which contain either "." or "..", and returning the resolved path.
@@ -243,12 +176,14 @@ export function resolvePath(path: string): string {
     return "/" + result.join("/");
 }
 
+export function pathComponents(path: string): string[] {
+    return resolvePath(path).split("/").filter(it => it !== "");
+}
+
 export const filePreviewQuery = (path: string): string =>
     `/files/preview?path=${encodeURIComponent(resolvePath(path))}`;
 
 export const advancedFileSearch = "/file-search/advanced";
-
-export const recentFilesQuery = "/files/stats/recent";
 
 export function moveFileQuery(path: string, newPath: string, policy?: UploadPolicy): string {
     let query = `/files/move?path=${encodeURIComponent(resolvePath(path))}&newPath=${encodeURIComponent(newPath)}`;
@@ -263,10 +198,9 @@ export function copyFileQuery(path: string, newPath: string, policy: UploadPolic
 }
 
 export const statFileQuery = (path: string): string => `/files/stat?path=${encodeURIComponent(path)}`;
-export const favoritesQuery = (page: number = 0, itemsPerPage: number = 25): string =>
-    `/files/favorite?page=${page}&itemsPerPage=${itemsPerPage}`;
 
 export const MOCK_RENAME_TAG = "rename";
+export const MOCK_REPO_CREATE_TAG = "repo_create";
 export const MOCK_VIRTUAL = "virtual";
 export const MOCK_RELATIVE = "relative";
 
@@ -279,11 +213,10 @@ export function mockFile(props: {path: string; type: FileType; fileId?: string; 
         modifiedAt: new Date().getTime(),
         size: 0,
         acl: [],
-        favorited: false,
         sensitivityLevel: SensitivityLevelMap.PRIVATE,
         ownSensitivityLevel: null,
         mockTag: props.tag,
-        permissionAlert: false
+        permissionAlert: false,
     };
 }
 
@@ -300,16 +233,16 @@ interface IsInvalidPathname {
  */
 export const isInvalidPathName = ({path, filePaths}: IsInvalidPathname): boolean => {
     if (["..", "/"].some((it) => path.includes(it))) {
-        snackbarStore.addFailure("Folder name cannot contain '..' or '/'");
+        snackbarStore.addFailure("Folder name cannot contain '..' or '/'", false);
         return true;
     }
     if (path === "" || path === ".") {
-        snackbarStore.addFailure("Folder name cannot be empty or be \".\"");
+        snackbarStore.addFailure("Folder name cannot be empty or be \".\"", false);
         return true;
     }
     const existingName = filePaths.some(it => it === path);
     if (existingName) {
-        snackbarStore.addFailure("File with that name already exists");
+        snackbarStore.addFailure("File with that name already exists", false);
         return true;
     }
     return false;
@@ -318,33 +251,13 @@ export const isInvalidPathName = ({path, filePaths}: IsInvalidPathname): boolean
 /**
  * Checks if the specific folder is a fixed folder, meaning it can not be removed, renamed, deleted, etc.
  * @param {string} filePath the path of the file to be checked
- * @param {string} homeFolder the path for the homefolder of the current user
  */
-export const isFixedFolder = (filePath: string, homeFolder: string): boolean => {
-    return [ // homeFolder contains trailing slash
-        `${homeFolder}Favorites`,
-        `${homeFolder}Jobs`,
-        `${homeFolder}Trash`
-    ].some(it => UF.removeTrailingSlash(it) === filePath);
+export const isFixedFolder = (filePath: string): boolean => {
+    if (isTrashFolder(filePath)) return true;
+    else if (isJobsFolder(filePath)) return true;
+    else if (isTrashFolder(filePath)) return true;
+    else return false;
 };
-
-/**
- * Used to favorite/defavorite a file based on its current state.
- * @param {File} file The single file to be favorited
- * @param {HttpClient} client The client instance used to changed the favorite state for the file
- */
-export const favoriteFile = async (file: File, client: HttpClient): Promise<File> => {
-    try {
-        await client.post(favoriteFileQuery(file.path), {});
-    } catch (e) {
-        UF.errorMessageOrDefault(e, "An error occurred favoriting file.");
-        throw e;
-    }
-    file.favorited = !file.favorited;
-    return file;
-};
-
-const favoriteFileQuery = (path: string): string => `/files/favorite/toggle?path=${encodeURIComponent(path)}`;
 
 interface ReclassifyFile {
     file: File;
@@ -359,18 +272,29 @@ export const reclassifyFile = async ({file, sensitivity, client}: ReclassifyFile
         sensitivity: serializedSensitivity
     }));
     if (isError(callResult)) {
-        snackbarStore.addFailure((callResult as ErrorMessage).errorMessage);
+        snackbarStore.addFailure((callResult as ErrorMessage).errorMessage, false);
         return file;
     }
     return {...file, sensitivityLevel: sensitivity, ownSensitivityLevel: sensitivity};
 };
 
 export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
-export const replaceHomeFolder = (path: string, homeFolder: string): string => path.replace(homeFolder, "Home/");
-export const expandHomeFolder = (path: string, homeFolder: string): string => {
-    if (path.startsWith("/Home/"))
-        return path.replace("/Home/", homeFolder);
-    return path;
+
+export function replaceHomeOrProjectFolder(path: string, client: HttpClient): string {
+    const [,projectName] = pathComponents(path);
+    const replaced = path.replace(client.homeFolder, "Home/");
+    if (isProjectHome(path)) return replaced.replace(`/projects/${projectName}`, projectName);
+    else return replaced;
+}
+
+export const expandHomeOrProjectFolder = (path: string, client: HttpClient): string => {
+    if (path.startsWith("/Home/")) {
+        return path.replace("/Home/", client.homeFolder);
+    } else if (path.startsWith("/home/") || path.startsWith("/projects/")) {
+        return path;
+    } else {
+        return "/projects" + path;
+    }
 };
 
 const extractFilesQuery = "/files/extract";
@@ -385,20 +309,20 @@ export const extractArchive = async ({files, client, onFinished}: ExtractArchive
     for (const f of files) {
         try {
             await client.post(extractFilesQuery, {path: f.path});
-            snackbarStore.addSnack({message: "File(s) being extracted", type: SnackType.Success});
+            snackbarStore.addSuccess("File(s) being extracted", true);
         } catch (e) {
-            snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred extracting the file."));
+            snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred extracting the file."), false);
         }
     }
     onFinished();
 };
 
-export const clearTrash = ({client, callback}: {client: HttpClient; callback: () => void}): void =>
+export const clearTrash = ({client, trashPath, callback}: {client: HttpClient; trashPath: string; callback: () => void}): void =>
     clearTrashDialog({
         onConfirm: async () => {
-            await client.post("/files/trash/clear", {});
+            await client.post("/files/trash/clear", {trashPath});
             callback();
-            snackbarStore.addSnack({message: "Emptying trash", type: SnackType.Information});
+            snackbarStore.addInformation("Emptying trash", false);
         }
     });
 
@@ -411,7 +335,8 @@ export const getParentPath = (path: string): string => {
         parentPath += splitPath[i] + "/";
     }
     /* TODO: Should be equivalent, let's test it for a while and replace if it works. */
-    const parentP = `/${path.split("/").filter(it => it).slice(0, -1).join("/")}/`;
+    /* They are not equivalent for the empty string. // and /, respectively. */
+    const parentP = UF.addTrailingSlash(`/${path.split("/").filter(it => it).slice(0, -1).join("/")}`);
     if (window.location.hostname === "localhost" && parentP !== parentPath) {
         throw Error("ParentP and path not equal");
     }
@@ -433,7 +358,7 @@ const toFileName = (path: string): string => {
 };
 
 export function getFilenameFromPath(path: string): string {
-    const replacedHome = replaceHomeFolder(path, Client.homeFolder);
+    const replacedHome = replaceHomeOrProjectFolder(path, Client);
     const fileName = toFileName(replacedHome);
     if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`;
     if (fileName === ".") return `. (Current folder)`;
@@ -469,7 +394,7 @@ export async function updateSensitivity({files, client, onSensitivityChange}: Up
     try {
         await Promise.all(files.map(file => reclassifyFile({file, sensitivity: input.option, client})));
     } catch (e) {
-        snackbarStore.addFailure(UF.errorMessageOrDefault(e, "Could not reclassify file"));
+        snackbarStore.addFailure(UF.errorMessageOrDefault(e, "Could not reclassify file"), false);
     } finally {
         onSensitivityChange?.();
     }
@@ -569,10 +494,10 @@ export const moveToTrash = ({files, client, setLoading, callback}: MoveToTrash):
             try {
                 setLoading();
                 await client.post("/files/trash/", {files: paths});
-                snackbarStore.addSnack({message: "Moving files to trash", type: SnackType.Information});
+                snackbarStore.addInformation("Moving files to trash", false);
                 callback();
             } catch (e) {
-                snackbarStore.addFailure(e.why);
+                snackbarStore.addFailure(e.why, false);
                 callback();
             }
         }
@@ -605,27 +530,24 @@ export async function createFolder({path, client, onSuccess}: CreateFolder): Pro
     try {
         await client.post("/files/directory", {path});
         onSuccess();
-        snackbarStore.addSnack({message: "Folder created", type: SnackType.Success});
+        snackbarStore.addSuccess("Folder created", false);
     } catch (e) {
-        snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred trying to creating the file."));
+        snackbarStore.addFailure(UF.errorMessageOrDefault(e, "An error occurred trying to creating the file."), false);
     }
 }
-
-export const inTrashDir = (path: string, client: HttpClient): boolean => getParentPath(path) === client.trashFolder;
 
 export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);
 }
 
 export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
-    return files.some(it => isFixedFolder(it.path, client.homeFolder));
+    return files.some(it => isFixedFolder(it.path));
 }
 
 export function isFilePreviewSupported(f: File): boolean {
     if (isDirectory(f)) return false;
     if (f.sensitivityLevel === "SENSITIVE") return false;
     return UF.isExtPreviewSupported(UF.extensionFromPath(f.path));
-
 }
 
 export const fileInfoPage = (path: string): string => `/files/info?path=${encodeURIComponent(resolvePath(path))}`;
@@ -634,3 +556,69 @@ export const fileTablePage = (path: string): string => `/files?path=${encodeURIC
 
 export const archiveExtensions: string[] = [".tar.gz", ".zip"];
 export const isArchiveExtension = (fileName: string): boolean => archiveExtensions.some(it => fileName.endsWith(it));
+
+export function isTrashFolder(path: string): boolean {
+    const components = pathComponents(path);
+    if (components.length === 3 && components[0] === "home" && components[2] === "Trash") return true;
+    else return components.length === 5 &&
+        components[0] === "projects" &&
+        components[2] === "Personal" &&
+        components[4] === "Trash";
+}
+
+export function isJobsFolder(path: string): boolean {
+    const components = pathComponents(path);
+
+    if (components.length === 3 && components[0] === "home" && components[2] === "Jobs") return true;
+    else return components.length === 5 &&
+        components[0] === "projects" &&
+        components[2] === "Personal" &&
+        components[4] === "Jobs";
+}
+
+export function isSharesFolder(path: string): boolean {
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "home" && components[2] === "Shares";
+}
+
+export function isFavoritesFolder(path: string): boolean {
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "home" && components[2] === "Favorites";
+}
+
+export function isProjectHome(path: string): boolean {
+    const components = pathComponents(path);
+    if (components.length === 3 && components[0] === "home" && components[2] === "Project") return true;
+    return components.length === 2 && components[0] === "projects";
+}
+
+export function projectIdFromPath(path: string): string | null {
+    const components = pathComponents(path);
+    if (components.length === 3 && components[0] === "home" && components[2] === "Project") return Client.projectId!;
+    if (components.length >= 2 && components[0] === "projects") {
+        return components[1];
+    }
+
+    return null;
+}
+
+export function isMyPersonalFolder(path: string): boolean {
+    const components = pathComponents(path);
+    return components.length === 4 && components[0] === "projects" && components[2] === "Personal" &&
+        components[3] === Client.username;
+}
+
+export function isPartOfSomePersonalFolder(path: string): boolean {
+    const components = pathComponents(path);
+    return components.length >= 4 && components[0] === "projects" && components[2] === "Personal";
+}
+
+export function isPersonalRootFolder(path: string): boolean {
+    const components = pathComponents(path);
+    return components.length === 3 && components[0] === "projects" && components[2] === "Personal";
+}
+
+export function isPartOfProject(path: string): boolean {
+    const components = pathComponents(path);
+    return components.length >= 2 && components[0] === "projects";
+}

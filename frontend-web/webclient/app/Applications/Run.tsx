@@ -6,7 +6,7 @@ import {callAPI} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {dialogStore} from "Dialog/DialogStore";
-import {File as CloudFile, FileResource, SortBy, SortOrder} from "Files";
+import {File as CloudFile, SortBy, SortOrder} from "Files";
 import FileSelector from "Files/FileSelector";
 import {listDirectory} from "Files/LowLevelFileTable";
 import LoadingIcon from "LoadingIcon/LoadingIcon";
@@ -27,7 +27,8 @@ import {
     Flex,
     Label,
     OutlineButton,
-    VerticalButtonGroup
+    VerticalButtonGroup,
+    Checkbox
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Error from "ui-components/Error";
@@ -46,7 +47,7 @@ import {
 import {removeEntry} from "Utilities/CollectionUtilities";
 import {
     checkIfFileExists,
-    expandHomeFolder,
+    expandHomeOrProjectFolder,
     fetchFileContent,
     fileTablePage, getFilenameFromPath,
     statFileQuery
@@ -69,20 +70,24 @@ import {PRODUCT_NAME} from "../../site.config.json";
 import {AppHeader} from "./View";
 import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
+import {TextSpan} from "ui-components/Text";
+import Warning from "ui-components/Warning";
+import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
+import * as PublicLinks from "Applications/PublicLinks/Management";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
     "([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])\$"
 );
 
-class Run extends React.Component<RunAppProps, RunAppState> {
-    constructor(props: Readonly<RunAppProps>) {
+class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState> {
+    constructor(props: Readonly<RunAppProps & RouterLocationProps>) {
         super(props);
+
         this.state = {
             promises: new PromiseKeeper(),
             jobSubmitted: false,
             initialSubmit: false,
-
             parameterValues: new Map(),
             mountedFolders: [],
             additionalPeers: [],
@@ -94,13 +99,16 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 },
                 numberOfNodes: 1,
                 tasksPerNode: 1,
-                name: React.createRef()
+                name: React.createRef(),
             },
+
+            useUrl: false,
+            url: React.createRef(),
             favorite: false,
             favoriteLoading: false,
             fsShown: false,
             previousRuns: emptyPage,
-            reservation: React.createRef(),
+            reservation: "",
             unknownParameters: []
         };
     }
@@ -110,11 +118,19 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const name = this.props.match.params.appName;
         const version = this.props.match.params.appVersion;
         this.state.promises.makeCancelable(this.retrieveApplication(name, version));
+
+        const paramsFile = getQueryParam(location.search, "paramsFile");
+        if (paramsFile !== null) {
+            this.fetchAndImportParameters({path: paramsFile});
+        }
     }
 
     public componentWillUnmount = (): void => this.state.promises.cancelPromises();
 
-    public componentDidUpdate(prevProps: Readonly<RunAppProps>, prevState: Readonly<RunAppState>): void {
+    public componentDidUpdate(
+        prevProps: Readonly<RunAppProps & RouterLocationProps>,
+        prevState: Readonly<RunAppState>
+    ): void {
         if (prevProps.match.params.appName !== this.props.match.params.appName ||
             prevProps.match.params.appVersion !== this.props.match.params.appVersion) {
             this.state.promises.makeCancelable(
@@ -125,11 +141,17 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         if (prevState.application !== this.state.application && this.state.application !== undefined) {
             this.fetchPreviousRuns();
         }
+
+        const paramsFile = getQueryParam(location.search, "paramsFile");
+        const prevParamsFile = getQueryParam(prevProps.location.search ?? "", "paramsFile");
+        if (paramsFile !== prevParamsFile && paramsFile !== null) {
+            this.fetchAndImportParameters({path: paramsFile});
+        }
     }
 
     public render(): JSX.Element {
         const {application, jobSubmitted, schedulingOptions, parameterValues} = this.state;
-        if (!application) return <MainContainer main={<LoadingIcon size={36} />} />;
+        if (!application) return <MainContainer main={<LoadingIcon size={36}/>}/>;
 
         const parameters = application.invocation.parameters;
         const mandatory = parameters.filter(parameter => !parameter.optional);
@@ -175,7 +197,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 headerSize={48}
                 header={(
                     <Flex mx={["0px", "0px", "0px", "0px", "0px", "50px"]}>
-                        <AppHeader slim application={application} />
+                        <AppHeader slim application={application}/>
                     </Flex>
                 )}
 
@@ -241,7 +263,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                                 } catch (ex) {
                                                                     snackbarStore.addFailure(
                                                                         "Could not find a parameters file for this " +
-                                                                        "run. Try a different run."
+                                                                        "run. Try a different run.",
+                                                                        false
                                                                     );
                                                                 } finally {
                                                                     this.props.setLoading(false);
@@ -267,7 +290,11 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
-                                    reservationRef={this.state.reservation}
+                                    reservation={this.state.reservation}
+                                    setReservation={reservation => this.setState({reservation})}
+                                    urlEnabled={this.state.useUrl}
+                                    setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})}
+                                    url={this.state.url}
                                     app={application}
                                 />
                             </RunSection>
@@ -310,30 +337,30 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                     Your files will be available at <code>/work/</code>.
                                                 </>
                                             ) : (
-                                                    <>
-                                                        If you need to use your {" "}
-                                                        <Link
-                                                            to={fileTablePage(Client.homeFolder)}
-                                                            target="_blank"
-                                                        >
-                                                            files
+                                                <>
+                                                    If you need to use your {" "}
+                                                    <Link
+                                                        to={fileTablePage(Client.homeFolder)}
+                                                        target="_blank"
+                                                    >
+                                                        files
                                                     </Link>
-                                                        {" "}
-                                                        in this job then click {" "}
-                                                        <BaseLink
-                                                            href="#"
-                                                            onClick={e => {
-                                                                e.preventDefault();
-                                                                this.addFolder();
-                                                            }}
-                                                        >
-                                                            "Add folder"
+                                                    {" "}
+                                                    in this job then click {" "}
+                                                    <BaseLink
+                                                        href="#"
+                                                        onClick={e => {
+                                                            e.preventDefault();
+                                                            this.addFolder();
+                                                        }}
+                                                    >
+                                                        "Add folder"
                                                     </BaseLink>
-                                                        {" "}
-                                                        to select the relevant
-                                                        files.
+                                                    {" "}
+                                                    to select the relevant
+                                                    files.
                                                 </>
-                                                )}
+                                            )}
                                         </Box>
 
                                         {this.state.mountedFolders.map((entry, i) => (
@@ -385,21 +412,21 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                                                 File systems used by the <b>job</b> are automatically added to this job.
                                             </>
                                         ) : (
-                                                <>
-                                                    If you need to use the services of another job click{" "}
-                                                    <BaseLink
-                                                        href="#"
-                                                        onClick={e => {
-                                                            e.preventDefault();
-                                                            this.connectToJob();
-                                                        }}
-                                                    >
-                                                        "Connect to job".
+                                            <>
+                                                If you need to use the services of another job click{" "}
+                                                <BaseLink
+                                                    href="#"
+                                                    onClick={e => {
+                                                        e.preventDefault();
+                                                        this.connectToJob();
+                                                    }}
+                                                >
+                                                    "Connect to job".
                                                 </BaseLink>
-                                                    {" "}
-                                                    This includes networking.
+                                                {" "}
+                                                This includes networking.
                                             </>
-                                            )}
+                                        )}
                                     </Box>
 
                                     {
@@ -440,9 +467,8 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 path: Client.homeFolder + `Jobs/${this.state.application.metadata.title}`,
                 page: 0,
                 itemsPerPage: 25,
-                attrs: [FileResource.PATH],
                 order: SortOrder.DESCENDING,
-                sortBy: SortBy.PATH
+                sortBy: SortBy.MODIFIED_AT
             }));
             this.setState(() => ({previousRuns}));
         } catch {
@@ -466,6 +492,18 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         const {invocation} = this.state.application;
         this.setState(() => ({initialSubmit: true}));
 
+        if (this.state.useUrl) {
+            if (this.state.url.current == null || this.state.url.current.value === "") {
+                snackbarStore.addFailure(
+                    "Public link is enabled, but not set",
+                    false,
+                    5000
+                );
+                this.setState(() => ({jobSubmitted: false}));
+                return;
+            }
+        }
+
         const parameters = extractValuesFromWidgets({
             map: this.state.parameterValues,
             appParameters: this.state.application!.invocation.parameters,
@@ -478,19 +516,19 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         // Validate max time
         const maxTime = extractJobInfo(this.state.schedulingOptions).maxTime;
         if (maxTime.hours === 0 && maxTime.minutes === 0 && maxTime.seconds === 0) {
-            snackbarStore.addFailure("Scheduling times must be more than 0 seconds.", 5000);
+            snackbarStore.addFailure("Scheduling times must be more than 0 seconds.", false, 5000);
             return;
         }
 
         const mounts = this.state.mountedFolders.filter(it => it.ref.current && it.ref.current.value).map(it => {
-            const expandedValue = expandHomeFolder(it.ref.current!.value, Client.homeFolder);
+            const expandedValue = expandHomeOrProjectFolder(it.ref.current!.value, Client);
             return {
                 source: expandedValue,
                 destination: removeTrailingSlash(expandedValue).split("/").pop()!
             };
         });
 
-        const peers = [] as Array<{name: string; jobId: string}>;
+        const peers = [] as Array<{ name: string; jobId: string }>;
         {
             // Validate additional mounts
             for (const peer of this.state.additionalPeers) {
@@ -505,6 +543,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 if (hostname === "" || jobId === "") {
                     snackbarStore.addFailure(
                         "A connection is missing a job or hostname",
+                        false,
                         5000
                     );
 
@@ -515,6 +554,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     snackbarStore.addFailure(
                         `The connection '${hostname}' has an invalid hostname.` +
                         `Hostnames cannot contain spaces or special characters.`,
+                        false,
                         5000
                     );
                     return;
@@ -526,8 +566,9 @@ class Run extends React.Component<RunAppProps, RunAppState> {
 
         const {name} = this.state.schedulingOptions;
         const jobName = name.current?.value;
-        let reservation = this.state.reservation.current ? this.state.reservation.current.value : null;
+        let reservation: string | null = this.state.reservation;
         if (reservation === "") reservation = null;
+        const urlName = this.state.url.current == null ? null : this.state.url.current.value;
 
         const job = {
             application: {
@@ -535,6 +576,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                 version: this.state.application!.metadata.version
             },
             parameters,
+            url: urlName,
             numberOfNodes: this.state.schedulingOptions.numberOfNodes,
             tasksPerNode: this.state.schedulingOptions.tasksPerNode,
             maxTime,
@@ -552,7 +594,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             const req = await Client.post(hpcJobQueryPost, job);
             this.props.history.push(`/applications/results/${req.response.jobId}`);
         } catch (err) {
-            if (err.request.status == 409) {
+            if (err.request.status === 409) {
                 addStandardDialog({
                     title: "Job with same parameters already running",
                     message: "You might be trying to run a duplicate job. Would you like to proceed?",
@@ -564,22 +606,23 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                             acceptSameDataRetry: true
                         };
                         try {
-                            const rerunRequest = await Client.post(hpcJobQueryPost, rerunJob)
+                            const rerunRequest = await Client.post(hpcJobQueryPost, rerunJob);
                             this.props.history.push(`/applications/results/${rerunRequest.response.jobId}`);
                         } catch (rerunErr) {
                             snackbarStore.addFailure(
-                                errorMessageOrDefault(rerunErr, "An error occurred submitting the job.")
-                            )
+                                errorMessageOrDefault(rerunErr, "An error occurred submitting the job."),
+                                false
+                            );
                         }
                     },
                     onCancel: async () => {
-                        this.setState( () => ({jobSubmitted: false}));
+                        this.setState(() => ({jobSubmitted: false}));
                     }
                 });
-            }
-            else {
+            } else {
                 snackbarStore.addFailure(
-                    errorMessageOrDefault(err, "An error occurred submitting the job.")
+                    errorMessageOrDefault(err, "An error occurred submitting the job."),
+                    false
                 );
                 this.setState(() => ({jobSubmitted: false}));
             }
@@ -596,7 +639,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
             await this.state.promises.makeCancelable(Client.post(hpcFavoriteApp(name, version))).promise;
             this.setState(() => ({favorite: !this.state.favorite}));
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"));
+            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"), false);
         } finally {
             this.setState(() => ({favoriteLoading: false}));
         }
@@ -629,11 +672,13 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     maxTime: toolDescription.defaultTimeAllocation,
                     numberOfNodes: toolDescription.defaultNumberOfNodes,
                     tasksPerNode: toolDescription.defaultTasksPerNode,
-                    name: this.state.schedulingOptions.name
-                }
+                    name: this.state.schedulingOptions.name,
+                },
+                useUrl: this.state.useUrl,
+                url: this.state.url
             }));
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, `An error occurred fetching ${name}`));
+            snackbarStore.addFailure(errorMessageOrDefault(e, `An error occurred fetching ${name}`), false);
         } finally {
             this.props.setLoading(false);
         }
@@ -654,17 +699,19 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     mountedFolders,
                     tasksPerNode,
                     maxTime,
-                    siteVersion
+                    siteVersion,
+                    machineType,
+                    jobName
                 } = JSON.parse(rawInputFile);
                 // Verify metadata
                 if (application.name !== thisApp.metadata.name) {
-                    snackbarStore.addFailure("Application name does not match");
+                    snackbarStore.addFailure("Application name does not match", false);
                     return;
                 } else if (application.version !== thisApp.metadata.version) {
-                    snackbarStore.addSnack({
-                        message: "Application version does not match. Some parameters may not be filled out correctly.",
-                        type: SnackType.Information
-                    });
+                    snackbarStore.addInformation(
+                        "Application version does not match. Some parameters may not be filled out correctly.",
+                        false,
+                    );
                 }
 
                 // Finds the values to parameters that are still valid in this version of the application.
@@ -688,7 +735,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     for (const paramKey in fileParams) {
                         const param = fileParams[paramKey];
                         if (userInputValues[param.name]) {
-                            const path = expandHomeFolder(userInputValues[param.name], Client.homeFolder);
+                            const path = expandHomeOrProjectFolder(userInputValues[param.name], Client);
                             if (!await checkIfFileExists(path, Client)) {
                                 invalidFiles.push(userInputValues[param.name]);
                                 userInputValues[param.name] = "";
@@ -697,7 +744,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     }
 
                     if (invalidFiles.length > 0) {
-                        snackbarStore.addFailure(`The following files don't exists: ${invalidFiles.join(", ")}`);
+                        snackbarStore.addFailure(`The following files don't exists: ${invalidFiles.join(", ")}`, false);
                     }
                 }
 
@@ -706,7 +753,7 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     const validMountFolders = [] as AdditionalMountedFolder[];
                     // tslint:disable-next-line:prefer-for-of
                     for (let i = 0; i < mountedFolders.length; i++) {
-                        if (await checkIfFileExists(expandHomeFolder(mountedFolders[i].ref, Client.homeFolder), Client)) {
+                        if (await checkIfFileExists(expandHomeOrProjectFolder(mountedFolders[i].ref, Client), Client)) {
                             const ref = React.createRef<HTMLInputElement>();
                             validMountFolders.push({ref});
                         }
@@ -741,24 +788,31 @@ class Run extends React.Component<RunAppProps, RunAppState> {
                     });
                 }
 
+                if (jobName) {
+                    this.state.schedulingOptions.name.current!.value = jobName;
+                }
+
                 this.setState(() => ({
                     application: thisApp,
                     schedulingOptions: extractJobInfo({
                         maxTime,
                         numberOfNodes,
                         tasksPerNode,
-                        name: this.state.schedulingOptions.name
-                    })
+                        name: this.state.schedulingOptions.name,
+                    }),
+                    useUrl: this.state.useUrl,
+                    url: this.state.url,
+                    reservation: machineType.name ?? this.state.reservation
                 }));
             } catch (e) {
                 console.warn(e);
-                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"));
+                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"), false);
             }
         };
         fileReader.readAsText(file);
     }
 
-    private onImportFileSelected(file: {path: string}): void {
+    private onImportFileSelected(file: { path: string }): void {
         if (!file.path.endsWith(".json")) {
             addStandardDialog({
                 title: "Continue?",
@@ -771,10 +825,10 @@ class Run extends React.Component<RunAppProps, RunAppState> {
         this.fetchAndImportParameters(file);
     }
 
-    private fetchAndImportParameters = async (file: {path: string}): Promise<void> => {
+    private fetchAndImportParameters = async (file: { path: string }): Promise<void> => {
         const fileStat = await Client.get<CloudFile>(statFileQuery(file.path));
         if (fileStat.response.size! > 5_000_000) {
-            snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed.");
+            snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed.", false);
             return;
         }
         const response = await fetchFileContent(file.path, Client);
@@ -836,12 +890,89 @@ const SchedulingField: React.FunctionComponent<SchedulingFieldProps> = props => 
     </Label>
 );
 
+const ApplicationUrl: React.FunctionComponent<{
+    inputRef: React.RefObject<HTMLInputElement>;
+    enabled: boolean;
+    setEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+    jobName: React.RefObject<HTMLInputElement>;
+}> = props => {
+    const [url, setUrl] = React.useState<string>("");
+
+    React.useEffect(() => {
+        if (!props.inputRef) return;
+
+        const current = props.inputRef.current;
+        if (current === null) return;
+
+        current.value = url;
+    }, [props.inputRef, url]);
+
+    return (
+        <>
+            <div>
+                <Label mb={10}>
+                    <Checkbox size={28} checked={props.enabled} onChange={() => {
+                        props.setEnabled(!props.enabled);
+
+                        if (!props.enabled && props.jobName.current !== null) {
+                            setUrl(urlify(props.jobName.current!.value));
+                        }
+                    }}/>
+                    <TextSpan>Public link</TextSpan>
+                </Label>
+            </div>
+
+            <div>
+                {props.enabled ? (
+                    <>
+                        <Warning
+                            warning="By enabling this setting, anyone with a link can gain access to the application."/>
+                        <Label mt={20}>
+                            <Flex>
+                                <TextSpan mt={10}>https://app-</TextSpan>
+                                <Input
+                                    placeholder="Unique URL identifier"
+                                    ref={props.inputRef}
+                                    required
+                                    onKeyDown={e => e.preventDefault()}
+                                    onClick={event => {
+                                        event.preventDefault();
+                                        dialogStore.addDialog(
+                                            <PublicLinks.PublicLinkManagement
+                                                onSelect={pl => {
+                                                    setUrl(pl.url);
+                                                    dialogStore.success();
+                                                }}
+                                            />,
+                                            () => 0
+                                        );
+                                    }}
+                                />
+                                <TextSpan mt={10}>.cloud.sdu.dk</TextSpan>
+                            </Flex>
+                        </Label>
+                    </>
+                ) : (<></>)}
+            </div>
+        </>
+    );
+};
+
+
 interface JobSchedulingOptionsProps {
     /* FIXME: add typesafety */
     onChange: (a, b, c) => void;
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
-    reservationRef: React.RefObject<HTMLInputElement>;
+    reservation: string;
+    setReservation: (name: string) => void;
+    urlEnabled: boolean;
+    setUrlEnabled: React.Dispatch<React.SetStateAction<boolean>>;
+    url: React.RefObject<HTMLInputElement>;
+}
+
+function urlify(text: string): string {
+    return encodeURIComponent(text.substr(0, 32)).replace(new RegExp('%20', 'g'), '-').toLowerCase()
 }
 
 const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | null => {
@@ -852,7 +983,10 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
             <Flex mb="4px" mt="4px">
                 <Label>
                     Job name
-                    <Input ref={name} placeholder={"Example: Analysis with parameters XYZ"} />
+                    <Input
+                        ref={name}
+                        placeholder={"Example: Analysis with parameters XYZ"}
+                    />
                 </Label>
             </Flex>
 
@@ -866,7 +1000,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     value={maxTime.hours}
                     onChange={props.onChange}
                 />
-                <Box ml="4px" />
+                <Box ml="4px"/>
                 <SchedulingField
                     min={0}
                     max={59}
@@ -876,7 +1010,7 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                     value={maxTime.minutes}
                     onChange={props.onChange}
                 />
-                <Box ml="4px" />
+                <Box ml="4px"/>
                 <SchedulingField
                     min={0}
                     max={59}
@@ -904,12 +1038,26 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                 <Label>Machine type</Label>
                 <MachineTypes
                     runAsRoot={props.app.invocation.container?.runAsRoot ?? false}
-                    inputRef={props.reservationRef}
+                    reservation={props.reservation}
+                    setReservation={props.setReservation}
                 />
             </div>
+
+            {props.app.invocation.applicationType == "WEB" ? (
+                <Box mb="4px" mt="1em">
+                    <ApplicationUrl
+                        inputRef={props.url}
+                        enabled={props.urlEnabled}
+                        setEnabled={props.setUrlEnabled}
+                        jobName={name}
+                    />
+                </Box>
+            ) : (<></>)}
+
         </>
     );
 };
+
 
 function extractJobInfo(jobInfo: JobSchedulingOptionsForInput): JobSchedulingOptionsForInput {
     const extractedJobInfo = {
@@ -946,7 +1094,7 @@ export function importParameterDialog(importParameters: (file: File) => void, sh
                             if (e.target.files) {
                                 const file = e.target.files[0];
                                 if (file.size > 10_000_000) {
-                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.");
+                                    snackbarStore.addFailure("File exceeds 10 MB. Not allowed.", false);
                                 } else {
                                     importParameters(file);
                                 }

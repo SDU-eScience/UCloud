@@ -1,0 +1,14 @@
+---
+name: storage
+
+namespaces:
+  - files
+  - files.upload
+  - files.jobs
+  - files.metadata
+
+dependencies:
+  - task
+  - project
+  - project.group
+  - project.members

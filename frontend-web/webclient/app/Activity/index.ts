@@ -1,6 +1,6 @@
 import {ActivityReduxObject} from "DefaultObjects";
 import {ScrollRequest} from "Scroll";
-import {AccessRight} from "Utilities/FileUtilities";
+import {AccessRight} from "Types";
 
 export enum ActivityType {
     DOWNLOAD = "download",
@@ -35,6 +35,7 @@ export interface ActivityFilter {
     type?: ActivityType;
     minTimestamp?: Date;
     maxTimestamp?: Date;
+    user?: string;
 }
 
 export interface FavoriteActivity extends Activity {
@@ -53,8 +54,15 @@ export interface CopyActivity extends Activity {
     copyFilePath: string;
 }
 
+export type UpdateAcl = UpdatedACLActivity | UpdateProjectAcl;
+
 export interface UpdatedACLActivity extends Activity {
-    rightsAndUser: {rights: Set<AccessRight>, user: string}[];
+    rightsAndUser: {rights: AccessRight[], user: string}[];
+}
+
+export interface UpdateProjectAcl extends Activity {
+    project: string;
+    acl: {group: string, rights: AccessRight[]}[];
 }
 
 export interface MovedActivity extends Activity {

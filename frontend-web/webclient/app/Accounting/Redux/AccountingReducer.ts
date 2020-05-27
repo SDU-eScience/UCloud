@@ -18,20 +18,9 @@ const reducer = (state: ReduxType = init().accounting, action: ActionType): Redu
     switch (action.type) {
         case Tag.CLEAR_RESOURCE: {
             return genericReduce(state, action.payload.resource, {
-                chart: emptyLoadableContent(),
                 usage: emptyLoadableContent(),
                 events: emptyLoadableContent()
             });
-        }
-
-        case Tag.RECEIVE_CHART: {
-            return genericReduce(state, action.payload.resource,
-                {chart: loadableEventToContent(action.payload.event)});
-        }
-
-        case Tag.RECEIVE_EVENTS: {
-            return genericReduce(state, action.payload.resource,
-                {events: loadableEventToContent(action.payload.event)});
         }
 
         case Tag.RECEIVE_USAGE: {

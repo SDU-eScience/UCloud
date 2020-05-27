@@ -2,6 +2,7 @@ import * as React from "react";
 import styled from "styled-components";
 import {HiddenInputField} from "./Input";
 import Label from "./Label";
+import {ThemeColor} from "./theme";
 
 // https://www.w3schools.com/howto/howto_css_switch.asp
 const ToggleLabel = styled(Label) <{scale: number}>`
@@ -13,14 +14,14 @@ const ToggleLabel = styled(Label) <{scale: number}>`
 
 ToggleLabel.displayName = "ToggleLabel";
 
-const RoundSlider = styled.span<{scale: number}>`
+const RoundSlider = styled.span<{scale: number; disabledColor: ThemeColor}>`
     position: absolute;
     cursor: pointer;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
+    background-color: var(--${props => props.disabledColor ?? "gray"});
     -webkit-transition: .4s;
     transition: .4s;
     border-radius: 34px;
@@ -41,13 +42,13 @@ const RoundSlider = styled.span<{scale: number}>`
 
 RoundSlider.displayName = "RoundSlider";
 
-const ToggleInput = styled(HiddenInputField) <{scale: number}>`
+const ToggleInput = styled(HiddenInputField) <{scale: number; activeColor: ThemeColor}>`
     &:checked + ${RoundSlider} {
-        background-color: #2196F3;
+        background-color: var(--${props => props.activeColor});
     }
 
     &:focus + ${RoundSlider} {
-        box-shadow: 0 0 1px #2196F3;
+        box-shadow: 0 0 1px var(--${props => props.activeColor});
     }
 
     &:checked + ${RoundSlider}:before {
@@ -59,10 +60,22 @@ const ToggleInput = styled(HiddenInputField) <{scale: number}>`
 
 ToggleInput.displayName = "ToggleInput";
 
-interface ToggleProps {checked?: boolean; onChange: () => void; scale?: number;}
-export const Toggle = ({checked, onChange, scale = 1}: ToggleProps) => (
+interface ToggleProps {
+    checked?: boolean;
+    onChange: () => void;
+    scale?: number;
+    activeColor?: ThemeColor;
+    disabledColor?: ThemeColor;
+}
+export const Toggle: React.FC<ToggleProps> = ({
+    checked,
+    onChange,
+    scale = 1,
+    activeColor = "blue",
+    disabledColor = "gray"
+}) => (
     <ToggleLabel scale={scale}>
-        <ToggleInput scale={scale} type="checkbox" checked={checked} onChange={onChange} />
-        <RoundSlider scale={scale} />
+        <ToggleInput scale={scale} type="checkbox" checked={checked} onChange={onChange} activeColor={activeColor} />
+        <RoundSlider disabledColor={disabledColor} scale={scale} />
     </ToggleLabel>
 );

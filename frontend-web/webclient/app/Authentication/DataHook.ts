@@ -1,7 +1,8 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {useEffect, useReducer, useState} from "react";
 import {defaultErrorHandler} from "UtilityFunctions";
-import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
+import {useGlobal, ValueOrSetter} from "Utilities/ReduxHooks";
+import {HookStore} from "DefaultObjects";
 
 function dataFetchReducer(state, action) {
     switch (action.type) {
@@ -36,10 +37,10 @@ export interface APICallParameters<Parameters = any, Payload = any> {
     context?: string;
     maxRetries?: number;
     parameters?: Parameters;
-    disallowProjects?: boolean;
     reloadId?: number; // Can be used to force an ID by setting this to a random value
     noop?: boolean; // Used to indicate that this should not be run in a useCloudAPI hook.
     withCredentials?: boolean;
+    projectOverride?: string;
 }
 
 export interface APIError {
@@ -51,6 +52,11 @@ export interface APICallState<T> {
     loading: boolean;
     error?: APIError;
     data: T;
+}
+
+export interface APICallStateWithParams<T, Params = any> {
+    call: APICallState<T>;
+    parameters: APICallParameters<Params>;
 }
 
 export function mapCallState<T, T2>(state: APICallState<T>, mapper: (t: T) => T2): APICallState<T2> {
@@ -69,8 +75,8 @@ export async function callAPI<T>(parameters: APICallParameters): Promise<T> {
         body: parameters.payload,
         context: parameters.context,
         maxRetries: parameters.maxRetries,
-        disallowProjects: parameters.disallowProjects,
-        withCredentials: parameters.withCredentials
+        withCredentials: parameters.withCredentials,
+        projectOverride: parameters.projectOverride
     })).response;
 }
 
@@ -138,6 +144,59 @@ export function useCloudAPI<T, Parameters = any>(
 
     const returnedState: APICallState<T> = {...state};
     return [returnedState, doFetch, params];
+}
+
+
+export function useGlobalCloudAPI<T, Parameters = any>(
+    property: string,
+    callParametersInitial: APICallParameters<Parameters>,
+    dataInitial: T
+): [APICallState<T>, (params: APICallParameters<Parameters>) => void, APICallParameters<Parameters>] {
+    const defaultState: APICallStateWithParams<T, Parameters> = {
+        call: {
+            loading: false,
+            error: undefined,
+            data: dataInitial
+        }, parameters: callParametersInitial
+    };
+
+    const [globalState, setGlobalState] =
+        useGlobal(property as keyof HookStore, defaultState as unknown as NonNullable<HookStore[keyof HookStore]>);
+    const state = globalState as unknown as APICallStateWithParams<T, Parameters>;
+    const setState = setGlobalState as unknown as (value: ValueOrSetter<APICallStateWithParams<T, Parameters>>) => void;
+
+    async function doFetch(parameters: APICallParameters) {
+        setState((old) => {
+            return {...old, parameters};
+        });
+        if (parameters.noop !== true) {
+            if (parameters.path !== undefined) {
+                setState((old) => {
+                    return {...old, call: {...old.call, loading: true}};
+                });
+
+                try {
+                    const result: T = await callAPI(parameters);
+
+                    setState((old) => {
+                        return {...old, call: {...old.call, loading: false, data: result}};
+                    })
+                } catch (e) {
+                    const statusCode = e.request.status;
+                    let why = "Internal Server Error";
+                    if (!!e.response && e.response.why) {
+                        why = e.response.why;
+                    }
+
+                    setState((old) => {
+                        return {...old, call: {...old.call, loading: false, error: {why, statusCode}}};
+                    })
+                }
+            }
+        }
+    }
+
+    return [state.call, doFetch, state.parameters];
 }
 
 export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters) => Promise<T | null>] {

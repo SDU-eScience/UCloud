@@ -5,7 +5,8 @@ import {useState} from "react";
 import styled from "styled-components";
 import {Button, Flex, Icon} from "ui-components";
 import Input, {InputLabel} from "ui-components/Input";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
+import {SpaceProps, HeightProps, WidthProps} from "styled-system";
 
 interface FileInputSelectorProps {
     path: string; // selected file
@@ -30,7 +31,7 @@ export const FileInputSelector: React.FunctionComponent<FileInputSelectorProps> 
 
     const removeButton = props.remove ? (<RemoveButton onClick={() => props.remove!()} />) : null;
     const inputRefValueOrNull = props.inputRef?.current?.value;
-    const inputValue = inputRefValueOrNull ?? replaceHomeFolder(path, Client.homeFolder);
+    const inputValue = inputRefValueOrNull ?? replaceHomeOrProjectFolder(path, Client);
 
     return (
         <FileSelector
@@ -83,6 +84,8 @@ interface FileSelectorButton {
     onClick: () => void;
 }
 
-const RemoveButton = ({onClick}: FileSelectorButton): JSX.Element => (
-    <Button color="red" ml="8px" onClick={onClick}><Icon name="close" size="1em" /></Button>
+export const RemoveButton = ({
+    onClick, ...props
+}: FileSelectorButton & SpaceProps & WidthProps & HeightProps): JSX.Element => (
+    <Button color="red" ml="8px" onClick={onClick} {...props}><Icon name="close" size="1em" /></Button>
 );

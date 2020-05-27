@@ -15,7 +15,7 @@ const SvgCheckDouble = (props: any) => (
     />
     <path
       d="M13 16.962L14.999 19 24 9.96l-2-1.999-9 9z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
     />
   </svg>

@@ -47,7 +47,8 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 }
 
 .c32 {
-  margin-bottom: 4px;
+  width: auto;
+  max-width: calc(100% - 180px);
 }
 
 .c9 {
@@ -76,18 +77,17 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   margin-right: .4em;
 }
 
-.c34 {
+.c36 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
   vertical-align: middle;
   cursor: inherit;
   margin-right: 5px;
-  margin-top: 4px;
   color: #8393A7;
 }
 
-.c36 {
+.c37 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -95,11 +95,10 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   cursor: inherit;
   margin-left: 4px;
   margin-right: 2px;
-  margin-top: 4px;
   color: #8393A7;
 }
 
-.c39 {
+.c40 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -109,7 +108,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   color: #c00;
 }
 
-.c41 {
+.c42 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -126,12 +125,12 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   display: flex;
 }
 
-.c37 {
+.c34 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  margin-right: 8px;
+  margin-top: 4px;
 }
 
 .c38 {
@@ -139,10 +138,18 @@ exports[`Runs component Mount component with non-empty page 1`] = `
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
+  margin-right: 8px;
+}
+
+.c39 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
   width: 110px;
 }
 
-.c40 {
+.c41 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -175,7 +182,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 
 .c35 {
   cursor: inherit;
-  font-size: 12px;
+  font-size: 10px;
   color: #8393A7;
 }
 
@@ -245,7 +252,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
 }
 
 .c33 {
-  cursor: inherit;
+  cursor: pointer;
   width: 100%;
   font-size: 20px;
   margin-bottom: -4px;
@@ -988,6 +995,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
       >
         <div
           className="c0 c31"
+          onClick={[Function]}
         >
           <img
             alt=""
@@ -1004,12 +1012,13 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c32"
-          onClick={[Function]}
+          width="auto"
         >
           <div
             className="c33"
-            cursor="inherit"
+            cursor="pointer"
             fontSize={20}
+            onClick={[Function]}
             width={1}
           >
             <div
@@ -1020,75 +1029,73 @@ exports[`Runs component Mount component with non-empty page 1`] = `
             </div>
           </div>
           <div
-            className="c3"
+            className="c34"
           >
-            <svg
-              className="c34"
-              clipRule="evenodd"
-              color="gray"
-              cursor="inherit"
-              fill="currentcolor"
-              fillRule="evenodd"
-              height="10px"
-              mr="5px"
-              mt="4px"
-              viewBox="0 0 24 24"
-              width="10px"
-            >
-              <path
-                d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
-              />
-            </svg>
             <div
               className="c35"
               color="gray"
               cursor="inherit"
-              fontSize="12px"
+              fontSize={0}
             >
+              <svg
+                className="c36"
+                clipRule="evenodd"
+                color="gray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height="10px"
+                mr="5px"
+                viewBox="0 0 24 24"
+                width="10px"
+              >
+                <path
+                  d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
+                />
+              </svg>
               
                v
               
             </div>
-            <svg
-              className="c36"
-              clipRule="evenodd"
-              color="gray"
-              cursor="inherit"
-              fill="currentcolor"
-              fillRule="evenodd"
-              height="10px"
-              ml="4px"
-              mr="2px"
-              mt="4px"
-              viewBox="0 0 21 24"
-              width="10px"
-            >
-              <path
-                d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
-                fill={null}
-                fillRule="nonzero"
-              />
-              <path
-                d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
-                fill={null}
-                fillRule="nonzero"
-              />
-              <path
-                d="M18.411 7.408l1.65-1.65-1.819-1.818-1.65 1.65a10.24 10.24 0 00-6.306-2.161C4.606 3.429 0 8.034 0 13.715 0 19.395 4.605 24 10.286 24c5.68 0 10.286-4.605 10.286-10.285a10.24 10.24 0 00-2.16-6.307zm-2.443 11.989a7.983 7.983 0 01-5.682 2.353 7.983 7.983 0 01-5.682-2.353 7.983 7.983 0 01-2.354-5.682c0-2.147.836-4.165 2.354-5.683a7.983 7.983 0 015.682-2.353c2.146 0 4.164.836 5.682 2.353a7.983 7.983 0 012.354 5.683 7.983 7.983 0 01-2.354 5.682z"
-                fillRule="nonzero"
-              />
-              <path
-                d="M6.857 0h6.858v2.572H6.857z"
-                fill={null}
-                fillRule="nonzero"
-              />
-            </svg>
             <div
               className="c35"
               color="gray"
               cursor="inherit"
-              fontSize="12px"
+              fontSize={0}
             >
+              <svg
+                className="c37"
+                clipRule="evenodd"
+                color="gray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height="10px"
+                ml="4px"
+                mr="2px"
+                viewBox="0 0 21 24"
+                width="10px"
+              >
+                <path
+                  d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M18.411 7.408l1.65-1.65-1.819-1.818-1.65 1.65a10.24 10.24 0 00-6.306-2.161C4.606 3.429 0 8.034 0 13.715 0 19.395 4.605 24 10.286 24c5.68 0 10.286-4.605 10.286-10.285a10.24 10.24 0 00-2.16-6.307zm-2.443 11.989a7.983 7.983 0 01-5.682 2.353 7.983 7.983 0 01-5.682-2.353 7.983 7.983 0 01-2.354-5.682c0-2.147.836-4.165 2.354-5.683a7.983 7.983 0 015.682-2.353c2.146 0 4.164.836 5.682 2.353a7.983 7.983 0 012.354 5.683 7.983 7.983 0 01-2.354 5.682z"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M6.857 0h6.858v2.572H6.857z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+              </svg>
               Started 
               28/08/2018
             </div>
@@ -1098,14 +1105,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c37"
+          className="c38"
         >
           <div
-            className="c38"
+            className="c39"
             width="110px"
           >
             <svg
-              className="c39"
+              className="c40"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1124,7 +1131,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c40"
+              className="c41"
             >
               Failure
             </div>
@@ -1138,6 +1145,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
       >
         <div
           className="c0 c31"
+          onClick={[Function]}
         >
           <img
             alt=""
@@ -1154,12 +1162,13 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c32"
-          onClick={[Function]}
+          width="auto"
         >
           <div
             className="c33"
-            cursor="inherit"
+            cursor="pointer"
             fontSize={20}
+            onClick={[Function]}
             width={1}
           >
             <div
@@ -1170,75 +1179,73 @@ exports[`Runs component Mount component with non-empty page 1`] = `
             </div>
           </div>
           <div
-            className="c3"
+            className="c34"
           >
-            <svg
-              className="c34"
-              clipRule="evenodd"
-              color="gray"
-              cursor="inherit"
-              fill="currentcolor"
-              fillRule="evenodd"
-              height="10px"
-              mr="5px"
-              mt="4px"
-              viewBox="0 0 24 24"
-              width="10px"
-            >
-              <path
-                d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
-              />
-            </svg>
             <div
               className="c35"
               color="gray"
               cursor="inherit"
-              fontSize="12px"
+              fontSize={0}
             >
+              <svg
+                className="c36"
+                clipRule="evenodd"
+                color="gray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height="10px"
+                mr="5px"
+                viewBox="0 0 24 24"
+                width="10px"
+              >
+                <path
+                  d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
+                />
+              </svg>
               
                v
               
             </div>
-            <svg
-              className="c36"
-              clipRule="evenodd"
-              color="gray"
-              cursor="inherit"
-              fill="currentcolor"
-              fillRule="evenodd"
-              height="10px"
-              ml="4px"
-              mr="2px"
-              mt="4px"
-              viewBox="0 0 21 24"
-              width="10px"
-            >
-              <path
-                d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
-                fill={null}
-                fillRule="nonzero"
-              />
-              <path
-                d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
-                fill={null}
-                fillRule="nonzero"
-              />
-              <path
-                d="M18.411 7.408l1.65-1.65-1.819-1.818-1.65 1.65a10.24 10.24 0 00-6.306-2.161C4.606 3.429 0 8.034 0 13.715 0 19.395 4.605 24 10.286 24c5.68 0 10.286-4.605 10.286-10.285a10.24 10.24 0 00-2.16-6.307zm-2.443 11.989a7.983 7.983 0 01-5.682 2.353 7.983 7.983 0 01-5.682-2.353 7.983 7.983 0 01-2.354-5.682c0-2.147.836-4.165 2.354-5.683a7.983 7.983 0 015.682-2.353c2.146 0 4.164.836 5.682 2.353a7.983 7.983 0 012.354 5.683 7.983 7.983 0 01-2.354 5.682z"
-                fillRule="nonzero"
-              />
-              <path
-                d="M6.857 0h6.858v2.572H6.857z"
-                fill={null}
-                fillRule="nonzero"
-              />
-            </svg>
             <div
               className="c35"
               color="gray"
               cursor="inherit"
-              fontSize="12px"
+              fontSize={0}
             >
+              <svg
+                className="c37"
+                clipRule="evenodd"
+                color="gray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height="10px"
+                ml="4px"
+                mr="2px"
+                viewBox="0 0 21 24"
+                width="10px"
+              >
+                <path
+                  d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M18.411 7.408l1.65-1.65-1.819-1.818-1.65 1.65a10.24 10.24 0 00-6.306-2.161C4.606 3.429 0 8.034 0 13.715 0 19.395 4.605 24 10.286 24c5.68 0 10.286-4.605 10.286-10.285a10.24 10.24 0 00-2.16-6.307zm-2.443 11.989a7.983 7.983 0 01-5.682 2.353 7.983 7.983 0 01-5.682-2.353 7.983 7.983 0 01-2.354-5.682c0-2.147.836-4.165 2.354-5.683a7.983 7.983 0 015.682-2.353c2.146 0 4.164.836 5.682 2.353a7.983 7.983 0 012.354 5.683 7.983 7.983 0 01-2.354 5.682z"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M6.857 0h6.858v2.572H6.857z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+              </svg>
               Started 
               29/08/2018
             </div>
@@ -1248,14 +1255,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c37"
+          className="c38"
         >
           <div
-            className="c38"
+            className="c39"
             width="110px"
           >
             <svg
-              className="c39"
+              className="c40"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1274,7 +1281,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c40"
+              className="c41"
             >
               Failure
             </div>
@@ -1288,6 +1295,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
       >
         <div
           className="c0 c31"
+          onClick={[Function]}
         >
           <img
             alt=""
@@ -1304,12 +1312,13 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c32"
-          onClick={[Function]}
+          width="auto"
         >
           <div
             className="c33"
-            cursor="inherit"
+            cursor="pointer"
             fontSize={20}
+            onClick={[Function]}
             width={1}
           >
             <div
@@ -1320,75 +1329,73 @@ exports[`Runs component Mount component with non-empty page 1`] = `
             </div>
           </div>
           <div
-            className="c3"
+            className="c34"
           >
-            <svg
-              className="c34"
-              clipRule="evenodd"
-              color="gray"
-              cursor="inherit"
-              fill="currentcolor"
-              fillRule="evenodd"
-              height="10px"
-              mr="5px"
-              mt="4px"
-              viewBox="0 0 24 24"
-              width="10px"
-            >
-              <path
-                d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
-              />
-            </svg>
             <div
               className="c35"
               color="gray"
               cursor="inherit"
-              fontSize="12px"
+              fontSize={0}
             >
+              <svg
+                className="c36"
+                clipRule="evenodd"
+                color="gray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height="10px"
+                mr="5px"
+                viewBox="0 0 24 24"
+                width="10px"
+              >
+                <path
+                  d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
+                />
+              </svg>
               
                v
               
             </div>
-            <svg
-              className="c36"
-              clipRule="evenodd"
-              color="gray"
-              cursor="inherit"
-              fill="currentcolor"
-              fillRule="evenodd"
-              height="10px"
-              ml="4px"
-              mr="2px"
-              mt="4px"
-              viewBox="0 0 21 24"
-              width="10px"
-            >
-              <path
-                d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
-                fill={null}
-                fillRule="nonzero"
-              />
-              <path
-                d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
-                fill={null}
-                fillRule="nonzero"
-              />
-              <path
-                d="M18.411 7.408l1.65-1.65-1.819-1.818-1.65 1.65a10.24 10.24 0 00-6.306-2.161C4.606 3.429 0 8.034 0 13.715 0 19.395 4.605 24 10.286 24c5.68 0 10.286-4.605 10.286-10.285a10.24 10.24 0 00-2.16-6.307zm-2.443 11.989a7.983 7.983 0 01-5.682 2.353 7.983 7.983 0 01-5.682-2.353 7.983 7.983 0 01-2.354-5.682c0-2.147.836-4.165 2.354-5.683a7.983 7.983 0 015.682-2.353c2.146 0 4.164.836 5.682 2.353a7.983 7.983 0 012.354 5.683 7.983 7.983 0 01-2.354 5.682z"
-                fillRule="nonzero"
-              />
-              <path
-                d="M6.857 0h6.858v2.572H6.857z"
-                fill={null}
-                fillRule="nonzero"
-              />
-            </svg>
             <div
               className="c35"
               color="gray"
               cursor="inherit"
-              fontSize="12px"
+              fontSize={0}
             >
+              <svg
+                className="c37"
+                clipRule="evenodd"
+                color="gray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height="10px"
+                ml="4px"
+                mr="2px"
+                viewBox="0 0 21 24"
+                width="10px"
+              >
+                <path
+                  d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M18.411 7.408l1.65-1.65-1.819-1.818-1.65 1.65a10.24 10.24 0 00-6.306-2.161C4.606 3.429 0 8.034 0 13.715 0 19.395 4.605 24 10.286 24c5.68 0 10.286-4.605 10.286-10.285a10.24 10.24 0 00-2.16-6.307zm-2.443 11.989a7.983 7.983 0 01-5.682 2.353 7.983 7.983 0 01-5.682-2.353 7.983 7.983 0 01-2.354-5.682c0-2.147.836-4.165 2.354-5.683a7.983 7.983 0 015.682-2.353c2.146 0 4.164.836 5.682 2.353a7.983 7.983 0 012.354 5.683 7.983 7.983 0 01-2.354 5.682z"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M6.857 0h6.858v2.572H6.857z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+              </svg>
               Started 
               30/08/2018
             </div>
@@ -1398,14 +1405,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c37"
+          className="c38"
         >
           <div
-            className="c38"
+            className="c39"
             width="110px"
           >
             <svg
-              className="c39"
+              className="c40"
               clipRule="evenodd"
               color="#c00"
               cursor="inherit"
@@ -1424,7 +1431,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c40"
+              className="c41"
             >
               Failure
             </div>
@@ -1438,6 +1445,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
       >
         <div
           className="c0 c31"
+          onClick={[Function]}
         >
           <img
             alt=""
@@ -1454,12 +1462,13 @@ exports[`Runs component Mount component with non-empty page 1`] = `
         </div>
         <div
           className="c0 c32"
-          onClick={[Function]}
+          width="auto"
         >
           <div
             className="c33"
-            cursor="inherit"
+            cursor="pointer"
             fontSize={20}
+            onClick={[Function]}
             width={1}
           >
             <div
@@ -1470,75 +1479,73 @@ exports[`Runs component Mount component with non-empty page 1`] = `
             </div>
           </div>
           <div
-            className="c3"
+            className="c34"
           >
-            <svg
-              className="c34"
-              clipRule="evenodd"
-              color="gray"
-              cursor="inherit"
-              fill="currentcolor"
-              fillRule="evenodd"
-              height="10px"
-              mr="5px"
-              mt="4px"
-              viewBox="0 0 24 24"
-              width="10px"
-            >
-              <path
-                d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
-              />
-            </svg>
             <div
               className="c35"
               color="gray"
               cursor="inherit"
-              fontSize="12px"
+              fontSize={0}
             >
+              <svg
+                className="c36"
+                clipRule="evenodd"
+                color="gray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height="10px"
+                mr="5px"
+                viewBox="0 0 24 24"
+                width="10px"
+              >
+                <path
+                  d="M21 24H3a3 3 0 01-3-3V3a3 3 0 013-3h18a3 3 0 013 3v18a3.001 3.001 0 01-3 3zm-10.409-6v-1.88H8.722V7.93h1.869V6H4.978v1.93h1.869v8.19H4.978V18h5.613zm4.419 0c1.077-.001 1.867-.244 2.375-.731.507-.487.9-1.183 1.177-2.087.278-.905.416-1.955.416-3.151 0-1.263-.131-2.356-.393-3.278-.263-.923-.656-1.613-1.178-2.069C16.884 6.228 16.085 6 15.01 6h-2.337v12h2.337zm.087-9.851c.792.001 1.021.068 1.368.4.347.332.454.524.64 1.142.186.619.224.975.224 2.124 0 1.175-.032 1.546-.191 2.214-.158.667-.265.877-.635 1.254-.371.376-.62.452-1.488.452h-.686V8.149h.768z"
+                />
+              </svg>
               
                v
               
             </div>
-            <svg
-              className="c36"
-              clipRule="evenodd"
-              color="gray"
-              cursor="inherit"
-              fill="currentcolor"
-              fillRule="evenodd"
-              height="10px"
-              ml="4px"
-              mr="2px"
-              mt="4px"
-              viewBox="0 0 21 24"
-              width="10px"
-            >
-              <path
-                d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
-                fill={null}
-                fillRule="nonzero"
-              />
-              <path
-                d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
-                fill={null}
-                fillRule="nonzero"
-              />
-              <path
-                d="M18.411 7.408l1.65-1.65-1.819-1.818-1.65 1.65a10.24 10.24 0 00-6.306-2.161C4.606 3.429 0 8.034 0 13.715 0 19.395 4.605 24 10.286 24c5.68 0 10.286-4.605 10.286-10.285a10.24 10.24 0 00-2.16-6.307zm-2.443 11.989a7.983 7.983 0 01-5.682 2.353 7.983 7.983 0 01-5.682-2.353 7.983 7.983 0 01-2.354-5.682c0-2.147.836-4.165 2.354-5.683a7.983 7.983 0 015.682-2.353c2.146 0 4.164.836 5.682 2.353a7.983 7.983 0 012.354 5.683 7.983 7.983 0 01-2.354 5.682z"
-                fillRule="nonzero"
-              />
-              <path
-                d="M6.857 0h6.858v2.572H6.857z"
-                fill={null}
-                fillRule="nonzero"
-              />
-            </svg>
             <div
               className="c35"
               color="gray"
               cursor="inherit"
-              fontSize="12px"
+              fontSize={0}
             >
+              <svg
+                className="c37"
+                clipRule="evenodd"
+                color="gray"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height="10px"
+                ml="4px"
+                mr="2px"
+                viewBox="0 0 21 24"
+                width="10px"
+              >
+                <path
+                  d="M6.044 12.577l1.484-2.1 4.083 2.885-1.484 2.1z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M15.587 10.385l.993 2.372-6.456 2.705-.993-2.372z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M18.411 7.408l1.65-1.65-1.819-1.818-1.65 1.65a10.24 10.24 0 00-6.306-2.161C4.606 3.429 0 8.034 0 13.715 0 19.395 4.605 24 10.286 24c5.68 0 10.286-4.605 10.286-10.285a10.24 10.24 0 00-2.16-6.307zm-2.443 11.989a7.983 7.983 0 01-5.682 2.353 7.983 7.983 0 01-5.682-2.353 7.983 7.983 0 01-2.354-5.682c0-2.147.836-4.165 2.354-5.683a7.983 7.983 0 015.682-2.353c2.146 0 4.164.836 5.682 2.353a7.983 7.983 0 012.354 5.683 7.983 7.983 0 01-2.354 5.682z"
+                  fillRule="nonzero"
+                />
+                <path
+                  d="M6.857 0h6.858v2.572H6.857z"
+                  fill="currentcolor"
+                  fillRule="nonzero"
+                />
+              </svg>
               Started 
               03/09/2018
             </div>
@@ -1548,14 +1555,14 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           className="c0 c4"
         />
         <div
-          className="c37"
+          className="c38"
         >
           <div
-            className="c38"
+            className="c39"
             width="110px"
           >
             <svg
-              className="c41"
+              className="c42"
               clipRule="evenodd"
               color="#00C05A"
               cursor="inherit"
@@ -1574,7 +1581,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               />
             </svg>
             <div
-              className="c40"
+              className="c41"
             >
               Success
             </div>

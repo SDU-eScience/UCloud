@@ -22,7 +22,6 @@ module.exports = {
         "@typescript-eslint/adjacent-overload-signatures": error,
         "@typescript-eslint/array-type": off,
         "@typescript-eslint/ban-types": error,
-        "@typescript-eslint/class-name-casing": error,
         "@typescript-eslint/consistent-type-assertions": error,
         "@typescript-eslint/interface-name-prefix": off,
         "@typescript-eslint/no-empty-function": error,

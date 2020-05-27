@@ -14,7 +14,7 @@ const SvgRename = (props: any) => (
     />
     <path
       d="M.236 7.15a.752.752 0 010-1.088l1.828-1.828a.752.752 0 011.089 0l1.439 1.439-2.917 2.916L.236 7.15z"
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       fillRule="nonzero"
     />
     <path

@@ -95,9 +95,20 @@ export enum LicenseServerAccessRight {
     READ_WRITE = "READ_WRITE"
 }
 
+export enum AccessEntityType {
+    USER = "USER",
+    PROJECT_GROUP = "PROJECT_GROUP"
+}
+
 export enum UserEntityType {
     USER = "USER",
-    PROJECT_AND_GROUP = "PROJECT_AND_GROUP"
+    PROJECT_GROUP = "PROJECT_GROUP"
+}
+
+export interface AccessEntity {
+    user: string | null;
+    project: string | null;
+    group: string | null;
 }
 
 export interface UserEntity {
@@ -106,12 +117,12 @@ export interface UserEntity {
 }
 
 export interface ApplicationPermissionEntry {
-    entity: UserEntity;
+    entity: AccessEntity;
     permission: ApplicationAccessRight;
 }
 
 export interface UpdateApplicationPermissionEntry {
-    entity: UserEntity;
+    entity: AccessEntity;
     rights: ApplicationAccessRight;
     revoke: boolean;
 }
@@ -122,7 +133,7 @@ export interface UpdateApplicationPermissionProps {
 }
 
 export interface UpdateLicenseServerPermissionEntry {
-    entity: UserEntity;
+    entity: AccessEntity;
     rights: LicenseServerAccessRight;
     revoke: boolean;
 }
@@ -262,7 +273,7 @@ export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
                         // Do nothing
                     }
 
-                    snackbarStore.addFailure(message);
+                    snackbarStore.addFailure(message, false);
                     resolve(false);
                 } else {
                     resolve(true);
@@ -314,7 +325,7 @@ export async function uploadDocument(props: UploadDocumentProps): Promise<boolea
                         console.log(request.responseText);
                         // Do nothing
                     }
-                    snackbarStore.addFailure(message);
+                    snackbarStore.addFailure(message, false);
                     resolve(false);
                 } else {
                     resolve(true);

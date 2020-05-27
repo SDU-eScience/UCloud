@@ -74,7 +74,7 @@ export async function receiveAppsByKey(
             }
         });
     } catch (err) {
-        snackbarStore.addFailure(errorMessageOrDefault(err, `Could not fetch apps by tag ${tag}`));
+        snackbarStore.addFailure(errorMessageOrDefault(err, `Could not fetch apps by tag ${tag}`), false);
         return {
             type: Tag.RECEIVE_APPS_BY_KEY_ERROR,
             payload: {}

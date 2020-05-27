@@ -1,6 +1,5 @@
 import {Client} from "Authentication/HttpClientInstance";
 import {ReduxObject} from "DefaultObjects";
-import {ContextSwitcher} from "Project/ContextSwitcher";
 import * as React from "react";
 import {connect} from "react-redux";
 import styled, {css} from "styled-components";
@@ -18,7 +17,7 @@ import Text, {EllipsedText} from "./Text";
 import {ThemeColor} from "./theme";
 import Tooltip from "./Tooltip";
 
-const SidebarElementContainer = styled(Flex) <{hover?: boolean, active?: boolean}>`
+const SidebarElementContainer = styled(Flex) <{hover?: boolean; active?: boolean}>`
     justify-content: left;
     flex-flow: row;
     align-items: center;
@@ -142,6 +141,8 @@ function enumToLabel(value: SidebarPages): string {
             return "Files";
         case SidebarPages.Shares:
             return "Shares";
+        case SidebarPages.Projects:
+            return "Projects";
         case SidebarPages.AppStore:
             return "Apps";
         case SidebarPages.Runs:
@@ -157,13 +158,13 @@ function enumToLabel(value: SidebarPages): string {
     }
 }
 
-const SidebarSpacer = () => (<Box mt="12px" />);
+const SidebarSpacer = (): JSX.Element => (<Box mt="12px" />);
 
 const SidebarPushToBottom = styled.div`
     flex-grow: 1;
 `;
 
-interface MenuElement {icon: IconName; label: string; to: string | (() => string);}
+interface MenuElement {icon: IconName; label: string; to: string | (() => string); show?: () => boolean}
 interface SidebarMenuElements {
     items: MenuElement[];
     predicate: () => boolean;
@@ -184,8 +185,12 @@ export const sideBarMenuElements: {
     },
     general: {
         items: [
-            {icon: "files", label: "Files", to: () => fileTablePage(Client.homeFolder)},
-            {icon: "shareMenu", label: "Shares", to: "/shares/"},
+            {
+                icon: "files", label: "Files", to: () =>
+                    fileTablePage(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder)
+            },
+            {icon: "projects", label: "Projects", to: "/projects", show: () => Client.hasActiveProject},
+            {icon: "shareMenu", label: "Shares", to: "/shares/", show: () => !Client.hasActiveProject},
             {icon: "appStore", label: "Apps", to: "/applications/overview"},
             {icon: "results", label: "Runs", to: "/applications/results/"}
         ], predicate: () => Client.isLoggedIn
@@ -218,7 +223,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
         <SidebarContainer color="sidebar" flexDirection="column" width={190}>
             {sidebar.map((category, categoryIdx) => (
                 <React.Fragment key={categoryIdx}>
-                    {category.items.map(({icon, label, to}: MenuElement) => (
+                    {category.items.filter((it: MenuElement) => it?.show?.() ?? true).map(({icon, label, to}: MenuElement) => (
                         <React.Fragment key={label}>
                             <SidebarSpacer />
                             <SidebarElement
@@ -234,7 +239,6 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
-            {Client.userIsAdmin ? <ContextSwitcher maxSize={140} /> : null}
             {!Client.isLoggedIn ? null : (
                 <SidebarTextLabel
                     height="25px"
@@ -282,7 +286,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
     );
 };
 
-function copyUserName() {
+function copyUserName(): void {
     copyToClipboard({
         value: Client.username,
         message: "Username copied to clipboard"
@@ -302,6 +306,7 @@ const mapStateToProps = ({status, project}: ReduxObject): SidebarStateProps => (
 export const enum SidebarPages {
     Files,
     Shares,
+    Projects,
     AppStore,
     Runs,
     Publish,

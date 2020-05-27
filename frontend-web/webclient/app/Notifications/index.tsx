@@ -14,7 +14,7 @@ import {IconName} from "ui-components/Icon";
 import {TextSpan} from "ui-components/Text";
 import theme, {Theme, ThemeColor} from "ui-components/theme";
 import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
-import {replaceHomeFolder} from "Utilities/FileUtilities";
+import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
 import {
     fetchNotifications,
     notificationRead,
@@ -43,7 +43,6 @@ function Notifications(props: Notifications): JSX.Element {
                 c.subscribe({
                     call: "notifications.subscription",
                     payload: {},
-                    disallowProjects: true,
                     handler: message => {
                         if (message.type === "message") {
                             props.receiveNotification(message.payload);
@@ -53,7 +52,7 @@ function Notifications(props: Notifications): JSX.Element {
             }
         });
         const subscriber = (snack?: Snack): void => {
-            if (snack)
+            if (snack && snack.addAsNotification) {
                 props.receiveNotification({
                     id: -new Date().getTime(),
                     message: snack.message,
@@ -62,6 +61,7 @@ function Notifications(props: Notifications): JSX.Element {
                     ts: new Date().getTime(),
                     meta: ""
                 });
+            }
         };
         snackbarStore.subscribe(subscriber);
 
@@ -79,9 +79,19 @@ function Notifications(props: Notifications): JSX.Element {
                 // TODO Should refactor these URLs somewhere else
                 history.push(`/applications/results/${notification.meta.jobId}`);
                 break;
+            case "REVIEW_PROJECT":
+                reload();
+                history.push("/projects/");
+                break;
+
             case "SHARE_REQUEST":
                 reload();
                 history.push("/shares");
+                break;
+
+            case "PROJECT_INVITE":
+                reload();
+                history.push("/projects");
                 break;
         }
     }
@@ -181,7 +191,7 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
                 <TextSpan color="grey" fontSize={1}>
                     {formatDistance(notification.ts, new Date(), {addSuffix: true})}
                 </TextSpan>
-                <TextSpan fontSize={1}>{replaceHomeFolder(notification.message, Client.homeFolder)}</TextSpan>
+                <TextSpan fontSize={1}>{replaceHomeOrProjectFolder(notification.message, Client)}</TextSpan>
             </Flex>
         </NotificationWrapper>
     );
@@ -197,8 +207,12 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
 
     function resolveEventType(eventType: string): {name: IconName; color: ThemeColor; color2: ThemeColor} {
         switch (eventType) {
+            case "REVIEW_PROJECT":
+                return {name: "projects", color: "black", color2: "black"};
             case "SHARE_REQUEST":
                 return {name: "share", color: "black", color2: "black"};
+            case "PROJECT_INVITE":
+                return {name: "projects", color: "black", color2: "black"};
             case "APP_COMPLETE":
             default:
                 return {name: "info", color: "white", color2: "black"};

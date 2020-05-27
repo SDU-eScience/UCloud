@@ -1,7 +1,7 @@
 import styled from "styled-components";
 import {
     alignItems, AlignItemsProps, color, ColorProps,
-    flex, flexDirection, FlexDirectionProps, FlexProps,
+    flex, flexDirection, FlexDirectionProps, flexGrow, FlexGrowProps, FlexProps, flexShrink, FlexShrinkProps,
     flexWrap, FlexWrapProps, height, HeightProps,
     justifyContent, JustifyContentProps, maxWidth,
     MaxWidthProps, minWidth, MinWidthProps, space,
@@ -21,6 +21,8 @@ export type FlexCProps =
     AlignItemsProps &
     JustifyContentProps &
     FlexWrapProps &
+    FlexGrowProps &
+    FlexShrinkProps &
     FlexDirectionProps &
     FlexProps &
     ZIndexProps &
@@ -32,7 +34,7 @@ const Flex = styled.div<FlexCProps>`
   display: flex;
   ${space} ${width} ${minWidth} ${maxWidth} ${height} ${zIndex}
   ${color} ${alignItems} ${justifyContent}
-  ${flexDirection} ${flexWrap} ${flex}
+  ${flexDirection} ${flexWrap} ${flex} ${flexGrow} ${flexShrink}
 `;
 
 

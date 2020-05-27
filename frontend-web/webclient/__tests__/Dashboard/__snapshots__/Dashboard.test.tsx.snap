@@ -1,37 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`Dashboard Dashboard mount 1`] = `
-.c5 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  background-color: #f5f7f9;
-  color: #53657d;
-  -webkit-align-items: center;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-}
-
-.c14 {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  background-color: #f5f7f9;
-  color: #53657d;
-}
-
-.c19 {
+.c17 {
   width: 32px;
   height: 32px;
   margin: 20px auto;
@@ -39,126 +9,126 @@ exports[`Dashboard Dashboard mount 1`] = `
   animation-name: jkjquP;
 }
 
-.c19 > svg path:nth-child(1) {
+.c17 > svg path:nth-child(1) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.04s;
   animation-delay: -0.04s;
 }
 
-.c19 > svg path:nth-child(2) {
+.c17 > svg path:nth-child(2) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.08s;
   animation-delay: -0.08s;
 }
 
-.c19 > svg path:nth-child(3) {
+.c17 > svg path:nth-child(3) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.12s;
   animation-delay: -0.12s;
 }
 
-.c19 > svg path:nth-child(4) {
+.c17 > svg path:nth-child(4) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.16s;
   animation-delay: -0.16s;
 }
 
-.c19 > svg path:nth-child(5) {
+.c17 > svg path:nth-child(5) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.2s;
   animation-delay: -0.2s;
 }
 
-.c19 > svg path:nth-child(6) {
+.c17 > svg path:nth-child(6) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.24s;
   animation-delay: -0.24s;
 }
 
-.c19 > svg path:nth-child(7) {
+.c17 > svg path:nth-child(7) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.28s;
   animation-delay: -0.28s;
 }
 
-.c19 > svg path:nth-child(8) {
+.c17 > svg path:nth-child(8) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.32s;
   animation-delay: -0.32s;
 }
 
-.c19 > svg path:nth-child(9) {
+.c17 > svg path:nth-child(9) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.36s;
   animation-delay: -0.36s;
 }
 
-.c19 > svg path:nth-child(10) {
+.c17 > svg path:nth-child(10) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.4s;
   animation-delay: -0.4s;
 }
 
-.c19 > svg path:nth-child(11) {
+.c17 > svg path:nth-child(11) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.44s;
   animation-delay: -0.44s;
 }
 
-.c19 > svg path:nth-child(12) {
+.c17 > svg path:nth-child(12) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.48s;
   animation-delay: -0.48s;
 }
 
-.c19 > svg path:nth-child(13) {
+.c17 > svg path:nth-child(13) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.52s;
   animation-delay: -0.52s;
 }
 
-.c19 > svg path:nth-child(14) {
+.c17 > svg path:nth-child(14) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.56s;
   animation-delay: -0.56s;
 }
 
-.c19 > svg path:nth-child(15) {
+.c17 > svg path:nth-child(15) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.6s;
   animation-delay: -0.6s;
 }
 
-.c19 > svg path:nth-child(16) {
+.c17 > svg path:nth-child(16) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.64s;
   animation-delay: -0.64s;
 }
 
-.c19 > svg path:nth-child(17) {
+.c17 > svg path:nth-child(17) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.68s;
   animation-delay: -0.68s;
 }
 
-.c19 > svg path:nth-child(18) {
+.c17 > svg path:nth-child(18) {
   -webkit-animation: jkjquP 0.72s linear infinite;
   animation: jkjquP 0.72s linear infinite;
   -webkit-animation-delay: -0.72s;
@@ -187,27 +157,18 @@ exports[`Dashboard Dashboard mount 1`] = `
 }
 
 .c8 {
-  padding-bottom: 0.5em;
-}
-
-.c9 {
   text-align: center;
 }
 
-.c15 {
+.c14 {
   margin-left: auto;
 }
 
 .c18 {
-  margin-bottom: 6px;
-  height: 142px;
+  padding-bottom: 12px;
 }
 
-.c20 {
-  height: 142px;
-}
-
-.c12 {
+.c11 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -239,21 +200,21 @@ exports[`Dashboard Dashboard mount 1`] = `
   padding: 9.5px 18px;
 }
 
-.c12:disabled {
+.c11:disabled {
   opacity: 0.25;
 }
 
-.c12:focus {
+.c11:focus {
   outline: none;
 }
 
-.c12:hover {
+.c11:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c16 {
+.c15 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -268,8 +229,34 @@ exports[`Dashboard Dashboard mount 1`] = `
   overflow: hidden;
   height: auto;
   box-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,.14),0px 1px 8px 0px rgba(0,0,0,.12);
-  border: 1px solid #c9d3df;
+  border: 0px solid #c9d3df;
   border-radius: 6px;
+}
+
+.c5 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+}
+
+.c13 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 .c3 {
@@ -282,19 +269,19 @@ exports[`Dashboard Dashboard mount 1`] = `
 
 .c6 {
   cursor: inherit;
-  font-size: 20px;
+  font-size: 24px;
   margin: 0;
   font-weight: 400;
 }
 
-.c10 {
+.c9 {
   cursor: inherit;
   font-size: 16px;
   margin-top: 8px;
   margin-bottom: 8px;
 }
 
-.c17 {
+.c16 {
   cursor: inherit;
   font-size: 10px;
   margin: 0;
@@ -304,26 +291,26 @@ exports[`Dashboard Dashboard mount 1`] = `
   font-weight: 700;
 }
 
-.c11 {
+.c10 {
   cursor: pointer;
   -webkit-text-decoration: none;
   text-decoration: none;
   color: #1e252e;
 }
 
-.c11:hover {
+.c10:hover {
   color: #006aff;
 }
 
-.c13 {
+.c12 {
   font-size: large;
 }
 
-.c13 > * {
+.c12 > * {
   border-bottom: 1px solid lightGrey;
 }
 
-.c13 > *:last-child {
+.c12 > *:last-child {
   border-bottom: 0px;
 }
 
@@ -366,41 +353,42 @@ exports[`Dashboard Dashboard mount 1`] = `
       >
         <div
           className="c5"
-          color="darkGray"
+          style={
+            Object {
+              "borderTop": "5px solid #006aff",
+            }
+          }
         >
-          <h4
+          <h3
             className="c6"
             cursor="inherit"
-            fontSize={3}
+            fontSize={4}
           >
             Favorite Files
-          </h4>
+          </h3>
         </div>
         <div
           className="c7"
         >
           <div
             className="c8"
-          />
-          <div
-            className="c9"
           >
             <div
-              className="c10"
+              className="c9"
               cursor="inherit"
               fontSize="16px"
             >
               Your favorite files will appear here
             </div>
             <a
-              className="c11"
+              className="c10"
               color="text"
               hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Ftest%40test.dk"
               onClick={[Function]}
             >
               <button
-                className="c12"
+                className="c11"
                 color="blue"
               >
                 Explore files
@@ -408,7 +396,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             </a>
           </div>
           <div
-            className="c13"
+            className="c12"
             fontSize="large"
           />
         </div>
@@ -421,41 +409,42 @@ exports[`Dashboard Dashboard mount 1`] = `
       >
         <div
           className="c5"
-          color="darkGray"
+          style={
+            Object {
+              "borderTop": "5px solid #70b",
+            }
+          }
         >
-          <h4
+          <h3
             className="c6"
             cursor="inherit"
-            fontSize={3}
+            fontSize={4}
           >
             Recent Jobs
-          </h4>
+          </h3>
         </div>
         <div
           className="c7"
         >
           <div
             className="c8"
-          />
-          <div
-            className="c9"
           >
             <div
-              className="c10"
+              className="c9"
               cursor="inherit"
               fontSize="16px"
             >
               No recent jobs
             </div>
             <a
-              className="c11"
+              className="c10"
               color="text"
               hoverColor="textHighlight"
               href="/applications/overview"
               onClick={[Function]}
             >
               <button
-                className="c12"
+                className="c11"
                 color="blue"
               >
                 Explore apps
@@ -463,7 +452,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             </a>
           </div>
           <div
-            className="c13"
+            className="c12"
             fontSize="large"
           />
         </div>
@@ -475,21 +464,25 @@ exports[`Dashboard Dashboard mount 1`] = `
         width={1}
       >
         <div
-          className="c14"
-          color="darkGray"
+          className="c13"
+          style={
+            Object {
+              "borderTop": "5px solid #00823c",
+            }
+          }
         >
-          <h4
+          <h3
             className="c6"
             cursor="inherit"
-            fontSize={3}
+            fontSize={4}
           >
             Recent Notifications
-          </h4>
+          </h3>
           <div
-            className="c15"
+            className="c14"
           />
           <svg
-            className="c16"
+            className="c15"
             clipRule="evenodd"
             color="iconColor"
             color2=""
@@ -508,233 +501,197 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
             <path
               d="M13 16.962L14.999 19 24 9.96l-2-1.999-9 9z"
-              fill={null}
+              fill="currentcolor"
               fillRule="nonzero"
             />
           </svg>
         </div>
         <h6
-          className="c17"
+          className="c16"
           cursor="inherit"
           fontSize={0}
         >
           No notifications
         </h6>
         <div
-          className="c13"
+          className="c12"
           fontSize="large"
         />
       </div>
       <div
-        className=""
+        className="c4"
+        height="auto"
+        overflow="hidden"
+        width={1}
       >
         <div
-          className="c18"
-          height="142px"
+          className="c5"
+          style={
+            Object {
+              "borderTop": "5px solid #c00",
+            }
+          }
         >
-          <div
-            className="c4"
-            height="auto"
-            overflow="hidden"
-            width={1}
+          <h3
+            className="c6"
+            cursor="inherit"
+            fontSize={4}
           >
-            <div
-              className="c5"
-              color="darkGray"
-            >
-              <h4
-                className="c6"
-                cursor="inherit"
-                fontSize={3}
-              >
-                Storage Used
-              </h4>
-            </div>
-            <div
-              className="c7"
-            >
-              <div
-                className="c8"
-              />
-              <div
-                className="c9"
-              >
-                <div
-                  className="c19"
-                  height={32}
-                  width={32}
-                >
-                  <svg
-                    height={32}
-                    id="svg"
-                    version="1.1"
-                    viewBox="0 0 220 220"
-                    width={32}
-                    xmlns="http://www.w3.org/2000/svg"
-                    xmlnsXlink="http://www.w3.org/1999/xlink"
-                  >
-                    <path
-                      d="M80.296,0.12l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
-                    />
-                    <path
-                      d="M149.73,69.554l-14.673,-54.761l-40.088,40.088l54.761,14.673Z"
-                    />
-                    <path
-                      d="M189.818,29.466l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
-                    />
-                    <path
-                      d="M204.491,84.228l-14.673,-54.762l-40.088,40.088l54.761,14.674Z"
-                    />
-                    <path
-                      d="M164.403,124.316l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
-                    />
-                    <path
-                      d="M219.165,138.989l-14.674,-54.761l-40.088,40.088l54.762,14.673Z"
-                    />
-                    <path
-                      d="M179.077,179.077l-14.674,-54.761l54.762,14.673l-40.088,40.088Z"
-                    />
-                    <path
-                      d="M124.316,164.403l54.761,14.674l-14.674,-54.761l-40.087,40.087Z"
-                    />
-                    <path
-                      d="M138.989,219.165l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
-                    />
-                    <path
-                      d="M84.228,204.491l54.761,14.674l-14.673,-54.762l-40.088,40.088Z"
-                    />
-                    <path
-                      d="M69.554,149.73l14.674,54.761l40.088,-40.088l-54.762,-14.673Z"
-                    />
-                    <path
-                      d="M29.466,189.818l54.762,14.673l-14.674,-54.761l-40.088,40.088Z"
-                    />
-                    <path
-                      d="M14.793,135.057l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
-                    />
-                    <path
-                      d="M54.881,94.969l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
-                    />
-                    <path
-                      d="M0.12,80.296l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
-                    />
-                    <path
-                      d="M40.208,40.208l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
-                    />
-                    <path
-                      d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
-                    />
-                    <path
-                      d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
-                    />
-                  </svg>
-                </div>
-              </div>
-            </div>
-          </div>
+            Resources
+          </h3>
         </div>
         <div
-          className="c20"
-          height="142px"
+          className="c7"
         >
           <div
-            className="c4"
-            height="auto"
-            overflow="hidden"
-            width={1}
+            className="c8"
           >
             <div
-              className="c5"
-              color="darkGray"
+              className="c17"
+              height={32}
+              width={32}
             >
-              <h4
-                className="c6"
-                cursor="inherit"
-                fontSize={3}
+              <svg
+                height={32}
+                id="svg"
+                version="1.1"
+                viewBox="0 0 220 220"
+                width={32}
+                xmlns="http://www.w3.org/2000/svg"
+                xmlnsXlink="http://www.w3.org/1999/xlink"
               >
-                Compute Time Used
-              </h4>
+                <path
+                  d="M80.296,0.12l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+                />
+                <path
+                  d="M149.73,69.554l-14.673,-54.761l-40.088,40.088l54.761,14.673Z"
+                />
+                <path
+                  d="M189.818,29.466l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+                />
+                <path
+                  d="M204.491,84.228l-14.673,-54.762l-40.088,40.088l54.761,14.674Z"
+                />
+                <path
+                  d="M164.403,124.316l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+                />
+                <path
+                  d="M219.165,138.989l-14.674,-54.761l-40.088,40.088l54.762,14.673Z"
+                />
+                <path
+                  d="M179.077,179.077l-14.674,-54.761l54.762,14.673l-40.088,40.088Z"
+                />
+                <path
+                  d="M124.316,164.403l54.761,14.674l-14.674,-54.761l-40.087,40.087Z"
+                />
+                <path
+                  d="M138.989,219.165l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+                />
+                <path
+                  d="M84.228,204.491l54.761,14.674l-14.673,-54.762l-40.088,40.088Z"
+                />
+                <path
+                  d="M69.554,149.73l14.674,54.761l40.088,-40.088l-54.762,-14.673Z"
+                />
+                <path
+                  d="M29.466,189.818l54.762,14.673l-14.674,-54.761l-40.088,40.088Z"
+                />
+                <path
+                  d="M14.793,135.057l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+                />
+                <path
+                  d="M54.881,94.969l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+                />
+                <path
+                  d="M0.12,80.296l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+                />
+                <path
+                  d="M40.208,40.208l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+                />
+                <path
+                  d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+                />
+                <path
+                  d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+                />
+              </svg>
             </div>
+          </div>
+          <div
+            className="c18"
+          />
+          <div
+            className="c8"
+          >
             <div
-              className="c7"
+              className="c17"
+              height={32}
+              width={32}
             >
-              <div
-                className="c8"
-              />
-              <div
-                className="c9"
+              <svg
+                height={32}
+                id="svg"
+                version="1.1"
+                viewBox="0 0 220 220"
+                width={32}
+                xmlns="http://www.w3.org/2000/svg"
+                xmlnsXlink="http://www.w3.org/1999/xlink"
               >
-                <div
-                  className="c19"
-                  height={32}
-                  width={32}
-                >
-                  <svg
-                    height={32}
-                    id="svg"
-                    version="1.1"
-                    viewBox="0 0 220 220"
-                    width={32}
-                    xmlns="http://www.w3.org/2000/svg"
-                    xmlnsXlink="http://www.w3.org/1999/xlink"
-                  >
-                    <path
-                      d="M80.296,0.12l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
-                    />
-                    <path
-                      d="M149.73,69.554l-14.673,-54.761l-40.088,40.088l54.761,14.673Z"
-                    />
-                    <path
-                      d="M189.818,29.466l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
-                    />
-                    <path
-                      d="M204.491,84.228l-14.673,-54.762l-40.088,40.088l54.761,14.674Z"
-                    />
-                    <path
-                      d="M164.403,124.316l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
-                    />
-                    <path
-                      d="M219.165,138.989l-14.674,-54.761l-40.088,40.088l54.762,14.673Z"
-                    />
-                    <path
-                      d="M179.077,179.077l-14.674,-54.761l54.762,14.673l-40.088,40.088Z"
-                    />
-                    <path
-                      d="M124.316,164.403l54.761,14.674l-14.674,-54.761l-40.087,40.087Z"
-                    />
-                    <path
-                      d="M138.989,219.165l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
-                    />
-                    <path
-                      d="M84.228,204.491l54.761,14.674l-14.673,-54.762l-40.088,40.088Z"
-                    />
-                    <path
-                      d="M69.554,149.73l14.674,54.761l40.088,-40.088l-54.762,-14.673Z"
-                    />
-                    <path
-                      d="M29.466,189.818l54.762,14.673l-14.674,-54.761l-40.088,40.088Z"
-                    />
-                    <path
-                      d="M14.793,135.057l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
-                    />
-                    <path
-                      d="M54.881,94.969l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
-                    />
-                    <path
-                      d="M0.12,80.296l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
-                    />
-                    <path
-                      d="M40.208,40.208l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
-                    />
-                    <path
-                      d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
-                    />
-                    <path
-                      d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
-                    />
-                  </svg>
-                </div>
-              </div>
+                <path
+                  d="M80.296,0.12l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+                />
+                <path
+                  d="M149.73,69.554l-14.673,-54.761l-40.088,40.088l54.761,14.673Z"
+                />
+                <path
+                  d="M189.818,29.466l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+                />
+                <path
+                  d="M204.491,84.228l-14.673,-54.762l-40.088,40.088l54.761,14.674Z"
+                />
+                <path
+                  d="M164.403,124.316l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+                />
+                <path
+                  d="M219.165,138.989l-14.674,-54.761l-40.088,40.088l54.762,14.673Z"
+                />
+                <path
+                  d="M179.077,179.077l-14.674,-54.761l54.762,14.673l-40.088,40.088Z"
+                />
+                <path
+                  d="M124.316,164.403l54.761,14.674l-14.674,-54.761l-40.087,40.087Z"
+                />
+                <path
+                  d="M138.989,219.165l40.088,-40.088l-54.761,-14.674l14.673,54.762Z"
+                />
+                <path
+                  d="M84.228,204.491l54.761,14.674l-14.673,-54.762l-40.088,40.088Z"
+                />
+                <path
+                  d="M69.554,149.73l14.674,54.761l40.088,-40.088l-54.762,-14.673Z"
+                />
+                <path
+                  d="M29.466,189.818l54.762,14.673l-14.674,-54.761l-40.088,40.088Z"
+                />
+                <path
+                  d="M14.793,135.057l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+                />
+                <path
+                  d="M54.881,94.969l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+                />
+                <path
+                  d="M0.12,80.296l14.673,54.761l40.088,-40.088l-54.761,-14.673Z"
+                />
+                <path
+                  d="M40.208,40.208l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+                />
+                <path
+                  d="M94.969,54.881l-54.761,-14.673l14.673,54.761l40.088,-40.088Z"
+                />
+                <path
+                  d="M80.296,0.12l-40.088,40.088l54.761,14.673l-14.673,-54.761Z"
+                />
+              </svg>
             </div>
           </div>
         </div>

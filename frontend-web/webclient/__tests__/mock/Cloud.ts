@@ -77,6 +77,26 @@ class MockHttpClient {
         window.localStorage.setItem("csrfToken", value);
     }
 
+    public get currentProjectFolder(): string {
+        return `/projects/${this.projectId}`;
+    }
+
+    public get sharesFolder(): string {
+        return `${this.homeFolder}Shares`;
+    }
+
+    public get favoritesFolder(): string {
+        return `${this.homeFolder}Favorites`;
+    }
+
+    public get fakeFolders(): string[] {
+        return [this.sharesFolder, this.favoritesFolder].concat(this.hasActiveProject ? [this.currentProjectFolder] : []);
+    }
+
+    public get hasActiveProject(): boolean {
+        return this.projectId !== undefined;
+    }
+
     public get activeUsername(): string | undefined {
         if (this.useProjectToken(false) && !!this.projectDecodedToken) {
             return this.projectDecodedToken.payload.sub;
@@ -116,7 +136,6 @@ class MockHttpClient {
         body,
         context = this.apiContext,
         maxRetries = 5,
-        disallowProjects = false,
         withCredentials = false
     }): Promise<any> =>
         new Promise((resolve, reject) => {
@@ -231,11 +250,7 @@ class MockHttpClient {
     }
 
     private retrieveToken(disallowProjects: boolean): string {
-        if (this.useProjectToken(disallowProjects)) {
-            return this.projectAccessToken!;
-        } else {
-            return HttpClient.storedAccessToken;
-        }
+        return HttpClient.storedAccessToken;
     }
 
     private useProjectToken(disallowProjects: boolean): boolean {

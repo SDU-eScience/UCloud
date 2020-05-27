@@ -1,10 +1,12 @@
 import {Client as currentClient} from "Authentication/HttpClientInstance";
 import {SensitivityLevel} from "DefaultObjects";
-import {Acl, File, FileType, SortBy} from "Files";
-import {SnackType} from "Snackbar/Snackbars";
+import {Acl, File, FileType, SortBy, UserEntity} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {dateToString} from "Utilities/DateUtilities";
-import {getFilenameFromPath, isDirectory, replaceHomeFolder, sizeToString} from "Utilities/FileUtilities";
+import {
+    getFilenameFromPath, isDirectory, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
+    isSharesFolder, isTrashFolder, sizeToString
+} from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 
 export function toggleCssColors(light: boolean): void {
@@ -73,7 +75,8 @@ export const capitalized = (str: string): string => str.charAt(0).toUpperCase() 
  * @return {string}
  */
 export const getMembersString = (acls: Acl[]): string => {
-    const filteredAcl = acls.filter(it => it.entity !== currentClient.activeUsername);
+    const withoutProjectAcls = acls.filter(it => typeof it.entity === "string" || "username" in it.entity);
+    const filteredAcl = withoutProjectAcls.filter(it => (it.entity as UserEntity).username !== currentClient.activeUsername);
     if (filteredAcl.length > 0) {
         return `${acls.length + 1} members`;
     } else {
@@ -107,10 +110,25 @@ export const extensionFromPath = (path: string): string => {
     return splitString[splitString.length - 1];
 };
 
-type ExtensionType = null | "code" | "image" | "text" | "audio" | "video" | "archive" | "pdf" | "binary";
+type ExtensionType =
+    null
+    | "code"
+    | "image"
+    | "text"
+    | "audio"
+    | "video"
+    | "archive"
+    | "pdf"
+    | "binary"
+    | "markdown"
+    | "application";
 export const extensionType = (ext: string): ExtensionType => {
-    switch (ext) {
+    switch (ext.toLowerCase()) {
+        case "app":
+            return "application";
         case "md":
+        case "markdown":
+            return "markdown";
         case "swift":
         case "kt":
         case "kts":
@@ -134,6 +152,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "cxx":
         case "hxx":
         case "html":
+        case "htm":
         case "lhs":
         case "hs":
         case "sql":
@@ -156,6 +175,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "ppm":
         case "svg":
         case "jpg":
+        case "jpeg":
             return "image";
         case "txt":
         case "doc":
@@ -192,7 +212,8 @@ export const extensionType = (ext: string): ExtensionType => {
 };
 
 export const isExtPreviewSupported = (ext: string): boolean => {
-    switch (ext) {
+    switch (ext.toLowerCase()) {
+        case "app":
         case "md":
         case "swift":
         case "kt":
@@ -246,9 +267,7 @@ export const isExtPreviewSupported = (ext: string): boolean => {
         case "ogg":
         case "aac":
         case "pcm":
-        case "mpg":
         case "mp4":
-        case "avi":
         case "mov":
         case "wmv":
             return true;
@@ -260,34 +279,33 @@ export const isExtPreviewSupported = (ext: string): boolean => {
 export interface FtIconProps {
     type: FileType;
     ext?: string;
+    name?: string;
 }
 
-export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: string): FtIconProps => {
-    const icon: FtIconProps = {type: "FILE"};
+export const iconFromFilePath = (
+    filePath: string,
+    type: FileType
+): FtIconProps => {
+    const icon: FtIconProps = {type: "FILE", name: getFilenameFromPath(filePath)};
 
     switch (type) {
         case "DIRECTORY":
-            const homeFolderReplaced = replaceHomeFolder(filePath, homeFolder);
-            switch (homeFolderReplaced) {
-                case "Home/Jobs":
-                    icon.type = "RESULTFOLDER";
-                    break;
-                case "Home/Favorites":
-                    icon.type = "FAVFOLDER";
-                    break;
-                case "Home/Shares":
-                    icon.type = "SHARESFOLDER";
-                    break;
-                case "Home/App File Systems":
-                    icon.type = "FSFOLDER";
-                    break;
-                case "Home/Trash":
-                    icon.type = "TRASHFOLDER";
-                    break;
-                default:
-                    icon.type = "DIRECTORY";
-                    break;
+            if (isSharesFolder(filePath)) {
+                icon.type = "SHARESFOLDER";
+            } else if (isTrashFolder(filePath)) {
+                icon.type = "TRASHFOLDER";
+            } else if (isJobsFolder(filePath)) {
+                icon.type = "RESULTFOLDER";
+            } else if (isFavoritesFolder(filePath)) {
+                icon.type = "FAVFOLDER";
+            } else if (isMyPersonalFolder(filePath)) {
+                icon.type = "SHARESFOLDER";
+            } else if (isPersonalRootFolder(filePath)) {
+                icon.type = "SHARESFOLDER";
+            } else {
+                icon.type = "DIRECTORY";
             }
+
             return icon;
 
         case "FILE":
@@ -306,7 +324,7 @@ export const iconFromFilePath = (filePath: string, type: FileType, homeFolder: s
  *
  * @param params: { status, min, max } (both inclusive)
  */
-export const inRange = ({status, min, max}: {status: number; min: number; max: number}): boolean =>
+export const inRange = ({status, min, max}: { status: number; min: number; max: number }): boolean =>
     status >= min && status <= max;
 export const inSuccessRange = (status: number): boolean => inRange({status, min: 200, max: 299});
 export const removeTrailingSlash = (path: string): string => path.endsWith("/") ? path.slice(0, path.length - 1) : path;
@@ -315,7 +333,9 @@ export const addTrailingSlash = (path: string): string => {
     else return path.endsWith("/") ? path : `${path}/`;
 };
 
-export const shortUUID = (uuid: string): string => uuid.substring(0, 8).toUpperCase();
+export const looksLikeUUID = (uuid: string): boolean =>
+    /\b[0-9a-f]{8}\b-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-\b[0-9a-f]{12}\b/.test(uuid);
+export const shortUUID = (uuid: string): string => looksLikeUUID(uuid) ? uuid.substring(0, 8).toUpperCase() : uuid;
 export const is5xxStatusCode = (status: number): boolean => inRange({status, min: 500, max: 599});
 export const blankOrUndefined = (value?: string): boolean => value == null || value.length === 0 || /^\s*$/.test(value);
 
@@ -332,16 +352,13 @@ export const downloadAllowed = (files: File[]): boolean => files.every(f => f.se
 export const prettierString = (str: string): string => capitalized(str).replace(/_/g, " ");
 
 export function defaultErrorHandler(
-    error: {request: XMLHttpRequest; response: any}
+    error: { request: XMLHttpRequest; response: any }
 ): number {
     const request: XMLHttpRequest = error.request;
     // FIXME must be solvable more elegantly
-    let why: string | null = null;
-    if (!!error.response && !!error.response.why) {
-        why = error.response.why;
-    }
+    let why: string | null = error.response?.why;
 
-    if (!!request) {
+    if (request) {
         if (!why) {
             switch (request.status) {
                 case 400:
@@ -356,7 +373,7 @@ export function defaultErrorHandler(
             }
         }
 
-        snackbarStore.addFailure(why);
+        snackbarStore.addFailure(why, false);
         return request.status;
     }
     return 500;
@@ -390,9 +407,9 @@ export function requestFullScreen(el: Element, onFailure: () => void): void {
 
 export function timestampUnixMs(): number {
     return window.performance &&
-        window.performance.now &&
-        window.performance.timing &&
-        window.performance.timing.navigationStart ?
+    window.performance.now &&
+    window.performance.timing &&
+    window.performance.timing.navigationStart ?
         window.performance.now() + window.performance.timing.navigationStart :
         Date.now();
 }
@@ -423,13 +440,14 @@ export function copyToClipboard({value, message}: CopyToClipboard): void {
     input.select();
     document.execCommand("copy");
     document.body.removeChild(input);
-    snackbarStore.addSnack({message, type: SnackType.Success});
+    snackbarStore.addSuccess(message, true);
 }
 
 export function errorMessageOrDefault(
-    err: {request: XMLHttpRequest; response: any} | {status: number; response: string} | string,
+    err: { request: XMLHttpRequest; response: any } | { status: number; response: string } | string,
     defaultMessage: string
 ): string {
+    if (!navigator.onLine) return "You seem to be offline.";
     try {
         if (typeof err === "string") return err;
         if ("status" in err) {
@@ -460,21 +478,21 @@ export const generateId = ((): (target: string) => string => {
     };
 })();
 
-export function stopPropagation(e: {stopPropagation(): void}): void {
+export function stopPropagation(e: { stopPropagation(): void }): void {
     e.stopPropagation();
 }
 
-export function preventDefault(e: {preventDefault(): void}): void {
+export function preventDefault(e: { preventDefault(): void }): void {
     e.preventDefault();
 }
 
-export function stopPropagationAndPreventDefault(e: {preventDefault(): void; stopPropagation(): void}): void {
+export function stopPropagationAndPreventDefault(e: { preventDefault(): void; stopPropagation(): void }): void {
     preventDefault(e);
     stopPropagation(e);
 }
 
 export function displayErrorMessageOrDefault(e: any, fallback: string): void {
-    snackbarStore.addFailure(errorMessageOrDefault(e, fallback));
+    snackbarStore.addFailure(errorMessageOrDefault(e, fallback), false);
 }
 
 export function shouldHideSidebarAndHeader(): boolean {

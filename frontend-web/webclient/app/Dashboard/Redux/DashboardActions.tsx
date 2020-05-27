@@ -1,25 +1,20 @@
 import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
-import {File} from "Files";
 import {Action} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Page, PayloadAction, SetLoadingAction} from "Types";
+import {PayloadAction, SetLoadingAction} from "Types";
 import {hpcJobsQuery} from "Utilities/ApplicationUtilities";
-import {favoritesQuery} from "Utilities/FileUtilities";
 import {errorMessageOrDefault} from "UtilityFunctions";
 import {
-    DASHBOARD_FAVORITE_ERROR,
     DASHBOARD_RECENT_JOBS_ERROR,
-    RECEIVE_DASHBOARD_FAVORITES,
     RECEIVE_RECENT_JOBS,
     SET_ALL_LOADING,
 } from "./DashboardReducer";
 
-export type DashboardActions = DashboardErrorAction | ReceiveFavoritesProps |
+export type DashboardActions = DashboardErrorAction |
     SetLoadingAction<typeof SET_ALL_LOADING> | ReceiveRecentAnalyses;
 
 type DashboardError =
-    typeof DASHBOARD_FAVORITE_ERROR |
     typeof DASHBOARD_RECENT_JOBS_ERROR;
 
 type DashboardErrorAction = PayloadAction<DashboardError, {error?: string}>;
@@ -41,29 +36,6 @@ export const setErrorMessage = (type: DashboardError, error?: string): Dashboard
 });
 
 /**
- * Fetches the contents of the favorites folder and provides the initial 10 items
- */
-export const fetchFavorites = async (): Promise<ReceiveFavoritesProps | Action<DashboardError>> => {
-    try {
-        const {response} = await Client.get<Page<File>>(favoritesQuery(0, 10));
-        return receiveFavorites(response.items);
-    } catch (err) {
-        snackbarStore.addFailure("Failed to fetch favorites. Please try again later.");
-        return setErrorMessage(DASHBOARD_FAVORITE_ERROR, errorMessageOrDefault(err, "An error occurred fetching favorites"));
-    }
-};
-
-type ReceiveFavoritesProps = PayloadAction<typeof RECEIVE_DASHBOARD_FAVORITES, {content: File[]}>;
-/**
- * Returns an action containing favorites
- * @param {File[]} content The list of favorites retrieved
- */
-export const receiveFavorites = (content: File[]): ReceiveFavoritesProps => ({
-    type: RECEIVE_DASHBOARD_FAVORITES,
-    payload: {content}
-});
-
-/**
  * Fetches the 10 latest updated analyses
  */
 export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Action<DashboardError>> => {
@@ -71,7 +43,7 @@ export const fetchRecentAnalyses = async (): Promise<ReceiveRecentAnalyses | Act
         const {response} = await Client.get(hpcJobsQuery(10, 0));
         return receiveRecentAnalyses(response.items);
     } catch (err) {
-        snackbarStore.addFailure("Could not retrieve recent jobs.");
+        snackbarStore.addFailure("Could not retrieve recent jobs.", false);
         return setErrorMessage(DASHBOARD_RECENT_JOBS_ERROR, errorMessageOrDefault(err, "An error occurred fetching recent analyses."));
     }
 };

@@ -19,7 +19,7 @@ import {Spacer} from "ui-components/Spacer";
 import {EllipsedText} from "ui-components/Text";
 import theme from "ui-components/theme";
 import {favoriteApplicationFromPage, toolImageQuery} from "Utilities/ApplicationUtilities";
-import {getQueryParam, getQueryParamOrElse, RouterLocationProps, } from "Utilities/URIUtilities";
+import {RouterLocationProps} from "Utilities/URIUtilities";
 import {FullAppInfo, WithAppMetadata} from ".";
 import {ApplicationCard, CardToolContainer, hashF, SmallCard, Tag} from "./Card";
 import Installed from "./Installed";
@@ -68,20 +68,20 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         };
     }
 
-    public async componentDidMount() {
+    public async componentDidMount(): Promise<void> {
         const {props} = this;
         props.onInit();
         this.fetch();
         props.setRefresh(() => this.fetch());
     }
 
-    public componentDidUpdate(prevProps: ApplicationsProps) {
+    public componentDidUpdate(prevProps: ApplicationsProps): void {
         if (prevProps.location !== this.props.location) {
             this.fetch();
         }
     }
 
-    public componentWillUnmount() {
+    public componentWillUnmount(): void {
         this.props.setRefresh();
     }
 
@@ -101,7 +101,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         }
     }
 
-    public render() {
+    public render(): JSX.Element {
         const featured = this.featured;
         const {favorites} = this.props;
         const main = (
@@ -152,7 +152,7 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
                         </>
                     )}
                     page={featured}
-                    onPageChanged={pageNumber => this.props.history.push(this.updatePage(pageNumber))}
+                    onPageChanged={pageNumber => this.fetchFeatured(featured.itemsPerPage, pageNumber)}
                 />
                 {this.state.defaultTags.map(tag => <ToolGroup key={tag} tag={tag} />)}
             </>
@@ -164,34 +164,17 @@ class Applications extends React.Component<ApplicationsProps, ApplicationState> 
         );
     }
 
-    private fetchFeatured(): void {
-        const featured = this.props.applications.get("Featured") ?? emptyPage;
-        this.props.receiveAppsByKey(featured.itemsPerPage, featured.pageNumber, "Featured");
+    private fetchFeatured(itemsPerPage: number, page: number): void {
+        this.props.receiveAppsByKey(itemsPerPage, page, "Featured");
     }
 
     private fetch(): void {
-        this.fetchFeatured();
+        const featured = this.props.applications.get("Featured") ?? emptyPage;
+        this.fetchFeatured(featured.itemsPerPage, featured.pageNumber);
         this.state.defaultTags.forEach(tag => {
             const page = this.props.applications.get(tag) ?? emptyPage;
             this.props.receiveAppsByKey(page.itemsPerPage, page.pageNumber, tag);
         });
-    }
-
-    private itemsPerPage(props: ApplicationsProps = this.props): number {
-        return parseInt(getQueryParamOrElse(props, "itemsPerPage", "25"), 10);
-    }
-
-    private tag(props: ApplicationsProps = this.props): string | null {
-        return getQueryParam(props, "tag");
-    }
-
-    private updatePage(newPage: number): string {
-        const tag = this.tag();
-        if (tag === null) {
-            return Pages.browse(this.itemsPerPage(), newPage);
-        } else {
-            return Pages.browseByTag(tag, this.itemsPerPage(), newPage);
-        }
     }
 }
 
@@ -233,7 +216,7 @@ const ToolImage = styled.img`
 
 
 // eslint-disable-next-line no-underscore-dangle
-const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}) => {
+const ToolGroup_ = (props: {tag: string; page: Page<FullAppInfo>; cacheBust?: string}): JSX.Element => {
     const allTags = props.page.items.map(it => it.tags);
     const tags = new Set<string>();
     allTags.forEach(list => list.forEach(tag => tags.add(tag)));

@@ -4,6 +4,7 @@
 *.class
 **/build/**
 *.swp
+*.hprof
 
 # Log file
 *.log
@@ -149,5 +150,8 @@ app-service/dev.db.trace.db
 metadata-service/dev.db.mv.db
 metadata-service/dev.db.trace.db
 logs/
-activity-service/src/generated
+**/generated/**
 .DS_STORE
+fs/
+
+backend/envoy/

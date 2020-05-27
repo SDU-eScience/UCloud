@@ -92,10 +92,17 @@ fun main(args: Array<String>) {
         File(directory)
     } else {
         val parentFile = File(directory).absoluteFile.normalize().parentFile
-        if (parentFile.list()?.any { it.endsWith("-service") } == true) {
-            parentFile
-        } else {
-            throw IllegalStateException("Could not find repository root")
+        val backendAttempt = File(parentFile, "backend")
+        when {
+            parentFile.list()?.any { it.endsWith("-service") } == true -> {
+                parentFile
+            }
+            backendAttempt.list()?.any { it.endsWith("-service") } == true -> {
+                backendAttempt
+            }
+            else -> {
+                throw IllegalStateException("Could not find repository root")
+            }
         }
     }
 

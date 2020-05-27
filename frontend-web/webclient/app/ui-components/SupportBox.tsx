@@ -24,23 +24,23 @@ const enum SupportType {
     BUG = "BUG"
 }
 
-export default function Support() {
+export default function Support(): JSX.Element {
     const textArea = useRef<HTMLTextAreaElement>(null);
     const supportBox = useRef<HTMLTextAreaElement>(null);
     const [loading, setLoading] = useState(false);
     const [visible, setVisible] = useState(false);
     const [type, setType] = useState(SupportType.SUGGESTION);
 
-    function handleESC(e: KeyboardEvent) {
+    function handleESC(e: KeyboardEvent): void {
         if (e.keyCode === KeyCode.ESC) setVisible(false);
     }
 
-    function handleClickOutside(event) {
+    function handleClickOutside(event): void {
         if (supportBox.current && !supportBox.current.contains(event.target) && visible)
             setVisible(false);
     }
 
-    async function onSubmit(event: React.FormEvent) {
+    async function onSubmit(event: React.FormEvent): Promise<void> {
         event.preventDefault();
         const text = textArea.current?.value ?? "";
         if (text.trim()) {
@@ -50,12 +50,12 @@ export default function Support() {
                 textArea.current!.value = "";
                 setVisible(false);
                 setLoading(false);
-                snackbarStore.addSnack({message: "Support ticket submitted!", type: SnackType.Success});
+                snackbarStore.addSuccess("Support ticket submitted!", false);
             } catch (e) {
-                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occured"));
+                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred submitting the message"), false);
             }
         } else {
-            snackbarStore.addFailure("Support message can't be empty.");
+            snackbarStore.addFailure("Support message can't be empty.", false);
         }
     }
 
@@ -96,16 +96,16 @@ export default function Support() {
                             checked={type === SupportType.SUGGESTION}
                             onChange={setSuggestion}
                         />
+                        <Icon name="chat" color2="white" size="1.5em" mr=".5em" />
                         Suggestion
-                        <Icon name="suggestion" size="1.5em" ml=".5em" />
                     </Label>
                     <Label>
                         <Radio
                             checked={type === SupportType.BUG}
                             onChange={setBug}
                         />
+                        <Icon name="bug" size="1.5em" mr=".5em" />
                         Bug
-                        <Icon name="bug" size="1.5em" ml=".5em" />
                     </Label>
                 </Flex>
                 <TextDiv mt={"10px"}>

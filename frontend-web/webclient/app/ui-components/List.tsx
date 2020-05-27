@@ -3,6 +3,9 @@ import Box from "./Box";
 import * as React from "react";
 import Flex from "./Flex";
 import Truncate from "./Truncate";
+import {stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {IconName} from "ui-components/Icon";
+import {Icon, Text} from "ui-components/index";
 
 type StringOrNumber = string | number;
 
@@ -36,9 +39,9 @@ List.defaultProps = {
 List.displayName = "List";
 
 interface ListRowProps {
-    isSelected: boolean;
-    select: () => void;
-    navigate: () => void;
+    isSelected?: boolean;
+    select?: () => void;
+    navigate?: () => void;
     left: React.ReactNode;
     leftSub?: React.ReactNode;
     icon?: React.ReactNode;
@@ -46,24 +49,31 @@ interface ListRowProps {
 }
 
 export function ListRow(props: ListRowProps): JSX.Element {
+    const isSelected = props.isSelected ?? false;
     const left = props.leftSub ? (
-        <Box mb="4px" onClick={e => {e.stopPropagation(); props.navigate();}}>
-            <Truncate width={1} mb="-4px" fontSize={20}>{props.left}</Truncate>
-            <Flex>
+        <Box maxWidth="calc(100% - 180px)" width="auto">
+            <Truncate
+                cursor={props.navigate ? "pointer" : "default"}
+                onClick={e => {props.navigate?.(); e.stopPropagation();}}
+                mb="-4px"
+                width={1}
+                fontSize={20}
+            >{props.left}</Truncate>
+            <Flex mt="4px">
                 {props.leftSub}
             </Flex>
         </Box>
     ) : props.left;
     return (
         <HoverColorFlex
-            isSelected={props.isSelected}
+            isSelected={isSelected}
             onClick={props.select}
             pt="5px"
             pb="5px"
             width="100%"
             alignItems="center"
         >
-            {props.icon ? <Box mx="8px" mt="4px">{props.icon}</Box> : null}
+            {props.icon ? <Box onClick={stopPropagationAndPreventDefault} mx="8px" mt={props.leftSub ? "4px" : "-4px"}>{props.icon}</Box> : <Box width="4px" />}
             {left}
             <Box ml="auto" />
             <Flex mr="8px">
@@ -73,7 +83,24 @@ export function ListRow(props: ListRowProps): JSX.Element {
     );
 }
 
-const HoverColorFlex = styled(Flex)<{isSelected: boolean}>`
+
+export const ListRowStat: React.FunctionComponent<{icon?: IconName; color?: string; color2?: string}> = props => {
+    const color = props.color ?? "gray";
+    const color2 = props.color2 ?? "white";
+    return (
+        <>
+            <Text color="gray" fontSize={0} mr={"4px"}>
+                {!props.icon ? null : (<>
+                    <Icon size={"10"} color={color} color2={color2} name={props.icon} mt={"-2px"} />
+                    {" "}
+                </>)}
+                {props.children}
+            </Text>
+        </>
+    );
+};
+
+const HoverColorFlex = styled(Flex) <{isSelected: boolean}>`
     transition: background-color 0.3s;
     background-color: var(--${p => p.isSelected ? "lightBlue" : "white"});
     &:hover {

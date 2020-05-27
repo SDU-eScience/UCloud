@@ -14,7 +14,7 @@ const SvgProperties = (props: any) => (
       fillRule="nonzero"
     />
     <path
-      fill={props.color2 ? props.color2 : null}
+      fill={props.color2 ? props.color2 : "currentcolor"}
       d="M16 0h3v8h-3zM5 8h3v8H5zM10.667 16h3v8h-3z"
     />
   </svg>

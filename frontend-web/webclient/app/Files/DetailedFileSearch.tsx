@@ -210,7 +210,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps): JSX.Element {
                 setTimes({modifiedBefore: m});
                 return;
             } else {
-                snackbarStore.addFailure("Invalid date range");
+                snackbarStore.addFailure("Invalid date range", false);
                 return;
             }
         } else if (!before && modifiedBefore) {
@@ -218,7 +218,7 @@ function DetailedFileSearch(props: DetailedFileSearchProps): JSX.Element {
                 setTimes({modifiedAfter: m});
                 return;
             } else {
-                snackbarStore.addFailure("Invalid date range");
+                snackbarStore.addFailure("Invalid date range", false);
                 return;
             }
         }

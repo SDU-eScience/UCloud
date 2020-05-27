@@ -20,6 +20,7 @@ export const ChangePassword: React.FunctionComponent<{ setLoading: (loading: boo
     props.setLoading(commandLoading);
     const onSubmit = useCallback(async (e: React.SyntheticEvent) => {
         e.preventDefault();
+
         if (commandLoading) return;
 
         const current = currentPassword.current;

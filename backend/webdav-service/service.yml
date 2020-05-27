@@ -1,0 +1,11 @@
+---
+name: webdav
+
+namespaces:
+- webdav
+
+dependencies:
+- files
+- files.upload
+- project
+- project.repositories

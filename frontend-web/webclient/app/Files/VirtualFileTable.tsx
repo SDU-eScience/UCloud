@@ -1,4 +1,4 @@
-import {useAsyncWork} from "Authentication/DataHook";
+import {callAPI, callAPIWithErrorHandler, useAsyncWork} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
 import {emptyPage} from "DefaultObjects";
 import {File} from "Files/index";
@@ -6,20 +6,29 @@ import {LowLevelFileTable, LowLevelFileTableProps} from "Files/LowLevelFileTable
 import * as React from "react";
 import {useEffect, useMemo, useState} from "react";
 import {Page} from "Types";
-import {favoritesQuery, getParentPath, MOCK_VIRTUAL, mockFile, resolvePath} from "Utilities/FileUtilities";
+import {
+    getParentPath,
+    isProjectHome,
+    MOCK_VIRTUAL,
+    mockFile, projectIdFromPath,
+    resolvePath
+} from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
+import {listFavorites} from "Files/favorite";
+import {listRepositoryFiles} from "Project";
 
 export type VirtualFileTableProps = LowLevelFileTableProps & VirtualFolderDefinition;
 
 export interface VirtualFolderDefinition {
     fakeFolders?: string[];
+    isFakeFolder?: (folder: string) => boolean;
     loadFolder?: (folder: string, page: number, itemsPerPage: number) => Promise<Page<File>>;
 }
 
 export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = props => {
     const [loadedFakeFolder, setLoadedFakeFolder] = useState<Page<File> | undefined>(undefined);
     const mergedProperties = {...props};
-    const asyncWorker = props.asyncWorker ? props.asyncWorker : useAsyncWork();
+    const asyncWorker = props.asyncWorker ?? useAsyncWork();
     mergedProperties.asyncWorker = asyncWorker;
     const [, , submitPageLoaderJob] = asyncWorker;
 
@@ -28,6 +37,10 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
         if (props.path !== undefined) {
             const resolvedPath = resolvePath(props.path);
             fakeFolderToUse = props.fakeFolders.find(it => resolvePath(it) === resolvedPath);
+
+            if (!fakeFolderToUse && props.isFakeFolder && props.isFakeFolder(resolvedPath)) {
+                fakeFolderToUse = resolvedPath;
+            }
         }
 
         mergedProperties.page = loadedFakeFolder;
@@ -91,13 +104,30 @@ export const VirtualFileTable: React.FunctionComponent<VirtualFileTableProps> = 
 export const defaultVirtualFolders: () => VirtualFolderDefinition = () => ({
     fakeFolders: Client.fakeFolders,
 
+    isFakeFolder: folder => {
+        if (isProjectHome(folder)) return true;
+        return false;
+    },
+
     loadFolder: async (folder, page, itemsPerPage): Promise<Page<File>> => {
         if (folder === Client.favoritesFolder) {
-            return (await Client.get<Page<File>>(favoritesQuery(page, itemsPerPage))).response;
+            const favs = (await callAPIWithErrorHandler<Page<File>>(listFavorites({page, itemsPerPage})));
+            return favs ?? emptyPage;
         } else if (folder === Client.sharesFolder) {
             return (await Client.get<Page<File>>(
                 buildQueryString("/shares/list-files", {page, itemsPerPage}))
             ).response;
+        } else if (isProjectHome(folder)) {
+            try {
+                const id = projectIdFromPath(folder)!;
+                const response = await callAPI<Page<File>>(listRepositoryFiles({page, itemsPerPage}, id));
+                response.items.forEach(f => f.isRepo = true);
+                return response;
+            } catch (err) {
+                // Edge case that no repos exist for for project, but we want it to be empty instead of non-existant.
+                if (err.request.status === 404) return emptyPage;
+                else throw err;
+            }
         } else {
             return emptyPage;
         }

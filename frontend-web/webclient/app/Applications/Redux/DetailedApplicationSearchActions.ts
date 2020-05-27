@@ -50,7 +50,7 @@ export async function fetchApplications(body: AdvancedSearchRequest) {
         const {response} = await Client.post(advancedSearchQuery, body);
         return receiveApplications(response);
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred searching for applications"));
+        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred searching for applications"), false);
         return setErrorMessage({applicationsLoading: false});
     }
 }

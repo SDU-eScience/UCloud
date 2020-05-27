@@ -1,4 +1,3 @@
-import * as Accounting from "Accounting";
 import Activity from "Activity/Page";
 import {DetailedDowntime} from "Admin/Downtime/DetailedDowntime";
 import DowntimeManagement from "Admin/DowntimeManagement";
@@ -30,8 +29,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import NoVNCClient from "NoVNC/NoVNCClient";
 import {Playground} from "Playground/Playground";
-import ProjectCreate from "Project/Create";
-import ProjectList from "Project/List";
+import ProjectList from "Project/ProjectList";
 import ProjectView from "Project/View";
 import * as React from "react";
 import {Route, RouteComponentProps, Switch} from "react-router-dom";
@@ -44,39 +42,34 @@ import Uploader from "Uploader/Uploader";
 import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
 import {inDevEnvironment} from "UtilityFunctions";
-import GroupsOverview from "Project/GroupView";
+import {areProjectsEnabled} from "Project";
 
-const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
+const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
 
 const Core = (): JSX.Element => (
     <>
-        <Dialog />
-        <Snackbars />
-        <Uploader />
-        <Sidebar />
+        <Dialog/>
+        <Snackbars/>
+        <Uploader/>
+        <Sidebar/>
         <ErrorBoundary>
             <Switch>
-                <Route exact path="/login" component={LoginPage} />
-                <Route exact path="/loginSuccess" component={LoginSuccess} />
-                <Route exact path="/login/wayf" component={Wayf} />
-                <Route exact path="/" component={requireAuth(Dashboard)} />
-                <Route exact path="/dashboard" component={requireAuth(Dashboard)} />
+                <Route exact path="/login" component={LoginPage}/>
+                <Route exact path="/loginSuccess" component={LoginSuccess}/>
+                <Route exact path="/login/wayf" component={Wayf}/>
+                <Route exact path="/" component={requireAuth(Dashboard)}/>
+                <Route exact path="/dashboard" component={requireAuth(Dashboard)}/>
 
-                <Route exact path="/files/info" component={requireAuth(FileInfo)} />
-                <Route exact path="/files/preview" component={requireAuth(FilePreview)} />
-                <Route exact path="/files" component={requireAuth(Files)} />
+                <Route exact path="/files/info" component={requireAuth(FileInfo)}/>
+                <Route exact path="/files/preview" component={requireAuth(FilePreview)}/>
+                <Route exact path="/files" component={requireAuth(Files)}/>
 
-                <Route exact path="/activity" component={requireAuth(Activity)} />
-                <Route
-                    exact
-                    path="/accounting/:resource/:subResource"
-                    component={requireAuth(Accounting.DetailedPage)}
-                />
+                <Route exact path="/activity" component={requireAuth(Activity)}/>
 
-                <Route exact path="/novnc" component={requireAuth(NoVNCClient)} />
+                <Route exact path="/novnc" component={requireAuth(NoVNCClient)}/>
 
-                <Route exact path="/applications" component={requireAuth(ApplicationsBrowse)} />
-                <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
+                <Route exact path="/applications" component={requireAuth(ApplicationsBrowse)}/>
+                <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)}/>
                 <Route
                     exact
                     path="/applications/installed"
@@ -87,38 +80,42 @@ const Core = (): JSX.Element => (
                     path="/applications/details/:appName/:appVersion"
                     component={requireAuth(ApplicationView)}
                 />
-                <Route exact path="/applications/results" component={requireAuth(Runs)} />
-                <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)} />
-                <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Run)} />
+                <Route exact path="/applications/results" component={requireAuth(Runs)}/>
+                <Route exact path="/applications/results/:jobId" component={requireAuth(DetailedResult)}/>
+                <Route exact path="/applications/:appName/:appVersion" component={requireAuth(Run)}/>
 
-                <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)} />
-                <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)} />
-                <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)} />
+                <Route exact path={"/applications/studio"} component={requireAuth(AppStudioPage)}/>
+                <Route exact path={"/applications/studio/t/:name"} component={requireAuth(AppStudioTools)}/>
+                <Route exact path={"/applications/studio/a/:name"} component={requireAuth(AppStudioApps)}/>
 
-                {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground} />}
+                {!inDevEnvironment() ? null : <Route exact path={"/playground"} component={Playground}/>}
 
-                <Route exact path="/shares" component={requireAuth(Share.List)} />
+                <Route exact path="/shares" component={requireAuth(Share.List)}/>
 
-                <Route exact path="/admin" component={requireAuth(AdminOverview)} />
-                <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)} />
-                <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)} />
-                <Route exact path="/admin/downtime" component={requireAuth(DowntimeManagement)} />
+                <Route exact path="/admin" component={requireAuth(AdminOverview)}/>
+                <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)}/>
+                <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)}/>
+                <Route exact path="/admin/downtime" component={requireAuth(DowntimeManagement)}/>
 
-                <Route exact path="/downtime/detailed/:id" component={requireAuth(DetailedDowntime)} />
+                <Route exact path="/downtime/detailed/:id" component={requireAuth(DetailedDowntime)}/>
 
                 <Route
                     exact
                     path="/users/settings"
                     component={requireAuth(UserSettings, {requireTwoFactor: false})}
                 />
-                <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)} />
+                <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)}/>
 
-                <Route exact path="/search/:priority" component={requireAuth(Search)} />
+                <Route exact path="/search/:priority" component={requireAuth(Search)}/>
 
-                <Route exact path="/projects" component={requireAuth(ProjectList)} />
-                <Route exact path="/projects/create" component={requireAuth(ProjectCreate)} />
-                <Route exact path="/projects/view/:id" component={requireAuth(ProjectView)} />
-                <Route exact path="/projects/groups/:group?" component={requireAuth(GroupsOverview)} />
+                {areProjectsEnabled() ? (
+                        <>
+                            <Route exact path="/projects" component={requireAuth(ProjectList)}/>
+                            <Route exact path="/projects/view/:group?/:member?" component={requireAuth(ProjectView)}/>
+                        </>
+                    )
+                    : null
+                }
 
                 <Route
                     exact
@@ -126,7 +123,7 @@ const Core = (): JSX.Element => (
                     component={requireAuth(ServiceLicenseAgreement, {requireTwoFactor: false, requireSla: false})}
                 />
 
-                <Route component={NotFound} />
+                <Route component={NotFound}/>
             </Switch>
         </ErrorBoundary>
     </>
@@ -164,7 +161,7 @@ function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuth
     };
 }
 
-const LoginSuccess = (props: {history: History}): null => {
+const LoginSuccess = (props: { history: History }): null => {
     dispatchUserAction(USER_LOGIN);
     onLogin();
     props.history.push("/");

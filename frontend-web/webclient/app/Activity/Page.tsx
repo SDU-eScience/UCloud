@@ -16,6 +16,8 @@ import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {ActivityFeedFrame, ActivityFeedItem, ActivityFeedSpacer} from "./Feed";
 import {fetchActivity, resetActivity, setLoading, updateActivityFilter} from "./Redux/ActivityActions";
+import Input from "ui-components/Input";
+import {Client} from "Authentication/HttpClientInstance";
 
 const scrollSize = 250;
 
@@ -34,7 +36,7 @@ const dropdownOptions: Array<{text: string; value: string}> = [
     {value: Module.ActivityType.SHAREDWITH, text: "Shares"}
 ];
 
-function Activity(props: ActivityProps) {
+function Activity(props: ActivityProps): JSX.Element {
 
     React.useEffect(() => {
         props.onMount();
@@ -69,6 +71,20 @@ function Activity(props: ActivityProps) {
     function renderSidebar(): React.ReactNode {
         const {minTimestamp, maxTimestamp, type} = props;
 
+        const ref = React.useRef<number>(-1);
+
+        const onKeyUp = React.useCallback((e) => {
+            const user = e.target?.value ?? "";
+            if (ref.current !== -1) {
+                window.clearTimeout(ref.current);
+            }
+
+            ref.current = (window.setTimeout(() => {
+                applyFilter({user});
+            }, 500));
+
+        }, []);
+
         return (
             <>
                 {renderQuickFilters()}
@@ -82,6 +98,18 @@ function Activity(props: ActivityProps) {
                         onChange={e => applyFilter({type: e === "NO_FILTER" ? undefined : e as Module.ActivityType})}
                     />
                 </Box>
+
+                {!Client.hasActiveProject ? null :
+                    <Box mb={16}>
+                        <Label>Filter by username</Label>
+                        <InputGroup>
+                            <Input
+                                placeholder={"Don't filter"}
+                                onKeyUp={onKeyUp}
+                            />
+                        </InputGroup>
+                    </Box>
+                }
 
                 <TimeFilter
                     text={"Event created after"}
@@ -117,7 +145,7 @@ function Activity(props: ActivityProps) {
         );
     }
 
-    function filter(title: string, filter: Partial<ActivityFilter>) {
+    function filter(title: string, filter: Partial<ActivityFilter>): JSX.Element {
         return (
             <BaseLink
                 style={{display: "block"}}
@@ -132,7 +160,7 @@ function Activity(props: ActivityProps) {
         );
     }
 
-    function applyFilter(filter: Partial<ActivityFilter>) {
+    function applyFilter(filter: Partial<ActivityFilter>): void {
         props.updateFilter(filter);
         props.resetActivity();
         props.fetchActivity({scrollSize}, {...props, ...filter});
@@ -170,7 +198,7 @@ export const getStartOfWeek = (d: Date): Date => {
     return copy;
 };
 
-export const TimeFilter = (props: {text: string, onChange: (ts?: Date) => void, selected?: Date}) => (
+export const TimeFilter = (props: {text: string; onChange: (ts?: Date) => void; selected?: Date}): JSX.Element => (
     <Box mb={16}>
         <Label>{props.text}</Label>
         <InputGroup>

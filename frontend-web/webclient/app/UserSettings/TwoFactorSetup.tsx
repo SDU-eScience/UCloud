@@ -38,14 +38,14 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
         );
     }
 
-    private async loadStatus() {
+    private async loadStatus(): Promise<void> {
         this.props.setLoading(true);
         try {
-            const res = await Client.get("2fa/status", "/auth", true);
+            const res = await Client.get("2fa/status", "/auth");
             this.setState(() => ({isConnectedToAccount: res.response.connected}));
         } catch (res) {
             const why: string = res.response.why ?? "";
-            snackbarStore.addFailure(`Could not fetch 2FA status. ${why}`);
+            snackbarStore.addFailure(`Could not fetch 2FA status. ${why}`, false);
         } finally {
             this.props.setLoading(false);
         }
@@ -171,7 +171,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
 
     private onSetupStart() {
         this.props.setLoading(true);
-        Client.post("2fa", undefined, "/auth", true).then(res => {
+        Client.post("2fa", undefined, "/auth").then(res => {
             this.setState(() => ({
                 challengeId: res.response.challengeId,
                 qrCode: res.response.qrCodeB64Data
@@ -189,7 +189,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
             await Client.post("2fa/challenge", {
                 challengeId: this.state.challengeId,
                 verificationCode: this.state.verificationCode
-            }, "/auth", true);
+            }, "/auth");
 
             await Client.invalidateAccessToken();
 
@@ -197,7 +197,7 @@ export class TwoFactorSetup extends React.Component<SetStatusLoading & TwoFactor
         } catch (res) {
             const response = res.response;
             const why: string = response?.why ?? "Could not submit verification code. Try again later";
-            snackbarStore.addFailure(why);
+            snackbarStore.addFailure(why, false);
         } finally {
             this.props.setLoading(false);
         }

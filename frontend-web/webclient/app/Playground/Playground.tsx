@@ -1,7 +1,10 @@
 import {MainContainer} from "MainContainer/MainContainer";
 import * as React from "react";
 import {EveryIcon, getCssVar} from "ui-components/Icon";
-import {Grid, Box} from "ui-components";
+import {Grid, Box, Button} from "ui-components";
+
+import * as PublicLinks from "Applications/PublicLinks/Management";
+import {dialogStore} from "Dialog/DialogStore";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -21,6 +24,13 @@ export const Playground: React.FunctionComponent = () => {
                     />
                 ))}
             </Grid>
+
+            <Button onClick={() => {
+                dialogStore.addDialog(<PublicLinks.PublicLinkManagement onSelect={e => console.log(e)} />, () => 0);
+            }}>
+                Trigger me
+            </Button>
+
         </>
     );
     return <MainContainer main={main} />;

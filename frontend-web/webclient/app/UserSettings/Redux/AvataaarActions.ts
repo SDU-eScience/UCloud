@@ -17,10 +17,10 @@ const saveAvataaar = (avatar: AvatarType): SaveAvataaar => ({
 
 export async function saveAvatar(avatar: AvatarType): Promise<SaveAvataaar | SetAvatarError> {
     try {
-        await Client.post(saveAvatarQuery, avatar, undefined, true);
+        await Client.post(saveAvatarQuery, avatar, undefined);
         return saveAvataaar(avatar);
     } catch (e) {
-        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred saving the avatar"));
+        snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred saving the avatar"), false);
         return setAvatarError();
     }
 }
@@ -32,11 +32,11 @@ export const setAvatarError = (): SetAvatarError => ({
 
 export const findAvatar = async (): Promise<SaveAvataaar | null> => {
     try {
-        const res = await Client.get<AvatarType>(findAvatarQuery, undefined, true);
+        const res = await Client.get<AvatarType>(findAvatarQuery, undefined);
         return saveAvataaar(res.response);
     } catch (e) {
         snackbarStore.addFailure(
-            `Fetching avatar: ${errorMessageOrDefault(e, "An error occurred fetching your avatar.")}`,
+            `Fetching avatar: ${errorMessageOrDefault(e, "An error occurred fetching your avatar.")}`, false
         );
         return null;
     }

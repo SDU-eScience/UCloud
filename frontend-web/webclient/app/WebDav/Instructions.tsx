@@ -34,7 +34,7 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
                         <Step>
                             <Heading.h5>Step 1</Heading.h5>
                             <p>
-                                Open up Explorer and right-click <i>"This PC"</i> -> select <i>"Map network
+                                Open up Explorer and right-click <i>"This PC"</i> -&gt; select <i>"Map network
                                 drive..."</i>
                             </p>
                             <Screenshot src={win1} alt={"Right click 'This PC' and select 'Map network drive...'"} />
@@ -156,6 +156,15 @@ export const Instructions: React.FunctionComponent<{token: string}> = props => {
 
                             <code>
                                 <pre>sudo apt install davfs2</pre>
+                            </code>
+
+                            <p>
+                                Using your preferred text-editor, open <code>/etc/davfs2/davfs2.conf</code> as root, and
+                                add the following line:
+                            </p>
+
+                            <code>
+                                <pre>use_locks    0</pre>
                             </code>
 
                             <p>

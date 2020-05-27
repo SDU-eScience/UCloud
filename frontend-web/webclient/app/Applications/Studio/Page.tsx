@@ -69,7 +69,7 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
                                     const file = target.files[0];
                                     target.value = "";
                                     if (file.size > 1024 * 512) {
-                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
                                     } else {
                                         await uploadDocument({document: file, type: "APPLICATION"});
                                         setToolParameters(listTools({...toolParameters.parameters}));
@@ -89,7 +89,7 @@ const Studio: React.FunctionComponent<StudioOperations> = props => {
                                     const file = target.files[0];
                                     target.value = "";
                                     if (file.size > 1024 * 512) {
-                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.");
+                                        snackbarStore.addFailure("File exceeds 512KB. Not allowed.", false);
                                     } else {
                                         await uploadDocument({document: file, type: "TOOL"});
                                         setToolParameters(listTools({...toolParameters.parameters}));

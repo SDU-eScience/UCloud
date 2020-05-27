@@ -4,6 +4,7 @@ import {dateToString} from "../app/Utilities/DateUtilities";
 import {getFilenameFromPath, sizeToString} from "../app/Utilities/FileUtilities";
 import * as UF from "../app/UtilityFunctions";
 import {mockFilesSensitivityConfidential, newMockFile} from "./mock/Files";
+import { AccessRight } from "Types";
 
 // TO LOWER CASE AND CAPITALIZE
 
@@ -121,11 +122,10 @@ test("Upper 5xx range", () =>
 
 const mockAcls: Acl[] = [
     {
-        entity: "user3@test.dk",
+        entity: {username: "user3@test.dk"},
         rights: [
-            "READ"
-        ],
-        group: false
+            AccessRight.READ
+        ]
     }
 ];
 
@@ -188,7 +188,7 @@ test("No extension", () =>
 // Extension type from path
 
 test("Extract code type from path", () =>
-    expect(UF.extensionTypeFromPath("/Home/user@user.dk/README.md")).toBe("code")
+    expect(UF.extensionTypeFromPath("/Home/user@user.dk/README.md")).toBe("markdown")
 );
 
 test("Extract sound type from path", () =>
@@ -200,30 +200,21 @@ test("Extract no type from path", () =>
 );
 
 describe("Icon from file path", () => {
-    test("Dir", () => expect(UF.iconFromFilePath("home", "DIRECTORY", "homey").type).toBe("DIRECTORY"));
-    test("File", () => expect(UF.iconFromFilePath("home", "FILE", "homey")).toStrictEqual({type: "FILE"}));
+    test("Dir", () => expect(UF.iconFromFilePath("home", "DIRECTORY").type).toBe("DIRECTORY"));
+    test("File", () => expect(UF.iconFromFilePath("home", "FILE")).toStrictEqual({name: "home", type: "FILE"}));
     test("File with ext", () =>
-        expect(UF.iconFromFilePath("home.txt", "FILE", "homey")).toStrictEqual({type: "FILE", ext: "txt"}));
+        expect(UF.iconFromFilePath("home.txt", "FILE")).toStrictEqual({type: "FILE", name: "home.txt", ext: "txt"}));
     test("Jobs", () =>
-        expect(UF.iconFromFilePath("Home/Jobs", "DIRECTORY", "homey").type).toStrictEqual("RESULTFOLDER"));
+        expect(UF.iconFromFilePath("/home/user@user.dk/Jobs", "DIRECTORY").type).toStrictEqual("RESULTFOLDER"));
     test("Favorites", () =>
-        expect(UF.iconFromFilePath("Home/Favorites", "DIRECTORY", "homey").type).toStrictEqual("FAVFOLDER"));
+        expect(UF.iconFromFilePath("/home/user/Favorites", "DIRECTORY").type).toStrictEqual("FAVFOLDER"));
     test("Shares", () =>
-        expect(UF.iconFromFilePath("Home/Shares", "DIRECTORY", "homey").type).toStrictEqual("SHARESFOLDER"));
+        expect(UF.iconFromFilePath("/home/user/Shares", "DIRECTORY").type).toStrictEqual("SHARESFOLDER"));
     test("Trash", () =>
-        expect(UF.iconFromFilePath("Home/Trash", "DIRECTORY", "homey").type).toStrictEqual("TRASHFOLDER"));
+        expect(UF.iconFromFilePath("/home/user/Trash", "DIRECTORY").type).toStrictEqual("TRASHFOLDER"));
 });
 
-const HOME_FOLDER = "/home/user@test.dk/";
-
-
-// Short UUID
-
-test("To shortened UUID", () =>
-    expect(UF.shortUUID("abcd-abcd-abcd")).toBe("ABCD-ABC")
-);
-
-test("To same UUDI", () =>
+test("To same UUID", () =>
     expect(UF.shortUUID("ABC")).toBe("ABC")
 );
 

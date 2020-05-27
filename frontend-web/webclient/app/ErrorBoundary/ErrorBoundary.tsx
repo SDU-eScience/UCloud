@@ -64,7 +64,7 @@ export class ErrorBoundary extends React.Component<{}, ErrorBoundaryState> {
         return this.props.children;
     }
 
-    private submitError = async () => {
+    private submitError = async (): Promise<void> => {
         const {error, errorInfo} = this.state;
         const textAreaContent = this.ref.current ? this.ref.current.value : "None";
         try {
@@ -72,7 +72,7 @@ export class ErrorBoundary extends React.Component<{}, ErrorBoundaryState> {
                 message: `ERROR: ${error},\nSTACK: ${errorInfo!.componentStack},\nPathname: ${window.location.pathname},\nAdditional info: ${textAreaContent}`
             });
         } catch (e) {
-            snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"));
+            snackbarStore.addFailure(errorMessageOrDefault(e, `Failed to submit.${navigator.onLine ? "" : " You are offline."}`), false);
         }
         ErrorBoundary.redirectToDashboard();
     }

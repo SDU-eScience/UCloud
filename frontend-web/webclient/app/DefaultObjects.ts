@@ -1,26 +1,37 @@
 import * as AccountingRedux from "Accounting/Redux";
-import {Activity, ActivityFilter, ActivityForFrontend} from "Activity";
+import {ActivityFilter, ActivityForFrontend} from "Activity";
 import {Analysis, DetailedApplicationSearchReduxState, RunsSortBy} from "Applications";
 import * as ApplicationRedux from "Applications/Redux";
 import {TaskReduxState} from "BackgroundTasks/redux";
 import {DashboardStateProps} from "Dashboard";
-import {DetailedFileSearchReduxState, File, SortOrder} from "Files";
+import {DetailedFileSearchReduxState, SortOrder} from "Files";
 import {Notification} from "Notifications";
 import * as ProjectRedux from "Project/Redux";
 import {Reducer} from "redux";
 import {ScrollResult} from "Scroll/Types";
 import {SimpleSearchStateProps} from "Search";
-import {Page, SidebarOption} from "Types";
+import {Dictionary, Page, PaginationRequest, SidebarOption} from "Types";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Upload} from "Uploader";
-import {defaultAvatar} from "UserSettings/Avataaar";
+import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
+import {ProjectCache} from "Project/cache";
+import {APICallStateWithParams} from "Authentication/DataHook";
+import {
+    ListGroupMembersRequestProps,
+    ListOutgoingInvitesRequest,
+    OutgoingInvite,
+    ProjectMember,
+    UserInProject
+} from "Project";
+import {GroupWithSummary} from "Project/GroupList";
 
 export enum KeyCode {
     ENTER = 13,
     ESC = 27
 }
 
-export const emptyPage: Page<any> = {items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0};
+export const emptyPage: Readonly<Page<any>> =
+    {items: [], itemsPerPage: 25, itemsInTotal: 0, pageNumber: 0, pagesInTotal: 0};
 
 export enum SensitivityLevel {
     "INHERIT" = "Inherit",
@@ -119,8 +130,23 @@ interface LegacyReducers {
     activity?: Reducer<ActivityReduxObject>;
 }
 
-/* FIXME */
+/**
+ * Global state created via useGlobal() similar to ReduxObject
+ */
+export interface HookStore {
+    fileFavoriteCache?: Dictionary<boolean>;
+    projectCache?: ProjectCache;
+    avatarCache?: Dictionary<AvatarType>;
+    projectManagementDetails?: APICallStateWithParams<UserInProject>;
+    projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
+    projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;
+    projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>
+    projectManagementQuery?: string;
+    projectManagementOutgoingInvites?: APICallStateWithParams<Page<OutgoingInvite>, ListOutgoingInvitesRequest>;
+}
+
 interface LegacyReduxObject {
+    hookStore: HookStore;
     dashboard: DashboardStateProps;
     uploader: UploaderReduxObject;
     status: StatusReduxObject;
@@ -167,15 +193,14 @@ export const initStatus = (): StatusReduxObject => ({
 });
 
 export const initDashboard = (): DashboardStateProps => ({
-    favoriteFiles: [],
     recentAnalyses: [],
     notifications: [],
-    favoriteLoading: false,
     analysesLoading: false
 });
 
 export function initObject(): ReduxObject {
     return {
+        hookStore: {},
         dashboard: initDashboard(),
         status: initStatus(),
         header: initHeader(),
@@ -196,7 +221,7 @@ export function initObject(): ReduxObject {
     };
 }
 
-export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
+export type AvatarReduxObject = typeof defaultAvatar & {error?: string};
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
 
 export const initSimpleSearch = (): SimpleSearchStateProps => ({

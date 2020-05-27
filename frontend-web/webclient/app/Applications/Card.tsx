@@ -129,7 +129,6 @@ export const AppCard = styled(Link)`
     position: relative;
     overflow: hidden;
     box-shadow: ${theme.shadows.sm};
-    //box-shadow: inset 0 0 0 1px #c9d3df ; //inset border does not work on chrome with will-change
 
     transition: transform ${theme.timingFunctions.easeIn} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
     will-change: transform;
@@ -137,6 +136,7 @@ export const AppCard = styled(Link)`
     &:hover {
         transition: transform ${theme.timingFunctions.easeOut} ${theme.duration.fastest} ${theme.transitionDelays.xsmall};
         box-shadow: ${theme.shadows.md};
+        transform: scale(1.02);
     }
 
     // Background
@@ -181,27 +181,7 @@ const appColors = theme.appColors;
 
 const nColors = appColors.length;
 
-const bgGradients = appColors.map(x => ({color1: x[0], color2: x[2]}));
-
-// eslint-disable-next-line @typescript-eslint/camelcase
-const AppBg_triangle = ({color1, color2}: {color1: string, color2: string}): JSX.Element => (
-    <svg height="128px" viewBox="0 0 72 128">
-        <path d="M0,128h72v-72z" fill={`url(#appbg_svg___${color1}_${color2}`} />
-        <defs>
-            <linearGradient
-                id={`appbg_svg___${color1}_${color2}`}
-                x1={72}
-                x2={0}
-                y1={128 - 72}
-                y2={128}
-                gradientUnits="userSpaceOnUse"
-            >
-                <stop offset={0} stopColor={color1} />
-                <stop offset={1} stopColor={color2} />
-            </linearGradient>
-        </defs>
-    </svg>
-);
+const bgGradients = appColors.map(x => (`linear-gradient(0deg, ${x[0]}, ${x[2]})`));
 
 interface AppLogoRawProps {
     color1Offset: number;
@@ -251,7 +231,7 @@ export const AppLogoRaw = ({rot, color1Offset, color2Offset, appC, size}: AppLog
     );
 };
 
-export const AppLogo = ({size, hash}: {size: string, hash: number}) => {
+export const AppLogo = ({size, hash}: {size: string, hash: number}): JSX.Element => {
     const i1 = (hash >>> 30) & 3;
     const i2 = (hash >>> 20) & 3;
     const rot = [0, 15, 30];
@@ -303,18 +283,20 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     isFavorite,
     linkToRun
 }: ApplicationCardProps) => {
-    const hash = hashF(app.metadata.title);
+    const hash = hashF(app.metadata.name);
     const {metadata} = app;
     const appC = appColor(hash);
     return (
         <AppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
-            <AbsoluteNoPointerEvents right={0} top={0} cursor="inherit">
-                <AppBg_triangle {...bgGradients[appC]} />
-            </AbsoluteNoPointerEvents>
+            <AbsoluteNoPointerEvents right={0} top={0} 
+                cursor="inherit"
+                height="100%"
+                width="10px" 
+                background={bgGradients[appC]} />
             {(!onFavorite && !isFavorite) ? null : (
                 <AppRibbonContainer
                     cursor="inherit"
-                    right={0}
+                    right={"12px"}
                     top={0}
                     favorite={isFavorite}
                     onClick={onFavoriteClick}
