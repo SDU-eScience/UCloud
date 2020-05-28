@@ -9,11 +9,11 @@ bundle { ctx ->
     name = "ceph"
     version = "1"
 
-    val cephFsSubFolder = when (ctx.environment) {
-        Environment.DEVELOPMENT -> ""
-        Environment.PRODUCTION -> ""
-        Environment.TEST -> "staging"
-    }
+    val enabled: Boolean = config("enabled", "Should this automatically configure ceph storage?")
+    val cephFsSubFolder: String = config("fsSubFolder", "Sub folder to use", "")
+    val cephMonitors: String = config("monitors", "Ceph monitors to use", "")
+    val cephFsUser: String = config("fsUser", "Ceph user", "")
+    val cephFsSecret: String = config("fsSecret", "Ceph fs secret", "")
 
     withConfigMap("ceph-fs-config", version = "3") {
         addConfig(
@@ -21,32 +21,25 @@ bundle { ctx ->
             """
                 ceph:
                   subfolder: "$cephFsSubFolder"
-                  useCephDirectoryStats: true
+                  useCephDirectoryStats: $enabled
             """.trimIndent()
         )
     }
 
-    if (ctx.environment != Environment.PRODUCTION) {
-        val cephMonitors = when (ctx.environment) {
-            Environment.DEVELOPMENT, Environment.TEST -> "10.135.0.15:6789,10.135.0.16:6789,10.135.0.17:6789"
-            Environment.PRODUCTION -> "172.26.3.1:6789,172.26.3.2:6789,172.26.3.3:6789"
+    val cephfsVolumes = mapOf(
+        "app-cephfs" to "app-kubernetes/cephfs",
+        "app-fs-cephfs" to "default/app-fs-k8s",
+        "cephfs" to "default/cephfs"
+    )
+
+    if (!enabled) {
+        cephfsVolumes.forEach { (volName, _) ->
+            println("Volume: $volName")
         }
+        println("Please make sure the above PVCs exist!")
+    }
 
-        val cephFsUser = when (ctx.environment) {
-            Environment.PRODUCTION -> {
-                TODO()
-            }
-
-            Environment.TEST, Environment.DEVELOPMENT -> {
-                "snaptest"
-            }
-        }
-
-        val cephFsSecret = when (ctx.environment) {
-            Environment.DEVELOPMENT, Environment.TEST -> "snaptest"
-            Environment.PRODUCTION -> TODO()
-        }
-
+    if (enabled) {
         withSecret(name = cephFsSecret, namespace = "default") {
             val scanner = Scanner(System.`in`)
             println("Please enter ceph fs key: ")
@@ -68,11 +61,6 @@ bundle { ctx ->
             secret.stringData = mapOf("key" to userKey)
         }
 
-        val cephfsVolumes = mapOf(
-            "app-cephfs" to "app-kubernetes/cephfs",
-            "app-fs-cephfs" to "default/app-fs-k8s",
-            "cephfs" to "default/cephfs"
-        )
         cephfsVolumes.forEach { (volName, pvc) ->
             withPersistentVolume(volName) {
                 resource.spec.cephfs = CephFSPersistentVolumeSource().apply {
@@ -300,6 +288,9 @@ bundle { ctx ->
     name = "stolon"
     version = "1"
 
+    val claimSize: String = config("claimSize", "Size of PVC claim", "250Gi")
+    val claimStorageClass: String = config("claimStorageClass", "Storage class for the claim")
+
     withConfigMap("pgaudit") {
         configMap.metadata.namespace = "stolon"
         configMap.binaryData = mapOf(
@@ -307,7 +298,7 @@ bundle { ctx ->
                 Base64.getEncoder().encode(
                     File(
                         ctx.repositoryRoot,
-                        "infrastructure/pgaudit.so"
+                        "../infrastructure/pgaudit.so"
                     ).readBytes()
                 )
             )
@@ -323,11 +314,6 @@ bundle { ctx ->
 
     withHelmChart("stolon") {
         chartVersion = "1.5.6"
-        val size = when (ctx.environment) {
-            Environment.TEST, Environment.DEVELOPMENT -> "250Gi"
-            Environment.PRODUCTION -> "250Gi" // For some reason this is also the production value
-        }
-
         val suPassword = ctx.client
             .secrets()
             .inNamespace("stolon")
@@ -364,8 +350,8 @@ bundle { ctx ->
                  name: pgaudit
                name: pgaudit
            persistence:
-             size: $size
-             storageClassName: rbd
+             size: $claimSize
+             storageClassName: $claimStorageClass
            pgParameters:
              datestyle: iso, mdy
              default_text_search_config: pg_catalog.english
@@ -416,6 +402,9 @@ bundle {
     name = "grafana"
     version = "1"
 
+    val enabled: Boolean = config("enabled", "Should grafana be enabled?", true)
+    if (!enabled) return@bundle
+
     withHelmChart("grafana") {
         chartVersion = "4.6.3"
         //language=yml
@@ -443,13 +432,14 @@ bundle { ctx ->
     name = "kibana"
     version = "2"
 
+    val enabled: Boolean = config("enabled", "Should grafana be enabled?", true)
+    if (!enabled) return@bundle
+
+    val hostname: String = config("hostname", "Hostname")
+
     withHelmChart("kibana", namespace = "elasticsearch") {
         chartVersion = "7.6.0"
         repo = HelmRepo("elastic", "https://helm.elastic.co")
-        val hostname = when (ctx.environment) {
-            Environment.TEST -> "elasticsearch-master"
-            Environment.PRODUCTION, Environment.DEVELOPMENT -> "elasticsearch-newmaster"
-        }
 
         //language=yml
         valuesAsString = """
@@ -483,38 +473,24 @@ bundle { ctx ->
     name = "redis"
     version = "1"
 
+    val slaveCount: Int = config("slaveCount", "Number of Redis slaves", 3)
+    val claimSize: String = config("claimSize", "PVC claim size", "250Gi")
+    val claimStorageClass: String = config("claimStorageClass", "PVC storage class")
+
+    val slaveCpu: String = config("slaveCpu", "Slave CPU request", "2000m")
+    val slaveMem: String = config("slaveMem", "Slave mem request", "2048Mi")
+
+    val masterCpu: String = config("masterCpu", "Master CPU request", "4000m")
+    val masterMem: String = config("masterMem", "Master mem request", "4096Mi")
+
     withHelmChart("redis") {
         chartVersion = "10.2.1"
-        val rbdSize = when (ctx.environment) {
-            Environment.DEVELOPMENT, Environment.TEST -> "1000Gi"
-            Environment.PRODUCTION -> "5000Gi"
-        }
-
-        val masterCpuRequest = when (ctx.environment) {
-            Environment.DEVELOPMENT, Environment.TEST -> "4000m"
-            Environment.PRODUCTION -> "8000m"
-        }
-
-        val masterMemRequest = when (ctx.environment) {
-            Environment.DEVELOPMENT, Environment.TEST -> "4096Mi"
-            Environment.PRODUCTION -> "8192Mi"
-        }
-
-        val slaveCpuRequest = when (ctx.environment) {
-            Environment.DEVELOPMENT, Environment.TEST -> "2000m"
-            Environment.PRODUCTION -> "4000m"
-        }
-
-        val slaveMemRequest = when (ctx.environment) {
-            Environment.DEVELOPMENT, Environment.TEST -> "2048Mi"
-            Environment.PRODUCTION -> "4096Mi"
-        }
 
         //language=yml
         valuesAsString = """
             cluster:
               enabled: true
-              slaveCount: 3
+              slaveCount: $slaveCount
             configmap: |-
               # Enable AOF https://redis.io/topics/persistence#append-only-file
               appendonly yes
@@ -533,20 +509,20 @@ bundle { ctx ->
                 accessModes:
                 - ReadWriteOnce
                 enabled: true
-                size: $rbdSize
-                storageClass: rbd
+                size: $claimSize
+                storageClass: $claimStorageClass
               resources:
                 requests:
-                  cpu: $masterCpuRequest
-                  memory: $masterMemRequest
+                  cpu: $masterCpu
+                  memory: $masterMem
             metrics:
               enabled: true
             networkPolicy:
               enabled: false
             persistence:
               enabled: true
-              size: $rbdSize
-              storageClass: rbd
+              size: $claimSize
+              storageClass: $claimStorageClass
             rbac:
               create: false
             redisPort: 6379
@@ -566,12 +542,12 @@ bundle { ctx ->
                 accessModes:
                 - ReadWriteOnce
                 enabled: true
-                size: $rbdSize
-                storageClass: rbd
+                size: $claimSize
+                storageClass: $claimStorageClass
               resources:
                 requests:
-                  cpu: $slaveCpuRequest
-                  memory: $slaveMemRequest
+                  cpu: $slaveCpu
+                  memory: $slaveMem
             usePassword: false
             
         """.trimIndent()
@@ -588,6 +564,9 @@ bundle { ctx ->
 bundle {
     name = "prometheus"
     version = "1"
+
+    val enabled: Boolean = config("enabled", "Should grafana be enabled?", true)
+    if (!enabled) return@bundle
 
     withHelmChart("prometheus") {
         chartVersion = "10.4.0"
@@ -788,6 +767,26 @@ bundle { ctx ->
     name = "elasticsearch"
     version = "1"
 
+    val masterCount: Int = config("masterCount", "Number of masters", 3)
+    val dataCount: Int = config("dataCount", "Number of data nodes", 3)
+    val clientCount: Int = config("clientCount", "Number of client nodes", 3)
+
+    val masterCpu: String = config("masterCpu", "CPU request for master")
+    val dataCpu: String = config("dataCpu", "CPU request for data")
+    val clientCpu: String = config("clientCpu", "CPU request for client")
+
+    val masterMem: String = config("masterMem", "Mem request for master")
+    val dataMem: String = config("dataMem", "Mem request for data")
+    val clientMem: String = config("clientMem", "Mem request for client")
+
+    val masterStorage: String = config("masterStorage", "Size of storage for master", "4Gi")
+    val clientStorage: String = config("clientStorage", "Size of storage for client", "1Gi")
+    val dataStorage: String = config("dataStorage", "Size of storage for data nodes")
+
+    val storageClassName: String = config("storageClassName", "Storage class name for claim")
+
+    val minMasterNodes: Int = config("minMasterNodes", "Minimum number of master nodes", 2)
+
     fun roleSpecificConfiguration(role: ElasticRole): Map<String, Any?> {
         val result = HashMap<String, Any?>()
         when (role) {
@@ -826,73 +825,51 @@ bundle { ctx ->
                         "data" to (role == ElasticRole.DATA).toString()
                     ),
                     "replicas" to when (role) {
-                        ElasticRole.MASTER -> {
-                            when (ctx.environment) {
-                                Environment.DEVELOPMENT -> 3
-                                Environment.PRODUCTION -> 3
-                                Environment.TEST -> 2
-                            }
-                        }
-                        ElasticRole.CLIENT -> 2
-                        ElasticRole.DATA -> when (ctx.environment) {
-                            Environment.DEVELOPMENT -> 3
-                            Environment.PRODUCTION -> 4
-                            Environment.TEST -> 2
-                        }
+                        ElasticRole.MASTER -> masterCount
+                        ElasticRole.CLIENT -> clientCount
+                        ElasticRole.DATA -> dataCount
                     },
                     "esJavaOpts" to when (role) {
-                        ElasticRole.MASTER -> "-Xmx8g -Xms8g"
-                        ElasticRole.CLIENT -> "-Xmx8g -Xms8g"
-                        ElasticRole.DATA -> "-Xmx20g -Xms20g"
+                        ElasticRole.MASTER -> "-Xmx${masterMem.replace("Gi", "g")} -Xms${masterMem.replace("Gi", "g")}"
+                        ElasticRole.CLIENT -> "-Xmx${clientMem.replace("Gi", "g")} -Xms${clientMem.replace("Gi", "g")}"
+                        ElasticRole.DATA -> "-Xmx${dataMem.replace("Gi", "g")} -Xms${dataMem.replace("Gi", "g")}"
                     },
                     "resources" to mapOf(
                         "limits" to mapOf(
                             "cpu" to when (role) {
-                                ElasticRole.MASTER -> "2000m"
-                                ElasticRole.CLIENT -> "2000m"
-                                ElasticRole.DATA -> 8
+                                ElasticRole.MASTER -> masterCpu
+                                ElasticRole.CLIENT -> clientCpu
+                                ElasticRole.DATA -> dataCpu
                             },
                             "memory" to when (role) {
-                                ElasticRole.MASTER -> "12Gi"
-                                ElasticRole.CLIENT -> "12Gi"
-                                ElasticRole.DATA -> "30Gi"
+                                ElasticRole.MASTER -> masterMem
+                                ElasticRole.CLIENT -> clientMem
+                                ElasticRole.DATA -> dataMem
                             }
                         ),
                         "requests" to mapOf(
                             "cpu" to when (role) {
-                                ElasticRole.MASTER -> "2000m"
-                                ElasticRole.CLIENT -> "2000m"
-                                ElasticRole.DATA -> 4
+                                ElasticRole.MASTER -> masterCpu
+                                ElasticRole.CLIENT -> clientCpu
+                                ElasticRole.DATA -> dataCpu
                             },
                             "memory" to when (role) {
-                                ElasticRole.MASTER -> "12Gi"
-                                ElasticRole.CLIENT -> "12Gi"
-                                ElasticRole.DATA -> "30Gi"
+                                ElasticRole.MASTER -> masterMem
+                                ElasticRole.CLIENT -> clientMem
+                                ElasticRole.DATA -> dataMem
                             }
                         )
                     ),
                     "masterService" to "elasticsearch-master",
                     "volumeClaimTemplate" to mapOf(
                         "accessModes" to listOf("ReadWriteOnce"),
-                        "storageClassName" to "rbd",
+                        "storageClassName" to storageClassName,
                         "resources" to mapOf(
                             "requests" to mapOf(
                                 "storage" to when (role) {
-                                    ElasticRole.MASTER -> {
-                                        "4Gi"
-                                    }
-
-                                    ElasticRole.CLIENT -> {
-                                        "1Gi"
-                                    }
-
-                                    ElasticRole.DATA -> {
-                                        if (ctx.environment == Environment.TEST) {
-                                            "500Gi"
-                                        } else {
-                                            "5000Gi"
-                                        }
-                                    }
+                                    ElasticRole.MASTER -> masterStorage
+                                    ElasticRole.CLIENT -> clientStorage
+                                    ElasticRole.DATA -> dataStorage
                                 }
                             )
                         )
@@ -913,7 +890,7 @@ bundle { ctx ->
                xpack.security.http.ssl.keystore.path: /usr/share/elasticsearch/config/certs/elastic-node.p12
                http.max_content_length: 500mb
                indices.memory.index_buffer_size: 40%
-               ${if (ctx.environment == Environment.TEST) "discovery.zen.minimum_master_nodes: 2" else ""}
+               ${if (minMasterNodes != 0) "discovery.zen.minimum_master_nodes: $minMasterNodes" else ""}
  
             """.trimIndent()
         ),
@@ -961,7 +938,7 @@ bundle { ctx ->
                 listOf(
                     "helm",
                     "--kube-context",
-                    ctx.environment.name.toLowerCase(),
+                    ctx.environment.toLowerCase(),
                     "upgrade",
                     "--install",
                     "-f",
@@ -990,7 +967,7 @@ bundle { ctx ->
             println("Generating certificates...")
             Process.runAndPrint(
                 "bash",
-                File(ctx.repositoryRoot, "infrastructure/elk/elasticsearch/generate_ca.sh").absolutePath
+                File(ctx.repositoryRoot, "../infrastructure/elk/elasticsearch/generate_ca.sh").absolutePath
             )
 
             client.secrets().inNamespace("elasticsearch").createOrReplace(Secret().apply {
@@ -1033,7 +1010,7 @@ bundle { ctx ->
 
                     if (isReady) break
                 } catch (ex: Throwable) {
-                    ex.printStackTrace()
+                    //ex.printStackTrace()
                 }
 
                 Thread.sleep(2000)
@@ -1099,13 +1076,15 @@ bundle { ctx ->
                     client.secrets().inNamespace("default").createOrReplace(Secret().apply {
                         metadata = ObjectMeta()
                         metadata.name = "elasticsearch-credentials"
-                        stringData = mapOf("elk.yml" to """
+                        stringData = mapOf(
+                            "elk.yml" to """
                             elk:
                                 elasticsearch:
                                     credentials:
                                         username: elastic
                                         password: ${passwords.getValue("elastic")}
-                        """.trimIndent())
+                        """.trimIndent()
+                        )
                     })
 
                     println("Passwords configured! Restarting all Elasticsearch pods")
@@ -1114,7 +1093,7 @@ bundle { ctx ->
                     client.pods().inNamespace("elasticsearch").delete()
                     break
                 } catch (ex: Throwable) {
-                    ex.printStackTrace()
+                    //ex.printStackTrace()
                     continue
                 }
             }

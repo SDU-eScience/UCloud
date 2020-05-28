@@ -8,7 +8,7 @@ data class DeploymentContext(
     val client: KubernetesClient,
     val namespace: String,
     val remainingArgs: List<String>,
-    val environment: Environment,
+    val environment: String,
     val repositoryRoot: File
 )
 

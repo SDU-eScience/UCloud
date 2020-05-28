@@ -121,7 +121,7 @@ class DeploymentResource(
 fun MutableBundle.withDeployment(
     injectAllDefaults: Boolean = true,
     injectServiceSecrets: Boolean = true,
-    image: String = "registry.cloud.sdu.dk/sdu-cloud/$name-service:$version",
+    image: String = "dreg.cloud.sdu.dk/ucloud/$name-service:$version",
     init: DeploymentResource.() -> Unit
 ): DeploymentResource {
     val resource = DeploymentResource(name, version, image)

@@ -1,4 +1,4 @@
-from registry.cloud.sdu.dk/sdu-cloud/base:0.1.0
+FROM dreg.cloud.sdu.dk/ucloud/base:0.1.0
 # root user is needed for chown (cleanup in workspace service)
 user 0
 copy build/service /opt/service

@@ -21,6 +21,7 @@ export {default as InputGroup} from "./InputGroup";
 export {default as Label} from "./Label";
 export {default as Link} from "./Link";
 export {default as Radio} from "./Radio";
+export {RadioTilesContainer, RadioTile} from "./RadioTiles";
 export {default as RatingBadge} from "./RatingBadge";
 export {default as Relative} from "./Relative";
 export {default as Stamp} from "./Stamp";

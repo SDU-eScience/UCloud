@@ -72,7 +72,7 @@ bundle {
         deployment.spec.replicas = 2
         injectDefaults(tokenValidation = true, refreshToken = true, psql = false)
 
-        serviceContainer.image = "registry.cloud.sdu.dk/sdu-cloud/webclient:${this@bundle.version}"
+        serviceContainer.image = "dreg.cloud.sdu.dk/ucloud/webclient:${this@bundle.version}"
     }
 
     withPostgresMigration(deployment)
