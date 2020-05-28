@@ -501,7 +501,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             />
             <path
               d="M13 16.962L14.999 19 24 9.96l-2-1.999-9 9z"
-              fill={null}
+              fill="currentcolor"
               fillRule="nonzero"
             />
           </svg>

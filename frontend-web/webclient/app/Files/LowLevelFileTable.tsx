@@ -806,7 +806,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                         )
                                     }
                                     <SensitivityIcon sensitivity={f.sensitivityLevel} />
-                                    {checkedFiles.size !== 0 ? <Box width="38px" /> :
+                                    {checkedFiles.size !== 0 ? <Box width="33px" /> :
                                         <FileOperations
                                             inDropdown={fileOperations.length > 1}
                                             files={[f]}
@@ -926,24 +926,27 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
     const beingRenamed = props.file.path !== null && props.file.path === props.fileBeingRenamed;
     const fileName = beingRenamed ? (
-        <Input
-            placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
-            defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
-            pt="0px"
-            pb="0px"
-            pr="0px"
-            pl="0px"
-            mb="-4px"
-            noBorder
-            fontSize={20}
-            maxLength={1024}
-            borderRadius="0px"
-            type="text"
-            width="100%"
-            autoFocus
-            data-tag="renameField"
-            onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
-        />
+        <Flex width={1}>
+            <Input
+                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+                pt="0px"
+                pb="0px"
+                pr="0px"
+                pl="0px"
+                mb="-4px"
+                noBorder
+                fontSize={20}
+                maxLength={1024}
+                borderRadius="0px"
+                type="text"
+                width={1}
+                autoFocus
+                data-tag="renameField"
+                onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
+            />
+            <Icon ml="10px" mt="3px" cursor="pointer" name="close" color="red" onClick={() => props.onRenameFile?.(KeyCode.ESC, "")} />
+        </Flex>
     ) : (
             <Truncate width={1} mb="-4px" fontSize={20}>
                 {getFileNameForNameBox(props.file.path)}
@@ -1066,6 +1069,7 @@ const SensitivityBadge = styled.div<{bg: string}>`
     height: 2em;
     width: 2em;
     display: flex;
+    margin-right: 5px;
     align-items: center;
     justify-content: center;
     border: 0.2em solid ${props => props.bg};
@@ -1159,7 +1163,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                 trigger={(
                     <Icon
                         onClick={UF.preventDefault}
-                        ml="10px"
+                        ml="5px"
                         mr="10px"
                         name="ellipsis"
                         size="1em"
@@ -1170,9 +1174,9 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                 {content}
             </ClickableDropdown>
         </Box> : (
-            <Box mt="-2px" ml="5px">
+            <>
                 {content}
-            </Box>
+            </>
         )
     );
 };

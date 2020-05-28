@@ -60,8 +60,22 @@ class ProjectController(
             ok(ViewMemberInProjectResponse(ProjectMember(request.username, role)))
         }
 
+        implement(Projects.listFavoriteProjects) {
+            val showArchived = request.archived ?: true
+
+            val user = when (ctx.securityPrincipal.role) {
+                in Roles.PRIVILEDGED -> {
+                    request.user ?: ctx.securityPrincipal.username
+                }
+                else -> ctx.securityPrincipal.username
+            }
+
+            ok(queries.listFavoriteProjects(db, user, showArchived, request.normalize()))
+        }
+
         implement(Projects.listProjects) {
             val showArchived = request.archived ?: true
+            val noFavorites = request.noFavorites ?: false
             val user = when (ctx.securityPrincipal.role) {
                 in Roles.PRIVILEDGED -> {
                     request.user ?: ctx.securityPrincipal.username
@@ -76,7 +90,7 @@ class ProjectController(
                 else -> request.normalize()
             }
 
-            ok(queries.listProjects(db, user, showArchived, pagination))
+            ok(queries.listProjects(db, user, showArchived, pagination, noFavorites = noFavorites))
         }
 
         implement(Projects.verifyMembership) {
@@ -159,7 +173,8 @@ class ProjectController(
                     ctx.securityPrincipal.username,
                     true,
                     null,
-                    request.id
+                    request.id,
+                    false
                 ).items.singleOrNull() ?: throw ProjectException.NotFound()
             )
         }

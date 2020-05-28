@@ -10,4 +10,5 @@ dependencies {
         exclude(group = "ch.qos.logback", module = "logback-classic")
     }
     api("io.mockk:mockk:1.9.3")
+    api(group = "io.zonky.test", name = "embedded-postgres", version = "1.2.6")
 }

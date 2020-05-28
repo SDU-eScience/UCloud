@@ -4,7 +4,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.api.FindMetadataRequest
 import dk.sdu.cloud.file.api.normalize
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.withSession
+import dk.sdu.cloud.service.db.usingSession
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 
@@ -71,7 +71,7 @@ class MetadataService(
     ): R {
         val normalizedOld = oldPath.normalize()
         val normalizedNew = newPath.normalize()
-        return db.withSession { session ->
+        return db.usingSession { session ->
             db.withTransaction(session) {
                 dao.writeFileIsMoving(session, normalizedOld, normalizedNew)
             }
@@ -97,7 +97,7 @@ class MetadataService(
         block: suspend () -> R
     ): R {
         val normalized = paths.map { it.normalize() }
-        return db.withSession { session ->
+        return db.usingSession { session ->
             db.withTransaction(session) {
                 dao.writeFilesAreDeleting(session, normalized)
             }

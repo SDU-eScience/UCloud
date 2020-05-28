@@ -241,7 +241,7 @@ export const defaultFileOperations: FileOperation[] = [
             if (!cb.permissions.requireForAll(files, AccessRight.WRITE)) return true;
             else if (isAnyFixedFolder(files, Client)) return true;
             else if (isAnyMockFile(files)) return true;
-            else return files.every(({path}) => isTrashFolder(path));
+            else return files.every(({path}) => isTrashFolder(path) || isTrashFolder(getParentPath(path)));
         },
         icon: "trash",
         color: "red"

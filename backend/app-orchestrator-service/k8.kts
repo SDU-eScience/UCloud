@@ -1,4 +1,4 @@
-//DEPS dk.sdu.cloud:k8-resources:0.1.1
+//DEPS dk.sdu.cloud:k8-resources:0.1.2
 package dk.sdu.cloud.k8
 
 bundle { ctx ->
@@ -20,7 +20,6 @@ bundle { ctx ->
 
     withConfigMap(name = "app-config", version = "5") {
         data class ComputeBackend(val name: String, val title: String, val useWorkspaces: Boolean)
-
         val config: Map<String, Any?> = mapOf(
             "app" to mapOf(
                 "defaultBackend" to "kubernetes",

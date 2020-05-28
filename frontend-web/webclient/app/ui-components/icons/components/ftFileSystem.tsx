@@ -8,15 +8,15 @@ const SvgFtFileSystem = (props: any) => (
     fill="currentcolor"
     {...props}
   >
-    <clipPath id="FtFileSystem_svg__a">
+    <clipPath id="ftFileSystem_svg__a">
       <path
         d="M23.611 11.405l-4.064-10.16A1.977 1.977 0 0017.709 0H6.291c-.81 0-1.538.492-1.838 1.245L.389 11.405a5.455 5.455 0 00-.316 2.912l.757 4.536a1.978 1.978 0 001.952 1.654h18.435c.967 0 1.793-.699 1.952-1.654l.756-4.536a5.416 5.416 0 00-.314-2.912zm-2.692 5.571a1.156 1.156 0 01-1.142.968H4.222a1.158 1.158 0 01-1.142-.968l-.467-2.81a1.156 1.156 0 011.142-1.349h16.491c.716 0 1.26.642 1.142 1.349l-.469 2.81z"
         clipRule="nonzero"
       />
     </clipPath>
-    <g clipPath="url(#FtFileSystem_svg__a)">
+    <g clipPath="url(#ftFileSystem_svg__a)">
       <use
-        xlinkHref="#FtFileSystem_svg___Image2"
+        xlinkHref="#ftFileSystem_svg___Image2"
         width={24}
         height={20.507}
         transform="scale(1 .97654)"
@@ -27,7 +27,7 @@ const SvgFtFileSystem = (props: any) => (
     </g>
     <defs>
       <image
-        id="FtFileSystem_svg___Image2"
+        id="ftFileSystem_svg___Image2"
         width={24}
         height={21}
         xlinkHref="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAVCAYAAABc6S4mAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABYUlEQVQ4jY2Uy3XFMAhEZzguIA2l/5Ky8YMsjKTR188bW5bQABfg389vAARAkPkGAZp851vWgE17z7dBn8vjbkbxXBogCEcRBiz/EUGCQUD2nz3LtYsYcUV85KCLmF6sYkSk902s2fZixBVxV++Kt10Uk9jOe4htE7siboCGiExBiUKMT1HUtJCI8Ens8vi8GxcxceTIoIolgwpQUtD/s1lscOTIoPOeVsGN8DtjEgjf8BsZ7ACSYOwBMi8t1aT8GgN8wPiCAX0htoCfGShiUqbWNdGRAX1I4y4Dpo3WAwQt638PsKVxlwFvo0KNS+hvACuDRRUOVdQbT6FLXS+7feF9Ecs+cJAGxAvAarzp9ixdPb9gsIminMnZtO324kiKLRm0S04zyIdzCt81RTODdROtZpBEQRcxaTQACHjm/9smeplZMkYuDI+K9eN6bqLzzHqimARGuacI0AM8ed9Vl+MfWQ8XicMWet0AAAAASUVORK5CYII="

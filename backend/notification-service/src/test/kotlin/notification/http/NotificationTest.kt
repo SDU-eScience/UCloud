@@ -3,6 +3,7 @@ package dk.sdu.cloud.notification.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
@@ -17,6 +18,8 @@ import dk.sdu.cloud.notification.services.SubscriptionService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
@@ -30,23 +33,38 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationCall
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class NotificationTest {
+    private lateinit var db: AsyncDBSessionFactory
+    private lateinit var embDB: EmbeddedPostgres
+
+    @BeforeTest
+    fun before() {
+        val (db,embDB) = TestDB.from(NotificationServiceDescription)
+        this.db = db
+        this.embDB = embDB
+    }
+
+    @AfterTest
+    fun after() {
+        runBlocking {
+            db.close()
+        }
+        embDB.close()
+    }
 
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
-        micro.install(HibernateFeature)
-        val subscriptionService = mockk<SubscriptionService<HibernateSession>>()
-        val notificationHibernateDAO = NotificationHibernateDAO()
-        val notificationService =
-            NotificationService(
-                micro.hibernateDatabase,
-                notificationHibernateDAO,
-                subscriptionService
-            )
+        val notificationDao = NotificationHibernateDAO()
+        val subscriptionService = mockk<SubscriptionService>()
+        val notificationService = NotificationService(db, notificationDao, subscriptionService)
         listOf(NotificationController(notificationService, subscriptionService))
     }
 

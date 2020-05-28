@@ -201,7 +201,7 @@ export function SharePrompt({paths, client}: {paths: string[]; client: HttpClien
                                     ref={username}
                                     placeholder="Enter username..."
                                     onKeyUp={onKeyUp}
-                                    autocomplete="off"
+                                    autoComplete="off"
                                 />
                                 <InputLabel width="160px" rightLabel>
                                     <ClickableDropdown

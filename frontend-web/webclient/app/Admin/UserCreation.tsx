@@ -78,7 +78,7 @@ function UserCreation(props: UserCreationOperations): JSX.Element | null {
                         <Label mb="1em">
                             Username
                             <Input
-                                autocomplete="off"
+                                autoComplete="off"
                                 value={username}
                                 error={usernameError}
                                 onChange={e => dispatch({type: "UpdateUsername", payload: {username: e.target.value}})}

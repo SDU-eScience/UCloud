@@ -3,17 +3,15 @@ import {useAsyncCommand} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
 import * as React from "react";
 import {useEffect} from "react";
-import {GridCardGroup} from "ui-components/Grid";
-import {Avatar} from "AvataaarLib";
 import {defaultAvatar} from "UserSettings/Avataaar";
-import {Flex, Icon, Truncate} from "ui-components";
+import {Flex, Icon, Text, Box, Button} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import styled from "styled-components";
-import {IconName} from "ui-components/Icon";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {addStandardDialog} from "UtilityComponents";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {RemoveButton} from "Files/FileInputSelector";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];
@@ -22,6 +20,7 @@ export function MembersList(props: Readonly<{
     allowRoleManagement: boolean;
     projectRole: ProjectRole;
     reload?: () => void;
+    isOutgoingInvites?: boolean;
     showRole?: boolean;
     projectId: string;
 }>): JSX.Element {
@@ -43,38 +42,20 @@ export function MembersList(props: Readonly<{
         options.push({text: "PI", value: ProjectRole.PI});
     }
 
-    return (
-        <GridCardGroup minmax={260}>
-            {props.members.map(member =>
-                <MemberBox key={member.username}>
-                    <Avatar
-                        style={{width: "48px", height: "48px", margin: "4px", flexShrink: 0}}
-                        avatarStyle="Circle"
-                        {...avatars.cache[member.username] ?? defaultAvatar}
-                    />
+    return (<>
+        {props.members.map(member =>
+            <>
+                <Flex alignItems="center" mb="16px">
+                    <UserAvatar avatar={avatars.cache[member.username] ?? defaultAvatar} mr="10px" />
+                    {!props.isOutgoingInvites ? <Text bold>{member.username}</Text> :
+                        <div>
+                            <Text bold>{member.username}</Text>
+                            Invited to join
+                        </div>
+                    }
 
-                    <Flex flexDirection={"column"} m={8}>
-                        <Flex alignItems={"center"}>
-                            <Truncate width={"125px"} title={member.username}>{member.username}</Truncate>
-                            {!props.onAddToGroup ? null :
-                                <ActionButton
-                                    color={"green"}
-                                    icon={"arrowDown"}
-                                    rotation={270}
-                                    title={"Add to group"}
-                                    onClick={() => props.onAddToGroup!(member.username)}
-                                />
-                            }
-                            {!allowManagement || member.role === ProjectRole.PI ? null :
-                                <ActionButton
-                                    color={"red"}
-                                    icon={"close"}
-                                    title={"Remove from project"}
-                                    onClick={() => props.onRemoveMember(member.username)}
-                                />
-                            }
-                        </Flex>
-
+                    <Box flexGrow={1} />
+                    <Box mr="10px">
                         {props.showRole === false ? null :
                             !props.allowRoleManagement || member.role === ProjectRole.PI ?
                                 projectRoleToString(member.role)
@@ -116,45 +97,26 @@ export function MembersList(props: Readonly<{
                                     options={options}
                                 />
                         }
+                    </Box>
+                    <Flex alignItems={"center"}>
+                        {!props.onAddToGroup ? null :
+                            <Button color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
+                                <Icon
+                                    color="white"
+                                    name="arrowDown"
+                                    rotation={270}
+                                    width="1em"
+                                    title="Add to group"
+                                />
+                            </Button>
+                        }
+                        {!allowManagement || member.role === ProjectRole.PI ? null :
+                            <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveMember(member.username)} />
+                        }
                     </Flex>
-                </MemberBox>
-            )
-            }
-        </GridCardGroup>
-
-    );
+                </Flex>
+            </>
+        )
+        }
+    </>);
 }
-
-const ActionButton: React.FunctionComponent<{
-    icon: IconName;
-    title: string;
-    onClick: () => void;
-    color: string;
-    rotation?: number;
-}> = props => {
-    return (
-        <Icon
-            cursor="pointer"
-            mr="8px"
-            ml="8px"
-            color={props.color}
-            name={props.icon}
-            title={props.title}
-            onClick={props.onClick}
-            rotation={props.rotation}
-            size="20px"
-        />
-    );
-};
-
-const MemberBox = styled(Flex)`
-                                        width: 260px;
-                                        align-items: center;
-                                        border-radius: 8px;
-                                        margin-right: 8px;
-
-                                        &:hover {
-                                        background-color: var(--lightGray);
-                                        transition: background-color 0.2s;
-                                        }
-                                        `;
