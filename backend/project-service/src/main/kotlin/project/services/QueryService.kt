@@ -341,18 +341,86 @@ class QueryService(
         }
     }
 
+    suspend fun listFavoriteProjects(
+        ctx: DBContext,
+        username: String,
+        showArchived: Boolean,
+        pagination: NormalizedPaginationRequest
+    ): Page<UserProjectSummary> {
+        return ctx.withSession { session ->
+            val params: EnhancedPreparedStatement.() -> Unit = {
+                setParameter("username", username)
+                setParameter("showArchived", showArchived)
+            }
+
+            val items = session
+                .sendPreparedStatement(
+                    {
+                        params()
+                        setParameter("offset", pagination.page * pagination.itemsPerPage)
+                        setParameter("limit", pagination.itemsPerPage)
+                    },
+                    """
+                        select 
+                            mem.role, 
+                            p.id, 
+                            p.title, 
+                            is_favorite(mem.username, p.id) as is_fav,
+                            p.archived
+                        from 
+                            project_members mem inner join projects p on mem.project_id = p.id
+                        where 
+                            mem.username = ?username and
+                            (?showArchived or p.archived = false) and
+                            (is_favorite(mem.username, p.id))
+                        order by is_fav desc, p.id
+                        offset ?offset
+                        limit ?limit
+                    """.trimIndent()
+                )
+                .rows
+                .map {
+                    val role = ProjectRole.valueOf(it.getString(0)!!)
+                    val id = it.getString(1)!!
+                    val title = it.getString(2)!!
+                    val isFavorite = it.getBoolean(3)!!
+                    val isArchived = it.getBoolean(4)!!
+
+                    // TODO (Performance) Not ideal code
+                    val needsVerification = if (role.isAdmin()) {
+                        shouldVerify(session, id)
+                    } else {
+                        false
+                    }
+
+                    UserProjectSummary(
+                        id,
+                        title,
+                        ProjectMember(username, role),
+                        needsVerification,
+                        isFavorite,
+                        isArchived
+                    )
+                }
+
+            Page(items.size, pagination.itemsPerPage, pagination.page, items)
+        }
+    }
+
     suspend fun listProjects(
         ctx: DBContext,
         username: String,
         showArchived: Boolean,
         pagination: NormalizedPaginationRequest?,
-        projectId: String? = null
+        projectId: String? = null,
+        noFavorites: Boolean
     ): Page<UserProjectSummary> {
         return ctx.withSession { session ->
             val params: EnhancedPreparedStatement.() -> Unit = {
                 setParameter("username", username)
                 setParameter("showArchived", showArchived)
                 setParameter("projectId", projectId)
+                setParameter("noFavorites", noFavorites)
             }
             val items = session
                 .sendPreparedStatement(
@@ -373,7 +441,8 @@ class QueryService(
                         where 
                             mem.username = ?username and
                             (?showArchived or p.archived = false) and
-                            (?projectId::text is null or p.id = ?projectId)
+                            (?projectId::text is null or p.id = ?projectId) and
+                            (not ?noFavorites or not is_favorite(mem.username, p.id))
                         order by is_fav desc, p.id
                         offset ?offset
                         limit ?limit
@@ -419,7 +488,8 @@ class QueryService(
                             where 
                                 username = ?username and
                                 (?showArchived or p.archived = false) and
-                                (?projectId::text is null or p.id = ?projectId)
+                                (?projectId::text is null or p.id = ?projectId) and
+                                (not ?noFavorites or not is_favorite(mem.username, p.id))
                         """
                     )
                     .rows

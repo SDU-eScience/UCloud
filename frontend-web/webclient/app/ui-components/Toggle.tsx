@@ -14,14 +14,14 @@ const ToggleLabel = styled(Label) <{scale: number}>`
 
 ToggleLabel.displayName = "ToggleLabel";
 
-const RoundSlider = styled.span<{scale: number}>`
+const RoundSlider = styled.span<{scale: number; disabledColor: ThemeColor}>`
     position: absolute;
     cursor: pointer;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #ccc;
+    background-color: var(--${props => props.disabledColor ?? "gray"});
     -webkit-transition: .4s;
     transition: .4s;
     border-radius: 34px;
@@ -60,10 +60,22 @@ const ToggleInput = styled(HiddenInputField) <{scale: number; activeColor: Theme
 
 ToggleInput.displayName = "ToggleInput";
 
-interface ToggleProps {checked?: boolean; onChange: () => void; scale?: number; activeColor?: ThemeColor}
-export const Toggle: React.FC<ToggleProps> = ({checked, onChange, scale = 1, activeColor = "blue"}) => (
+interface ToggleProps {
+    checked?: boolean;
+    onChange: () => void;
+    scale?: number;
+    activeColor?: ThemeColor;
+    disabledColor?: ThemeColor;
+}
+export const Toggle: React.FC<ToggleProps> = ({
+    checked,
+    onChange,
+    scale = 1,
+    activeColor = "blue",
+    disabledColor = "gray"
+}) => (
     <ToggleLabel scale={scale}>
         <ToggleInput scale={scale} type="checkbox" checked={checked} onChange={onChange} activeColor={activeColor} />
-        <RoundSlider scale={scale} />
+        <RoundSlider disabledColor={disabledColor} scale={scale} />
     </ToggleLabel>
 );
