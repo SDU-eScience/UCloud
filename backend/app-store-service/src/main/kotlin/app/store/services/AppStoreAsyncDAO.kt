@@ -1,5 +1,10 @@
 package dk.sdu.cloud.app.store.services
 
+import app.store.services.canUserPerformWriteOperation
+import app.store.services.findOwnerOfApplication
+import app.store.services.internalByNameAndVersion
+import app.store.services.internalFindAllByName
+import app.store.services.internalHasPermission
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.fasterxml.jackson.module.kotlin.readValues
 import com.github.jasync.sql.db.RowData
@@ -15,10 +20,13 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
 import org.hibernate.query.Query
+import org.joda.time.DateTimeZone
+import org.joda.time.LocalDateTime
 import java.util.*
 
 @Suppress("TooManyFunctions") // Does not make sense to split
@@ -35,36 +43,41 @@ class AppStoreAsyncDAO(
         memberGroups: List<String>,
         tags: List<String>
     ): List<String> {
-        return session.createNativeQuery<TagEntity>(
-            """
-            select T.application_name, T.tag, T.id from {h-schema}application_tags as T, {h-schema}applications as A
-            where T.application_name = A.name and T.tag in (:tags) and (
-                (
-                    A.is_public = TRUE
-                ) or (
-                    cast(:project as text) is null and :user in (
-                        select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("user", user.username)
+                    setParameter("project", project)
+                    setParameter("groups", memberGroups)
+                    setParameter("tags", tags)
+                    setParameter("role", user.role.toString())
+                    setParameter("privileged", Roles.PRIVILEDGED.toList())
+                },
+                """
+                SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
+                WHERE T.application_name = A.name AND T.tag IN (:tags) AND (
+                    (
+                        A.is_public = TRUE
+                    ) OR (
+                        cast(:project as text) is null AND ?user IN (
+                            SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
+                        )
+                    ) OR (
+                        cast(:project as text) IS not null AND exists (
+                            SELECT P2.project_group FROM permissions AS P2 WHERE
+                                P2.application_name = A.name AND
+                                P2.project = cast(?project as text) AND
+                                P2.project_group IN (?groups)
+                        )
+                    ) or (
+                        ?role in (?privileged)
                     )
-                ) or (
-                    cast(:project as text) is not null and exists (
-                        select P2.project_group from {h-schema}permissions as P2 where
-                            P2.application_name = A.name and
-                                P2.project = cast(:project as text) and
-                                P2.project_group in (:groups)
-                    )
-                ) or (
-                    :role in (:privileged)
-                )
-            ) 
-            """.trimIndent(), TagEntity::class.java
-        )
-            .setParameter("user", user.username)
-            .setParameter("project", project)
-            .setParameterList("groups", memberGroups)
-            .setParameterList("tags", tags)
-            .setParameter("role", user.role)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
-            .resultList.distinctBy { it.applicationName }.map { it.applicationName }
+                ) 
+                """.trimIndent()
+            ).rows.toList()
+                .distinctBy { it.getField(TagTable.applicationName) }
+                .map { it.getField(TagTable.applicationName) }
+        }
     }
 
     private suspend fun findAppsFromAppNames(
@@ -73,100 +86,73 @@ class AppStoreAsyncDAO(
         project: String?,
         memberGroups: List<String>,
         applicationNames: List<String>
-    ): Pair<Query<ApplicationEntity>, Int> {
-
-        val itemsInTotal = session.createNativeQuery<ApplicationEntity>(
-            """
-            select A.*
-            from {h-schema}applications as A
-            where (A.created_at) in (
-                select max(B.created_at)
-                from {h-schema}applications as B
-                where (A.title = B.title)
-                group by title
-            ) and (A.name) in (:applications) and (
-                (
-                    A.is_public = TRUE
-                ) or (
-                    cast(:project as text) is null and :user in (
-                        select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
-                    )
-                ) or (
-                    cast(:project as text) is not null and exists (
-                        select P2.project_group from {h-schema}permissions as P2 where
-                            P2.application_name = A.name and
-                                P2.project = cast(:project as text) and
-                                P2.project_group in (:groups)
-                    )
-                ) or (
-                    :role in (:privileged)
-                ) 
-            )
-            """.trimIndent(), ApplicationEntity::class.java
-        )
-            .setParameterList("applications", applicationNames)
-            .setParameter("user", user.username)
-            .setParameter("project", project)
-            .setParameterList("groups", memberGroups)
-            .setParameter("role", user.role)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
-            .resultList.size
-
-        return Pair(
-            session.createNativeQuery<ApplicationEntity>(
+    ): Pair<List<RowData>, Int> {
+        val items = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("applications", applicationNames)
+                    setParameter("user", user.username)
+                    setParameter("project", project)
+                    setParameter("groups", memberGroups)
+                    setParameter("role", user.role.toString())
+                    setParameter("privileged", Roles.PRIVILEDGED.toList())
+                },
                 """
-                select A.*
-                from {h-schema}applications as A
-                where (A.created_at) in (
-                    select max(created_at)
-                    from {h-schema}applications as B
-                    where (A.title= B.title)
-                    group by title
-                ) and (A.name) in (:applications) and (
+                SELECT A.*
+                FROM applications as A
+                WHERE (A.created_at) IN (
+                    SELECT MAX(B.created_at)
+                    FROM applications as B
+                    WHERE (A.title = B.title)
+                    GROUP BY title
+                ) AND (A.name) IN (?applications) AND (
                     (
                         A.is_public = TRUE
                     ) or (
-                        cast(:project as text) is null and :user in (
-                            select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
+                        cast(?project as text) is null and ?user in (
+                            SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                         )
                     ) or (
-                        cast(:project as text) is not null and exists (
-                            select P2.project_group from {h-schema}permissions as P2 where
+                        cast(?project as text) is not null AND exists (
+                            SELECT P2.project_group FROM permissions AS P2 WHERE
                                 P2.application_name = A.name and
-                                P2.project = cast(:project as text) and
-                                P2.project_group in (:groups)
+                                P2.project = cast(?project as text) and
+                                P2.project_group in (?groups)
                         )
                     ) or (
-                        :role in (:privileged)
+                        ?role in (?privileged)
                     ) 
                 )
-                order by A.title
-            """.trimIndent(), ApplicationEntity::class.java
-            )
-                .setParameterList("applications", applicationNames)
-                .setParameter("user", user.username)
-                .setParameter("project", project)
-                .setParameterList("groups", memberGroups)
-                .setParameter("role", user.role)
-                .setParameterList("privileged", Roles.PRIVILEDGED)
-            , itemsInTotal
+                """.trimIndent()
+            ).rows.toList()
+
+        }
+
+        return Pair(
+            items, items.size
         )
     }
 
-    suspend fun getAllApps(ctx: DBContext, user: SecurityPrincipal): List<ApplicationEntity> {
-        return session.typedQuery<ApplicationEntity>(
-            """
-                from ApplicationEntity as A
-                where lower(A.title) like '%' || :query || '%' and
-                    (A.isPublic = true or :user in (
-                        select P.key.user from PermissionEntry as P where P.key.applicationName = A.id.name
-                    ) or :role in (:privileged))
-                order by A.title
-            """.trimIndent()
-        ).setParameter("query", "")
-            .setParameter("role", user.role)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
-            .setParameter("user", user.username).resultList
+    suspend fun getAllApps(ctx: DBContext, user: SecurityPrincipal): List<RowData> {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("query", "")
+                    setParameter("role", user.role.toString())
+                    setParameter("privileged", Roles.PRIVILEDGED.toList())
+                    setParameter("user", user.username)
+                },
+                """
+                    SELECT *
+                    FROM applications as A
+                    WHERE LOWER(title) like '%' || ?query || '%' AND
+                    (isPublic = TRUE or ?user in (
+                        SELECT P.username FROM permissions AS P WHERE P.application_name = A.name
+                    ) OR ?role in (?privileged)
+                    ORDER BY A.title
+                """.trimIndent()
+            ).rows.toList()
+        }
     }
 
     override suspend fun findAllByName(
@@ -177,14 +163,16 @@ class AppStoreAsyncDAO(
         appName: String,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
-        return internalFindAllByName(
-            session,
-            user,
-            currentProject,
-            projectGroups,
-            appName,
-            paging
-        ).mapItems { it.withoutInvocation() }
+        return ctx.withSession { session ->
+            internalFindAllByName(
+                session,
+                user,
+                currentProject,
+                projectGroups,
+                appName,
+                paging
+            ).mapItems { it.withoutInvocation() }
+        }
     }
 
     override suspend fun findByNameAndVersion(
@@ -198,32 +186,36 @@ class AppStoreAsyncDAO(
         val cacheKey = NameAndVersion(appName, appVersion)
         val (cached, expiry) = byNameAndVersionCache[cacheKey] ?: Pair(null, 0L)
         if (cached != null && expiry > System.currentTimeMillis()) {
-            if (internalHasPermission(
-                    session,
-                    user!!,
-                    currentProject,
-                    projectGroups,
-                    cached.metadata.name,
-                    cached.metadata.version,
-                    ApplicationAccessRight.LAUNCH
-                )
+            if (ctx.withSession { session ->
+                    internalHasPermission(
+                        session,
+                        user!!,
+                        currentProject,
+                        projectGroups,
+                        cached.metadata.name,
+                        cached.metadata.version,
+                        ApplicationAccessRight.LAUNCH
+                    )
+                }
             ) {
                 return cached
             }
         }
 
-        val result = internalByNameAndVersion(session, appName, appVersion)
-            ?.toModelWithInvocation() ?: throw ApplicationException.NotFound()
+        val result = ctx.withSession { session -> internalByNameAndVersion(session, appName, appVersion)}
+            ?.toApplicationWithInvocation() ?: throw ApplicationException.NotFound()
 
-        if (internalHasPermission(
-                session,
-                user!!,
-                currentProject,
-                projectGroups,
-                result.metadata.name,
-                result.metadata.version,
-                ApplicationAccessRight.LAUNCH
-            )
+        if (ctx.withSession { session ->
+                internalHasPermission(
+                    session,
+                    user!!,
+                    currentProject,
+                    projectGroups,
+                    result.metadata.name,
+                    result.metadata.version,
+                    ApplicationAccessRight.LAUNCH
+                )
+            }
         ) {
             byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
             return result
@@ -241,21 +233,21 @@ class AppStoreAsyncDAO(
     ): List<ApplicationWithExtension> {
         var query = ""
         query += """
-            select A.*
-            from app_store.favorited_by as F,
-                app_store.applications as A
-            where F.the_user = :user
-              and F.application_name = A.name
-              and F.application_version = A.version
-              and (A.application -> 'applicationType' = '"WEB"'
-                or A.application -> 'applicationType' = '"VNC"'
+            SELECT A.*
+            FROM favorited_by as F,
+                applications as A
+            WHERE F.the_user = ?user
+              AND F.application_name = A.name
+              AND F.application_version = A.version
+              AND (A.application -> 'applicationType' = '"WEB"'
+                OR A.application -> 'applicationType' = '"VNC"'
               ) and (
         """
 
         for (index in fileExtensions.indices) {
             query += """ A.application -> 'fileExtensions' @> jsonb_build_array(:ext$index) """
             if (index != fileExtensions.size - 1) {
-                query += "or "
+                query += "OR "
             }
         }
 
@@ -263,24 +255,28 @@ class AppStoreAsyncDAO(
               )
         """
 
-        return session
-            .createNativeQuery<ApplicationEntity>(
-                query, ApplicationEntity::class.java
-            )
-            .setParameter("user", user.username)
-            .apply {
-                fileExtensions.forEachIndexed { index, ext ->
-                    setParameter("ext$index", ext)
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("user", user.username)
+                    fileExtensions.forEachIndexed { index, ext ->
+                        setParameter("ext$index", ext)
+                    }
+                },
+                query
+            ).rows.toList()
+                .filter { rowData ->
+                    defaultMapper.readValue<ApplicationInvocationDescription>(rowData.getField(ApplicationTable.application)).parameters.all {
+                        it.optional
+                    }
                 }
-            }
-            .list()
-            .filter { entity ->
-                entity.application.parameters.all { it.optional }
-            }
-            .map {
-                ApplicationWithExtension(it.toMetadata(), it.application.fileExtensions)
-            }
-
+                .map {
+                    ApplicationWithExtension(
+                        it.toApplicationMetadata(),
+                        defaultMapper.readValue<ApplicationInvocationDescription>(it.getField(ApplicationTable.application)).fileExtensions
+                    )
+                }
+        }
     }
 
     override suspend fun findByNameAndVersionForUser(
@@ -291,21 +287,24 @@ class AppStoreAsyncDAO(
         appName: String,
         appVersion: String
     ): ApplicationWithFavoriteAndTags {
-        if (!internalHasPermission(
-                session,
-                user,
-                currentProject,
-                projectGroups,
-                appName,
-                appVersion,
-                ApplicationAccessRight.LAUNCH
-            )
+        if (!ctx.withSession { session ->
+                internalHasPermission(
+                    session,
+                    user,
+                    currentProject,
+                    projectGroups,
+                    appName,
+                    appVersion,
+                    ApplicationAccessRight.LAUNCH
+                )
+            }
         ) throw ApplicationException.NotFound()
 
-        val entity = internalByNameAndVersion(session, appName, appVersion)?.toModelWithInvocation()
-            ?: throw ApplicationException.NotFound()
+        val entity = ctx.withSession { session ->
+            internalByNameAndVersion(session, appName, appVersion)?.toApplicationWithInvocation()
+        } ?: throw ApplicationException.NotFound()
 
-        return preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()
+        return ctx.withSession { session -> preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()}
     }
 
     override suspend fun listLatestVersion(
@@ -341,85 +340,56 @@ class AppStoreAsyncDAO(
             Role.UNKNOWN
         }
 
-        val count = session.createNativeQuery<ApplicationEntity>(
-            """
-                select A.*
-                from {h-schema}applications as A where (A.created_at) in (
-                    select max(created_at)
-                    from {h-schema}applications as B
-                    where A.name = B.name and (
+        val items = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("role", cleanRole.toString())
+                    setParameter("project", currentProject)
+                    setParameter("groups", groups)
+                    setParameter("privileged", Roles.PRIVILEDGED.toList())
+                },
+                """
+                SELECT A.*
+                FROM applications AS A WHERE (A.created_at) IN (
+                    SELECT MAX(created_at)
+                    FROM applications as B
+                    WHERE A.name = B.name AND (
                         (
                             B.is_public = TRUE
                         ) or (
-                            cast(:project as text) is null and :user in (
-                                select P1.username from {h-schema}permissions as P1 where P1.application_name = B.name
+                            cast(?project as text) is null and ?user in (
+                                SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = B.name
                             )
                         ) or (
-                            cast(:project as text) is not null and exists (
-                                select P2.project_group from {h-schema}permissions as P2 where
-                                    P2.application_name = B.name and
-                                        P2.project = cast(:project as text) and
-                                        P2.project_group in (:groups)
+                            cast(:project as text) is not null AND exists (
+                                SELECT P2.project_group FRO permissions AS P2 WHERE
+                                    P2.application_name = B.name AND
+                                    P2.project = cast(?project as text) AND
+                                    P2.project_group IN (?groups)
                             )
                         ) or (
-                            :role in (:privileged)
+                            ?role IN (?privileged)
                         )
                     )
+                    GROUP BY B.name
                 )
-            """.trimIndent(), ApplicationEntity::class.java
-        ).setParameter("user", userString)
-            .setParameter("role", cleanRole)
-            .setParameter("project", currentProject)
-            .setParameterList("groups", groups)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
-            .list().size
+                ORDER BY A.name
+            """.trimIndent()
+            ).rows.toList()
+        }
 
-        val items = session.createNativeQuery<ApplicationEntity>(
-            """ select A.*
-                from {h-schema}applications as A where (A.created_at) in (
-                    select max(created_at)
-                    from {h-schema}applications as B
-                    where A.name = B.name and (
-                         (
-                             B.is_public = TRUE
-                         ) or (
-                             cast(:project as text) is null and :user in (
-                                 select P1.username from app_store.permissions as P1 where P1.application_name = B.name
-                             )
-                         ) or (
-                             cast(:project as text) is not null and exists (
-                                 select P2.project_group from app_store.permissions as P2 where
-                                     P2.application_name = B.name and
-                                         P2.project = cast(:project as text) and
-                                         P2.project_group in (:groups)
-                             )
-                         ) or (
-                             :role in (:privileged)
-                         )
-                    )
-                    group by B.name
+        return ctx.withSession { session ->
+            preparePageForUser(
+                session,
+                user?.username,
+                Page(
+                    items.size,
+                    paging.itemsPerPage,
+                    paging.page,
+                    items.map { it.toApplicationWithInvocation() }
                 )
-                order by A.name
-            """.trimIndent(), ApplicationEntity::class.java
-        ).setParameter("user", userString)
-            .setParameter("role", cleanRole)
-            .setParameter("project", currentProject)
-            .setParameterList("groups", groups)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
-            .paginatedList(paging)
-            .map { it.toModelWithInvocation() }
-
-
-        return preparePageForUser(
-            session,
-            user?.username,
-            Page(
-                count,
-                paging.itemsPerPage,
-                paging.page,
-                items
-            )
-        ).mapItems { it.withoutInvocation() }
+            ).mapItems { it.withoutInvocation() }
+        }
     }
 
     override suspend fun create(
@@ -428,36 +398,37 @@ class AppStoreAsyncDAO(
         description: Application,
         originalDocument: String
     ) {
-        val existingOwner = findOwnerOfApplication(session, description.metadata.name)
+        val existingOwner = ctx.withSession { session -> findOwnerOfApplication(session, description.metadata.name)}
         if (existingOwner != null && !canUserPerformWriteOperation(existingOwner, user)) {
             throw ApplicationException.NotAllowed()
         }
 
-        val existing = internalByNameAndVersion(session, description.metadata.name, description.metadata.version)
+        val existing = ctx.withSession { session -> internalByNameAndVersion(session, description.metadata.name, description.metadata.version)}
         if (existing != null) throw ApplicationException.AlreadyExists()
 
-        val existingTool = toolDAO.internalByNameAndVersion(
+        val existingTool = ctx.withSession { session -> toolDAO.internalByNameAndVersion(
             session,
             description.invocation.tool.name,
             description.invocation.tool.version
-        ) ?: throw ApplicationException.BadToolReference()
+        )} ?: throw ApplicationException.BadToolReference()
 
-        val entity = ApplicationEntity(
-            user.username,
-            Date(),
-            Date(),
-            description.metadata.authors,
-            description.metadata.title,
-            description.metadata.description,
-            description.metadata.website,
-            description.invocation,
-            existingTool.tool.info.name,
-            existingTool.tool.info.version,
-            true,
-            EmbeddedNameAndVersion(description.metadata.name, description.metadata.version)
-        )
+        ctx.withSession { session ->
+            session.insert(ApplicationTable) {
+                set(ApplicationTable.owner, user.username)
+                set(ApplicationTable.createdAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(ApplicationTable.modifiedAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(ApplicationTable.authors, defaultMapper.writeValueAsString(description.metadata.authors))
+                set(ApplicationTable.title, description.metadata.title)
+                set(ApplicationTable.description, description.metadata.description)
+                set(ApplicationTable.website, description.metadata.website)
+                set(ApplicationTable.toolName, existingTool.getField(ToolTable.idName))
+                set(ApplicationTable.toolVersion, existingTool.getField(ToolTable.idVersion))
+                set(ApplicationTable.isPublic, true)
+                set(ApplicationTable.idName, description.metadata.name)
+                set(ApplicationTable.idVersion, description.metadata.version)
 
-        session.save(entity)
+            }
+        }
     }
 
     override suspend fun delete(
@@ -468,42 +439,60 @@ class AppStoreAsyncDAO(
         appName: String,
         appVersion: String
     ) {
-        val existingOwner = findOwnerOfApplication(session, appName)
+        val existingOwner = ctx.withSession { session -> findOwnerOfApplication(session, appName) }
         if (existingOwner != null && !canUserPerformWriteOperation(existingOwner, user)) {
             throw ApplicationException.NotAllowed()
         }
 
         // Prevent deletion of last version of application
-        if (internalFindAllByName(
-                session,
-                user,
-                project,
-                projectGroups,
-                appName,
-                paging = NormalizedPaginationRequest(25, 0)
-            ).itemsInTotal <= 1
+        if (ctx.withSession { session ->
+                internalFindAllByName(
+                    session,
+                    user,
+                    project,
+                    projectGroups,
+                    appName,
+                    paging = NormalizedPaginationRequest(25, 0)
+                ).itemsInTotal <= 1
+            }
         ) {
             throw ApplicationException.NotAllowed()
         }
+        ctx.withSession { session ->
+            val existingApp =
+                internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
 
-        val existingApp =
-            internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
+            cleanupBeforeDelete(
+                session,
+                existingApp.getField(ApplicationTable.idName),
+                existingApp.getField(ApplicationTable.idVersion))
 
-        cleanupBeforeDelete(session, existingApp.id.name, existingApp.id.version)
-
-        session.delete(existingApp)
+            session.sendPreparedStatement(
+                {
+                    setParameter("appname", existingApp.getField(ApplicationTable.idName))
+                    setParameter("appversion", existingApp.getField(ApplicationTable.idVersion))
+                },
+                """
+                    DELETE FROM applications
+                    WHERE (name = ?appname) AND (version = ?appVersion)
+                """.trimIndent()
+            )
+        }
     }
 
     private suspend fun cleanupBeforeDelete(ctx: DBContext, appName: String, appVersion: String) {
-        val favoriteAppEntities = session.criteria<FavoriteApplicationEntity> {
-            allOf(
-                entity[FavoriteApplicationEntity::applicationName] equal appName,
-                entity[FavoriteApplicationEntity::applicationVersion] equal appVersion
-            )
-        }.resultList
-
-        favoriteAppEntities.forEach { favorite ->
-            session.delete(favorite)
+        ctx.withSession { session ->
+            //DELETE FROM FAVORITES
+            session.sendPreparedStatement(
+                {
+                    setParameter("appname", appName)
+                    setParameter("appversion", appVersion)
+                },
+                """
+                    DELETE FROM favorited_by
+                    WHERE (application_name = ?appname) AND (application_version = ?appVersion)
+                """.trimIndent()
+            ).rows.toList()
         }
     }
 
@@ -515,20 +504,38 @@ class AppStoreAsyncDAO(
         newDescription: String?,
         newAuthors: List<String>?
     ) {
-        val existing = internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
-        if (!canUserPerformWriteOperation(existing.owner, user)) throw ApplicationException.NotAllowed()
+        val existing = ctx.withSession { session -> internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()}
+        if (!canUserPerformWriteOperation(existing.getField(ApplicationTable.owner), user)) throw ApplicationException.NotAllowed()
 
-        if (newDescription != null) existing.description = newDescription
-        if (newAuthors != null) existing.authors = newAuthors
-
+        ctx.withSession { session ->
+            var query =
+                """UPDATE applications
+                SET 
+                """.trimMargin()
+            if (newDescription != null) {
+                query += """description =?newdesc"""
+            }
+            if (newAuthors != null) {
+                if (newDescription != null) {
+                    query += ","
+                }
+                query += """authors =?newauthors"""
+            }
+            query += """WHERE (name = ?name) AND (version = ?version)"""
+            session.sendPreparedStatement(
+                {
+                    setParameter("newdesc", newDescription)
+                    setParameter("newauthors", newAuthors)
+                },
+                query
+            )
+        }
         // We allow for this to be cached for some time. But this instance might as well clear the cache now.
         byNameAndVersionCache.remove(NameAndVersion(appName, appVersion))
-
-        session.update(existing)
     }
 
     override suspend fun isOwnerOfApplication(ctx: DBContext, user: SecurityPrincipal, appName: String): Boolean =
-        findOwnerOfApplication(session, appName)!! == user.username
+        ctx.withSession {session -> findOwnerOfApplication(session, appName)!! == user.username}
 
 
     override suspend fun preparePageForUser(
@@ -537,24 +544,42 @@ class AppStoreAsyncDAO(
         page: Page<Application>
     ): Page<ApplicationWithFavoriteAndTags> {
         if (!user.isNullOrBlank()) {
-            val allFavorites = session
-                .criteria<FavoriteApplicationEntity> { entity[FavoriteApplicationEntity::user] equal user }
-                .list()
+            val allFavorites = ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("user", user)
+                    },
+                    """
+                        SELECT * 
+                        FROM favorited_by
+                        WHERE the_user = ?user
+                    """.trimIndent()
+                ).rows.toList()
+            }
 
             val allApplicationsOnPage = page.items.map { it.metadata.name }.toSet()
-            val allTagsForApplicationsOnPage = session
-                .criteria<TagEntity> { entity[TagEntity::applicationName] isInCollection (allApplicationsOnPage) }
-                .resultList
+            val allTagsForApplicationsOnPage = ctx.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("allapps", allApplicationsOnPage.toList())
+                    },
+                    """
+                        SELECT *
+                        FROM tags
+                        WHERE application_name IN ?allapps
+                    """.trimIndent()
+                ).rows.toList()
+            }
 
             val preparedPageItems = page.items.map { item ->
                 val isFavorite = allFavorites.any { fav ->
-                    fav.applicationName == item.metadata.name &&
-                            fav.applicationVersion == item.metadata.version
+                    fav.getField(FavoriteApplicationTable.applicationName) == item.metadata.name &&
+                            fav.getField(FavoriteApplicationTable.applicationVersion) == item.metadata.version
                 }
 
                 val allTagsForApplication = allTagsForApplicationsOnPage
-                    .filter { item.metadata.name == it.applicationName }
-                    .map { it.tag }
+                    .filter { item.metadata.name == it.getField(TagTable.applicationName) }
+                    .map { it.getField(TagTable.tag) }
                     .toSet()
                     .toList()
 
@@ -564,12 +589,18 @@ class AppStoreAsyncDAO(
             return Page(page.itemsInTotal, page.itemsPerPage, page.pageNumber, preparedPageItems)
         } else {
             val preparedPageItems = page.items.map { item ->
-                val allTagsForApplication = session
-                    .criteria<TagEntity> { entity[TagEntity::applicationName] equal item.metadata.name }
-                    .resultList
-                    .map { it.tag }
-                    .toSet()
-                    .toList()
+                val allTagsForApplication = ctx.withSession { session ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("appname", item.metadata.name)
+                        },
+                        """
+                            SELECT * 
+                            FROM application_tags
+                            WHERE application_name = ?appname
+                        """.trimIndent()
+                    ).rows.map { it.getField(TagTable.tag) }.toSet().toList()
+                }
 
                 ApplicationWithFavoriteAndTags(item.metadata, item.invocation, false, allTagsForApplication)
             }
@@ -591,85 +622,51 @@ class AppStoreAsyncDAO(
             projectGroups
         }
 
-        val count = session.createNativeQuery<ApplicationEntity>(
-            """
-                select A.*
-                from {h-schema}applications as A
-                where (A.created_at) in (
-                    select max(created_at)
-                    from {h-schema}applications as B
-                    where A.name = B.name
-                    group by name
-                ) and A.tool_name = :toolName and (
-                    (
-                        A.is_public = TRUE
-                    ) or (
-                        cast(:project as text) is null and :user in (
-                            select P1.username from app_store.permissions as P1 where P1.application_name = A.name
+        val items = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("toolName", tool)
+                    setParameter("user", user.username)
+                    setParameter("role", user.role.toString())
+                    setParameter("project", project)
+                    setParameter("groups", groups)
+                    setParameter("privileged", Roles.PRIVILEDGED.toList())
+                },
+                """
+                    SELECT A.*
+                    FROM applications AS A 
+                    WHERE 
+                        (A.created_at) IN (
+                            SELECT MAX(created_at)
+                            FROM applications AS B
+                            WHERE A.name = B.name
+                            GROUP BY name
+                        ) AND A.tool_name = ?toolName AND (
+                            (
+                                A.is_public = TRUE
+                            ) OR (
+                                cast(?project as text) is null AND ?user in (
+                                    SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
+                                )
+                            ) OR (
+                                cast(?project as text) is not null AND exists (
+                                    SELECT P2.project_group
+                                    FROM permissions AS P2
+                                    WHERE
+                                        P2.application_name = A.name AND
+                                        P2.project = cast(?project as text) AND
+                                        P2.project_group in (?groups)
+                                )
+                            ) or (
+                                ?role in (?privileged)
+                            ) 
                         )
-                    ) or (
-                        cast(:project as text) is not null and exists (
-                            select P2.project_group from app_store.permissions as P2 where
-                                P2.application_name = A.name and
-                                P2.project = cast(:project as text) and
-                                P2.project_group in (:groups)
-                        )
-                    ) or (
-                        :role in (:privileged)
-                    ) 
-                )
-            """.trimIndent(), ApplicationEntity::class.java
-        )
-            .setParameter("toolName", tool)
-            .setParameter("user", user.username)
-            .setParameter("role", user.role)
-            .setParameter("project", project)
-            .setParameterList("groups", groups)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
-            .resultList.size
+                    order by A.name
+                """.trimIndent()
+            ).rows.toList()
+        }
 
-        val items = session.createNativeQuery<ApplicationEntity>(
-            """select A.*
-                from {h-schema}applications as A 
-                where 
-                    (A.created_at) in (
-                        select max(created_at)
-                        from {h-schema}applications as B
-                        where A.name = B.name
-                        group by name
-                    ) and A.tool_name = :toolName and (
-                        (
-                            A.is_public = TRUE
-                        ) or (
-                            cast(:project as text) is null and :user in (
-                                select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
-                            )
-                        ) or (
-                            cast(:project as text) is not null and exists (
-                                select P2.project_group
-                                from {h-schema}permissions as P2
-                                where
-                                    P2.application_name = A.name and
-                                    P2.project = cast(:project as text) and
-                                    P2.project_group in (:groups)
-                            )
-                        ) or (
-                            :role in (:privileged)
-                        ) 
-                    )
-                order by A.name
-            """.trimIndent(), ApplicationEntity::class.java
-        )
-            .setParameter("toolName", tool)
-            .setParameter("user", user.username)
-            .setParameter("role", user.role)
-            .setParameter("project", project)
-            .setParameterList("groups", groups)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
-            .paginatedList(paging)
-            .map { it.toModelWithInvocation() }
-
-        return Page(count, paging.itemsPerPage, paging.page, items)
+        return Page(items.size, paging.itemsPerPage, paging.page, items.map { it.toApplicationWithInvocation() })
     }
 
     override suspend fun findAllByID(
@@ -679,34 +676,40 @@ class AppStoreAsyncDAO(
         projectGroups: List<String>,
         embeddedNameAndVersionList: List<EmbeddedNameAndVersion>,
         paging: NormalizedPaginationRequest
-    ): List<ApplicationEntity> {
-        return session.criteria<ApplicationEntity>(
-            predicate = {
-                val idPredicate =
-                    if (embeddedNameAndVersionList.isNotEmpty()) {
-                        if (embeddedNameAndVersionList.size > 1) {
-                            embeddedNameAndVersionList.map { n ->
-                                (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::name]) equal n.name) and
-                                        (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::version]) equal n.version)
-                            }
-                        } else {
-                            val id = embeddedNameAndVersionList.first()
-                            listOf(
-                                (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::name]) equal id.name) and
-                                        (builder.lower(entity[ApplicationEntity::id][EmbeddedNameAndVersion::version]) equal id.version)
-                            )
-                        }
-                    } else listOf(literal(false).toPredicate())
-                allOf(anyOf(*idPredicate.toTypedArray()))
+    ): List<RowData> {
+        if (embeddedNameAndVersionList.isEmpty()) {
+            return emptyList()
+        }
+        return ctx.withSession { session ->
+            var query = """
+                    SELECT *
+                    FROM applications
+                    WHERE 
+                """.trimIndent()
+            embeddedNameAndVersionList.forEachIndexed{ index, _ ->
+                query += """ (name = ?name$index AND version = ?version$index) """
+                if (index != embeddedNameAndVersionList.size) {
+                    query += """ OR """
+                }
             }
-        ).resultList.toList()
+
+            session.sendPreparedStatement(
+                {
+                    embeddedNameAndVersionList.forEachIndexed { index, embeddedNameAndVersion ->
+                        setParameter("name$index", embeddedNameAndVersion.name)
+                        setParameter("version$index", embeddedNameAndVersion.version)
+                    }
+                },
+                query
+            ).rows.toList()
+        }
     }
 }
 
 internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
     val authors = defaultMapper.readValue<List<String>>(getField(ApplicationTable.authors))
 
-    ApplicationMetadata(
+    return ApplicationMetadata(
         getField(ApplicationTable.idName),
         getField(ApplicationTable.idVersion),
         authors,

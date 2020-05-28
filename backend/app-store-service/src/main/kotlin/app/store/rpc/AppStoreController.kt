@@ -29,9 +29,9 @@ import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import org.yaml.snakeyaml.reader.ReaderException
 import java.io.ByteArrayInputStream
 
-class AppStoreController<DBSession>(
-    private val appStore: AppStoreService<DBSession>,
-    private val logoService: LogoService<DBSession>
+class AppStoreController(
+    private val appStore: AppStoreService,
+    private val logoService: LogoService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
