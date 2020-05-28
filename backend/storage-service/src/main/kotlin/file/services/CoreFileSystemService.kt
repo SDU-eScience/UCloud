@@ -254,8 +254,6 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     ): String {
         if (conflictPolicy == WriteConflictPolicy.OVERWRITE) return desiredTargetPath
 
-        // Performance: This will cause a lot of stats, on items in the same folder, for the most part we could
-        // simply ls a common root and cache it. This should be a lot more efficient.
         val targetExists = exists(ctx, desiredTargetPath)
         return when (conflictPolicy) {
             WriteConflictPolicy.OVERWRITE -> desiredTargetPath
