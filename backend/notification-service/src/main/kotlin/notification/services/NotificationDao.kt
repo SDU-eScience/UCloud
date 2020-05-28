@@ -24,6 +24,8 @@ import dk.sdu.cloud.service.offset
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
+val FIRST_PAGE = NormalizedPaginationRequest(null, null)
+
 object NotificationTable : SQLTable("notifications") {
     val type = text("type", notNull = true)
     val message = text("message", notNull = true)
@@ -35,8 +37,8 @@ object NotificationTable : SQLTable("notifications") {
     val id = long("id")
 }
 
-class NotificationHibernateDAO : NotificationDAO {
-    override suspend fun findNotifications(
+class NotificationDAO {
+    suspend fun findNotifications(
         ctx: DBContext,
         user: String,
         type: String?,
@@ -106,7 +108,7 @@ class NotificationHibernateDAO : NotificationDAO {
         }
     }
 
-    override suspend fun create(ctx: DBContext, user: String, notification: Notification): NotificationId {
+    suspend fun create(ctx: DBContext, user: String, notification: Notification): NotificationId {
         val id = ctx.withSession{ it.allocateId("hibernate_sequence")}
         ctx.withSession{ session ->
             session.insert(NotificationTable) {
@@ -123,7 +125,7 @@ class NotificationHibernateDAO : NotificationDAO {
         return id
     }
 
-    override suspend fun delete(ctx: DBContext, id: NotificationId): Boolean {
+    suspend fun delete(ctx: DBContext, id: NotificationId): Boolean {
         return ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -137,7 +139,7 @@ class NotificationHibernateDAO : NotificationDAO {
         }.rowsAffected > 0
     }
 
-    override suspend fun markAsRead(ctx: DBContext, user: String, id: NotificationId): Boolean {
+    suspend fun markAsRead(ctx: DBContext, user: String, id: NotificationId): Boolean {
         return ctx.withSession{ session ->
             session.sendPreparedStatement(
                 {
@@ -154,7 +156,7 @@ class NotificationHibernateDAO : NotificationDAO {
         }
     }
 
-    override suspend fun markAllAsRead(ctx: DBContext, user: String) {
+    suspend fun markAllAsRead(ctx: DBContext, user: String) {
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {

@@ -48,7 +48,7 @@ class NotificationHibernateDAOTest {
 
     @Test
     fun `create , find, mark, delete test`() {
-        val dao = NotificationHibernateDAO()
+        val dao = NotificationDao()
         runBlocking {
             db.withSession { session ->
                 val id1 = dao.create(session, TestUsers.user.username, notificationInstance)
@@ -105,7 +105,7 @@ class NotificationHibernateDAOTest {
     fun `Delete non existing`() {
         runBlocking {
             db.withSession { session ->
-                val dao = NotificationHibernateDAO()
+                val dao = NotificationDao()
                 assertFalse(dao.delete(session, 292929))
             }
         }
@@ -116,7 +116,7 @@ class NotificationHibernateDAOTest {
     fun `Mark non existing`() {
         runBlocking {
             db.withSession { session ->
-                val dao = NotificationHibernateDAO()
+                val dao = NotificationDao()
                 assertFalse(dao.markAsRead(session, TestUsers.user.username, 292929))
             }
         }
@@ -126,7 +126,7 @@ class NotificationHibernateDAOTest {
     fun `Mark not correct user`() {
         runBlocking {
             db.withSession { session ->
-                val dao = NotificationHibernateDAO()
+                val dao = NotificationDao()
                 dao.create(session, TestUsers.user.username, notificationInstance)
                 assertFalse(dao.markAsRead(session, "notMe", 1))
             }
@@ -143,7 +143,7 @@ class NotificationHibernateDAOTest {
 
         runBlocking {
             db.withSession { session ->
-                val dao = NotificationHibernateDAO()
+                val dao = NotificationDao()
                 dao.create(session, user, notificationInstance)
                 dao.create(session, user, notificationInstance3)
                 val results = dao.findNotifications(session, user, "anotherType")
@@ -158,7 +158,7 @@ class NotificationHibernateDAOTest {
     fun `Find on time`() {
         runBlocking {
             db.withSession { session ->
-                val dao = NotificationHibernateDAO()
+                val dao = NotificationDao()
                 dao.create(session, user, notificationInstance)
                 Thread.sleep(1000)
                 val date = Date()
