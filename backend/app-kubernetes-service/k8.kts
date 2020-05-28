@@ -96,7 +96,7 @@ bundle { ctx ->
                         )
                     )
                 ) + internalEgressWhiteList.map {
-                    allowEgressTo(listOf(EgressToPolicy(it))),
+                    allowEgressTo(listOf(EgressToPolicy(it)))
                 }
             }
         }

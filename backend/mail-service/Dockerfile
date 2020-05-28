@@ -1,4 +1,4 @@
-FROM registry.cloud.sdu.dk/sdu-cloud/base:0.1.0
+FROM dreg.cloud.sdu.dk/ucloud/base:0.1.0
 EXPOSE 25
 USER 0
 RUN apt-get update

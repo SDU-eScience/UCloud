@@ -10,7 +10,7 @@ bundle { ctx ->
 
     val host = config<String>("host", "Host name (no schema). E.g. 'cloud.sdu.dk'")
     val scheme = config<String>("scheme", "Scheme (http or https)", "https")
-    val trustLocalhost = config<Boolean>("trustLocalhost", false)
+    val trustLocalhost = config<Boolean>("trustLocalhost", "Should we trust the localhost origin?", false)
     val certificate = config<String>("cert", "Public certificate for JWT validation (PEM)")
     val enableWayf = config<Boolean>("enableWayf", "Should WAYF be enabled?", false)
 

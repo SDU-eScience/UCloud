@@ -1,8 +1,5 @@
 package dk.sdu.cloud.k8
 
-import io.fabric8.kubernetes.client.Config
-import io.fabric8.kubernetes.client.DefaultKubernetesClient
-import java.io.File
 import java.util.*
 
 private fun findServiceBundles(serviceArg: String): Collection<ResourceBundle> {

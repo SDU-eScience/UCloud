@@ -31,7 +31,7 @@ bundle { ctx ->
     val deploymentWithMount = DeploymentResource(
         name = name,
         version = version,
-        image = "registry.cloud.sdu.dk/sdu-cloud/indexing-service:${version}"
+        image = "dreg.cloud.sdu.dk/ucloud/indexing-service:${version}"
     ).apply {
         this.serviceContainer.args = this.serviceContainer.args
         this.serviceContainer.livenessProbe = null

@@ -830,9 +830,9 @@ bundle { ctx ->
                         ElasticRole.DATA -> dataCount
                     },
                     "esJavaOpts" to when (role) {
-                        ElasticRole.MASTER -> "-Xmx8g -Xms8g"
-                        ElasticRole.CLIENT -> "-Xmx8g -Xms8g"
-                        ElasticRole.DATA -> "-Xmx20g -Xms20g"
+                        ElasticRole.MASTER -> "-Xmx${masterMem.replace("Gi", "g")} -Xms${masterMem.replace("Gi", "g")}"
+                        ElasticRole.CLIENT -> "-Xmx${clientMem.replace("Gi", "g")} -Xms${clientMem.replace("Gi", "g")}"
+                        ElasticRole.DATA -> "-Xmx${dataMem.replace("Gi", "g")} -Xms${dataMem.replace("Gi", "g")}"
                     },
                     "resources" to mapOf(
                         "limits" to mapOf(
@@ -967,7 +967,7 @@ bundle { ctx ->
             println("Generating certificates...")
             Process.runAndPrint(
                 "bash",
-                File(ctx.repositoryRoot, "infrastructure/elk/elasticsearch/generate_ca.sh").absolutePath
+                File(ctx.repositoryRoot, "../infrastructure/elk/elasticsearch/generate_ca.sh").absolutePath
             )
 
             client.secrets().inNamespace("elasticsearch").createOrReplace(Secret().apply {

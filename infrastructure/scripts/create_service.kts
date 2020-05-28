@@ -99,7 +99,7 @@ File(mainPackage, "Main.kt").writeText(
         import dk.sdu.cloud.${packageName}.api.${className}ServiceDescription
         
         object ${className}Service : Service {
-            override val description = ${ClassName}ServiceDescription
+            override val description = ${className}ServiceDescription
             
             override fun initializeServer(micro: Micro): CommonServer {
                 micro.install(RefreshingJWTCloudFeature)
