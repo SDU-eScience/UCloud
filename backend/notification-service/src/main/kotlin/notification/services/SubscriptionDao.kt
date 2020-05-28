@@ -16,6 +16,12 @@ import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
 
+data class Subscription(
+    val host: HostInfo,
+    val username: String,
+    val id: Long
+)
+
 object SubscriptionsTable : SQLTable("subscriptions") {
     val hostname = text("hostname", notNull = true)
     val port = int("port", notNull = true)
@@ -24,21 +30,22 @@ object SubscriptionsTable : SQLTable("subscriptions") {
     val id = long("id")
 }
 
-class SubscriptionHibernateDao : SubscriptionDao {
-    override suspend fun open(ctx: DBContext, username: String, hostname: String, port: Int): Long {
-        val id = ctx.withSession { it.allocateId() }
-        ctx.withSession { session ->
+class SubscriptionDao {
+    suspend fun open(ctx: DBContext, username: String, hostname: String, port: Int): Long {
+        return ctx.withSession { session ->
+            val id = session.allocateId()
             session.insert(SubscriptionsTable) {
+                set(SubscriptionsTable.id, id)
                 set(SubscriptionsTable.hostname, hostname)
                 set(SubscriptionsTable.port, port)
                 set(SubscriptionsTable.username, username)
                 set(SubscriptionsTable.lastPing, LocalDateTime.now(DateTimeZone.UTC))
             }
+            id
         }
-        return id
     }
 
-    override suspend fun close(ctx: DBContext, id: Long) {
+    suspend fun close(ctx: DBContext, id: Long) {
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -52,7 +59,7 @@ class SubscriptionHibernateDao : SubscriptionDao {
         }
     }
 
-    override suspend fun findConnections(ctx: DBContext, username: String): List<Subscription> {
+    suspend fun findConnections(ctx: DBContext, username: String): List<Subscription> {
         val earliestAllowedPing = Date(System.currentTimeMillis() - SubscriptionService.MAX_MS_SINCE_LAST_PING).time
         return ctx.withSession { session ->
             session.sendPreparedStatement(
@@ -78,7 +85,7 @@ class SubscriptionHibernateDao : SubscriptionDao {
 
     }
 
-    override suspend fun refreshSessions(ctx: DBContext, hostname: String, port: Int) {
+    suspend fun refreshSessions(ctx: DBContext, hostname: String, port: Int) {
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {

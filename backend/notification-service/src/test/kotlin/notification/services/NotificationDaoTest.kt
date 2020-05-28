@@ -16,7 +16,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-class NotificationHibernateDAOTest {
+class NotificationDaoTest {
     private val user = "user"
     private val notificationInstance = Notification(
         "type",

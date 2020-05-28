@@ -37,13 +37,13 @@ object NotificationTable : SQLTable("notifications") {
     val id = long("id")
 }
 
-class NotificationDAO {
+class NotificationDao {
     suspend fun findNotifications(
         ctx: DBContext,
         user: String,
-        type: String?,
-        since: Long?,
-        paginationRequest: NormalizedPaginationRequest
+        type: String? = null,
+        since: Long? = null,
+        paginationRequest: NormalizedPaginationRequest = FIRST_PAGE
     ): Page<Notification> {
         return ctx.withSession { session ->
             val itemsInTotal = session.sendPreparedStatement(
