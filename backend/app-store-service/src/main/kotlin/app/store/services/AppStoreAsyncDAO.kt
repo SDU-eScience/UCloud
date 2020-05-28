@@ -1,15 +1,20 @@
 package dk.sdu.cloud.app.store.services
 
+import com.fasterxml.jackson.module.kotlin.readValue
+import com.fasterxml.jackson.module.kotlin.readValues
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.services.ApplicationTable.application
 import dk.sdu.cloud.app.store.services.acl.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
@@ -698,22 +703,29 @@ class AppStoreAsyncDAO(
     }
 }
 
-internal fun ApplicationEntity.toMetadata(): ApplicationMetadata = ApplicationMetadata(
-    id.name,
-    id.version,
-    authors,
-    title,
-    description,
-    website,
-    isPublic
-)
+internal fun RowData.toApplicationMetadata(): ApplicationMetadata {
+    val authors = defaultMapper.readValue<List<String>>(getField(ApplicationTable.authors))
 
-internal fun ApplicationEntity.toModel(): ApplicationSummary {
-    return ApplicationSummary(toMetadata())
+    ApplicationMetadata(
+        getField(ApplicationTable.idName),
+        getField(ApplicationTable.idVersion),
+        authors,
+        getField(ApplicationTable.title),
+        getField(ApplicationTable.description),
+        getField(ApplicationTable.website),
+        getField(ApplicationTable.isPublic)
+    )
 }
 
-internal fun ApplicationEntity.toModelWithInvocation(): Application {
-    return Application(toMetadata(), application)
+internal fun RowData.toApplicationSummary(): ApplicationSummary {
+    return ApplicationSummary(toApplicationMetadata())
+}
+
+internal fun RowData.toApplicationWithInvocation(): Application {
+    return Application(
+        toApplicationMetadata(),
+        defaultMapper.readValue<ApplicationInvocationDescription>(getField(ApplicationTable.application))
+    )
 }
 
 sealed class ApplicationException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {

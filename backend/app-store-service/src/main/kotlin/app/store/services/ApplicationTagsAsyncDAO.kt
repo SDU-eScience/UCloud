@@ -1,9 +1,16 @@
 package app.store.services
 
+import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.app.store.services.TagTable
 import dk.sdu.cloud.app.store.services.TagsDAO
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.allocateId
+import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.insert
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
 
 class ApplicationTagsAsyncDAO() : TagsDAO {
@@ -14,23 +21,28 @@ class ApplicationTagsAsyncDAO() : TagsDAO {
         applicationName: String,
         tags: List<String>
     ) {
-        val owner = findOwnerOfApplication(session, applicationName)
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val owner = ctx.withSession { session ->
+            findOwnerOfApplication(session, applicationName)
+        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
         if (!canUserPerformWriteOperation(owner, user)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not owner of application")
         }
         tags.forEach { tag ->
-            val existing = findTag(session, applicationName, tag)
+            val existing = ctx.withSession { session -> findTag(session, applicationName, tag) }
 
             if (existing != null) {
                 return@forEach
             }
-            val entity = TagEntity(
-                applicationName,
-                tag
-            )
-            session.save(entity)
+
+            ctx.withSession { session ->
+                val id = session.allocateId()
+                session.insert(TagTable) {
+                    set(TagTable.id, id)
+                    set(TagTable.applicationName, applicationName)
+                    set(TagTable.tag, tag)
+                }
+            }
         }
     }
 
@@ -40,46 +52,71 @@ class ApplicationTagsAsyncDAO() : TagsDAO {
         applicationName: String,
         tags: List<String>
     ) {
-        val owner = findOwnerOfApplication(session, applicationName)
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        val owner = ctx.withSession { session ->
+            findOwnerOfApplication(session, applicationName)
+        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
         if (!canUserPerformWriteOperation(owner, user)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not owner of application")
         }
 
-        tags.forEach { tag ->
-            val existing = findTag(
-                session,
-                applicationName,
-                tag
-            ) ?: return@forEach
+        ctx.withSession { session ->
+            tags.forEach { tag ->
+                val existing = findTag(
+                    session,
+                    applicationName,
+                    tag
+                ) ?: return@forEach
 
-            session.delete(existing)
+                val id = existing.getField(TagTable.id)
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                    },
+                    """
+                        DELETE FROM tags
+                        WHERE id = ?id
+                    """.trimIndent()
+                )
+            }
         }
     }
 
-    suspend fun findTag(
+    private suspend fun findTag(
         ctx: DBContext,
         appName: String,
         tag: String
-    ): TagEntity? {
-        return session
-            .criteria<TagEntity> {
-                allOf(
-                    entity[TagEntity::tag] equal tag,
-                    entity[TagEntity::applicationName] equal appName
-                )
-            }.uniqueResult()
+    ): RowData? {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("tag", tag)
+                    setParameter("appname", appName)
+                },
+                """
+                    SELECT * 
+                    FROM tags
+                    WHERE (tag = ?tag) AND (application_name = ?appname)
+                """.trimIndent()
+            ).rows.singleOrNull()
+        }
     }
 
     override suspend fun findTagsForApp(
         ctx: DBContext,
         applicationName: String
-    ): List<TagEntity> {
-        return session.criteria<TagEntity> {
-            allOf(
-                entity[TagEntity::applicationName] equal applicationName
-            )
-        }.resultList
+    ): List<RowData> {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appname", applicationName)
+                },
+                """
+                    SELECT * 
+                    FROM tags
+                    WHERE application_name = ?appname
+                """.trimIndent()
+            ).rows.toList()
+        }
     }
 }

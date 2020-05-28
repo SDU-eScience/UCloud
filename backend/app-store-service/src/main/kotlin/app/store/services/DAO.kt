@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -43,7 +44,7 @@ interface TagsDAO {
     suspend fun findTagsForApp(
         ctx: DBContext,
         applicationName: String
-    ) : List<TagEntity>
+    ) : List<RowData>
 }
 
 interface ApplicationLogoDAO {
@@ -102,7 +103,7 @@ interface SearchDAO {
         projectGroups: List<String>,
         keywords: List<String>,
         paging: NormalizedPaginationRequest
-    ): List<ApplicationEntity>
+    ): List<RowData>
 
 }
 
@@ -191,7 +192,7 @@ interface ApplicationDAO {
         projectGroups: List<String>,
         embeddedNameAndVersionList: List<EmbeddedNameAndVersion>,
         paging: NormalizedPaginationRequest
-    ): List<ApplicationEntity>
+    ): List<RowData>
 
     suspend fun findLatestByTool(
         ctx: DBContext,

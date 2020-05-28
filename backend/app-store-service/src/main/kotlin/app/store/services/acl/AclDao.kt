@@ -4,10 +4,11 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.AccessEntity
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.EntityWithPermission
+import dk.sdu.cloud.service.db.async.DBContext
 
-interface AclDao<Session> {
-    fun hasPermission(
-        session: Session,
+interface AclDao {
+    suspend fun hasPermission(
+        ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
         memberGroups: List<String>,
@@ -15,21 +16,21 @@ interface AclDao<Session> {
         permission: Set<ApplicationAccessRight>
     ): Boolean
 
-    fun updatePermissions(
-        session: Session,
+    suspend fun updatePermissions(
+        ctx: DBContext,
         entity: AccessEntity,
         applicationName: String,
         permissions: ApplicationAccessRight
     )
 
-    fun revokePermission(
-        session: Session,
+    suspend fun revokePermission(
+        ctx: DBContext,
         entity: AccessEntity,
         applicationName: String
     )
 
-    fun listAcl(
-        session: Session,
+    suspend fun listAcl(
+        ctx: DBContext,
         applicationName: String
     ): List<EntityWithPermission>
 }

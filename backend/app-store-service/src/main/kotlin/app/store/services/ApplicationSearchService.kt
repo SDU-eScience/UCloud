@@ -1,17 +1,29 @@
 package app.store.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
+import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
+import dk.sdu.cloud.app.store.services.AppStoreAsyncDAO
+import dk.sdu.cloud.app.store.services.ApplicationTable
+import dk.sdu.cloud.app.store.services.ElasticDAO
 import dk.sdu.cloud.app.store.services.ElasticIndexedApplication
 import dk.sdu.cloud.app.store.services.EmbeddedNameAndVersion
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.mapItems
 import org.elasticsearch.action.search.SearchResponse
 
-class ApplicationSearchService () {
+class ApplicationSearchService (
+    private val db: AsyncDBSessionFactory,
+    private val searchDAO: ApplicationSearchAsyncDAO,
+    private val elasticDAO: ElasticDAO,
+    private val applicationDAO: AppStoreAsyncDAO
+) {
     suspend fun searchByTags(
         securityPrincipal: SecurityPrincipal,
         project: String?,
@@ -24,8 +36,8 @@ class ApplicationSearchService () {
             retrieveUserProjectGroups(securityPrincipal, project)
         }
 
-        return db.withTransaction { session ->
-            applicationDAO.searchTags(
+        return db.withSession { session ->
+            searchDAO.searchByTags(
                 session,
                 securityPrincipal,
                 project,
@@ -48,8 +60,8 @@ class ApplicationSearchService () {
             retrieveUserProjectGroups(securityPrincipal, project)
         }
 
-        return db.withTransaction { session ->
-            applicationDAO.search(
+        return db.withSession { session ->
+            searchDAO.search(
                 session,
                 securityPrincipal,
                 project,
@@ -114,7 +126,7 @@ class ApplicationSearchService () {
                 EmbeddedNameAndVersion(result.name, result.version)
             }
 
-            val applications = db.withTransaction { session ->
+            val applications = db.withSession { session ->
                 applicationDAO.findAllByID(session, user, project, projectGroups, embeddedNameAndVersionList, paging)
             }
 
@@ -126,8 +138,8 @@ class ApplicationSearchService () {
                 result.title
             }
 
-            val applications = db.withTransaction { session ->
-                applicationDAO.multiKeywordsearch(session, user, project, projectGroups, titles.toList(), paging)
+            val applications = db.withSession { session ->
+                searchDAO.multiKeywordsearch(session, user, project, projectGroups, titles.toList(), paging)
             }
 
             return sortAndCreatePageByScore(applications, results, user, paging)
@@ -135,16 +147,19 @@ class ApplicationSearchService () {
     }
 
     private suspend fun sortAndCreatePageByScore(
-        applications: List<ApplicationEntity>,
+        applications: List<RowData>,
         results: SearchResponse,
         user: SecurityPrincipal,
         paging: NormalizedPaginationRequest
     ): Page<ApplicationSummaryWithFavorite> {
         val map = applications.associateBy(
-            { EmbeddedNameAndVersion(it.id.name.toLowerCase(), it.id.version.toLowerCase()) }, { it }
+            { EmbeddedNameAndVersion(
+                it.getField(ApplicationTable.idName).toLowerCase(),
+                it.getField(ApplicationTable.idVersion).toLowerCase()
+            ) }, { it }
         )
 
-        val sortedList = mutableListOf<ApplicationEntity>()
+        val sortedList = mutableListOf<RowData>()
 
         results.hits.hits.forEach {
             val foundEntity =
@@ -156,7 +171,7 @@ class ApplicationSearchService () {
 
         val sortedResultsPage = sortedList.map { it.toModelWithInvocation() }.paginate(paging)
 
-        return db.withTransaction { session ->
+        return db.withSession { session ->
             applicationDAO.preparePageForUser(session, user.username, sortedResultsPage)
                 .mapItems { it.withoutInvocation() }
         }

@@ -5,9 +5,19 @@ import dk.sdu.cloud.app.store.api.AccessEntity
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.EntityWithPermission
 import dk.sdu.cloud.service.db.*
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.SQLTable
+import dk.sdu.cloud.service.db.async.text
 import java.io.Serializable
 import javax.persistence.*
 
+object PermissionTable : SQLTable("permissions") {
+    val user = text("username", notNull = true)
+    val project = text("project", notNull = true)
+    val group = text("project_group", notNull = true)
+    val applicationName = text("application_name", notNull = true)
+    val permission = text()
+}
 @javax.persistence.Entity
 @Table(name = "permissions")
 data class PermissionEntry(
@@ -27,9 +37,9 @@ data class PermissionEntry(
 }
 
 
-class AclHibernateDao : AclDao<HibernateSession> {
-    override fun hasPermission(
-        session: HibernateSession,
+class AclHibernateDao : AclDao {
+    override suspend fun hasPermission(
+        ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
         memberGroups: List<String>,
@@ -49,8 +59,8 @@ class AclHibernateDao : AclDao<HibernateSession> {
         return false
     }
 
-    override fun updatePermissions(
-        session: HibernateSession,
+    override suspend fun updatePermissions(
+        ctx: DBContext,
         accessEntity: AccessEntity,
         applicationName: String,
         permissions: ApplicationAccessRight
@@ -68,8 +78,8 @@ class AclHibernateDao : AclDao<HibernateSession> {
         session.saveOrUpdate(permissionEntry)
     }
 
-    override fun revokePermission(
-        session: HibernateSession,
+    override suspend fun revokePermission(
+        ctx: DBContext,
         accessEntity: AccessEntity,
         applicationName: String
     ) {
@@ -84,8 +94,8 @@ class AclHibernateDao : AclDao<HibernateSession> {
         }.executeUpdate()
     }
 
-    override fun listAcl(
-        session: HibernateSession,
+    override suspend fun listAcl(
+        ctx: DBContext,
         applicationName: String
     ): List<EntityWithPermission> {
         return session

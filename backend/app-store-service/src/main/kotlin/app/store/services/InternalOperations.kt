@@ -7,11 +7,16 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
 import dk.sdu.cloud.app.store.services.EmbeddedNameAndVersion
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.project.api.ProjectMembers
+import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import io.ktor.http.HttpStatusCode
 
 /*
 * Avoid using if possible, especially in loops
@@ -106,6 +111,15 @@ internal suspend fun internalByNameAndVersion(
         ).rows.singleOrNull()
     }
 }
+
+internal suspend fun retrieveUserProjectGroups(user: SecurityPrincipal, project: String): List<String> =
+    ProjectMembers.userStatus.call(
+        UserStatusRequest(user.username),
+        authenticatedClient
+    ).orRethrowAs {
+        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+    }.groups.filter { it.projectId == project }.map { it.group }
+
 
 internal suspend fun findOwnerOfApplication(ctx: DBContext, applicationName: String): String? {
     return session.criteria<ApplicationEntity> {

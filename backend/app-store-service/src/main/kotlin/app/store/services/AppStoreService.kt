@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import app.store.services.retrieveUserProjectGroups
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
@@ -21,6 +22,7 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
@@ -28,7 +30,7 @@ import io.ktor.http.HttpStatusCode
 import org.elasticsearch.action.search.SearchResponse
 
 class AppStoreService(
-    private val db: DBSessionFactory,
+    private val db: AsyncDBSessionFactory,
     private val authenticatedClient: AuthenticatedClient,
     private val applicationDAO: ApplicationDAO,
     private val toolDao: ToolDAO,
