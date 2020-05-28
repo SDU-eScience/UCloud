@@ -1,4 +1,4 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, projectRoleToString, transferPiRole, projectStringToRole} from "Project/index";
+import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole} from "Project/index";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
 import * as React from "react";
@@ -58,17 +58,29 @@ export function MembersList(props: Readonly<{
 
                     {props.showRole === false ? null :
                         !props.allowRoleManagement || member.role === ProjectRole.PI ?
-                            projectRoleToString(member.role)
-                            :
+                            <RadioTilesContainer height="48px">
+                                <RadioTile
+                                    name={member.username}
+                                    icon="userPi"
+                                    height={40}
+                                    labeled
+                                    label="PI"
+                                    fontSize="0.5em"
+                                    checked
+                                    onChange={() => undefined}
+                                />
+                            </RadioTilesContainer> :
                             <>
                                 <RadioTilesContainer height="48px">
                                     {options.map(role =>
-                                        <RadioTile key={role.text}
+                                        <RadioTile
+                                            key={role.text}
+                                            name={member.username}
+                                            icon={role.icon}
                                             height={40}
-                                            labeled={true}
+                                            labeled
                                             label={role.text}
                                             fontSize={"0.5em"}
-                                            icon={role.icon}
                                             checked={role.value === member.role}
                                             onChange={async event => {
                                                 try {
@@ -80,7 +92,7 @@ export function MembersList(props: Readonly<{
                                                                 "Your own user will be demoted to admin.",
                                                             onConfirm: async () => {
                                                                 await runCommand(
-                                                                    transferPiRole({ newPrincipalInvestigator: member.username })
+                                                                    transferPiRole({newPrincipalInvestigator: member.username})
                                                                 );
 
                                                                 if (props.reload) props.reload();
@@ -102,8 +114,7 @@ export function MembersList(props: Readonly<{
                                                 }
                                             }}
                                         />
-                                    )
-                                    }
+                                    )}
                                 </RadioTilesContainer>
                             </>
                     }
@@ -111,7 +122,7 @@ export function MembersList(props: Readonly<{
                     <Flex alignItems={"center"}>
                         {!props.onAddToGroup ? !allowManagement || member.role === ProjectRole.PI ? null :
                             <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveMember(member.username)} /> :
-                            <Button color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
+                            <Button ml="8px" color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
                                 <Icon
                                     color="white"
                                     name="arrowDown"
@@ -124,7 +135,6 @@ export function MembersList(props: Readonly<{
                     </Flex>
                 </Flex>
             </>
-        )
-        }
+        )}
     </>);
 }
