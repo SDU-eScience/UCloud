@@ -61,6 +61,8 @@ class Server(
             File("/mnt/cephfs/" + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
 
+        log.info("Serving files from ${fsRootFile.absolutePath}")
+
         // Authorization
         val homeFolderService = HomeFolderService()
         val db = AsyncDBSessionFactory(micro.databaseConfig)
