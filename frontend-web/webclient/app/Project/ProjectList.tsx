@@ -170,59 +170,65 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     return (
         <MainContainer
             headerSize={58}
-            header={<Heading.h3 mb={16}>Invitations</Heading.h3>}
             main={(
                 <>
-                    <Pagination.List
-                        customEmptyPage={<Box mb={32}>You have no invitations.</Box>}
-                        loading={ingoingInvites.loading}
-                        page={ingoingInvites.data}
-                        onPageChanged={newPage =>
-                            fetchIngoingInvites(listIngoingInvites({...ingoingInvitesParams.parameters, page: newPage}))
-                        }
-                        pageRenderer={() => (
-                            <Box mb={32}>
-                                {ingoingInvites.data.items.map(invite => (
-                                    <ShareCardBase
-                                        key={invite.project}
-                                        title={invite.project}
-                                        body={
-                                            <Spacer
-                                                left={<>
-                                                    <UserAvatar avatar={avatars.cache[invite.invitedBy] ?? defaultAvatar} mr="10px" />
-                                                    <Flex alignItems="center">Invited by {invite.invitedBy}</Flex>
-                                                </>}
-                                                right={<Flex alignItems="center">
-                                                    <Button
-                                                        color="green"
-                                                        height="42px"
-                                                        mr={8}
-                                                        onClick={async () => {
-                                                            await runCommand(acceptInvite({projectId: invite.project}));
-                                                            reload();
-                                                        }}
-                                                    >
-                                                        Accept
-                                                    </Button>
-                                                    <Button
-                                                        color="red"
-                                                        height="42px"
-                                                        onClick={async () => {
-                                                            await runCommand(rejectInvite({projectId: invite.project}));
-                                                            reload();
-                                                        }}
-                                                    >
-                                                        Reject
-                                                    </Button>
-                                                </Flex>}
+                    {ingoingInvites.data.itemsInTotal > 0 ? (
+                        <>
+                            <Heading.h3 mb={16}>Invitations</Heading.h3>
+                            <Pagination.List
+                                customEmptyPage={<Box mb={32}>You have no invitations.</Box>}
+                                loading={ingoingInvites.loading}
+                                page={ingoingInvites.data}
+                                onPageChanged={newPage =>
+                                    fetchIngoingInvites(listIngoingInvites({...ingoingInvitesParams.parameters, page: newPage}))
+                                }
+                                pageRenderer={() => (
+                                    <Box mb={32}>
+                                        {ingoingInvites.data.items.map(invite => (
+                                            <ShareCardBase
+                                                key={invite.project}
+                                                title={invite.project}
+                                                body={
+                                                    <Spacer
+                                                        left={<>
+                                                            <UserAvatar avatar={avatars.cache[invite.invitedBy] ?? defaultAvatar} mr="10px" />
+                                                            <Flex alignItems="center">Invited by {invite.invitedBy}</Flex>
+                                                        </>}
+                                                        right={<Flex alignItems="center">
+                                                            <Button
+                                                                color="green"
+                                                                height="42px"
+                                                                mr={8}
+                                                                onClick={async () => {
+                                                                    await runCommand(acceptInvite({projectId: invite.project}));
+                                                                    reload();
+                                                                }}
+                                                            >
+                                                                Accept
+                                                            </Button>
+                                                            <Button
+                                                                color="red"
+                                                                height="42px"
+                                                                onClick={async () => {
+                                                                    await runCommand(rejectInvite({projectId: invite.project}));
+                                                                    reload();
+                                                                }}
+                                                            >
+                                                                Reject
+                                                            </Button>
+                                                        </Flex>}
+                                                    />
+                                                }
+                                                bottom={<Box height="16px" />}
                                             />
-                                        }
-                                        bottom={<Box height="16px" />}
-                                    />
-                                ))}
-                            </Box>
-                        )}
-                    />
+                                        ))}
+                                    </Box>
+                                )}
+                            />
+                        </>
+                    ) : (
+                        <></>
+                    )}
                     {favorites.data.items.length === 0 ? null : (<>
                         <Heading.h3>Favorites</Heading.h3>
                         <List mb="10px">
