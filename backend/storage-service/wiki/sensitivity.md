@@ -1,4 +1,4 @@
-# File Sensitivity
+# Sensitivity
 
 All files in UCloud have an associated sensitivity level. Sensitivity
 levels is an indicator for the user who is working with the file.
@@ -8,12 +8,13 @@ decisions based on the sensitivity level of a file.
 
 The table below summarizes the different sensitivity level:
 
-| Sensitivity Level | Description                                                                                                |
-|-------------------|------------------------------------------------------------------------------------------------------------|
-| Inherited         | This file inherits its sensitivity level from its parent                                                   |
-| Private           | The file contains no sensitive or confidential data. It can only be read by those it has been shared with. |
-| Confidential      | The file contains confidential data. However, it contains no personal information.                         |
-| Sensitive         | The file contains sensitive personal data.                                                                 |
+| **Sensitivity Level**      | **Description**                                                                                            |
+|----------------------------|------------------------------------------------------------------------------------------------------------|
+| Inherited                  | This file inherits its sensitivity level from its parent                                                   |
+| Private                    | The file contains no sensitive or confidential data. It can only be read by those it has been shared with. |
+| Confidential               | The file contains confidential data. However, it contains no personal information.                         |
+| Sensitive                  | The file contains sensitive personal data.                                                                 |
+
 
 The "inherited" sensitivity level is the default sensitivity level. In this
 mode a file will inherit its sensitivity level from its parent. This

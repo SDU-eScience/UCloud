@@ -1,4 +1,6 @@
-# Projects
+:orphan:
+
+# Project Service
 
 The projects feature allow for collaboration between different users across the
 entire UCloud platform.
@@ -10,13 +12,13 @@ feature.
 
 ## Interactions with other features
 
-- [Project Repositories](../project-repository-service/README.md): Learn about
+- [Project Repositories](backend/project-repository-service/README.html): Learn about
   how projects interact with the storage of UCloud.
 
 ## Definition
 
 A project in UCloud is a collection of `members` which is uniquely identified
-by an `id`. All `members` are [users](../auth-service) identified by their
+by an `id`. All `members` are [users](auth-service.html) identified by their
 `username` and have exactly one `role`. A user always has exactly one `role`.
 Each project has exactly one principal investigator (`PI`). The `PI` is
 responsible for managing the project, including adding and removing users.
@@ -37,7 +39,9 @@ files).
 
 A project is sub-divided into groups:
 
-![](wiki/structure.png)
+.. figure:: /backend/project-service/wiki/structure.png
+   :width: 60%
+   :align: center
 
 Each project may have 0 or more groups. The groups can have 0 or more members.
 A group belongs to exactly one project and the members of a group can only

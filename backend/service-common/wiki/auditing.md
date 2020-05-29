@@ -21,7 +21,7 @@ storage. If breaking changes are made to the underlying audit messages then
 the Elasticsearch indexes may break. This can potentially cause messages to no
 longer reach Elasticsearch (and get stuck at the Logstash step). Because of
 this, it is important that breaking changes are not made without manual
-migration. This is also mention in the [deployment checklist](./deployment.md).
+migration. This is also mention in the [deployment checklist](deployment.html).
 
 Additionally, there is an audit topic for each namespace. Services may consume
 from this topic to build services for advanced monitoring. The topics are named

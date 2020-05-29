@@ -1,4 +1,4 @@
-# Accounting
+# Accounting Service
 
 The `accounting-service` provides a common interface for all other accounting
 services. Inside of the API package of this service is also included various
@@ -16,4 +16,4 @@ include the end-user who want to keep track of their own usage.
 
 ## Development Notes
 
-[How to deal with reports](./wiki/reports.md)
+[How to deal with reports](wiki/reports.html)

@@ -17,6 +17,7 @@ This document will serve as a documentation and tutorial in how to run
 your changes locally.
 
 ## `start-dependencies`
+
 ### Dependencies 
 To run services locally, the following should be installed on your
 system:
@@ -26,15 +27,16 @@ system:
  - `yq` --- Can be installed by running `pip install yq`.
  
 ### Configuration
-    
-1. Make sure you have a folder in your home folder called `sducloud` 
+
+1. Make sure you have a folder in your home folder called `sducloud`
 2. Create the file `~/sducloud/tokenvalidation.yml` with the following content:
-   ```
-   ---
-   tokenValidation:
-     jwt:
-       sharedSecret: notverysecret
-   ```
+
+```
+---
+tokenValidation:
+ jwt:
+   sharedSecret: notverysecret
+```
 
 ### Running
 
@@ -90,7 +92,7 @@ emulator by running:
     ```
     
 4.  Now you probably want to start the frontend. Information about
-    this can be found [here](../../frontend-web/README.md), or you can
+    this can be found [here](../../../frontend-web.html), or you can
     just run the following commands from the `frontend-web/webclient`
     directory.
     

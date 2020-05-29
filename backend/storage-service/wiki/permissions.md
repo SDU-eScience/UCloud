@@ -28,8 +28,8 @@ __A single ACL will apply to a complete sub-tree and not only direct
 children.__
 
 End users don't have direct access to the ACL. Instead, they use higher-level
-features such as [shares](../../share-service) and
-[project repositories](../../project-repository-service).
+features such as [shares](../../../share-service.html) and
+[project repositories](../../../backend/project-repository-service/README.html).
 
 Each ACL entry contains a tuple of `(entity, permissions)`. The backend supports
 two types of entities: users and project groups.
