@@ -20,9 +20,9 @@ bundle { ctx ->
 
     withConfigMap(name = "app-config", version = "4") {
         data class ComputeBackend(val name: String, val title: String, val useWorkspaces: Boolean)
-        val gpuWhitelist = Configuration.retrieve<List<String>>("app-orchestrator.gpuWhiteList", "GPU whitelist", emptyList())
-        val machines = Configuration.retrieve<List<Map<String, Any?>>>(
-            "app-orchestrator.machines",
+        val gpuWhitelist = config<List<String>>("gpuWhitelist", "GPU whitelist", emptyList())
+        val machines = config<List<Map<String, Any?>>>(
+            "machines",
             "List of machines (name: String, cpu: Int?, memoryInGigs: Int?, gpu: Int?)"
         )
 
