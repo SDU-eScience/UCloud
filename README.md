@@ -93,7 +93,7 @@ the ability to run a specific command of the tool.
 
 .. figure:: wiki/ApplicationAndTool.png
    :align: center
-   :width: 100%
+   :width: 90%
 
 An app can use the files that are already located in UCloud as input data.
 Folders can be made available read only or read/write. Each app is executed in a
