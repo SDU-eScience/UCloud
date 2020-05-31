@@ -106,7 +106,7 @@ artifact included by other services. As a result it is important that the
 If an `api` package depends on external libraries then these can be included
 in api's `build.gradle.kts` by using the `api` target:
 
-```gradle
+```groovy
 dependencies {
     api(project(":storage-service:api"))
 }
