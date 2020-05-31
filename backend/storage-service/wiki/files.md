@@ -20,10 +20,10 @@ of a directory is **not** equal to the sum of its children's size properties.
 The directory only counts the amount of bytes needed to keep track of its
 children.
 
-You can read about file ownership and permissions [here](permissions.html).
+You can read about file ownership and permissions `here <permissions.html>`__.
 
 All files have an associated __sensitivity level__. You can read more about
-file sensitivity [here](sensitivity.html).
+file sensitivity `here <sensitivity.html>`__.
 
 ## Properties
 

@@ -27,10 +27,10 @@ responsible for managing the project, including adding and removing users.
 |----------------|----------------------------------------------------------------------------------------------------|
 | `PI`           | The primary point of contact for projects. All projects have exactly one PI.                       |
 | `ADMIN`        | Administrators are allowed to perform some project management. A project can have multiple admins. |
-| `USER`         | Has no special privileges.                                                                         |
+| `USER`         | Has no special privileges.          |
 
 **Table:** The possible roles of a project and their privileges within project
-*management.
+*management*.
 
 A project can be updated by adding/removing/changing any of its `members`.
 Such an update will trigger a new message on the event stream. A project can

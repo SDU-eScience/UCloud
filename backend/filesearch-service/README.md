@@ -8,7 +8,7 @@ owner of.
 
 .. figure:: wiki/FilesearchFlow.png
    :width: 100%
-   :aligne: center
+   :align: center
 
 The following query parameters can be used to search the file system:
 - File name

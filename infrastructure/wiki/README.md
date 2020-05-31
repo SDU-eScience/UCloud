@@ -43,7 +43,7 @@ The documentation for each module is placed in a folder called `wiki/`.
 Documentation is automatically generated from this folder.
 
 All microservices end in the suffix `-service`. You can read more about the
-structure of a microservice [here](common-service.html).
+structure of a microservice `here <common-service.html>`__.
 
 The `master` branch of the git repository contains code which is either in
 production or currently in testing to become the new production version.
@@ -68,7 +68,7 @@ to the Project Leader as well as the ISMS admin.
 ### Internal Artifact Repositories
 
 We use a number of internal repositories for storing software artifacts.
-Details of this is discussed [here](infrastructure/wiki/deployment.html).
+Details of this is discussed `here <infrastructure/wiki/deployment.html>`__.
 
 ### External Libraries
 
@@ -110,7 +110,7 @@ that relates to compliance and security.
 ### Deployment
 
 Deployment procedures and relevant technologies are listed
-[here](infrastructure/wiki/deployment.html).
+`here <infrastructure/wiki/deployment.html>`__.
 
 ## Support
 
@@ -148,7 +148,7 @@ incidents from the previous week and upcoming tasks for the coming week.
 All relevant logs are consumed using the ELK stack and presented in real time.
 The output is mainly presented as Kibana and Grafana views using a number of
 thresholds for the system events. The auditing system is described
-[here](backend/service-common/wiki/auditing.html).
+`here <backend/service-common/wiki/auditing.html>`__.
 
 The support team monitors the output.
 
