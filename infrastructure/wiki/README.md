@@ -1,4 +1,6 @@
-# SDU eScience Center Procedures
+:orphan:
+
+# Procedures and Rules
 
 This document is created to link relevant documentation so it can be referred
 to from within the ISMS.
@@ -9,7 +11,7 @@ then split into activities.
 Activities is allocated to a team an activity has one or more repositories on
 GitHub.
 
-1. [UCloud](../../README.md)
+1. [UCloud](index.html)
    - This activity has a development system
 2. Infrastructure - Hardware, Storage setup and configuration.
    - [Infrastructure](https://github.com/SDU-eScience/Infrastructure/blob/master/sdu-pm-cluster/README.md)
@@ -41,7 +43,7 @@ The documentation for each module is placed in a folder called `wiki/`.
 Documentation is automatically generated from this folder.
 
 All microservices end in the suffix `-service`. You can read more about the
-structure of a microservice [here](../service-common/wiki/README.md).
+structure of a microservice `here <common-service.html>`__.
 
 The `master` branch of the git repository contains code which is either in
 production or currently in testing to become the new production version.
@@ -66,7 +68,7 @@ to the Project Leader as well as the ISMS admin.
 ### Internal Artifact Repositories
 
 We use a number of internal repositories for storing software artifacts.
-Details of this is discussed [here](./deployment.md).
+Details of this is discussed `here <infrastructure/wiki/deployment.html>`__.
 
 ### External Libraries
 
@@ -88,7 +90,7 @@ cycle. The project leader is ensures that the tests covers relevant
 scenarios.
 
 Automatic testing is performed by our Continuous Integration (CI) system, 
-[Jenkins](Jenkins.md). The director grants access to the CI system.
+[Jenkins](infrastructure/wiki/Jenkins.html). The director grants access to the CI system.
 
 ### Code Review
 
@@ -108,7 +110,7 @@ that relates to compliance and security.
 ### Deployment
 
 Deployment procedures and relevant technologies are listed
-[here](./deployment.md).
+`here <infrastructure/wiki/deployment.html>`__.
 
 ## Support
 
@@ -146,7 +148,7 @@ incidents from the previous week and upcoming tasks for the coming week.
 All relevant logs are consumed using the ELK stack and presented in real time.
 The output is mainly presented as Kibana and Grafana views using a number of
 thresholds for the system events. The auditing system is described
-[here](../service-common/wiki/auditing.md).
+`here <backend/service-common/wiki/auditing.html>`__.
 
 The support team monitors the output.
 
@@ -172,7 +174,9 @@ rest of the support team by the user of the Security Slack Channel.
 In the case that this is unknown behavior and a potential risk is seen, an issue 
 is created.
 
-![securityflow](securityFlow.png)
+.. figure:: /infrastructure/wiki/securityFlow.png
+   :width: 90%
+   :align: center
 
 ## Internal Audits
 

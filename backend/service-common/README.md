@@ -1,22 +1,24 @@
-# service-common
+:orphan:
+
+# Common Service Library
 
 Utility library designed to make it easier to create services that fit into
 UCloud.
 
 ## Features
 
-- General framework for common microservice features ([Micro](./wiki/micro.md))
+- General framework for common microservice features ([Micro](backend/service-common/wiki/micro.html))
 - Database services and utilities
 - Event stream services
 - Support library for creating APIs
-  - [Getting started with writing microservices](./wiki/getting_started.md)
-- [Auditing](./wiki/auditing.md)
-- [Supporting code for authentication/authorization](../auth-service/README.md)
+  - [Getting started with writing microservices](backend/service-common/wiki/getting_started.html)
+- [Auditing](backend/service-common/wiki/auditing.html)
+- [Supporting code for authentication/authorization](auth-service.html)
 
 ## Other Relevant Pages
 
-- [Testing services locally](./wiki/testing_services_locally.md)
-- [Call RPC endpoints from the CLI](./wiki/REST-CLI.md)
-- [Deployment procedure](./wiki/deployment.md)
-- [Using Stolon](./wiki/stolon.md)
-- [Kubernetes Recovery](./wiki/kubernetes_recovery.md)
+- [Testing services locally](backend/service-common/wiki/testing_services_locally.html)
+- [Call RPC endpoints from the CLI](backend/service-common/wiki/REST-CLI.html)
+- [Deployment procedure](backend/service-common/wiki/deployment.html)
+- [Using Stolon](backend/service-common/wiki/stolon.html)
+- [Kubernetes Recovery](backend/service-common/wiki/kubernetes_recovery.html)

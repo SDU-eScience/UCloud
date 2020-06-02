@@ -1,4 +1,4 @@
-# Acceptable Usage Policy
+# Acceptable Usage
 
 ## Definition
 

@@ -63,16 +63,15 @@ When a service has gone through sufficient testing we deploy the ready
 services to Kubernetes. Before deployment the following checklist is used for
 affected software:
 
-- [ ] The software has been built and tested by Jenkins. Tests must pass and
-      the build must be stable.
-- [ ] Migrations must occur before the deployment of the new software.
-- [ ] Migrations must not break the existing build. The old and new version
-      must be able to co-exist.
-- [ ] Breaking changes in the external interface can only occur in major
-      releases (Semantic versioning)
-- [ ] When introducing breaking changes to a call, the Elasticsearch auditing
-      index for that call must be updated. See
-      [Auditing](../../service-common/wiki/auditing.md) for more information.
+|uncheck_|  The software has been built and tested by Jenkins. Tests must pass and the build must be stable.
+
+|uncheck_|  Migrations must occur before the deployment of the new software.
+
+|uncheck_|  Migrations must not break the existing build. The old and new version must be able to co-exist.
+
+|uncheck_|  Breaking changes in the external interface can only occur in major releases (Semantic versioning)
+
+|uncheck_|  When introducing breaking changes to a call, the Elasticsearch auditing index for that call must be updated. See [Auditing](../../backend/service-common/wiki/auditing.html) for more information.
 
 The deployment procedure itself is as follows:
 
@@ -80,3 +79,9 @@ The deployment procedure itself is as follows:
 2. Determine if any migrations are needed (also in Kubernetes resources)
 3. Run migrations (via `kubectl apply`)
 4. Apply new deployments (via `kubectl apply`)
+
+.. |uncheck_| raw:: html
+
+    <input disabled="" type="checkbox">
+
+<br>
