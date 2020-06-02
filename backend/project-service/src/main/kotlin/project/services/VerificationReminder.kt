@@ -25,7 +25,7 @@ class VerificationReminder(
 ) {
     suspend fun sendReminders() {
         db.withTransaction { session ->
-            queries.findProjectsInNeedOfVerification(session).collect { (project, user, role) ->
+            queries.findProjectsInNeedOfVerification(session).collect { (project, user, role, title) ->
                 if (mailCooldown.hasCooldown(session, user, project)) {
                     log.debug("Cooldown: $user in $project")
                     return@collect
@@ -38,7 +38,7 @@ class VerificationReminder(
                         user,
                         Notification(
                             "REVIEW_PROJECT",
-                            "Time to review your project ($project)",
+                            "Time to review your project ($title)",
                             meta = mapOf(
                                 "project" to project
                             )
@@ -55,13 +55,13 @@ class VerificationReminder(
                 val mailStatus = MailDescriptions.send.call(
                     SendRequest(
                         user,
-                        "[UCloud] Time to review your project ($project)",
+                        "[UCloud] Time to review your project ($title)",
                         //language=html
                         """
                             <p>Hello ${user},</p> 
                             
                             <p>
-                                It is time for a review of your project $project in which you are 
+                                It is time for a review of your project $title in which you are 
                                 ${if (role == ProjectRole.ADMIN) " an admin" else " a PI"}.
                             </p>
                             

@@ -119,6 +119,13 @@ typealias LeaveProjectResponse = Unit
 data class ExistsRequest(val projectId: String)
 data class ExistsResponse(val exists: Boolean)
 
+data class ListSubProjectsRequest(
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+
+typealias ListSubProjectsResponse = Page<Project>
+
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
 
@@ -433,6 +440,26 @@ object Projects : CallDescriptionContainer("project") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val listSubProjects = call<ListSubProjectsRequest, ListSubProjectsResponse, CommonErrorMessage>("listSubProjects") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"sub-projects"
+            }
+
+            params {
+                +boundTo(ListSubProjectsRequest::itemsPerPage)
+                +boundTo(ListSubProjectsRequest::page)
+            }
         }
     }
 }

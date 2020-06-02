@@ -11,7 +11,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import org.joda.time.DateTimeConstants
 
-data class ProjectForVerification(val projectId: String, val username: String, val role: ProjectRole)
+data class ProjectForVerification(
+    val projectId: String,
+    val username: String,
+    val role: ProjectRole,
+    val title: String
+)
 
 class QueryService(
     private val projects: ProjectService
@@ -548,8 +553,9 @@ class QueryService(
                     """
                         declare c no scroll cursor for 
                         
-                        select pm.project_id, pm.username, pm.role
+                        select pm.project_id, pm.username, pm.role, p.title
                         from 
+                             projects p,
                              project_members pm,
                              (
                                  select project_id
@@ -559,6 +565,7 @@ class QueryService(
                              ) as latest
                              
                         where 
+                            pm.project_id = p.id and
                             pm.project_id = latest.project_id and 
                             (pm.role = 'PI' or pm.role = 'ADMIN');
 
@@ -570,7 +577,8 @@ class QueryService(
                         ProjectForVerification(
                             it["project_id"] as String,
                             it["username"] as String,
-                            ProjectRole.valueOf(it["role"] as String)
+                            ProjectRole.valueOf(it["role"] as String),
+                            it["title"] as String
                         )
                     )
                 }

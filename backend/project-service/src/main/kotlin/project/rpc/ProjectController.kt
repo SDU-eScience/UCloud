@@ -178,6 +178,17 @@ class ProjectController(
                 ).items.singleOrNull() ?: throw ProjectException.NotFound()
             )
         }
+
+        implement(Projects.listSubProjects) {
+            ok(
+                queries.listSubProjects(
+                    db,
+                    request.normalize(),
+                    ctx.securityPrincipal.username,
+                    ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                )
+            )
+        }
     }
 
     companion object : Loggable {
