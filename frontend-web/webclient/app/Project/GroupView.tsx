@@ -8,7 +8,7 @@ import {
 } from "Project";
 import {addStandardDialog} from "UtilityComponents";
 import {ProjectRole} from "Project";
-import {useProjectManagementStatus} from "Project/View";
+import {useProjectManagementStatus} from "Project/Members";
 import {MembersList} from "Project/MembersList";
 
 const GroupView: React.FunctionComponent = () => {
@@ -22,7 +22,7 @@ const GroupView: React.FunctionComponent = () => {
 
     const header = (
         <Flex>
-            <Link to={`/projects/view/-/${membersPage ?? ""}`}><Text fontSize={"25px"}>Groups</Text></Link>
+            <Link to={`/project/members/-/${membersPage ?? ""}`}><Text fontSize={"25px"}>Groups</Text></Link>
             <Text mx="8px" fontSize="25px">/</Text>
             <Flex width={"100%"}><Truncate fontSize="25px" width={1}>{group}</Truncate></Flex>
         </Flex>

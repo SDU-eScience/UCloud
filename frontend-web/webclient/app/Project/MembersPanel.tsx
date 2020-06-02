@@ -7,7 +7,7 @@ import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
 import {Box, Button, Flex, Icon, Input, Absolute, Label, Relative} from "ui-components";
 import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
-import {useProjectManagementStatus} from "Project/View";
+import {useProjectManagementStatus} from "Project/Members";
 import {addGroupMember} from "Project";
 import {MembersList} from "Project/MembersList";
 import * as Pagination from "Pagination";

@@ -382,7 +382,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 }}
                                 height="30px"
                             >
-                                <Link to="/projects/view">
+                                <Link to="/project/dashboard">
                                     {e.title}
                                 </Link>
                             </Box>

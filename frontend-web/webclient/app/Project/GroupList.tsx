@@ -14,7 +14,7 @@ import {KeyCode} from "DefaultObjects";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {useProjectManagementStatus} from "Project/View";
+import {useProjectManagementStatus} from "Project/Members";
 import {deleteGroup, groupSummaryRequest, updateGroupName} from "Project";
 import {MutableRefObject, useCallback, useRef, useState} from "react";
 import {useAsyncCommand} from "Authentication/DataHook";
@@ -76,7 +76,7 @@ const GroupList: React.FunctionComponent = () => {
                                 />
                             )
                         }
-                        navigate={() => history.push(`/projects/view/${encodeURIComponent(g.group)}/${membersPage ?? ""}`)}
+                        navigate={() => history.push(`/project/members/${encodeURIComponent(g.group)}/${membersPage ?? ""}`)}
                         leftSub={<div />}
                         right={
                             <>

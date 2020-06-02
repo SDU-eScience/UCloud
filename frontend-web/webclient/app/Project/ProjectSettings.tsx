@@ -1,6 +1,6 @@
 import * as React from "react";
-import {useProjectManagementStatus} from "Project/View";
-import {Box, Button, Flex, Text} from "ui-components";
+import {useProjectManagementStatus} from "Project/Members";
+import {Box, Button, Flex, Text, Link} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
@@ -9,6 +9,8 @@ import {leaveProject, ProjectRole, setProjectArchiveStatus} from "Project/index"
 import {useHistory} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
+import {MainContainer} from "MainContainer/MainContainer";
+import {MembersBreadcrumbs} from "./MembersPanel";
 
 const ActionContainer = styled.div`
     & > ${Flex} {
@@ -39,19 +41,39 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const {projectId, projectRole, projectDetails} = useProjectManagementStatus();
     const history = useHistory();
     return (
-        <ActionContainer>
-            <ArchiveProject
-                isArchived={projectDetails.data.archived}
-                projectId={projectId}
-                projectRole={projectRole}
-                onSuccess={() => history.push("/projects")}
-            />
-            <LeaveProject
-                onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
-                projectId={projectId}
-                projectRole={projectRole}
-            />
-        </ActionContainer>
+        <MainContainer
+            header={
+                <MembersBreadcrumbs>
+                    <li>
+                        <Link to="/projects">
+                            My Projects
+                        </Link>
+                    </li>
+                    <li>
+                        <Link to={`/project/dashboard`}>
+                            {projectId}
+                        </Link>
+                    </li>
+                    <li>Settings</li>
+                </MembersBreadcrumbs>
+            }
+            main={
+                <ActionContainer>
+                    <ArchiveProject
+                        isArchived={projectDetails.data.archived}
+                        projectId={projectId}
+                        projectRole={projectRole}
+                        onSuccess={() => history.push("/projects")}
+                    />
+                    <LeaveProject
+                        onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
+                        projectId={projectId}
+                        projectRole={projectRole}
+                    />
+                </ActionContainer>
+            }
+            sidebar={null}
+        />
     );
 };
 

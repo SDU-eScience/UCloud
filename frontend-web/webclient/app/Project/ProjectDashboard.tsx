@@ -12,7 +12,7 @@ import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
 import {useHistory, useParams} from "react-router";
-import {Box, Button, Link, Flex, Icon} from "ui-components";
+import {Box, Button, Link, Flex, Icon, theme} from "ui-components";
 import {connect, useSelector} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -25,7 +25,6 @@ import {
     ShouldVerifyMembershipResponse,
     verifyMembership
 } from "Project";
-import styled from "styled-components";
 import GroupView, {GroupWithSummary} from "./GroupList";
 import ProjectMembers, {MembersBreadcrumbs} from "./MembersPanel";
 import {Page} from "Types";
@@ -36,6 +35,8 @@ import {useProjectStatus} from "Project/cache";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {ProjectSettings} from "Project/ProjectSettings";
 import {Client} from "Authentication/HttpClientInstance";
+import {DashboardCard} from "Dashboard/Dashboard";
+import {GridCardGroup} from "ui-components/Grid";
 
 // A lot easier to let typescript take care of the details for this one
 // eslint-disable-next-line
@@ -87,10 +88,6 @@ export function useProjectManagementStatus() {
 
     const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
 
-    if (projectId === undefined) {
-        history.push("/");
-    }
-
     const projects = useProjectStatus();
     const projectRole = projects.fetch().membership
         .find(it => it.projectId === projectId)?.whoami?.role ?? ProjectRole.USER;
@@ -106,7 +103,7 @@ export function useProjectManagementStatus() {
     };
 }
 
-const View: React.FunctionComponent<ViewOperations> = props => {
+const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = props => {
     const {
         projectId,
         group,
@@ -182,9 +179,18 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         setShouldVerifyParams(shouldVerifyMembership(projectId));
     };
 
+
+    function isPersonalProjectActive(projectId: string): boolean {
+        return projectId === undefined || projectId === "";
+    }
+
     const isSettingsPage = membersPage === "settings";
 
-    const memberText = `Members of ${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`;
+    const dashboardTitle = isPersonalProjectActive(projectId) ?
+        `Personal Project`
+    :
+        `${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`
+    ;
 
     return (
         <MainContainer
@@ -196,27 +202,22 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                         </Link>
                     </li>
                     <li>
-                        {isSettingsPage ?
-                            <Link to={`/projects/view/${group ? encodeURIComponent(group) : "-"}`}>
-                                {memberText}
-                            </Link> :
-                            <li>
-                                {memberText}
-                            </li>
-                        }
+                        {dashboardTitle}
                     </li>
                     {isSettingsPage ? <li>Settings</li> : null}
                 </MembersBreadcrumbs>
                 <Flex>
-                    <Link to={isSettingsPage ? "/projects/view/" : "/projects/view/-/settings"}>
-                        <Icon
-                            name="properties"
-                            m={8}
-                            color={isSettingsPage ? "blue" : undefined}
-                            hoverColor="blue"
-                            cursor="pointer"
-                        />
-                    </Link>
+                    {isPersonalProjectActive(projectId) ? (null) : (
+                        <Link to={"/project/settings"}>
+                            <Icon
+                                name="properties"
+                                m={8}
+                                color={isSettingsPage ? "blue" : undefined}
+                                hoverColor="blue"
+                                cursor="pointer"
+                            />
+                        </Link>
+                    )}
                 </Flex>
             </Flex>}
             sidebar={null}
@@ -245,66 +246,53 @@ const View: React.FunctionComponent<ViewOperations> = props => {
 
                         </Box>
                     )}
-                    <TwoColumnLayout>
-                        <Box className="members">
-                            <Box ml={8} mr={8}>
-                                {isSettingsPage ? <ProjectSettings /> : <ProjectMembers />}
+
+                    <GridCardGroup minmax={250}>
+                        {projectId !== undefined && projectId !== "" ? (
+                            <DashboardCard title="Members"  color={theme.colors.blue} isLoading={false}>
+                                <Box>
+                                    123 members
+                                </Box>
+                                <Box>
+                                    12 groups
+                                </Box>
+                                <Box mt={20}>
+                                    <Link to="/project/members">
+                                        <Button mb="10px" width="100%">Manage Members</Button>
+                                    </Link>
+                                </Box>
+                            </DashboardCard>
+                        ) : (null)}
+                        <DashboardCard title="Usage"  color={theme.colors.green} isLoading={false}>
+                            <Box>
+                                123 TB used
                             </Box>
-                        </Box>
-                        <Box className="groups">
-                            <GroupView />
-                        </Box>
-                    </TwoColumnLayout>
+                            <Box>
+                                123 credits remaining
+                            </Box>
+                            <Box mt={20}>
+                                <Link to="/project/usage">
+                                    <Button mb="10px" width="100%">Manage Usage</Button>
+                                </Link>
+                            </Box>
+                        </DashboardCard>
+                    </GridCardGroup>
                 </>
             )}
         />
     );
 };
 
-const TwoColumnLayout = styled.div`
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    width: 100%;
-    
-    & > * {
-        flex-basis: 100%;
-    }
-
-    & > .groups {
-        overflow: auto;
-    }
-    
-    @media screen and (min-width: 1200px) {
-        & {
-            height: calc(100vh - 100px);
-            overflow: hidden;
-        }
-        
-        & > .members {
-            height: 100%;
-            flex: 1;
-            overflow-y: scroll;
-            margin-right: 32px;
-        }
-        
-        & > .groups {
-            flex: 1;
-            height: 100%;
-        }
-    }
-`;
-
-interface ViewOperations {
+interface ProjectDashboardOperations {
     setRefresh: (refresh?: () => void) => void;
     setLoading: (loading: boolean) => void;
     setActiveProject: (project: string) => void;
 }
 
-const mapDispatchToProps = (dispatch: Dispatch): ViewOperations => ({
+const mapDispatchToProps = (dispatch: Dispatch): ProjectDashboardOperations => ({
     setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
     setLoading: loading => dispatch(loadingAction(loading)),
     setActiveProject: project => dispatchSetProjectAction(dispatch, project),
 });
 
-export default connect(null, mapDispatchToProps)(View);
+export default connect(null, mapDispatchToProps)(ProjectDashboard);

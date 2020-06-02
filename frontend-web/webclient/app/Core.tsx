@@ -30,7 +30,7 @@ import {USER_LOGIN} from "Navigation/Redux/HeaderReducer";
 import NoVNCClient from "NoVNC/NoVNCClient";
 import {Playground} from "Playground/Playground";
 import ProjectList from "Project/ProjectList";
-import ProjectView from "Project/View";
+import ProjectMembers from "Project/Members";
 import * as React from "react";
 import {Route, RouteComponentProps, Switch} from "react-router-dom";
 import Search from "Search/Search";
@@ -43,6 +43,9 @@ import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
 import {inDevEnvironment} from "UtilityFunctions";
 import {areProjectsEnabled} from "Project";
+import ProjectDashboard from "Project/ProjectDashboard";
+import {ProjectSettings} from "Project/ProjectSettings";
+import ProjectUsage from "Project/ProjectUsage";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
 
@@ -111,7 +114,10 @@ const Core = (): JSX.Element => (
                 {areProjectsEnabled() ? (
                         <>
                             <Route exact path="/projects" component={requireAuth(ProjectList)}/>
-                            <Route exact path="/projects/view/:group?/:member?" component={requireAuth(ProjectView)}/>
+                            <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)}/>
+                            <Route exact path="/project/settings" component={requireAuth(ProjectSettings)}/>
+                            <Route exact path="/project/usage" component={requireAuth(ProjectUsage)}/>
+                            <Route exact path="/project/members/:group?/:member?" component={requireAuth(ProjectMembers)}/>
                         </>
                     )
                     : null
