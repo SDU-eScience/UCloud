@@ -369,22 +369,31 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         hoverColor="blue"
                     />}
                     left={
-                        <Box
-                            onClick={() => {
-                                if (e.projectId !== props.project) {
-                                    props.setProject(e.projectId);
-                                    snackbarStore.addInformation(
-                                        `${e.projectId} is now the active project`,
-                                        false
-                                    );
-                                }
-                            }}
-                            height="30px"
-                        >
-                            <Link to="/projects/view">
-                                {e.title}
-                            </Link>
-                        </Box>
+                        <>
+                            <Box
+                                onClick={() => {
+                                    if (e.projectId !== props.project) {
+                                        props.setProject(e.projectId);
+                                        snackbarStore.addInformation(
+                                            `${e.projectId} is now the active project`,
+                                            false
+                                        );
+                                    }
+                                }}
+                                height="30px"
+                            >
+                                <Link to="/projects/view">
+                                    {e.title}
+                                </Link>
+                            </Box>
+                        </>
+                    }
+                    leftSub={
+                        <>
+                            <Box color="grey">
+                                2 TB used, 20 credits left
+                            </Box>
+                        </>
                     }
                     right={
                         <Flex alignItems={"center"}>
