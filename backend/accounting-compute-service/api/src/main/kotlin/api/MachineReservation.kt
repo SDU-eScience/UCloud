@@ -13,7 +13,10 @@ enum class MachineType {
     GPU
 }
 
-data class MachineReservation(
+@Deprecated("Renamed to MachineTemplate", replaceWith = ReplaceWith("MachineTemplate"))
+typealias MachineReservation = MachineTemplate
+
+data class MachineTemplate(
     val name: String,
     val cpu: Int? = null,
     val memoryInGigs: Int? = null,
@@ -28,25 +31,25 @@ data class MachineReservation(
     }
 }
 
-typealias CreateMachineRequest = MachineReservation
+typealias CreateMachineRequest = MachineTemplate
 typealias CreateMachineResponse = Unit
 
 data class ListMachinesRequest(val viewInactive: Boolean?)
-typealias ListMachinesResponse = List<MachineReservation>
+typealias ListMachinesResponse = List<MachineTemplate>
 
 data class MarkAsInactiveRequest(val name: String)
 typealias MarkAsInactiveResponse = Unit
 
 data class FindMachineRequest(val name: String)
-typealias FindMachineResponse = MachineReservation
+typealias FindMachineResponse = MachineTemplate
 
 typealias DefaultMachineRequest = Unit
-typealias DefaultMachineResponse = MachineReservation
+typealias DefaultMachineResponse = MachineTemplate
 
 data class SetAsDefaultRequest(val name: String)
 typealias SetAsDefaultResponse = Unit
 
-typealias UpdateMachineRequest = MachineReservation
+typealias UpdateMachineRequest = MachineTemplate
 typealias UpdateMachineResponse = Unit
 
 object MachineTypes : CallDescriptionContainer("accounting.compute.machines") {
