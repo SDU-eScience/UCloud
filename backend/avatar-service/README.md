@@ -1,4 +1,6 @@
-# avatar-service
+:orphan:
+
+# Avatar Service
 
 Provides user avatars. User avatars are provided by the
 [avataaars](https://avataaars.com/) library.

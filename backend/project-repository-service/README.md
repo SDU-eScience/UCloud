@@ -1,6 +1,6 @@
 # Project Repositories
 
-The [ACL model for files](../storage-service/wiki/permissions.md) states that a permission is granted for a complete
+The [ACL model for files](../storage-service/wiki/permissions.html) states that a permission is granted for a complete
 sub-tree of the file system. It is _not_ possible to remove permissions granted by an ancestor. As a result if a user 
 has `READ` permissions in `/projects/MyProject` then this user will have `READ` permissions for _all_ descendants of 
 this folder. For example this user would have `READ` permissions in `/projects/MyProject/foobar` as well as 
@@ -54,4 +54,4 @@ on a folder.
 
 A repositories ACL can be updated using `project.repositories.updatePermissions`. The UI should display the groups that
 belong to this project. Only the groups from the project can be added to the ACL. The permission that can be granted
-match those of [shares](../share-service/README.md).
+match those of [shares](../../share-service.html).

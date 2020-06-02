@@ -1,4 +1,4 @@
-# Deployment
+# Deployment Procedure
 
 In this document we will describe the procedures and technologies involved in
 the deployment of UCloud services.
@@ -45,18 +45,23 @@ required). You can access Jenkins using your GitHub account.
 ## Procedure and Backwards Compatibility
 
 Containers are built and tested by our CI/CD pipeline. See the CI/CD section
-in [Getting Started](./getting_started.md).
+in [Getting Started](getting_started.html).
 
 Under normal conditions, before deploying a new version you must ensure that
 the software checks every mark in the following list:
 
-- [ ] The software has been built and tested by Jenkins. Tests must pass and
-      the build must be stable.
-- [ ] Migrations must occur before the deployment of the new software.
-- [ ] Migrations must not break the existing build. The old and new version
-      must be able to co-exist.
-- [ ] Breaking changes in the external interface can only occur in major
-      releases (Semantic versioning)
-- [ ] When introducing breaking changes to a call, the Elasticsearch auditing
-      index for that call must be updated. See [Auditing](./auditing.md) for
-      more information.
+|uncheck_| The software has been built and tested by Jenkins. Tests must pass and the build must be stable.
+
+|uncheck_| Migrations must occur before the deployment of the new software.
+
+|uncheck_| Migrations must not break the existing build. The old and new version must be able to co-exist.
+
+|uncheck_| Breaking changes in the external interface can only occur in major releases (Semantic versioning).
+
+|uncheck_| When introducing breaking changes to a call, the Elasticsearch auditing index for that call must be updated. See [Auditing](auditing.html) for more information.
+
+.. |uncheck_| raw:: html
+
+    <input disabled="" type="checkbox">
+
+<br>

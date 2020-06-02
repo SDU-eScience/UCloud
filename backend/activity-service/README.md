@@ -1,4 +1,4 @@
-# `activity-service`
+# File Activity Service
 
 The activity service makes it possible for a user to see what actions have
 been applied to a specific file or directory. It also makes it possible to get
@@ -8,7 +8,9 @@ The services listens to the audit stream from storage-service and the
 file-favorite-service and for incoming events. These entries are transformed 
 into an ActivityEvent and saved in the underlying database for further usage since Redis does not keep the events for ever.
 
-![Activity service layout](./wiki/Activityservice.png)
+.. figure:: ../activity-service/wiki/Activityservice.png
+   :width: 70%
+   :align: center
 
 When browsing a users activity, there is a chance that a lot of activity events
 are of the same type within the same period, these gathered in groups. If the

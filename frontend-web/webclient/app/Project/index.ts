@@ -95,6 +95,15 @@ export function projectRoleToString(role: ProjectRole): string {
     }
 }
 
+export function projectStringToRole(role: string): ProjectRole {
+    switch (role) {
+        case "PI": return ProjectRole.PI;
+        case "Admin": return ProjectRole.ADMIN;
+        case "User": return ProjectRole.USER;
+    }
+    return ProjectRole.USER;
+}
+
 export function projectRoleToStringIcon(role: ProjectRole): IconName {
     switch (role) {
         case ProjectRole.PI: return "userPi";
