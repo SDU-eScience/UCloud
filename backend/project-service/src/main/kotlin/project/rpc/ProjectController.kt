@@ -25,7 +25,7 @@ class ProjectController(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {
             checkEnabled(configuration)
-            ok(projects.create(db, ctx.securityPrincipal, request.title))
+            ok(projects.create(db, ctx.securityPrincipal, request.title, request.parent))
         }
 
         implement(Projects.invite) {

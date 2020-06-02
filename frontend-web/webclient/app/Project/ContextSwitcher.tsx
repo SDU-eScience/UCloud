@@ -2,7 +2,7 @@ import {ReduxObject, emptyPage} from "DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
 import Link from "ui-components/Link";
-import {addTrailingSlash, inDevEnvironment} from "UtilityFunctions";
+import {addTrailingSlash, inDevEnvironment, shortUUID} from "UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
 import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
@@ -17,16 +17,26 @@ import {History} from "history";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
+import {useProjectStatus} from "Project/cache";
 
 // eslint-disable-next-line no-underscore-dangle
 function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
     if (!areProjectsEnabled()) return null;
 
+    const projectStatus = useProjectStatus();
     const [response, setFetchParams, params] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 10, archived: false}),
         emptyPage
     );
-    const activeContext = props.activeProject ?? "Personal Project";
+    let activeContext = "Personal Project";
+    if (props.activeProject) {
+        const membership = projectStatus.fetch().membership.find(it => it.projectId === props.activeProject);
+        if (membership) {
+            activeContext = membership.title;
+        } else {
+            activeContext = shortUUID(props.activeProject);
+        }
+    }
 
     useEffect(() => {
         const storedProject = getStoredProject();
@@ -61,7 +71,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         key={project.projectId}
                         onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
                     >
-                        <Truncate width={"215px"}>{project.projectId}</Truncate>
+                        <Truncate width={"215px"}>{project.title}</Truncate>
                     </Text>
                 )}
                 {props.activeProject || response.data.items.length > 0 ? <Divider/> : null}

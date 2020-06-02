@@ -1,5 +1,7 @@
 package dk.sdu.cloud.project.services
 
+import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.services.*
 import dk.sdu.cloud.service.*
@@ -303,15 +305,18 @@ class QueryService(
                         setParameter("username", username)
                     },
                     """
-                        select *
-                        from project_members
-                        where username = ?username
+                        select pm.*, p.title as title
+                        from project_members pm, projects p
+                        where 
+                            pm.username = ?username and
+                            p.id = pm.project_id 
                     """
                 )
                 .rows
                 .map {
                     UserStatusInProject(
                         it.getField(ProjectMemberTable.project),
+                        it.getString("title")!!,
                         ProjectMember(
                             username,
                             it.getField(ProjectMemberTable.role).let { ProjectRole.valueOf(it) }
@@ -644,6 +649,102 @@ class QueryService(
                 .single()
                 .let { it.getLong(0)!! } > 0L
         }
+    }
+
+    suspend fun findProject(
+        ctx: DBContext,
+        requestedBy: String,
+        id: String
+    ): Project {
+        return ctx.withSession { session ->
+            projects.requireRole(ctx, requestedBy, id, ProjectRole.ALL)
+
+            session
+                .sendPreparedStatement(
+                    { setParameter("id", id) },
+                    "select * from projects where id = ?id"
+                )
+                .rows
+                .singleOrNull()
+                ?.toProject()
+                ?: throw ProjectException.NotFound()
+        }
+    }
+
+    suspend fun listSubProjects(
+        ctx: DBContext,
+        pagination: NormalizedPaginationRequest,
+        requestedBy: String,
+        id: String
+    ): Page<Project> {
+        return ctx.withSession { session ->
+            val isAdmin = projects.findRoleOfMember(ctx, id, requestedBy) in ProjectRole.ADMINS
+
+            if (isAdmin) {
+                session
+                    .paginatedQuery(
+                        pagination,
+                        { setParameter("id", id) },
+                        "from projects where parent = ?id"
+                    )
+                    .mapItems { it.toProject() }
+            } else {
+                val params: EnhancedPreparedStatement.() -> Unit = {
+                    setParameter("id", id)
+                    setParameter("username", requestedBy)
+                    setParameter("offset", pagination.offset)
+                    setParameter("limit", pagination.itemsPerPage)
+                }
+
+                val count = session
+                    .sendPreparedStatement(
+                        params,
+
+                        """
+                            select count(p.id)
+                            from projects p, project_members pm
+                            where
+                                p.parent = ?id and
+                                pm.project_id = p.id and
+                                pm.username = ?username and
+                                (pm.role = 'ADMIN' or pm.role = 'PI')
+                        """
+                    )
+                    .rows
+                    .single()
+                    .getLong(0) ?: 0L
+
+                val items = session
+                    .sendPreparedStatement(
+                        params,
+
+                        """
+                            select p.*
+                            from projects p, project_members pm
+                            where
+                                p.parent = ?id and
+                                pm.project_id = p.id and
+                                pm.username = ?username and
+                                (pm.role = 'ADMIN' or pm.role = 'PI')
+                            offset ?offset
+                            limit ?limit
+                        """
+                    )
+                    .rows
+                    .map { it.toProject() }
+
+                Page(count.toInt(), pagination.itemsPerPage, pagination.page, items)
+            }
+        }
+    }
+
+    private fun RowData.toProject(): Project {
+        return Project(
+            getField(ProjectTable.id),
+            getField(ProjectTable.title),
+            getFieldNullable(ProjectTable.parent),
+            getField(ProjectTable.archived)
+        )
     }
 
     companion object : Loggable {

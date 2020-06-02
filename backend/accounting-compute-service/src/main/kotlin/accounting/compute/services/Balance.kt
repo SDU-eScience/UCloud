@@ -16,7 +16,7 @@ import org.joda.time.LocalDateTime
 
 object BalanceTable : SQLTable("balance") {
     val accountId = text("account_id")
-    val accountType = text("account_type")
+    val accountType = text("account_type") // This needs to change
     val accountMachineType = text("account_machine_type")
     val balance = long("balance")
 }
@@ -24,7 +24,7 @@ object BalanceTable : SQLTable("balance") {
 object TransactionTable : SQLTable("transactions") {
     val accountId = text("account_id")
     val accountType = text("account_type")
-    val accountMachineType = text("account_machine_type")
+    val accountMachineType = text("account_machine_type") // This needs to change
     val amount = long("amount")
     val reservationId = text("reservation_id")
     val isReserved = bool("is_reserved")
@@ -33,7 +33,7 @@ object TransactionTable : SQLTable("transactions") {
     val expiresAt = timestamp("expires_at")
 }
 
-object GrantAdminTable : SQLTable("grant_administrators") {
+object GrantAdminTable : SQLTable("grant_administrators") { // This goes away (replace with project management)
     val username = text("username")
 }
 

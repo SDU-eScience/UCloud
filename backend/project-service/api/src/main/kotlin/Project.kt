@@ -2,7 +2,9 @@ package dk.sdu.cloud.project.api
 
 data class Project(
     val id: String,
-    val title: String
+    val title: String,
+    val parent: String?,
+    val archived: Boolean
 )
 
 data class ProjectMember(

@@ -22,34 +22,36 @@ import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.joda.time.LocalDateTime
+import java.util.*
 
 object ProjectMemberTable : SQLTable("project_members") {
-    val username = text("username")
-    val role = text("role")
-    val project = text("project_id")
-    val createdAt = timestamp("created_at")
-    val modifiedAt = timestamp("modified_at")
+    val username = text("username", notNull = true)
+    val role = text("role", notNull = true)
+    val project = text("project_id", notNull = true)
+    val createdAt = timestamp("created_at", notNull = true)
+    val modifiedAt = timestamp("modified_at", notNull = true)
 }
 
 object ProjectTable : SQLTable("projects") {
-    val id = text("id")
-    val title = text("title")
-    val createdAt = timestamp("created_at")
-    val modifiedAt = timestamp("modified_at")
-    val archived = bool("archived")
+    val id = text("id", notNull = true)
+    val title = text("title", notNull = true)
+    val createdAt = timestamp("created_at", notNull = true)
+    val modifiedAt = timestamp("modified_at", notNull = true)
+    val archived = bool("archived", notNull = true)
+    val parent = text("parent", notNull = false)
 }
 
 object ProjectMembershipVerified : SQLTable("project_membership_verification") {
-    val projectId = text("project_id")
-    val verification = timestamp("verification")
-    val verifiedBy = text("verified_by")
+    val projectId = text("project_id", notNull = true)
+    val verification = timestamp("verification", notNull = true)
+    val verifiedBy = text("verified_by", notNull = true)
 }
 
 object ProjectInvite : SQLTable("invites") {
-    val projectId = text("project_id")
-    val username = text("username")
-    val invitedBy = text("invited_by")
-    val createdAt = timestamp("created_at")
+    val projectId = text("project_id", notNull = true)
+    val username = text("username", notNull = true)
+    val invitedBy = text("invited_by", notNull = true)
+    val createdAt = timestamp("created_at", notNull = true)
 }
 
 class ProjectService(
@@ -59,9 +61,16 @@ class ProjectService(
     suspend fun create(
         ctx: DBContext,
         createdBy: SecurityPrincipal,
-        title: String
+        title: String,
+        parent: String?
     ) {
-        val id = title
+        if (parent == null && createdBy.role !in Roles.PRIVILEDGED) throw ProjectException.Forbidden()
+        if (parent != null) {
+            // TODO Introduce setting for normal user project creation
+            requireRole(ctx, createdBy.username, parent, ProjectRole.ADMINS)
+        }
+
+        val id = UUID.randomUUID().toString()
 
         ctx.withSession { session ->
             session.insert(ProjectTable) {
@@ -69,6 +78,7 @@ class ProjectService(
                 set(ProjectTable.title, title)
                 set(ProjectTable.createdAt, LocalDateTime.now())
                 set(ProjectTable.modifiedAt, LocalDateTime.now())
+                set(ProjectTable.parent, parent)
             }
 
             session.insert(ProjectMemberTable) {
@@ -144,7 +154,7 @@ class ProjectService(
                     }
                 }
             }
-            sendInviteNotifications(projectId, inviteFrom, invitesTo)
+            sendInviteNotifications(inviteFrom, invitesTo)
         } catch (ex: GenericDatabaseException) {
             if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
                 throw ProjectException.AlreadyMember()
@@ -156,7 +166,6 @@ class ProjectService(
     }
 
     private suspend fun sendInviteNotifications(
-        projectId: String,
         invitedBy: String,
         invitesTo: Set<String>
     ) {
@@ -171,10 +180,9 @@ class ProjectService(
                     member,
                     Notification(
                         "PROJECT_INVITE",
-                        "$invitedBy has invited you to $projectId",
+                        "$invitedBy has invited you to collaborate",
                         meta = mapOf(
-                            "invitedBy" to invitedBy,
-                            "projectId" to projectId
+                            "invitedBy" to invitedBy
                         )
                     )
                 ),
