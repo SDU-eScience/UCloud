@@ -153,6 +153,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     onSuccess={() => dialogStore.success()}
                     projectId={project.projectId}
                     projectRole={project.whoami.role}
+                    projectDetails={project}
                 />,
                 () => undefined)
         },
@@ -368,7 +369,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 if (e.projectId !== props.project) {
                                     props.setProject(e.projectId);
                                     snackbarStore.addInformation(
-                                        `${e.projectId} is now the active project`,
+                                        `${e.title} is now the active project`,
                                         false
                                     );
                                 }
@@ -415,7 +416,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 onChange={() => {
                                     if (isActive) return;
                                     snackbarStore.addInformation(
-                                        `${e.projectId} is now the active project`,
+                                        `${e.title} is now the active project`,
                                         false
                                     );
                                     props.setProject(e.projectId);

@@ -4,6 +4,7 @@ import {Box, Icon, Text} from "ui-components";
 import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import HttpClient from "Authentication/lib";
 import {pathComponents} from "Utilities/FileUtilities";
+import {ProjectStatus, useProjectStatus} from "Project/cache";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
 export const BreadCrumbsBase = styled.ul`
@@ -59,8 +60,9 @@ export const BreadCrumbs = ({
     client
 }: BreadcrumbsList): JSX.Element | null => {
     if (!currentPath) return null;
+    const projectStatus = useProjectStatus();
 
-    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, client.projectId ?? "");
+    const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, client.projectId ?? "", projectStatus);
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map((p, index) => (
@@ -102,7 +104,12 @@ export const BreadCrumbs = ({
     }
 };
 
-function buildBreadCrumbs(path: string, homeFolder: string, activeProject: string): BreadCrumbMapping[] {
+function buildBreadCrumbs(
+    path: string,
+    homeFolder: string,
+    activeProject: string,
+    projectStatus: ProjectStatus
+): BreadCrumbMapping[] {
     const paths = pathComponents(path);
     if (paths.length === 0) return [{actualPath: "/", local: "/"}];
 
@@ -127,8 +134,15 @@ function buildBreadCrumbs(path: string, homeFolder: string, activeProject: strin
     if (addTrailingSlash(path).startsWith("/projects/")) {
         const [, projectInPath] = pathComponents(path);
         const project = activeProject !== "" && path.includes(projectInPath) ? activeProject : projectInPath;
+
+        let localName = project;
+        const membership = projectStatus.fetch().membership.find(it => it.projectId === project);
+        if (membership) {
+            localName = membership.title;
+        }
+
         return [
-            {actualPath: `/projects/${project}/`, local: project}
+            {actualPath: `/projects/${project}/`, local: localName}
         ].concat(pathsMapping.slice(2));
     }
     return pathsMapping;

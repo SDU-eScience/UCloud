@@ -5,7 +5,7 @@ import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
 import {useAsyncCommand} from "Authentication/DataHook";
-import {leaveProject, ProjectRole, setProjectArchiveStatus} from "Project/index";
+import {leaveProject, ProjectRole, setProjectArchiveStatus, UserInProject} from "Project/index";
 import {useHistory} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
@@ -48,6 +48,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
             />
             <LeaveProject
                 onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
+                projectDetails={projectDetails.data}
                 projectId={projectId}
                 projectRole={projectRole}
             />
@@ -131,6 +132,7 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
 interface LeaveProjectProps {
     projectRole: ProjectRole;
     projectId: string;
+    projectDetails: UserInProject;
     onSuccess: () => void;
 }
 
@@ -174,14 +176,15 @@ export const LeaveProject: React.FC<LeaveProjectProps> = props => {
                     onClick={() => {
                         addStandardDialog({
                             title: "Are you sure?",
-                            message: `Are you sure you wish to leave ${props.projectId}?`,
+                            message: `Are you sure you wish to leave ${props.projectDetails.title}?`,
                             onConfirm: async () => {
                                 const success = await runCommand(leaveProject({}));
                                 if (success) {
                                     props.onSuccess();
                                 }
                             },
-                            confirmText: "Leave project"
+                            confirmText: "Leave project",
+                            addToFront: true
                         });
                     }}
                 >

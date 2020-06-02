@@ -1,3 +1,5 @@
+:orphan:
+
 # Projects
 
 The projects feature allow for collaboration between different users across the entire UCloud platform.

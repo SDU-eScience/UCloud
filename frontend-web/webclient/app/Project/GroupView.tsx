@@ -14,7 +14,7 @@ import {MembersList} from "Project/MembersList";
 const GroupView: React.FunctionComponent = () => {
     const {
         projectId, group, groupMembers, fetchGroupMembers, groupMembersParams,
-        membersPage, projectRole
+        membersPage, projectRole, projectDetails
     } = useProjectManagementStatus();
     const activeGroup = groupMembers;
     const fetchActiveGroup = fetchGroupMembers;
@@ -49,7 +49,8 @@ const GroupView: React.FunctionComponent = () => {
             customEmptyPage={(
                 <Text>
                     No members in group.
-                    You can add members by clicking on the green arrow in the &apos;Members of {projectId}&apos; panel.
+                    You can add members by clicking on the green arrow in the
+                    &apos;Members of {projectDetails.data.title}&apos; panel.
                 </Text>
             )}
             page={activeGroup.data}

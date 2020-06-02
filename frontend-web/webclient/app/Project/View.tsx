@@ -123,7 +123,8 @@ const View: React.FunctionComponent<ViewOperations> = props => {
         outgoingInvitesParams,
         membersPage,
         fetchProjectDetails,
-        projectDetailsParams
+        projectDetailsParams,
+        projectDetails
     } = useProjectManagementStatus();
 
     const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
@@ -184,7 +185,8 @@ const View: React.FunctionComponent<ViewOperations> = props => {
 
     const isSettingsPage = membersPage === "settings";
 
-    const memberText = `Members of ${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`;
+    const title = projectDetails.data.title;
+    const memberText = `Members of ${title.slice(0, 20).trim()}${title.length > 20 ? "..." : ""}`;
 
     return (
         <MainContainer

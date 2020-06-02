@@ -1,3 +1,5 @@
+:orphan:
+
 # Accounting (Compute)
 
 __Credits__ is the currency used for all payment of compute resources in UCloud. All prices in the UCloud system are
