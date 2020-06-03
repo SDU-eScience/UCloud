@@ -7,6 +7,7 @@ import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.accounting.compute.api.AccountType
 import dk.sdu.cloud.accounting.compute.api.CreditsAccount
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.stackTraceToString
@@ -36,35 +37,6 @@ object TransactionTable : SQLTable("transactions") {
 object GrantAdminTable : SQLTable("grant_administrators") { // This goes away (replace with project management)
     val username = text("username")
 }
-
-// Note(Dan): Trying out an abstraction for who is performing an action within the system.
-sealed class Actor {
-    abstract val username: String
-
-    /**
-     * Performed by the system itself. Should bypass all permission checks.
-     */
-    object System : Actor() {
-        override val username: String
-            get() = throw IllegalStateException("No username associated with system")
-    }
-
-    /**
-     * Performed by the system on behalf of a user.
-     * This should use permission checks against the user.
-     */
-    class SystemOnBehalfOfUser(override val username: String) : Actor()
-
-    /**
-     * Performed by the user. Should check permissions against the user.
-     */
-    class User(val principal: SecurityPrincipal) : Actor() {
-        override val username = principal.username
-    }
-}
-
-fun SecurityPrincipalToken.toActor(): Actor = Actor.User(principal)
-fun SecurityPrincipal.toActor(): Actor = Actor.User(this)
 
 class BalanceService(
     private val projectCache: ProjectCache,

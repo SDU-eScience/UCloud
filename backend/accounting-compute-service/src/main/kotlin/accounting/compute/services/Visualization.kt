@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.compute.MachineType
 import dk.sdu.cloud.accounting.compute.api.AccountType
 import dk.sdu.cloud.accounting.compute.api.BreakdownPoint
 import dk.sdu.cloud.accounting.compute.api.ComputeChartPoint
+import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession

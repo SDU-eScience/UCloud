@@ -2,9 +2,10 @@ package dk.sdu.cloud.accounting.compute.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.compute.MachineReservation
+import dk.sdu.cloud.accounting.compute.MachineTemplate
 import dk.sdu.cloud.accounting.compute.MachineType
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
 
@@ -21,7 +22,7 @@ object MachineTable : SQLTable("machines") {
 }
 
 class MachineService {
-    suspend fun listMachines(ctx: DBContext): List<MachineReservation> {
+    suspend fun listMachines(ctx: DBContext): List<MachineTemplate> {
         return ctx.withSession { session ->
             session
                 .sendQuery("select * from machines where active = true")
@@ -30,7 +31,7 @@ class MachineService {
         }
     }
 
-    suspend fun findMachine(ctx: DBContext, name: String): MachineReservation {
+    suspend fun findMachine(ctx: DBContext, name: String): MachineTemplate {
         return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -44,7 +45,7 @@ class MachineService {
         }
     }
 
-    suspend fun findDefaultMachine(ctx: DBContext): MachineReservation {
+    suspend fun findDefaultMachine(ctx: DBContext): MachineTemplate {
         return ctx.withSession { session ->
             session
                 .sendQuery("select * from machines where default_machine = true")
@@ -58,7 +59,7 @@ class MachineService {
     suspend fun addMachine(
         ctx: DBContext,
         initiatedBy: Actor,
-        machine: MachineReservation
+        machine: MachineTemplate
     ) {
         verifyWriteAccess(initiatedBy)
 
@@ -129,7 +130,7 @@ class MachineService {
     suspend fun updateMachine(
         ctx: DBContext,
         initiatedBy: Actor,
-        updatedMachine: MachineReservation
+        updatedMachine: MachineTemplate
     ) {
         verifyWriteAccess(initiatedBy)
         ctx.withSession { session ->
@@ -166,9 +167,9 @@ class MachineService {
         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
-    private fun RowData.toMachine(): MachineReservation {
+    private fun RowData.toMachine(): MachineTemplate {
         val row = this
-        return MachineReservation(
+        return MachineTemplate(
             name = row.getField(MachineTable.name),
             type = row.getField(MachineTable.type).let { MachineType.valueOf(it) },
             pricePerHour = row.getField(MachineTable.pricePerHour),

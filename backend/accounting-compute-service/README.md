@@ -8,26 +8,12 @@ applications run on a specific machine template, these machine template have an 
 will _reserve_ credits from a wallet at the start of every job. We _charge_ the credits from the wallet at the end of
 the job.
 
-__Wallets__ contain an integer amount of credits and can pay for any jobs running a specific machine type. A wallet 
-belongs to an entity, this is either a project, or a user (Personal project).
+[__Wallets__](wiki/wallets.html) contain an integer amount of credits and can pay for any jobs running a specific
+machine type. A wallet belongs to an entity, this is either a project, or a user (Personal project).
 
 The __balance__ of a wallet describe the contents of a wallet (in credits). The system will remove credits from the 
 balance when it is charged for X credits. A wallet can have 0 or more __reservations__ against it. A reservation will 
 only succeed if the sum of all reservations is less than the balance.
-
-A __machine template__ contain a description of a concrete machine. All jobs define which machine they should run on.
-The scheduling system uses the machine to select or provision a machine for the job.
-
-```kotlin
-data class MachineTemplate(
-    val name: String,
-    val pricePerHour: Long,
-    val type: MachineType,
-    val cpu: Int? = null,
-    val memoryInGigs: Int? = null,
-    val gpu: Int? = null
-)
-```
 
 ## Granting Credits to Projects and Overbooking
 
