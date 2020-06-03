@@ -5,7 +5,9 @@ bundle {
     name = "accounting-compute"
     version = "1.3.0"
 
-    withAmbassador("/api/accounting/compute") {}
+    withAmbassador("/api/accounting/compute") {
+        addSimpleMapping("/api/products")
+    }
 
     val deployment = withDeployment {
         deployment.spec.replicas = 2

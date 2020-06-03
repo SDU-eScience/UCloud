@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.compute
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.compute.api.Product
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpMethod
@@ -15,7 +16,9 @@ enum class MachineType {
 
 @Deprecated("Renamed to MachineTemplate", replaceWith = ReplaceWith("MachineTemplate"))
 typealias MachineReservation = MachineTemplate
+typealias MachineTemplate = Product.Compute
 
+/*
 data class MachineTemplate(
     val name: String,
     val cpu: Int? = null,
@@ -30,6 +33,7 @@ data class MachineTemplate(
         if (memoryInGigs != null) require(memoryInGigs >= 0) { "memoryInGigs is negative ($this)" }
     }
 }
+ */
 
 typealias CreateMachineRequest = MachineTemplate
 typealias CreateMachineResponse = Unit
