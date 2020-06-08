@@ -2,11 +2,8 @@ import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
-    createMachine,
-    humanReadableMachineType,
     listMachines,
-    MachineReservation,
-    MachineType, updateMachine
+    MachineReservation
 } from "Accounting/Compute/index";
 import {MainContainer} from "MainContainer/MainContainer";
 import {Box, Button, Icon, IconButton, Input, Label, List} from "ui-components";
@@ -32,12 +29,16 @@ const MachineActions = styled.div`
 `;
 
 export const MachineAdmin: React.FunctionComponent = () => {
-    const [machines, fetchMachines] = useCloudAPI<MachineReservation[]>(listMachines({}), []);
+    const [machines, fetchMachines] = useCloudAPI<MachineReservation[]>(
+        listMachines({itemsPerPage: 100, page: 0, productCategory: "COMPUTE", provider: "ucloud"}),
+        []
+    );
+
     const [loading, runCommand] = useAsyncCommand();
     const dispatch = useDispatch();
 
     const reload = useCallback(() => {
-        fetchMachines(listMachines({}));
+        fetchMachines(listMachines({itemsPerPage: 100, page: 0, productCategory: "COMPUTE", provider: "ucloud"}));
     }, []);
 
     useEffect(() => {
@@ -69,10 +70,10 @@ export const MachineAdmin: React.FunctionComponent = () => {
                     {!machines.error ? null : <>{machines.error.why}</>}
                     {machines.error ? null : machines.data.map(machine => (
                         <ListRow
-                            key={machine.name}
+                            key={machine.id}
                             left={(
                                 <>
-                                    {machine.name}
+                                    {machine.id}
                                 </>
                             )}
                             leftSub={(
@@ -80,7 +81,7 @@ export const MachineAdmin: React.FunctionComponent = () => {
                                     <ListRowStat>vCPU: {machine.cpu ?? "unspecified"}</ListRowStat>
                                     <ListRowStat>RAM: {machine.memoryInGigs ?? "unspecified"}</ListRowStat>
                                     <ListRowStat>GPU: {machine.gpu ?? "unspecified"}</ListRowStat>
-                                    <ListRowStat>Price: {machine.pricePerHour}</ListRowStat>
+                                    <ListRowStat>Price: {machine.pricePerUnit}</ListRowStat>
                                 </>
                             )}
                             right={(
@@ -88,7 +89,7 @@ export const MachineAdmin: React.FunctionComponent = () => {
                                     <IconButton name={"edit"} onClick={() => {
                                         dialogStore.addDialog(
                                             <MachineEditor isEdit={true} machine={machine} onSubmit={async machine => {
-                                                await runCommand(updateMachine(machine));
+                                                //await runCommand(updateMachine(machine));
                                                 reload();
                                                 dialogStore.success();
                                             }} />,
@@ -106,7 +107,7 @@ export const MachineAdmin: React.FunctionComponent = () => {
                 <Button type={"button"} onClick={() => {
                     dialogStore.addDialog(
                         <MachineEditor isEdit={false} onSubmit={async machine => {
-                            await runCommand(createMachine(machine));
+                            //await runCommand(createMachine(machine));
                             reload();
                             dialogStore.success();
                         }} />,
@@ -145,45 +146,21 @@ const MachineEditor: React.FunctionComponent<{
     onSubmit: (machine: MachineReservation) => void;
     isEdit: boolean;
 }> = ({machine, onSubmit, isEdit}) => {
-    const [name, setName] = useState<string>(machine?.name ?? "u1-standard-0");
-    const [type, setType] = useState<MachineType>(machine?.type ?? MachineType.STANDARD);
-    const opts = Object.keys(MachineType).map(it =>
-        ({ text: humanReadableMachineType(it as MachineType), value: it})
-    );
+    const [name, setName] = useState<string>(machine?.id ?? "u1-standard-0");
+    const [type, setType] = useState<string>(machine?.id ?? "standard");
 
     const cpuRef = useRef<HTMLInputElement>(null);
     const gpuRef = useRef<HTMLInputElement>(null);
     const memRef = useRef<HTMLInputElement>(null);
     const priceRef = useRef<HTMLInputElement>(null);
 
-    const evaluateName = (): void => {
-        if (isEdit) return;
-
-        if (name.indexOf("u1-") === 0) {
-            const typeName = type.toLowerCase().replace("_", "-");
-            if (type !== MachineType.GPU) {
-                let cpu = cpuRef.current?.value ?? "0";
-                if (cpu === "") cpu = "0";
-                setName(`u1-${typeName}-${cpu}`);
-            } else {
-                let gpu = gpuRef.current?.value ?? "0";
-                if (gpu === "") gpu = "0";
-                setName(`u1-${typeName}-${gpu}`);
-            }
-        }
-    };
-
-    useEffect(() => {
-        evaluateName();
-    }, [type]);
-
     return <Box minWidth={800} m={32}>
         <MachineEditorForm onSubmit={e => {
             e.preventDefault();
 
             try {
-                const pricePerHour = parseIntForMachine(priceRef.current, "Price");
-                if (pricePerHour === undefined) {
+                const pricePerUnit = parseIntForMachine(priceRef.current, "Price");
+                if (pricePerUnit === undefined) {
                     snackbarStore.addFailure("No price given", false);
                     return;
                 }
@@ -192,9 +169,12 @@ const MachineEditor: React.FunctionComponent<{
                     cpu: parseIntForMachine(cpuRef.current, "vCPU"),
                     gpu: parseIntForMachine(gpuRef.current, "GPU"),
                     memoryInGigs: parseIntForMachine(memRef.current, "RAM"),
-                    pricePerHour,
-                    name,
-                    type
+                    pricePerUnit,
+                    id: name,
+                    category: { provider: "ucloud", id: type },
+                    priority: 1,
+                    description: "",
+                    availability: { type: "available" }
                 });
             } catch (ignored) {
                 // Ignored
@@ -210,27 +190,22 @@ const MachineEditor: React.FunctionComponent<{
 
             <Label>
                 Type <br/>
-                <ClickableDropdown
-                    options={opts}
-                    trigger={<>{humanReadableMachineType(type)}</>}
-                    chevron
-                    onChange={e => setType(e as MachineType)}
+                <Input
+                    value={type}
+                    onChange={e => setType(e.target.value)}
                 />
             </Label>
 
             <Label>
                 vCPU
-                <Input placeholder={"vCPU"} type={"number"} ref={cpuRef} onChange={evaluateName} min={1}
-                       autocomplete={"off"} />
+                <Input placeholder={"vCPU"} type={"number"} ref={cpuRef} min={1} autocomplete={"off"} />
             </Label>
 
-            {type !== MachineType.GPU ? null :
-                <Label>
-                    GPU
-                    <Input placeholder={"GPU"} type={"number"} ref={gpuRef} onChange={evaluateName} min={0}
-                           autocomplete={"off"}/>
-                </Label>
-            }
+            <Label>
+                GPU
+                <Input placeholder={"GPU"} type={"number"} ref={gpuRef} min={0}
+                       autocomplete={"off"}/>
+            </Label>
 
             <Label>
                 RAM (GB)

@@ -28,16 +28,15 @@ class PaymentService(
         job: VerifiedJob,
         timeUsedInMillis: Long
     ) {
-        val pricePerHour = job.reservation.pricePerHour ?: run {
-            log.error("No price attached with job! $job")
-            0L
-        }
+        val pricePerUnit = job.reservation.pricePerUnit
 
-        val price = ceil(pricePerHour * (timeUsedInMillis / MILLIS_PER_HOUR.toDouble())).toLong()
-        val result = AccountingCompute.chargeReservation.call(
+        val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong()
+        val price = pricePerUnit * units
+        val result = Wallets.chargeReservation.call(
             ChargeReservationRequest(
                 job.id,
-                price
+                price,
+                units
             ),
             serviceClient
         )
@@ -55,22 +54,23 @@ class PaymentService(
     }
 
     suspend fun reserve(job: VerifiedJob) {
-        val pricePerHour = job.reservation.pricePerHour
-            ?: throw IllegalStateException("Machine has no price associated with it!")
+        val pricePerUnit = job.reservation.pricePerUnit
+        val units = ceil(job.maxTime.toMillis() / MILLIS_PER_MINUTE.toDouble()).toLong()
+        val price = pricePerUnit * units
 
-        val price = ceil(pricePerHour * (job.maxTime.toMillis() / MILLIS_PER_HOUR.toDouble())).toLong()
-
-        val code = AccountingCompute.reserveCredits.call(
+        val code = Wallets.reserveCredits.call(
             ReserveCreditsRequest(
                 job.id,
                 price,
-                job.maxTime.toMillis() * 3,
-                CreditsAccount(
+                System.currentTimeMillis() + job.maxTime.toMillis() * 3,
+                Wallet(
                     job.project ?: job.owner,
-                    if (job.project != null) AccountType.PROJECT else AccountType.USER,
-                    job.reservation.type
+                    if (job.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
+                    job.reservation.category
                 ),
-                job.owner
+                job.owner,
+                job.reservation.id,
+                units
             ),
             serviceClient
         ).statusCode
@@ -90,6 +90,6 @@ class PaymentService(
 
     companion object : Loggable {
         override val log = logger()
-        private const val MILLIS_PER_HOUR = 1000L * 3600
+        private const val MILLIS_PER_MINUTE = 1000L * 60
     }
 }

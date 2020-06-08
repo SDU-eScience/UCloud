@@ -1,7 +1,6 @@
 package dk.sdu.cloud.accounting.compute.services
 
-import dk.sdu.cloud.accounting.compute.MachineType
-import dk.sdu.cloud.accounting.compute.api.AccountType
+import dk.sdu.cloud.accounting.compute.api.WalletOwnerType
 import dk.sdu.cloud.accounting.compute.api.BreakdownPoint
 import dk.sdu.cloud.accounting.compute.api.ComputeChartPoint
 import dk.sdu.cloud.service.Actor
@@ -15,30 +14,31 @@ class VisualizationService(
     private val balance: BalanceService,
     private val projectCache: ProjectCache
 ) {
+    /*
     suspend fun dailyUsage(
         ctx: DBContext,
         requestedBy: Actor,
         accountId: String,
-        accountType: AccountType,
+        walletOwnerType: WalletOwnerType,
         groupFilter: String?,
         start: Long,
         end: Long
     ): Map<MachineType, List<ComputeChartPoint>> {
-        require(groupFilter == null || accountType == AccountType.PROJECT)
+        require(groupFilter == null || walletOwnerType == WalletOwnerType.PROJECT)
 
         return ctx.withSession { session ->
             balance.requirePermissionToReadBalance(
                 session,
                 requestedBy,
                 accountId,
-                accountType
+                walletOwnerType
             )
 
             session
                 .sendPreparedStatement(
                     {
                         setParameter("accId", accountId)
-                        setParameter("accType", accountType.name)
+                        setParameter("accType", walletOwnerType.name)
                         setParameter("start", LocalDateTime(start, DateTimeZone.UTC))
                         setParameter("end", LocalDateTime(end, DateTimeZone.UTC))
                         setParameter("groupMembers", getGroupMembers(groupFilter, accountId))
@@ -76,26 +76,26 @@ class VisualizationService(
         ctx: DBContext,
         requestedBy: Actor,
         accountId: String,
-        accountType: AccountType,
+        walletOwnerType: WalletOwnerType,
         groupFilter: String?,
         start: Long,
         end: Long
     ): Map<MachineType, List<ComputeChartPoint>> {
-        require(groupFilter == null || accountType == AccountType.PROJECT)
+        require(groupFilter == null || walletOwnerType == WalletOwnerType.PROJECT)
 
         return ctx.withSession { session ->
             balance.requirePermissionToReadBalance(
                 session,
                 requestedBy,
                 accountId,
-                accountType
+                walletOwnerType
             )
 
             session
                 .sendPreparedStatement(
                     {
                         setParameter("accId", accountId)
-                        setParameter("accType", accountType.name)
+                        setParameter("accType", walletOwnerType.name)
                         setParameter("start", LocalDateTime(start, DateTimeZone.UTC))
                         setParameter("end", LocalDateTime(end, DateTimeZone.UTC))
                         setParameter("groupMembers", getGroupMembers(groupFilter, accountId))
@@ -137,26 +137,26 @@ class VisualizationService(
         ctx: DBContext,
         requestedBy: Actor,
         accountId: String,
-        accountType: AccountType,
+        walletOwnerType: WalletOwnerType,
         groupFilter: String?,
         start: Long,
         end: Long
     ): Map<MachineType, List<BreakdownPoint>> {
-        require(groupFilter == null || accountType == AccountType.PROJECT)
+        require(groupFilter == null || walletOwnerType == WalletOwnerType.PROJECT)
 
         return ctx.withSession { session ->
             balance.requirePermissionToReadBalance(
                 session,
                 requestedBy,
                 accountId,
-                accountType
+                walletOwnerType
             )
 
             session
                 .sendPreparedStatement(
                     {
                         setParameter("accId", accountId)
-                        setParameter("accType", accountType.name)
+                        setParameter("accType", walletOwnerType.name)
                         setParameter("start", LocalDateTime(start, DateTimeZone.UTC))
                         setParameter("end", LocalDateTime(end, DateTimeZone.UTC))
                         setParameter("groupMembers", getGroupMembers(groupFilter, accountId))
@@ -197,4 +197,6 @@ class VisualizationService(
             null
         }
     }
+
+     */
 }

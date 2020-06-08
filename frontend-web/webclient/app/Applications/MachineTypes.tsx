@@ -6,27 +6,24 @@ import {theme} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
-import {listMachines, MachineReservation, MachineType} from "Accounting/Compute";
-
-const defaultMachine = {
-    name: "Default",
-        pricePerHour: 0,
-    type: MachineType.STANDARD
-};
+import {listMachines, MachineReservation} from "Accounting/Compute";
+import {Page} from "Types";
+import {emptyPage} from "DefaultObjects";
 
 export const MachineTypes: React.FunctionComponent<{
     reservation: string;
     setReservation: (name: string) => void;
     runAsRoot: boolean;
 }> = props => {
-    const [machines] = useCloudAPI<MachineReservation[]>(listMachines({}), []);
-    const [selected, setSelected] = useState<MachineReservation>(defaultMachine);
+    const [machines] = useCloudAPI<Page<MachineReservation>>(
+        listMachines({itemsPerPage: 100, page: 0, provider: "ucloud", productCategory: "COMPUTE"}),
+        emptyPage
+    );
+    const [selected, setSelected] = useState<MachineReservation | null>(null);
 
     useEffect(() => {
-        setSelected(machines.data.find(it => it.name === props.reservation) ?? defaultMachine);
+        setSelected(machines.data.items.find(it => it.id === props.reservation) ?? null);
     }, [props.reservation]);
-
-    const filteredMachines = machines.data.filter(m => !(m.name === "Unspecified" && props.runAsRoot));
 
     return (
         <ClickableDropdown
@@ -39,8 +36,8 @@ export const MachineTypes: React.FunctionComponent<{
                 </MachineDropdown>
             )}
         >
-            {filteredMachines.map(machine => (
-                <Box key={machine.name} onClick={() => props.setReservation(machine.name)}>
+            {machines.data.items.map(machine => (
+                <Box key={machine.id} onClick={() => props.setReservation(machine.id)}>
                     <MachineBox machine={machine} />
                 </Box>
             ))}
@@ -48,25 +45,34 @@ export const MachineTypes: React.FunctionComponent<{
     );
 };
 
-const MachineBox: React.FunctionComponent<{machine: MachineReservation}> = ({machine}) => (
+const MachineBox: React.FunctionComponent<{machine: MachineReservation | null}> = ({machine}) => (
     <p style={{cursor: "pointer"}}>
-        <b>{machine.name}</b><br />
-        {!machine.cpu || !machine.memoryInGigs ?
-            "Uses all available CPU and memory. Recommended for most applications."
-            : null
-        }
-        {machine.cpu && machine.memoryInGigs ? (
+        {machine ? null : (
+            <b>No machine selected</b>
+        )}
+
+        {!machine ? null : (
             <>
-                CPU: {machine.cpu}<br />
-                Memory: {machine.memoryInGigs} GB memory
-                </>
-        ) : null}
-        {machine.gpu ? (
-            <>
-                <br />
-                GPU: {machine.gpu}
+                <b>{machine.id}</b><br />
+                {!machine.cpu || !machine.memoryInGigs ?
+                    "Uses all available CPU and memory. Recommended for most applications."
+                    : null
+                }
+                {machine.cpu && machine.memoryInGigs ? (
+                    <>
+                        vCPU: {machine.cpu}<br />
+                        Memory: {machine.memoryInGigs} GB
+                    </>
+                ) : null}
+                {machine.gpu ? (
+                    <>
+                        <br />
+                        GPU: {machine.gpu}
+                    </>
+                ) : null}
             </>
-        ) : null}
+        )}
+
     </p>
 );
 

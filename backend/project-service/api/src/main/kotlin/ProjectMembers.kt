@@ -19,7 +19,8 @@ data class UserStatusRequest(
 data class UserStatusInProject(
     val projectId: String,
     val title: String,
-    val whoami: ProjectMember
+    val whoami: ProjectMember,
+    val parentId: String?
 )
 
 data class UserStatusResponse(

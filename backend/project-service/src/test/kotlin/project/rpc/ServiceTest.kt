@@ -35,7 +35,7 @@ class ServiceTest {
         return sendJson(
             HttpMethod.Post,
             "/api/projects",
-            CreateProjectRequest(title),
+            CreateProjectRequest(title, null),
             TestUsers.admin
         ).parseSuccessful()
     }
