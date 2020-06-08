@@ -1,4 +1,6 @@
-# UCloud Frontend
+:orphan:
+
+# Overview
 
 UCloud uses a web application as frontend for its users.
 
@@ -16,7 +18,9 @@ Data is retrieved from the backend by contacting the corresponding backend-servi
 
 ## Application Architecture
 
-![Frontend Diagram](./webclient/wiki/FrontEndDiagram.png)
+.. figure:: /frontend-web/webclient/wiki/FrontEndDiagram.png
+   :width: 70%
+   :align: center
 
 **Figure**: The application will on startup instantiate the Redux-store, which is then used for every connected component. Every component, that does not solely rely on local state, connects to the store and gets its state from there. When a component is mounted, updated or a user interaction happens, the current component can contact the backend using the CloudObject instance. When the backend responds with data, an action is created and sent to the reducer. A new state is then derived, and sent to the component, providing the component with its new state.
 
@@ -45,11 +49,11 @@ The front-end contains a test suite, implemented using Jest.
 
 To run the test suite, use the command: `npm run test`.
 
-The test files is located in the [tests](./webclient/__tests__/) folder.
+The test files is located in the [tests](frontend-web/webclient/__tests__/README.html) folder.
 
 ## Security
 
-Logging in to the site is done through Wayf on the production version, or with username/password combination on the development version, both as described in [auth-service](../auth-service#authenticating-with-sducloud).
+Logging in to the site is done through Wayf on the production version, or with username/password combination on the development version, both as described in [auth-service](auth-service.html#authenticating-with-sducloud).
 
 The [Cloud object](#ucloud-object) will validate the every new JWT-token received from the backend when refreshing. This is done throught the structure of the JWT, not the actual contents of the JWT.
 

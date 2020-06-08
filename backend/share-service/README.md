@@ -1,10 +1,14 @@
-# share-service
+:orphan:
+
+# Share Service
 
 This service implements the share functionality for the UCloud file system. It
 gives the user the ability to share files and directories with other users of
 the file system. 
 
-![Create and share](./wiki/CreateAndAcceptShare.png)
+.. figure:: /backend/share-service/wiki/CreateAndAcceptShare.png
+   :align: center
+   :width: 80%
 
 A share can be in four different states:
 - `REQUEST_SENT`:

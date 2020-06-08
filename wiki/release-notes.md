@@ -1,4 +1,4 @@
-# Release Notes
+# UCloud Release Notes
 
 This page tracks a high-level overview of changes to the version of UCloud
 hosted at ucloud.dk (cloud.sdu.dk). This page is intended for internal
@@ -7,7 +7,7 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
-# 20-05-20
+## 20-05-20
 
 Bug-fix for webdav.
 
@@ -66,8 +66,8 @@ release notes has changed slightly to match our deployment tools.
 
 Bug fix for notifications.
 
-| Deployment | Image |
-| ---------- | ----- |
+| **Deployment** | **Image** |
+| -------------- | --------- |
 | notification         |  registry.cloud.sdu.dk/sdu-cloud/notification-service:1.2.16 |
 
 
@@ -75,32 +75,32 @@ Bug fix for notifications.
 
 Bug fix for app-kubernetes.
 
-| Deployment | Image |
-| ---------- | ----- |
+| **Deployment** | **Image** |
+| -------------- | --------- |
 | app-kubernetes         |  registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.18.3 |
 
 ## 01-04-20
 
 Another bug fix for app-kubernetes.
 
-| Deployment | Image |
-| ---------- | ----- |
+| **Deployment** | **Image** |
+| -------------- | --------- |
 | app-kubernetes         |  registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.17.2 |
 
 ## 31-03-20
 
 Minor bug fix for indexing
 
-| Deployment | Image |
-| ---------- | ----- |
+| **Deployment** | **Image** |
+| -------------- | --------- |
 | indexing         |  registry.cloud.sdu.dk/sdu-cloud/indexing-service:1.16.1 |
 
 ## 23-03-20
 
 Kata container code disabled for app-kubernetes.
 
-| Deployment | Image |
-| ---------- | ----- |
+| **Deployment** | **Image** |
+| -------------- | --------- |
 | app-kubernetes         |  registry.cloud.sdu.dk/sdu-cloud/app-kubernetes-service:0.17.1-kata-disabled |
 
 ## 23-03-20
@@ -108,8 +108,8 @@ Kata container code disabled for app-kubernetes.
 New deployment for most services.
 
 
-| Deployment | Image |
-| ---------- | ----- |
+| **Deployment** | **Image** |
+| -------------- | --------- |
 | accounting-compute     |  registry.cloud.sdu.dk/sdu-cloud/accounting-compute-service:1.2.12 |
 | accounting-storage     |  registry.cloud.sdu.dk/sdu-cloud/accounting-storage-service:1.3.0 |
 | activity               |  registry.cloud.sdu.dk/sdu-cloud/activity-service:1.4.14 |
@@ -145,16 +145,16 @@ New deployment for most services.
 Bug fix in elastic-management. During shrinking process source and target index 
 should now have same amount of doc before attempt to delete source index is made.
 
-| Deployment | Image |
-| ---------- | ----- |
+| **Deployment** | **Image** |
+| -------------- | --------- |
 | elastic-management | elastic-management-service:1.0.24 |
 
 ## 21-02-20
 
 Bug fix via new storage version. Added more names to GPU whitelist.
 
-| Deployment | Image |
-| ---------- | ----- |
+| **Deployment** | **Image** |
+| -------------- | --------- |
 | storage | storage-service:3.2.10 |
 | app-orchestrator | app-orchestrator-service:0.8.24-gpu.3 |
 
@@ -162,8 +162,8 @@ Bug fix via new storage version. Added more names to GPU whitelist.
 
 We back-ported GPU support for the old versions.
 
-| Deployment | Image |
-| ---------- | ----- |
+| **Deployment** | **Image** |
+| -------------- | --------- |
 | app-kubernetes | app-kubernetes-service:0.12.7-gpu.0 |
 | app-orchestrator | app-orchestrator-service:0.8.24-gpu.0 |
 | app-store | app-store-service:0.10.4-gpu.0 |
@@ -174,8 +174,8 @@ We back-ported GPU support for the old versions.
 
 Initial entry. The table below represents the active deployments.
 
-| Deployment | Image |
-| ---------- | ----- |
+| **Deployment** | **Image** |
+| -------------- | --------- |
 | accounting-compute | accounting-compute-service:1.2.8 |
 | accounting-storage-service-deployment | accounting-storage-service:1.2.8 |
 | activity-service-deployment | activity-service:1.4.9 |

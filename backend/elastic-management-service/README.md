@@ -1,4 +1,4 @@
-# elastic-management
+# Elastic Management Service
 
 Elastic-management uses different arguments to handle different jobs:
 
@@ -15,7 +15,7 @@ Elastic-management uses different arguments to handle different jobs:
    read/delete only state. At this point manual interventions is needed(see --removeFlod). 
    This requires the owner of the cluster to clean up the node and manually remove the flood limitation.
 - *"--cleanup"*  
-   Meant to run as a daily cron job. Goes through all indices to find expired [auditing](../service-common/wiki/auditing.md) 
+   Meant to run as a daily cron job. Goes through all indices to find expired [auditing](../service-common/wiki/auditing.html) 
    information given by the `expiry` field in the entries. Also takes all audit entries from the day before and 
    [shrinks](https://www.elastic.co/guide/en/elasticsearch/reference/master/indices-shrink-index.html)
    the indices to only contain 1 shard. We are lowering the number of shards to 1

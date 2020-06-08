@@ -1,4 +1,4 @@
-# Monitoring Policy
+# Monitoring
 
 ## Purpose
 
@@ -92,7 +92,7 @@ Any exception to the policy must be approved by the ISMS Committee team in advan
 
 ## Related Standards, Policies and Processes
 
-- [Acceptable Usage Policy](../acceptableusage/readme.md)
+- [Acceptable Usage Policy](acceptableusage.html)
 
 
 

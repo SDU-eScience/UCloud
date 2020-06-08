@@ -1,4 +1,6 @@
-# Authentication and Authorization in UCloud
+:orphan:
+
+# Authentication Service
 
 ## Authenticating with UCloud
 
@@ -34,7 +36,7 @@ user.
 Currently no password policy is implemented.
 
 Login attempts are logged through normal
-[auditing](../service-common/wiki/auditing.md). We limit
+[auditing](backend/service-common/wiki/auditing.html). We limit
 number of incorrect login attempts according to the following [recommendations](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#account-lockout).
 
 Passwords are stored following recommendations by
@@ -76,7 +78,7 @@ authentication workflow.
 The table below summarizes the tokens and where they are stored when the web
 interface is being used.
 
-| Name           | Token Type            | Storage Type     | Purpose                                               |
+| **Name**       | **Token Type**        | **Storage Type** | **Purpose**                                           |
 | -------------- | --------------------- | ---------------- | ----------------------------------------------------- |
 | `accessToken`  | [JWT](https://jwt.io) | Local Storage    | Authenticate API calls                                |
 | `refreshToken` | Opaque                | HTTP Only Cookie | Used for creating new `accessToken`s                  |
@@ -157,7 +159,7 @@ sensitive data in it.
 
 These properties are about the token itself and are used as part of the verification process.
 
-| Property | Description                                                                                    |
+| **Property** | **Description**                                                                                    |
 | -------- | ---------------------------------------------------------------------------------------------- |
 | `iat`    | Unix timestamp indicating when the token was issued at                                         |
 | `exp`    | Unix timestamp indicating when the token will expire                                           |
@@ -183,10 +185,9 @@ one-time token to mitigate the dangers of doing this.
 
 These properties are related to the authorization mechanisms of UCloud.
 This is tightly related to how the RPC layer is defined. This is described
-further in [Auditing](../service-common/wiki/auditing.md) and [Writing Service
-Interface](../service-common/wiki/writing_service_interfaces.md).
+further in [Auditing](backend/service-common/wiki/auditing.html) and [Writing Service Interface](backend/service-common/wiki/writing_service_interfaces.html).
 
-| Property | Description                                             |
+| **Property** | **Description**                                             |
 | -------- | ------------------------------------------------------- |
 | `role`   | The role of this user. See table and description below. |
 | `aud`    | A list of security scopes. See below.                   |
@@ -200,7 +201,7 @@ single API endpoint should only be accessible to users with a given role.
 
 The table below shows the global roles in UCloud:
 
-| Role      | Description                                                           |
+| **Role**      | **Description**                                                           |
 | --------- | --------------------------------------------------------------------- |
 | `USER`    | A 'normal' end-user                                                   |
 | `ADMIN`   | An administrator of system. Has access to certain privileged actions. |
@@ -214,7 +215,7 @@ understand some of the metadata associated with API endspoints. All API
 endpoints in UCloud have metadata associated with them, the table below
 summarizes the important metadata:
 
-| Property      | Description                                                                                                                                           |
+| **Property**      | **Description**                                                                                                                                           |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `namespace`   | Each endpoint belongs to a collection. We refer to the collection's name as the namespace. Namespaces can be hierarchical and are separated by a `.`. |
 | `name`        | A unique name for the API endpoint within it's collection.                                                                                            |
@@ -229,7 +230,7 @@ namespace exists called `all` which can be used for any and all namespaces.
 
 Below are some examples:
 
-| Scope                        | Grants                                                                 |
+| **Scope**                        | **Grants**                                                                 |
 | ---------------------------- | ---------------------------------------------------------------------- |
 | `all:write`                  | Grants read/write access to all endpoints.                             |
 | `files:read`                 | Grants read only access to all endpoints within the `files` namespace  |
@@ -276,7 +277,7 @@ considered secret and does not allow a user to create new JWTs.
 
 ### User Metadata
 
-| Property        | Description                                |
+| **Property**        | **Description**                                |
 | --------------- | ------------------------------------------ |
 | `sub`           | The username of this user.                 |
 | `principalType` | The type of users. (wayf/password/service) |

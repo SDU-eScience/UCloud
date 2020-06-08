@@ -926,7 +926,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
     const beingRenamed = props.file.path !== null && props.file.path === props.fileBeingRenamed;
     const fileName = beingRenamed ? (
-        <Flex width={1}>
+        <Flex width={1} alignItems="center">
             <Input
                 placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
                 defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
@@ -945,7 +945,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                 data-tag="renameField"
                 onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
             />
-            <Icon ml="10px" mt="3px" cursor="pointer" name="close" color="red" onClick={() => props.onRenameFile?.(KeyCode.ESC, "")} />
+            <Icon ml="10px" mb="-4px" size="16px" cursor="pointer" name="close" color="red" onClick={() => props.onRenameFile?.(KeyCode.ESC, "")} />
         </Flex>
     ) : (
             <Truncate width={1} mb="-4px" fontSize={20}>
