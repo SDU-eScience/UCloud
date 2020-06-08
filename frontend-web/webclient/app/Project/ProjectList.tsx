@@ -107,15 +107,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     }, [archived]);
 
     const projectOperations: ProjectOperation[] = [
-        /* {
-            text: "Settings",
-            disabled: projects => projects.length !== 1,
-            icon: "properties",
-            onClick: ([project]) => {
-                props.setProject(project.projectId);
-                history.push("/projects/view/-/settings");
-            }
-        }, */
         {
             text: "Archive",
             disabled: projects => projects.length !== 1 || projects.every(it => it.archived),
@@ -171,59 +162,65 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     return (
         <MainContainer
             headerSize={58}
-            header={<Heading.h3 mb={16}>Invitations</Heading.h3>}
             main={(
                 <>
-                    <Pagination.List
-                        customEmptyPage={<Box mb={32}>You have no invitations.</Box>}
-                        loading={ingoingInvites.loading}
-                        page={ingoingInvites.data}
-                        onPageChanged={newPage =>
-                            fetchIngoingInvites(listIngoingInvites({...ingoingInvitesParams.parameters, page: newPage}))
-                        }
-                        pageRenderer={() => (
-                            <Box mb={32}>
-                                {ingoingInvites.data.items.map(invite => (
-                                    <ShareCardBase
-                                        key={invite.project}
-                                        title={invite.project}
-                                        body={
-                                            <Spacer
-                                                left={<>
-                                                    <UserAvatar avatar={avatars.cache[invite.invitedBy] ?? defaultAvatar} mr="10px" />
-                                                    <Flex alignItems="center">Invited by {invite.invitedBy}</Flex>
-                                                </>}
-                                                right={<Flex alignItems="center">
-                                                    <Button
-                                                        color="green"
-                                                        height="42px"
-                                                        mr={8}
-                                                        onClick={async () => {
-                                                            await runCommand(acceptInvite({projectId: invite.project}));
-                                                            reload();
-                                                        }}
-                                                    >
-                                                        Accept
-                                                    </Button>
-                                                    <Button
-                                                        color="red"
-                                                        height="42px"
-                                                        onClick={async () => {
-                                                            await runCommand(rejectInvite({projectId: invite.project}));
-                                                            reload();
-                                                        }}
-                                                    >
-                                                        Reject
-                                                    </Button>
-                                                </Flex>}
+                    {ingoingInvites.data.itemsInTotal > 0 ? (
+                        <>
+                            <Heading.h3 mb={16}>Invitations</Heading.h3>
+                            <Pagination.List
+                                customEmptyPage={<Box mb={32}>You have no invitations.</Box>}
+                                loading={ingoingInvites.loading}
+                                page={ingoingInvites.data}
+                                onPageChanged={newPage =>
+                                    fetchIngoingInvites(listIngoingInvites({...ingoingInvitesParams.parameters, page: newPage}))
+                                }
+                                pageRenderer={() => (
+                                    <Box mb={32}>
+                                        {ingoingInvites.data.items.map(invite => (
+                                            <ShareCardBase
+                                                key={invite.project}
+                                                title={invite.project}
+                                                body={
+                                                    <Spacer
+                                                        left={<>
+                                                            <UserAvatar avatar={avatars.cache[invite.invitedBy] ?? defaultAvatar} mr="10px" />
+                                                            <Flex alignItems="center">Invited by {invite.invitedBy}</Flex>
+                                                        </>}
+                                                        right={<Flex alignItems="center">
+                                                            <Button
+                                                                color="green"
+                                                                height="42px"
+                                                                mr={8}
+                                                                onClick={async () => {
+                                                                    await runCommand(acceptInvite({projectId: invite.project}));
+                                                                    reload();
+                                                                }}
+                                                            >
+                                                                Accept
+                                                            </Button>
+                                                            <Button
+                                                                color="red"
+                                                                height="42px"
+                                                                onClick={async () => {
+                                                                    await runCommand(rejectInvite({projectId: invite.project}));
+                                                                    reload();
+                                                                }}
+                                                            >
+                                                                Reject
+                                                            </Button>
+                                                        </Flex>}
+                                                    />
+                                                }
+                                                bottom={<Box height="16px" />}
                                             />
-                                        }
-                                        bottom={<Box height="16px" />}
-                                    />
-                                ))}
-                            </Box>
-                        )}
-                    />
+                                        ))}
+                                    </Box>
+                                )}
+                            />
+                        </>
+                    ) : (
+                        <></>
+                    )}
                     {favorites.data.items.length === 0 ? null : (<>
                         <Heading.h3>Favorites</Heading.h3>
                         <List mb="10px">
@@ -247,8 +244,28 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     <List>
                         <ListRow
                             icon={<Box width="24px" />}
-                            left={<Box height="41px" mb="-6px" alignItems="bottom"><Text>Personal project</Text></Box>}
-                            leftSub={<div />}
+                            left={
+                                <>
+                                    <Box
+                                        onClick={() => {
+                                            if (props.project !== undefined && props.project !== "") {
+                                                props.setProject();
+                                                snackbarStore.addInformation("Personal project is now the active.", false);
+                                            }
+                                        }}
+                                        height="30px"
+                                    >
+                                        <Link to="/project/dashboard">
+                                            Personal project
+                                        </Link>
+                                    </Box>
+                                </>
+                            }
+                            leftSub={
+                                <Box color="grey">
+                                    2 TB used, 20 credits left
+                                </Box>
+                            }
                             right={<>
                                 <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
                                     if (!props.project) return;
@@ -364,22 +381,31 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         hoverColor="blue"
                     />}
                     left={
-                        <Box
-                            onClick={() => {
-                                if (e.projectId !== props.project) {
-                                    props.setProject(e.projectId);
-                                    snackbarStore.addInformation(
-                                        `${e.title} is now the active project`,
-                                        false
-                                    );
-                                }
-                            }}
-                            height="30px"
-                        >
-                            <Link to="/projects/view">
-                                {e.title}
-                            </Link>
-                        </Box>
+                        <>
+                            <Box
+                                onClick={() => {
+                                    if (e.projectId !== props.project) {
+                                        props.setProject(e.projectId);
+                                        snackbarStore.addInformation(
+                                            `${e.projectId} is now the active project`,
+                                            false
+                                        );
+                                    }
+                                }}
+                                height="30px"
+                            >
+                                <Link to="/project/dashboard">
+                                    {e.title}
+                                </Link>
+                            </Box>
+                        </>
+                    }
+                    leftSub={
+                        <>
+                            <Box color="grey">
+                                2 TB used, 20 credits left
+                            </Box>
+                        </>
                     }
                     right={
                         <Flex alignItems={"center"}>
