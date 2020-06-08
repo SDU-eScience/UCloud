@@ -4,6 +4,8 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.accounting.compute.MachineReservation
+import dk.sdu.cloud.accounting.compute.api.Product
+import dk.sdu.cloud.accounting.compute.api.ProductCategoryId
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -390,11 +392,13 @@ class JobQueryService(
                 nodes = getField(nodes),
                 maxTime = SimpleDuration(getField(maxTimeHours), getField(maxTimeMinutes), getField(maxTimeSeconds)),
                 tasksPerNode = getField(tasksPerNode),
-                reservation = MachineReservation(
+                reservation = Product.Compute(
                     getField(reservationType),
-                    getField(reservedCpus),
-                    getField(reservedMemoryInGigs),
-                    getField(reservedGpus)
+                    getField(reservedPricePerUnit),
+                    ProductCategoryId(getField(reservedCategory), getField(reservedProvider)),
+                    cpu = getField(reservedCpus),
+                    memoryInGigs = getField(reservedMemoryInGigs),
+                    gpu = getField(reservedGpus)
                 ),
                 jobInput = VerifiedJobInput(
                     defaultMapper.readValue(getField(parameters))

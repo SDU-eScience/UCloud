@@ -1,41 +1,42 @@
 package dk.sdu.cloud.accounting.compute.services
 
-import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.accounting.compute.api.AccountType
-import dk.sdu.cloud.accounting.compute.api.CreditsAccount
+import dk.sdu.cloud.accounting.compute.api.ProductCategoryId
+import dk.sdu.cloud.accounting.compute.api.WalletOwnerType
+import dk.sdu.cloud.accounting.compute.api.Wallet
+import dk.sdu.cloud.accounting.compute.api.WalletBalance
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
-import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 
-object BalanceTable : SQLTable("balance") {
-    val accountId = text("account_id")
-    val accountType = text("account_type") // This needs to change
-    val accountMachineType = text("account_machine_type")
-    val balance = long("balance")
+object WalletTable : SQLTable("wallets") {
+    val accountId = text("account_id", notNull = true)
+    val accountType = text("account_type", notNull = true)
+    val productCategory = text("product_category", notNull = true)
+    val productProvider = text("product_provider", notNull = true)
+
+    val balance = long("balance", notNull = true)
 }
 
 object TransactionTable : SQLTable("transactions") {
-    val accountId = text("account_id")
-    val accountType = text("account_type")
-    val accountMachineType = text("account_machine_type") // This needs to change
+    val accountId = text("account_id", notNull = true)
+    val accountType = text("account_type", notNull = true)
+    val productCategory = text("product_category", notNull = true)
+    val productProvider = text("product_provider", notNull = true)
+
+    val id = text("id")
+
+    val productId = text("product_id")
+    val units = long("units")
     val amount = long("amount")
-    val reservationId = text("reservation_id")
     val isReserved = bool("is_reserved")
     val initiatedBy = text("initiated_by")
     val completedAt = timestamp("completed_at")
     val expiresAt = timestamp("expires_at")
-}
-
-object GrantAdminTable : SQLTable("grant_administrators") { // This goes away (replace with project management)
-    val username = text("username")
 }
 
 class BalanceService(
@@ -46,14 +47,13 @@ class BalanceService(
         ctx: DBContext,
         initiatedBy: Actor,
         accountId: String,
-        accountType: AccountType
+        walletOwnerType: WalletOwnerType
     ) {
         if (initiatedBy == Actor.System) return
         if (initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEDGED) return
 
-        if (accountType == AccountType.USER && initiatedBy.username == accountId) return
-        if (isGrantAdministrator(ctx, initiatedBy)) return
-        if (accountType == AccountType.PROJECT) {
+        if (walletOwnerType == WalletOwnerType.USER && initiatedBy.username == accountId) return
+        if (walletOwnerType == WalletOwnerType.PROJECT) {
             val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
             val project = memberStatus?.membership?.find { it.projectId == accountId }
             if (project != null && project.whoami.role.isAdmin()) {
@@ -63,10 +63,67 @@ class BalanceService(
         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
+    suspend fun requirePermissionToWriteBalance(
+        ctx: DBContext,
+        initiatedBy: Actor,
+        accountId: String,
+        walletOwnerType: WalletOwnerType
+    ) {
+        if (initiatedBy == Actor.System) return
+        if (initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEDGED) return
+
+        if (walletOwnerType == WalletOwnerType.PROJECT) {
+            val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
+            val project = memberStatus?.membership?.find { it.parentId == accountId }
+            if (project != null && project.whoami.role.isAdmin()) {
+                return
+            }
+        }
+        throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+    }
+
+    suspend fun getWalletsForAccount(
+        ctx: DBContext,
+        initiatedBy: Actor,
+        accountId: String,
+        accountOwnerType: WalletOwnerType
+    ): List<WalletBalance> {
+        return ctx.withSession { session ->
+            requirePermissionToWriteBalance(session, initiatedBy, accountId, accountOwnerType)
+            verificationService.verify(accountId, accountOwnerType)
+
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("accountId", accountId)
+                        setParameter("accountType", accountOwnerType.name)
+                    },
+
+                    """
+                        select *
+                        from wallets 
+                        where 
+                            account_id = ?accountId and 
+                            account_type = ?accountType
+                    """
+                )
+                .rows
+                .map {
+                    WalletBalance(
+                        ProductCategoryId(
+                            it.getField(WalletTable.productProvider),
+                            it.getField(WalletTable.productCategory)
+                        ),
+                        it.getField(WalletTable.balance)
+                    )
+                }
+        }
+    }
+
     suspend fun getBalance(
         ctx: DBContext,
         initiatedBy: Actor,
-        account: CreditsAccount,
+        account: Wallet,
         verify: Boolean = true
     ): Pair<Long, Boolean> {
         return ctx.withSession { session ->
@@ -77,16 +134,18 @@ class BalanceService(
                     {
                         setParameter("accountId", account.id)
                         setParameter("accountType", account.type.name)
-                        setParameter("accountMachineType", account.machineType.name)
+                        setParameter("productCategory", account.paysFor.id)
+                        setParameter("productProvider", account.paysFor.provider)
                     },
 
                     """
                         select balance 
-                        from balance 
+                        from wallets 
                         where 
                             account_id = ?accountId and 
                             account_type = ?accountType and
-                            account_machine_type = ?accountMachineType
+                            product_category = ?productCategory and
+                            product_provider = ?productProvider
                     """
                 )
                 .rows
@@ -104,12 +163,12 @@ class BalanceService(
     suspend fun setBalance(
         ctx: DBContext,
         initiatedBy: Actor,
-        account: CreditsAccount,
+        account: Wallet,
         lastKnownBalance: Long,
         amount: Long
     ) {
         ctx.withSession { session ->
-            if (!isGrantAdministrator(ctx, initiatedBy)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            requirePermissionToWriteBalance(session, initiatedBy, account.id, account.type)
             val (currentBalance, exists) = getBalance(session, initiatedBy, account, true)
             if (currentBalance != lastKnownBalance) {
                 throw RPCException("Balance has been updated since you last viewed it!", HttpStatusCode.Conflict)
@@ -124,11 +183,12 @@ class BalanceService(
                 }
 
                 // TODO Verify account exists
-                session.insert(BalanceTable) {
-                    set(BalanceTable.accountId, account.id)
-                    set(BalanceTable.accountType, account.type.name)
-                    set(BalanceTable.accountMachineType, account.machineType.name)
-                    set(BalanceTable.balance, amount)
+                session.insert(WalletTable) {
+                    set(WalletTable.accountId, account.id)
+                    set(WalletTable.accountType, account.type.name)
+                    set(WalletTable.productCategory, account.paysFor.id)
+                    set(WalletTable.productProvider, account.paysFor.provider)
+                    set(WalletTable.balance, amount)
                 }
 
                 return@withSession
@@ -140,16 +200,18 @@ class BalanceService(
                         setParameter("amount", amount)
                         setParameter("accountId", account.id)
                         setParameter("accountType", account.type.name)
-                        setParameter("accountMachineType", account.machineType.name)
+                        setParameter("productCategory", account.paysFor.id)
+                        setParameter("productProvider", account.paysFor.provider)
                     },
 
                     """
-                        update balance
+                        update wallets
                         set balance = ?amount
                         where 
                             account_id = ?accountId and 
                             account_type = ?accountType and 
-                            account_machine_type = ?accountMachineType
+                            product_category = ?productCategory and
+                            product_provider = ?productProvider
                     """
                 )
         }
@@ -158,27 +220,29 @@ class BalanceService(
     suspend fun addToBalance(
         ctx: DBContext,
         initiatedBy: Actor,
-        account: CreditsAccount,
+        account: Wallet,
         amount: Long
     ) {
         ctx.withSession { session ->
-            if (!isGrantAdministrator(ctx, initiatedBy)) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            requirePermissionToWriteBalance(session, initiatedBy, account.id, account.type)
             val rowsAffected = session
                 .sendPreparedStatement(
                     {
                         setParameter("amount", amount)
                         setParameter("accountId", account.id)
                         setParameter("accountType", account.type.name)
-                        setParameter("accountMachineType", account.machineType.name)
+                        setParameter("productCategory", account.paysFor.id)
+                        setParameter("productProvider", account.paysFor.provider)
                     },
 
                     """
-                        update balance  
+                        update wallets  
                         set balance = balance + ?amount
                         where 
                             account_id = ?accountId and 
                             account_type = ?accountType and
-                            account_machine_type = ?accountMachineType
+                            product_category = ?productCategory and
+                            product_provider = ?productProvider
                     """
                 )
                 .rowsAffected
@@ -189,13 +253,14 @@ class BalanceService(
 
     suspend fun getReservedCredits(
         ctx: DBContext,
-        account: CreditsAccount
+        account: Wallet
     ): Long {
         return ctx.withSession { session ->
             val params: EnhancedPreparedStatement.() -> Unit = {
                 setParameter("accountId", account.id)
                 setParameter("accountType", account.type.name)
-                setParameter("accountMachineType", account.machineType.name)
+                setParameter("productCategory", account.paysFor.id)
+                setParameter("productProvider", account.paysFor.provider)
             }
 
             session
@@ -207,7 +272,8 @@ class BalanceService(
                         where
                             account_id = ?accountId and
                             account_type = ?accountType and
-                            account_machine_type = ?accountMachineType and
+                            product_category = ?productCategory and
+                            product_provider = ?productProvider and
                             is_reserved = true and
                             expires_at is not null and
                             expires_at < timezone('utc', now())
@@ -219,18 +285,19 @@ class BalanceService(
                     params,
 
                     """
-                        select sum(amount)
+                        select sum(amount)::bigint
                         from transactions
                         where
                             account_id = ?accountId and
                             account_type = ?accountType and
-                            account_machine_type = ?accountMachineType and
+                            product_category = ?productCategory and
+                            product_provider = ?productProvider and
                             is_reserved = true
                     """
                 )
                 .rows
                 .firstOrNull()
-                ?.let { it.getLong(0)!! }
+                ?.let { it.getLong(0) }
                 ?: 0L
         }
     }
@@ -238,10 +305,12 @@ class BalanceService(
     suspend fun reserveCredits(
         ctx: DBContext,
         initiatedBy: Actor,
-        account: CreditsAccount,
+        account: Wallet,
         reservationId: String,
         amount: Long,
-        expiresAt: Long
+        expiresAt: Long,
+        productId: String,
+        units: Long
     ) {
         if (initiatedBy == Actor.System) {
             throw IllegalStateException("System cannot initiate a reservation")
@@ -257,13 +326,16 @@ class BalanceService(
             session.insert(TransactionTable) {
                 set(TransactionTable.accountId, account.id)
                 set(TransactionTable.accountType, account.type.name)
-                set(TransactionTable.accountMachineType, account.machineType.name)
+                set(TransactionTable.productCategory, account.paysFor.id)
+                set(TransactionTable.productProvider, account.paysFor.provider)
                 set(TransactionTable.amount, amount)
                 set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
                 set(TransactionTable.initiatedBy, initiatedBy.username)
                 set(TransactionTable.isReserved, true)
+                set(TransactionTable.productId, productId)
+                set(TransactionTable.units, units)
                 set(TransactionTable.completedAt, LocalDateTime.now(DateTimeZone.UTC))
-                set(TransactionTable.reservationId, reservationId)
+                set(TransactionTable.id, reservationId)
             }
         }
     }
@@ -271,7 +343,8 @@ class BalanceService(
     suspend fun chargeFromReservation(
         ctx: DBContext,
         reservationId: String,
-        amount: Long
+        amount: Long,
+        units: Long
     ) {
         ctx.withSession { session ->
             val transaction = session
@@ -282,7 +355,7 @@ class BalanceService(
                     """
                         select * from transactions 
                         where
-                            reservation_id = ?reservationId and
+                            id = ?reservationId and
                             is_reserved = true and
                             expires_at is not null and
                             expires_at > timezone('utc', now())
@@ -294,77 +367,49 @@ class BalanceService(
 
             val accountId = transaction.getField(TransactionTable.accountId)
             val accountType = transaction.getField(TransactionTable.accountType)
-            val machineType = transaction.getField(TransactionTable.accountMachineType)
-            val initiatedBy = transaction.getField(TransactionTable.initiatedBy)
+            val productCategory = transaction.getField(TransactionTable.productCategory)
+            val productProvider = transaction.getField(TransactionTable.productProvider)
 
-            session
-                .sendPreparedStatement(
-                    { setParameter("reservationId", reservationId) },
-                    "delete from transactions where reservation_id = ?reservationId and is_reserved = true"
-                )
-
-            session.insert(TransactionTable) {
-                set(TransactionTable.accountId, accountId)
-                set(TransactionTable.accountType, accountType)
-                set(TransactionTable.accountType, machineType)
-                set(TransactionTable.amount, amount)
-                set(TransactionTable.expiresAt, null)
-                set(TransactionTable.initiatedBy, initiatedBy)
-                set(TransactionTable.isReserved, false)
-                set(TransactionTable.completedAt, LocalDateTime.now(DateTimeZone.UTC))
-                set(TransactionTable.reservationId, reservationId)
-            }
-        }
-    }
-
-    suspend fun addGrantAdministrator(
-        ctx: DBContext,
-        initiatedBy: Actor,
-        username: String
-    ) {
-        if (!(initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEDGED)) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
-        try {
-            ctx.withSession { session ->
-                session.insert(GrantAdminTable) {
-                    set(GrantAdminTable.username, username)
-                }
-            }
-        } catch (ex: GenericDatabaseException) {
-            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
-                throw RPCException("Already an administrator", HttpStatusCode.Conflict)
-            }
-
-            log.warn(ex.stackTraceToString())
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        }
-    }
-
-    private suspend fun isGrantAdministrator(
-        ctx: DBContext,
-        actor: Actor
-    ): Boolean {
-        if (actor is Actor.User && actor.principal.role in Roles.PRIVILEDGED) return true
-        if (actor == Actor.System) return true
-
-        return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("username", actor.username)
+                        setParameter("amount", amount)
+                        setParameter("units", units)
+                        setParameter("reservationId", reservationId)
                     },
 
                     """
-                        select count(*)
-                        from grant_administrators     
-                        where username = ?username
+                        update transactions     
+                        set
+                            amount = ?amount,
+                            units = ?units,
+                            is_reserved = false,
+                            completed_at = now(),
+                            expires_at = null
+                        where
+                            id = ?reservationId 
                     """
                 )
-                .rows
-                .first()
-                .let { it.getLong(0)!! } > 0L
+
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("amount", amount)
+                        setParameter("accountId", accountId)
+                        setParameter("accountType", accountType)
+                        setParameter("productCategory", productCategory)
+                        setParameter("productProvider", productProvider)
+                    },
+                    """
+                        update wallets
+                        set balance = balance - ?amount
+                        where
+                            account_id = ?accountId and
+                            account_type = ?accountType and
+                            product_category = ?productCategory and
+                            product_provider = ?productProvider
+                    """
+                )
         }
     }
 

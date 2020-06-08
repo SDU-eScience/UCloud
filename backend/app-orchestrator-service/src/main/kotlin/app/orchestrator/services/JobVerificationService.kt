@@ -146,10 +146,6 @@ class JobVerificationService(
             reservation ?: throw JobException.VerificationError("Invalid machine type")
         }
 
-        if (reservation.pricePerHour == null) {
-            throw IllegalStateException("Machine type did not have a price associated to it!")
-        }
-
         // Verify membership of project
         if (unverifiedJob.project != null) {
             Projects.viewMemberInProject.call(

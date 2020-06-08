@@ -1,7 +1,8 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
 import dk.sdu.cloud.accounting.compute.MachineReservation
-import dk.sdu.cloud.accounting.compute.MachineTypes
+import dk.sdu.cloud.accounting.compute.api.Product
+import dk.sdu.cloud.accounting.compute.api.Products
 import dk.sdu.cloud.app.orchestrator.api.CancelRequest
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsResponse
 import dk.sdu.cloud.app.orchestrator.api.JobState
@@ -33,7 +34,6 @@ import io.mockk.coEvery
 import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.Job
-import org.hibernate.Session
 import org.junit.Test
 
 private fun KtorApplicationTestSetupContext.configureCallbackServer(
@@ -44,16 +44,11 @@ private fun KtorApplicationTestSetupContext.configureCallbackServer(
     serviceClient: AuthenticatedClient,
     vncService: VncService,
     webService: WebService,
-    machineTypes: List<MachineReservation>
+    machineTypes: List<Product.Compute>
 ): List<Controller> {
     ClientMock.mockCallSuccess(
-        MachineTypes.listMachines,
+        Products.retrieveAllFromProvider,
         machineTypes
-    )
-
-    ClientMock.mockCallSuccess(
-        MachineTypes.defaultMachine,
-        machineTypes.first()
     )
 
     return listOf(JobController(
@@ -84,7 +79,7 @@ class JobTest{
                 val serviceClient = ClientMock.authenticatedClient
                 val vncService = mockk<VncService>()
                 val webService = mockk<WebService>()
-                val machineTypes = listOf( MachineReservation("ReservationName", 2, 2))
+                val machineTypes: List<Product.Compute> = TODO()// listOf( MachineReservation("ReservationName", 2, 2))
 
                 ClientMock.mockCallSuccess(
                     AuthDescriptions.tokenExtension,

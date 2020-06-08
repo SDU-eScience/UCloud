@@ -83,12 +83,6 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
             path {
                 using(baseContext)
             }
-
-            /*
-        body {
-            // YAML document TODO Need support in implement feature for this
-        }
-        */
         }
     }
 

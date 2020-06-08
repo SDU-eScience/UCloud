@@ -31,12 +31,12 @@ export const Credits: React.FunctionComponent = () => {
     const [loading, runCommand] = useAsyncCommand();
     const [currentUserBalance, fetchUserBalance] = useCloudAPI<RetrieveBalanceResponse>(
         {noop: true},
-        {balance: []}
+        {wallets: []}
     );
 
     const [currentProjectBalance, fetchProjectBalance] = useCloudAPI<RetrieveBalanceResponse>(
         {noop: true},
-        {balance: []}
+        {wallets: []}
     );
 
     useEffect(() => {
@@ -97,9 +97,9 @@ export const BalanceForAccount: React.FunctionComponent<{
     return <div>
         {!props.balance.error ? null : <>{props.balance.error.why}</>}
 
-        {props.balance.error ? null : props.balance.data.balance.map(it => (
-            <Box key={it.type} mt={8} mb={8}>
-                <Heading.h4>Balance ({it.type}): {it.creditsRemaining}</Heading.h4>
+        {props.balance.error ? null : props.balance.data.wallets.map(it => (
+            <Box key={it.category.id} mt={8} mb={8}>
+                <Heading.h4>Balance ({it.category.id}): {it.balance}</Heading.h4>
 
                 <WalletContainer>
                     <form onSubmit={async e => {
@@ -108,10 +108,12 @@ export const BalanceForAccount: React.FunctionComponent<{
                             .querySelector("input") as HTMLInputElement;
 
                         const value = parseInt(field.value, 10);
+                        /*
                         await runCommand(grantCredits({
                             account: {id: props.id, type: props.type, machineType: it.type},
                             credits: value
                         }));
+                        */
                         props.reload();
                     }}>
                         <Input placeholder={"Add credits"} />
@@ -122,11 +124,13 @@ export const BalanceForAccount: React.FunctionComponent<{
                         const field = (e.target as HTMLFormElement)
                             .querySelector("input") as HTMLInputElement;
                         const value = parseInt(field.value, 10);
+                        /*
                         await runCommand(setCredits({
                             account: {id: props.id, type: props.type, machineType: it.type},
                             lastKnownBalance: it.creditsRemaining,
                             newBalance: value
                         }));
+                         */
                         props.reload();
                     }}>
                         <Input placeholder={"Set credits"} />

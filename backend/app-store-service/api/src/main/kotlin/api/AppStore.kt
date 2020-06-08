@@ -449,7 +449,6 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
         http {
             method = HttpMethod.Put
             path { using(baseContext) }
-            // body { //YAML Body TODO Implement support }
         }
     }
 

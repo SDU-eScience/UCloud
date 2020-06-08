@@ -310,7 +310,7 @@ class QueryService(
                         setParameter("username", username)
                     },
                     """
-                        select pm.*, p.title as title
+                        select pm.*, p.title as title, p.parent as parent
                         from project_members pm, projects p
                         where 
                             pm.username = ?username and
@@ -325,7 +325,8 @@ class QueryService(
                         ProjectMember(
                             username,
                             it.getField(ProjectMemberTable.role).let { ProjectRole.valueOf(it) }
-                        )
+                        ),
+                        it.getString("parent")
                     )
                 }
 

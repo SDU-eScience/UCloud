@@ -1,16 +1,14 @@
 package dk.sdu.cloud.accounting.compute.rpc
 
-import dk.sdu.cloud.accounting.compute.MachineType
 import dk.sdu.cloud.accounting.compute.api.*
-import dk.sdu.cloud.accounting.compute.services.Actor
 import dk.sdu.cloud.accounting.compute.services.BalanceService
 import dk.sdu.cloud.accounting.compute.services.VisualizationService
-import dk.sdu.cloud.accounting.compute.services.toActor
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.toActor
 
 class AccountingController(
     private val db: DBContext,
@@ -18,56 +16,50 @@ class AccountingController(
     private val visualization: VisualizationService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(AccountingCompute.grantCredits) {
-            balance.addToBalance(db, ctx.securityPrincipal.toActor(), request.account, request.credits)
+        implement(Wallets.grantCredits) {
+            balance.addToBalance(db, ctx.securityPrincipal.toActor(), request.wallet, request.credits)
             ok(Unit)
         }
 
-        implement(AccountingCompute.reserveCredits) {
+        implement(Wallets.reserveCredits) {
             balance.reserveCredits(
                 db,
                 Actor.SystemOnBehalfOfUser(request.jobInitiatedBy),
                 request.account,
                 request.jobId,
                 request.amount,
-                request.expiresAt
+                request.expiresAt,
+                request.productId,
+                request.productUnits
             )
 
             ok(Unit)
         }
 
-        implement(AccountingCompute.chargeReservation) {
+        implement(Wallets.chargeReservation) {
             balance.chargeFromReservation(
                 db,
                 request.name,
-                request.amount
+                request.amount,
+                request.productUnits
             )
 
             ok(Unit)
         }
 
-        implement(AccountingCompute.retrieveBalance) {
-            val balances = db.withSession { session ->
-                MachineType.values().map { machineType ->
-                    val (balance, _) = balance.getBalance(
-                        session,
-                        ctx.securityPrincipal.toActor(),
-                        CreditsAccount(request.id, request.type, machineType),
-                        true
-                    )
-
-                    ComputeBalance(machineType, balance)
-                }
-            }
-
-            ok(RetrieveBalanceResponse(balances))
+        implement(Wallets.retrieveBalance) {
+            ok(
+                RetrieveBalanceResponse(
+                    balance.getWalletsForAccount(db, ctx.securityPrincipal.toActor(), request.id, request.type)
+                )
+            )
         }
 
-        implement(AccountingCompute.setBalance) {
+        implement(Wallets.setBalance) {
             balance.setBalance(
                 db,
                 ctx.securityPrincipal.toActor(),
-                request.account,
+                request.wallet,
                 request.lastKnownBalance,
                 request.newBalance
             )
@@ -75,6 +67,7 @@ class AccountingController(
             ok(Unit)
         }
 
+        /*
         implement(AccountingCompute.dailyUsage) {
             ok(
                 DailyComputeChart(
@@ -82,7 +75,7 @@ class AccountingController(
                         db,
                         ctx.securityPrincipal.toActor(),
                         request.project ?: ctx.securityPrincipal.username,
-                        if (request.project != null) AccountType.PROJECT else AccountType.USER,
+                        if (request.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
                         request.group,
                         request.pStart,
                         request.pEnd
@@ -98,7 +91,7 @@ class AccountingController(
                         db,
                         ctx.securityPrincipal.toActor(),
                         request.project ?: ctx.securityPrincipal.username,
-                        if (request.project != null) AccountType.PROJECT else AccountType.USER,
+                        if (request.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
                         request.group,
                         request.pStart,
                         request.pEnd
@@ -114,7 +107,7 @@ class AccountingController(
                         db,
                         ctx.securityPrincipal.toActor(),
                         request.project,
-                        AccountType.PROJECT,
+                        WalletOwnerType.PROJECT,
                         request.group,
                         request.pStart,
                         request.pEnd
@@ -122,6 +115,7 @@ class AccountingController(
                 )
             )
         }
+         */
 
         return@with
     }

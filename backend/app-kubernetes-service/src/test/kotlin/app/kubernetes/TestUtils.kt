@@ -1,6 +1,9 @@
 package dk.sdu.cloud.app.kubernetes
 
 import dk.sdu.cloud.accounting.compute.MachineReservation
+import dk.sdu.cloud.accounting.compute.api.Product
+import dk.sdu.cloud.accounting.compute.api.ProductCategoryId
+import dk.sdu.cloud.accounting.compute.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
@@ -75,7 +78,7 @@ val verifiedJob = VerifiedJob(
     nodes = 1,
     maxTime = SimpleDuration(0, 1, 0),
     tasksPerNode = 1,
-    reservation = MachineReservation("u1-standard-burst"),
+    reservation = Product.Compute("u1-standard-burst", 0, ProductCategoryId("standard", UCLOUD_PROVIDER)),
     jobInput = VerifiedJobInput(emptyMap()),
     files = emptySet(),
     _mounts = emptySet(),
