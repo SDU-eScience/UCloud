@@ -107,15 +107,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     }, [archived]);
 
     const projectOperations: ProjectOperation[] = [
-        /* {
-            text: "Settings",
-            disabled: projects => projects.length !== 1,
-            icon: "properties",
-            onClick: ([project]) => {
-                props.setProject(project.projectId);
-                history.push("/projects/view/-/settings");
-            }
-        }, */
         {
             text: "Archive",
             disabled: projects => projects.length !== 1 || projects.every(it => it.archived),
@@ -252,8 +243,28 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     <List>
                         <ListRow
                             icon={<Box width="24px" />}
-                            left={<Box height="41px" mb="-6px" alignItems="bottom"><Text>Personal project</Text></Box>}
-                            leftSub={<div />}
+                            left={
+                                <>
+                                    <Box
+                                        onClick={() => {
+                                            if (props.project !== undefined && props.project !== "") {
+                                                props.setProject();
+                                                snackbarStore.addInformation("Personal project is now the active.", false);
+                                            }
+                                        }}
+                                        height="30px"
+                                    >
+                                        <Link to="/project/dashboard">
+                                            Personal project
+                                        </Link>
+                                    </Box>
+                                </>
+                            }
+                            leftSub={
+                                <Box color="grey">
+                                    2 TB used, 20 credits left
+                                </Box>
+                            }
                             right={<>
                                 <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
                                     if (!props.project) return;
