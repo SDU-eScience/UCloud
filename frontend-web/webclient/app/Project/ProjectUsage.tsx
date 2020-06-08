@@ -36,9 +36,9 @@ import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip} from "recharts";
 import Table, {TableHeader, TableHeaderCell, TableCell, TableRow} from "ui-components/Table";
-import {dailyUsage, DailyUsageRequest, DailyUsageResponse, CumulativeUsageResponse, cumulativeUsage} from "Accounting/Compute";
+//import {dailyUsage, DailyUsageRequest, DailyUsageResponse, CumulativeUsageResponse, cumulativeUsage} from "Accounting/Compute";
 
-async function fetchDailyUsage(projectId: string|undefined): Promise<DailyUsageResponse> {
+/*async function fetchDailyUsage(projectId: string|undefined): Promise<DailyUsageResponse> {
     const [fetchedDailyUsage] = await useCloudAPI<DailyUsageResponse>(dailyUsage({project: projectId}), {
         chart: {
             'STANDARD': {timestamp: 0, creditsUsed: 0},
@@ -60,7 +60,7 @@ async function fetchCumulativeUsage(projectId: string|undefined): Promise<Cumula
     });
 
     return fetchedCumulativeUsage.data;
-}
+}*/
 
 // A lot easier to let typescript take care of the details for this one
 // eslint-disable-next-line
@@ -69,7 +69,7 @@ export function useProjectManagementStatus() {
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
     const locationParams = useParams<{group: string; member?: string}>();
 
-    const [dailyUsageData, setDailyUsageData] = React.useState<DailyUsageResponse>({
+    /*const [dailyUsageData, setDailyUsageData] = React.useState<DailyUsageResponse>({
         chart: {
             'STANDARD': {timestamp: 0, creditsUsed: 0},
             'HIGH_MEMORY': {timestamp: 0, creditsUsed: 0},
@@ -83,7 +83,7 @@ export function useProjectManagementStatus() {
             'HIGH_MEMORY': {timestamp: 0, creditsUsed: 0},
             'GPU': {timestamp: 0, creditsUsed: 0}
         }
-    });
+    });*/
 
     let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
     let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
@@ -96,10 +96,10 @@ export function useProjectManagementStatus() {
         emptyPage
     );
 
-    useEffect(() => {
+    /*useEffect(() => {
         fetchDailyUsage(projectId).then(it => setDailyUsageData(it));
         fetchCumulativeUsage(projectId).then(it => setCumulativeUsageData(it));
-    }, [projectId]);
+    }, [projectId]);*/
 
 
     const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
