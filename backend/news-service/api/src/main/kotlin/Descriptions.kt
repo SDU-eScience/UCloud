@@ -2,25 +2,57 @@ package dk.sdu.cloud.news.api
 
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
+import java.util.*
 
-data class PostMessageRequest(val title: String, val preamble: String, val message: String)
-typealias PostMessageResponse = Unit
+data class NewsPost(
+    val id: Long,
+    val title: String,
+    val subtitle: String,
+    val body: String,
+    val postedBy: String,
+    val showFrom: Date,
+    val hideFrom: Date?,
+    val hidden: Boolean,
+    val category: String
+)
 
-data class HideMessageRequest(val id: Int)
-typealias HideMessageResponse = Unit
+data class NewPostRequest(
+    val title: String,
+    val subtitle: String,
+    val body: String,
+    val showFrom: Date,
+    val category: String,
+    val hideFrom: Date?
+)
+typealias NewPostResponse = Unit
+
+typealias ListCategoriesRequest = Unit
+typealias ListCategoriesResponse = List<String>
+
+data class ListPostsRequest(
+    val filter: String?,
+    val withHidden: Boolean,
+    override val page: Int,
+    override val itemsPerPage: Int
+) : WithPaginationRequest
+typealias ListPostsResponse = Page<NewsPost>
+
+data class TogglePostHiddenRequest(val id: Long)
+typealias TogglePostHiddenResponse = Unit
 
 object News : CallDescriptionContainer("news") {
     val baseContext = "/api/news"
 
-    val postMessage = call<PostMessageRequest, PostMessageResponse, CommonErrorMessage>("postMessage") {
+    val newPost = call<NewPostRequest, NewPostResponse, CommonErrorMessage>("newPost") {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.ADMIN
@@ -38,7 +70,7 @@ object News : CallDescriptionContainer("news") {
         }
     }
 
-    val hideMessage = call<HideMessageRequest, HideMessageResponse, CommonErrorMessage>("hideMessage") {
+    val togglePostHidden = call<TogglePostHiddenRequest, TogglePostHiddenResponse, CommonErrorMessage>("togglePostHidden") {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.ADMIN
@@ -49,9 +81,41 @@ object News : CallDescriptionContainer("news") {
 
             path {
                 using(baseContext)
-                +"hide"
+                +"toggleHidden"
 
                 body { bindEntireRequestFromBody() }
+            }
+        }
+    }
+
+    val listCategories = call<ListCategoriesRequest, ListCategoriesResponse, CommonErrorMessage>("listCategories") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listCategories"
+            }
+        }
+    }
+
+    val listPosts = call<ListPostsRequest, ListPostsResponse, CommonErrorMessage>("listPosts") {
+        auth {
+            AccessRight.READ
+            roles = Roles.PUBLIC
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"list"
             }
         }
     }
