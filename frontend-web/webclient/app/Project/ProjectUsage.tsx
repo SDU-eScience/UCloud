@@ -12,7 +12,7 @@ import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
 import {useHistory, useParams} from "react-router";
-import {Box, Button, Link, Flex, Icon, Card, Text, theme} from "ui-components";
+import {Box, Button, Link, Flex, Card, Text, theme} from "ui-components";
 import {connect, useSelector} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -25,19 +25,42 @@ import {
     ShouldVerifyMembershipResponse,
     verifyMembership
 } from "Project";
-import styled from "styled-components";
-import GroupView, {GroupWithSummary} from "./GroupList";
-import ProjectMembers, {MembersBreadcrumbs} from "./MembersPanel";
+import {GroupWithSummary} from "./GroupList";
+import {MembersBreadcrumbs} from "./MembersPanel";
 import {Page} from "Types";
 import {emptyPage, ReduxObject} from "DefaultObjects";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {useProjectStatus} from "Project/cache";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import {ProjectSettings} from "Project/ProjectSettings";
 import {Client} from "Authentication/HttpClientInstance";
 import {ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip} from "recharts";
 import Table, {TableHeader, TableHeaderCell, TableCell, TableRow} from "ui-components/Table";
+import {dailyUsage, DailyUsageRequest, DailyUsageResponse, CumulativeUsageResponse, cumulativeUsage} from "Accounting/Compute";
+
+async function fetchDailyUsage(projectId: string|undefined): Promise<DailyUsageResponse> {
+    const [fetchedDailyUsage] = await useCloudAPI<DailyUsageResponse>(dailyUsage({project: projectId}), {
+        chart: {
+            'STANDARD': {timestamp: 0, creditsUsed: 0},
+            'HIGH_MEMORY': {timestamp: 0, creditsUsed: 0},
+            'GPU': {timestamp: 0, creditsUsed: 0}
+        }
+    });
+
+    return fetchedDailyUsage.data;
+}
+
+async function fetchCumulativeUsage(projectId: string|undefined): Promise<CumulativeUsageResponse> {
+    const [fetchedCumulativeUsage] = await useCloudAPI<CumulativeUsageResponse>(cumulativeUsage({project: projectId}), {
+        chart: {
+            'STANDARD': {timestamp: 0, creditsUsed: 0},
+            'HIGH_MEMORY': {timestamp: 0, creditsUsed: 0},
+            'GPU': {timestamp: 0, creditsUsed: 0}
+        }
+    });
+
+    return fetchedCumulativeUsage.data;
+}
 
 // A lot easier to let typescript take care of the details for this one
 // eslint-disable-next-line
@@ -45,6 +68,23 @@ export function useProjectManagementStatus() {
     const history = useHistory();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
     const locationParams = useParams<{group: string; member?: string}>();
+
+    const [dailyUsageData, setDailyUsageData] = React.useState<DailyUsageResponse>({
+        chart: {
+            'STANDARD': {timestamp: 0, creditsUsed: 0},
+            'HIGH_MEMORY': {timestamp: 0, creditsUsed: 0},
+            'GPU': {timestamp: 0, creditsUsed: 0}
+        }
+    });
+
+    const [cumulativeUsageData, setCumulativeUsageData] = React.useState<CumulativeUsageResponse>({
+        chart: {
+            'STANDARD': {timestamp: 0, creditsUsed: 0},
+            'HIGH_MEMORY': {timestamp: 0, creditsUsed: 0},
+            'GPU': {timestamp: 0, creditsUsed: 0}
+        }
+    });
+
     let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
     let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
     if (group === '-') group = undefined;
@@ -55,6 +95,12 @@ export function useProjectManagementStatus() {
         membershipSearch({itemsPerPage: 100, page: 0, query: ""}),
         emptyPage
     );
+
+    useEffect(() => {
+        fetchDailyUsage(projectId).then(it => setDailyUsageData(it));
+        fetchCumulativeUsage(projectId).then(it => setCumulativeUsageData(it));
+    }, [projectId]);
+
 
     const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
         "projectManagementDetails",
@@ -75,6 +121,7 @@ export function useProjectManagementStatus() {
         emptyPage
     );
 
+
     const [groupList, fetchGroupList, groupListParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
         "projectManagementGroupSummary",
         groupSummaryRequest({itemsPerPage: 10, page: 0}),
@@ -88,10 +135,6 @@ export function useProjectManagementStatus() {
     );
 
     const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
-
-    if (projectId === undefined) {
-        history.push("/");
-    }
 
     const projects = useProjectStatus();
     const projectRole = projects.fetch().membership
@@ -183,8 +226,6 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
         await callAPIWithErrorHandler(verifyMembership(projectId));
         setShouldVerifyParams(shouldVerifyMembership(projectId));
     };
-
-    const isSettingsPage = membersPage === "settings";
 
     const projectText = `${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`;
 
@@ -302,7 +343,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                                         }}
                                     >
                                         <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" />
+                                        <XAxis dataKey="time" />
                                         <YAxis />
                                         <Tooltip />
                                         <Area type="linear" dataKey="standard" stroke={theme.colors.darkBlue} fill={theme.colors.blue} opacity="0.3" />
@@ -366,50 +407,50 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
 
 const data1 = [
     {
-      name: 'time1', standard: 4000, 'high memory': 2400, gpu: 0,
+        time: 'time1', standard: 4000, 'high memory': 2400, gpu: 0,
     },
     {
-      name: 'time2', standard: 3000, 'high memory': 1400, gpu: 2210,
+        time: 'time2', standard: 3000, 'high memory': 1400, gpu: 2210,
     },
     {
-      name: 'time3', standard: 2000, 'high memory': 9800, gpu: 2290,
+        time: 'time3', standard: 2000, 'high memory': 9800, gpu: 2290,
     },
     {
-      name: 'time4', standard: 2780, 'high memory': 3900, gpu: 2000,
+        time: 'time4', standard: 2780, 'high memory': 3900, gpu: 2000,
     },
     {
-      name: 'time5', standard: 1890, 'high memory': 4800, gpu: 0,
+        time: 'time5', standard: 1890, 'high memory': 4800, gpu: 0,
     },
     {
-      name: 'time6', standard: 2390, 'high memory': 3800, gpu: 2500,
+        time: 'time6', standard: 2390, 'high memory': 3800, gpu: 2500,
     },
     {
-      name: 'time7', standard: 3490, 'high memory': 4300, gpu: 0,
+        time: 'time7', standard: 3490, 'high memory': 4300, gpu: 0,
     },
   ];
   
   const data2 = [
     {
-      name: 'time1', standard: 4000, 'high memory': 2400, gpu: 0,
+        name: 'time1', standard: 4000, 'high memory': 2400, gpu: 0,
     },
     {
-      name: 'time2', standard: 7000, 'high memory': 3800, gpu: 2210,
+        name: 'time2', standard: 7000, 'high memory': 3800, gpu: 2210,
     },
     {
-      name: 'time3', standard: 9000, 'high memory': 13600, gpu: 5000,
+        name: 'time3', standard: 9000, 'high memory': 13600, gpu: 5000,
     },
     {
-      name: 'time4', standard: 11780, 'high memory': 17500, gpu: 7000,
+        name: 'time4', standard: 11780, 'high memory': 17500, gpu: 7000,
     },
     {
-      name: 'time5', standard: 13870, 'high memory': 22300, gpu: 7000,
+        name: 'time5', standard: 13870, 'high memory': 22300, gpu: 7000,
     },
     {
-      name: 'time6', standard: 16260, 'high memory': 26100, gpu: 9500,
+        name: 'time6', standard: 16260, 'high memory': 26100, gpu: 9500,
     },
     {
-      name: 'time7', standard: 19750, 'high memory': 30400, gpu: 9500,
-    },   
+        name: 'time7', standard: 19750, 'high memory': 30400, gpu: 9500,
+    },
   ];
 
 interface ProjectUsageOperations {

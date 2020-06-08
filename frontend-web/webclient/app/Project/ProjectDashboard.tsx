@@ -25,15 +25,14 @@ import {
     ShouldVerifyMembershipResponse,
     verifyMembership
 } from "Project";
-import GroupView, {GroupWithSummary} from "./GroupList";
-import ProjectMembers, {MembersBreadcrumbs} from "./MembersPanel";
+import {GroupWithSummary} from "./GroupList";
+import {MembersBreadcrumbs} from "./MembersPanel";
 import {Page} from "Types";
 import {emptyPage, ReduxObject} from "DefaultObjects";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {useProjectStatus} from "Project/cache";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import {ProjectSettings} from "Project/ProjectSettings";
 import {Client} from "Authentication/HttpClientInstance";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
