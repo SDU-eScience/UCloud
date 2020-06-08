@@ -238,7 +238,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                         <Card padding={15} margin={15} ml={0} mr={0}>
                             <Flex>
                                 <Box width="25%">
-                                    <Text paddingTop="9px">Computation</Text>
+                                    <Heading.h4 paddingTop="5px">Computation</Heading.h4>
                                 </Box>
                                 <Box width="25%" textAlign="center">
                                     <Text>123</Text>
@@ -255,7 +255,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                         </Card>
                         <Box padding={15} margin={25}>
 
-                            <Heading.h4>Total usage</Heading.h4>
+                            <Heading.h5>Total usage</Heading.h5>
                             <Box mb={40}>
                                 <Table>
                                     <TableHeader>
@@ -266,7 +266,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                                     </TableHeader>
                                     <TableRow>
                                         <TableCell>
-                                            <Box width={20} height={20} backgroundColor="pink"></Box>
+                                            <Box width={20} height={20} backgroundColor={theme.colors.blue} opacity={0.3}></Box>
                                         </TableCell>
                                         <TableCell>Standard</TableCell>
                                         <TableCell textAlign="right">123</TableCell>
@@ -274,7 +274,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                                     </TableRow>
                                     <TableRow>
                                         <TableCell>
-                                            <Box width={20} height={20} backgroundColor="lightblue"></Box>
+                                            <Box width={20} height={20} backgroundColor={theme.colors.red} opacity={0.3}></Box>
                                         </TableCell>
                                         <TableCell>High Memory</TableCell>
                                         <TableCell textAlign="right">123</TableCell>
@@ -282,7 +282,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                                     </TableRow>
                                     <TableRow>
                                         <TableCell>
-                                            <Box width={20} height={20} backgroundColor={theme.colors.lightGreen}></Box>
+                                            <Box width={20} height={20} backgroundColor={theme.colors.green} opacity={0.3}></Box>
                                         </TableCell>
                                         <TableCell>GPU</TableCell>
                                         <TableCell textAlign="right">123</TableCell>
@@ -291,10 +291,11 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                                 </Table>
                             </Box>
 
-                            <Heading.h4>Daily compute usage</Heading.h4>
-                            <Box mt={20}>
+                            <Heading.h5>Daily compute usage</Heading.h5>
+                            <Box mt={20} mb={20}>
                                 <ResponsiveContainer width="100%" height={200}>
                                     <AreaChart
+                                        syncId="someId"
                                         data={data1}
                                         margin={{
                                         top: 10, right: 30, left: 0, bottom: 0,
@@ -304,17 +305,18 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                                         <XAxis dataKey="name" />
                                         <YAxis />
                                         <Tooltip />
-                                        <Area type="monotone" dataKey="standard" stackId="1" stroke={theme.colors.darkBlue} fill={theme.colors.blue} />
-                                        <Area type="monotone" dataKey="high memory" stackId="1" stroke={theme.colors.darkRed} fill={theme.colors.red} />
-                                        <Area type="monotone" dataKey="gpu" stackId="1" stroke={theme.colors.darkGreen} fill={theme.colors.green} />
+                                        <Area type="linear" dataKey="standard" stroke={theme.colors.darkBlue} fill={theme.colors.blue} opacity="0.3" />
+                                        <Area type="linear" dataKey="high memory" stroke={theme.colors.darkRed} fill={theme.colors.red} opacity="0.3" />
+                                        <Area type="linear" dataKey="gpu" stroke={theme.colors.darkGreen} fill={theme.colors.green} opacity="0.3" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </Box>
 
-                            <Heading.h4>Cumulative compute usage</Heading.h4>
+                            <Heading.h5>Cumulative compute usage</Heading.h5>
                             <Box mt={20}>
                                 <ResponsiveContainer width="100%" height={200}>
                                     <AreaChart
+                                        syncId="someId"
                                         data={data2}
                                         margin={{
                                         top: 10, right: 30, left: 0, bottom: 0,
@@ -324,9 +326,9 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                                         <XAxis dataKey="name" />
                                         <YAxis />
                                         <Tooltip />
-                                        <Area type="monotone" dataKey="standard" stackId="1" stroke="red" fill="pink" />
-                                        <Area type="monotone" dataKey="high memory" stackId="1" stroke="blue" fill="lightBlue" />
-                                        <Area type="monotone" dataKey="gpu" stackId="1" stroke="green" fill="lightGreen" />
+                                        <Area type="linear" dataKey="standard" stackId="1" stroke={theme.colors.darkBlue} fill={theme.colors.blue} opacity="0.3" />
+                                        <Area type="linear" dataKey="high memory" stackId="1" stroke={theme.colors.darkRed} fill={theme.colors.red} opacity="0.3" />
+                                        <Area type="linear" dataKey="gpu" stackId="1" stroke={theme.colors.darkGreen} fill={theme.colors.green} opacity="0.3" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </Box>
@@ -364,49 +366,49 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
 
 const data1 = [
     {
-      name: 'time1', standard: 4000, 'high memory': 2400, gpu: 2400,
+      name: 'time1', standard: 4000, 'high memory': 2400, gpu: 0,
     },
     {
-      name: 'time2', standard: 3000, 'high memory': 1398, gpu: 2210,
+      name: 'time2', standard: 3000, 'high memory': 1400, gpu: 2210,
     },
     {
       name: 'time3', standard: 2000, 'high memory': 9800, gpu: 2290,
     },
     {
-      name: 'time4', standard: 2780, 'high memory': 3908, gpu: 2000,
+      name: 'time4', standard: 2780, 'high memory': 3900, gpu: 2000,
     },
     {
-      name: 'time5', standard: 1890, 'high memory': 4800, gpu: 2181,
+      name: 'time5', standard: 1890, 'high memory': 4800, gpu: 0,
     },
     {
       name: 'time6', standard: 2390, 'high memory': 3800, gpu: 2500,
     },
     {
-      name: 'time7', standard: 3490, 'high memory': 4300, gpu: 2100,
+      name: 'time7', standard: 3490, 'high memory': 4300, gpu: 0,
     },
   ];
   
   const data2 = [
     {
-      name: 'time1', standard: 1300, 'high memory': 0, gpu: 2000,
+      name: 'time1', standard: 4000, 'high memory': 2400, gpu: 0,
     },
     {
-      name: 'time2', standard: 1300, 'high memory': 0, gpu: 2000,
+      name: 'time2', standard: 7000, 'high memory': 3800, gpu: 2210,
     },
     {
-      name: 'time3', standard: 2000, 'high memory': 200, gpu: 2290,
+      name: 'time3', standard: 9000, 'high memory': 13600, gpu: 5000,
     },
     {
-      name: 'time4', standard: 2080, 'high memory': 1500, gpu: 2290,
+      name: 'time4', standard: 11780, 'high memory': 17500, gpu: 7000,
     },
     {
-      name: 'time5', standard: 2080, 'high memory': 3000, gpu: 2400,
+      name: 'time5', standard: 13870, 'high memory': 22300, gpu: 7000,
     },
     {
-      name: 'time6', standard: 2390, 'high memory': 3000, gpu: 2181,
+      name: 'time6', standard: 16260, 'high memory': 26100, gpu: 9500,
     },
     {
-      name: 'time7', standard: 3490, 'high memory': 3000, gpu: 2500,
+      name: 'time7', standard: 19750, 'high memory': 30400, gpu: 9500,
     },   
   ];
 
