@@ -1,8 +1,8 @@
 package dk.sdu.cloud.app.orchestrator.utils
 
-import dk.sdu.cloud.accounting.compute.MachineReservation
-import dk.sdu.cloud.accounting.compute.api.ProductCategoryId
-import dk.sdu.cloud.accounting.compute.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.accounting.api.MachineReservation
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.VerifiedJobWithAccessToken

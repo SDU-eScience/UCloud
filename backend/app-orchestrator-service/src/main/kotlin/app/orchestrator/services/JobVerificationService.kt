@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.SecurityPrincipalToken
-import dk.sdu.cloud.accounting.compute.MachineReservation
+import dk.sdu.cloud.accounting.api.MachineReservation
 import dk.sdu.cloud.app.license.api.AppLicenseDescriptions
 import dk.sdu.cloud.app.license.api.LicenseServerRequest
 import dk.sdu.cloud.app.orchestrator.api.*
