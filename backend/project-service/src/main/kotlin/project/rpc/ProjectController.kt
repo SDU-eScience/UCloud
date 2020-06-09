@@ -14,6 +14,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.project.services.QueryService
+import dk.sdu.cloud.service.toActor
 import io.ktor.http.HttpStatusCode
 
 class ProjectController(
@@ -185,6 +186,16 @@ class ProjectController(
                     db,
                     request.normalize(),
                     ctx.securityPrincipal.username,
+                    ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                )
+            )
+        }
+
+        implement(Projects.viewAncestors) {
+            ok(
+                queries.viewAncestors(
+                    db,
+                    ctx.securityPrincipal.toActor(),
                     ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
                 )
             )

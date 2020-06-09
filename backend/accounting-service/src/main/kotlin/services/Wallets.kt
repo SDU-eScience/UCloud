@@ -28,6 +28,17 @@ object TransactionTable : SQLTable("transactions") {
     val productCategory = text("product_category", notNull = true)
     val productProvider = text("product_provider", notNull = true)
 
+    /**
+     * The original account id
+     *
+     * This is used in case of projects. The original account id will be the leaf project which was actually charged.
+     * A transaction entry for all ancestors is also created, they can look up the original charge by looking at
+     * the [originalAccountId].
+     *
+     * It is implied that the type of this account matches [accountType].
+     */
+    val originalAccountId = text("original_account_id", notNull = true)
+
     val id = text("id")
 
     val productId = text("product_id")
@@ -247,7 +258,9 @@ class BalanceService(
                 )
                 .rowsAffected
 
-            if (rowsAffected < 1) throw RPCException("Account not found", HttpStatusCode.NotFound)
+            if (rowsAffected < 1) {
+                setBalance(session, initiatedBy, account, 0L, amount)
+            }
         }
     }
 
@@ -297,7 +310,7 @@ class BalanceService(
                 )
                 .rows
                 .firstOrNull()
-                ?.let { it.getLong(0) }
+                ?.getLong(0)
                 ?: 0L
         }
     }
@@ -305,29 +318,36 @@ class BalanceService(
     suspend fun reserveCredits(
         ctx: DBContext,
         initiatedBy: Actor,
-        account: Wallet,
+        wallet: Wallet,
         reservationId: String,
         amount: Long,
         expiresAt: Long,
         productId: String,
-        units: Long
+        units: Long,
+        reserveForAncestors: Boolean = true,
+        originalWallet: Wallet = wallet
     ) {
+        require(originalWallet.paysFor == wallet.paysFor)
+        require(originalWallet.type == wallet.type)
+
         if (initiatedBy == Actor.System) {
             throw IllegalStateException("System cannot initiate a reservation")
         }
 
         ctx.withSession { session ->
-            val (balance, _) = getBalance(ctx, initiatedBy, account, true)
-            val reserved = getReservedCredits(ctx, account)
+            val ancestorWallets = if (reserveForAncestors) wallet.ancestors() else emptyList()
+
+            val (balance, _) = getBalance(ctx, initiatedBy, wallet, true)
+            val reserved = getReservedCredits(ctx, wallet)
             if (reserved + amount > balance) {
                 throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
             }
 
             session.insert(TransactionTable) {
-                set(TransactionTable.accountId, account.id)
-                set(TransactionTable.accountType, account.type.name)
-                set(TransactionTable.productCategory, account.paysFor.id)
-                set(TransactionTable.productProvider, account.paysFor.provider)
+                set(TransactionTable.accountId, wallet.id)
+                set(TransactionTable.accountType, wallet.type.name)
+                set(TransactionTable.productCategory, wallet.paysFor.id)
+                set(TransactionTable.productProvider, wallet.paysFor.provider)
                 set(TransactionTable.amount, amount)
                 set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
                 set(TransactionTable.initiatedBy, initiatedBy.username)
@@ -335,8 +355,42 @@ class BalanceService(
                 set(TransactionTable.productId, productId)
                 set(TransactionTable.units, units)
                 set(TransactionTable.completedAt, LocalDateTime.now(DateTimeZone.UTC))
+                set(TransactionTable.originalAccountId, originalWallet.id)
                 set(TransactionTable.id, reservationId)
             }
+
+            ancestorWallets.forEach { ancestor ->
+                reserveCredits(
+                    session,
+                    initiatedBy,
+                    ancestor,
+                    reservationId,
+                    amount,
+                    expiresAt,
+                    productId,
+                    units,
+                    reserveForAncestors = false,
+                    originalWallet = wallet
+                )
+            }
+        }
+    }
+
+    private suspend fun Wallet.ancestors(): List<Wallet> {
+        val wallet = this
+        return if (wallet.type == WalletOwnerType.PROJECT) {
+            val ancestors = projectCache.ancestors.get(wallet.id) ?: throw RPCException(
+                "Could not find ancestor wallets",
+                HttpStatusCode.InternalServerError
+            )
+
+            ancestors
+                .asSequence()
+                .filter { it.id != this.id }
+                .map { Wallet(it.id, WalletOwnerType.PROJECT, wallet.paysFor) }
+                .toList()
+        } else {
+            emptyList()
         }
     }
 
@@ -347,29 +401,6 @@ class BalanceService(
         units: Long
     ) {
         ctx.withSession { session ->
-            val transaction = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("reservationId", reservationId)
-                    },
-                    """
-                        select * from transactions 
-                        where
-                            id = ?reservationId and
-                            is_reserved = true and
-                            expires_at is not null and
-                            expires_at > timezone('utc', now())
-                    """
-                )
-                .rows
-                .singleOrNull()
-                ?: throw RPCException("No such reservation", HttpStatusCode.NotFound)
-
-            val accountId = transaction.getField(TransactionTable.accountId)
-            val accountType = transaction.getField(TransactionTable.accountType)
-            val productCategory = transaction.getField(TransactionTable.productCategory)
-            val productProvider = transaction.getField(TransactionTable.productProvider)
-
             session
                 .sendPreparedStatement(
                     {
@@ -395,19 +426,18 @@ class BalanceService(
                 .sendPreparedStatement(
                     {
                         setParameter("amount", amount)
-                        setParameter("accountId", accountId)
-                        setParameter("accountType", accountType)
-                        setParameter("productCategory", productCategory)
-                        setParameter("productProvider", productProvider)
+                        setParameter("reservationId", reservationId)
                     },
+
                     """
                         update wallets
                         set balance = balance - ?amount
                         where
-                            account_id = ?accountId and
-                            account_type = ?accountType and
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider
+                            (account_id, account_type, product_category, product_provider) in (
+                                select t.account_id, t.account_type, t.product_category, t.product_provider
+                                from transactions t
+                                where t.id = ?reservationId
+                            )
                     """
                 )
         }

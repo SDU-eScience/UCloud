@@ -1,7 +1,7 @@
 version = "1.3.0"
 
 application {
-    mainClassName = "dk.sdu.cloud.accounting.compute.MainKt"
+    mainClassName = "dk.sdu.cloud.accounting.MainKt"
 }
 
 dependencies {

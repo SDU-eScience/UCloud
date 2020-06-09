@@ -126,6 +126,9 @@ data class ListSubProjectsRequest(
 
 typealias ListSubProjectsResponse = Page<Project>
 
+typealias ViewAncestorsRequest = Unit
+typealias ViewAncestorsResponse = List<Project>
+
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
 
@@ -459,6 +462,21 @@ object Projects : CallDescriptionContainer("project") {
             params {
                 +boundTo(ListSubProjectsRequest::itemsPerPage)
                 +boundTo(ListSubProjectsRequest::page)
+            }
+        }
+    }
+
+    val viewAncestors = call<ViewAncestorsRequest, ViewAncestorsResponse, CommonErrorMessage>("viewAncestors") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"ancestors"
             }
         }
     }

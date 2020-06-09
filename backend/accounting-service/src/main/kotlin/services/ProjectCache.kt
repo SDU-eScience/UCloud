@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.SimpleCache
 
@@ -20,6 +21,13 @@ class ProjectCache(private val serviceClient: AuthenticatedClient) {
         ProjectGroups.listAllGroupMembers.call(
             ListAllGroupMembersRequest(project, group),
             serviceClient
+        ).orThrow()
+    }
+
+    val ancestors = SimpleCache<String, List<Project>> { project ->
+        Projects.viewAncestors.call(
+            ViewAncestorsRequest,
+            serviceClient.withProject(project)
         ).orThrow()
     }
 }

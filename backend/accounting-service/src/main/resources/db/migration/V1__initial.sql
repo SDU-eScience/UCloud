@@ -1,6 +1,4 @@
-set search_path to accounting_compute;
-
-create table accounting_compute.job_completed_events
+create table job_completed_events
 (
   job_id              varchar(255) not null,
   application_name    varchar(255),

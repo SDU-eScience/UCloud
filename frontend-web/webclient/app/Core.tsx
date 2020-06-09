@@ -49,6 +49,7 @@ import {MachineAdmin} from "Accounting/Compute/Machines";
 import ProjectDashboard from "Project/ProjectDashboard";
 import {ProjectSettings} from "Project/ProjectSettings";
 import ProjectUsage from "Project/ProjectUsage";
+import {ProjectPlayground} from "Project/playground";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
 
@@ -122,6 +123,7 @@ const Core = (): JSX.Element => (
                             <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)}/>
                             <Route exact path="/project/settings" component={requireAuth(ProjectSettings)}/>
                             <Route exact path="/project/usage" component={requireAuth(ProjectUsage)}/>
+                            <Route exact path="/project/playground" component={requireAuth(ProjectPlayground)}/>
                             <Route exact path="/project/members/:group?/:member?" component={requireAuth(ProjectMembers)}/>
                         </>
                     )
