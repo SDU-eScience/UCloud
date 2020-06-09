@@ -188,6 +188,11 @@ export interface ProjectMember {
     role: ProjectRole;
 }
 
+export interface Subproject {
+    id: string;
+    name: string;
+}
+
 export interface Project {
     id: string;
     title: string;
