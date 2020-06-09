@@ -1,11 +1,33 @@
 package dk.sdu.cloud.project.services
 
 import com.github.jasync.sql.db.RowData
-import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.project.services.*
-import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.Roles
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.project.api.GroupWithSummary
+import dk.sdu.cloud.project.api.IngoingInvite
+import dk.sdu.cloud.project.api.IsMemberQuery
+import dk.sdu.cloud.project.api.OutgoingInvite
+import dk.sdu.cloud.project.api.Project
+import dk.sdu.cloud.project.api.ProjectMember
+import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.project.api.UserGroupSummary
+import dk.sdu.cloud.project.api.UserProjectSummary
+import dk.sdu.cloud.project.api.UserStatusInProject
+import dk.sdu.cloud.project.api.UserStatusResponse
+import dk.sdu.cloud.service.Actor
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
+import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.getFieldNullable
+import dk.sdu.cloud.service.db.async.paginatedQuery
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.offset
+import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
@@ -57,8 +79,8 @@ class QueryService(
 
                     val idx = queries.indexOfFirst {
                         it.group == summary.group &&
-                            it.project == summary.projectId &&
-                            it.username == summary.username
+                                it.project == summary.projectId &&
+                                it.username == summary.username
                     }
 
                     if (idx == -1) {
@@ -539,7 +561,7 @@ class QueryService(
             }
 
             return@withSession (System.currentTimeMillis() - latestVerification.toTimestamp()) >
-                VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
+                    VERIFICATION_REQUIRED_EVERY_X_DAYS * DateTimeConstants.MILLIS_PER_DAY
         }
     }
 
@@ -662,11 +684,23 @@ class QueryService(
 
     suspend fun findProject(
         ctx: DBContext,
-        requestedBy: String,
+        actor: Actor,
         id: String
     ): Project {
         return ctx.withSession { session ->
-            projects.requireRole(ctx, requestedBy, id, ProjectRole.ALL)
+            when (actor) {
+                Actor.System -> {
+                    // Allowed
+                }
+
+                is Actor.User, is Actor.SystemOnBehalfOfUser -> {
+                    if (actor is Actor.User && actor.principal.role in Roles.PRIVILEDGED) {
+                        // Allowed
+                    } else {
+                        projects.requireRole(ctx, actor.username, id, ProjectRole.ALL)
+                    }
+                }
+            }
 
             session
                 .sendPreparedStatement(
@@ -745,6 +779,37 @@ class QueryService(
                 Page(count.toInt(), pagination.itemsPerPage, pagination.page, items)
             }
         }
+    }
+
+    suspend fun viewAncestors(
+        ctx: DBContext,
+        actor: Actor,
+        projectId: String
+    ): List<Project> {
+        val resultList = ArrayList<Project>()
+        ctx.withSession { session ->
+            var currentProject: Result<Project> = runCatching { findProject(session, actor, projectId) }
+            while (currentProject.isSuccess) {
+                val nextProject = currentProject.getOrThrow()
+                resultList.add(nextProject)
+
+                val parent = nextProject.parent ?: break
+                currentProject = runCatching { findProject(session, actor, parent) }
+            }
+
+            val ex = currentProject.exceptionOrNull()
+            if (ex != null) {
+                if (ex is RPCException &&
+                    ex.httpStatusCode in setOf(HttpStatusCode.NotFound, HttpStatusCode.Forbidden)
+                ) {
+                    // All good, we expected one of these
+                } else {
+                    // Not good, rethrow to caller
+                    throw ex
+                }
+            }
+        }
+        return resultList
     }
 
     private fun RowData.toProject(): Project {

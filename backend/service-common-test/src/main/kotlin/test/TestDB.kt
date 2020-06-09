@@ -1,3 +1,5 @@
+package dk.sdu.cloud.service.test
+
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.micro.HibernateFeature.Feature.safeSchemaName

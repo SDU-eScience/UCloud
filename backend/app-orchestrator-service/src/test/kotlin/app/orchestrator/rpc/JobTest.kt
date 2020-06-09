@@ -1,8 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.rpc
 
-import dk.sdu.cloud.accounting.compute.MachineReservation
-import dk.sdu.cloud.accounting.compute.api.Product
-import dk.sdu.cloud.accounting.compute.api.Products
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.app.orchestrator.api.CancelRequest
 import dk.sdu.cloud.app.orchestrator.api.FollowStdStreamsResponse
 import dk.sdu.cloud.app.orchestrator.api.JobState

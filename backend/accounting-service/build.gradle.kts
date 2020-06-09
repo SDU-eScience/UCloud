@@ -1,4 +1,4 @@
-version = "1.2.0-projects.2"
+version = "1.3.0"
 
 application {
     mainClassName = "dk.sdu.cloud.accounting.MainKt"
@@ -6,4 +6,5 @@ application {
 
 dependencies {
     implementation(project(":auth-service:api"))
+    implementation(project(":project-service:api"))
 }

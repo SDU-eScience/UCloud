@@ -1,7 +1,5 @@
 package dk.sdu.cloud.integration.backend
 
-import dk.sdu.cloud.accounting.api.UsageRequest
-import dk.sdu.cloud.accounting.storage.api.StorageUsedResourceDescription
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -605,25 +603,6 @@ class FileTesting(val userA: UserAndClient, val userB: UserAndClient) {
             val copiedSensitivity = FileDescriptions.stat.call(StatRequest(copyPath), client).orThrow().sensitivityLevel
             require(SensitivityLevel.SENSITIVE == copiedSensitivity)
         }
-    }
-
-    private suspend fun UserAndClient.accountingTest() {
-        log.info("Running accounting test")
-        val usage = StorageUsedResourceDescription.usage.call(
-            UsageRequest,
-            client
-        ).orThrow()
-
-        // We cannot know for sure how much storage is taken up by this. It depends on a few factors, such as
-        // the default files. As a result we allow for this number to be within a range.
-        if (usage.usage !in 100..500) {
-            throw IllegalStateException("Unexpected amount of storage used after test. We got back: ${usage.usage}")
-        }
-
-        // We cannot test the charting endpoint for useful results since a scan is only run every few hours
-        // But we test it anyway to see if we get a successful response
-
-        log.info("Accounting test done")
     }
 
     private suspend fun UserAndClient.singleDownloadTest() {

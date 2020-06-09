@@ -218,6 +218,7 @@ export interface UserInProject {
     needsVerification: boolean;
     favorite: boolean;
     archived: boolean;
+    parentId?: string;
 }
 
 export interface UserGroupSummary {
@@ -226,7 +227,7 @@ export interface UserGroupSummary {
     username: string;
 }
 
-export const createProject = (payload: {title: string}): APICallParameters => ({
+export const createProject = (payload: {title: string, parent?: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,

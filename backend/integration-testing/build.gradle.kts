@@ -14,8 +14,6 @@ dependencies {
     implementation(project(":share-service:api"))
     implementation(project(":file-favorite-service:api"))
     implementation(project(":accounting-service:api"))
-    implementation(project(":accounting-compute-service:api"))
-    implementation(project(":accounting-storage-service:api"))
     implementation(project(":filesearch-service:api"))
     implementation(project(":activity-service:api"))
     implementation(project(":notification-service:api"))

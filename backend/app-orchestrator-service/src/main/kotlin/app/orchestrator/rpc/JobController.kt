@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.orchestrator.rpc
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.compute.MachineReservation
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.services.*
 import dk.sdu.cloud.auth.api.AuthDescriptions

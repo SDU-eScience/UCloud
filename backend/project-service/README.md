@@ -11,8 +11,7 @@ changes. Other services extend the projects feature and subscribe to these chang
 
 - [Project Repositories](../project-repository-service/README.md): Learn about
   how projects interact with the storage of UCloud.
-- [Accounting (Compute)](../accounting-compute-service/README.md)
-- [Accounting (Storage)](../accounting-compute-service/README.md)
+- [Accounting](../accounting-service/README.md)
 
 ## Definition
 
@@ -44,7 +43,7 @@ and the members of a group can only be from the project it belongs to.
 
 All projects create by end-users have exactly one parent project. Only UCloud administrators can create root-level
 projects. This allows users of UCloud to create a hiearchy of projects. The project hierarchy plays a significant role
-in accounting ([compute](../accounting-compute-service/README.md), [storage](../accounting-storage-service/README.md)).
+in accounting.
 
 Permissions and memberships are _not_ hierarchical. This means that a user must be explicitly added to every project
 they need permissions in. UCloud administrators can always create a sub-project in any given project. A setting exists

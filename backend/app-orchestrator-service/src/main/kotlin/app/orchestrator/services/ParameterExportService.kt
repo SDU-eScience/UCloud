@@ -1,6 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
-import dk.sdu.cloud.accounting.compute.MachineReservation
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.VerifiedJob
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
@@ -16,7 +16,7 @@ data class ExportedParameters(
     val maxTime: SimpleDuration,
     val mountedFolders: List<ExportedMount>,
     val jobName: String?,
-    val machineType: MachineReservation
+    val machineType: Product.Compute
 )
 
 class ParameterExportService {

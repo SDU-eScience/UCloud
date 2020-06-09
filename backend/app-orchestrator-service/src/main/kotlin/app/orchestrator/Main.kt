@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.orchestrator
 
-import dk.sdu.cloud.accounting.compute.MachineReservation
 import dk.sdu.cloud.auth.api.RefreshingJWTCloudFeature
 import dk.sdu.cloud.app.orchestrator.api.AppOrchestratorServiceDescription
 import dk.sdu.cloud.app.orchestrator.api.ApplicationBackend
