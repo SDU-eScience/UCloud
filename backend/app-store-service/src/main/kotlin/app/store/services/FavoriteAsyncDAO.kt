@@ -9,7 +9,7 @@ import dk.sdu.cloud.app.store.services.ApplicationTable
 import dk.sdu.cloud.app.store.services.FavoriteApplicationTable
 import dk.sdu.cloud.app.store.services.FavoriteDAO
 import dk.sdu.cloud.app.store.services.TagTable
-import dk.sdu.cloud.app.store.services.toApplicationMetadata
+import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.services.toApplicationSummary
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -22,7 +22,10 @@ import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.offset
 import io.ktor.http.HttpStatusCode
 
-class FavoriteAsyncDAO() : FavoriteDAO {
+class FavoriteAsyncDAO(
+    private val publicDAO: ApplicationPublicAsyncDAO,
+    private val aclDao: AclHibernateDao
+) : FavoriteDAO {
 
     override suspend fun toggleFavorite(
         ctx: DBContext,
@@ -63,7 +66,9 @@ class FavoriteAsyncDAO() : FavoriteDAO {
                     memberGroups,
                     foundApp.getField(ApplicationTable.idName),
                     foundApp.getField(ApplicationTable.idVersion),
-                    ApplicationAccessRight.LAUNCH
+                    ApplicationAccessRight.LAUNCH,
+                    publicDAO,
+                    aclDao
                 )
             }
 

@@ -2,6 +2,7 @@ package app.store.services
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.app.store.services.AppStoreAsyncDAO
 import dk.sdu.cloud.app.store.services.ApplicationLogoDAO
 import dk.sdu.cloud.app.store.services.ApplicationLogosTable
 import dk.sdu.cloud.app.store.services.ToolLogoTable
@@ -14,7 +15,9 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
 
-class ApplicationLogoAsyncDAO() : ApplicationLogoDAO {
+class ApplicationLogoAsyncDAO(
+    private val appStoreAsyncDAO: AppStoreAsyncDAO
+) : ApplicationLogoDAO {
 
     override suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal, name: String, imageBytes: ByteArray) {
         val applicationOwner = ctx.withSession { session ->
@@ -93,7 +96,8 @@ class ApplicationLogoAsyncDAO() : ApplicationLogoDAO {
                 null,
                 emptyList(),
                 name,
-                PaginationRequest().normalize()
+                PaginationRequest().normalize(),
+                appStoreAsyncDAO
             ).items.firstOrNull()
         } ?: return null
         val toolName = app.invocation.tool.name

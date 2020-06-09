@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
 import app.store.services.retrieveUserProjectGroups
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
@@ -12,27 +11,22 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.project.api.GroupExistsRequest
 import dk.sdu.cloud.project.api.ProjectGroups
-import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.PaginationRequest
-import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.mapItems
-import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
-import org.elasticsearch.action.search.SearchResponse
 
 class AppStoreService(
     private val db: AsyncDBSessionFactory,
     private val authenticatedClient: AuthenticatedClient,
     private val applicationDAO: ApplicationDAO,
+    private val publicDAO: PublicDAO,
     private val toolDao: ToolDAO,
     private val aclDao: AclDao,
     private val elasticDAO: ElasticDAO,
@@ -48,10 +42,10 @@ class AppStoreService(
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project)
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
-        return db.withTransaction { session ->
+        return db.withSession { session ->
             val result = applicationDAO.findByNameAndVersionForUser(
                 session,
                 securityPrincipal,
@@ -86,11 +80,11 @@ class AppStoreService(
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project)
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
-        return db.withTransaction { session ->
-            applicationDAO.isPublic(session, securityPrincipal, appName, appVersion) ||
+        return db.withSession { session ->
+            publicDAO.isPublic(session, securityPrincipal, appName, appVersion) ||
                     aclDao.hasPermission(
                         session,
                         securityPrincipal,
@@ -139,7 +133,7 @@ class AppStoreService(
     }
 
     private suspend fun updatePermissionsWithSession(
-        session: DBSession,
+        session: DBContext,
         applicationName: String,
         entity: AccessEntity,
         permissions: ApplicationAccessRight
@@ -183,8 +177,8 @@ class AppStoreService(
         }
     }
 
-    private fun revokePermissionWithSession(
-        session: DBSession,
+    private suspend fun revokePermissionWithSession(
+        session: DBContext,
         applicationName: String,
         entity: AccessEntity
     ) {
@@ -207,7 +201,7 @@ class AppStoreService(
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project)
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
         return db.withTransaction {
@@ -230,7 +224,7 @@ class AppStoreService(
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project)
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
         return db.withTransaction {
@@ -253,7 +247,7 @@ class AppStoreService(
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project)
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
 
@@ -286,7 +280,7 @@ class AppStoreService(
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project)
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
         db.withTransaction { session ->
@@ -310,7 +304,7 @@ class AppStoreService(
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(user, project)
+            retrieveUserProjectGroups(user, project, authenticatedClient)
         }
 
         return db.withTransaction { session ->

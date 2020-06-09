@@ -10,6 +10,7 @@ import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
@@ -18,20 +19,44 @@ import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
+import kotlinx.coroutines.runBlocking
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
 import kotlin.test.assertEquals
 
 private fun KtorApplicationTestSetupContext.configureToolServer(
-    toolDao: ToolHibernateDAO
-): List<ToolController<HibernateSession>> {
-    micro.install(HibernateFeature)
-    val logoService = LogoService(micro.hibernateDatabase, mockk(relaxed = true), toolDao)
-    return listOf(ToolController(micro.hibernateDatabase, toolDao, logoService))
+    toolDao: ToolHibernateDAO,
+    db: AsyncDBSessionFactory
+): List<ToolController> {
+    val logoService = LogoService(db, mockk(relaxed = true), toolDao)
+    return listOf(ToolController(db, toolDao, logoService))
 }
 
 class ToolTest {
+
+    private lateinit var embDB: EmbeddedPostgres
+    private lateinit var db: AsyncDBSessionFactory
+
+    @BeforeClass
+    fun before() {
+        val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+        this.db = db
+        this.embDB = embDB
+    }
+
+    @AfterClass
+    fun after() {
+        runBlocking {
+            db.close()
+        }
+        embDB.close()
+    }
+
 
     private val normToolDesc = NormalizedToolDescription(
         NameAndVersion("name", "2.2"),
@@ -60,11 +85,11 @@ class ToolTest {
             setup = {
                 val toolDao = mockk<ToolHibernateDAO>()
 
-                every { toolDao.findAllByName(any(), any(), any(), any()) } answers {
+                coEvery { toolDao.findAllByName(any(), any(), any(), any()) } answers {
                     Page(1, 10, 0, listOf(tool))
                 }
 
-                configureToolServer(toolDao)
+                configureToolServer(toolDao, db)
             },
 
             test = {
@@ -88,9 +113,9 @@ class ToolTest {
             setup = {
                 val toolDao = mockk<ToolHibernateDAO>()
 
-                every { toolDao.findByNameAndVersion(any(), any(), any(), any()) } returns tool
+                coEvery { toolDao.findByNameAndVersion(any(), any(), any(), any()) } returns tool
 
-                configureToolServer(toolDao)
+                configureToolServer(toolDao, db)
             },
 
             test = {
@@ -113,11 +138,11 @@ class ToolTest {
             setup = {
                 val toolDao = mockk<ToolHibernateDAO>()
 
-                every { toolDao.listLatestVersion(any(), any(), any()) } answers {
+                coEvery { toolDao.listLatestVersion(any(), any(), any()) } answers {
                     Page(1, 10, 0, listOf(tool))
                 }
 
-                configureToolServer(toolDao)
+                configureToolServer(toolDao, db)
             },
 
             test = {
@@ -141,7 +166,7 @@ class ToolTest {
         withKtorTest(
             setup = {
                 val toolDao = mockk<ToolHibernateDAO>()
-                configureToolServer(toolDao)
+                configureToolServer(toolDao, db)
             },
 
             test = {
@@ -159,7 +184,7 @@ class ToolTest {
         withKtorTest(
             setup = {
                 val toolDao = mockk<ToolHibernateDAO>()
-                configureToolServer(toolDao)
+                configureToolServer(toolDao, db)
             },
 
             test = {

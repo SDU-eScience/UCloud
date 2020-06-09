@@ -1,30 +1,27 @@
 package dk.sdu.cloud.app.store.services
 
+import app.store.services.ApplicationPublicAsyncDAO
 import app.store.services.canUserPerformWriteOperation
 import app.store.services.findOwnerOfApplication
 import app.store.services.internalByNameAndVersion
 import app.store.services.internalFindAllByName
 import app.store.services.internalHasPermission
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.fasterxml.jackson.module.kotlin.readValues
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
-import dk.sdu.cloud.app.store.services.ApplicationTable.application
 import dk.sdu.cloud.app.store.services.acl.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
-import org.hibernate.query.Query
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
@@ -32,11 +29,12 @@ import java.util.*
 @Suppress("TooManyFunctions") // Does not make sense to split
 class AppStoreAsyncDAO(
     private val toolDAO: ToolHibernateDAO,
-    private val aclDAO: AclHibernateDao
+    private val aclDAO: AclHibernateDao,
+    private val publicAsyncDAO: ApplicationPublicAsyncDAO
 ) : ApplicationDAO {
     private val byNameAndVersionCache = Collections.synchronizedMap(HashMap<NameAndVersion, Pair<Application, Long>>())
 
-    private suspend fun findAppNamesFromTags(
+    internal suspend fun findAppNamesFromTags(
         ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
@@ -80,7 +78,7 @@ class AppStoreAsyncDAO(
         }
     }
 
-    private suspend fun findAppsFromAppNames(
+    internal suspend fun findAppsFromAppNames(
         ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
@@ -170,7 +168,8 @@ class AppStoreAsyncDAO(
                 currentProject,
                 projectGroups,
                 appName,
-                paging
+                paging,
+                this
             ).mapItems { it.withoutInvocation() }
         }
     }
@@ -194,7 +193,9 @@ class AppStoreAsyncDAO(
                         projectGroups,
                         cached.metadata.name,
                         cached.metadata.version,
-                        ApplicationAccessRight.LAUNCH
+                        ApplicationAccessRight.LAUNCH,
+                        publicAsyncDAO,
+                        aclDAO
                     )
                 }
             ) {
@@ -213,7 +214,9 @@ class AppStoreAsyncDAO(
                     projectGroups,
                     result.metadata.name,
                     result.metadata.version,
-                    ApplicationAccessRight.LAUNCH
+                    ApplicationAccessRight.LAUNCH,
+                    publicAsyncDAO,
+                    aclDAO
                 )
             }
         ) {
@@ -295,7 +298,9 @@ class AppStoreAsyncDAO(
                     projectGroups,
                     appName,
                     appVersion,
-                    ApplicationAccessRight.LAUNCH
+                    ApplicationAccessRight.LAUNCH,
+                    publicAsyncDAO,
+                    aclDAO
                 )
             }
         ) throw ApplicationException.NotFound()
@@ -452,7 +457,8 @@ class AppStoreAsyncDAO(
                     project,
                     projectGroups,
                     appName,
-                    paging = NormalizedPaginationRequest(25, 0)
+                    NormalizedPaginationRequest(25, 0),
+                    this
                 ).itemsInTotal <= 1
             }
         ) {

@@ -1,5 +1,14 @@
 package dk.sdu.cloud.app.store.services
 
+import app.store.services.ApplicationPublicAsyncDAO
+import app.store.services.ApplicationPublicService
+import app.store.services.ApplicationSearchAsyncDAO
+import app.store.services.ApplicationSearchService
+import app.store.services.ApplicationTagsAsyncDAO
+import app.store.services.ApplicationTagsService
+import app.store.services.FavoriteAsyncDAO
+import app.store.services.FavoriteService
+import dk.sdu.cloud.app.store.api.AppStoreServiceDescription
 import dk.sdu.cloud.app.store.api.AppStoreStreams
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
@@ -11,40 +20,67 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
 class AppStoreTest {
 
+    private lateinit var embDB: EmbeddedPostgres
+    private lateinit var db: AsyncDBSessionFactory
+
+    @BeforeClass
+    fun before() {
+        val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+        this.db = db
+        this.embDB = embDB
+    }
+
+    @AfterClass
+    fun after() {
+        runBlocking {
+            db.close()
+        }
+        embDB.close()
+    }
+
     //Requires running Elastic with empty application index
     @Ignore
     @Test
     fun realTestOfCreateAndDeleteTag() {
         val micro = initializeMicro()
-        micro.install(HibernateFeature)
         micro.install(ElasticFeature)
 
         val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
         val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
-        val appDao = ApplicationHibernateDAO(toolHibernateDAO, aclHibernateDao)
+        val publicDao = mockk<ApplicationPublicAsyncDAO>(relaxed = true)
+        val appDao = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
         val elasticDAO = ElasticDAO(micro.elasticHighLevelClient)
         val aclDao = AclHibernateDao()
         val authClient = mockk<AuthenticatedClient>(relaxed = true)
+        val searchDao = mockk<ApplicationSearchAsyncDAO>(relaxed = true)
+        val tagDao = mockk<ApplicationTagsAsyncDAO>(relaxed = true)
         val applicationService =
             AppStoreService(
-                micro.hibernateDatabase,
+                db,
                 authClient,
                 appDao,
+                publicDao,
                 toolHibernateDAO,
                 aclDao,
                 elasticDAO,
                 micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
             )
+        val appSearchService = ApplicationSearchService(db, searchDao, elasticDAO, appDao, authClient)
+        val appTagService = ApplicationTagsService(db, tagDao, elasticDAO)
 
         runBlocking {
             applicationService.create(TestUsers.admin, normAppDesc.withNameAndVersion("ansys", "1.2.1"), "content")
@@ -55,7 +91,7 @@ class AppStoreTest {
         Thread.sleep(1000)
 
         runBlocking {
-            val advancedSearchResultForTest1 = applicationService.advancedSearch(
+            val advancedSearchResultForTest1 = appSearchService.advancedSearch(
                 TestUsers.admin,
                 null,
                 "",
@@ -64,7 +100,7 @@ class AppStoreTest {
                 NormalizedPaginationRequest(10, 0)
             )
 
-            val advancedSearchResultForTest2 = applicationService.advancedSearch(
+            val advancedSearchResultForTest2 = appSearchService.advancedSearch(
                 TestUsers.admin,
                 null,
                 "",
@@ -73,7 +109,7 @@ class AppStoreTest {
                 NormalizedPaginationRequest(10, 0)
             )
 
-            val advancedSearchResultForAll = applicationService.advancedSearch(
+            val advancedSearchResultForAll = appSearchService.advancedSearch(
                 TestUsers.admin,
                 null,
                 "",
@@ -88,13 +124,13 @@ class AppStoreTest {
         }
 
         runBlocking {
-            applicationService.createTags(listOf("test1", "test2"), "ansys", TestUsers.admin)
+            appTagService.createTags(listOf("test1", "test2"), "ansys", TestUsers.admin)
         }
 
         Thread.sleep(1000)
 
         runBlocking {
-            val advancedSearchResultForTest1 = applicationService.advancedSearch(
+            val advancedSearchResultForTest1 = appSearchService.advancedSearch(
                 TestUsers.admin,
                 null,
                 "",
@@ -103,7 +139,7 @@ class AppStoreTest {
                 NormalizedPaginationRequest(10, 0)
             )
 
-            val advancedSearchResultForTest2 = applicationService.advancedSearch(
+            val advancedSearchResultForTest2 = appSearchService.advancedSearch(
                 TestUsers.admin,
                 null,
                 "",
@@ -112,7 +148,7 @@ class AppStoreTest {
                 NormalizedPaginationRequest(10, 0)
             )
 
-            val advancedSearchResultForAll = applicationService.advancedSearch(
+            val advancedSearchResultForAll = appSearchService.advancedSearch(
                 TestUsers.admin,
                 null,
                 "",
@@ -127,13 +163,13 @@ class AppStoreTest {
         }
 
         runBlocking {
-            applicationService.deleteTags(listOf("test2"), "ansys", TestUsers.admin)
+            appTagService.deleteTags(listOf("test2"), "ansys", TestUsers.admin)
         }
 
         Thread.sleep(1000)
 
         runBlocking {
-            val advancedSearchResultForTest1 = applicationService.advancedSearch(
+            val advancedSearchResultForTest1 = appSearchService.advancedSearch(
                 TestUsers.admin,
                 null,
                 "",
@@ -142,7 +178,7 @@ class AppStoreTest {
                 NormalizedPaginationRequest(10, 0)
             )
 
-            val advancedSearchResultForTest2 = applicationService.advancedSearch(
+            val advancedSearchResultForTest2 = appSearchService.advancedSearch(
                 TestUsers.admin,
                 null,
                 "",
@@ -151,7 +187,7 @@ class AppStoreTest {
                 NormalizedPaginationRequest(10, 0)
             )
 
-            val advancedSearchResultForAll = applicationService.advancedSearch(
+            val advancedSearchResultForAll = appSearchService.advancedSearch(
                 TestUsers.admin,
                 null,
                 "",
@@ -167,20 +203,21 @@ class AppStoreTest {
         }
     }
 
-    private fun initAppStoreWithMockedElasticAndTool(): AppStoreService<HibernateSession> {
+    private fun initAppStoreWithMockedElasticAndTool(): AppStoreService {
         val micro = initializeMicro()
-        micro.install(HibernateFeature)
         val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
         val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
-        val appDAO = ApplicationHibernateDAO(toolHibernateDAO, aclHibernateDao)
+        val publicDao = mockk<ApplicationPublicAsyncDAO>(relaxed = true)
+        val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
         val aclDao = AclHibernateDao()
         val elasticDAO = mockk<ElasticDAO>(relaxed = true)
         val authClient = mockk<AuthenticatedClient>(relaxed = true)
 
         return AppStoreService(
-            micro.hibernateDatabase,
+            db,
             authClient,
             appDAO,
+            publicDao,
             toolHibernateDAO,
             aclDao,
             elasticDAO,
@@ -188,31 +225,54 @@ class AppStoreTest {
         )
     }
 
+
     @Test
     fun `toggle favorites and retrieve`() {
-        val appStoreService = initAppStoreWithMockedElasticAndTool()
+        val micro = initializeMicro()
+        val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
+        val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
+        val publicDao = mockk<ApplicationPublicAsyncDAO>(relaxed = true)
+        val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
+        val aclDao = AclHibernateDao()
+        val favoriteDao = mockk<FavoriteAsyncDAO>(relaxed = true)
+        val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+        val authClient = mockk<AuthenticatedClient>(relaxed = true)
+
+        val appStoreService = AppStoreService(
+            db,
+            authClient,
+            appDAO,
+            publicDao,
+            toolHibernateDAO,
+            aclDao,
+            elasticDAO,
+            micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
+        )
+
+        val favoriteService = FavoriteService(db, favoriteDao, authClient)
+
         runBlocking {
             appStoreService.create(TestUsers.admin, normAppDesc, "content")
-            appStoreService.toggleFavorite(
+            favoriteService.toggleFavorite(
                 TestUsers.user,
                 null,
                 normAppDesc.metadata.name,
                 normAppDesc.metadata.version
             )
 
-            val retrievedFav = appStoreService.retrieveFavorites(TestUsers.user, null, PaginationRequest())
+            val retrievedFav = favoriteService.retrieveFavorites(TestUsers.user, null, PaginationRequest())
 
             assertEquals(1, retrievedFav.itemsInTotal)
             assertEquals(normAppDesc.metadata.title, retrievedFav.items.first().metadata.title)
 
-            appStoreService.toggleFavorite(
+            favoriteService.toggleFavorite(
                 TestUsers.user,
                 null,
                 normAppDesc.metadata.name,
                 normAppDesc.metadata.version
             )
 
-            val retrievedFavAfterRemoved = appStoreService.retrieveFavorites(TestUsers.user, null, PaginationRequest())
+            val retrievedFavAfterRemoved = favoriteService.retrieveFavorites(TestUsers.user, null, PaginationRequest())
 
             assertEquals(0, retrievedFavAfterRemoved.itemsInTotal)
         }
@@ -221,21 +281,44 @@ class AppStoreTest {
     @Test
     fun `add remove search tags`() {
         runBlocking {
-            val appStoreService = initAppStoreWithMockedElasticAndTool()
+            val micro = initializeMicro()
+            val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
+            val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
+            val publicDao = mockk<ApplicationPublicAsyncDAO>(relaxed = true)
+            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclHibernateDao()
+            val tagDao = mockk<ApplicationTagsAsyncDAO>(relaxed = true)
+            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val authClient = mockk<AuthenticatedClient>(relaxed = true)
+            val searchDao = mockk<ApplicationSearchAsyncDAO>(relaxed = true)
+            val appStoreService = AppStoreService(
+                db,
+                authClient,
+                appDAO,
+                publicDao,
+                toolHibernateDAO,
+                aclDao,
+                elasticDAO,
+                micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
+            )
+
+            val tagService = ApplicationTagsService(db, tagDao, elasticDAO)
+            val searchService = ApplicationSearchService(db, searchDao, elasticDAO, appDAO, authClient)
+
             appStoreService.create(TestUsers.admin, normAppDesc, "content")
             appStoreService.create(TestUsers.admin, normAppDesc2, "content2")
 
-            appStoreService.createTags(listOf("tag1", "tag2"), normAppDesc.metadata.name, TestUsers.admin)
+            tagService.createTags(listOf("tag1", "tag2"), normAppDesc.metadata.name, TestUsers.admin)
 
             val tags =
-                appStoreService.searchTags(TestUsers.admin, null, listOf("tag1"), NormalizedPaginationRequest(10, 0))
+                searchService.searchByTags(TestUsers.admin, null, listOf("tag1"), NormalizedPaginationRequest(10, 0))
             assertEquals(1, tags.itemsInTotal)
             assertEquals(normAppDesc.metadata.name, tags.items.first().metadata.name)
 
-            appStoreService.deleteTags(listOf("tag1"), normAppDesc.metadata.name, TestUsers.admin)
+            tagService.deleteTags(listOf("tag1"), normAppDesc.metadata.name, TestUsers.admin)
 
             val tagsAfterDelete =
-                appStoreService.searchTags(TestUsers.admin, null, listOf("tag1"), NormalizedPaginationRequest(10, 0))
+                searchService.searchByTags(TestUsers.admin, null, listOf("tag1"), NormalizedPaginationRequest(10, 0))
             assertEquals(0, tagsAfterDelete.itemsInTotal)
         }
     }
@@ -243,23 +326,46 @@ class AppStoreTest {
     @Test
     fun `add tags and delete tags - duplicate tags `() {
         runBlocking {
-            val appStoreService = initAppStoreWithMockedElasticAndTool()
+            val micro = initializeMicro()
+            val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
+            val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
+            val publicDao = mockk<ApplicationPublicAsyncDAO>(relaxed = true)
+            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclHibernateDao()
+            val tagDao = mockk<ApplicationTagsAsyncDAO>(relaxed = true)
+            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val authClient = mockk<AuthenticatedClient>(relaxed = true)
+            val searchDao = mockk<ApplicationSearchAsyncDAO>(relaxed = true)
+            val appStoreService = AppStoreService(
+                db,
+                authClient,
+                appDAO,
+                publicDao,
+                toolHibernateDAO,
+                aclDao,
+                elasticDAO,
+                micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
+            )
+
+            val tagService = ApplicationTagsService(db, tagDao, elasticDAO)
+            val searchService = ApplicationSearchService(db, searchDao, elasticDAO, appDAO, authClient)
+
             appStoreService.create(TestUsers.admin, normAppDesc, "content")
             appStoreService.create(TestUsers.admin, normAppDesc2, "content2")
 
-            appStoreService.createTags(listOf("tag1", "tag2"), normAppDesc.metadata.name, TestUsers.admin)
+            tagService.createTags(listOf("tag1", "tag2"), normAppDesc.metadata.name, TestUsers.admin)
 
-            appStoreService.createTags(listOf("tag2", "tag3"), normAppDesc.metadata.name, TestUsers.admin)
+            tagService.createTags(listOf("tag2", "tag3"), normAppDesc.metadata.name, TestUsers.admin)
 
             val tags1 =
-                appStoreService.searchTags(TestUsers.admin, null, listOf("tag2"), NormalizedPaginationRequest(10, 0))
+                searchService.searchByTags(TestUsers.admin, null, listOf("tag2"), NormalizedPaginationRequest(10, 0))
             assertEquals(1, tags1.itemsInTotal)
             assertEquals(normAppDesc.metadata.name, tags1.items.first().metadata.name)
 
-            appStoreService.deleteTags(listOf("tag2"), normAppDesc.metadata.name, TestUsers.admin)
+            tagService.deleteTags(listOf("tag2"), normAppDesc.metadata.name, TestUsers.admin)
 
             val tags2 =
-                appStoreService.searchTags(TestUsers.admin, null, listOf("tag2"), NormalizedPaginationRequest(10, 0))
+                searchService.searchByTags(TestUsers.admin, null, listOf("tag2"), NormalizedPaginationRequest(10, 0))
             assertEquals(0, tags2.itemsInTotal)
         }
     }
@@ -267,7 +373,28 @@ class AppStoreTest {
     @Test
     fun `Add and search for app`() {
         runBlocking {
-            val appStoreService = initAppStoreWithMockedElasticAndTool()
+            val micro = initializeMicro()
+            val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
+            val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
+            val publicDao = mockk<ApplicationPublicAsyncDAO>(relaxed = true)
+            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclHibernateDao()
+            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val authClient = mockk<AuthenticatedClient>(relaxed = true)
+            val searchDao = mockk<ApplicationSearchAsyncDAO>(relaxed = true)
+            val appStoreService = AppStoreService(
+                db,
+                authClient,
+                appDAO,
+                publicDao,
+                toolHibernateDAO,
+                aclDao,
+                elasticDAO,
+                micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
+            )
+
+            val searchService = ApplicationSearchService(db, searchDao, elasticDAO, appDAO, authClient)
+
             appStoreService.create(TestUsers.admin, normAppDesc, "content")
             appStoreService.create(
                 TestUsers.admin,
@@ -278,7 +405,7 @@ class AppStoreTest {
             )
 
             val foundApps =
-                appStoreService.searchApps(TestUsers.admin, null, "anotherTitle", NormalizedPaginationRequest(10, 0))
+                searchService.searchApps(TestUsers.admin, null, "anotherTitle", NormalizedPaginationRequest(10, 0))
 
             assertEquals(1, foundApps.itemsInTotal)
             assertEquals("anotherTitle", foundApps.items.first().metadata.title)
@@ -309,7 +436,27 @@ class AppStoreTest {
     @Test
     fun `app set public and bulk test is public`() {
         runBlocking {
-            val appStoreService = initAppStoreWithMockedElasticAndTool()
+            val micro = initializeMicro()
+            val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
+            val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
+            val publicDao = mockk<ApplicationPublicAsyncDAO>(relaxed = true)
+            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclHibernateDao()
+            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val authClient = mockk<AuthenticatedClient>(relaxed = true)
+            val appStoreService = AppStoreService(
+                db,
+                authClient,
+                appDAO,
+                publicDao,
+                toolHibernateDAO,
+                aclDao,
+                elasticDAO,
+                micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
+            )
+
+            val publicService = ApplicationPublicService(db, publicDao)
+
             appStoreService.create(TestUsers.admin, normAppDesc, "content")
             appStoreService.create(
                 TestUsers.admin,
@@ -324,7 +471,7 @@ class AppStoreTest {
                     NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version) to true,
                     NameAndVersion("application", "4.4") to true
                 ),
-                appStoreService.isPublic(
+                publicService.isPublic(
                     TestUsers.admin, listOf(
                         NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version),
                         NameAndVersion("application", "4.4")
@@ -332,15 +479,15 @@ class AppStoreTest {
                 )
             )
 
-            appStoreService.setPublic(TestUsers.admin, normAppDesc.metadata.name, normAppDesc.metadata.version, false)
-            appStoreService.setPublic(TestUsers.admin, "application", "4.4", false)
+            publicService.setPublic(TestUsers.admin, normAppDesc.metadata.name, normAppDesc.metadata.version, false)
+            publicService.setPublic(TestUsers.admin, "application", "4.4", false)
 
             assertEquals(
                 mapOf(
                     NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version) to false,
                     NameAndVersion("application", "4.4") to false
                 ),
-                appStoreService.isPublic(
+                publicService.isPublic(
                     TestUsers.admin, listOf(
                         NameAndVersion(normAppDesc.metadata.name, normAppDesc.metadata.version),
                         NameAndVersion("application", "4.4")

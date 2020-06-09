@@ -6,16 +6,24 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
-import dk.sdu.cloud.app.store.services.EmbeddedNameAndVersion
+import dk.sdu.cloud.app.store.services.AppStoreAsyncDAO
+import dk.sdu.cloud.app.store.services.ApplicationTable
+import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
+import dk.sdu.cloud.app.store.services.toApplicationWithInvocation
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.UserStatusRequest
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
 
 /*
@@ -28,18 +36,22 @@ internal suspend fun internalHasPermission(
     memberGroups: List<String>,
     appName: String,
     appVersion: String,
-    permission: ApplicationAccessRight
+    permission: ApplicationAccessRight,
+    publicDAO: ApplicationPublicAsyncDAO,
+    aclDao: AclHibernateDao
 ): Boolean {
     if (user.role in Roles.PRIVILEDGED) return true
-    if (isPublic(session, user, appName, appVersion)) return true
-    return aclDAO.hasPermission(
-        session,
-        user,
-        project,
-        memberGroups,
-        appName,
-        setOf(permission)
-    )
+    if (ctx.withSession { session -> publicDAO.isPublic(session, user, appName, appVersion)}) return true
+    return ctx.withSession { session ->
+        aclDao.hasPermission(
+            session,
+            user,
+            project,
+            memberGroups,
+            appName,
+            setOf(permission)
+        )
+    }
 }
 
 internal suspend fun internalFindAllByName(
@@ -48,7 +60,8 @@ internal suspend fun internalFindAllByName(
     currentProject: String?,
     projectGroups: List<String>,
     appName: String,
-    paging: NormalizedPaginationRequest
+    paging: NormalizedPaginationRequest,
+    appStoreAsyncDAO: AppStoreAsyncDAO
 ): Page<ApplicationWithFavoriteAndTags> {
     val groups = if (projectGroups.isEmpty()) {
         listOf("")
@@ -56,40 +69,43 @@ internal suspend fun internalFindAllByName(
         projectGroups
     }
 
-    return preparePageForUser(
-        session,
-        user?.username,
-        session.createNativeQuery<ApplicationEntity>(
-            """
-                    select * from {h-schema}applications as A
-                    where A.name = :name and (
+    return ctx.withSession { session ->
+        appStoreAsyncDAO.preparePageForUser(
+            session,
+            user?.username,
+            session.sendPreparedStatement(
+                {
+                    setParameter("name", appName)
+                    setParameter("project", currentProject)
+                    setParameter("groups", groups)
+                    setParameter("role", (user?.role ?: Role.UNKNOWN).toString())
+                    setParameter("privileged", Roles.PRIVILEDGED.toList())
+                },
+                """
+                    SELECT * FROM applications AS A
+                    WHERE A.name = ?name AND (
                         (
                             A.is_public = TRUE
-                        ) or (
-                            cast(:project as text) is null and :user in (
-                                select P1.username from {h-schema}permissions as P1 where P1.application_name = A.name
+                        ) OR (
+                            cast(?project as text) is null AND ?user IN (
+                                SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                             )
-                        ) or (
+                        ) OR (
                             cast(:project as text) is not null and exists (
-                                select P2.project_group from {h-schema}permissions as P2 where
-                                    P2.application_name = A.name and
-                                    P2.project = cast(:project as text) and
-                                    P2.project_group in (:groups)
+                                SELECT P2.project_group FROM permissions AS P2 WHERE
+                                    P2.application_name = A.name AND
+                                    P2.project = cast(?project as text) AND
+                                    P2.project_group in (?groups)
                             )
-                        ) or (
-                            :role in (:privileged)
+                        ) OR (
+                            ?role in (?privileged)
                         ) 
                     )
-                    order by A.created_at desc
-                """.trimIndent(), ApplicationEntity::class.java
-        ).setParameter("user", user?.username ?: "")
-            .setParameter("name", appName)
-            .setParameter("project", currentProject)
-            .setParameterList("groups", groups)
-            .setParameter("role", user?.role ?: Role.UNKNOWN)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
-            .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
-    )
+                    ORDER BY A.created_at DESC
+                """.trimIndent()
+            ).rows.paginate(paging).mapItems { it.toApplicationWithInvocation() }
+        )
+    }
 }
 
 internal suspend fun internalByNameAndVersion(
@@ -112,7 +128,11 @@ internal suspend fun internalByNameAndVersion(
     }
 }
 
-internal suspend fun retrieveUserProjectGroups(user: SecurityPrincipal, project: String): List<String> =
+internal suspend fun retrieveUserProjectGroups(
+    user: SecurityPrincipal,
+    project: String,
+    authenticatedClient: AuthenticatedClient
+): List<String> =
     ProjectMembers.userStatus.call(
         UserStatusRequest(user.username),
         authenticatedClient
@@ -122,11 +142,19 @@ internal suspend fun retrieveUserProjectGroups(user: SecurityPrincipal, project:
 
 
 internal suspend fun findOwnerOfApplication(ctx: DBContext, applicationName: String): String? {
-    return session.criteria<ApplicationEntity> {
-        entity[ApplicationEntity::id][EmbeddedNameAndVersion::name] equal applicationName
-    }.apply {
-        maxResults = 1
-    }.uniqueResult()?.owner
+    return ctx.withSession { session ->
+        session.sendPreparedStatement(
+            {
+                setParameter("appname", applicationName)
+            },
+            """
+                SELECT *
+                FROM applications
+                WHERE application_name = ?appname
+                LIMIT 1
+            """.trimIndent()
+        ).rows.singleOrNull()?.getField(ApplicationTable.owner)
+    }
 }
 
 internal fun canUserPerformWriteOperation(owner: String, user: SecurityPrincipal): Boolean {

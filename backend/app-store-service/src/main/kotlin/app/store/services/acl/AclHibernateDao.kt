@@ -7,7 +7,11 @@ import dk.sdu.cloud.app.store.api.EntityWithPermission
 import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
+import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.insert
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
+import dk.sdu.cloud.service.db.async.withSession
 import java.io.Serializable
 import javax.persistence.*
 
@@ -16,26 +20,8 @@ object PermissionTable : SQLTable("permissions") {
     val project = text("project", notNull = true)
     val group = text("project_group", notNull = true)
     val applicationName = text("application_name", notNull = true)
-    val permission = text()
+    val permission = text("permission", notNull = true)
 }
-@javax.persistence.Entity
-@Table(name = "permissions")
-data class PermissionEntry(
-    @get:EmbeddedId
-    var key: Key
-) {
-    companion object : HibernateEntity<PermissionEntry>, WithId<Key>
-
-    @Embeddable
-    data class Key(
-        @get:Column(name = "username") var user: String,
-        @get:Column(name = "project") var project: String,
-        @get:Column(name = "project_group") var group: String,
-        @get:Column(name = "application_name") var applicationName: String,
-        @get:Enumerated(EnumType.STRING) var permission: ApplicationAccessRight
-    ) : Serializable
-}
-
 
 class AclHibernateDao : AclDao {
     override suspend fun hasPermission(
@@ -46,15 +32,29 @@ class AclHibernateDao : AclDao {
         applicationName: String,
         permissions: Set<ApplicationAccessRight>
     ): Boolean {
-        val result = session.criteria<PermissionEntry> {
-            (entity[PermissionEntry::key][PermissionEntry.Key::user] equal user.username) or (
-                    (entity[PermissionEntry::key][PermissionEntry.Key::project] equal project) and
-                            (entity[PermissionEntry::key][PermissionEntry.Key::group] isInCollection memberGroups)
-                    ) and (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName)
-        }.uniqueResultOptional()
+        val result = ctx.withSession{ session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("user", user.username)
+                    setParameter("project", project)
+                    setParameter("groups", memberGroups)
+                    setParameter("appname", applicationName)
+                },
+                """
+                    SELECT *
+                    FROM permissions
+                    WHERE (username = ?user) OR
+                        (
+                            (project = ?project) AND
+                            (group in ?groups)
+                        ) AND
+                        (application_name = ?appname)
+                """.trimIndent()
+            ).rows.singleOrNull()
+        }
 
-        if (result.isPresent) {
-            return permissions.contains(result.get().key.permission)
+        if (!result.isNullOrEmpty()) {
+            return permissions.contains(ApplicationAccessRight.valueOf(result.getField(PermissionTable.permission)))
         }
         return false
     }
@@ -65,17 +65,50 @@ class AclHibernateDao : AclDao {
         applicationName: String,
         permissions: ApplicationAccessRight
     ) {
-        val permissionEntry = PermissionEntry(
-            PermissionEntry.Key(
-                accessEntity.user ?: "",
-                accessEntity.project ?: "",
-                accessEntity.group ?: "",
-                applicationName,
-                permissions
-            )
-        )
+        ctx.withSession { session ->
+            val permission = session.sendPreparedStatement(
+                {
+                    setParameter("appname", applicationName)
+                    setParameter("user", accessEntity.user)
+                    setParameter("project", accessEntity.project)
+                    setParameter("group", accessEntity.group)
+                },
+                """
+                    SELECT * 
+                    FROM permissions
+                    WHERE (application_name = ?appname) AND
+                     (username = ?user) AND (project = ?project)
+                     AND (project_group = ?group)
+                """.trimIndent()
+            ).rows.singleOrNull()
 
-        session.saveOrUpdate(permissionEntry)
+            if (permission != null) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("permission", permissions.toString())
+                        setParameter("appname", applicationName)
+                        setParameter("user", accessEntity.user)
+                        setParameter("project", accessEntity.project)
+                        setParameter("group", accessEntity.group)
+                    },
+                    """
+                        UPDATE permissions
+                        SET permission = ?permission
+                        WHERE (application_name = ?appname) AND
+                            (username = ?user) AND (project = ?project)
+                            AND (project_group = ?group)                    
+                    """.trimIndent()
+                )
+            } else {
+                session.insert(PermissionTable) {
+                    set(PermissionTable.permission, permissions.toString())
+                    set(PermissionTable.applicationName, applicationName)
+                    set(PermissionTable.group, accessEntity.group ?: "")
+                    set(PermissionTable.project, accessEntity.project ?: "")
+                    set(PermissionTable.user, accessEntity.user ?: "")
+                }
+            }
+        }
     }
 
     override suspend fun revokePermission(
@@ -83,28 +116,48 @@ class AclHibernateDao : AclDao {
         accessEntity: AccessEntity,
         applicationName: String
     ) {
-        session.deleteCriteria<PermissionEntry> {
-            (entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName) and
-                    if (accessEntity.user.isNullOrBlank()) {
-                        (entity[PermissionEntry::key][PermissionEntry.Key::project] equal accessEntity.project) and
-                                (entity[PermissionEntry::key][PermissionEntry.Key::group] equal accessEntity.group)
-                    } else {
-                        (entity[PermissionEntry::key][PermissionEntry.Key::user] equal accessEntity.user)
-                    }
-        }.executeUpdate()
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appname", applicationName)
+                    setParameter("user", accessEntity.user ?: "")
+                    setParameter("project", accessEntity.project ?: "")
+                    setParameter("group", accessEntity.group ?: "")
+                },
+                """
+                    DELETE FROM permissions
+                    WHERE (application_name = ?appname) AND
+                            (username = ?user) AND (project = ?project)
+                            AND (project_group = ?group)     
+                """.trimIndent()
+            )
+        }
     }
 
     override suspend fun listAcl(
         ctx: DBContext,
         applicationName: String
     ): List<EntityWithPermission> {
-        return session
-            .criteria<PermissionEntry> {
-                entity[PermissionEntry::key][PermissionEntry.Key::applicationName] equal applicationName
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appname", applicationName)
+                },
+                """
+                    SELECT *
+                    FROM permissions
+                    WHERE application_name = ?appname
+                """.trimIndent()
+            ).rows.map {
+                EntityWithPermission(
+                    AccessEntity(
+                        it.getField(PermissionTable.user),
+                        it.getField(PermissionTable.project),
+                        it.getField(PermissionTable.group)
+                    ),
+                    ApplicationAccessRight.valueOf(it.getField(PermissionTable.permission))
+                )
             }
-            .list()
-            .map {
-                EntityWithPermission(AccessEntity(it.key.user, it.key.project, it.key.group), it.key.permission)
-            }
+        }
     }
 }

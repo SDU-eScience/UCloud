@@ -9,6 +9,8 @@ import dk.sdu.cloud.app.store.services.ApplicationTable
 import dk.sdu.cloud.app.store.services.ElasticDAO
 import dk.sdu.cloud.app.store.services.ElasticIndexedApplication
 import dk.sdu.cloud.app.store.services.EmbeddedNameAndVersion
+import dk.sdu.cloud.app.store.services.toApplicationWithInvocation
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -16,13 +18,15 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.mapItems
+import dk.sdu.cloud.service.paginate
 import org.elasticsearch.action.search.SearchResponse
 
 class ApplicationSearchService (
     private val db: AsyncDBSessionFactory,
     private val searchDAO: ApplicationSearchAsyncDAO,
     private val elasticDAO: ElasticDAO,
-    private val applicationDAO: AppStoreAsyncDAO
+    private val applicationDAO: AppStoreAsyncDAO,
+    private val authenticatedClient: AuthenticatedClient
 ) {
     suspend fun searchByTags(
         securityPrincipal: SecurityPrincipal,
@@ -33,7 +37,7 @@ class ApplicationSearchService (
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project)
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
         return db.withSession { session ->
@@ -57,7 +61,7 @@ class ApplicationSearchService (
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project)
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
         return db.withSession { session ->
@@ -117,7 +121,7 @@ class ApplicationSearchService (
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(user, project)
+            retrieveUserProjectGroups(user, project, authenticatedClient)
         }
 
         if (showAllVersions) {
@@ -169,7 +173,7 @@ class ApplicationSearchService (
             }
         }
 
-        val sortedResultsPage = sortedList.map { it.toModelWithInvocation() }.paginate(paging)
+        val sortedResultsPage = sortedList.map { it.toApplicationWithInvocation() }.paginate(paging)
 
         return db.withSession { session ->
             applicationDAO.preparePageForUser(session, user.username, sortedResultsPage)

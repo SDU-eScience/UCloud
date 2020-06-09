@@ -2,21 +2,22 @@ package app.store.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 
 class FavoriteService (
     private val db: AsyncDBSessionFactory,
-    private val favoriteDao: FavoriteAsyncDAO
+    private val favoriteDao: FavoriteAsyncDAO,
+    private val authenticatedClient: AuthenticatedClient
 ) {
     suspend fun toggleFavorite(securityPrincipal: SecurityPrincipal, project: String?, appName: String, appVersion: String) {
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project)
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
         db.withSession { session ->
@@ -39,7 +40,7 @@ class FavoriteService (
         val projectGroups = if (project.isNullOrBlank()) {
             emptyList()
         } else {
-            retrieveUserProjectGroups(securityPrincipal, project)
+            retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
 
         return db.withSession { session ->

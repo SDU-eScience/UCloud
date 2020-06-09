@@ -1,5 +1,11 @@
 package dk.sdu.cloud.app.store.services
 
+import app.store.services.ApplicationLogoAsyncDAO
+import app.store.services.ApplicationPublicAsyncDAO
+import app.store.services.ApplicationSearchAsyncDAO
+import app.store.services.ApplicationTagsAsyncDAO
+import app.store.services.FavoriteAsyncDAO
+import dk.sdu.cloud.app.store.api.AppStoreServiceDescription
 import dk.sdu.cloud.app.store.api.ApplicationInvocationDescription
 import dk.sdu.cloud.app.store.api.ApplicationMetadata
 import dk.sdu.cloud.app.store.api.NameAndVersion
@@ -15,15 +21,24 @@ import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.PaginationRequest
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
 import dk.sdu.cloud.service.test.initializeMicro
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
 import org.hibernate.exception.GenericJDBCException
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
 import java.lang.Exception
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
@@ -31,20 +46,57 @@ import kotlin.test.assertTrue
 
 class ApplicationHibernateDaoTest {
     private val user = TestUsers.user
+    private lateinit var embDB: EmbeddedPostgres
+    private lateinit var db: AsyncDBSessionFactory
+
+    @BeforeClass
+    fun before() {
+        val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+        this.db = db
+        this.embDB = embDB
+    }
+
+    @AfterClass
+    fun after() {
+        runBlocking {
+            db.close()
+        }
+        embDB.close()
+    }
+
+    @AfterTest
+    fun afterEach() {
+        runBlocking {
+            db.withSession { session ->
+                session.sendPreparedStatement(
+                    {},
+                    """
+                        TRUNCATE 
+                            applications, 
+                            application_logos, 
+                            application_tags, 
+                            favorited_by, 
+                            permissions,
+                            tool_logos,
+                            tools
+                        RESTART IDENTITY CASCADE 
+                    """.trimIndent()
+                )
+            }
+        }
+    }
 
     @Test
     fun `create, find, update test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
+                val publicDAO = ApplicationPublicAsyncDAO()
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDAO)
                 appDAO.create(it, user, normAppDesc)
 
                 run {
@@ -85,19 +137,16 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `test find by name and version user`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
+                val publicDao = ApplicationPublicAsyncDAO()
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
                 appDAO.create(it, user, normAppDesc)
-
 
                 run {
                     // Load from specific version
@@ -119,14 +168,12 @@ class ApplicationHibernateDaoTest {
 
     @Test(expected = ApplicationException.NotFound::class)
     fun `test find by name and version user - notfound`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val publicDao = ApplicationPublicAsyncDAO()
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
                 run {
                     // Load from specific version
                     val loadedApp = appDAO.findByNameAndVersionForUser(it, user, null, emptyList(), "name", "2.2")
@@ -138,9 +185,6 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `test creating different versions`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val version1 = normAppDesc.withNameAndVersion("app", "v1")
@@ -148,10 +192,11 @@ class ApplicationHibernateDaoTest {
 
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
+                val publicDao = ApplicationPublicAsyncDAO()
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
                 appDAO.create(it, user, version1)
                 Thread.sleep(1000) // Wait a bit to make sure they get different createdAt
                 appDAO.create(it, user, version2)
@@ -165,65 +210,65 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `search test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
+                val publicDao = ApplicationPublicAsyncDAO()
 
                 toolDAO.create(it, user, normToolDesc)
 
                 val applicationA = normAppDesc.withNameAndVersionAndTitle("name1", "1", "AAA")
                 val applicationB = normAppDesc.withNameAndVersionAndTitle("name2", "1", "BBB")
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
                 appDAO.create(it, user, applicationA)
                 appDAO.create(it, user, applicationB)
 
+                val appSearchDAO = ApplicationSearchAsyncDAO(appDAO)
+
                 run {
-                    val searchResult = appDAO.search(it, user, null, emptyList(), "A", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appSearchDAO.search(it, user, null, emptyList(), "A", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, null, emptyList(), "AA", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, null, emptyList(), "AAA", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AAA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, null, emptyList(), "notPossible", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appSearchDAO.search(it, user, null, emptyList(), "notPossible", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, searchResult.itemsInTotal)
                 }
                 //Spacing searches
                 run {
-                    val searchResult = appDAO.search(it, user, null, emptyList(), "AA   ", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AA   ", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
                 run {
-                    val searchResult = appDAO.search(it, user, null, emptyList(), "   AA", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appSearchDAO.search(it, user, null, emptyList(), "   AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
                 run {
                     val searchResult =
-                        appDAO.search(it, user, null, emptyList(), "multiple one found AA", NormalizedPaginationRequest(10, 0))
+                        appSearchDAO.search(it, user, null, emptyList(), "multiple one found AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
@@ -231,14 +276,14 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     val searchResult =
-                        appDAO.search(it, user, null, emptyList(), "   AA  A Extra    spacing   ", NormalizedPaginationRequest(10, 0))
+                        appSearchDAO.search(it, user, null, emptyList(), "   AA  A Extra    spacing   ", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, null, emptyList(), "AA BB", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AA BB", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(2, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
@@ -247,7 +292,7 @@ class ApplicationHibernateDaoTest {
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, null, emptyList(), "  ", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appSearchDAO.search(it, user, null, emptyList(), "  ", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, searchResult.itemsInTotal)
                 }
@@ -257,7 +302,7 @@ class ApplicationHibernateDaoTest {
                 appDAO.create(it, user, applicationANewVersion)
 
                 run {
-                    val searchResult = appDAO.search(it, user, null, emptyList(), "AA", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationANewVersion.metadata.title, searchResult.items.first().metadata.title)
@@ -265,7 +310,7 @@ class ApplicationHibernateDaoTest {
                 }
 
                 run {
-                    val searchResult = appDAO.search(it, user, null, emptyList(), "AA BB", NormalizedPaginationRequest(10, 0))
+                    val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AA BB", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(2, searchResult.itemsInTotal)
                     assertEquals(applicationANewVersion.metadata.title, searchResult.items.first().metadata.title)
@@ -279,53 +324,43 @@ class ApplicationHibernateDaoTest {
 
     @Test(expected = ApplicationException.AlreadyExists::class)
     fun `Create - already exists - test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
+                val publicDao = ApplicationPublicAsyncDAO()
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
                 appDAO.create(it, user, normAppDesc)
                 appDAO.create(it, user, normAppDesc)
-
             }
         }
     }
 
     @Test(expected = ApplicationException.NotAllowed::class)
     fun `Create - Not Allowed - test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
+                val publicDao = ApplicationPublicAsyncDAO()
 
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
                 appDAO.create(it, user, normAppDesc)
                 appDAO.create(it, TestUsers.user5, normAppDesc)
-
             }
         }
     }
 
     @Test(expected = ApplicationException.BadToolReference::class)
     fun `Create - bad tool - test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
-
-                val appDAO = ApplicationHibernateDAO(ToolHibernateDAO(), AclHibernateDao())
+                val appDAO = AppStoreAsyncDAO(ToolHibernateDAO(), AclHibernateDao(), ApplicationPublicAsyncDAO())
                 appDAO.create(it, user, normAppDesc)
             }
         }
@@ -333,13 +368,9 @@ class ApplicationHibernateDaoTest {
 
     @Test(expected = ApplicationException.NotFound::class)
     fun `Find by name - not found - test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
-
-                val appDAO = ApplicationHibernateDAO(ToolHibernateDAO(), AclHibernateDao())
+                val appDAO = AppStoreAsyncDAO(ToolHibernateDAO(), AclHibernateDao(), ApplicationPublicAsyncDAO())
                 appDAO.findByNameAndVersion(it, user, null, emptyList(), "name", "version")
             }
         }
@@ -348,17 +379,16 @@ class ApplicationHibernateDaoTest {
     //@Ignore // Code only works in postgres
     @Test
     fun `tagSearch test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
+                val publicDao = ApplicationPublicAsyncDAO()
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
-
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
+                val tagsDAO = ApplicationTagsAsyncDAO()
+                val searchDAO = ApplicationSearchAsyncDAO(appDAO)
                 val commonTag = "common"
                 val appA = normAppDesc.withNameAndVersionAndTitle("A", "1", "Atitle")
                 val appB = normAppDesc.withNameAndVersionAndTitle("B", "1", "Btitle")
@@ -366,19 +396,19 @@ class ApplicationHibernateDaoTest {
                 appDAO.create(it, user, appA)
                 appDAO.create(it, user, appB)
 
-                appDAO.createTags(it, user, appA.metadata.name, listOf(commonTag, "A1", "A2"))
-                appDAO.createTags(it, user, appB.metadata.name, listOf(commonTag, "B1", "B2"))
+                tagsDAO.createTags(it, user, appA.metadata.name, listOf(commonTag, "A1", "A2"))
+                tagsDAO.createTags(it, user, appB.metadata.name, listOf(commonTag, "B1", "B2"))
 
                 run {
                     // Search for no hits
-                    val hits = appDAO.searchTags(it, user, null, emptyList(), listOf("tag20"), NormalizedPaginationRequest(10, 0))
+                    val hits = searchDAO.searchByTags(it, user, null, emptyList(), listOf("tag20"), NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, hits.itemsInTotal)
                 }
 
                 run {
                     // Search for one hit tag
-                    val hits = appDAO.searchTags(it, user, null, emptyList(), listOf("A1"), NormalizedPaginationRequest(10, 0))
+                    val hits = searchDAO.searchByTags(it, user, null, emptyList(), listOf("A1"), NormalizedPaginationRequest(10, 0))
 
                     val result = hits.items.single().metadata
 
@@ -389,7 +419,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Search for multiple hit tag
-                    val hits = appDAO.searchTags(it, user, null, emptyList(), listOf(commonTag), NormalizedPaginationRequest(10, 0))
+                    val hits = searchDAO.searchByTags(it, user, null, emptyList(), listOf(commonTag), NormalizedPaginationRequest(10, 0))
 
                     assertEquals(2, hits.itemsInTotal)
                     assertEquals(appA.metadata.name, hits.items[0].metadata.name)
@@ -398,7 +428,7 @@ class ApplicationHibernateDaoTest {
 
                 run {
                     // Search for empty tag. Should be empty since it is not a wildcard search
-                    val hits = appDAO.searchTags(it, user, null, emptyList(), listOf(""), NormalizedPaginationRequest(10, 0))
+                    val hits = searchDAO.searchByTags(it, user, null, emptyList(), listOf(""), NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, hits.itemsInTotal)
                 }
@@ -408,16 +438,15 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `Favorite test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
+                val publicDao = ApplicationPublicAsyncDAO()
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
+                val favoriteDao = FavoriteAsyncDAO(publicDao, aclDao)
 
                 val userA = TestUsers.user.copy(username = "userA")
                 val userB = TestUsers.user.copy(username = "userB")
@@ -433,19 +462,19 @@ class ApplicationHibernateDaoTest {
 
                 listOf(userA, userB).forEach { currentUser ->
                     run {
-                        val favorites = appDAO.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
+                        val favorites = favoriteDao.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
                         assertEquals(0, favorites.itemsInTotal)
                     }
 
                     run {
-                        appDAO.toggleFavorite(it, currentUser, null, emptyList(), aVersion1.metadata.name, aVersion1.metadata.version)
-                        val favorites = appDAO.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
+                        favoriteDao.toggleFavorite(it, currentUser, null, emptyList(), aVersion1.metadata.name, aVersion1.metadata.version)
+                        val favorites = favoriteDao.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
                         assertEquals(1, favorites.itemsInTotal)
                     }
 
                     run {
-                        appDAO.toggleFavorite(it, currentUser, null, emptyList(), aVersion2.metadata.name, aVersion2.metadata.version)
-                        val favorites = appDAO.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
+                        favoriteDao.toggleFavorite(it, currentUser, null, emptyList(), aVersion2.metadata.name, aVersion2.metadata.version)
+                        val favorites = favoriteDao.retrieveFavorites(it, currentUser, null, emptyList(), NormalizedPaginationRequest(10, 0))
                         assertEquals(2, favorites.itemsInTotal)
                     }
                 }
@@ -455,71 +484,67 @@ class ApplicationHibernateDaoTest {
 
     @Test(expected = ApplicationException.BadApplication::class)
     fun `Favorite test - Not an app`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
-                val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
+                val publicDao = ApplicationPublicAsyncDAO()
+                val favoriteDao = FavoriteAsyncDAO(publicDao, aclDao)
 
-                toolDAO.create(it, user, normToolDesc)
-
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
-
-                appDAO.toggleFavorite(it, user, null, emptyList(), "App1", "1.4")
+                favoriteDao.toggleFavorite(it, user, null, emptyList(), "App1", "1.4")
             }
         }
     }
 
     @Test
     fun `create and delete tags`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
+                val publicDao = ApplicationPublicAsyncDAO()
+
                 toolDAO.create(it, user, normToolDesc)
 
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
+                val tagsDAO = ApplicationTagsAsyncDAO()
+
+
                 val appA = normAppDesc.withNameAndVersion("A", "1")
 
                 appDAO.create(it, user, appA)
-                appDAO.createTags(it, user, appA.metadata.name, listOf("A1", "A2"))
+                tagsDAO.createTags(it, user, appA.metadata.name, listOf("A1", "A2"))
                 run {
-                    val tag1 = appDAO.findTag(it, appA.metadata.name, "A1")
-                    val tag2 = appDAO.findTag(it, appA.metadata.name, "A2")
-                    val nottag = appDAO.findTag(it, appA.metadata.name, "A3")
+                    val tag1 = tagsDAO.findTag(it, appA.metadata.name, "A1")
+                    val tag2 = tagsDAO.findTag(it, appA.metadata.name, "A2")
+                    val nottag = tagsDAO.findTag(it, appA.metadata.name, "A3")
 
                     assertNotNull(tag1)
                     assertNotNull(tag2)
                     assertNull(nottag)
 
-                    val tags = appDAO.findTagsForApp(it, appA.metadata.name)
+                    val tags = tagsDAO.findTagsForApp(it, appA.metadata.name)
                     assertEquals(2, tags.size)
-                    assertEquals("A1", tags.first().tag)
-                    assertEquals("A2", tags.last().tag)
+                    assertEquals("A1", tags.first().getField(TagTable.tag))
+                    assertEquals("A2", tags.last().getField(TagTable.tag))
                 }
 
-                appDAO.createTags(it, user, appA.metadata.name, listOf("A3"))
+                tagsDAO.createTags(it, user, appA.metadata.name, listOf("A3"))
 
                 run {
-                    val tag1 = appDAO.findTag(it, appA.metadata.name, "A1")
-                    val tag2 = appDAO.findTag(it, appA.metadata.name, "A2")
-                    val tag3 = appDAO.findTag(it, appA.metadata.name, "A3")
+                    val tag1 = tagsDAO.findTag(it, appA.metadata.name, "A1")
+                    val tag2 = tagsDAO.findTag(it, appA.metadata.name, "A2")
+                    val tag3 = tagsDAO.findTag(it, appA.metadata.name, "A3")
 
                     assertNotNull(tag1)
                     assertNotNull(tag2)
                     assertNotNull(tag3)
                 }
 
-                appDAO.deleteTags(it, user, appA.metadata.name, listOf("A1", "A3"))
+                tagsDAO.deleteTags(it, user, appA.metadata.name, listOf("A1", "A3"))
                 run {
-                    val tag1 = appDAO.findTag(it, appA.metadata.name, "A1")
-                    val tag2 = appDAO.findTag(it, appA.metadata.name, "A2")
-                    val tag3 = appDAO.findTag(it, appA.metadata.name, "A3")
+                    val tag1 = tagsDAO.findTag(it, appA.metadata.name, "A1")
+                    val tag2 = tagsDAO.findTag(it, appA.metadata.name, "A2")
+                    val tag3 = tagsDAO.findTag(it, appA.metadata.name, "A3")
 
                     assertNull(tag1)
                     assertNotNull(tag2)
@@ -531,42 +556,30 @@ class ApplicationHibernateDaoTest {
 
     @Test(expected = RPCException::class)
     fun `create tag for invalid app`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
-                val toolDAO = ToolHibernateDAO()
-                val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
-                appDAO.createTags(it, user, "notAnApp", listOf("A3"))
+                val tagsDao = ApplicationTagsAsyncDAO()
+                tagsDao.createTags(it, user, "notAnApp", listOf("A3"))
             }
         }
     }
 
     @Test(expected = RPCException::class)
     fun `delete tag for invalid app`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
-                val toolDAO = ToolHibernateDAO()
-                val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
-                appDAO.deleteTags(it, user, "notAnApp", listOf("A3"))
+                val tagsDao = ApplicationTagsAsyncDAO()
+                tagsDao.deleteTags(it, user, "notAnApp", listOf("A3"))
             }
         }
     }
 
     @Test
     fun `find latest by tool`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         val toolDao = ToolHibernateDAO()
         val aclDao = AclHibernateDao()
-        val appDao = ApplicationHibernateDAO(toolDao, aclDao)
+        val publicDao = ApplicationPublicAsyncDAO()
+        val appDao = AppStoreAsyncDAO(toolDao, aclDao, publicDao)
         val t1 = "tool1"
         val t2 = "tool2"
         val version = "1"
@@ -615,14 +628,12 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `Find by supported file ext test CC only`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val publicDao = ApplicationPublicAsyncDAO()
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
 
                 toolDAO.create(
                     it,
@@ -653,14 +664,12 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `Prepare page for user - no user test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val publicDao = ApplicationPublicAsyncDAO()
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
 
                 toolDAO.create(
                     it,
@@ -690,17 +699,16 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `Create and Delete Logo test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val publicDao = ApplicationPublicAsyncDAO()
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
+                val appLogoDao = ApplicationLogoAsyncDAO(appDAO)
 
                 runBlocking {
-                    val logo = appDAO.fetchLogo(it, "name")
+                    val logo = appLogoDao.fetchLogo(it, "name")
                     assertNull(logo)
                 }
 
@@ -717,21 +725,21 @@ class ApplicationHibernateDaoTest {
                 )
 
                 runBlocking {
-                    val logo = appDAO.fetchLogo(it, "name")
+                    val logo = appLogoDao.fetchLogo(it, "name")
                     assertNull(logo)
                 }
 
-                appDAO.createLogo(it, TestUsers.admin, "name", ByteArray(1024))
+                appLogoDao.createLogo(it, TestUsers.admin, "name", ByteArray(1024))
 
                 runBlocking {
-                    val logo = appDAO.fetchLogo(it, "name")
+                    val logo = appLogoDao.fetchLogo(it, "name")
                     assertNotNull(logo)
                 }
 
-                appDAO.clearLogo(it, TestUsers.admin, "name")
+                appLogoDao.clearLogo(it, TestUsers.admin, "name")
 
                 runBlocking {
-                    val logo = appDAO.fetchLogo(it, "name")
+                    val logo = appLogoDao.fetchLogo(it, "name")
                     assertNull(logo)
                 }
             }
@@ -740,14 +748,13 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `Create Logo - forbidden`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val publicDao = ApplicationPublicAsyncDAO()
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
+                val appLogoDao = ApplicationLogoAsyncDAO(appDAO)
 
                 toolDAO.create(
                     it,
@@ -762,7 +769,7 @@ class ApplicationHibernateDaoTest {
                 )
 
                 try {
-                    appDAO.createLogo(it, TestUsers.user, "name", ByteArray(1024))
+                    appLogoDao.createLogo(it, TestUsers.user, "name", ByteArray(1024))
                 } catch (ex: RPCException) {
                     if (ex.httpStatusCode.value != 403) {
                         assertTrue(false)
@@ -776,14 +783,13 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `Delete Logo - forbidden`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val publicDao = ApplicationPublicAsyncDAO()
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
+                val appLogoDao = ApplicationLogoAsyncDAO(appDAO)
 
                 toolDAO.create(
                     it,
@@ -798,7 +804,7 @@ class ApplicationHibernateDaoTest {
                 )
 
                 try {
-                    appDAO.clearLogo(it, TestUsers.user, "name")
+                    appLogoDao.clearLogo(it, TestUsers.user, "name")
                 } catch (ex: RPCException) {
                     if (ex.httpStatusCode.value != 403) {
                         assertTrue(false)
@@ -812,17 +818,16 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `Create Logo - NotFound`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val publicDao = ApplicationPublicAsyncDAO()
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
+                val appLogoDao = ApplicationLogoAsyncDAO(appDAO)
 
                 try {
-                    appDAO.createLogo(it, TestUsers.user, "name", ByteArray(1024))
+                    appLogoDao.createLogo(it, TestUsers.user, "name", ByteArray(1024))
                 } catch (ex: RPCException) {
                     if (ex.httpStatusCode.value != 404) {
                         assertTrue(false)
@@ -836,17 +841,16 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `Delete Logo - NotFound`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val publicDao = ApplicationPublicAsyncDAO()
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
+                val appLogoDao = ApplicationLogoAsyncDAO(appDAO)
 
                 try {
-                    appDAO.clearLogo(it, TestUsers.user, "name")
+                    appLogoDao.clearLogo(it, TestUsers.user, "name")
                 } catch (ex: RPCException) {
                     if (ex.httpStatusCode.value != 404) {
                         assertTrue(false)
@@ -860,14 +864,12 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `Find all by ID test`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val publicDao = ApplicationPublicAsyncDAO()
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
 
                 toolDAO.create(
                     it,
@@ -887,7 +889,7 @@ class ApplicationHibernateDaoTest {
                     normAppDesc
                 )
 
-                appDAO.getAllApps(it, TestUsers.admin).forEach { app -> println(app.id) }
+                appDAO.getAllApps(it, TestUsers.admin).forEach { app -> println(app.getField(ApplicationTable.idName)) }
 
                 val ids1 = appDAO.findAllByID(
                     it,
@@ -927,14 +929,12 @@ class ApplicationHibernateDaoTest {
 
     @Test
     fun `find all by IDs - no ids given`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
         runBlocking {
             db.withTransaction {
                 val toolDAO = ToolHibernateDAO()
                 val aclDao = AclHibernateDao()
-                val appDAO = ApplicationHibernateDAO(toolDAO, aclDao)
+                val publicDao = ApplicationPublicAsyncDAO()
+                val appDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDao)
 
                 toolDAO.create(
                     it,

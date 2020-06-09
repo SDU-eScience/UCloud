@@ -82,7 +82,7 @@ class ApplicationTagsAsyncDAO() : TagsDAO {
         }
     }
 
-    private suspend fun findTag(
+    suspend fun findTag(
         ctx: DBContext,
         appName: String,
         tag: String

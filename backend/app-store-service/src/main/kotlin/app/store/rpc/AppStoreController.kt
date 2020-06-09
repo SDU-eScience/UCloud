@@ -1,5 +1,9 @@
 package dk.sdu.cloud.app.store.rpc
 
+import app.store.services.ApplicationPublicService
+import app.store.services.ApplicationSearchService
+import app.store.services.ApplicationTagsService
+import app.store.services.FavoriteService
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -31,24 +35,28 @@ import java.io.ByteArrayInputStream
 
 class AppStoreController(
     private val appStore: AppStoreService,
-    private val logoService: LogoService
+    private val logoService: LogoService,
+    private val tagsService: ApplicationTagsService,
+    private val searchService: ApplicationSearchService,
+    private val publicService: ApplicationPublicService,
+    private val favoriteService: FavoriteService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 
         implement(AppStore.toggleFavorite) {
-            ok(appStore.toggleFavorite(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion))
+            ok(favoriteService.toggleFavorite(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion))
         }
 
         implement(AppStore.retrieveFavorites) {
-            ok(appStore.retrieveFavorites(ctx.securityPrincipal, ctx.project, request))
+            ok(favoriteService.retrieveFavorites(ctx.securityPrincipal, ctx.project, request))
         }
 
         implement(AppStore.searchTags) {
-            ok(appStore.searchTags(ctx.securityPrincipal, ctx.project, request.tags, request.normalize()))
+            ok(searchService.searchByTags(ctx.securityPrincipal, ctx.project, request.tags, request.normalize()))
         }
 
         implement(AppStore.searchApps) {
-            ok(appStore.searchApps(ctx.securityPrincipal, ctx.project, request.query, request.normalize()))
+            ok(searchService.searchApps(ctx.securityPrincipal, ctx.project, request.query, request.normalize()))
         }
 
         implement(AppStore.findByNameAndVersion) {
@@ -82,11 +90,11 @@ class AppStoreController(
         }
 
         implement(AppStore.isPublic) {
-            ok(IsPublicResponse(appStore.isPublic(ctx.securityPrincipal, request.applications)))
+            ok(IsPublicResponse(publicService.isPublic(ctx.securityPrincipal, request.applications)))
         }
 
         implement(AppStore.setPublic) {
-            ok(appStore.setPublic(ctx.securityPrincipal, request.appName, request.appVersion, request.public))
+            ok(publicService.setPublic(ctx.securityPrincipal, request.appName, request.appVersion, request.public))
         }
 
         implement(AppStore.listAll) {
@@ -94,7 +102,7 @@ class AppStoreController(
         }
 
         implement(AppStore.advancedSearch) {
-            ok(appStore.advancedSearch(
+            ok(searchService.advancedSearch(
                 ctx.securityPrincipal,
                 ctx.project,
                 request.query,
@@ -152,7 +160,7 @@ class AppStoreController(
         }
 
         implement(AppStore.createTag) {
-            appStore.createTags(
+            tagsService.createTags(
                 request.tags,
                 request.applicationName,
                 ctx.securityPrincipal
@@ -161,7 +169,7 @@ class AppStoreController(
         }
 
         implement(AppStore.removeTag) {
-            appStore.deleteTags(
+            tagsService.deleteTags(
                 request.tags,
                 request.applicationName,
                 ctx.securityPrincipal

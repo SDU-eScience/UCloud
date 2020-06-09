@@ -4,7 +4,6 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.services.ApplicationException
 import dk.sdu.cloud.app.store.services.ApplicationTable
-import dk.sdu.cloud.app.store.services.EmbeddedNameAndVersion
 import dk.sdu.cloud.app.store.services.PublicDAO
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.getField
