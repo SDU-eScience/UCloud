@@ -1,6 +1,5 @@
 import Activity from "Activity/Page";
-import {DetailedDowntime} from "Admin/Downtime/DetailedDowntime";
-import DowntimeManagement from "Admin/DowntimeManagement";
+import NewsManagement from "Admin/NewsManagement";
 import LicenseServers from "Admin/LicenseServers";
 import AdminOverview from "Admin/Overview";
 import UserCreation from "Admin/UserCreation";
@@ -43,6 +42,8 @@ import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
 import {inDevEnvironment} from "UtilityFunctions";
 import {areProjectsEnabled} from "Project";
+import {DetailedNews} from "NewsPost/DetailedNews";
+import {NewsList} from "NewsPost/NewsList";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
 
@@ -95,9 +96,10 @@ const Core = (): JSX.Element => (
                 <Route exact path="/admin" component={requireAuth(AdminOverview)}/>
                 <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)}/>
                 <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)}/>
-                <Route exact path="/admin/downtime" component={requireAuth(DowntimeManagement)}/>
+                <Route exact path="/admin/news" component={requireAuth(NewsManagement)}/>
 
-                <Route exact path="/downtime/detailed/:id" component={requireAuth(DetailedDowntime)}/>
+                <Route exact path="/news/detailed/:id" component={DetailedNews} />
+                <Route exact path="/news/list/:filter?" component={NewsList} />
 
                 <Route
                     exact

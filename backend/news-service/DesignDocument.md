@@ -28,7 +28,7 @@ a post to see more.
 On the UCloud dashboard, an additional box will show the title, subtitle for the most recent post, and links to around 5
 older posts.
 ​
-Posts can have a timestamp to be shown when passed but don't have an expiration date.
+Posts have a timestamp to be shown when passed but don't necessarily have an expiration date.
 ​
 All posts are viewable for all users.
 
@@ -37,7 +37,7 @@ All posts are viewable for all users.
 ## Problems with described solution
 
 - Dashboard is the landing page when logging in, but users can go directly to another page, never seeing a message that might be relevant for them.
-- User A starts job with 200 hour runtime, power outage occurs, we post an update, user returns after the 200 hours and sees that the job was terminated early, and now has to be restarted, effectively losing 200 hours of time.
+- User A starts job with 200 hour runtime, power outage occurs, we post an update, user returns after the 200 hours and sees that the job was terminated early, and now has to be restarted, effectively being 200 hours behind.
 
 ​
 

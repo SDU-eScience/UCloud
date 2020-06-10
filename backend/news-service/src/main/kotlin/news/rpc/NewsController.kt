@@ -5,6 +5,7 @@ import dk.sdu.cloud.news.api.News
 import dk.sdu.cloud.news.services.NewsService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.async.DBContext
 
 class NewsController(
@@ -27,6 +28,14 @@ class NewsController(
 
         implement(News.listCategories) {
             ok(newsService.listCategories(db))
+        }
+
+        implement(News.listDowntimes) {
+            ok(newsService.listNewsPosts(db, NormalizedPaginationRequest(10, 0), "downtime", false))
+        }
+
+        implement(News.getPostById) {
+            ok(newsService.getPostById(db, request.id))
         }
     }
 

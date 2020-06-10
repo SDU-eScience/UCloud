@@ -9,8 +9,10 @@ import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
+import org.joda.time.LocalDateTime
 import java.util.*
 
 data class NewsPost(
@@ -19,8 +21,8 @@ data class NewsPost(
     val subtitle: String,
     val body: String,
     val postedBy: String,
-    val showFrom: Date,
-    val hideFrom: Date?,
+    val showFrom: Long,
+    val hideFrom: Long?,
     val hidden: Boolean,
     val category: String
 )
@@ -46,8 +48,14 @@ data class ListPostsRequest(
 ) : WithPaginationRequest
 typealias ListPostsResponse = Page<NewsPost>
 
+typealias ListDownTimesRequest = Unit
+typealias ListDownTimesResponse = Page<NewsPost>
+
 data class TogglePostHiddenRequest(val id: Long)
 typealias TogglePostHiddenResponse = Unit
+
+data class GetPostByIdRequest(val id: Long)
+typealias GetPostByIdResponse = NewsPost
 
 object News : CallDescriptionContainer("news") {
     val baseContext = "/api/news"
@@ -59,7 +67,7 @@ object News : CallDescriptionContainer("news") {
         }
 
         http {
-            method = HttpMethod.Post
+            method = HttpMethod.Put
 
             path {
                 using(baseContext)
@@ -106,7 +114,7 @@ object News : CallDescriptionContainer("news") {
 
     val listPosts = call<ListPostsRequest, ListPostsResponse, CommonErrorMessage>("listPosts") {
         auth {
-            AccessRight.READ
+            access = AccessRight.READ
             roles = Roles.PUBLIC
         }
 
@@ -116,6 +124,49 @@ object News : CallDescriptionContainer("news") {
             path {
                 using(baseContext)
                 +"list"
+            }
+
+            params {
+                +boundTo(ListPostsRequest::filter)
+                +boundTo(ListPostsRequest::withHidden)
+                +boundTo(ListPostsRequest::itemsPerPage)
+                +boundTo(ListPostsRequest::page)
+            }
+        }
+    }
+
+    val listDowntimes = call<ListDownTimesRequest, ListDownTimesResponse, CommonErrorMessage>("listDowntimes") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PUBLIC
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"listDowntimes"
+            }
+        }
+    }
+
+    val getPostById = call<GetPostByIdRequest, GetPostByIdResponse, CommonErrorMessage>("getPostBy") {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.AUTHENTICATED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"byId"
+            }
+
+            params {
+                +boundTo(GetPostByIdRequest::id)
             }
         }
     }

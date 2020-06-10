@@ -41,16 +41,17 @@ import {isRunExpired} from "Utilities/ApplicationUtilities";
 import {Spacer} from "ui-components/Spacer";
 import {getCssVar} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
-import {useCloudAPI} from "Authentication/DataHook";
-import {Page} from "Types";
+import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
+import {Page, PaginationRequest} from "Types";
+import {buildQueryString} from "Utilities/URIUtilities";
 
 export const DashboardCard: React.FunctionComponent<{title: string; color: string; isLoading: boolean}> = ({title, color, isLoading, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={0} borderRadius={6}>
-        <Flex px={3} py={2} alignItems="center" style={{borderTop:`5px solid ${color}`}} >
+        <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid ${color}`}} >
             <Heading.h3>{title}</Heading.h3>
         </Flex>
         <Box px={3} py={1}>
-            {!isLoading ? children : <Spinner /> }
+            {!isLoading ? children : <Spinner />}
         </Box>
     </Card>
 );
@@ -126,10 +127,10 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                     notifications={notifications}
                     readAll={props.readAll}
                 />
-                <DashboardCard title="Resources"  color="red" isLoading={false}>
-                    <Accounting.Usage resource="storage" subResource="bytesUsed" renderTitle/>
-                    <Box pb="12px"/>
-                    <Accounting.Usage resource="compute" subResource="timeUsed" renderTitle/>
+                <DashboardCard title="Resources" color="red" isLoading={false}>
+                    <Accounting.Usage resource="storage" subResource="bytesUsed" renderTitle />
+                    <Box pb="12px" />
+                    <Accounting.Usage resource="compute" subResource="timeUsed" renderTitle />
                 </DashboardCard>
                 <DashboardMessageOfTheDay />
             </GridCardGroup>
@@ -205,7 +206,7 @@ const DashboardAnalyses = ({
     isLoading,
     error,
 }: {analyses: JobWithStatus[]; isLoading: boolean; error?: string}): JSX.Element => (
-        <DashboardCard title="Recent Jobs"  color="purple" isLoading={isLoading}>
+        <DashboardCard title="Recent Jobs" color="purple" isLoading={isLoading}>
             {analyses.length || error ? null : (
                 <NoEntries
                     text="No recent jobs"
@@ -247,7 +248,7 @@ interface DashboardNotificationProps {
 
 const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element => (
     <Card height="auto" width={1} overflow="hidden" boxShadow="sm" borderWidth={0} borderRadius={6}>
-        <Flex px={3} py={2} style={{borderTop:`5px solid ${getCssVar("darkGreen")}`}}>
+        <Flex px={3} py={2} style={{borderTop: `5px solid ${getCssVar("darkGreen")}`}}>
             <Heading.h3>Recent Notifications</Heading.h3>
             <Box ml="auto" />
             <Icon
@@ -270,22 +271,40 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
     </Card>
 );
 
+export interface NewsPost {
+    id: number;
+    title: string;
+    subtitle: string;
+    body: string;
+    postedBy: string;
+    showFrom: Date;
+    hideFrom: Date | null;
+    hidden: boolean;
+    category: string;
+}
+
+interface NewsRequestProps extends PaginationRequest {
+    filter?: string;
+    withHidden: boolean;
+}
+
+export function newsRequest(payload: NewsRequestProps): APICallParameters<PaginationRequest> {
+    return {
+        reloadId: Math.random(),
+        method: "GET",
+        path: buildQueryString("/news/list", payload)
+    };
+}
+
 function DashboardMessageOfTheDay(): JSX.Element | null {
-    const [messages, setMessages] = React.useState<{message: string; createdAt: number}[]>([]);
-    const [currentMessage, setCurrentMessage] = React.useState(0);
+    const [news, setNewsParams, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
+        itemsPerPage: 25,
+        page: 0,
+        withHidden: false,
+    }), emptyPage);
 
-    React.useEffect(() => {
-        const exampleMessage = "# Hello\n" + "(function(){console.log(\"hello world\")})()\n";
-        setMessages([{message: exampleMessage, createdAt: new Date().getTime()}]);
-    }, []);
-
-
-    const updateCurrentMessage = React.useCallback((nextIndex: number) => {
-        setCurrentMessage(currentMessage + nextIndex);
-    }, [currentMessage]);
-
-    if (messages.length === 0) return null;
-    const message = messages[currentMessage];
+    const [newestPost] = news.data.items;
+    if (newestPost == null) return null;
     return (
         <Card height="auto" width={"200%"} overflow="hidden" boxShadow="sm" borderWidth={1} borderRadius={6}>
             <Box bg="lightGray" color="darkGray" px={3} py={2}>
@@ -293,7 +312,7 @@ function DashboardMessageOfTheDay(): JSX.Element | null {
                     left={<Heading.h4>Message of the day</Heading.h4>}
                     right={
                         <Text color="gray" mr="8px" mt="4px" fontSize={1}>
-                            From {formatDistanceToNow(new Date(message.createdAt), {addSuffix: true})}
+                            From {formatDistanceToNow(new Date(newestPost.showFrom), {addSuffix: true})}
                         </Text>
                     }
                 />
@@ -301,14 +320,12 @@ function DashboardMessageOfTheDay(): JSX.Element | null {
             <Box mx="8px" my="5px">
                 <Link to={`somewhere, something, \${id}`}>
                     <Markdown>
-                        {message.message}
+                        {newestPost.title}
+                        {newestPost.subtitle}
+                        {newestPost.body}
                     </Markdown>
                 </Link>
             </Box>
-            {messages.length <= 1 ? null : <ButtonGroup mx="5px" mb="5px">
-                <OutlineButton disabled={currentMessage === 0} onClick={() => updateCurrentMessage(1)}>⟨</OutlineButton>
-                <OutlineButton disabled={currentMessage + 1 >= messages.length} onClick={() => updateCurrentMessage(-1)}>⟩</OutlineButton>
-            </ButtonGroup>}
         </Card>
     );
 }

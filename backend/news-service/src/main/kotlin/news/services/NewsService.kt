@@ -5,6 +5,8 @@ import dk.sdu.cloud.news.api.NewsPost
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
+import org.joda.time.DateTimeZone
+import org.joda.time.LocalDate
 import org.joda.time.LocalDateTime
 import java.util.*
 
@@ -62,19 +64,21 @@ class NewsService {
             //language=sql
             """
                 select
-                    n.id
-                    n.title
-                    n.subtitle
-                    n.body
-                    n.posted_by
-                    n.show_from
-                    n.hide_from
-                    n.hidden
+                    n.id,
+                    n.title,
+                    n.subtitle,
+                    n.body,
+                    n.posted_by,
+                    n.show_from,
+                    n.hide_from,
+                    n.hidden,
                     n.category
                 from news n
-                where (?categoryFilter::text is null or n.category = ?categoryFilter) and 
+                where (?categoryFilter::text is null or n.category = ?categoryFilter) and
+                      (?withHidden = true or n.show_from <= now()) and
+                      (?withHidden = true or n.hide_from > now()) and
                       (?withHidden = true or n.hidden = false)
-                order by n.showFrom desc
+                order by n.show_from desc
                 offset ?offset
                 limit ?limit
             """.trimIndent()
@@ -104,6 +108,9 @@ class NewsService {
     suspend fun togglePostHidden(ctx: DBContext, id: Long) {
         ctx.withSession { session ->
             session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                },
                 //language=sql
                 """
                     UPDATE news 
@@ -113,18 +120,33 @@ class NewsService {
             )
         }
     }
+
+    suspend fun getPostById(ctx: DBContext, id: Long): NewsPost {
+        return ctx.withSession { session ->
+            toNewsPost(session.sendPreparedStatement(
+                {
+                    setParameter("id", id)
+                },
+                """
+                    SELECT *
+                    FROM news n
+                    WHERE n.id = ?id
+                """.trimIndent()
+            ).rows.single())
+        }
+    }
 }
 
 fun toNewsPost(row: RowData): NewsPost {
     return NewsPost(
-        id = row.getLong(0)!!,
-        title = row.getString(1)!!,
-        subtitle = row.getString(2)!!,
-        body = row.getString(3)!!,
-        postedBy = row.getString(4)!!,
-        showFrom = Date(row.getLong(5)!!),
-        hideFrom = row.getLong(6)?.let { Date(it) },
-        hidden = row.getBoolean(7)!!,
-        category = row.getString(8)!!
+        id = row.getField(NewsTable.id),
+        title = row.getField(NewsTable.title),
+        subtitle = row.getField(NewsTable.subtitle),
+        body = row.getField(NewsTable.body),
+        postedBy = row.getField(NewsTable.postedBy),
+        showFrom = row.getField(NewsTable.showFrom).toDateTime(DateTimeZone.UTC).millis,
+        hideFrom = row.getField(NewsTable.hideFrom).toDateTime(DateTimeZone.UTC).millis,
+        hidden = row.getField(NewsTable.hidden),
+        category = row.getField(NewsTable.category)
     )
 }
