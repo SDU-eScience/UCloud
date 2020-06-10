@@ -181,24 +181,32 @@ class AvatarHibernateDAO : AvatarDAO {
         ctx: DBContext,
         users: List<String>
     ): Map<String, SerializedAvatar> {
-
         return ctx.withSession { session ->
-            users.map { username ->
-                val avatar = findByUser(session, username)
-                username to SerializedAvatar(
-                    avatar.top.string,
-                    avatar.topAccessory.string,
-                    avatar.hairColor.string,
-                    avatar.facialHair.string,
-                    avatar.facialHairColor.string,
-                    avatar.clothes.string,
-                    avatar.colorFabric.string,
-                    avatar.eyes.string,
-                    avatar.eyebrows.string,
-                    avatar.mouthTypes.string,
-                    avatar.skinColors.string,
-                    avatar.clothesGraphic.string,
-                    avatar.hatColor.string
+            val avatars = session.sendPreparedStatement(
+                {
+                    setParameter("usernames", users)
+                },
+                """
+                    SELECT *
+                    FROM avatars
+                    WHERE username in (select unnest(?usernames::text[]))
+                """.trimIndent()
+            ).rows
+            avatars.map { row ->
+                row.getField(AvatarTable.username) to SerializedAvatar(
+                    row.getField(AvatarTable.top),
+                    row.getField(AvatarTable.topAccessory),
+                    row.getField(AvatarTable.hairColor),
+                    row.getField(AvatarTable.facialHair),
+                    row.getField(AvatarTable.facialHairColor),
+                    row.getField(AvatarTable.clothes),
+                    row.getField(AvatarTable.colorFabric),
+                    row.getField(AvatarTable.eyes),
+                    row.getField(AvatarTable.eyebrows),
+                    row.getField(AvatarTable.mouthTypes),
+                    row.getField(AvatarTable.skinColors),
+                    row.getField(AvatarTable.clothesGraphic),
+                    row.getField(AvatarTable.hatColor)
                 )
             }.toMap()
         }

@@ -23,6 +23,7 @@ import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class AvatarServiceTest {
     private val user = TestUsers.user.username
@@ -148,7 +149,7 @@ class AvatarServiceTest {
             assertEquals(Top.LONG_HAIR_BIG_HAIR.string, resultForUser2?.top)
 
             val resultForNotFoundUser = results["notFoundUser"]
-            assertEquals(Top.NO_HAIR.string, resultForNotFoundUser?.top)
+            assertNull(resultForNotFoundUser)
         }
     }
 }
