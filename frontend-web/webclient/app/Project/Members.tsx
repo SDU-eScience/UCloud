@@ -27,16 +27,10 @@ import {
     verifyMembership
 } from "Project";
 import styled from "styled-components";
-import GroupView, {GroupWithSummary} from "./GroupList";
+import GroupView from "./GroupList";
 import ProjectMembers, {MembersBreadcrumbs} from "./MembersPanel";
-import {Page} from "Types";
-import {emptyPage, ReduxObject} from "DefaultObjects";
-import {useGlobal} from "Utilities/ReduxHooks";
 import {dispatchSetProjectAction} from "Project/Redux";
-import {useProjectStatus} from "Project/cache";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {ProjectSettings} from "Project/ProjectSettings";
-import {Client} from "Authentication/HttpClientInstance";
 
 const Members: React.FunctionComponent<MembersOperations> = props => {
     const {

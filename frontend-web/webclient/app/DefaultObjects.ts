@@ -138,7 +138,6 @@ export interface HookStore {
     avatarCache?: Dictionary<AvatarType>;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
     projectManagement?: APICallStateWithParams<Page<ProjectMember>>;
-    projectManagementSubprojects?: APICallStateWithParams<Page<string>, PaginationRequest>;
     projectManagementGroupMembers?: APICallStateWithParams<Page<string>, ListGroupMembersRequestProps>;
     projectManagementGroupSummary?: APICallStateWithParams<Page<GroupWithSummary>, PaginationRequest>;
     projectManagementQuery?: string;

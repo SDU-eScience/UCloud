@@ -1,4 +1,4 @@
-import {callAPIWithErrorHandler, useCloudAPI, useGlobalCloudAPI, useAsyncCommand, APICallParameters} from "Authentication/DataHook";
+import {useCloudAPI, useAsyncCommand} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
 import {
     UserInProject,
@@ -7,21 +7,18 @@ import {
     useProjectManagementStatus,
     deleteProject,
 } from "Project/index";
-import * as Heading from "ui-components/Heading";
 import * as React from "react";
-import {useCallback, useEffect} from "react";
-import {useHistory, useParams} from "react-router";
+import {useEffect} from "react";
 import {Box, Button, Link, Flex, Icon, Input, Relative, Absolute, Label} from "ui-components";
-import {connect, useSelector} from "react-redux";
+import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import styled from "styled-components";
-import GroupView from "./GroupList";
-import ProjectMembers, {MembersBreadcrumbs} from "./MembersPanel";
-import {ReduxObject, emptyPage} from "DefaultObjects";
+import {MembersBreadcrumbs} from "./MembersPanel";
+import {emptyPage} from "DefaultObjects";
 import {dispatchSetProjectAction} from "Project/Redux";
-import {preventDefault, shortUUID, errorMessageOrDefault} from "UtilityFunctions";
+import {preventDefault, errorMessageOrDefault} from "UtilityFunctions";
 import {SubprojectsList} from "./SubprojectsList";
 import {addStandardDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -47,7 +44,9 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
     const {
         projectId,
         projectDetails,
-        allowManagement
+        allowManagement,
+        subprojectSearchQuery,
+        setSubprojectSearchQuery
     } = useProjectManagementStatus();
 
     const [subprojects, setSubprojectParams, subprojectParams] = useCloudAPI<Page<UserInProject>>(
@@ -55,14 +54,13 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
         emptyPage
     );
 
-    useEffect(() => {
-        setSubprojectParams({...subprojectParams});
-    }, [projectId]);
-
     const reloadSubprojects = (): void => {
-        //setSubprojectParams(subprojectParams);
-        //fetchOutgoingInvites(outgoingSubprojectInvitesParams);
+        setSubprojectParams({...subprojectParams});
     };
+
+    useEffect(() => {
+        reloadSubprojects();
+    }, [projectId]);
 
     const onSubmit = async (e: React.FormEvent): Promise<void> => {
         e.preventDefault();
@@ -84,19 +82,9 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
         <MainContainer
             header={<Flex>
                 <MembersBreadcrumbs>
-                    <li>
-                        <Link to="/projects">
-                            My Projects
-                        </Link>
-                    </li>
-                    <li>
-                        <Link to={`/project/dashboard`}>
-                            {projectDetails.data.title}
-                        </Link>
-                    </li>
-                    <li>
-                        Subprojects
-                    </li>
+                    <li><Link to="/projects">My Projects</Link></li>
+                    <li><Link to={`/project/dashboard`}>{projectDetails.data.title}</Link></li>
+                    <li>Subprojects</li>
                 </MembersBreadcrumbs>
             </Flex>}
             sidebar={null}
@@ -117,16 +105,19 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
                                             }}
                                             rightLabel
                                         />
-                                        <Button attached type={"submit"}>Add</Button>
+                                        <Button attached type={"submit"}>Create</Button>
                                     </form>
                                 )}
                                 <form onSubmit={preventDefault}>
                                     <Input
                                         id="subproject-search"
-                                        placeholder="Enter name of project to search..."
+                                        placeholder="Enter name of project to filter..."
                                         pr="30px"
                                         autoComplete="off"
                                         disabled={isLoading}
+                                        onChange={e => {
+                                            setSubprojectSearchQuery(e.target.value);
+                                        }}
                                     />
                                     <Relative>
                                         <Absolute right="6px" top="10px">
@@ -138,10 +129,16 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
                                 </form>
                             </SearchContainer>
                             <SubprojectsList
-                                subprojects={subprojects.data.items}
+                                subprojects={
+                                    subprojectSearchQuery !== "" ?
+                                        subprojects.data.items.filter(it =>
+                                            it.title.toLowerCase().search(subprojectSearchQuery.toLowerCase().replace(/\W|_|\*/g, "")) !== -1)
+                                    :
+                                        subprojects.data.items
+                                }
                                 onRemoveSubproject={async (projectId, subprojectTitle) => addStandardDialog({
-                                    title: "Remove subproject",
-                                    message: `Remove ${subprojectTitle}?`,
+                                    title: "Delete subproject",
+                                    message: `Delete ${subprojectTitle}?`,
                                     onConfirm: async () => {
                                         await runCommand(deleteProject({
                                             projectId,
@@ -154,7 +151,6 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
                                 projectId={projectId}
                                 allowRoleManagement={allowManagement}
                             />
-
                         </Box>
                     </Box>
                 </>

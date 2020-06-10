@@ -22,7 +22,6 @@ export function SubprojectsList(props: Readonly<{
     isOutgoingInvites?: boolean;
     projectId: string;
 }>): JSX.Element {
-    const [, runCommand] = useAsyncCommand();
     const avatars = useAvatars();
 
     useEffect(() => {

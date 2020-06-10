@@ -515,6 +515,7 @@ export function useProjectManagementStatus() {
     );
 
     const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
+    const [subprojectSearchQuery, setSubprojectSearchQuery] = useGlobal("projectManagementQuery", "");
 
     if (projectId === undefined) {
         history.push("/");
@@ -531,6 +532,6 @@ export function useProjectManagementStatus() {
         fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
         projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
         outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
-        projectDetails, projectDetailsParams, fetchProjectDetails
+        projectDetails, projectDetailsParams, fetchProjectDetails, subprojectSearchQuery, setSubprojectSearchQuery
     };
 }
