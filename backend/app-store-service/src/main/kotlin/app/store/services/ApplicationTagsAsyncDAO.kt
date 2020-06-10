@@ -74,7 +74,7 @@ class ApplicationTagsAsyncDAO() : TagsDAO {
                         setParameter("id", id)
                     },
                     """
-                        DELETE FROM tags
+                        DELETE FROM application_tags
                         WHERE id = ?id
                     """.trimIndent()
                 )
@@ -95,7 +95,7 @@ class ApplicationTagsAsyncDAO() : TagsDAO {
                 },
                 """
                     SELECT * 
-                    FROM tags
+                    FROM application_tags
                     WHERE (tag = ?tag) AND (application_name = ?appname)
                 """.trimIndent()
             ).rows.singleOrNull()
@@ -113,7 +113,7 @@ class ApplicationTagsAsyncDAO() : TagsDAO {
                 },
                 """
                     SELECT * 
-                    FROM tags
+                    FROM application_tags
                     WHERE application_name = ?appname
                 """.trimIndent()
             ).rows.toList()

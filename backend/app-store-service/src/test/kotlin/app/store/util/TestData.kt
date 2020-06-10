@@ -1,7 +1,12 @@
 package dk.sdu.cloud.app.store.util
 
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.services.ApplicationHibernateDaoTest
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 
 val normAppDesc = Application(
     ApplicationMetadata(
@@ -112,3 +117,24 @@ val normToolDesc = NormalizedToolDescription(
     ToolBackend.DOCKER,
     "MIT"
 )
+
+internal fun truncate(db: DBContext) {
+    runBlocking {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {},
+                """
+                        TRUNCATE 
+                            applications, 
+                            application_logos, 
+                            application_tags, 
+                            favorited_by, 
+                            permissions,
+                            tool_logos,
+                            tools
+                        RESTART IDENTITY CASCADE 
+                    """.trimIndent()
+            )
+        }
+    }
+}

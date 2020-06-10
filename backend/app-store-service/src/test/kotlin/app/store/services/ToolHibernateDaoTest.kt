@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.NormalizedToolDescription
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolBackend
+import dk.sdu.cloud.app.store.util.truncate
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -19,6 +20,7 @@ import org.junit.BeforeClass
 import org.junit.Test
 import org.junit.Ignore
 import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -82,44 +84,36 @@ class ToolHibernateDaoTest {
         "GNU"
     )
 
-    private lateinit var embDB: EmbeddedPostgres
-    private lateinit var db: AsyncDBSessionFactory
+    companion object {
+        private lateinit var embDB: EmbeddedPostgres
+        private lateinit var db: AsyncDBSessionFactory
 
-    @BeforeClass
-    fun before() {
-        val (db,embDB) = TestDB.from(AppStoreServiceDescription)
-        this.db = db
-        this.embDB = embDB
+        @BeforeClass
+        @JvmStatic
+        fun before() {
+            val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun after() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
     }
 
-    @AfterClass
-    fun after() {
-        runBlocking {
-            db.close()
-        }
-        embDB.close()
+    @BeforeTest
+    fun beforeEach() {
+        truncate(db)
     }
 
     @AfterTest
     fun afterEach() {
-        runBlocking {
-            db.withSession { session ->
-                session.sendPreparedStatement(
-                    {},
-                    """
-                        TRUNCATE 
-                            applications, 
-                            application_logos, 
-                            application_tags, 
-                            favorited_by, 
-                            permissions,
-                            tool_logos,
-                            tools
-                        RESTART IDENTITY CASCADE 
-                    """.trimIndent()
-                )
-            }
-        }
+        truncate(db)
     }
 
     @Test
@@ -139,7 +133,7 @@ class ToolHibernateDaoTest {
         runBlocking {
             db.withSession { session ->
                 val tool = ToolHibernateDAO()
-                tool.findByNameAndVersion(db.openSession(), TestUsers.user, "name", "2.2")
+                tool.findByNameAndVersion(session, TestUsers.user, "name", "2.2")
             }
         }
     }
@@ -162,6 +156,9 @@ class ToolHibernateDaoTest {
                 val allListed = tool.listLatestVersion(session, user, NormalizedPaginationRequest(10, 0))
                 var previous = ""
                 allListed.items.forEach {
+                    println(it.description.info.name)
+                    println(previous)
+                    println()
                     assert(it.description.info.name >= previous)
                     previous = it.description.info.name
                 }

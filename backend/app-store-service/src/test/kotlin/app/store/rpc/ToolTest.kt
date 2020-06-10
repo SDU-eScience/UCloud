@@ -39,22 +39,26 @@ private fun KtorApplicationTestSetupContext.configureToolServer(
 
 class ToolTest {
 
-    private lateinit var embDB: EmbeddedPostgres
-    private lateinit var db: AsyncDBSessionFactory
+    companion object {
+        private lateinit var embDB: EmbeddedPostgres
+        private lateinit var db: AsyncDBSessionFactory
 
-    @BeforeClass
-    fun before() {
-        val (db,embDB) = TestDB.from(AppStoreServiceDescription)
-        this.db = db
-        this.embDB = embDB
-    }
-
-    @AfterClass
-    fun after() {
-        runBlocking {
-            db.close()
+        @BeforeClass
+        @JvmStatic
+        fun before() {
+            val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+            this.db = db
+            this.embDB = embDB
         }
-        embDB.close()
+
+        @AfterClass
+        @JvmStatic
+        fun after() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
     }
 
 

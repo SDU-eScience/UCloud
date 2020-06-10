@@ -80,6 +80,7 @@ internal suspend fun internalFindAllByName(
                     setParameter("groups", groups)
                     setParameter("role", (user?.role ?: Role.UNKNOWN).toString())
                     setParameter("privileged", Roles.PRIVILEDGED.toList())
+                    setParameter("user", user?.username ?: "")
                 },
                 """
                     SELECT * FROM applications AS A
@@ -91,7 +92,7 @@ internal suspend fun internalFindAllByName(
                                 SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                             )
                         ) OR (
-                            cast(:project as text) is not null and exists (
+                            cast(?project as text) is not null and exists (
                                 SELECT P2.project_group FROM permissions AS P2 WHERE
                                     P2.application_name = A.name AND
                                     P2.project = cast(?project as text) AND
@@ -150,7 +151,7 @@ internal suspend fun findOwnerOfApplication(ctx: DBContext, applicationName: Str
             """
                 SELECT *
                 FROM applications
-                WHERE application_name = ?appname
+                WHERE name = ?appname
                 LIMIT 1
             """.trimIndent()
         ).rows.singleOrNull()?.getField(ApplicationTable.owner)

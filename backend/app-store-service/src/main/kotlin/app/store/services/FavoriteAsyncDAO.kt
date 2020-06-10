@@ -15,6 +15,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.allocateId
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -46,11 +47,11 @@ class FavoriteAsyncDAO(
                 session.sendPreparedStatement(
                     {
                         setParameter("user", user.username)
-                        setParameter("application_name", appName)
-                        setParameter("application_version", appVersion)
+                        setParameter("appname", appName)
+                        setParameter("appversion", appVersion)
                     },
                     """
-                        DELETE FROM favorite_by
+                        DELETE FROM favorited_by
                         WHERE (the_user = ?user) AND
                             (application_name = ?appname) AND
                             (application_version = ?appversion)
@@ -74,6 +75,7 @@ class FavoriteAsyncDAO(
 
             if (userHasPermission) {
                 ctx.withSession { session ->
+                    val id = session.allocateId()
                     session.insert(FavoriteApplicationTable){
                         set(
                             FavoriteApplicationTable.applicationName,
@@ -84,6 +86,7 @@ class FavoriteAsyncDAO(
                             foundApp.getField(ApplicationTable.idVersion)
                         )
                         set(FavoriteApplicationTable.user, user.username)
+                        set(FavoriteApplicationTable.id, id)
                     }
                 }
             } else {
@@ -107,7 +110,7 @@ class FavoriteAsyncDAO(
                 },
                 """
                     SELECT COUNT(*)
-                    FROM favorite_by
+                    FROM favorited_by
                     WHERE (the_user = ?user) AND
                         (application_name = ?name) AND
                         (application_version = ?version)
@@ -130,7 +133,7 @@ class FavoriteAsyncDAO(
                 },
                 """
                     SELECT COUNT(*)
-                    FROM favorite_by
+                    FROM favorited_by
                     WHERE the_user = ?user
                 """.trimIndent()
             ).rows.singleOrNull()?.getLong(0) ?: 0
@@ -163,16 +166,16 @@ class FavoriteAsyncDAO(
                     (
                         (A.is_public = TRUE) OR
                         (
-                            cast(?project as text) is null AND ?user in (
+                            cast(?project as text) is null AND ?user IN (
                                 SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                             )
                         ) OR
                         (
-                            cast(:project as text) is not null AND exists (
+                            cast(?project as text) is not null AND exists (
                                 SELECT P2.project_group FROM permissions AS P2 WHERE
                                     P2.application_name = A.name AND
                                     P2.project = cast(?project as text) AND
-                                    P2.project_group IN (?groups)
+                                    P2.project_group IN (select unnest(?groups::text[]))
                             )
                         ) OR
                         (                  
@@ -195,7 +198,7 @@ class FavoriteAsyncDAO(
                 """
                     SELECT *
                     FROM application_tags
-                    WHERE application_name IN ?names
+                    WHERE application_name IN (select unnest(?names::text[]))
                 """.trimIndent()
             ).rows.toList()
         }

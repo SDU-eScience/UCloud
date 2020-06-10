@@ -91,11 +91,14 @@ class ApplicationSearchAsyncDAO(
         val keywords = trimmedNormalizedQuery.split(" ").filter { it.isNotBlank() }
         if (keywords.size == 1) {
             return ctx.withSession { session ->
+                println("dosearc")
                 doSearch(session, user, currentProject, projectGroups, trimmedNormalizedQuery, paging)
             }
         }
         val firstTenKeywords = keywords.filter { !it.isBlank() }.take(10)
         return ctx.withSession { session ->
+            println("dosearc multi")
+
             doMultiKeywordSearch(session, user, currentProject, projectGroups, firstTenKeywords, paging)
         }
     }
@@ -126,10 +129,10 @@ class ApplicationSearchAsyncDAO(
         var keywordsQuery = "("
         for (i in keywords.indices) {
             if (i == keywords.lastIndex) {
-                keywordsQuery += "lower(A.title) like '%' || :query$i || '%'"
+                keywordsQuery += "lower(A.title) like '%' || ?query$i || '%'"
                 continue
             }
-            keywordsQuery += "lower(A.title) like '%'|| :query$i ||'%' or "
+            keywordsQuery += "lower(A.title) like '%'|| ?query$i ||'%' or "
         }
         keywordsQuery += ")"
 
@@ -153,6 +156,9 @@ class ApplicationSearchAsyncDAO(
         return ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
+                    keywords.forEachIndexed { index, keyword ->
+                        setParameter("query$index", keyword)
+                    }
                     setParameter("user", user.username)
                     setParameter("project", project)
                     setParameter("groups", groups)
@@ -170,15 +176,15 @@ class ApplicationSearchAsyncDAO(
                 ) AND $keywordsQuery AND (
                     (A.is_public = TRUE OR (
                         cast(?project as text) is null AND ?user IN (
-                            SELECT P.username from permissions AS P WHERE P.application_name = A.id.name
+                            SELECT P.username FROM permissions AS P WHERE P.application_name = A.name
                         )
                     ) OR (
                         cast(?project as text) is not null AND exists (
-                            SELECT P2.project_group from permissions as P2 WHERE
-                                P2.application_name = A.id.name AND
+                            SELECT P2.project_group FROM permissions as P2 WHERE
+                                P2.application_name = A.name AND
                                 P2.project = cast(?project as text) AND
-                                P2.project_groups IN ?groups
-                        ) or ?role IN (?privileged)
+                                P2.project_group IN (select unnest(?groups::text[]))
+                        ) or ?role IN (select unnest (?privileged::text[]))
                     )
                 )
             )
@@ -342,10 +348,10 @@ class ApplicationSearchAsyncDAO(
                                 SELECT P2.project_group FROM permissions AS P2 WHERE
                                     P2.application_name = A.name AND
                                     P2.project = cast(?project as text) AND
-                                    P2.project_group IN (?groups)
+                                    P2.project_group IN (select unnest(?groups::text[]))
                              )
                         ) OR (
-                            ?role IN (?privileged)
+                            ?role IN (select unnest(?privileged::text[]))
                         ) 
                     )
                    

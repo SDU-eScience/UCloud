@@ -40,7 +40,6 @@ class ToolHibernateDAO : ToolDAO {
                     setParameter("name", name)
                 },
                 """
-                    SELECT * 
                     FROM tools
                     WHERE name = ?name
                 """.trimIndent()
@@ -82,6 +81,7 @@ class ToolHibernateDAO : ToolDAO {
                         FROM tools as B
                         WHERE A.name = B.name
                         GROUP BY name
+                    )
                 """.trimIndent()
             ).rows.singleOrNull()?.getLong(0)?.toInt() ?: 0
         }
@@ -99,6 +99,8 @@ class ToolHibernateDAO : ToolDAO {
                         FROM tools as B
                         WHERE A.name = B.name
                         GROUP BY name
+                    )
+                    ORDER BY A.name 
                     LIMIT ?limit
                     OFFSET ?offset
                 """.trimIndent()

@@ -12,6 +12,7 @@ import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.app.store.util.normToolDesc
+import dk.sdu.cloud.app.store.util.truncate
 import dk.sdu.cloud.app.store.util.withNameAndVersion
 import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
 import dk.sdu.cloud.app.store.util.withTool
@@ -22,6 +23,7 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -46,44 +48,36 @@ import kotlin.test.assertTrue
 
 class ApplicationHibernateDaoTest {
     private val user = TestUsers.user
-    private lateinit var embDB: EmbeddedPostgres
-    private lateinit var db: AsyncDBSessionFactory
+    companion object {
+        private lateinit var embDB: EmbeddedPostgres
+        private lateinit var db: AsyncDBSessionFactory
 
-    @BeforeClass
-    fun before() {
-        val (db,embDB) = TestDB.from(AppStoreServiceDescription)
-        this.db = db
-        this.embDB = embDB
+        @BeforeClass
+        @JvmStatic
+        fun before() {
+            val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun after() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
     }
 
-    @AfterClass
-    fun after() {
-        runBlocking {
-            db.close()
-        }
-        embDB.close()
+    @BeforeTest
+    fun beforeEach() {
+        truncate(db)
     }
 
     @AfterTest
     fun afterEach() {
-        runBlocking {
-            db.withSession { session ->
-                session.sendPreparedStatement(
-                    {},
-                    """
-                        TRUNCATE 
-                            applications, 
-                            application_logos, 
-                            application_tags, 
-                            favorited_by, 
-                            permissions,
-                            tool_logos,
-                            tools
-                        RESTART IDENTITY CASCADE 
-                    """.trimIndent()
-                )
-            }
-        }
+        truncate(db)
     }
 
     @Test
@@ -226,13 +220,14 @@ class ApplicationHibernateDaoTest {
                 appDAO.create(it, user, applicationB)
 
                 val appSearchDAO = ApplicationSearchAsyncDAO(appDAO)
-
+                println(1)
                 run {
                     val searchResult = appSearchDAO.search(it, user, null, emptyList(), "A", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
+                println(2)
 
                 run {
                     val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AA", NormalizedPaginationRequest(10, 0))
@@ -240,6 +235,7 @@ class ApplicationHibernateDaoTest {
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
+                println(3)
 
                 run {
                     val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AAA", NormalizedPaginationRequest(10, 0))
@@ -247,12 +243,15 @@ class ApplicationHibernateDaoTest {
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.single().metadata.name)
                 }
+                println(4)
 
                 run {
                     val searchResult = appSearchDAO.search(it, user, null, emptyList(), "notPossible", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(0, searchResult.itemsInTotal)
                 }
+                println(5)
+
                 //Spacing searches
                 run {
                     val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AA   ", NormalizedPaginationRequest(10, 0))
@@ -260,12 +259,16 @@ class ApplicationHibernateDaoTest {
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
+                println(6)
+
                 run {
                     val searchResult = appSearchDAO.search(it, user, null, emptyList(), "   AA", NormalizedPaginationRequest(10, 0))
 
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
+                println(7)
+
                 run {
                     val searchResult =
                         appSearchDAO.search(it, user, null, emptyList(), "multiple one found AA", NormalizedPaginationRequest(10, 0))
@@ -273,6 +276,7 @@ class ApplicationHibernateDaoTest {
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
+                println(8)
 
                 run {
                     val searchResult =
@@ -281,6 +285,7 @@ class ApplicationHibernateDaoTest {
                     assertEquals(1, searchResult.itemsInTotal)
                     assertEquals(applicationA.metadata.name, searchResult.items.first().metadata.name)
                 }
+                println(9)
 
                 run {
                     val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AA BB", NormalizedPaginationRequest(10, 0))
@@ -290,6 +295,7 @@ class ApplicationHibernateDaoTest {
                     assertEquals(applicationB.metadata.name, searchResult.items.last().metadata.name)
 
                 }
+                println(10)
 
                 run {
                     val searchResult = appSearchDAO.search(it, user, null, emptyList(), "  ", NormalizedPaginationRequest(10, 0))
@@ -300,6 +306,7 @@ class ApplicationHibernateDaoTest {
                 //multiversion search
                 val applicationANewVersion = normAppDesc.withNameAndVersionAndTitle("name1", "2", "AAA")
                 appDAO.create(it, user, applicationANewVersion)
+                println(12)
 
                 run {
                     val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AA", NormalizedPaginationRequest(10, 0))
@@ -308,6 +315,7 @@ class ApplicationHibernateDaoTest {
                     assertEquals(applicationANewVersion.metadata.title, searchResult.items.first().metadata.title)
                     assertEquals(applicationANewVersion.metadata.version, searchResult.items.first().metadata.version)
                 }
+                println(13)
 
                 run {
                     val searchResult = appSearchDAO.search(it, user, null, emptyList(), "AA BB", NormalizedPaginationRequest(10, 0))
@@ -888,9 +896,9 @@ class ApplicationHibernateDaoTest {
                     TestUsers.admin,
                     normAppDesc
                 )
-
+println(1)
                 appDAO.getAllApps(it, TestUsers.admin).forEach { app -> println(app.getField(ApplicationTable.idName)) }
-
+println(11)
                 val ids1 = appDAO.findAllByID(
                     it,
                     TestUsers.admin,
@@ -901,6 +909,7 @@ class ApplicationHibernateDaoTest {
                 )
 
                 assertEquals(1, ids1.size)
+                println(2)
 
                 val ids2 = appDAO.findAllByID(
                     it,
@@ -912,6 +921,7 @@ class ApplicationHibernateDaoTest {
                 )
 
                 assertEquals(2, ids2.size)
+                println(3)
 
                 val ids3 = appDAO.findAllByID(
                     it,

@@ -53,22 +53,22 @@ class AppStoreAsyncDAO(
                 },
                 """
                 SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
-                WHERE T.application_name = A.name AND T.tag IN (:tags) AND (
+                WHERE T.application_name = A.name AND T.tag IN (select unnest(?tags::text[])) AND (
                     (
                         A.is_public = TRUE
                     ) OR (
-                        cast(:project as text) is null AND ?user IN (
+                        cast(?project as text) is null AND ?user IN (
                             SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                         )
                     ) OR (
-                        cast(:project as text) IS not null AND exists (
+                        cast(?project as text) IS not null AND exists (
                             SELECT P2.project_group FROM permissions AS P2 WHERE
                                 P2.application_name = A.name AND
                                 P2.project = cast(?project as text) AND
-                                P2.project_group IN (?groups)
+                                P2.project_group IN (select unnest (?groups::text[]))
                         )
                     ) or (
-                        ?role in (?privileged)
+                        ?role in (select unnest(?privileged::text[]))
                     )
                 ) 
                 """.trimIndent()
@@ -103,7 +103,7 @@ class AppStoreAsyncDAO(
                     FROM applications as B
                     WHERE (A.title = B.title)
                     GROUP BY title
-                ) AND (A.name) IN (?applications) AND (
+                ) AND (A.name) IN (select unnest(?applications::text[])) AND (
                     (
                         A.is_public = TRUE
                     ) or (
@@ -115,10 +115,10 @@ class AppStoreAsyncDAO(
                             SELECT P2.project_group FROM permissions AS P2 WHERE
                                 P2.application_name = A.name and
                                 P2.project = cast(?project as text) and
-                                P2.project_group in (?groups)
+                                P2.project_group in (select unnest(?groups::text[]))
                         )
                     ) or (
-                        ?role in (?privileged)
+                        ?role in (select unnest (?privileged::text[]))
                     ) 
                 )
                 """.trimIndent()
@@ -144,9 +144,13 @@ class AppStoreAsyncDAO(
                     SELECT *
                     FROM applications as A
                     WHERE LOWER(title) like '%' || ?query || '%' AND
-                    (isPublic = TRUE or ?user in (
-                        SELECT P.username FROM permissions AS P WHERE P.application_name = A.name
-                    ) OR ?role in (?privileged)
+                    (
+                        is_Public = TRUE OR 
+                        ?user IN (
+                            SELECT P.username FROM permissions AS P WHERE P.application_name = A.name
+                        ) OR 
+                        ?role IN (select unnest(?privileged::text[]))
+                    )
                     ORDER BY A.title
                 """.trimIndent()
             ).rows.toList()
@@ -352,6 +356,7 @@ class AppStoreAsyncDAO(
                     setParameter("project", currentProject)
                     setParameter("groups", groups)
                     setParameter("privileged", Roles.PRIVILEDGED.toList())
+                    setParameter("user", user?.username ?: "")
                 },
                 """
                 SELECT A.*
@@ -366,11 +371,11 @@ class AppStoreAsyncDAO(
                                 SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = B.name
                             )
                         ) or (
-                            cast(:project as text) is not null AND exists (
-                                SELECT P2.project_group FRO permissions AS P2 WHERE
+                            cast(?project as text) is not null AND exists (
+                                SELECT P2.project_group FROM permissions AS P2 WHERE
                                     P2.application_name = B.name AND
                                     P2.project = cast(?project as text) AND
-                                    P2.project_group IN (?groups)
+                                    P2.project_group IN ( select unnest(?groups::text[]))
                             )
                         ) or (
                             ?role IN (?privileged)
@@ -411,11 +416,13 @@ class AppStoreAsyncDAO(
         val existing = ctx.withSession { session -> internalByNameAndVersion(session, description.metadata.name, description.metadata.version)}
         if (existing != null) throw ApplicationException.AlreadyExists()
 
-        val existingTool = ctx.withSession { session -> toolDAO.internalByNameAndVersion(
-            session,
-            description.invocation.tool.name,
-            description.invocation.tool.version
-        )} ?: throw ApplicationException.BadToolReference()
+        val existingTool = ctx.withSession { session ->
+            toolDAO.internalByNameAndVersion(
+                session,
+                description.invocation.tool.name,
+                description.invocation.tool.version
+            )
+        } ?: throw ApplicationException.BadToolReference()
 
         ctx.withSession { session ->
             session.insert(ApplicationTable) {
@@ -431,6 +438,7 @@ class AppStoreAsyncDAO(
                 set(ApplicationTable.isPublic, true)
                 set(ApplicationTable.idName, description.metadata.name)
                 set(ApplicationTable.idVersion, description.metadata.version)
+                set(ApplicationTable.application, defaultMapper.writeValueAsString(description.invocation))
 
             }
         }
@@ -480,7 +488,7 @@ class AppStoreAsyncDAO(
                 },
                 """
                     DELETE FROM applications
-                    WHERE (name = ?appname) AND (version = ?appVersion)
+                    WHERE (name = ?appname) AND (version = ?appversion)
                 """.trimIndent()
             )
         }
@@ -496,7 +504,7 @@ class AppStoreAsyncDAO(
                 },
                 """
                     DELETE FROM favorited_by
-                    WHERE (application_name = ?appname) AND (application_version = ?appVersion)
+                    WHERE (application_name = ?appname) AND (application_version = ?appversion)
                 """.trimIndent()
             ).rows.toList()
         }
@@ -519,19 +527,21 @@ class AppStoreAsyncDAO(
                 SET 
                 """.trimMargin()
             if (newDescription != null) {
-                query += """description =?newdesc"""
+                query += """ description =?newdesc """
             }
             if (newAuthors != null) {
                 if (newDescription != null) {
                     query += ","
                 }
-                query += """authors =?newauthors"""
+                query += """ authors =?newauthors """
             }
-            query += """WHERE (name = ?name) AND (version = ?version)"""
+            query += """ WHERE (name = ?name) AND (version = ?version)"""
             session.sendPreparedStatement(
                 {
-                    setParameter("newdesc", newDescription)
-                    setParameter("newauthors", newAuthors)
+                    if (newDescription != null) setParameter("newdesc", newDescription)
+                    if (newAuthors != null) setParameter("newauthors", defaultMapper.writeValueAsString(newAuthors))
+                    setParameter("name", appName)
+                    setParameter("version", appVersion)
                 },
                 query
             )
@@ -564,6 +574,7 @@ class AppStoreAsyncDAO(
             }
 
             val allApplicationsOnPage = page.items.map { it.metadata.name }.toSet()
+
             val allTagsForApplicationsOnPage = ctx.withSession { session ->
                 session.sendPreparedStatement(
                     {
@@ -571,12 +582,11 @@ class AppStoreAsyncDAO(
                     },
                     """
                         SELECT *
-                        FROM tags
-                        WHERE application_name IN ?allapps
+                        FROM application_tags
+                        WHERE application_name IN (select unnest(?allapps::text[]))
                     """.trimIndent()
                 ).rows.toList()
             }
-
             val preparedPageItems = page.items.map { item ->
                 val isFavorite = allFavorites.any { fav ->
                     fav.getField(FavoriteApplicationTable.applicationName) == item.metadata.name &&
@@ -692,9 +702,10 @@ class AppStoreAsyncDAO(
                     FROM applications
                     WHERE 
                 """.trimIndent()
-            embeddedNameAndVersionList.forEachIndexed{ index, _ ->
+
+            embeddedNameAndVersionList.forEachIndexed { index, _ ->
                 query += """ (name = ?name$index AND version = ?version$index) """
-                if (index != embeddedNameAndVersionList.size) {
+                if (index + 1 != embeddedNameAndVersionList.size) {
                     query += """ OR """
                 }
             }
@@ -731,9 +742,11 @@ internal fun RowData.toApplicationSummary(): ApplicationSummary {
 }
 
 internal fun RowData.toApplicationWithInvocation(): Application {
+    val application = getField(ApplicationTable.application)
+    val invocations = defaultMapper.readValue<ApplicationInvocationDescription>(application)
     return Application(
         toApplicationMetadata(),
-        defaultMapper.readValue<ApplicationInvocationDescription>(getField(ApplicationTable.application))
+        invocations
     )
 }
 

@@ -57,7 +57,7 @@ class ApplicationPublicAsyncDAO() : PublicDAO {
                 },
                 """
                     UPDATE applications
-                    SET public = ?public
+                    SET is_public = ?public
                     WHERE (name = ?name) AND (version = ?version)
                 """.trimIndent()
             )
