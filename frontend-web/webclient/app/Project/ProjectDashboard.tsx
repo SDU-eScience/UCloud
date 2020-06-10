@@ -36,17 +36,34 @@ import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
+import {shortUUID} from "UtilityFunctions";
 
 // A lot easier to let typescript take care of the details for this one
 // eslint-disable-next-line
 export function useProjectManagementStatus() {
     const history = useHistory();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
+
+    const projectStatus = useProjectStatus();
+
+    let projectName = "Personal Project";
+    if (projectId) {
+        const membership = projectStatus.fetch().membership.find(it => it.projectId === projectId);
+        if (membership) {
+            projectName = membership.title;
+        } else {
+            projectName = shortUUID(projectId);
+        }
+    }
+
+
+
     const locationParams = useParams<{group: string; member?: string}>();
     let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
     let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
     if (group === '-') group = undefined;
     if (membersPage === '-') membersPage = undefined;
+
 
     const [projectMembers, setProjectMemberParams, projectMemberParams] = useGlobalCloudAPI<Page<ProjectMember>>(
         "projectManagement",
@@ -94,7 +111,7 @@ export function useProjectManagementStatus() {
     const reloadProjectStatus = projects.reload;
 
     return {
-        locationParams, projectId: projectId ?? "", group, projectMembers, setProjectMemberParams, groupMembers,
+        locationParams, projectId: projectId ?? "", projectName, group, projectMembers, setProjectMemberParams, groupMembers,
         fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
         projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
         outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
@@ -105,6 +122,7 @@ export function useProjectManagementStatus() {
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = props => {
     const {
         projectId,
+        projectName,
         group,
         projectMembers,
         setProjectMemberParams,
@@ -122,6 +140,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = pr
         projectDetailsParams
     } = useProjectManagementStatus();
 
+    
     const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
         shouldVerifyMembership(projectId),
         {shouldVerify: false}
@@ -185,12 +204,6 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = pr
 
     const isSettingsPage = membersPage === "settings";
 
-    const dashboardTitle = isPersonalProjectActive(projectId) ?
-        `Personal Project`
-    :
-        `${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`
-    ;
-
     return (
         <MainContainer
             header={<Flex>
@@ -201,7 +214,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = pr
                         </Link>
                     </li>
                     <li>
-                        {dashboardTitle}
+                        {projectName}
                     </li>
                     {isSettingsPage ? <li>Settings</li> : null}
                 </MembersBreadcrumbs>

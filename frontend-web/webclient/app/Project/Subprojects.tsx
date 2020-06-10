@@ -85,15 +85,10 @@ export function useProjectManagementStatus() {
         history.push("/");
     }
 
-    console.log(projectId);
-
-
     const projects = useProjectStatus();
-    console.log(projects.fetch().membership);
     const projectRole = projects.fetch().membership
         .find(it => it.projectId === projectId)?.whoami?.role ?? ProjectRole.USER;
 
-    console.log(projectRole);
     const allowManagement = isAdminOrPI(projectRole);
     const reloadProjectStatus = projects.reload;
 
@@ -230,7 +225,10 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
                                 </form>
                             </SearchContainer>
                             <SubprojectsList
-                                subprojects={[{id: "testProject", name: "Test Project"}]}
+                                subprojects={[
+                                    {id: "testProject", name: "Child Project"},
+                                    {id: "testProject2", name: "Another Child Project"},
+                                ]}
                                 onRemoveSubproject={async subproject => addStandardDialog({
                                     title: "Remove subproject",
                                     message: `Remove ${subproject.name}?`,

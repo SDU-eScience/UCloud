@@ -35,23 +35,25 @@ export function SubprojectsList(props: Readonly<{
     ];
 
     return (<>
-        {props.subprojects.map(subproject =>
-            <>
-                <Flex alignItems="center" mb="16px">
-                    {!props.isOutgoingInvites ? <Text bold>{subproject.name}</Text> :
-                        <div>
-                            <Text bold>{subproject.name}</Text>
-                            Invited to join
-                        </div>
-                    }
+        <Box mt={20}>
+            {props.subprojects.map(subproject =>
+                <>
+                    <Flex alignItems="center" mb="16px">
+                        {!props.isOutgoingInvites ? <Text bold>{subproject.name}</Text> :
+                            <div>
+                                <Text bold>{subproject.name}</Text>
+                                Invited to join
+                            </div>
+                        }
 
-                    <Box flexGrow={1} />
+                        <Box flexGrow={1} />
 
-                    <Flex alignItems={"center"}>
-                        <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveSubproject(subproject)} />
+                        <Flex alignItems={"center"}>
+                            <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveSubproject(subproject)} />
+                        </Flex>
                     </Flex>
-                </Flex>
-            </>
-        )}
+                </>
+            )}
+        </Box>
     </>);
 }

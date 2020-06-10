@@ -2,7 +2,7 @@ import {ReduxObject, emptyPage} from "DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
 import Link from "ui-components/Link";
-import {addTrailingSlash, inDevEnvironment, shortUUID} from "UtilityFunctions";
+import {addTrailingSlash, shortUUID} from "UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
 import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
@@ -16,7 +16,6 @@ import {useHistory} from "react-router";
 import {History} from "history";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
-import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
 import {useProjectStatus} from "Project/cache";
 
 // eslint-disable-next-line no-underscore-dangle

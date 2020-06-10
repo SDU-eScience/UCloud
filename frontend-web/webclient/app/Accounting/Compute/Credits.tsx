@@ -22,7 +22,6 @@ const WalletContainer = styled.div`
 `;
 
 export const Credits: React.FunctionComponent = () => {
-    console.log("Hello!");
     // Note(Dan): This is a really bad UI meant only for prototyping purposes.
     const usernameRef = useRef<HTMLInputElement>(null);
     const projectRef = useRef<HTMLInputElement>(null);
