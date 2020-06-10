@@ -1,12 +1,11 @@
 import {callAPIWithErrorHandler, useCloudAPI, useGlobalCloudAPI, useAsyncCommand, APICallParameters} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
 import {
-    listOutgoingInvites,
-    OutgoingInvite,
-    ProjectMember,
-    ProjectRole,
     UserInProject,
-    viewProject,
+    createProject,
+    listSubprojects,
+    useProjectManagementStatus,
+    deleteProject,
 } from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
@@ -17,23 +16,16 @@ import {connect, useSelector} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
-import {
-    shouldVerifyMembership,
-    ShouldVerifyMembershipResponse,
-    verifyMembership
-} from "Project";
 import styled from "styled-components";
 import GroupView from "./GroupList";
 import ProjectMembers, {MembersBreadcrumbs} from "./MembersPanel";
-import {ReduxObject} from "DefaultObjects";
+import {ReduxObject, emptyPage} from "DefaultObjects";
 import {dispatchSetProjectAction} from "Project/Redux";
-import {useProjectStatus} from "Project/cache";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import {ProjectSettings} from "Project/ProjectSettings";
-import {Client} from "Authentication/HttpClientInstance";
-import {preventDefault} from "UtilityFunctions";
+import {preventDefault, shortUUID, errorMessageOrDefault} from "UtilityFunctions";
 import {SubprojectsList} from "./SubprojectsList";
 import {addStandardDialog} from "UtilityComponents";
+import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Page} from "Types";
 
 const SearchContainer = styled(Flex)`
     flex-wrap: wrap;
@@ -47,64 +39,6 @@ const SearchContainer = styled(Flex)`
     }
 `;
 
-export const removeSubprojectFromProject = (payload: {projectId: string; subproject: string}): APICallParameters => ({
-    method: "DELETE",
-    path: "/projects/subprojects",
-    payload,
-    reloadId: Math.random()
-});
-
-
-
-
-// A lot easier to let typescript take care of the details for this one
-// eslint-disable-next-line
-export function useProjectManagementStatus() {
-    const history = useHistory();
-    const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
-    const locationParams = useParams<{group: string; member?: string}>();
-    let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
-    let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
-    if (group === '-') group = undefined;
-    if (membersPage === '-') membersPage = undefined;
-   
-    const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
-        "projectManagementDetails",
-        {noop: true},
-        {
-            projectId: projectId ?? "",
-            favorite: false,
-            needsVerification: false,
-            title: projectId ?? "",
-            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
-            archived: false
-        }
-    );
-
-    if (projectId === undefined) {
-        history.push("/");
-    }
-
-    const projects = useProjectStatus();
-    const projectRole = projects.fetch().membership
-        .find(it => it.projectId === projectId)?.whoami?.role ?? ProjectRole.USER;
-
-    const allowManagement = isAdminOrPI(projectRole);
-    const reloadProjectStatus = projects.reload;
-
-    const setSubprojectParams = {};
-    const subprojectParams = {};
-    const fetchOutgoingInvites = {};
-    const outgoingSubprojectInvitesParams = {};
-
-    return {
-        locationParams, projectId: projectId ?? "", group,
-        allowManagement, reloadProjectStatus,
-        membersPage, projectRole, setSubprojectParams, subprojectParams, fetchOutgoingInvites,
-        outgoingSubprojectInvitesParams,
-        projectDetails, projectDetailsParams, fetchProjectDetails,
-    };
-}
 
 const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
     const newSubprojectRef = React.useRef<HTMLInputElement>(null);
@@ -112,37 +46,39 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
 
     const {
         projectId,
-        allowManagement,
-        setSubprojectParams,
-        subprojectParams,
-        fetchOutgoingInvites,
-        outgoingSubprojectInvitesParams
+        projectDetails,
+        allowManagement
     } = useProjectManagementStatus();
 
-    console.log(allowManagement);
+    const [subprojects, setSubprojectParams, subprojectParams] = useCloudAPI<Page<UserInProject>>(
+        listSubprojects({itemsPerPage: 100, page: 0}),
+        emptyPage
+    );
+
+    useEffect(() => {
+        setSubprojectParams({...subprojectParams});
+    }, [projectId]);
 
     const reloadSubprojects = (): void => {
         //setSubprojectParams(subprojectParams);
         //fetchOutgoingInvites(outgoingSubprojectInvitesParams);
     };
 
-    const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
-        shouldVerifyMembership(projectId),
-        {shouldVerify: false}
-    );
-
-    useEffect(() => {
-        if (projectId !== "") {
-            props.setActiveProject(projectId);
+    const onSubmit = async (e: React.FormEvent): Promise<void> => {
+        e.preventDefault();
+        const inputField = newSubprojectRef.current!;
+        const newProjectName = inputField.value;
+        try {
+            await runCommand(createProject({
+                title: newProjectName,
+                parent: projectId
+            }));
+            inputField.value = "";
+            reloadSubprojects();
+        } catch (err) {
+            snackbarStore.addFailure(errorMessageOrDefault(err, "Failed creating new project"), false);
         }
-    }, [projectId]);
-
-    const onApprove = async (): Promise<void> => {
-        await callAPIWithErrorHandler(verifyMembership(projectId));
-        setShouldVerifyParams(shouldVerifyMembership(projectId));
     };
-
-    const projectText = `${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`;
 
     return (
         <MainContainer
@@ -155,7 +91,7 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
                     </li>
                     <li>
                         <Link to={`/project/dashboard`}>
-                            {projectText}
+                            {projectDetails.data.title}
                         </Link>
                     </li>
                     <li>
@@ -166,34 +102,11 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
             sidebar={null}
             main={(
                 <>
-                    {!shouldVerify.data.shouldVerify ? null : (
-                        <Box backgroundColor="orange" color="white" p={32} m={16}>
-                            <Heading.h4>Time for a review!</Heading.h4>
-
-                            <ul>
-                                <li>PIs and admins are asked to occasionally review members of their project</li>
-                                <li>We ask you to ensure that only the people who need access have access</li>
-                                <li>If you find someone who should not have access then remove them by clicking
-                                &apos;X&apos; next to their name
-                                </li>
-                                <li>
-                                    When you are done, click below:
-
-                                    <Box mt={8}>
-                                        <Button color={"green"} textColor={"white"} onClick={onApprove}>
-                                            Everything looks good now
-                                        </Button>
-                                    </Box>
-                                </li>
-                            </ul>
-
-                        </Box>
-                    )}
                     <Box className="subprojects" maxWidth={850} ml="auto" mr="auto">
                         <Box ml={8} mr={8}>
                             <SearchContainer>
                                 {!allowManagement ? null : (
-                                    <form>
+                                    <form onSubmit={onSubmit}>
                                         <Input
                                             id="new-project-subproject"
                                             placeholder="Name of project"
@@ -225,17 +138,13 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
                                 </form>
                             </SearchContainer>
                             <SubprojectsList
-                                subprojects={[
-                                    {id: "testProject", name: "Child Project"},
-                                    {id: "testProject2", name: "Another Child Project"},
-                                ]}
-                                onRemoveSubproject={async subproject => addStandardDialog({
+                                subprojects={subprojects.data.items}
+                                onRemoveSubproject={async (projectId, subprojectTitle) => addStandardDialog({
                                     title: "Remove subproject",
-                                    message: `Remove ${subproject.name}?`,
+                                    message: `Remove ${subprojectTitle}?`,
                                     onConfirm: async () => {
-                                        await runCommand(removeSubprojectFromProject({
+                                        await runCommand(deleteProject({
                                             projectId,
-                                            subproject: subproject.id
                                         }));
 
                                         reloadSubprojects();

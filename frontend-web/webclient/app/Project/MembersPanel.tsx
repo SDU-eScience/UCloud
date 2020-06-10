@@ -5,13 +5,12 @@ import {useRef} from "react";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {Box, Button, Flex, Icon, Input, Absolute, Label, Relative} from "ui-components";
+import {Button, Flex, Icon, Input, Absolute, Label, Relative} from "ui-components";
 import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
-import {useProjectManagementStatus} from "Project/Members";
+import {useProjectManagementStatus} from "Project/index";
 import {addGroupMember} from "Project";
 import {MembersList} from "Project/MembersList";
 import * as Pagination from "Pagination";
-import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 
 const SearchContainer = styled(Flex)`
@@ -51,7 +50,7 @@ const MembersPanel: React.FunctionComponent = () => {
         const username = inputField.value;
         try {
             await runCommand(inviteMember({
-                projectId,
+                project: projectId,
                 usernames: [username]
             }));
             inputField.value = "";
@@ -95,7 +94,7 @@ const MembersPanel: React.FunctionComponent = () => {
                                     .map(it => it.trim())
                                     .filter(it => it.length > 0);
 
-                                await runCommand(inviteMember({projectId, usernames}));
+                                await runCommand(inviteMember({project: projectId, usernames}));
                                 reloadMembers();
                             } catch (ignored) {
                                 // Ignored
@@ -136,7 +135,7 @@ const MembersPanel: React.FunctionComponent = () => {
                 message: `Remove ${member}?`,
                 onConfirm: async () => {
                     await runCommand(deleteMemberInProject({
-                        projectId,
+                        project: projectId,
                         member
                     }));
 

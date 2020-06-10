@@ -1,10 +1,17 @@
-import {APICallParameters} from "Authentication/DataHook";
+import {APICallParameters, useGlobalCloudAPI} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {Page, PaginationRequest} from "Types";
 import {Client} from "Authentication/HttpClientInstance";
 import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
 import {inDevEnvironment} from "UtilityFunctions";
 import {IconName} from "ui-components/Icon";
+import {useHistory, useParams} from "react-router";
+import {useSelector} from "react-redux";
+import {ReduxObject, emptyPage} from "DefaultObjects";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {useProjectStatus} from "./cache";
+import {useGlobal} from "Utilities/ReduxHooks";
+import {GroupWithSummary} from "./GroupList";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -188,11 +195,6 @@ export interface ProjectMember {
     role: ProjectRole;
 }
 
-export interface Subproject {
-    id: string;
-    name: string;
-}
-
 export interface Project {
     id: string;
     title: string;
@@ -227,21 +229,21 @@ export interface UserGroupSummary {
     username: string;
 }
 
-export const createProject = (payload: {title: string, parent?: string}): APICallParameters => ({
+export const createProject = (payload: {title: string; parent?: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,
     reloadId: Math.random()
 });
 
-export const inviteMember = (payload: {projectId: string; usernames: string[]}): APICallParameters => ({
+export const inviteMember = (payload: {project: string; usernames: string[]}): APICallParameters => ({
     method: "POST",
     path: "/projects/invites",
     payload,
     reloadId: Math.random()
 });
 
-export const deleteMemberInProject = (payload: {projectId: string; member: string}): APICallParameters => ({
+export const deleteMemberInProject = (payload: {project: string; member: string}): APICallParameters => ({
     method: "DELETE",
     path: "/projects/members",
     payload,
@@ -249,7 +251,7 @@ export const deleteMemberInProject = (payload: {projectId: string; member: strin
 });
 
 export const changeRoleInProject = (
-    payload: {projectId: string; member: string; newRole: ProjectRole}
+    payload: {project: string; member: string; newRole: ProjectRole}
 ): APICallParameters => ({
     method: "POST",
     path: "/projects/members/change-role",
@@ -266,6 +268,16 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
     method: "GET",
     path: buildQueryString(
         "/projects/list",
+        parameters
+    ),
+    parameters,
+    reloadId: Math.random()
+});
+
+export const listSubprojects = (parameters: PaginationRequest): APICallParameters<PaginationRequest> => ({
+    method: "GET",
+    path: buildQueryString(
+        "/projects/sub-projects",
         parameters
     ),
     parameters,
@@ -297,7 +309,7 @@ export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined
 
 
 export interface ToggleProjectFavorite{
-    projectId: string;
+    project: string;
 }
 
 export function toggleFavoriteProject(request: ToggleProjectFavorite): APICallParameters<ToggleProjectFavorite> {
@@ -316,6 +328,10 @@ export interface OutgoingInvite {
 }
 
 export interface ListOutgoingInvitesRequest extends PaginationRequest {
+
+}
+
+export interface ListSubprojectsRequest extends PaginationRequest {
 
 }
 
@@ -371,6 +387,14 @@ export function rejectInvite(request: RejectInviteRequest): APICallParameters<Re
         payload: request
     };
 }
+
+export const deleteProject = (payload: {projectId: string}): APICallParameters => ({
+    method: "DELETE",
+    path: "/projects/subprojects",
+    payload,
+    reloadId: Math.random()
+});
+
 
 type LeaveProjectRequest = {};
 export function leaveProject(request: LeaveProjectRequest): APICallParameters<LeaveProjectRequest> {
@@ -442,4 +466,71 @@ export function areProjectsEnabled(): boolean {
         return true;
     }
     return Client.userRole === "ADMIN";
+}
+
+export function useProjectManagementStatus() {
+    const history = useHistory();
+    const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
+    const locationParams = useParams<{group: string; member?: string}>();
+    let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
+    let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
+    if (group === '-') group = undefined;
+    if (membersPage === '-') membersPage = undefined;
+
+    const [projectMembers, setProjectMemberParams, projectMemberParams] = useGlobalCloudAPI<Page<ProjectMember>>(
+        "projectManagement",
+        membershipSearch({itemsPerPage: 100, page: 0, query: ""}),
+        emptyPage
+    );
+
+    const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
+        "projectManagementDetails",
+        {noop: true},
+        {
+            projectId: projectId ?? "",
+            favorite: false,
+            needsVerification: false,
+            title: projectId ?? "",
+            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
+            archived: false
+        }
+    );
+
+    const [groupMembers, fetchGroupMembers, groupMembersParams] = useGlobalCloudAPI<Page<string>>(
+        "projectManagementGroupMembers",
+        {noop: true},
+        emptyPage
+    );
+
+    const [groupList, fetchGroupList, groupListParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
+        "projectManagementGroupSummary",
+        groupSummaryRequest({itemsPerPage: 10, page: 0}),
+        emptyPage
+    );
+
+    const [outgoingInvites, fetchOutgoingInvites, outgoingInvitesParams] = useGlobalCloudAPI<Page<OutgoingInvite>>(
+        "projectManagementOutgoingInvites",
+        listOutgoingInvites({itemsPerPage: 10, page: 0}),
+        emptyPage
+    );
+
+    const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
+
+    if (projectId === undefined) {
+        history.push("/");
+    }
+
+    const projects = useProjectStatus();
+    const projectRole = projects.fetch().membership
+        .find(it => it.projectId === projectId)?.whoami?.role ?? ProjectRole.USER;
+    const allowManagement = isAdminOrPI(projectRole);
+    const reloadProjectStatus = projects.reload;
+
+    return {
+        locationParams, projectId: projectId ?? "", group, projectMembers, setProjectMemberParams, groupMembers,
+        fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
+        projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
+        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
+        projectDetails, projectDetailsParams, fetchProjectDetails
+    };
 }

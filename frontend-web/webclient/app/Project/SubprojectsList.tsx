@@ -1,4 +1,4 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole, Subproject} from "Project/index";
+import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole, Project, UserInProject} from "Project/index";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
 import * as React from "react";
@@ -12,10 +12,11 @@ import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {RemoveButton} from "Files/FileInputSelector";
+import {Page} from "Types";
 
 export function SubprojectsList(props: Readonly<{
-    subprojects: Subproject[];
-    onRemoveSubproject(subproject: Subproject): void;
+    subprojects: UserInProject[];
+    onRemoveSubproject(subprojectId: string, subprojectTitle): void;
     allowRoleManagement: boolean;
     reload?: () => void;
     isOutgoingInvites?: boolean;
@@ -25,7 +26,7 @@ export function SubprojectsList(props: Readonly<{
     const avatars = useAvatars();
 
     useEffect(() => {
-        const subprojectNames = props.subprojects.map(it => it.name);
+        const subprojectNames = props.subprojects.map(it => it.title);
         avatars.updateCache(subprojectNames);
     }, [props.subprojects]);
 
@@ -39,17 +40,12 @@ export function SubprojectsList(props: Readonly<{
             {props.subprojects.map(subproject =>
                 <>
                     <Flex alignItems="center" mb="16px">
-                        {!props.isOutgoingInvites ? <Text bold>{subproject.name}</Text> :
-                            <div>
-                                <Text bold>{subproject.name}</Text>
-                                Invited to join
-                            </div>
-                        }
+                        <Text bold>{subproject.title}</Text>
 
                         <Box flexGrow={1} />
 
                         <Flex alignItems={"center"}>
-                            <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveSubproject(subproject)} />
+                            <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveSubproject(subproject.projectId, subproject.title)} />
                         </Flex>
                     </Flex>
                 </>

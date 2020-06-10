@@ -7,6 +7,7 @@ import {
     ProjectRole,
     UserInProject,
     viewProject,
+    useProjectManagementStatus,
 } from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
@@ -36,75 +37,6 @@ import {useProjectStatus} from "Project/cache";
 import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {ProjectSettings} from "Project/ProjectSettings";
 import {Client} from "Authentication/HttpClientInstance";
-
-// A lot easier to let typescript take care of the details for this one
-// eslint-disable-next-line
-export function useProjectManagementStatus() {
-    const history = useHistory();
-    const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
-    const locationParams = useParams<{group: string; member?: string}>();
-    let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
-    let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
-    if (group === '-') group = undefined;
-    if (membersPage === '-') membersPage = undefined;
-
-    const [projectMembers, setProjectMemberParams, projectMemberParams] = useGlobalCloudAPI<Page<ProjectMember>>(
-        "projectManagement",
-        membershipSearch({itemsPerPage: 100, page: 0, query: ""}),
-        emptyPage
-    );
-
-    const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
-        "projectManagementDetails",
-        {noop: true},
-        {
-            projectId: projectId ?? "",
-            favorite: false,
-            needsVerification: false,
-            title: projectId ?? "",
-            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
-            archived: false
-        }
-    );
-
-    const [groupMembers, fetchGroupMembers, groupMembersParams] = useGlobalCloudAPI<Page<string>>(
-        "projectManagementGroupMembers",
-        {noop: true},
-        emptyPage
-    );
-
-    const [groupList, fetchGroupList, groupListParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
-        "projectManagementGroupSummary",
-        groupSummaryRequest({itemsPerPage: 10, page: 0}),
-        emptyPage
-    );
-
-    const [outgoingInvites, fetchOutgoingInvites, outgoingInvitesParams] = useGlobalCloudAPI<Page<OutgoingInvite>>(
-        "projectManagementOutgoingInvites",
-        listOutgoingInvites({itemsPerPage: 10, page: 0}),
-        emptyPage
-    );
-
-    const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
-
-    if (projectId === undefined) {
-        history.push("/");
-    }
-
-    const projects = useProjectStatus();
-    const projectRole = projects.fetch().membership
-        .find(it => it.projectId === projectId)?.whoami?.role ?? ProjectRole.USER;
-    const allowManagement = isAdminOrPI(projectRole);
-    const reloadProjectStatus = projects.reload;
-
-    return {
-        locationParams, projectId: projectId ?? "", group, projectMembers, setProjectMemberParams, groupMembers,
-        fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
-        projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
-        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
-        projectDetails, projectDetailsParams, fetchProjectDetails
-    };
-}
 
 const Members: React.FunctionComponent<MembersOperations> = props => {
     const {
@@ -185,8 +117,6 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
 
     const isSettingsPage = membersPage === "settings";
 
-    const projectText = `${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`;
-
     return (
         <MainContainer
             header={<Flex>
@@ -198,7 +128,7 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
                     </li>
                     <li>
                         <Link to={`/project/dashboard`}>
-                            {projectText}
+                            {projectDetails.data.title}
                         </Link>
                     </li>
                     <li>

@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useProjectManagementStatus} from "Project/Members";
+import {useProjectManagementStatus} from "Project/index";
 import {Box, Button, Flex, Text, Link} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";

@@ -7,6 +7,7 @@ import {
     ProjectRole,
     UserInProject,
     viewProject,
+    useProjectManagementStatus,
 } from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
@@ -38,113 +39,19 @@ import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
 import {shortUUID} from "UtilityFunctions";
 
-// A lot easier to let typescript take care of the details for this one
-// eslint-disable-next-line
-export function useProjectManagementStatus() {
-    const history = useHistory();
-    const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
-
-    const projectStatus = useProjectStatus();
-
-    let projectName = "Personal Project";
-    if (projectId) {
-        const membership = projectStatus.fetch().membership.find(it => it.projectId === projectId);
-        if (membership) {
-            projectName = membership.title;
-        } else {
-            projectName = shortUUID(projectId);
-        }
-    }
-
-
-
-    const locationParams = useParams<{group: string; member?: string}>();
-    let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
-    let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
-    if (group === '-') group = undefined;
-    if (membersPage === '-') membersPage = undefined;
-
-
-    const [projectMembers, setProjectMemberParams, projectMemberParams] = useGlobalCloudAPI<Page<ProjectMember>>(
-        "projectManagement",
-        membershipSearch({itemsPerPage: 100, page: 0, query: ""}),
-        emptyPage
-    );
-
-    const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
-        "projectManagementDetails",
-        {noop: true},
-        {
-            projectId: projectId ?? "",
-            favorite: false,
-            needsVerification: false,
-            title: projectId ?? "",
-            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
-            archived: false
-        }
-    );
-
-    const [groupMembers, fetchGroupMembers, groupMembersParams] = useGlobalCloudAPI<Page<string>>(
-        "projectManagementGroupMembers",
-        {noop: true},
-        emptyPage
-    );
-
-    const [groupList, fetchGroupList, groupListParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
-        "projectManagementGroupSummary",
-        groupSummaryRequest({itemsPerPage: 10, page: 0}),
-        emptyPage
-    );
-
-    const [outgoingInvites, fetchOutgoingInvites, outgoingInvitesParams] = useGlobalCloudAPI<Page<OutgoingInvite>>(
-        "projectManagementOutgoingInvites",
-        listOutgoingInvites({itemsPerPage: 10, page: 0}),
-        emptyPage
-    );
-
-    const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
-
-    const projects = useProjectStatus();
-    const projectRole = projects.fetch().membership
-        .find(it => it.projectId === projectId)?.whoami?.role ?? ProjectRole.USER;
-    const allowManagement = isAdminOrPI(projectRole);
-    const reloadProjectStatus = projects.reload;
-
-    return {
-        locationParams, projectId: projectId ?? "", projectName, group, projectMembers, setProjectMemberParams, groupMembers,
-        fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
-        projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
-        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
-        projectDetails, projectDetailsParams, fetchProjectDetails
-    };
-}
-
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = props => {
     const {
         projectId,
-        projectName,
         group,
-        projectMembers,
-        setProjectMemberParams,
-        projectMemberParams,
-        groupMembers,
         fetchGroupMembers,
         fetchGroupList,
-        memberSearchQuery,
-        groupMembersParams,
         reloadProjectStatus,
         fetchOutgoingInvites,
-        outgoingInvitesParams,
         membersPage,
         fetchProjectDetails,
-        projectDetailsParams
+        projectDetailsParams,
+        projectDetails
     } = useProjectManagementStatus();
-
-    
-    const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
-        shouldVerifyMembership(projectId),
-        {shouldVerify: false}
-    );
 
     useEffect(() => {
         if (group !== undefined) {
@@ -158,28 +65,9 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = pr
         fetchProjectDetails(viewProject({id: projectId}));
     }, [projectId, group]);
 
-    useEffect(() => {
-        setProjectMemberParams(
-            membershipSearch({
-                ...projectMemberParams.parameters,
-                query: memberSearchQuery,
-                notInGroup: group
-            })
-        );
-    }, [projectId, group, groupMembers.data, memberSearchQuery]);
-
-    useEffect(() => {
-        props.setLoading(projectMembers.loading || groupMembers.loading);
-    }, [projectMembers.loading, groupMembers.loading]);
-
     const reload = useCallback(() => {
-        fetchOutgoingInvites(outgoingInvitesParams);
-        setProjectMemberParams(projectMemberParams);
         fetchProjectDetails(projectDetailsParams);
-        if (group !== undefined) {
-            fetchGroupMembers(groupMembersParams);
-        }
-    }, [projectMemberParams, groupMembersParams, setProjectMemberParams, group]);
+    }, []);
 
     useEffect(() => {
         props.setRefresh(reload);
@@ -191,12 +79,6 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = pr
             props.setActiveProject(projectId);
         }
     }, [projectId]);
-
-    const onApprove = async (): Promise<void> => {
-        await callAPIWithErrorHandler(verifyMembership(projectId));
-        setShouldVerifyParams(shouldVerifyMembership(projectId));
-    };
-
 
     function isPersonalProjectActive(projectId: string): boolean {
         return projectId === undefined || projectId === "";
@@ -214,7 +96,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = pr
                         </Link>
                     </li>
                     <li>
-                        {projectName}
+                        {projectDetails.data.title}
                     </li>
                     {isSettingsPage ? <li>Settings</li> : null}
                 </MembersBreadcrumbs>
@@ -235,30 +117,6 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = pr
             sidebar={null}
             main={(
                 <>
-                    {!shouldVerify.data.shouldVerify ? null : (
-                        <Box backgroundColor="orange" color="white" p={32} m={16}>
-                            <Heading.h4>Time for a review!</Heading.h4>
-
-                            <ul>
-                                <li>PIs and admins are asked to occasionally review members of their project</li>
-                                <li>We ask you to ensure that only the people who need access have access</li>
-                                <li>If you find someone who should not have access then remove them by clicking
-                                &apos;X&apos; next to their name
-                                </li>
-                                <li>
-                                    When you are done, click below:
-
-                                    <Box mt={8}>
-                                        <Button color={"green"} textColor={"white"} onClick={onApprove}>
-                                            Everything looks good now
-                                        </Button>
-                                    </Box>
-                                </li>
-                            </ul>
-
-                        </Box>
-                    )}
-
                     <GridCardGroup minmax={250}>
                         {projectId !== undefined && projectId !== "" ? (
                             <>

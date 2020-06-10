@@ -14,7 +14,7 @@ import {KeyCode} from "DefaultObjects";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {BreadCrumbsBase} from "ui-components/Breadcrumbs";
-import {useProjectManagementStatus} from "Project/Members";
+import {useProjectManagementStatus} from "Project/index";
 import {deleteGroup, groupSummaryRequest, updateGroupName} from "Project";
 import {MutableRefObject, useCallback, useRef, useState} from "react";
 import {useAsyncCommand} from "Authentication/DataHook";

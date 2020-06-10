@@ -7,6 +7,7 @@ import {
     ProjectRole,
     UserInProject,
     viewProject,
+    useProjectManagementStatus,
 } from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
@@ -36,120 +37,6 @@ import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip} from "recharts";
 import Table, {TableHeader, TableHeaderCell, TableCell, TableRow} from "ui-components/Table";
-//import {dailyUsage, DailyUsageRequest, DailyUsageResponse, CumulativeUsageResponse, cumulativeUsage} from "Accounting/Compute";
-
-/*async function fetchDailyUsage(projectId: string|undefined): Promise<DailyUsageResponse> {
-    const [fetchedDailyUsage] = await useCloudAPI<DailyUsageResponse>(dailyUsage({project: projectId}), {
-        chart: {
-            'STANDARD': {timestamp: 0, creditsUsed: 0},
-            'HIGH_MEMORY': {timestamp: 0, creditsUsed: 0},
-            'GPU': {timestamp: 0, creditsUsed: 0}
-        }
-    });
-
-    return fetchedDailyUsage.data;
-}
-
-async function fetchCumulativeUsage(projectId: string|undefined): Promise<CumulativeUsageResponse> {
-    const [fetchedCumulativeUsage] = await useCloudAPI<CumulativeUsageResponse>(cumulativeUsage({project: projectId}), {
-        chart: {
-            'STANDARD': {timestamp: 0, creditsUsed: 0},
-            'HIGH_MEMORY': {timestamp: 0, creditsUsed: 0},
-            'GPU': {timestamp: 0, creditsUsed: 0}
-        }
-    });
-
-    return fetchedCumulativeUsage.data;
-}*/
-
-// A lot easier to let typescript take care of the details for this one
-// eslint-disable-next-line
-export function useProjectManagementStatus() {
-    const history = useHistory();
-    const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
-    const locationParams = useParams<{group: string; member?: string}>();
-
-    /*const [dailyUsageData, setDailyUsageData] = React.useState<DailyUsageResponse>({
-        chart: {
-            'STANDARD': {timestamp: 0, creditsUsed: 0},
-            'HIGH_MEMORY': {timestamp: 0, creditsUsed: 0},
-            'GPU': {timestamp: 0, creditsUsed: 0}
-        }
-    });
-
-    const [cumulativeUsageData, setCumulativeUsageData] = React.useState<CumulativeUsageResponse>({
-        chart: {
-            'STANDARD': {timestamp: 0, creditsUsed: 0},
-            'HIGH_MEMORY': {timestamp: 0, creditsUsed: 0},
-            'GPU': {timestamp: 0, creditsUsed: 0}
-        }
-    });*/
-
-    let group = locationParams.group ? decodeURIComponent(locationParams.group) : undefined;
-    let membersPage = locationParams.member ? decodeURIComponent(locationParams.member) : undefined;
-    if (group === '-') group = undefined;
-    if (membersPage === '-') membersPage = undefined;
-
-    const [projectMembers, setProjectMemberParams, projectMemberParams] = useGlobalCloudAPI<Page<ProjectMember>>(
-        "projectManagement",
-        membershipSearch({itemsPerPage: 100, page: 0, query: ""}),
-        emptyPage
-    );
-
-    /*useEffect(() => {
-        fetchDailyUsage(projectId).then(it => setDailyUsageData(it));
-        fetchCumulativeUsage(projectId).then(it => setCumulativeUsageData(it));
-    }, [projectId]);*/
-
-
-    const [projectDetails, fetchProjectDetails, projectDetailsParams] = useGlobalCloudAPI<UserInProject>(
-        "projectManagementDetails",
-        {noop: true},
-        {
-            projectId: projectId ?? "",
-            favorite: false,
-            needsVerification: false,
-            title: projectId ?? "",
-            whoami: {username: Client.username ?? "", role: ProjectRole.USER},
-            archived: false
-        }
-    );
-
-    const [groupMembers, fetchGroupMembers, groupMembersParams] = useGlobalCloudAPI<Page<string>>(
-        "projectManagementGroupMembers",
-        {noop: true},
-        emptyPage
-    );
-
-
-    const [groupList, fetchGroupList, groupListParams] = useGlobalCloudAPI<Page<GroupWithSummary>>(
-        "projectManagementGroupSummary",
-        groupSummaryRequest({itemsPerPage: 10, page: 0}),
-        emptyPage
-    );
-
-    const [outgoingInvites, fetchOutgoingInvites, outgoingInvitesParams] = useGlobalCloudAPI<Page<OutgoingInvite>>(
-        "projectManagementOutgoingInvites",
-        listOutgoingInvites({itemsPerPage: 10, page: 0}),
-        emptyPage
-    );
-
-    const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
-
-    const projects = useProjectStatus();
-    const projectRole = projects.fetch().membership
-        .find(it => it.projectId === projectId)?.whoami?.role ?? ProjectRole.USER;
-    const allowManagement = isAdminOrPI(projectRole);
-    const reloadProjectStatus = projects.reload;
-
-    return {
-        locationParams, projectId: projectId ?? "", group, projectMembers, setProjectMemberParams, groupMembers,
-        fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
-        projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
-        outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
-        projectDetails, projectDetailsParams, fetchProjectDetails
-    };
-}
 
 const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const {
@@ -166,8 +53,8 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
         reloadProjectStatus,
         fetchOutgoingInvites,
         outgoingInvitesParams,
-        membersPage,
         fetchProjectDetails,
+        projectDetails,
         projectDetailsParams
     } = useProjectManagementStatus();
 
@@ -227,8 +114,6 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
         setShouldVerifyParams(shouldVerifyMembership(projectId));
     };
 
-    const projectText = `${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`;
-
     return (
         <MainContainer
             header={<Flex>
@@ -240,7 +125,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                     </li>
                     <li>
                         <Link to={`/project/dashboard`}>
-                            {projectText}
+                            {projectDetails.data.title}
                         </Link>
                     </li>
                     <li>
@@ -251,30 +136,6 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
             sidebar={null}
             main={(
                 <>
-                    {!shouldVerify.data.shouldVerify ? null : (
-                        <Box backgroundColor="orange" color="white" p={32} m={16}>
-                            <Heading.h4>Time for a review!</Heading.h4>
-
-                            <ul>
-                                <li>PIs and admins are asked to occasionally review members of their project</li>
-                                <li>We ask you to ensure that only the people who need access have access</li>
-                                <li>If you find someone who should not have access then remove them by clicking
-                                &apos;X&apos; next to their name
-                                </li>
-                                <li>
-                                    When you are done, click below:
-
-                                    <Box mt={8}>
-                                        <Button color={theme.colors.green} textColor={"white"} onClick={onApprove}>
-                                            Everything looks good now
-                                        </Button>
-                                    </Box>
-                                </li>
-                            </ul>
-
-                        </Box>
-                    )}
-
                     <Box>
                         <Card padding={15} margin={15} ml={0} mr={0}>
                             <Flex>

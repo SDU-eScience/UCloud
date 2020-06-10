@@ -387,7 +387,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     if (e.projectId !== props.project) {
                                         props.setProject(e.projectId);
                                         snackbarStore.addInformation(
-                                            `${e.projectId} is now the active project`,
+                                            `${e.title} is now the active project`,
                                             false
                                         );
                                     }
@@ -496,7 +496,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     }
 
     async function onToggleFavorite(projectId: string): Promise<void> {
-        await runCommand(toggleFavoriteProject({projectId}));
+        await runCommand(toggleFavoriteProject({project: projectId}));
         reload();
     }
 };

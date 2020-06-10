@@ -8,7 +8,7 @@ import {
 } from "Project";
 import {addStandardDialog} from "UtilityComponents";
 import {ProjectRole} from "Project";
-import {useProjectManagementStatus} from "Project/Members";
+import {useProjectManagementStatus} from "Project/index";
 import {MembersList} from "Project/MembersList";
 
 const GroupView: React.FunctionComponent = () => {
