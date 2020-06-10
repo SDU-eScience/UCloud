@@ -5,15 +5,13 @@ bundle { ctx ->
     name = "project"
     version = "3.0.0"
 
+    val enabled: Boolean = config("enabled", "Should projects be enabled", false)
+
     withAmbassador("/api/projects") {}
 
     val deployment = withDeployment {
         injectConfiguration("project-config")
-
-        deployment.spec.replicas = when (ctx.environment) {
-            Environment.PRODUCTION -> 3
-            else -> 1
-        }
+        deployment.spec.replicas = 2
     }
 
     withPostgresMigration(deployment)
@@ -26,7 +24,7 @@ bundle { ctx ->
             "config.yml",
             mapOf<String, Any?>(
                 "project" to mapOf<String, Any?>(
-                    "enabled" to (ctx.environment != Environment.PRODUCTION)
+                    "enabled" to enabled
                 )
             )
         )

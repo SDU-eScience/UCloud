@@ -133,9 +133,9 @@ class ServiceSecrets(val name: String) : KubernetesResource {
         private val httpClient = HttpClient(Apache)
 
         private val k8ConfigFile = File(System.getProperty("user.home"), ".sducloud/k8-config.json")
-        private var config: Map<Environment, TokenAndHost> = emptyMap()
+        private var config: Map<String, TokenAndHost> = emptyMap()
 
-        private fun fetchJwt(environment: Environment): String {
+        private fun fetchJwt(environment: String): String {
             if (environment !in config) {
                 config = try {
                     defaultMapper.readValue(k8ConfigFile)

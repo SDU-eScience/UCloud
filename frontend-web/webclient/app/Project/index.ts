@@ -95,6 +95,15 @@ export function projectRoleToString(role: ProjectRole): string {
     }
 }
 
+export function projectStringToRole(role: string): ProjectRole {
+    switch (role) {
+        case "PI": return ProjectRole.PI;
+        case "Admin": return ProjectRole.ADMIN;
+        case "User": return ProjectRole.USER;
+    }
+    return ProjectRole.USER;
+}
+
 export function projectRoleToStringIcon(role: ProjectRole): IconName {
     switch (role) {
         case ProjectRole.PI: return "userPi";
@@ -244,12 +253,27 @@ export const changeRoleInProject = (
 
 export interface ListProjectsRequest extends PaginationRequest{
     archived?: boolean;
+    noFavorites?: boolean;
 }
 
 export const listProjects = (parameters: ListProjectsRequest): APICallParameters<ListProjectsRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/projects/list",
+        parameters
+    ),
+    parameters,
+    reloadId: Math.random()
+});
+
+export interface ListFavoriteProjectsRequest extends PaginationRequest {
+    archived: boolean;
+}
+
+export const listFavoriteProjects = (parameters: ListFavoriteProjectsRequest): APICallParameters<ListFavoriteProjectsRequest> => ({
+    method: "GET",
+    path: buildQueryString(
+        "/projects/listFavorites",
         parameters
     ),
     parameters,

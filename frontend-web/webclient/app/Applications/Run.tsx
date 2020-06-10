@@ -53,7 +53,7 @@ import {
     statFileQuery
 } from "Utilities/FileUtilities";
 import {addStandardDialog} from "UtilityComponents";
-import {errorMessageOrDefault, preventDefault, removeTrailingSlash} from "UtilityFunctions";
+import {errorMessageOrDefault, removeTrailingSlash} from "UtilityFunctions";
 import {
     AdditionalMountedFolder,
     ApplicationParameter,
@@ -72,9 +72,7 @@ import {Parameter} from "./Widgets/Parameter";
 import {RangeRef} from "./Widgets/RangeParameters";
 import {TextSpan} from "ui-components/Text";
 import Warning from "ui-components/Warning";
-import {useLocation} from "react-router";
-import {useEffect} from "react";
-import {getQueryParam, getQueryParamOrElse, RouterLocationProps} from "Utilities/URIUtilities";
+import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import * as PublicLinks from "Applications/PublicLinks/Management";
 
 const hostnameRegex = new RegExp(
@@ -110,7 +108,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
             favoriteLoading: false,
             fsShown: false,
             previousRuns: emptyPage,
-            reservation: React.createRef(),
+            reservation: "",
             unknownParameters: []
         };
     }
@@ -124,8 +122,6 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         const paramsFile = getQueryParam(location.search, "paramsFile");
         if (paramsFile !== null) {
             this.fetchAndImportParameters({path: paramsFile});
-        } else {
-            console.log(paramsFile);
         }
     }
 
@@ -150,8 +146,6 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
         const prevParamsFile = getQueryParam(prevProps.location.search ?? "", "paramsFile");
         if (paramsFile !== prevParamsFile && paramsFile !== null) {
             this.fetchAndImportParameters({path: paramsFile});
-        } else {
-            console.log(paramsFile, prevParamsFile);
         }
     }
 
@@ -296,7 +290,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                 <JobSchedulingOptions
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
-                                    reservationRef={this.state.reservation}
+                                    reservation={this.state.reservation}
+                                    setReservation={reservation => this.setState({reservation})}
                                     urlEnabled={this.state.useUrl}
                                     setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})}
                                     url={this.state.url}
@@ -398,7 +393,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
 
                             {!application.invocation.shouldAllowAdditionalPeers ? null : (
                                 <RunSection>
-                                    <Flex>
+                                    <Flex alignItems={"center"}>
                                         <Box flexGrow={1}>
                                             <Heading.h4>Connect to other jobs</Heading.h4>
                                         </Box>
@@ -571,7 +566,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
 
         const {name} = this.state.schedulingOptions;
         const jobName = name.current?.value;
-        let reservation = this.state.reservation.current ? this.state.reservation.current.value : null;
+        let reservation: string | null = this.state.reservation;
         if (reservation === "") reservation = null;
         const urlName = this.state.url.current == null ? null : this.state.url.current.value;
 
@@ -704,7 +699,9 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     mountedFolders,
                     tasksPerNode,
                     maxTime,
-                    siteVersion
+                    siteVersion,
+                    machineType,
+                    jobName
                 } = JSON.parse(rawInputFile);
                 // Verify metadata
                 if (application.name !== thisApp.metadata.name) {
@@ -791,6 +788,10 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                     });
                 }
 
+                if (jobName) {
+                    this.state.schedulingOptions.name.current!.value = jobName;
+                }
+
                 this.setState(() => ({
                     application: thisApp,
                     schedulingOptions: extractJobInfo({
@@ -800,8 +801,8 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                         name: this.state.schedulingOptions.name,
                     }),
                     useUrl: this.state.useUrl,
-                    url: this.state.url
-
+                    url: this.state.url,
+                    reservation: machineType.name ?? this.state.reservation
                 }));
             } catch (e) {
                 console.warn(e);
@@ -927,9 +928,10 @@ const ApplicationUrl: React.FunctionComponent<{
                         <Warning
                             warning="By enabling this setting, anyone with a link can gain access to the application."/>
                         <Label mt={20}>
-                            <Flex>
-                                <TextSpan mt={10}>https://app-</TextSpan>
+                            <Flex alignItems={"center"}>
+                                <TextSpan>https://app-</TextSpan>
                                 <Input
+                                    mx={"2px"}
                                     placeholder="Unique URL identifier"
                                     ref={props.inputRef}
                                     required
@@ -947,7 +949,7 @@ const ApplicationUrl: React.FunctionComponent<{
                                         );
                                     }}
                                 />
-                                <TextSpan mt={10}>.cloud.sdu.dk</TextSpan>
+                                <TextSpan>.cloud.sdu.dk</TextSpan>
                             </Flex>
                         </Label>
                     </>
@@ -963,7 +965,8 @@ interface JobSchedulingOptionsProps {
     onChange: (a, b, c) => void;
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
-    reservationRef: React.RefObject<HTMLInputElement>;
+    reservation: string;
+    setReservation: (name: string) => void;
     urlEnabled: boolean;
     setUrlEnabled: React.Dispatch<React.SetStateAction<boolean>>;
     url: React.RefObject<HTMLInputElement>;
@@ -1036,7 +1039,8 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
                 <Label>Machine type</Label>
                 <MachineTypes
                     runAsRoot={props.app.invocation.container?.runAsRoot ?? false}
-                    inputRef={props.reservationRef}
+                    reservation={props.reservation}
+                    setReservation={props.setReservation}
                 />
             </div>
 

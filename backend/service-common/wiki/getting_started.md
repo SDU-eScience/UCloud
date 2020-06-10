@@ -60,9 +60,8 @@ microblog-service/
 The most important files are:
 
 - `Dockerfile`: A file which describes how to containerize this micro-service.
-- `build.gradle.kts`: Gradle configuration files. Gradle
-   controls the build of our service, including management of code dependencies.
-- `k8.kts`: Contains configuration of [Kubernetes](https://kubernetes.io/) resources
+- `build.gradle.kts`: Gradle configuration files. Gradle controls the build of our service, including management of code dependencies
+- ``k8.kts``: Contains configuration of `Kubernetes <https://kubernetes.io/>`__ resources
 - `src/`: Contains the source code for this service
 - `src/main/kotlin/`: Contains the implementation of the micro-service.
 - `src/test/kotlin`: Contains test code for this micro-service.
@@ -80,7 +79,7 @@ our micro-service.
 ### `Main.kt`
 
 The `Main.kt` file bootstraps the micro-service. They use our own small
-[Micro](./micro.md) framework, which is part of the `service-common` lib. The
+[Micro](micro.html) framework, which is part of the `service-common` lib. The
 primary task of Micro is to read configuration and connect to external
 services (i.e. services we don't write ourselves).
 
@@ -96,7 +95,7 @@ interface.
 
 ### `api` (RPC Interfaces)
 
-See [Writing Service Interfaces](./writing_service_interfaces.md) for more
+See [Writing Service Interfaces](writing_service_interfaces.html) for more
 information.
 
 The `api` package contains HTTP interfaces used by other services.
@@ -107,7 +106,7 @@ artifact included by other services. As a result it is important that the
 If an `api` package depends on external libraries then these can be included
 in api's `build.gradle.kts` by using the `api` target:
 
-```gradle
+```groovy
 dependencies {
     api(project(":storage-service:api"))
 }
@@ -510,4 +509,4 @@ Server: ktor-server-core/1.1.2 ktor-server-core/1.1.2
 }
 ```
 
-If you get stuck, you can look [here](./solution.md) for a solution.
+If you get stuck, you can look [here](solution.html) for a solution.

@@ -1,3 +1,5 @@
+# Command Line Interface
+
 It is possible to use normal CLI tools to make REST calls (like curl and httpie). However, this can sometimes be annoying since the access tokens only last for a few minutes. The following command line tool will automatically create a new access token when the old one has expired. The only dependency for the tool is `python3` and `curl`. You should create a file in `~/.sducloud/config.json` containing your refresh token in the following format: `{ "refreshToken": "<token>" }`. You can retrieve your refresh token by logging into the website and looking in storage -> cookies of the developer console. You will have to `decodeURI` the token.
 
 Save the following tool as `sducloud` and put it in your path.

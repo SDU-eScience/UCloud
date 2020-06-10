@@ -1,4 +1,4 @@
-# file-trash-service
+# File Trash Service
 
 Manages the 'Trash' feature of the file system. This is done by creating a
 'Trash' folder and moving files to it instead of deleting them directly. When

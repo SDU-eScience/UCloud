@@ -5,15 +5,18 @@ bundle { ctx ->
     name = "alerting"
     version = "1.1.25"
 
+    // Fetch configuration from audit-ingestion
+    val elasticCredentials = Configuration.retrieve<String>(
+        "audit-ingestion.secret",
+        "Secret name for elasticsearch credentials",
+        "elasticsearch-credentials"
+    )
+
     withAmbassador {}
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1
-        if (ctx.environment in setOf(Environment.PRODUCTION, Environment.DEVELOPMENT)) {
-            injectSecret("elasticsearch-logging-cluster-credentials")
-        } else {
-            injectSecret("elasticsearch-credentials")
-        }
+        injectSecret(elasticCredentials)
 
         injectSecret("alerting-tokens")
         deployment.spec.template.spec.serviceAccountName = this@bundle.name

@@ -1,7 +1,9 @@
-# alerting-service
+:orphan:
+
+# Alerting Service
 
 Provides slack alerts due to failures in critical services. This service
-monitors data from [auditing](../service-common/wiki/auditing.md), if the error
+monitors data from [auditing](backend/service-common/wiki/auditing.html), if the error
 rate goes above a threshold an error will be emitted. If the alerting service
 at any points fail to contact Elasticsearch an error will be emitted.
 
@@ -39,7 +41,7 @@ any chat/mail service that supports webhooks.
   - Send a `alert` message clarifying which node has used 90% of its storage.
 
   This gives time to either scale up or clean out in the elastic indices 
-  before the [watermark limits](../elastic-management/README.md) are reach and further actions are required
+  before the [watermark limits](backend/elastic-management-service/README.html) are reach and further actions are required
   and limitation are enforced by elastic it self.
 
 - **Number of Shards**  
@@ -53,7 +55,7 @@ any chat/mail service that supports webhooks.
   
   To handle this situation either increase the number of shards allowed per node or reduce the number 
   of shards/indices in the cluster.
-  To help with the latter the [elastic-management service](../elastic-management/README.md) can be used.
+  To help with the latter the [elastic-management service](backend/elastic-management-service/README.html) can be used.
   
   Since the number of shards do not change much during a day, this alert is only 
   checking every 12 hours. Should an alert have fired, it checks every 30 min to be able to notify 

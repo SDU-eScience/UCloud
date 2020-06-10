@@ -31,24 +31,19 @@ exports[`Mount Files component 1`] = `
   height: calc(100% - 20px);
 }
 
-.c17 {
-  margin-top: -2px;
-  margin-left: 5px;
-}
-
-.c22 {
+.c21 {
   -webkit-box-flex: 1;
   -webkit-flex-grow: 1;
   -ms-flex-positive: 1;
   flex-grow: 1;
 }
 
-.c23 {
+.c22 {
   padding-top: 96px;
   padding-right: 240px;
 }
 
-.c19 {
+.c18 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -80,21 +75,21 @@ exports[`Mount Files component 1`] = `
   padding: 9.5px 18px;
 }
 
-.c19:disabled {
+.c18:disabled {
   opacity: 0.25;
 }
 
-.c19:focus {
+.c18:focus {
   outline: none;
 }
 
-.c19:hover {
+.c18:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c21 {
+.c20 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -132,21 +127,21 @@ exports[`Mount Files component 1`] = `
   padding: 7.5px 18px;
 }
 
-.c21:disabled {
+.c20:disabled {
   opacity: 0.25;
 }
 
-.c21:focus {
+.c20:focus {
   outline: none;
 }
 
-.c21:hover {
+.c20:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c21:hover {
+.c20:hover {
   border: 2px solid;
   background-color: transparent;
   -webkit-transition: ease 0.1s;
@@ -170,7 +165,7 @@ exports[`Mount Files component 1`] = `
   margin-left: .7em;
 }
 
-.c26 {
+.c25 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -203,7 +198,7 @@ exports[`Mount Files component 1`] = `
   cursor: inherit;
 }
 
-.c27 {
+.c26 {
   cursor: inherit;
   font-size: 24px;
   margin: 0;
@@ -222,8 +217,8 @@ exports[`Mount Files component 1`] = `
   margin-top: 4px;
 }
 
-.c16 .c18,
-.c16 .c20 {
+.c16 .c17,
+.c16 .c19 {
   width: 100%;
   margin-bottom: 8px;
 }
@@ -271,7 +266,6 @@ exports[`Mount Files component 1`] = `
   padding-right: 10px;
   margin: 0;
   list-style: none;
-  max-width: 85%;
   height: 60px;
   overflow-y: auto;
   display: -webkit-box;
@@ -317,7 +311,7 @@ exports[`Mount Files component 1`] = `
   text-decoration: none;
 }
 
-.c25 {
+.c24 {
   background-color: #fff;
   position: -webkit-sticky;
   position: sticky;
@@ -344,19 +338,19 @@ exports[`Mount Files component 1`] = `
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c24 {
+  .c23 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c24 {
+  .c23 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c24 {
+  .c23 {
     display: none;
   }
 }
@@ -471,35 +465,31 @@ exports[`Mount Files component 1`] = `
         <div
           className="c16"
         >
-          <div
-            className="c17"
+          <button
+            className="c17 c18"
+            color="blue"
+            cursor="pointer"
+            onClick={[Function]}
           >
-            <button
-              className="c18 c19"
-              color="blue"
-              cursor="pointer"
-              onClick={[Function]}
-            >
-              <span>
-                Upload Files
-              </span>
-            </button>
-            <button
-              className="c18 c20 c21"
-              color="blue"
-              cursor="pointer"
-              onClick={[Function]}
-            >
-              <span>
-                New Folder
-              </span>
-            </button>
-          </div>
+            <span>
+              Upload Files
+            </span>
+          </button>
+          <button
+            className="c17 c19 c20"
+            color="blue"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            <span>
+              New Folder
+            </span>
+          </button>
           <div
-            className="c22"
+            className="c21"
           />
           <button
-            className="c18 c20 c21"
+            className="c17 c19 c20"
             color="blue"
             onClick={[Function]}
           >
@@ -510,10 +500,10 @@ exports[`Mount Files component 1`] = `
     </div>
   </div>
   <div
-    className="c23"
+    className="c22"
   >
     <div
-      className="c24"
+      className="c23"
     >
       <div
         className="c15"
@@ -522,35 +512,31 @@ exports[`Mount Files component 1`] = `
         <div
           className="c16"
         >
-          <div
-            className="c17"
+          <button
+            className="c17 c18"
+            color="blue"
+            cursor="pointer"
+            onClick={[Function]}
           >
-            <button
-              className="c18 c19"
-              color="blue"
-              cursor="pointer"
-              onClick={[Function]}
-            >
-              <span>
-                Upload Files
-              </span>
-            </button>
-            <button
-              className="c18 c20 c21"
-              color="blue"
-              cursor="pointer"
-              onClick={[Function]}
-            >
-              <span>
-                New Folder
-              </span>
-            </button>
-          </div>
+            <span>
+              Upload Files
+            </span>
+          </button>
+          <button
+            className="c17 c19 c20"
+            color="blue"
+            cursor="pointer"
+            onClick={[Function]}
+          >
+            <span>
+              New Folder
+            </span>
+          </button>
           <div
-            className="c22"
+            className="c21"
           />
           <button
-            className="c18 c20 c21"
+            className="c17 c19 c20"
             color="blue"
             onClick={[Function]}
           >
@@ -560,7 +546,7 @@ exports[`Mount Files component 1`] = `
       </div>
     </div>
     <div
-      className="c25"
+      className="c24"
     >
       <div
         className="c2"
@@ -578,7 +564,7 @@ exports[`Mount Files component 1`] = `
             onClick={[Function]}
           >
             <svg
-              className="c26"
+              className="c25"
               clipRule="evenodd"
               cursor="pointer"
               fill="currentcolor"
@@ -616,7 +602,7 @@ exports[`Mount Files component 1`] = `
       </div>
     </div>
     <h3
-      className="c27"
+      className="c26"
       cursor="inherit"
       fontSize={4}
     >

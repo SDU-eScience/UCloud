@@ -11,7 +11,6 @@ export const BreadCrumbsBase = styled.ul`
     padding-right: 10px;
     margin: 0;
     list-style: none;
-    max-width: 85%;
     height: 60px;
     overflow-y: auto;
     display: flex;

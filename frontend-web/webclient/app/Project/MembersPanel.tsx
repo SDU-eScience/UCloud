@@ -153,23 +153,23 @@ const MembersPanel: React.FunctionComponent = () => {
             }}
         />
 
-        <Pagination.List
-            loading={outgoingInvites.loading}
-            page={outgoingInvites.data}
-            onPageChanged={(newPage) => {
-                fetchOutgoingInvites(listOutgoingInvites({...outgoingInvitesParams.parameters, page: newPage}));
-            }}
-            customEmptyPage={<></>}
-            pageRenderer={() => (
-                <Box mt={32}>
-                    <Heading.h4>Outgoing Invites</Heading.h4>
+        {group ? null :
+            <Pagination.List
+                loading={outgoingInvites.loading}
+                page={outgoingInvites.data}
+                onPageChanged={(newPage) => {
+                    fetchOutgoingInvites(listOutgoingInvites({ ...outgoingInvitesParams.parameters, page: newPage }));
+                }}
+                customEmptyPage={<></>}
+                pageRenderer={() => (
                     <MembersList
+                        isOutgoingInvites
                         members={outgoingInvites.data.items.map(it => ({
                             username: it.username,
                             role: ProjectRole.USER
                         }))}
                         onRemoveMember={async (member) => {
-                            await runCommand(rejectInvite({projectId, username: member}));
+                            await runCommand(rejectInvite({ projectId, username: member }));
                             reloadMembers();
                         }}
                         projectRole={projectRole}
@@ -177,10 +177,9 @@ const MembersPanel: React.FunctionComponent = () => {
                         projectId={projectId}
                         showRole={false}
                     />
-                </Box>
-            )}
-
-        />
+                )}
+            />
+        }
     </>;
 };
 

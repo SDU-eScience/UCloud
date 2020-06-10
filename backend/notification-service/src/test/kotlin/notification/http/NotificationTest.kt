@@ -3,23 +3,17 @@ package dk.sdu.cloud.notification.http
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.micro.DatabaseConfig
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.DeleteResponse
 import dk.sdu.cloud.notification.api.MarkResponse
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationServiceDescription
-import dk.sdu.cloud.notification.services.NotificationHibernateDAO
+import dk.sdu.cloud.notification.services.NotificationDao
 import dk.sdu.cloud.notification.services.NotificationService
 import dk.sdu.cloud.notification.services.SubscriptionService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.test.KtorApplicationTestContext
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
@@ -62,7 +56,7 @@ class NotificationTest {
     }
 
     private val setup: KtorApplicationTestSetupContext.() -> List<Controller> = {
-        val notificationDao = NotificationHibernateDAO()
+        val notificationDao = NotificationDao()
         val subscriptionService = mockk<SubscriptionService>()
         val notificationService = NotificationService(db, notificationDao, subscriptionService)
         listOf(NotificationController(notificationService, subscriptionService))
