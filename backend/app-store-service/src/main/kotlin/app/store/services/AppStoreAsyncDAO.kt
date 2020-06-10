@@ -252,7 +252,7 @@ class AppStoreAsyncDAO(
         """
 
         for (index in fileExtensions.indices) {
-            query += """ A.application -> 'fileExtensions' @> jsonb_build_array(:ext$index) """
+            query += """ A.application -> 'fileExtensions' @> jsonb_build_array(cast(?ext$index as text)) """
             if (index != fileExtensions.size - 1) {
                 query += "OR "
             }
@@ -261,6 +261,7 @@ class AppStoreAsyncDAO(
         query += """
               )
         """
+
 
         return ctx.withSession { session ->
             session.sendPreparedStatement(
@@ -435,7 +436,7 @@ class AppStoreAsyncDAO(
                 set(ApplicationTable.website, description.metadata.website)
                 set(ApplicationTable.toolName, existingTool.getField(ToolTable.idName))
                 set(ApplicationTable.toolVersion, existingTool.getField(ToolTable.idVersion))
-                set(ApplicationTable.isPublic, true)
+                set(ApplicationTable.isPublic, description.metadata.isPublic)
                 set(ApplicationTable.idName, description.metadata.name)
                 set(ApplicationTable.idVersion, description.metadata.version)
                 set(ApplicationTable.application, defaultMapper.writeValueAsString(description.invocation))

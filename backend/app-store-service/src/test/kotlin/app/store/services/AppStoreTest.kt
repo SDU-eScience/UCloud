@@ -8,11 +8,19 @@ import app.store.services.ApplicationTagsAsyncDAO
 import app.store.services.ApplicationTagsService
 import app.store.services.FavoriteAsyncDAO
 import app.store.services.FavoriteService
+import dk.sdu.cloud.app.store.api.ACLEntryRequest
+import dk.sdu.cloud.app.store.api.AccessEntity
 import dk.sdu.cloud.app.store.api.AppStoreServiceDescription
 import dk.sdu.cloud.app.store.api.AppStoreStreams
+import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
 import dk.sdu.cloud.app.store.util.*
+import dk.sdu.cloud.auth.api.AuthDescriptions
+import dk.sdu.cloud.auth.api.LookupUsersRequest
+import dk.sdu.cloud.auth.api.LookupUsersResponse
+import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -22,6 +30,7 @@ import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.test.ClientMock
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.mockk
@@ -34,6 +43,8 @@ import org.junit.Test
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class AppStoreTest {
     companion object {
@@ -587,34 +598,148 @@ class AppStoreTest {
             appStoreService.delete(TestUsers.user2, null, "name", "2.2")
         }
     }
+
+    @Test
+    fun `permissions test`() {
+        runBlocking {
+            val micro = initializeMicro()
+            val toolHibernateDAO = ToolHibernateDAO()
+            val aclHibernateDao = AclHibernateDao()
+            val publicDao = ApplicationPublicAsyncDAO()
+            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclHibernateDao()
+            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val authClient = ClientMock.authenticatedClient
+
+            ClientMock.mockCallSuccess(
+                UserDescriptions.lookupUsers,
+                LookupUsersResponse(
+                    mapOf(
+                        TestUsers.user.username to UserLookup(
+                            TestUsers.user.username, TestUsers.user.uid, TestUsers.user.role
+                        )
+                    )
+            ))
+
+            val appStoreService = AppStoreService(
+                db,
+                authClient,
+                appDAO,
+                publicDao,
+                toolHibernateDAO,
+                aclDao,
+                elasticDAO,
+                micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
+            )
+            runBlocking {
+                db.withSession { session ->
+                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc)
+                }
+                appStoreService.create(TestUsers.user, normAppDescNotPublic, "content")
+            }
+
+            val permission = appStoreService.hasPermission(
+                TestUsers.user,
+                null,
+                normAppDescNotPublic.metadata.name,
+                normAppDescNotPublic.metadata.version,
+                setOf(ApplicationAccessRight.LAUNCH)
+            )
+            assertFalse(permission)
+
+            appStoreService.updatePermissions(
+                    TestUsers.admin,
+            normAppDescNotPublic.metadata.name,
+            listOf(ACLEntryRequest(
+                AccessEntity(
+                    TestUsers.user.username,
+                    null,
+                    null
+                ),
+                ApplicationAccessRight.LAUNCH,
+                false
+            )))
+
+            val permissionAfter = appStoreService.hasPermission(
+                TestUsers.user,
+                null,
+                normAppDescNotPublic.metadata.name,
+                normAppDescNotPublic.metadata.version,
+                setOf(ApplicationAccessRight.LAUNCH)
+            )
+            assertTrue(permissionAfter)
+
+            appStoreService.updatePermissions(
+                TestUsers.admin,
+                normAppDescNotPublic.metadata.name,
+                listOf(ACLEntryRequest(
+                    AccessEntity(
+                        TestUsers.user.username,
+                        null,
+                        null
+                    ),
+                    ApplicationAccessRight.LAUNCH,
+                    true
+                )))
+
+            val permissionAfterRevoke = appStoreService.hasPermission(
+                TestUsers.user,
+                null,
+                normAppDescNotPublic.metadata.name,
+                normAppDescNotPublic.metadata.version,
+                setOf(ApplicationAccessRight.LAUNCH)
+            )
+            assertFalse(permissionAfterRevoke)
+        }
+    }
+
+    @Test
+    fun `test supported file ext`() {
+        runBlocking {
+            val micro = initializeMicro()
+            val toolHibernateDAO = ToolHibernateDAO()
+            val aclHibernateDao = AclHibernateDao()
+            val publicDao = ApplicationPublicAsyncDAO()
+            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclHibernateDao()
+            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val authClient = ClientMock.authenticatedClient
+            val favoriteDao = FavoriteAsyncDAO(publicDao, aclDao)
+            val appStoreService = AppStoreService(
+                db,
+                authClient,
+                appDAO,
+                publicDao,
+                toolHibernateDAO,
+                aclDao,
+                elasticDAO,
+                micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
+            )
+            val favoriteService = FavoriteService(db, favoriteDao, authClient)
+
+            runBlocking {
+                db.withSession { session ->
+                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc)
+                }
+                appStoreService.create(TestUsers.user, normAppDesc, "content")
+                appStoreService.create(TestUsers.user, normAppDescDiffVersion, "content")
+            }
+
+            favoriteService.toggleFavorite(TestUsers.user, null, normAppDesc.metadata.name, normAppDesc.metadata.version)
+            favoriteService.toggleFavorite(TestUsers.user, null, normAppDescDiffVersion.metadata.name, normAppDescDiffVersion.metadata.version)
+
+            val results = appStoreService.findBySupportedFileExtension(
+                TestUsers.user,
+                null,
+                listOf("file.txt", "another.pdf")
+            )
+
+            assertEquals(1, results.size)
+            assertEquals(normAppDescDiffVersion.metadata.name, results.first().metadata.name)
+            assertEquals(normAppDescDiffVersion.metadata.version, results.first().metadata.version)
+        }
+    }
 /*
-    @Test
-    fun `advanced search CC Test - no description`() {
-        val appStoreService = initAppStoreWithMockedElasticAndTool()
-        val searchResults = appStoreService.advancedSearch(
-            TestUsers.user,
-            normAppDesc.metadata.title,
-            null,
-            null,
-            null,
-            NormalizedPaginationRequest(25, 0)
-        )
-    }
-
-    @Test
-    fun `advanced search CC Test - with description`() {
-        val appStoreService = initAppStoreWithMockedElasticAndTool()
-        val searchResults = appStoreService.advancedSearch(
-            TestUsers.user,
-            normAppDesc.metadata.title,
-            null,
-            null,
-            "description",
-            NormalizedPaginationRequest(25, 0)
-        )
-    }
-
-
     @Ignore //Requires running elasticsearch
     @Test
     fun `advanced search` () {

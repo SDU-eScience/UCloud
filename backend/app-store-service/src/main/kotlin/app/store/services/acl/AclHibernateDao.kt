@@ -46,7 +46,7 @@ class AclHibernateDao : AclDao {
                     WHERE (username = ?user) OR
                         (
                             (project = ?project) AND
-                            (group in ?groups)
+                            (project_group IN (select unnest (?groups::text[])))
                         ) AND
                         (application_name = ?appname)
                 """.trimIndent()

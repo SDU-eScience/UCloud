@@ -23,7 +23,8 @@ val normAppDesc = Application(
         mockk(relaxed = true),
         emptyList(),
         listOf("glob"),
-        fileExtensions = emptyList()
+        fileExtensions = emptyList(),
+        applicationType = ApplicationType.WEB
     )
 )
 
@@ -42,7 +43,8 @@ val normAppDescDiffVersion = Application(
         mockk(relaxed = true),
         emptyList(),
         listOf("glob"),
-        fileExtensions = emptyList()
+        fileExtensions = listOf(".txt", ".pdf"),
+        applicationType = ApplicationType.VNC
     )
 )
 
@@ -64,6 +66,25 @@ val normAppDesc3 = normAppDesc
             ApplicationParameter.Integer("missing", true)
         )
     )
+
+val normAppDescNotPublic = Application(
+    ApplicationMetadata(
+        "name",
+        "2.3",
+        listOf("Authors"),
+        "title",
+        "app description",
+        null,
+        false
+    ),
+    ApplicationInvocationDescription(
+        ToolReference("tool", "1.0.0", null),
+        mockk(relaxed = true),
+        emptyList(),
+        listOf("glob"),
+        fileExtensions = emptyList()
+    )
+)
 
 fun Application.withTool(name: String, version: String): Application {
     return copy(
