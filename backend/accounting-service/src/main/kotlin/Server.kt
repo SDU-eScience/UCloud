@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting
 
 import dk.sdu.cloud.accounting.rpc.AccountingController
+import dk.sdu.cloud.accounting.rpc.VisualizationController
 import dk.sdu.cloud.accounting.services.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -28,8 +29,9 @@ class Server(
 
         with(micro.server) {
             configureControllers(
-                AccountingController(db, balanceService, visualizationService),
-                ProductController(db, productService)
+                AccountingController(db, balanceService),
+                ProductController(db, productService),
+                VisualizationController(db, visualizationService)
             )
         }
 

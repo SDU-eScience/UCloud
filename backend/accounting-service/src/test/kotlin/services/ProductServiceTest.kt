@@ -38,8 +38,6 @@ val storageProduct = Product.Storage(
 )
 
 class ProductServiceTest {
-
-
     @AfterTest
     fun afterTest() {
         runBlocking {

@@ -12,8 +12,7 @@ import dk.sdu.cloud.service.toActor
 
 class AccountingController(
     private val db: DBContext,
-    private val balance: BalanceService,
-    private val visualization: VisualizationService
+    private val balance: BalanceService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Wallets.grantCredits) {
