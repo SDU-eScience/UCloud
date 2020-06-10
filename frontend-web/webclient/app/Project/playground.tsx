@@ -3,7 +3,7 @@ import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import {Button, Input} from "ui-components";
 import {useCallback, useRef} from "react";
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {useAsyncCommand} from "Authentication/DataHook";
 import {useProjectStatus} from "Project/cache";
 import {createProject} from "Project/index";
 import {grantCredits} from "Accounting/Compute";

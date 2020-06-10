@@ -36,6 +36,7 @@ import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {Client} from "Authentication/HttpClientInstance";
 import {ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip} from "recharts";
 import Table, {TableHeader, TableHeaderCell, TableCell, TableRow} from "ui-components/Table";
+import {transformUsageChartForCharting, usage, UsageResponse} from "Accounting/Compute";
 //import {dailyUsage, DailyUsageRequest, DailyUsageResponse, CumulativeUsageResponse, cumulativeUsage} from "Accounting/Compute";
 
 /*async function fetchDailyUsage(projectId: string|undefined): Promise<DailyUsageResponse> {
@@ -151,65 +152,20 @@ export function useProjectManagementStatus() {
     };
 }
 
+function dateFormatter(timestamp: number): string {
+    const date = new Date(timestamp);
+    return `${date.getDate()}/${date.getMonth()}/${date.getFullYear()} ` +
+        `${date.getHours().toString().padStart(2, "0")}:` +
+        `${date.getMinutes().toString().padStart(2, "0")}:` +
+        `${date.getSeconds().toString().padStart(2, "0")}`;
+}
+
 const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
-    const {
-        projectId,
-        group,
-        projectMembers,
-        setProjectMemberParams,
-        projectMemberParams,
-        groupMembers,
-        fetchGroupMembers,
-        fetchGroupList,
-        memberSearchQuery,
-        groupMembersParams,
-        reloadProjectStatus,
-        fetchOutgoingInvites,
-        outgoingInvitesParams,
-        membersPage,
-        fetchProjectDetails,
-        projectDetailsParams
-    } = useProjectManagementStatus();
-
-    const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
-        shouldVerifyMembership(projectId),
-        {shouldVerify: false}
-    );
-
-    useEffect(() => {
-        if (group !== undefined) {
-            fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
-        } else {
-            fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
-        }
-
-        reloadProjectStatus();
-        fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
-        fetchProjectDetails(viewProject({id: projectId}));
-    }, [projectId, group]);
-
-    useEffect(() => {
-        setProjectMemberParams(
-            membershipSearch({
-                ...projectMemberParams.parameters,
-                query: memberSearchQuery,
-                notInGroup: group
-            })
-        );
-    }, [projectId, group, groupMembers.data, memberSearchQuery]);
-
-    useEffect(() => {
-        props.setLoading(projectMembers.loading || groupMembers.loading);
-    }, [projectMembers.loading, groupMembers.loading]);
+    const {projectId, projectDetails} = useProjectManagementStatus();
 
     const reload = useCallback(() => {
-        fetchOutgoingInvites(outgoingInvitesParams);
-        setProjectMemberParams(projectMemberParams);
-        fetchProjectDetails(projectDetailsParams);
-        if (group !== undefined) {
-            fetchGroupMembers(groupMembersParams);
-        }
-    }, [projectMemberParams, groupMembersParams, setProjectMemberParams, group]);
+
+    }, []);
 
     useEffect(() => {
         props.setRefresh(reload);
@@ -222,59 +178,35 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
         }
     }, [projectId]);
 
-    const onApprove = async (): Promise<void> => {
-        await callAPIWithErrorHandler(verifyMembership(projectId));
-        setShouldVerifyParams(shouldVerifyMembership(projectId));
-    };
+    const title = projectDetails.data.title;
+    const projectText = `${title.slice(0, 20).trim()}${title.length > 20 ? "..." : ""}`;
 
-    const projectText = `${projectId.slice(0, 20).trim()}${projectId.length > 20 ? "..." : ""}`;
+
+    const now = new Date().getTime();
+    const [usageResponse, setUsageParams, usageParams] = useCloudAPI<UsageResponse>(
+        usage({
+            bucketSize: 1000 * 60 * 60,
+            periodStart: now - (1000 * 60 * 60 * 24 * 7),
+            periodEnd: now
+        }),
+        {charts: []}
+    );
+
+    const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it));
+    console.log(charts);
 
     return (
         <MainContainer
             header={<Flex>
                 <MembersBreadcrumbs>
-                    <li>
-                        <Link to="/projects">
-                            My Projects
-                        </Link>
-                    </li>
-                    <li>
-                        <Link to={`/project/dashboard`}>
-                            {projectText}
-                        </Link>
-                    </li>
-                    <li>
-                        Usage
-                    </li>
+                    <li><Link to="/projects">My Projects</Link></li>
+                    <li><Link to={`/project/dashboard`}>{projectText}</Link></li>
+                    <li>Usage</li>
                 </MembersBreadcrumbs>
             </Flex>}
             sidebar={null}
             main={(
                 <>
-                    {!shouldVerify.data.shouldVerify ? null : (
-                        <Box backgroundColor="orange" color="white" p={32} m={16}>
-                            <Heading.h4>Time for a review!</Heading.h4>
-
-                            <ul>
-                                <li>PIs and admins are asked to occasionally review members of their project</li>
-                                <li>We ask you to ensure that only the people who need access have access</li>
-                                <li>If you find someone who should not have access then remove them by clicking
-                                &apos;X&apos; next to their name
-                                </li>
-                                <li>
-                                    When you are done, click below:
-
-                                    <Box mt={8}>
-                                        <Button color={theme.colors.green} textColor={"white"} onClick={onApprove}>
-                                            Everything looks good now
-                                        </Button>
-                                    </Box>
-                                </li>
-                            </ul>
-
-                        </Box>
-                    )}
-
                     <Box>
                         <Card padding={15} margin={15} ml={0} mr={0}>
                             <Flex>
@@ -332,51 +264,39 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                                 </Table>
                             </Box>
 
-                            <Heading.h5>Daily compute usage</Heading.h5>
-                            <Box mt={20} mb={20}>
-                                <ResponsiveContainer width="100%" height={200}>
-                                    <AreaChart
-                                        syncId="someId"
-                                        data={data1}
-                                        margin={{
-                                        top: 10, right: 30, left: 0, bottom: 0,
-                                        }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="time" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Area type="linear" dataKey="standard" stroke={theme.colors.darkBlue} fill={theme.colors.blue} opacity="0.3" />
-                                        <Area type="linear" dataKey="high memory" stroke={theme.colors.darkRed} fill={theme.colors.red} opacity="0.3" />
-                                        <Area type="linear" dataKey="gpu" stroke={theme.colors.darkGreen} fill={theme.colors.green} opacity="0.3" />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </Box>
+                            {charts.map(chart => (
+                                <>
+                                    <Heading.h5>Usage for {chart.provider}</Heading.h5>
+                                    <Box mt={20} mb={20}>
+                                        <ResponsiveContainer width="100%" height={200}>
+                                            <AreaChart
+                                                syncId="someId"
+                                                data={chart.points}
+                                                margin={{
+                                                    top: 10, right: 30, left: 0, bottom: 0,
+                                                }}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis dataKey="time" tickFormatter={dateFormatter} />
+                                                <YAxis />
+                                                <Tooltip labelFormatter={dateFormatter} />
+                                                {chart.lineNames.map((id, idx) => (
+                                                    <Area
+                                                        key={id}
+                                                        type="linear"
+                                                        dataKey={id}
+                                                        stroke={theme.appColors[idx][1]}
+                                                        fill={theme.appColors[idx][2]}
+                                                        opacity="0.3"
+                                                    />
+                                                ))}
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </Box>
+                                </>
+                            ))}
 
-                            <Heading.h5>Cumulative compute usage</Heading.h5>
-                            <Box mt={20}>
-                                <ResponsiveContainer width="100%" height={200}>
-                                    <AreaChart
-                                        syncId="someId"
-                                        data={data2}
-                                        margin={{
-                                        top: 10, right: 30, left: 0, bottom: 0,
-                                        }}
-                                    >
-                                        <CartesianGrid strokeDasharray="3 3" />
-                                        <XAxis dataKey="name" />
-                                        <YAxis />
-                                        <Tooltip />
-                                        <Area type="linear" dataKey="standard" stackId="1" stroke={theme.colors.darkBlue} fill={theme.colors.blue} opacity="0.3" />
-                                        <Area type="linear" dataKey="high memory" stackId="1" stroke={theme.colors.darkRed} fill={theme.colors.red} opacity="0.3" />
-                                        <Area type="linear" dataKey="gpu" stackId="1" stroke={theme.colors.darkGreen} fill={theme.colors.green} opacity="0.3" />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </Box>
-
-
-                        </Box>
-
+                       </Box>
 
                         <Card padding={15} margin={15} ml={0} mr={0}>
                             <Flex>
@@ -397,61 +317,11 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                             </Flex>
                         </Card>
                     </Box>
-  
-
                 </>
             )}
         />
     );
 };
-
-const data1 = [
-    {
-        time: 'time1', standard: 4000, 'high memory': 2400, gpu: 0,
-    },
-    {
-        time: 'time2', standard: 3000, 'high memory': 1400, gpu: 2210,
-    },
-    {
-        time: 'time3', standard: 2000, 'high memory': 9800, gpu: 2290,
-    },
-    {
-        time: 'time4', standard: 2780, 'high memory': 3900, gpu: 2000,
-    },
-    {
-        time: 'time5', standard: 1890, 'high memory': 4800, gpu: 0,
-    },
-    {
-        time: 'time6', standard: 2390, 'high memory': 3800, gpu: 2500,
-    },
-    {
-        time: 'time7', standard: 3490, 'high memory': 4300, gpu: 0,
-    },
-  ];
-  
-  const data2 = [
-    {
-        name: 'time1', standard: 4000, 'high memory': 2400, gpu: 0,
-    },
-    {
-        name: 'time2', standard: 7000, 'high memory': 3800, gpu: 2210,
-    },
-    {
-        name: 'time3', standard: 9000, 'high memory': 13600, gpu: 5000,
-    },
-    {
-        name: 'time4', standard: 11780, 'high memory': 17500, gpu: 7000,
-    },
-    {
-        name: 'time5', standard: 13870, 'high memory': 22300, gpu: 7000,
-    },
-    {
-        name: 'time6', standard: 16260, 'high memory': 26100, gpu: 9500,
-    },
-    {
-        name: 'time7', standard: 19750, 'high memory': 30400, gpu: 9500,
-    },
-  ];
 
 interface ProjectUsageOperations {
     setRefresh: (refresh?: () => void) => void;

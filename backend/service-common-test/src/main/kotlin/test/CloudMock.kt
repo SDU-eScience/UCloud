@@ -1,5 +1,6 @@
 package dk.sdu.cloud.service.test
 
+import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
@@ -9,9 +10,12 @@ import dk.sdu.cloud.calls.client.RpcClient
 import io.ktor.http.HttpStatusCode
 import io.mockk.coEvery
 import io.mockk.mockk
+import kotlinx.coroutines.runBlocking
 
 @Deprecated("Renamed", ReplaceWith("ClientMock"))
 typealias CloudMock = ClientMock
+
+class MockedOutgoingCall(override val attributes: AttributeContainer) : OutgoingCall
 
 object ClientMock {
     @Suppress("EmptyFunctionBlock")
@@ -22,9 +26,10 @@ object ClientMock {
     val client = mockk<RpcClient>()
     val authenticatedClient = AuthenticatedClient(client, mockk(relaxed = true)) {}
 
+    @Suppress("UNCHECKED_CAST")
     inline fun <reified R : Any, S : Any, E : Any> mockCall(
         call: CallDescription<R, S, E>,
-        crossinline resultCompute: (R) -> TestCallResult<S, E>
+        crossinline resultCompute: MockedOutgoingCall.(R) -> TestCallResult<S, E>
     ) {
         coEvery {
             client.call<R, S, E, OutgoingCall, OutgoingCallCompanion<OutgoingCall>>(
@@ -36,7 +41,10 @@ object ClientMock {
             )
         } answers {
             val payload = invocation.args[1] as R
-            val resp = resultCompute(payload)
+            //val beforeFilters = invocation.args[3] as (suspend (OutgoingCall) -> Unit)?
+            val outgoingCall = MockedOutgoingCall(AttributeContainer())
+            //runBlocking { beforeFilters?.invoke(outgoingCall) }
+            val resp = resultCompute(outgoingCall, payload)
 
             when (resp) {
                 is TestCallResult.Ok -> IngoingCallResponse.Ok(resp.result, resp.statusCode)

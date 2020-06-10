@@ -1,5 +1,5 @@
 import {APICallParameters} from "Authentication/DataHook";
-import {PaginationRequest} from "Types";
+import {Dictionary, PaginationRequest} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
 
 export type AccountType = "USER" | "PROJECT";
@@ -118,4 +118,82 @@ export function listMachines(request: ListMachinesRequest): APICallParameters<Li
         parameters: request,
         reloadId: Math.random()
     };
+}
+
+export interface TimeRangeQuery {
+    bucketSize: number;
+    periodStart: number;
+    periodEnd: number;
+}
+
+export interface UsageRequest extends TimeRangeQuery {}
+
+export interface UsagePoint {
+    timestamp: number;
+    creditsUsed: number;
+}
+
+export interface UsageLine {
+    category: string;
+    projectPath?: string;
+    projectId?: string;
+    points: UsagePoint[];
+}
+
+export interface UsageChart {
+    provider: string;
+    lines: UsageLine[];
+}
+
+export interface UsageResponse {
+    charts: UsageChart[];
+}
+
+export type CumulativeUsageRequest = UsageRequest;
+export type CumulativeUsageResponse = UsageResponse;
+
+export function usage(request: UsageRequest): APICallParameters<UsageRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/accounting/visualization/usage", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export function cumulativeUsage(request: CumulativeUsageRequest): APICallParameters<CumulativeUsageRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/accounting/visualization/cumulative-usage", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface NativeChartPoint extends Dictionary<number> {
+    time: number;
+}
+
+export interface NativeChart {
+    provider: string;
+    lineNames: string[];
+    points: NativeChartPoint[];
+}
+
+export function transformUsageChartForCharting(chart: UsageChart): NativeChart {
+    const builder: Dictionary<NativeChartPoint> = {};
+    const lineNames: string[] = [];
+
+    for (const line of chart.lines) {
+        const lineId = line.projectPath ? `${line.projectPath} (${line.category})` : line.category;
+        lineNames.push(lineId);
+
+        for (const point of line.points) {
+            const dataPoint = builder[`${point.timestamp}`] ?? {time: point.timestamp};
+            dataPoint[lineId] = point.creditsUsed;
+            builder[`${point.timestamp}`] = dataPoint;
+        }
+    }
+
+    return { provider: chart.provider, lineNames, points: Object.values(builder) };
 }

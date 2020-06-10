@@ -72,24 +72,31 @@ class ProjectService(
 
         val id = UUID.randomUUID().toString()
 
-        ctx.withSession { session ->
-            session.insert(ProjectTable) {
-                set(ProjectTable.id, id)
-                set(ProjectTable.title, title)
-                set(ProjectTable.createdAt, LocalDateTime.now())
-                set(ProjectTable.modifiedAt, LocalDateTime.now())
-                set(ProjectTable.parent, parent)
-            }
+        try {
+            ctx.withSession { session ->
+                session.insert(ProjectTable) {
+                    set(ProjectTable.id, id)
+                    set(ProjectTable.title, title)
+                    set(ProjectTable.createdAt, LocalDateTime.now())
+                    set(ProjectTable.modifiedAt, LocalDateTime.now())
+                    set(ProjectTable.parent, parent)
+                }
 
-            session.insert(ProjectMemberTable) {
-                set(ProjectMemberTable.username, createdBy.username)
-                set(ProjectMemberTable.role, ProjectRole.PI.name)
-                set(ProjectMemberTable.project, id)
-                set(ProjectMemberTable.createdAt, LocalDateTime.now())
-                set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
-            }
+                session.insert(ProjectMemberTable) {
+                    set(ProjectMemberTable.username, createdBy.username)
+                    set(ProjectMemberTable.role, ProjectRole.PI.name)
+                    set(ProjectMemberTable.project, id)
+                    set(ProjectMemberTable.createdAt, LocalDateTime.now())
+                    set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
+                }
 
-            verifyMembership(session, "_project", id)
+                verifyMembership(session, "_project", id)
+            }
+        } catch (ex: GenericDatabaseException) {
+            if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
+            }
+            throw ex
         }
 
         eventProducer.produce(ProjectEvent.Created(id))
