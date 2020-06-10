@@ -1,7 +1,0 @@
----
-name: messages
-
-namespaces:
-- messages
-
-dependencies: []
