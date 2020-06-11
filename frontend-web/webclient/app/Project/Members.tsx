@@ -1,26 +1,15 @@
-import {callAPIWithErrorHandler, useCloudAPI, useGlobalCloudAPI} from "Authentication/DataHook";
+import {callAPIWithErrorHandler, useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
-import {
-    listOutgoingInvites,
-    OutgoingInvite,
-    ProjectMember,
-    ProjectRole,
-    UserInProject,
-    viewProject,
-    useProjectManagementStatus,
-} from "Project/index";
+import {useProjectManagementStatus,} from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
-import {useHistory, useParams} from "react-router";
-import {Box, Button, Link, Flex, Icon} from "ui-components";
-import {connect, useSelector} from "react-redux";
+import {Box, Button, Link, Flex} from "ui-components";
+import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import {
-    groupSummaryRequest,
-    listGroupMembersRequest,
     membershipSearch,
     shouldVerifyMembership,
     ShouldVerifyMembershipResponse,
@@ -28,9 +17,10 @@ import {
 } from "Project";
 import styled from "styled-components";
 import GroupView from "./GroupList";
-import ProjectMembers, {MembersBreadcrumbs} from "./MembersPanel";
+import ProjectMembers from "./MembersPanel";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {ProjectSettings} from "Project/ProjectSettings";
+import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 
 const Members: React.FunctionComponent<MembersOperations> = props => {
     const {
@@ -40,35 +30,15 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
         setProjectMemberParams,
         projectMemberParams,
         groupMembers,
-        fetchGroupMembers,
-        fetchGroupList,
         memberSearchQuery,
-        groupMembersParams,
-        reloadProjectStatus,
-        fetchOutgoingInvites,
-        outgoingInvitesParams,
         membersPage,
-        fetchProjectDetails,
-        projectDetailsParams,
-        projectDetails
+        reload
     } = useProjectManagementStatus();
 
     const [shouldVerify, setShouldVerifyParams] = useCloudAPI<ShouldVerifyMembershipResponse>(
         shouldVerifyMembership(projectId),
         {shouldVerify: false}
     );
-
-    useEffect(() => {
-        if (group !== undefined) {
-            fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
-        } else {
-            fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
-        }
-
-        reloadProjectStatus();
-        fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
-        fetchProjectDetails(viewProject({id: projectId}));
-    }, [projectId, group]);
 
     useEffect(() => {
         setProjectMemberParams(
@@ -83,15 +53,6 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
     useEffect(() => {
         props.setLoading(projectMembers.loading || groupMembers.loading);
     }, [projectMembers.loading, groupMembers.loading]);
-
-    const reload = useCallback(() => {
-        fetchOutgoingInvites(outgoingInvitesParams);
-        setProjectMemberParams(projectMemberParams);
-        fetchProjectDetails(projectDetailsParams);
-        if (group !== undefined) {
-            fetchGroupMembers(groupMembersParams);
-        }
-    }, [projectMemberParams, groupMembersParams, setProjectMemberParams, group]);
 
     useEffect(() => {
         props.setRefresh(reload);
@@ -113,23 +74,7 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
 
     return (
         <MainContainer
-            header={<Flex>
-                <MembersBreadcrumbs>
-                    <li>
-                        <Link to="/projects">
-                            My Projects
-                        </Link>
-                    </li>
-                    <li>
-                        <Link to={`/project/dashboard`}>
-                            {projectDetails.data.title}
-                        </Link>
-                    </li>
-                    <li>
-                        Members
-                    </li>
-                </MembersBreadcrumbs>
-            </Flex>}
+            header={<ProjectBreadcrumbs crumbs={[{title: "Members"}]} />}
             sidebar={null}
             main={(
                 <>

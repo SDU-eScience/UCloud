@@ -9,13 +9,12 @@ import {
 } from "Project/index";
 import * as React from "react";
 import {useEffect} from "react";
-import {Box, Button, Link, Flex, Icon, Input, Relative, Absolute, Label} from "ui-components";
+import {Box, Button, Flex, Icon, Input, Relative, Absolute, Label} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import styled from "styled-components";
-import {MembersBreadcrumbs} from "./MembersPanel";
 import {emptyPage} from "DefaultObjects";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {preventDefault, errorMessageOrDefault} from "UtilityFunctions";
@@ -23,6 +22,7 @@ import {SubprojectsList} from "./SubprojectsList";
 import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
+import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 
 const SearchContainer = styled(Flex)`
     flex-wrap: wrap;
@@ -37,13 +37,12 @@ const SearchContainer = styled(Flex)`
 `;
 
 
-const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
+const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
     const newSubprojectRef = React.useRef<HTMLInputElement>(null);
     const [isLoading, runCommand] = useAsyncCommand();
 
     const {
         projectId,
-        projectDetails,
         allowManagement,
         subprojectSearchQuery,
         setSubprojectSearchQuery
@@ -80,13 +79,7 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
 
     return (
         <MainContainer
-            header={<Flex>
-                <MembersBreadcrumbs>
-                    <li><Link to="/projects">My Projects</Link></li>
-                    <li><Link to={`/project/dashboard`}>{projectDetails.data.title}</Link></li>
-                    <li>Subprojects</li>
-                </MembersBreadcrumbs>
-            </Flex>}
+            header={<ProjectBreadcrumbs crumbs={[{title: "Subprojects"}]} />}
             sidebar={null}
             main={(
                 <>

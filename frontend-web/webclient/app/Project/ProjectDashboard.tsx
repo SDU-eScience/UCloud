@@ -1,84 +1,18 @@
-import {callAPIWithErrorHandler, useCloudAPI, useGlobalCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
-import {
-    listOutgoingInvites,
-    OutgoingInvite,
-    ProjectMember,
-    ProjectRole,
-    UserInProject,
-    viewProject,
-    useProjectManagementStatus,
-} from "Project/index";
-import * as Heading from "ui-components/Heading";
+import {useProjectManagementStatus,} from "Project/index";
 import * as React from "react";
-import {useCallback, useEffect} from "react";
-import {useHistory, useParams} from "react-router";
 import {Box, Button, Link, Flex, Icon, theme} from "ui-components";
-import {connect, useSelector} from "react-redux";
+import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
-import {
-    groupSummaryRequest,
-    listGroupMembersRequest,
-    membershipSearch,
-    shouldVerifyMembership,
-    ShouldVerifyMembershipResponse,
-    verifyMembership
-} from "Project";
-import {GroupWithSummary} from "./GroupList";
-import {MembersBreadcrumbs} from "./MembersPanel";
-import {Page} from "Types";
-import {emptyPage, ReduxObject} from "DefaultObjects";
-import {useGlobal} from "Utilities/ReduxHooks";
 import {dispatchSetProjectAction} from "Project/Redux";
-import {useProjectStatus} from "Project/cache";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import {Client} from "Authentication/HttpClientInstance";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
-import {shortUUID} from "UtilityFunctions";
+import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 
-const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = props => {
-    const {
-        projectId,
-        group,
-        fetchGroupMembers,
-        fetchGroupList,
-        reloadProjectStatus,
-        fetchOutgoingInvites,
-        membersPage,
-        fetchProjectDetails,
-        projectDetailsParams,
-        projectDetails
-    } = useProjectManagementStatus();
-
-    useEffect(() => {
-        if (group !== undefined) {
-            fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
-        } else {
-            fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
-        }
-
-        reloadProjectStatus();
-        fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
-        fetchProjectDetails(viewProject({id: projectId}));
-    }, [projectId, group]);
-
-    const reload = useCallback(() => {
-        fetchProjectDetails(projectDetailsParams);
-    }, []);
-
-    useEffect(() => {
-        props.setRefresh(reload);
-        return () => props.setRefresh();
-    }, [reload]);
-
-    useEffect(() => {
-        if (projectId !== "") {
-            props.setActiveProject(projectId);
-        }
-    }, [projectId]);
+const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
+    const {projectId, membersPage} = useProjectManagementStatus();
 
     function isPersonalProjectActive(projectId: string): boolean {
         return projectId === undefined || projectId === "";
@@ -89,19 +23,9 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = pr
     return (
         <MainContainer
             header={<Flex>
-                <MembersBreadcrumbs>
-                    <li>
-                        <Link to="/projects">
-                            My Projects
-                        </Link>
-                    </li>
-                    <li>
-                        {projectDetails.data.title}
-                    </li>
-                    {isSettingsPage ? <li>Settings</li> : null}
-                </MembersBreadcrumbs>
+                <ProjectBreadcrumbs crumbs={[]} />
                 <Flex>
-                    {isPersonalProjectActive(projectId) ? (null) : (
+                    {isPersonalProjectActive(projectId) ? null : (
                         <Link to={"/project/settings"}>
                             <Icon
                                 name="properties"

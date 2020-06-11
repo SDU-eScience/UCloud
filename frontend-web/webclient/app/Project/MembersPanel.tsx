@@ -25,10 +25,6 @@ const SearchContainer = styled(Flex)`
     }
 `;
 
-export const MembersBreadcrumbs = styled(BreadCrumbsBase)`
-    max-width: unset;
-    flex-grow: 1;
-`;
 
 const MembersPanel: React.FunctionComponent = () => {
     const {

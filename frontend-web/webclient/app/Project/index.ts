@@ -12,6 +12,7 @@ import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "./cache";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {GroupWithSummary} from "./GroupList";
+import {useCallback, useEffect} from "react";
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -490,7 +491,7 @@ export function useProjectManagementStatus() {
             projectId: projectId ?? "",
             favorite: false,
             needsVerification: false,
-            title: projectId ?? "",
+            title: "",
             whoami: {username: Client.username ?? "", role: ProjectRole.USER},
             archived: false
         }
@@ -527,11 +528,34 @@ export function useProjectManagementStatus() {
     const allowManagement = isAdminOrPI(projectRole);
     const reloadProjectStatus = projects.reload;
 
+    useEffect(() => {
+        if (group !== undefined) {
+            fetchGroupMembers(listGroupMembersRequest({group, itemsPerPage: 25, page: 0}));
+        } else {
+            fetchGroupList(groupSummaryRequest({itemsPerPage: 10, page: 0}));
+        }
+
+        // noinspection JSIgnoredPromiseFromCall
+        reloadProjectStatus();
+        fetchOutgoingInvites(listOutgoingInvites({itemsPerPage: 10, page: 0}));
+        if (projectId) fetchProjectDetails(viewProject({id: projectId}));
+    }, [projectId, group]);
+
+    const reload = useCallback(() => {
+        fetchOutgoingInvites(outgoingInvitesParams);
+        setProjectMemberParams(projectMemberParams);
+        fetchProjectDetails(projectDetailsParams);
+        if (group !== undefined) {
+            fetchGroupMembers(groupMembersParams);
+        }
+    }, [projectMemberParams, groupMembersParams, setProjectMemberParams, group]);
+
     return {
         locationParams, projectId: projectId ?? "", group, projectMembers, setProjectMemberParams, groupMembers,
         fetchGroupMembers, groupMembersParams, groupList, fetchGroupList, groupListParams,
         projectMemberParams, memberSearchQuery, setMemberSearchQuery, allowManagement, reloadProjectStatus,
         outgoingInvites, outgoingInvitesParams, fetchOutgoingInvites, membersPage, projectRole,
-        projectDetails, projectDetailsParams, fetchProjectDetails, subprojectSearchQuery, setSubprojectSearchQuery
+        projectDetails, projectDetailsParams, fetchProjectDetails, subprojectSearchQuery, setSubprojectSearchQuery,
+        reload
     };
 }

@@ -8,7 +8,6 @@ import {
 import {MainContainer} from "MainContainer/MainContainer";
 import {Box, Button, Icon, IconButton, Input, Label, List} from "ui-components";
 import {ListRow, ListRowStat} from "ui-components/List";
-import ClickableDropdown from "ui-components/ClickableDropdown";
 import {dialogStore} from "Dialog/DialogStore";
 import styled from "styled-components";
 import Spinner from "LoadingIcon/LoadingIcon";

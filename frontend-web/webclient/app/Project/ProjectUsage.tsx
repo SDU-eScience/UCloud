@@ -2,19 +2,18 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
-import {useCallback, useEffect} from "react";
-import {Box, Button, Link, Flex, Card, Text, theme} from "ui-components";
+import {useEffect} from "react";
+import {Box, Button, Flex, Card, Text, theme} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
-import {MembersBreadcrumbs} from "./MembersPanel";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, Line, LineChart} from "recharts";
 import Table, {TableHeader, TableHeaderCell, TableCell, TableRow} from "ui-components/Table";
 import {transformUsageChartForCharting, usage, UsageResponse} from "Accounting/Compute";
-import {useProjectManagementStatus} from "Project/Members";
-import {viewProject} from "Project/index";
+import {useProjectManagementStatus} from "Project";
+import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -56,30 +55,7 @@ function creditFormatter(credits: number): string {
 }
 
 const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
-    const {projectId, projectDetails, fetchProjectDetails, projectDetailsParams} = useProjectManagementStatus();
-
-    useEffect(() => {
-        fetchProjectDetails(viewProject({id: projectId}));
-    }, [projectId]);
-
-    const reload = useCallback(() => {
-
-    }, []);
-
-    useEffect(() => {
-        props.setRefresh(reload);
-        return () => props.setRefresh();
-    }, [reload]);
-
-    useEffect(() => {
-        if (projectId !== "") {
-            props.setActiveProject(projectId);
-        }
-    }, [projectId]);
-
-    const title = projectDetails.data.title;
-    const projectText = `${title.slice(0, 20).trim()}${title.length > 20 ? "..." : ""}`;
-
+    const {...projectManagement} = useProjectManagementStatus();
 
     const now = new Date().getTime();
     const [usageResponse, setUsageParams, usageParams] = useCloudAPI<UsageResponse>(
@@ -91,18 +67,19 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
         {charts: []}
     );
 
+    useEffect(() => {
+        props.setRefresh(() => {
+            projectManagement.reload();
+            setUsageParams({...usageParams, reloadId: Math.random()});
+        });
+        return () => props.setRefresh();
+    }, [projectManagement.reload]);
+
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it));
-    console.log(charts);
 
     return (
         <MainContainer
-            header={<Flex>
-                <MembersBreadcrumbs>
-                    <li><Link to="/projects">My Projects</Link></li>
-                    <li><Link to={`/project/dashboard`}>{projectText}</Link></li>
-                    <li>Usage</li>
-                </MembersBreadcrumbs>
-            </Flex>}
+            header={<ProjectBreadcrumbs crumbs={[{title: "Usage"}]} />}
             sidebar={null}
             main={(
                 <>
