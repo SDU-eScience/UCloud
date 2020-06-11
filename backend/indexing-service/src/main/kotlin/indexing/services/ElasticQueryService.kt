@@ -66,8 +66,12 @@ class ElasticQueryService(
                 }
 
                 sort(field, direction)
-            }
 
+            }
+            if (paging != null) {
+                from(paging.page * paging.itemsPerPage)
+                size(paging.itemsPerPage)
+            }
             searchBasedOnQuery(query).also {
                 log.debug(it.toString())
             }
