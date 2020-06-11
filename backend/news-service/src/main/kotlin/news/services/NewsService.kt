@@ -40,8 +40,8 @@ class NewsService {
                 set(NewsTable.title, title)
                 set(NewsTable.subtitle, subtitle)
                 set(NewsTable.body, body)
-                set(NewsTable.showFrom, LocalDateTime(showFrom))
-                set(NewsTable.hideFrom, LocalDateTime(hideFrom))
+                set(NewsTable.showFrom, LocalDateTime(showFrom, DateTimeZone.UTC))
+                set(NewsTable.hideFrom, LocalDateTime(hideFrom, DateTimeZone.UTC))
                 set(NewsTable.hidden, false)
                 set(NewsTable.category, category.toLowerCase())
             }

@@ -2,7 +2,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
 import {emptyPage} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
-import {setActivePage} from "Navigation/Redux/StatusActions";
+import {setActivePage, updatePageTitle} from "Navigation/Redux/StatusActions";
 import * as Pagination from "Pagination";
 import {usePromiseKeeper} from "PromiseKeeper";
 import * as React from "react";
@@ -11,7 +11,7 @@ import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Page} from "Types";
-import {Box, Button, Flex, Icon, Input, InputGroup, List, TextArea, Link, Text} from "ui-components";
+import {Box, Button, Flex, Icon, Input, InputGroup, List, TextArea, Link, Text, Card, Markdown, SelectableTextWrapper, SelectableText} from "ui-components";
 import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
@@ -21,11 +21,11 @@ import {NewsPost} from "Dashboard/Dashboard";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {useCloudAPI} from "Authentication/DataHook";
 import Fuse from "fuse.js";
-import {Dropdown, DropdownContent} from "ui-components/Dropdown";
+import {addStandardDialog} from "UtilityComponents";
 
 const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
-function NewsManagement(props: {setActivePage: () => void}): JSX.Element | null {
+function NewsManagement(props: {onInit: () => void}): JSX.Element | null {
     const [start, setStart] = React.useState<Date | null>(null);
     const [end, setEnd] = React.useState<Date | null>(null);
     const [loading, setLoading] = React.useState(false);
@@ -35,12 +35,15 @@ function NewsManagement(props: {setActivePage: () => void}): JSX.Element | null 
     const bodyRef = React.useRef<HTMLTextAreaElement>(null);
     const categoryRef = React.useRef<HTMLInputElement>(null);
     const promises = usePromiseKeeper();
+
     React.useEffect(() => {
-        props.setActivePage();
+        props.onInit();
         fetchNewsPost(0, 25);
     }, []);
 
-    const [categories, setCategoryArgs, categoryArgs] = useCloudAPI<string[]>({
+    const [showPreview, setPreview] = React.useState(false);
+
+    const [categories] = useCloudAPI<string[]>({
         path: "/news/listCategories"
     }, []);
 
@@ -71,10 +74,10 @@ function NewsManagement(props: {setActivePage: () => void}): JSX.Element | null 
         <MainContainer
             header={<Heading.h2>News</Heading.h2>}
             main={(
-                <Flex justifyContent="center">
-                    <Box>
+                <Flex>
+                    <Box maxWidth="800px" width={1}>
                         <form onSubmit={submit}>
-                            <Flex mx="6px">
+                            <Flex justifyContent="center" mx="6px">
                                 <InputGroup>
                                     <DatePicker
                                         placeholderText="Show from"
@@ -100,35 +103,31 @@ function NewsManagement(props: {setActivePage: () => void}): JSX.Element | null 
                             </Flex>
                             <Input width={1} my="3px" required placeholder="Post title..." ref={titleRef} />
                             <Input width={1} my="3px" required placeholder="Short summation..." ref={subtitleRef} />
+                            <Flex mb="3px">
+                                <SelectableText cursor="pointer" mr="5px" selected={!showPreview} onClick={() => setPreview(false)}>Edit</SelectableText>
+                                <SelectableText cursor="pointer" selected={showPreview} onClick={() => setPreview(true)}>Preview</SelectableText>
+                            </Flex>
                             <TextAreaWithMargin
                                 width={1}
                                 placeholder="Post body... (supports markdown)"
                                 ref={bodyRef}
                                 rows={5}
                                 required
+                                hidden={showPreview}
                             />
-                            <Dropdown fullWidth>
-                                <Input width={1} autoComplete="off" onKeyUp={onKeyUp} my="3px" placeholder="Category" required ref={categoryRef} />
-                                <DropdownContent
-                                    hover={false}
-                                    colorOnHover={false}
-                                    visible={results.length > 0}
-                                    width="418px"
-                                    top="40px"
-                                >
-                                    {results.map(it => (
-                                        <div
-                                            key={it}
-                                            onClick={() => {
-                                                categoryRef.current!.value = it;
-                                                setResults([]);
-                                            }}
-                                        >
-                                            {it}
-                                        </div>
-                                    ))}
-                                </DropdownContent>
-                            </Dropdown>
+                            {showPreview ?
+                                <Card minHeight="5px" borderRadius="6px" mt="2px" pl="5px" overflow="scroll">
+                                    <Markdown
+                                        unwrapDisallowed
+                                        source={bodyRef.current?.value ?? ""}
+                                    />
+                                </Card>
+                                : null}
+                            <Input width={1} autoComplete="off" onKeyUp={onKeyUp} my="3px" placeholder="Category" required ref={categoryRef} />
+                            <Categories categories={results} onSelect={category => {
+                                categoryRef.current!.value = category;
+                                setResults([]);
+                            }} />
                             <Button width={1}>Post</Button>
                         </form>
                         <Spacer
@@ -189,6 +188,19 @@ function NewsManagement(props: {setActivePage: () => void}): JSX.Element | null 
         } else if (end != null && start.getTime() > end.getTime()) {
             snackbarStore.addFailure("End time cannot be before start.", false);
             return;
+        } else if (category == null) {
+            snackbarStore.addFailure("Please add a category.", false);
+            return;
+        }
+
+        if (!categories.data.includes(category.toLocaleLowerCase())) {
+            const proceed = await new Promise(resolve => addStandardDialog({
+                title: "Create category?",
+                message: `${category} doesn't exist, create it?`,
+                onConfirm: () => resolve(true),
+                onCancel: () => resolve(false)
+            }));
+            if (!proceed) return;
         }
 
         try {
@@ -266,8 +278,31 @@ function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => v
     }
 }
 
+const Categories = (props: {categories: string[], onSelect: (cat: string) => void}): JSX.Element | null => {
+    if (props.categories.length === 0) return null;
+    return (
+        <Card p="10px" borderRadius="6px" my="3px">
+            <Text fontSize={1}>Existing categories:</Text>
+            {props.categories.map(it => (
+                <Text
+                    pl="4px"
+                    cursor="pointer"
+                    key={it}
+                    onClick={() => props.onSelect(it)}
+                >
+                    {it}
+                </Text>
+            ))}
+        </Card>
+    );
+}
+
 const mapDispatchToProps = (dispatch: Dispatch) => ({
-    setActivePage: () => dispatch(setActivePage(SidebarPages.Admin)),
+    onInit: () => {
+        dispatch(setActivePage(SidebarPages.Admin));
+        dispatch(updatePageTitle("News Management"));
+    },
+
 });
 
 export default connect(null, mapDispatchToProps)(NewsManagement);

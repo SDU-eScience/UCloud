@@ -277,8 +277,8 @@ export interface NewsPost {
     subtitle: string;
     body: string;
     postedBy: string;
-    showFrom: Date;
-    hideFrom: Date | null;
+    showFrom: number;
+    hideFrom: number | null;
     hidden: boolean;
     category: string;
 }
