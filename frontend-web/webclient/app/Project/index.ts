@@ -274,7 +274,7 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
     reloadId: Math.random()
 });
 
-export const listSubprojects = (parameters: PaginationRequest): APICallParameters<PaginationRequest> => ({
+export const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<PaginationRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/projects/sub-projects",

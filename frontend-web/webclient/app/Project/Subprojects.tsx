@@ -20,7 +20,7 @@ import {emptyPage} from "DefaultObjects";
 import {dispatchSetProjectAction} from "Project/Redux";
 import {preventDefault, errorMessageOrDefault} from "UtilityFunctions";
 import {SubprojectsList} from "./SubprojectsList";
-import {addStandardDialog} from "UtilityComponents";
+import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
 
@@ -50,7 +50,7 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
     } = useProjectManagementStatus();
 
     const [subprojects, setSubprojectParams, subprojectParams] = useCloudAPI<Page<UserInProject>>(
-        listSubprojects({itemsPerPage: 100, page: 0}),
+        listSubprojects({itemsPerPage: 50, page: 0}),
         emptyPage
     );
 
@@ -97,7 +97,7 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
                                     <form onSubmit={onSubmit}>
                                         <Input
                                             id="new-project-subproject"
-                                            placeholder="Name of project"
+                                            placeholder="Name of new child project"
                                             disabled={isLoading}
                                             ref={newSubprojectRef}
                                             onChange={e => {
@@ -111,7 +111,7 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
                                 <form onSubmit={preventDefault}>
                                     <Input
                                         id="subproject-search"
-                                        placeholder="Enter name of project to filter..."
+                                        placeholder="Filter this page..."
                                         pr="30px"
                                         autoComplete="off"
                                         disabled={isLoading}
@@ -129,19 +129,20 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = props => {
                                 </form>
                             </SearchContainer>
                             <SubprojectsList
-                                subprojects={
-                                    subprojectSearchQuery !== "" ?
-                                        subprojects.data.items.filter(it =>
-                                            it.title.toLowerCase().search(subprojectSearchQuery.toLowerCase().replace(/\W|_|\*/g, "")) !== -1)
-                                    :
-                                        subprojects.data.items
+                                subprojects={subprojects.data}
+                                searchQuery={subprojectSearchQuery}
+                                loading={subprojects.loading}
+                                fetchParams={setSubprojectParams}
+                                onAssignCredits={async (subprojectId, subprojectTitle)  => addStandardInputDialog({
+                                        title: `Assign credits to ${subprojectTitle}?`
+                                    })
                                 }
-                                onRemoveSubproject={async (projectId, subprojectTitle) => addStandardDialog({
+                                onRemoveSubproject={async (subprojectId, subprojectTitle) => addStandardDialog({
                                     title: "Delete subproject",
                                     message: `Delete ${subprojectTitle}?`,
                                     onConfirm: async () => {
                                         await runCommand(deleteProject({
-                                            projectId,
+                                            projectId: subprojectId,
                                         }));
 
                                         reloadSubprojects();

@@ -1,31 +1,34 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole, Project, UserInProject} from "Project/index";
-import {useAsyncCommand} from "Authentication/DataHook";
+import {ProjectRole, UserInProject, deleteProject, listProjects, listSubprojects, ListSubprojectsRequest} from "Project/index";
+import {useAsyncCommand, APICallParameters} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
+import * as Pagination from "Pagination";
 import * as React from "react";
 import {useEffect} from "react";
 import {defaultAvatar} from "UserSettings/Avataaar";
-import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "ui-components";
+import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer, theme} from "ui-components";
 import {IconName} from "ui-components/Icon";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {errorMessageOrDefault} from "UtilityFunctions";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import {addStandardDialog} from "UtilityComponents";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {RemoveButton} from "Files/FileInputSelector";
 import {Page} from "Types";
+import {addStandardInputDialog, addStandardDialog} from "UtilityComponents";
+
 
 export function SubprojectsList(props: Readonly<{
-    subprojects: UserInProject[];
+    subprojects: Page<UserInProject>;
+    searchQuery: string;
+    loading: boolean;
     onRemoveSubproject(subprojectId: string, subprojectTitle): void;
+    onAssignCredits(subprojectId: string, subprojectTitle: string): void;
     allowRoleManagement: boolean;
     reload?: () => void;
+    fetchParams(params: APICallParameters<ListSubprojectsRequest>);
     isOutgoingInvites?: boolean;
     projectId: string;
 }>): JSX.Element {
+
     const avatars = useAvatars();
 
     useEffect(() => {
-        const subprojectNames = props.subprojects.map(it => it.title);
+        const subprojectNames = props.subprojects.items.map(it => it.title);
         avatars.updateCache(subprojectNames);
     }, [props.subprojects]);
 
@@ -36,19 +39,49 @@ export function SubprojectsList(props: Readonly<{
 
     return (<>
         <Box mt={20}>
-            {props.subprojects.map(subproject =>
-                <>
-                    <Flex alignItems="center" mb="16px">
-                        <Text bold>{subproject.title}</Text>
-
-                        <Box flexGrow={1} />
-
-                        <Flex alignItems={"center"}>
-                            <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveSubproject(subproject.projectId, subproject.title)} />
-                        </Flex>
-                    </Flex>
-                </>
-            )}
+            <>
+                <Pagination.List
+                    page={props.subprojects}
+                    pageRenderer={pageRenderer}
+                    loading={props.loading}
+                    onPageChanged={newPage => {
+                        props.fetchParams(
+                            listSubprojects({
+                                page: newPage,
+                                itemsPerPage: 50,
+                            })
+                        );
+                    }}
+                    customEmptyPage={<div />}
+                />
+            </>
         </Box>
     </>);
+
+    function pageRenderer(page: Page<UserInProject>): JSX.Element[] {
+        const filteredItems = (props.searchQuery !== "" ?
+            page.items.filter(it =>
+                it.title.toLowerCase().search(props.searchQuery.toLowerCase().replace(/\W|_|\*/g, "")) !== -1)
+            :
+                page.items
+        );
+
+        return filteredItems.map(subproject => {
+            return (
+                <Flex key={subproject.projectId} alignItems="center" mb="16px">
+                    <Text bold>{subproject.title}</Text>
+                    <Text color={theme.colors.gray}>{subproject.projectId}</Text>
+
+                    <Box flexGrow={1} />
+
+                    <Flex alignItems={"center"}>
+                        <Button width="150px" height="35px" onClick={() => props.onAssignCredits(subproject.projectId, subproject.title)}>Assign credits</Button>
+                        <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveSubproject(subproject.projectId, subproject.title)} />
+                    </Flex>
+                </Flex>
+            );
+        });
+    }
 }
+
+
