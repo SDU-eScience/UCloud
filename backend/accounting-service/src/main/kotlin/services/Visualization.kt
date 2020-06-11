@@ -63,7 +63,7 @@ class VisualizationService(
                             t.product_provider,
                             t.product_category,
                             sum(t.amount)::bigint,
-                            timestamps.ts
+                            extract(epoch from timestamps.ts)::bigint
 
                         from
                             (
@@ -89,7 +89,7 @@ class VisualizationService(
                 )
                 .rows
                 .forEach { row ->
-                    val timestamp = row.getDate(4)!!.toDateTime(DateTimeZone.UTC).millis
+                    val timestamp = row.getLong(4)!! * 1000L
                     allTimestamps.add(timestamp)
 
                     val childAccountId = row.getString(0) ?: return@forEach
@@ -122,12 +122,66 @@ class VisualizationService(
                 }
             }
 
+            fun findProjectPath(projectId: String): List<Project> {
+                if (accountType == WalletOwnerType.USER) return emptyList()
+                return buildList {
+                    var currentProject = knownProjects[projectId]
+                    while (currentProject != null) {
+                        add(currentProject!!)
+                        currentProject = knownProjects[currentProject.parent]
+                    }
+                }.asReversed()
+            }
+
+            val pathToActiveProject = findProjectPath(accountId)
+
             val allProviders = relevantAccountsByProvider.keys
             UsageResponse(
                 allProviders.map { provider ->
+                    val removedAccounts = HashSet<String>()
+                    val newAccounts = HashSet<String>()
+
+                    if (accountType == WalletOwnerType.PROJECT) {
+                        // We only wish to display usage of direct children.
+                        // We start by moving our usage to the direct child level.
+
+                        val categories = relevantProductCategoriesByProvider.getValue(provider)
+                        val accounts = relevantAccountsByProvider.getValue(provider)
+                        for (category in categories) {
+                            for (account in accounts) {
+                                val path = findProjectPath(account)
+                                if (path.size > pathToActiveProject.size + 1)  {
+                                    tsLoop@ for (ts in allTimestamps) {
+                                        // We need to move this to the direct child of the active project
+                                        val oldKey = RowKey(account, provider, category.id, ts)
+                                        val usage = allCreditsUsed[oldKey] ?: continue@tsLoop
+
+                                        val newKey = RowKey(
+                                            path[pathToActiveProject.size].id,
+                                            provider,
+                                            category.id,
+                                            ts
+                                        )
+
+                                        val newKeyExistingUsage = allCreditsUsed[newKey] ?: 0L
+                                        allCreditsUsed[newKey] = newKeyExistingUsage + usage
+                                        allCreditsUsed.remove(oldKey)
+                                        newAccounts.add(newKey.accountId)
+                                    }
+
+                                    removedAccounts.add(account)
+                                }
+                            }
+                        }
+
+                        relevantAccountsByProvider.getValue(provider).apply {
+                            removeAll(removedAccounts)
+                            addAll(newAccounts)
+                        }
+                    }
+
                     val categories = relevantProductCategoriesByProvider.getValue(provider)
                     val accounts = relevantAccountsByProvider.getValue(provider)
-
                     val lines = categories.flatMap { category ->
                         accounts.map { account ->
                             val points = allTimestamps.map { ts ->
@@ -135,13 +189,7 @@ class VisualizationService(
                             }
 
                             val projectPath: String? = if (accountType == WalletOwnerType.PROJECT) {
-                                buildList {
-                                    var currentProject = knownProjects[account]
-                                    while (currentProject != null) {
-                                        add(currentProject.title)
-                                        currentProject = knownProjects[currentProject.parent]
-                                    }
-                                }.asReversed().joinToString("/")
+                                findProjectPath(account).joinToString("/") { it.title }
                             } else {
                                 null
                             }

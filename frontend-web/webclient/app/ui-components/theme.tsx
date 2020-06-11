@@ -173,6 +173,18 @@ const appColors = [
     ["#C9D3DF", "#8393A7", "#53657D"], // gray colors from the theme
 ];
 
+const chartColors = [
+    blue,
+    red,
+    green,
+    purple,
+    yellow,
+    gray,
+    white,
+    "#9065d1",
+    "#e98c33"
+];
+
 // Color Themes
 // should use colors from the palette above
 //// Light color theme
@@ -480,6 +492,7 @@ const theme = {
     colors,
     colorStyles,
     appColors,
+    chartColors,
     radii,
     radius,
     shadows: shadows as string[] & {sm: string; md: string; lg: string; xl: string; xxl: string;},

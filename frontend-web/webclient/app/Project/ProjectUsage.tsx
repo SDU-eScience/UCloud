@@ -1,8 +1,5 @@
 import {useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
-import {
-    useProjectManagementStatus,
-} from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
@@ -13,20 +10,57 @@ import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
 import {loadingAction} from "Loading";
 import {MembersBreadcrumbs} from "./MembersPanel";
 import {dispatchSetProjectAction} from "Project/Redux";
-import {ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip} from "recharts";
+import {ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, Line, LineChart} from "recharts";
 import Table, {TableHeader, TableHeaderCell, TableCell, TableRow} from "ui-components/Table";
 import {transformUsageChartForCharting, usage, UsageResponse} from "Accounting/Compute";
+import {useProjectManagementStatus} from "Project/Members";
+import {viewProject} from "Project/index";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
-    return `${date.getDate()}/${date.getMonth()}/${date.getFullYear()} ` +
+    return `${date.getDate()}/${date.getMonth() + 1} ` +
         `${date.getHours().toString().padStart(2, "0")}:` +
         `${date.getMinutes().toString().padStart(2, "0")}:` +
         `${date.getSeconds().toString().padStart(2, "0")}`;
 }
 
+function creditFormatter(credits: number): string {
+    let s = credits.toString();
+    const a = s.substr(0, s.length - 4);
+
+    let before = a.substr(0, a.length - 2);
+    let after = a.substr(a.length - 2);
+    if (before === "") before = "0";
+    if (after === "") after = "0";
+    after = after.padStart(2, "0");
+
+    let beforeFormatted = "";
+    {
+        const chunksInTotal = Math.ceil(before.length / 3);
+        let offset = 0;
+        for (let i = 0; i < chunksInTotal; i++) {
+            if (i === 0) {
+                let firstChunkSize = before.length % 3;
+                if (firstChunkSize === 0) firstChunkSize = 3;
+                beforeFormatted += before.substr(0, firstChunkSize);
+                offset += firstChunkSize;
+            } else {
+                beforeFormatted += '.';
+                beforeFormatted += before.substr(offset, offset + 3);
+                offset += 3;
+            }
+        }
+    }
+
+    return `${beforeFormatted},${after} DKK`;
+}
+
 const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
-    const {projectId, projectDetails} = useProjectManagementStatus();
+    const {projectId, projectDetails, fetchProjectDetails, projectDetailsParams} = useProjectManagementStatus();
+
+    useEffect(() => {
+        fetchProjectDetails(viewProject({id: projectId}));
+    }, [projectId]);
 
     const reload = useCallback(() => {
 
@@ -50,8 +84,8 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const now = new Date().getTime();
     const [usageResponse, setUsageParams, usageParams] = useCloudAPI<UsageResponse>(
         usage({
-            bucketSize: 1000 * 60 * 60,
-            periodStart: now - (1000 * 60 * 60 * 24 * 7),
+            bucketSize: 1000 * 60 * 60 * 24,
+            periodStart: now - (1000 * 60 * 60 * 24 * 31),
             periodEnd: now
         }),
         {charts: []}
@@ -93,75 +127,66 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                         </Card>
                         <Box padding={15} margin={25}>
 
-                            <Heading.h5>Total usage</Heading.h5>
-                            <Box mb={40}>
-                                <Table>
-                                    <TableHeader>
-                                        <TableHeaderCell width={30}></TableHeaderCell>
-                                        <TableHeaderCell></TableHeaderCell>
-                                        <TableHeaderCell textAlign="right">Credits Used</TableHeaderCell>
-                                        <TableHeaderCell textAlign="right">Remaining</TableHeaderCell>
-                                    </TableHeader>
-                                    <TableRow>
-                                        <TableCell>
-                                            <Box width={20} height={20} backgroundColor={theme.colors.blue} opacity={0.3}></Box>
-                                        </TableCell>
-                                        <TableCell>Standard</TableCell>
-                                        <TableCell textAlign="right">123</TableCell>
-                                        <TableCell textAlign="right">123</TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell>
-                                            <Box width={20} height={20} backgroundColor={theme.colors.red} opacity={0.3}></Box>
-                                        </TableCell>
-                                        <TableCell>High Memory</TableCell>
-                                        <TableCell textAlign="right">123</TableCell>
-                                        <TableCell textAlign="right">123</TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell>
-                                            <Box width={20} height={20} backgroundColor={theme.colors.green} opacity={0.3}></Box>
-                                        </TableCell>
-                                        <TableCell>GPU</TableCell>
-                                        <TableCell textAlign="right">123</TableCell>
-                                        <TableCell textAlign="right">123</TableCell>
-                                    </TableRow>
-                                </Table>
-                            </Box>
 
                             {charts.map(chart => (
-                                <>
+                                <React.Fragment key={chart.provider}>
+                                    <Heading.h5>Total usage</Heading.h5>
+                                    <Box mb={40}>
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHeaderCell width={30}/>
+                                                    <TableHeaderCell/>
+                                                    <TableHeaderCell textAlign="right">Credits Used</TableHeaderCell>
+                                                    <TableHeaderCell textAlign="right">Remaining</TableHeaderCell>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <tbody>
+                                                {chart.lineNames.map((p, idx) => (
+                                                    <TableRow key={p}>
+                                                        <TableCell>
+                                                            <Box width={20} height={20}
+                                                                 backgroundColor={theme.chartColors[idx]}/>
+                                                        </TableCell>
+                                                        <TableCell>{p}</TableCell>
+                                                        <TableCell textAlign="right">NOT YET IMPLEMENTED</TableCell>
+                                                        <TableCell textAlign="right">NOT YET IMPLEMENTED</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </tbody>
+                                        </Table>
+                                    </Box>
+
                                     <Heading.h5>Usage for {chart.provider}</Heading.h5>
                                     <Box mt={20} mb={20}>
                                         <ResponsiveContainer width="100%" height={200}>
-                                            <AreaChart
+                                            <LineChart
                                                 syncId="someId"
                                                 data={chart.points}
                                                 margin={{
                                                     top: 10, right: 30, left: 0, bottom: 0,
                                                 }}
                                             >
-                                                <CartesianGrid strokeDasharray="3 3" />
-                                                <XAxis dataKey="time" tickFormatter={dateFormatter} />
-                                                <YAxis />
-                                                <Tooltip labelFormatter={dateFormatter} />
+                                                <CartesianGrid strokeDasharray="3 3"/>
+                                                <XAxis dataKey="time" tickFormatter={dateFormatter}/>
+                                                <YAxis width={150} tickFormatter={creditFormatter}/>
+                                                <Tooltip labelFormatter={dateFormatter} formatter={creditFormatter}/>
                                                 {chart.lineNames.map((id, idx) => (
-                                                    <Area
+                                                    <Line
                                                         key={id}
                                                         type="linear"
                                                         dataKey={id}
-                                                        stroke={theme.appColors[idx][1]}
-                                                        fill={theme.appColors[idx][2]}
-                                                        opacity="0.3"
+                                                        stroke={theme.chartColors[idx]}
+                                                        dot={false}
                                                     />
                                                 ))}
-                                            </AreaChart>
+                                            </LineChart>
                                         </ResponsiveContainer>
                                     </Box>
-                                </>
+                                </React.Fragment>
                             ))}
 
-                       </Box>
+                        </Box>
 
                         <Card padding={15} margin={15} ml={0} mr={0}>
                             <Flex>
