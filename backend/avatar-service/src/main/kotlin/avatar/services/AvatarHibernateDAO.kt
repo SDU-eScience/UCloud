@@ -191,24 +191,43 @@ class AvatarHibernateDAO : AvatarDAO {
                     FROM avatars
                     WHERE username in (select unnest(?usernames::text[]))
                 """.trimIndent()
-            ).rows
-            avatars.map { row ->
-                row.getField(AvatarTable.username) to SerializedAvatar(
-                    row.getField(AvatarTable.top),
-                    row.getField(AvatarTable.topAccessory),
-                    row.getField(AvatarTable.hairColor),
-                    row.getField(AvatarTable.facialHair),
-                    row.getField(AvatarTable.facialHairColor),
-                    row.getField(AvatarTable.clothes),
-                    row.getField(AvatarTable.colorFabric),
-                    row.getField(AvatarTable.eyes),
-                    row.getField(AvatarTable.eyebrows),
-                    row.getField(AvatarTable.mouthTypes),
-                    row.getField(AvatarTable.skinColors),
-                    row.getField(AvatarTable.clothesGraphic),
-                    row.getField(AvatarTable.hatColor)
-                )
-            }.toMap()
+            ).rows.map { it.toUserAndAvatar() }
+
+            users.associateWith { user ->
+                avatars.find { it.first == user }?.second ?: defaultAvatar().toSerializedAvatar() }
         }
     }
+
+    private fun Avatar.toSerializedAvatar() = SerializedAvatar(
+        top.string,
+        topAccessory.string,
+        hairColor.string,
+        facialHair.string,
+        facialHairColor.string,
+        clothes.string,
+        colorFabric.string,
+        eyes.string,
+        eyebrows.string,
+        mouthTypes.string,
+        skinColors.string,
+        clothesGraphic.string,
+        hatColor.string
+    )
+
+    private fun RowData.toUserAndAvatar(): Pair<String, SerializedAvatar> =
+        getField(AvatarTable.username) to SerializedAvatar(
+            getField(AvatarTable.top),
+            getField(AvatarTable.topAccessory),
+            getField(AvatarTable.hairColor),
+            getField(AvatarTable.facialHair),
+            getField(AvatarTable.facialHairColor),
+            getField(AvatarTable.clothes),
+            getField(AvatarTable.colorFabric),
+            getField(AvatarTable.eyes),
+            getField(AvatarTable.eyebrows),
+            getField(AvatarTable.mouthTypes),
+            getField(AvatarTable.skinColors),
+            getField(AvatarTable.clothesGraphic),
+            getField(AvatarTable.hatColor)
+        )
 }

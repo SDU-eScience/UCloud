@@ -37,6 +37,6 @@ interface AvatarDAO {
 
     suspend fun bulkFind(
         ctx: DBContext,
-        list: List<String>
+        users: List<String>
     ): Map<String, SerializedAvatar>
 }

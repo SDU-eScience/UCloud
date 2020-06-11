@@ -149,7 +149,7 @@ class AvatarServiceTest {
             assertEquals(Top.LONG_HAIR_BIG_HAIR.string, resultForUser2?.top)
 
             val resultForNotFoundUser = results["notFoundUser"]
-            assertNull(resultForNotFoundUser)
+            assertEquals(Top.NO_HAIR.string, resultForNotFoundUser?.top)
         }
     }
 }
