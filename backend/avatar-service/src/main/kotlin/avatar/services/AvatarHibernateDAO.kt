@@ -1,11 +1,21 @@
 package dk.sdu.cloud.avatar.services
 
+import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.avatar.api.*
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.SQLTable
+import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.insert
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.text
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.criteria
 import dk.sdu.cloud.service.db.get
+import io.ktor.http.HttpStatusCode
 import javax.persistence.Column
 import javax.persistence.Entity
 import javax.persistence.EnumType
@@ -13,53 +23,21 @@ import javax.persistence.Enumerated
 import javax.persistence.Id
 import javax.persistence.Table
 
-@Entity
-@Table(name = "avatars")
-class AvatarEntity(
-    @Column
-    @Id
-    var username: String,
-
-    @Enumerated(EnumType.STRING)
-    var top: Top,
-
-    @Enumerated(EnumType.STRING)
-    var topAccessory: TopAccessory,
-
-    @Enumerated(EnumType.STRING)
-    var hairColor: HairColor,
-
-    @Enumerated(EnumType.STRING)
-    var facialHair: FacialHair,
-
-    @Enumerated(EnumType.STRING)
-    var facialHairColor: FacialHairColor,
-
-    @Enumerated(EnumType.STRING)
-    var clothes: Clothes,
-
-    @Enumerated(EnumType.STRING)
-    var colorFabric: ColorFabric,
-
-    @Enumerated(EnumType.STRING)
-    var eyes: Eyes,
-
-    @Enumerated(EnumType.STRING)
-    var eyebrows: Eyebrows,
-
-    @Enumerated(EnumType.STRING)
-    var mouthTypes: MouthTypes,
-
-    @Enumerated(EnumType.STRING)
-    var skinColors: SkinColors,
-
-    @Enumerated(EnumType.STRING)
-    var clothesGraphic: ClothesGraphic,
-
-    @Enumerated(EnumType.STRING)
-    var hatColor: HatColor
-) {
-    companion object : HibernateEntity<AvatarEntity>, WithId<String>
+object AvatarTable : SQLTable("avatars") {
+    val username = text("username", notNull = true)
+    val top = text("top", notNull = true)
+    val topAccessory = text("top_accessory", notNull = true)
+    val hairColor = text("hair_color", notNull = true)
+    val facialHair = text("facial_hair", notNull = true)
+    val facialHairColor = text("facial_hair_color", notNull = true)
+    val clothes = text("clothes", notNull = true)
+    val colorFabric = text("color_fabric", notNull = true)
+    val eyes = text("eyes", notNull = true)
+    val eyebrows = text("eyebrows", notNull = true)
+    val mouthTypes = text("mouth_types", notNull = true)
+    val skinColors = text("skin_colors", notNull = true)
+    val clothesGraphic = text("clothes_graphic", notNull = true)
+    val hatColor = text("hat_color", notNull = true)
 }
 
 private fun defaultAvatar(): Avatar =
@@ -80,107 +58,157 @@ private fun defaultAvatar(): Avatar =
     )
 
 
-fun AvatarEntity.toModel(): Avatar = Avatar(
-    top,
-    topAccessory,
-    hairColor,
-    facialHair,
-    facialHairColor,
-    clothes,
-    colorFabric,
-    eyes,
-    eyebrows,
-    mouthTypes,
-    skinColors,
-    clothesGraphic,
-    hatColor
+private fun RowData.toAvatar(): Avatar = Avatar(
+    Top.fromString(getField(AvatarTable.top)),
+    TopAccessory.fromString(getField(AvatarTable.topAccessory)),
+    HairColor.fromString(getField(AvatarTable.hairColor)),
+    FacialHair.fromString(getField(AvatarTable.facialHair)),
+    FacialHairColor.fromString(getField(AvatarTable.facialHairColor)),
+    Clothes.fromString(getField(AvatarTable.clothes)),
+    ColorFabric.fromString(getField(AvatarTable.colorFabric)),
+    Eyes.fromString(getField(AvatarTable.eyes)),
+    Eyebrows.fromString(getField(AvatarTable.eyebrows)),
+    MouthTypes.fromString(getField(AvatarTable.mouthTypes)),
+    SkinColors.fromString(getField(AvatarTable.skinColors)),
+    ClothesGraphic.fromString(getField(AvatarTable.clothesGraphic)),
+    HatColor.fromString(getField(AvatarTable.hatColor))
 )
 
-fun Avatar.toEntity(user: String): AvatarEntity = AvatarEntity(
-    user,
-    top,
-    topAccessory,
-    hairColor,
-    facialHair,
-    facialHairColor,
-    clothes,
-    colorFabric,
-    eyes,
-    eyebrows,
-    mouthTypes,
-    skinColors,
-    clothesGraphic,
-    hatColor
-)
+class AvatarHibernateDAO : AvatarDAO {
 
-class AvatarHibernateDAO : AvatarDAO<HibernateSession> {
-
-    override fun upsert(
-        session: HibernateSession,
+    override suspend fun upsert(
+        ctx: DBContext,
         user: String,
         avatar: Avatar
     ) {
-        val foundAvatar = findInternal(session, user)
-        if (foundAvatar != null) {
-            foundAvatar.top = avatar.top
-            foundAvatar.topAccessory = avatar.topAccessory
-            foundAvatar.hairColor = avatar.hairColor
-            foundAvatar.facialHair = avatar.facialHair
-            foundAvatar.facialHairColor = avatar.facialHairColor
-            foundAvatar.clothes = avatar.clothes
-            foundAvatar.colorFabric = avatar.colorFabric
-            foundAvatar.eyes = avatar.eyes
-            foundAvatar.eyebrows = avatar.eyebrows
-            foundAvatar.mouthTypes = avatar.mouthTypes
-            foundAvatar.skinColors = avatar.skinColors
-            foundAvatar.clothesGraphic = avatar.clothesGraphic
-            foundAvatar.hatColor = avatar.hatColor
-            session.update(foundAvatar)
-        } else {
-            val entity = avatar.toEntity(user)
-            session.save(entity)
+        ctx.withSession { session ->
+            val foundAvatar = findInternal(session, user)
+            if (foundAvatar != null) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", user)
+                        setParameter("top", avatar.top.string)
+                        setParameter("topAccessory", avatar.topAccessory.string)
+                        setParameter("hairColor", avatar.hairColor.string)
+                        setParameter("facialHair", avatar.facialHair.string)
+                        setParameter("facialHairColor", avatar.facialHairColor.string)
+                        setParameter("clothes", avatar.clothes.string)
+                        setParameter("colorFabric", avatar.colorFabric.string)
+                        setParameter("eyes", avatar.eyes.string)
+                        setParameter("eyebrows", avatar.eyebrows.string)
+                        setParameter("mouthTypes", avatar.mouthTypes.string)
+                        setParameter("skinColors", avatar.skinColors.string)
+                        setParameter("clothesGraphic", avatar.clothesGraphic.string)
+                        setParameter("hatColor", avatar.hatColor.string)
+                    },
+                    """
+                        UPDATE avatars
+                        SET
+                            top = ?top,
+                            top_accessory = ?topAccessory,
+                            hair_color = ?hairColor,
+                            facial_hair = ?facialHair,
+                            facial_hair_color = ?facialHairColor,
+                            clothes = ?clothes,
+                            color_fabric = ?colorFabric,
+                            eyes = ?eyes,
+                            eyebrows = ?eyebrows,
+                            mouth_types = ?mouthTypes,
+                            skin_colors = ?skinColors,
+                            clothes_graphic = ?clothesGraphic,
+                            hat_color = ?hatColor
+                        WHERE username = ?username
+                    """.trimIndent()
+                )
+            } else {
+                session.insert(AvatarTable) {
+                    set(AvatarTable.username, user)
+                    set(AvatarTable.top, avatar.top.string)
+                    set(AvatarTable.topAccessory, avatar.topAccessory.string)
+                    set(AvatarTable.hairColor, avatar.hairColor.string)
+                    set(AvatarTable.facialHair, avatar.facialHair.string)
+                    set(AvatarTable.facialHairColor, avatar.facialHairColor.string)
+                    set(AvatarTable.clothes, avatar.clothes.string)
+                    set(AvatarTable.colorFabric, avatar.colorFabric.string)
+                    set(AvatarTable.eyes, avatar.eyes.string)
+                    set(AvatarTable.eyebrows, avatar.eyebrows.string)
+                    set(AvatarTable.mouthTypes, avatar.mouthTypes.string)
+                    set(AvatarTable.skinColors, avatar.skinColors.string)
+                    set(AvatarTable.clothesGraphic, avatar.clothesGraphic.string)
+                    set(AvatarTable.hatColor, avatar.hatColor.string)
+                }
+            }
         }
     }
 
-    private fun findInternal(
-        session: HibernateSession,
+    private suspend fun findInternal(
+        ctx: DBContext,
         user: String
-    ): AvatarEntity? {
-        return session.criteria<AvatarEntity> {
-            (entity[AvatarEntity::username] equal user)
-        }.uniqueResult()
+    ): Avatar? {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", user)
+                },
+                """
+                    SELECT *
+                    FROM avatars
+                    WHERE username = ?username
+                """.trimIndent()
+            ).rows.singleOrNull()?.toAvatar()
+        }
     }
 
-    override fun findByUser(
-        session: HibernateSession,
+    override suspend fun findByUser(
+        ctx: DBContext,
         user: String
     ): Avatar {
-        return session.criteria<AvatarEntity> {
-            (entity[AvatarEntity::username] equal user)
-        }.uniqueResult()?.toModel() ?: defaultAvatar()
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", user)
+                },
+                """
+                    SELECT *
+                    FROM avatars
+                    WHERE username = ?username
+                """.trimIndent()
+            ).rows.singleOrNull()?.toAvatar() ?: defaultAvatar()
+        }
     }
 
-    override fun bulkFind(
-        session: HibernateSession,
+    override suspend fun bulkFind(
+        ctx: DBContext,
         users: List<String>
     ): Map<String, SerializedAvatar> {
-        return users.map { username ->
-            val avatar = findByUser(session, username)
-            username to SerializedAvatar(
-                avatar.top.string,
-                avatar.topAccessory.string,
-                avatar.hairColor.string,
-                avatar.facialHair.string,
-                avatar.facialHairColor.string,
-                avatar.clothes.string,
-                avatar.colorFabric.string,
-                avatar.eyes.string,
-                avatar.eyebrows.string,
-                avatar.mouthTypes.string,
-                avatar.skinColors.string,
-                avatar.clothesGraphic.string,
-                avatar.hatColor.string
-            )
-        }.toMap()
+        return ctx.withSession { session ->
+            val avatars = session.sendPreparedStatement(
+                {
+                    setParameter("usernames", users)
+                },
+                """
+                    SELECT *
+                    FROM avatars
+                    WHERE username in (select unnest(?usernames::text[]))
+                """.trimIndent()
+            ).rows
+            avatars.map { row ->
+                row.getField(AvatarTable.username) to SerializedAvatar(
+                    row.getField(AvatarTable.top),
+                    row.getField(AvatarTable.topAccessory),
+                    row.getField(AvatarTable.hairColor),
+                    row.getField(AvatarTable.facialHair),
+                    row.getField(AvatarTable.facialHairColor),
+                    row.getField(AvatarTable.clothes),
+                    row.getField(AvatarTable.colorFabric),
+                    row.getField(AvatarTable.eyes),
+                    row.getField(AvatarTable.eyebrows),
+                    row.getField(AvatarTable.mouthTypes),
+                    row.getField(AvatarTable.skinColors),
+                    row.getField(AvatarTable.clothesGraphic),
+                    row.getField(AvatarTable.hatColor)
+                )
+            }.toMap()
+        }
     }
 }
