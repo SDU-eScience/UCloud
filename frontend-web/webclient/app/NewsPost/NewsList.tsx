@@ -11,8 +11,8 @@ import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
 import {format} from "date-fns/esm";
 import {Tag, hashF, appColor} from "Applications/Card";
-import {Spacer} from "ui-components/Spacer";
 import {capitalized} from "UtilityFunctions";
+import {Client} from "Authentication/HttpClientInstance";
 
 interface NewsPostRequestProps extends PaginationRequest {
     withHidden: boolean;
@@ -40,7 +40,7 @@ export const NewsList: React.FC = () => {
             newsPostRequest({
                 itemsPerPage: newsPosts.data.itemsPerPage,
                 page: newsPosts.data.pageNumber,
-                withHidden: false,
+                withHidden: Client.userIsAdmin,
                 filter
             })
         );
@@ -66,25 +66,37 @@ export const NewsList: React.FC = () => {
                         page,
                         filter,
                         itemsPerPage: newsPosts.data.itemsPerPage,
-                        withHidden: false
+                        withHidden: (Client.userIsAdmin)
                     }))}
                     pageRenderer={pageRenderer}
-                    customEmptyPage={"No posts found."}
+                    customEmptyPage="No posts found."
                 />
             )}
         />
     );
 
     function pageRenderer(page: Page<NewsPost>): JSX.Element[] {
+        const now = new Date().getTime();
         return page.items.map(item => (
             <Link to={`/news/detailed/${item.id}`} key={item.id}>
-                <Heading.h3>{item.title}</Heading.h3>
+                <Flex><Heading.h3>{item.title}<IsHidden hidden={item.hidden} /></Heading.h3></Flex>
                 <Heading.h5>{item.subtitle}</Heading.h5>
                 <Flex>
                     <Text fontSize={1}>Posted {format(item.showFrom, "HH:mm dd/MM/yy")}</Text>
                     <Box mt="-3px" ml="4px"><Tag bg={theme.appColors[appColor(hashF(item.category))][0]} label={item.category} /></Box>
                 </Flex>
+                <IsExpired now={now} expiration={item.hideFrom} />
             </Link>
         ));
     }
 };
+
+const IsExpired = (props: {now: number, expiration: number | null}): JSX.Element | null => {
+    if (props.expiration != null && props.now > props.expiration) return <Text fontSize={1} color="red">Expired at {format(props.expiration, "HH:mm dd/MM/yy")}</Text>;
+    return null;
+};
+
+const IsHidden = (props: {hidden: boolean}): JSX.Element | null => {
+    if (props.hidden) return <Box>(Hidden)</Box>;
+    return null;
+}

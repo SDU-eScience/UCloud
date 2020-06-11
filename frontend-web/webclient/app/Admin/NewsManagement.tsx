@@ -16,9 +16,12 @@ import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
 import {Spacer} from "ui-components/Spacer";
-import {displayErrorMessageOrDefault, stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {displayErrorMessageOrDefault, stopPropagationAndPreventDefault, capitalized} from "UtilityFunctions";
 import {NewsPost} from "Dashboard/Dashboard";
 import {buildQueryString} from "Utilities/URIUtilities";
+import {useCloudAPI} from "Authentication/DataHook";
+import Fuse from "fuse.js";
+import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 
 const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
@@ -36,6 +39,31 @@ function NewsManagement(props: {setActivePage: () => void}): JSX.Element | null 
         props.setActivePage();
         fetchNewsPost(0, 25);
     }, []);
+
+    const [categories, setCategoryArgs, categoryArgs] = useCloudAPI<string[]>({
+        path: "/news/listCategories"
+    }, []);
+
+    const [fuse, setFuse] = React.useState(new Fuse([], {
+        shouldSort: true,
+        threshold: 0.2,
+        location: 0,
+        distance: 100,
+        minMatchCharLength: 1,
+    }));
+
+    React.useEffect(() => {
+        setFuse(new Fuse(categories.data, {
+            shouldSort: true,
+            minMatchCharLength: 1
+        }));
+    }, [categories.data, categories.data.length]);
+
+    const [results, setResults] = React.useState<string[]>([]);
+    const onKeyUp = React.useCallback((e) => {
+        const category = e.target?.value ?? "";
+        setResults(fuse.search(category).map(it => capitalized(it.item)));
+    }, [categoryRef.current, categories.data, categories.data.length, fuse]);
 
     if (!Client.userIsAdmin) return null;
 
@@ -62,19 +90,16 @@ function NewsManagement(props: {setActivePage: () => void}): JSX.Element | null 
                                     <DatePicker
                                         placeholderText="Show until (Optional)"
                                         fontSize="18px"
-                                        required
                                         value={end ? format(end, DATE_FORMAT) : undefined}
                                         onChange={setEnd}
-                                        minDate={start == null ? new Date() : start}
                                         startDate={start}
                                         showTimeSelect
                                         selectsEnd
                                     />
                                 </InputGroup>
-                                <Button ml="5px" mr="-5px">Add</Button>
                             </Flex>
-                            <Input width={1} my="3px" placeholder="Post title..." ref={titleRef} />
-                            <Input width={1} my="3px" placeholder="Short summation..." ref={subtitleRef} />
+                            <Input width={1} my="3px" required placeholder="Post title..." ref={titleRef} />
+                            <Input width={1} my="3px" required placeholder="Short summation..." ref={subtitleRef} />
                             <TextAreaWithMargin
                                 width={1}
                                 placeholder="Post body... (supports markdown)"
@@ -82,7 +107,29 @@ function NewsManagement(props: {setActivePage: () => void}): JSX.Element | null 
                                 rows={5}
                                 required
                             />
-                            <Input width={1} my="3px" ref={categoryRef} />
+                            <Dropdown fullWidth>
+                                <Input width={1} autoComplete="off" onKeyUp={onKeyUp} my="3px" placeholder="Category" required ref={categoryRef} />
+                                <DropdownContent
+                                    hover={false}
+                                    colorOnHover={false}
+                                    visible={results.length > 0}
+                                    width="418px"
+                                    top="40px"
+                                >
+                                    {results.map(it => (
+                                        <div
+                                            key={it}
+                                            onClick={() => {
+                                                categoryRef.current!.value = it;
+                                                setResults([]);
+                                            }}
+                                        >
+                                            {it}
+                                        </div>
+                                    ))}
+                                </DropdownContent>
+                            </Dropdown>
+                            <Button width={1}>Post</Button>
                         </form>
                         <Spacer
                             left={<div />}
