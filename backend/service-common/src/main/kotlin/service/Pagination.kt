@@ -1,5 +1,6 @@
 package dk.sdu.cloud.service
 
+import dk.sdu.cloud.Roles
 import kotlin.math.ceil
 import kotlin.math.min
 
@@ -11,6 +12,13 @@ data class Page<out T>(
     val items: List<T>
 ) {
     val pagesInTotal: Int = ceil(itemsInTotal.toDouble() / itemsPerPage).toInt()
+
+    companion object {
+        fun <T> forRequest(request: NormalizedPaginationRequest?, itemsInTotal: Int?, items: List<T>): Page<T> {
+            val actualItemsInTotal = itemsInTotal ?: items.size
+            return Page(actualItemsInTotal, request?.itemsPerPage ?: actualItemsInTotal, request?.page ?: 0, items)
+        }
+    }
 }
 
 interface WithPaginationRequest {
@@ -20,10 +28,26 @@ interface WithPaginationRequest {
     fun normalize() = NormalizedPaginationRequest(itemsPerPage, page)
 }
 
+fun WithPaginationRequest.normalizeWithFullReadEnabled(
+    actor: Actor,
+    privilegedOnly: Boolean = true
+): NormalizedPaginationRequest? {
+    if (!privilegedOnly || actor == Actor.System ||
+        (actor is Actor.User && actor.principal.role in Roles.PRIVILEDGED)
+    ) {
+        if (itemsPerPage == PaginationRequest.FULL_READ) return null
+    }
+    return normalize()
+}
+
 data class PaginationRequest(
     override val itemsPerPage: Int? = null,
     override val page: Int? = null
-) : WithPaginationRequest
+) : WithPaginationRequest {
+    companion object {
+        const val FULL_READ = -1
+    }
+}
 
 class NormalizedPaginationRequest(
     itemsPerPage: Int?,

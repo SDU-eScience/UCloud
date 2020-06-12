@@ -1,11 +1,13 @@
 package dk.sdu.cloud.accounting.services
 
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletBalance
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
@@ -66,10 +68,13 @@ class BalanceService(
         if (walletOwnerType == WalletOwnerType.USER && initiatedBy.username == accountId) return
         if (walletOwnerType == WalletOwnerType.PROJECT) {
             val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
-            val project = memberStatus?.membership?.find { it.projectId == accountId }
-            if (project != null && project.whoami.role.isAdmin()) {
+
+            val membershipOfThis = memberStatus?.membership?.find { it.projectId == accountId }
+            if (membershipOfThis != null && membershipOfThis.whoami.role.isAdmin()) {
                 return
             }
+
+            if (isAdminOfParentProject(accountId, memberStatus)) return
         }
         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
@@ -85,47 +90,81 @@ class BalanceService(
 
         if (walletOwnerType == WalletOwnerType.PROJECT) {
             val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
-            val project = memberStatus?.membership?.find { it.parentId == accountId }
-            if (project != null && project.whoami.role.isAdmin()) {
-                return
-            }
+            if (isAdminOfParentProject(accountId, memberStatus)) return
         }
         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+    }
+
+    private suspend fun isAdminOfParentProject(
+        accountId: String,
+        memberStatus: UserStatusResponse?
+    ): Boolean {
+        val ancestors = projectCache.ancestors.get(accountId)
+            ?: throw RPCException("Could not retrieve ancestors", HttpStatusCode.BadGateway)
+
+        val thisProject = ancestors.last()
+        check(thisProject.id == accountId)
+
+        if (thisProject.parent != null) {
+            val parentProject = ancestors[ancestors.lastIndex - 1]
+            check(thisProject.parent == parentProject.id)
+
+            val membershipOfParent = memberStatus?.membership?.find { it.projectId == accountId }
+            if (membershipOfParent != null && membershipOfParent.whoami.role.isAdmin()) {
+                return true
+            }
+        }
+        return false
     }
 
     suspend fun getWalletsForAccount(
         ctx: DBContext,
         initiatedBy: Actor,
         accountId: String,
-        accountOwnerType: WalletOwnerType
+        accountOwnerType: WalletOwnerType,
+        includeChildren: Boolean
     ): List<WalletBalance> {
         return ctx.withSession { session ->
-            requirePermissionToWriteBalance(session, initiatedBy, accountId, accountOwnerType)
+            requirePermissionToReadBalance(session, initiatedBy, accountId, accountOwnerType)
             verificationService.verify(accountId, accountOwnerType)
+
+            val accountIds = if (accountOwnerType == WalletOwnerType.PROJECT && includeChildren) {
+                listOf(accountId) + (projectCache.subprojects.get(accountId)?.map { it.id }
+                    ?: throw RPCException("Could not find children", HttpStatusCode.BadGateway))
+            } else {
+                listOf(accountId)
+            }
 
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("accountId", accountId)
+                        setParameter("accountIds", accountIds)
                         setParameter("accountType", accountOwnerType.name)
                     },
 
                     """
-                        select *
-                        from wallets 
+                        select w.*, pc.area
+                        from wallets w, product_categories pc
                         where 
-                            account_id = ?accountId and 
-                            account_type = ?accountType
+                            w.account_id in (select unnest(?accountIds::text[])) and 
+                            w.account_type = ?accountType and
+                            pc.category = w.product_category and
+                            pc.provider = w.product_provider
                     """
                 )
                 .rows
                 .map {
                     WalletBalance(
-                        ProductCategoryId(
-                            it.getField(WalletTable.productProvider),
-                            it.getField(WalletTable.productCategory)
+                        Wallet(
+                            it.getField(WalletTable.accountId),
+                            accountOwnerType,
+                            ProductCategoryId(
+                                it.getField(WalletTable.productProvider),
+                                it.getField(WalletTable.productCategory)
+                            )
                         ),
-                        it.getField(WalletTable.balance)
+                        it.getField(WalletTable.balance),
+                        ProductArea.valueOf(it.getString("area")!!)
                     )
                 }
         }

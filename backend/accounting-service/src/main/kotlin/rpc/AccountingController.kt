@@ -2,8 +2,8 @@ package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.BalanceService
-import dk.sdu.cloud.accounting.services.VisualizationService
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Controller
@@ -47,9 +47,19 @@ class AccountingController(
         }
 
         implement(Wallets.retrieveBalance) {
+            val project = ctx.project
+            val accountId = request.id ?: (project ?: ctx.securityPrincipal.username)
+            val accountType = request.type ?: if (project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
+
             ok(
                 RetrieveBalanceResponse(
-                    balance.getWalletsForAccount(db, ctx.securityPrincipal.toActor(), request.id, request.type)
+                    balance.getWalletsForAccount(
+                        db,
+                        ctx.securityPrincipal.toActor(),
+                        accountId,
+                        accountType,
+                        request.includeChildren ?: false
+                    )
                 )
             )
         }
@@ -65,56 +75,6 @@ class AccountingController(
 
             ok(Unit)
         }
-
-        /*
-        implement(AccountingCompute.dailyUsage) {
-            ok(
-                DailyComputeChart(
-                    visualization.dailyUsage(
-                        db,
-                        ctx.securityPrincipal.toActor(),
-                        request.project ?: ctx.securityPrincipal.username,
-                        if (request.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
-                        request.group,
-                        request.pStart,
-                        request.pEnd
-                    )
-                )
-            )
-        }
-
-        implement(AccountingCompute.cumulativeUsage) {
-            ok(
-                CumulativeUsageChart(
-                    visualization.cumulativeUsage(
-                        db,
-                        ctx.securityPrincipal.toActor(),
-                        request.project ?: ctx.securityPrincipal.username,
-                        if (request.project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER,
-                        request.group,
-                        request.pStart,
-                        request.pEnd
-                    )
-                )
-            )
-        }
-
-        implement(AccountingCompute.breakdown) {
-            ok(
-                BreakdownResponse(
-                    visualization.usageBreakdown(
-                        db,
-                        ctx.securityPrincipal.toActor(),
-                        request.project,
-                        WalletOwnerType.PROJECT,
-                        request.group,
-                        request.pStart,
-                        request.pEnd
-                    )
-                )
-            )
-        }
-         */
 
         return@with
     }

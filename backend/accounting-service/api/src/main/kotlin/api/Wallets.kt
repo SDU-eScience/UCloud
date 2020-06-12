@@ -4,11 +4,13 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
 
 enum class WalletOwnerType {
     USER,
@@ -16,13 +18,23 @@ enum class WalletOwnerType {
 }
 
 data class RetrieveBalanceRequest(
-    val id: String,
-    val type: WalletOwnerType
-)
+    val id: String?,
+    val type: WalletOwnerType?,
+    val includeChildren: Boolean?
+) {
+    init {
+        if (id != null || type != null) {
+            if (id == null || type == null) {
+                throw RPCException("Must specify no parameters or all parameters!", HttpStatusCode.BadRequest)
+            }
+        }
+    }
+}
 
 data class WalletBalance(
-    val category: ProductCategoryId,
-    val balance: Long
+    val wallet: Wallet,
+    val balance: Long,
+    val area: ProductArea
 )
 
 data class RetrieveBalanceResponse(
@@ -84,6 +96,7 @@ object Wallets : CallDescriptionContainer("wallets") {
             params {
                 +boundTo(RetrieveBalanceRequest::id)
                 +boundTo(RetrieveBalanceRequest::type)
+                +boundTo(RetrieveBalanceRequest::includeChildren)
             }
         }
     }

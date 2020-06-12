@@ -1,6 +1,7 @@
 import {APICallParameters} from "Authentication/DataHook";
 import {Dictionary, PaginationRequest} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
+import {Client} from "Authentication/HttpClientInstance";
 
 export type AccountType = "USER" | "PROJECT";
 
@@ -9,9 +10,15 @@ export interface ProductCategoryId {
     provider: string
 }
 
+export enum ProductArea {
+    COMPUTE = "COMPUTE",
+    STORAGE = "STORAGE"
+}
+
 export interface WalletBalance {
-    category: ProductCategoryId;
+    wallet: Wallet;
     balance: number;
+    area: ProductArea;
 }
 
 export interface Wallet {
@@ -21,8 +28,9 @@ export interface Wallet {
 }
 
 export interface RetrieveBalanceRequest {
-    id: string;
-    type: AccountType;
+    id?: string;
+    type?: AccountType;
+    includeChildren?: boolean;
 }
 
 export interface RetrieveBalanceResponse {
@@ -32,7 +40,7 @@ export interface RetrieveBalanceResponse {
 export function retrieveBalance(request: RetrieveBalanceRequest): APICallParameters<RetrieveBalanceRequest> {
     return {
         method: "GET",
-        path: buildQueryString("/accounting/compute/balance", request),
+        path: buildQueryString("/accounting/wallets/balance", request),
         parameters: request,
         reloadId: Math.random()
     };
@@ -178,15 +186,25 @@ export interface NativeChart {
     provider: string;
     lineNames: string[];
     points: NativeChartPoint[];
+    lineNameToWallet: Dictionary<Wallet>;
 }
 
 export function transformUsageChartForCharting(chart: UsageChart): NativeChart {
     const builder: Dictionary<NativeChartPoint> = {};
     const lineNames: string[] = [];
+    const lineNameToWallet: Dictionary<Wallet> = {};
 
     for (const line of chart.lines) {
         const lineId = line.projectPath ? `${line.projectPath} (${line.category})` : line.category;
         lineNames.push(lineId);
+        lineNameToWallet[lineId] = {
+            id: line.projectId ?? Client.username ?? "",
+            type: line.projectId ? "PROJECT" : "USER",
+            paysFor: {
+                id: line.category,
+                provider: chart.provider
+            }
+        };
 
         for (const point of line.points) {
             const dataPoint = builder[`${point.timestamp}`] ?? {time: point.timestamp};
@@ -195,5 +213,5 @@ export function transformUsageChartForCharting(chart: UsageChart): NativeChart {
         }
     }
 
-    return { provider: chart.provider, lineNames, points: Object.values(builder) };
+    return { provider: chart.provider, lineNames, points: Object.values(builder), lineNameToWallet };
 }

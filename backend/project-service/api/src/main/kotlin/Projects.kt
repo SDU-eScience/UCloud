@@ -120,8 +120,8 @@ data class ExistsRequest(val projectId: String)
 data class ExistsResponse(val exists: Boolean)
 
 data class ListSubProjectsRequest(
-    override val itemsPerPage: Int?,
-    override val page: Int?
+    override val itemsPerPage: Int? = null,
+    override val page: Int? = null
 ) : WithPaginationRequest
 
 typealias ListSubProjectsResponse = Page<Project>
