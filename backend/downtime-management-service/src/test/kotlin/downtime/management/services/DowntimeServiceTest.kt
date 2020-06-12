@@ -106,8 +106,9 @@ class DowntimeServiceTest {
         (0..99).forEach { i ->
             service.add(TestUsers.admin, DowntimeWithoutId(Date().time - i, Date().time - i, "$i"))
         }
-        service.add(TestUsers.admin, DowntimeWithoutId(Date().time + 500, Date().time + 5000, "Hello"))
+        service.add(TestUsers.admin, DowntimeWithoutId(Date().time + 5000, Date().time + 50000, "Hello"))
         assert(service.listAll(TestUsers.admin, defaultPaginationRequest).itemsInTotal == 101)
+        Thread.sleep(1000)
         val result = service.listPending(defaultPaginationRequest)
         assertEquals(1, result.itemsInTotal)
     }
@@ -119,12 +120,12 @@ class DowntimeServiceTest {
         (0..99).forEach { i ->
             service.add(TestUsers.admin, DowntimeWithoutId(Date().time - i, Date().time - i, "$i"))
         }
-        service.add(TestUsers.admin, DowntimeWithoutId(Date().time + 500, Date().time + 5000, "Hello"))
-       // println(embDB.getJdbcUrl("postgres", "postgres"))
-        //Thread.sleep(100000000)
+        service.add(TestUsers.admin, DowntimeWithoutId(Date().time + 5000, Date().time + 50000, "Hello"))
         assert(service.listAll(TestUsers.admin, defaultPaginationRequest).itemsInTotal == 101)
+        Thread.sleep(3000)
         service.removeExpired(TestUsers.admin)
-        assert(service.listAll(TestUsers.admin, defaultPaginationRequest).itemsInTotal == 1)
+        val all = service.listAll(TestUsers.admin, defaultPaginationRequest)
+        assertEquals(1, all.itemsInTotal)
     }
 
     @Test

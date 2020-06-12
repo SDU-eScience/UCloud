@@ -19,6 +19,7 @@ import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
+import io.ktor.util.toZonedDateTime
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
@@ -30,7 +31,6 @@ class DowntimeHibernateDao : DowntimeDAO {
         }
         db.withSession { session ->
             val id = session.allocateId()
-            println(LocalDateTime(downtime.start))
             session.insert(DowntimeTable) {
                 set(DowntimeTable.start, LocalDateTime(downtime.start, DateTimeZone.UTC))
                 set(DowntimeTable.end, LocalDateTime(downtime.end, DateTimeZone.UTC))
@@ -64,7 +64,7 @@ class DowntimeHibernateDao : DowntimeDAO {
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("time", now )
+                        setParameter("time", now / 1000)
                     },
                     """
                         DELETE FROM downtimes
@@ -103,7 +103,7 @@ class DowntimeHibernateDao : DowntimeDAO {
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("time", now)
+                        setParameter("time", now / 1000)
                     },
                     """
                         SELECT *
