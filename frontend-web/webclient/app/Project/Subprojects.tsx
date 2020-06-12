@@ -61,7 +61,7 @@ function AssignCreditsModal(
         fetchProjectBalance(retrieveBalance({id: project.projectId, type: "PROJECT"}));
         console.log(currentProjectBalance);
         const walletTypes = currentProjectBalance.data.wallets.map(wallet =>
-            ({text: wallet.category.id, value: wallet.category.id})
+            ({text: wallet.wallet.id, value: wallet.wallet.id})
         );
 
 
@@ -266,7 +266,7 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
                                 searchQuery={subprojectSearchQuery}
                                 loading={subprojects.loading}
                                 fetchParams={setSubprojectParams}
-                                onAssignCredits={async (subproject) => 
+                                onAssignCredits={async (subproject) =>
                                     openAssignCreditsModal(subproject)
                                 }
                                 onRemoveSubproject={async (subprojectId, subprojectTitle) => addStandardDialog({
