@@ -54,7 +54,7 @@ class VisualizationService(
                     {
                         setParameter("periodStart", query.periodStart / 1000L)
                         setParameter("periodEnd", query.periodEnd / 1000L)
-                        setParameter("bucketSize", "${query.bucketSize} ms")
+                        setParameter("bucketSize", "${query.bucketSize / 1000} s")
                         setParameter("accountId", accountId)
                         setParameter("accountType", accountType.name)
                     },

@@ -2,8 +2,8 @@ import {APICallState, useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
-import {useEffect} from "react";
-import {Box, Card, Flex, Text, theme} from "ui-components";
+import {useEffect, useState} from "react";
+import {Box, Card, Flex, Icon, Text, theme} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -25,6 +25,7 @@ import styled from "styled-components";
 import {Dictionary} from "Types";
 import {ThemeColor} from "ui-components/theme";
 import {Toggle} from "ui-components/Toggle";
+import ClickableDropdown from "ui-components/ClickableDropdown";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -65,8 +66,56 @@ function creditFormatter(credits: number): string {
     return `${beforeFormatted},${after} DKK`;
 }
 
+interface Duration {
+    text: string;
+    bucketSize: number;
+    bucketSizeText: string;
+    timeInPast: number;
+}
+
+const durationOptions: Duration[] = [
+    {
+        text: "Today",
+        bucketSize: 1000 * 60 * 60,
+        bucketSizeText: "every hour",
+        timeInPast: 1000 * 60 * 60 * 24
+    },
+    {
+        text: "Past week",
+        bucketSize: 1000 * 60 * 60 * 12,
+        bucketSizeText: "every 12 hours",
+        timeInPast: 1000 * 60 * 60 * 24 * 7
+    },
+    {
+        text: "Past 14 days",
+        bucketSize: 1000 * 60 * 60 * 24,
+        bucketSizeText: "every day",
+        timeInPast: 1000 * 60 * 60 * 24 * 7
+    },
+    {
+        text: "Past 30 days",
+        bucketSize: 1000 * 60 * 60 * 24 * 2,
+        bucketSizeText: "every other day",
+        timeInPast: 1000 * 60 * 60 * 24 * 30
+    },
+    {
+        text: "Past 180 days",
+        bucketSize: 1000 * 60 * 60 * 24 * 14,
+        bucketSizeText: "every other week",
+        timeInPast: 1000 * 60 * 60 * 24 * 180
+    },
+    {
+        text: "Past 365 days",
+        bucketSize: 1000 * 60 * 60 * 24 * 30,
+        bucketSizeText: "every 30 days",
+        timeInPast: 1000 * 60 * 60 * 24 * 365
+    },
+]
+
 const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const {projectId, ...projectManagement} = useProjectManagementStatus();
+
+    const [durationOption, setDurationOption] = useState<Duration>(durationOptions[3])
 
     const now = new Date().getTime();
     const [balance, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
@@ -76,12 +125,20 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
 
     const [usageResponse, setUsageParams, usageParams] = useCloudAPI<UsageResponse>(
         usage({
-            bucketSize: 1000 * 60 * 60 * 24,
-            periodStart: now - (1000 * 60 * 60 * 24 * 31),
+            bucketSize: durationOption.bucketSize,
+            periodStart: now - durationOption.timeInPast,
             periodEnd: now
         }),
         {charts: []}
     );
+
+    useEffect(() => {
+        setUsageParams(usage({
+            bucketSize: durationOption.bucketSize,
+            periodStart: now - durationOption.timeInPast,
+            periodEnd: now
+        }));
+    }, [durationOption]);
 
     useEffect(() => {
         props.setRefresh(() => {
@@ -94,7 +151,18 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
 
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs crumbs={[{title: "Usage"}]}/>}
+            header={
+                <Flex>
+                    <ProjectBreadcrumbs crumbs={[{title: "Usage"}]}/>
+                    <ClickableDropdown
+                        trigger={<Heading.h4>{durationOption.text} <Icon name={"chevronDown"} size={16} /></Heading.h4>}
+                        onChange={opt => setDurationOption(durationOptions[parseInt(opt)])}
+                        options={durationOptions.map((it, idx) => {
+                            return {text: it.text, value: `${idx}`};
+                        })}
+                    />
+                </Flex>
+            }
             sidebar={null}
             main={(
                 <>
@@ -102,11 +170,13 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                         area={ProductArea.COMPUTE}
                         projectId={projectId}
                         usageResponse={usageResponse}
+                        durationOption={durationOption}
                         balance={balance}/>
                     <VisualizationForArea
                         area={ProductArea.STORAGE}
                         projectId={projectId}
                         usageResponse={usageResponse}
+                        durationOption={durationOption}
                         balance={balance}/>
                 </>
             )}
@@ -118,8 +188,9 @@ const VisualizationForArea: React.FunctionComponent<{
     area: ProductArea,
     projectId: string,
     usageResponse: APICallState<UsageResponse>,
-    balance: APICallState<RetrieveBalanceResponse>
-}> = ({area, projectId, usageResponse, balance}) => {
+    balance: APICallState<RetrieveBalanceResponse>,
+    durationOption: Duration
+}> = ({area, projectId, usageResponse, balance, durationOption}) => {
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
 
     const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
@@ -166,7 +237,7 @@ const VisualizationForArea: React.FunctionComponent<{
                     <React.Fragment key={chart.provider}>
                         {chart.lineNames.length === 0 ? null : (
                             <>
-                                <Heading.h5>Daily usage for past month (Provider: {chart.provider})</Heading.h5>
+                                <Heading.h5>Usage {durationOption.bucketSizeText} for {durationOption.text.toLowerCase()} (Provider: {chart.provider})</Heading.h5>
                                 <Box mt={20} mb={20}>
                                     <ResponsiveContainer width="100%" height={200}>
                                         <BarChart
