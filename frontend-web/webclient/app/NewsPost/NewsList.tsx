@@ -79,7 +79,7 @@ export const NewsList: React.FC = () => {
         const now = new Date().getTime();
         return page.items.map(item => (
             <Link to={`/news/detailed/${item.id}`} key={item.id}>
-                <Flex><Heading.h3>{item.title}<IsHidden hidden={item.hidden} /></Heading.h3></Flex>
+                <Flex><Heading.h3>{item.title}</Heading.h3><IsHidden hidden={item.hidden} /></Flex>
                 <Heading.h5>{item.subtitle}</Heading.h5>
                 <Flex>
                     <Text fontSize={1}>Posted {format(item.showFrom, "HH:mm dd/MM/yy")}</Text>
@@ -97,6 +97,6 @@ const IsExpired = (props: {now: number, expiration: number | null}): JSX.Element
 };
 
 const IsHidden = (props: {hidden: boolean}): JSX.Element | null => {
-    if (props.hidden) return <Box>(Hidden)</Box>;
+    if (props.hidden) return <Text ml="8px" mt="8px" color="gray">Hidden</Text>;
     return null;
 }

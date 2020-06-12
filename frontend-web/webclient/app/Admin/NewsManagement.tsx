@@ -74,7 +74,7 @@ function NewsManagement(props: {onInit: () => void}): JSX.Element | null {
         <MainContainer
             header={<Heading.h2>News</Heading.h2>}
             main={(
-                <Flex>
+                <Flex justifyContent="center">
                     <Box maxWidth="800px" width={1}>
                         <form onSubmit={submit}>
                             <Flex justifyContent="center" mx="6px">
@@ -82,8 +82,9 @@ function NewsManagement(props: {onInit: () => void}): JSX.Element | null {
                                     <DatePicker
                                         placeholderText="Show from"
                                         fontSize="18px"
-                                        value={start ? format(start, DATE_FORMAT) : undefined}
+                                        selected={start}
                                         onChange={setStart}
+                                        dateFormat={DATE_FORMAT}
                                         minDate={new Date()}
                                         selectsStart
                                         required
@@ -93,11 +94,13 @@ function NewsManagement(props: {onInit: () => void}): JSX.Element | null {
                                     <DatePicker
                                         placeholderText="Show until (Optional)"
                                         fontSize="18px"
-                                        value={end ? format(end, DATE_FORMAT) : undefined}
+                                        selected={end} 
                                         onChange={setEnd}
+                                        dateFormat={DATE_FORMAT}
                                         startDate={start}
                                         showTimeSelect
                                         selectsEnd
+                                        isClearable
                                     />
                                 </InputGroup>
                             </Flex>
