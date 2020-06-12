@@ -21,12 +21,12 @@ object PasswordResetRequestTable : SQLTable("password_reset_requests") {
     val expiresAt = timestamp("expires_at", notNull = true)
 }
 
-class ResetRequestsHibernateDao : ResetRequestsDao {
+class ResetRequestsAsyncDao : ResetRequestsDao {
     override suspend fun create(db: DBContext, token: String, userId: String) {
-        val timeSource = System.currentTimeMillis()
+        val timeSource = LocalDateTime.now(DateTimeZone.UTC)
 
         // Set to expire in 30 minutes
-        val expiry = timeSource + 30 * 60 * 1000
+        val expiry = timeSource.plusMinutes(30)
 
         db.withSession { session ->
             session.insert(PasswordResetRequestTable) {
@@ -54,10 +54,13 @@ class ResetRequestsHibernateDao : ResetRequestsDao {
     }
 
     fun RowData.toResetRequest(): ResetRequest {
+        println("JGKLASJF " + getField(PasswordResetRequestTable.expiresAt))
+        println("FIELD" + LocalDateTime(getField(PasswordResetRequestTable.expiresAt), DateTimeZone.UTC).toDate()
+        )
         return ResetRequest(
             getField(PasswordResetRequestTable.token),
             getField(PasswordResetRequestTable.userId),
-            getField(PasswordResetRequestTable.expiresAt).toDate()
+            LocalDateTime(getField(PasswordResetRequestTable.expiresAt), DateTimeZone.UTC).toDate()
         )
     }
 }
