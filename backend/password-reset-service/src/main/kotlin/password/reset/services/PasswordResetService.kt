@@ -12,6 +12,7 @@ import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.mail.api.SendRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.delay
@@ -26,10 +27,10 @@ data class ResetRequest(
     val expiresAt: Date
 )
 
-class PasswordResetService<Session>(
-    private val db: DBSessionFactory<Session>,
+class PasswordResetService(
+    private val db: DBContext,
     private val authenticatedClient: AuthenticatedClient,
-    private val resetRequestsDao: ResetRequestsDao<Session>,
+    private val resetRequestsDao: ResetRequestsDao,
     private val secureRandom: SecureRandom
 ) {
     suspend fun createResetRequest(email: String) {
@@ -51,9 +52,8 @@ class PasswordResetService<Session>(
         val token = Base64.getUrlEncoder().encodeToString(ByteArray(64).also { secureRandom.nextBytes(it) })
 
         // Save in request
-        db.withTransaction { session ->
-            resetRequestsDao.create(session, token, lookup.userId)
-        }
+        resetRequestsDao.create(db, token, lookup.userId)
+
 
         MailDescriptions.send.call(
             SendRequest(
@@ -73,9 +73,8 @@ class PasswordResetService<Session>(
     }
 
     suspend fun newPassword(token: String, newPassword: String) {
-        val resetRequest = db.withTransaction { session ->
-            resetRequestsDao.get(session, token)
-        } ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Unable to reset password")
+        val resetRequest = resetRequestsDao.get(db, token)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Unable to reset password")
 
         if (resetRequest.expiresAt.time < System.currentTimeMillis()) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Unable to reset password (token expired)")

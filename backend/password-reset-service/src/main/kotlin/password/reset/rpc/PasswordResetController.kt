@@ -8,7 +8,7 @@ import dk.sdu.cloud.password.reset.services.PasswordResetService
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 
-class PasswordResetController<Session>(passwordResetService: PasswordResetService<Session>) : Controller {
+class PasswordResetController(passwordResetService: PasswordResetService) : Controller {
     private val resetService = passwordResetService
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
