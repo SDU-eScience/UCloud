@@ -159,8 +159,8 @@ class BalanceService(
                             it.getField(WalletTable.accountId),
                             accountOwnerType,
                             ProductCategoryId(
-                                it.getField(WalletTable.productProvider),
-                                it.getField(WalletTable.productCategory)
+                                it.getField(WalletTable.productCategory),
+                                it.getField(WalletTable.productProvider)
                             )
                         ),
                         it.getField(WalletTable.balance),

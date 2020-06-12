@@ -1,9 +1,9 @@
-import {useCloudAPI} from "Authentication/DataHook";
+import {APICallState, useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
 import {useEffect} from "react";
-import {Box, Card, Text, theme} from "ui-components";
+import {Box, Card, Flex, Text, theme} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -12,7 +12,7 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {
-    ProductArea,
+    ProductArea, productAreaTitle,
     retrieveBalance,
     RetrieveBalanceResponse,
     transformUsageChartForCharting,
@@ -24,6 +24,7 @@ import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import styled from "styled-components";
 import {Dictionary} from "Types";
 import {ThemeColor} from "ui-components/theme";
+import {Toggle} from "ui-components/Toggle";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -91,25 +92,53 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
         return () => props.setRefresh();
     }, [projectManagement.reload]);
 
-    const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it));
+    return (
+        <MainContainer
+            header={<ProjectBreadcrumbs crumbs={[{title: "Usage"}]}/>}
+            sidebar={null}
+            main={(
+                <>
+                    <VisualizationForArea
+                        area={ProductArea.COMPUTE}
+                        projectId={projectId}
+                        usageResponse={usageResponse}
+                        balance={balance}/>
+                    <VisualizationForArea
+                        area={ProductArea.STORAGE}
+                        projectId={projectId}
+                        usageResponse={usageResponse}
+                        balance={balance}/>
+                </>
+            )}
+        />
+    );
+};
 
-    const totalComputeBalance = balance.data.wallets.reduce((sum, wallet) => {
-        if (wallet.area === ProductArea.COMPUTE && wallet.wallet.id === projectId) return sum + wallet.balance;
+const VisualizationForArea: React.FunctionComponent<{
+    area: ProductArea,
+    projectId: string,
+    usageResponse: APICallState<UsageResponse>,
+    balance: APICallState<RetrieveBalanceResponse>
+}> = ({area, projectId, usageResponse, balance}) => {
+    const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
+
+    const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
+        if (wallet.area === area && wallet.wallet.id === projectId) return sum + wallet.balance;
         else return sum;
     }, 0);
 
-    const computeBalanceAllocatedToChildren = balance.data.wallets.reduce((sum, wallet) => {
-        if (wallet.area === ProductArea.COMPUTE && wallet.wallet.id !== projectId) return sum + wallet.balance;
+    const balanceAllocatedToChildren = balance.data.wallets.reduce((sum, wallet) => {
+        if (wallet.area === area && wallet.wallet.id !== projectId) return sum + wallet.balance;
         else return sum;
     }, 0);
 
     // provider -> lineName -> usage
-    const computeCreditsUsedByWallet: Dictionary<Dictionary<number>> = {};
-    let computeCreditsUsedInPeriod = 0;
+    const creditsUsedByWallet: Dictionary<Dictionary<number>> = {};
+    let creditsUsedInPeriod = 0;
 
     for (const chart of charts) {
         const usageByCurrentProvider: Dictionary<number> = {};
-        computeCreditsUsedByWallet[chart.provider] = usageByCurrentProvider;
+        creditsUsedByWallet[chart.provider] = usageByCurrentProvider;
 
         for (let i = 0; i < chart.points.length; i++) {
             let point = chart.points[i];
@@ -118,103 +147,105 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
 
                 const currentUsage = usageByCurrentProvider[category] ?? 0;
                 usageByCurrentProvider[category] = currentUsage + point[category];
-                computeCreditsUsedInPeriod += point[category];
+                creditsUsedInPeriod += point[category];
             }
         }
     }
 
-
-    console.log(charts);
-
     return (
-        <MainContainer
-            header={<ProjectBreadcrumbs crumbs={[{title: "Usage"}]}/>}
-            sidebar={null}
-            main={(
-                <>
-                    <Box>
-                        <SummaryCard
-                            title={"Compute"}
-                            balance={totalComputeBalance}
-                            creditsUsed={computeCreditsUsedInPeriod}
-                            allocatedToChildren={computeBalanceAllocatedToChildren}
-                        />
+        <Box>
+            <SummaryCard
+                title={productAreaTitle(area)}
+                balance={remainingBalance}
+                creditsUsed={creditsUsedInPeriod}
+                allocatedToChildren={balanceAllocatedToChildren}
+            />
 
-                        <Box padding={15} margin={25}>
-                            {charts.map(chart => (
-                                <React.Fragment key={chart.provider}>
-                                    <Heading.h5>Total usage</Heading.h5>
-                                    <Box mb={40}>
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHeaderCell width={30}/>
-                                                    <TableHeaderCell/>
-                                                    <TableHeaderCell textAlign="right">Credits Used In
-                                                        Period</TableHeaderCell>
-                                                    <TableHeaderCell textAlign="right">Remaining</TableHeaderCell>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <tbody>
-                                            {chart.lineNames.map((p, idx) => (
-                                                <TableRow key={p}>
-                                                    <TableCell>
-                                                        <Box width={20} height={20}
-                                                             backgroundColor={theme.chartColors[idx]}/>
-                                                    </TableCell>
-                                                    <TableCell>{p}</TableCell>
-                                                    <TableCell textAlign="right">
-                                                        {creditFormatter(computeCreditsUsedByWallet[chart.provider]![p]!)}
-                                                    </TableCell>
-                                                    <TableCell textAlign="right">
-                                                        {creditFormatter(
-                                                            balance.data.wallets.find(it =>
-                                                                it.wallet.id === chart.lineNameToWallet[p].id
-                                                            )?.balance ?? 0
-                                                        )}
-                                                    </TableCell>
-                                                </TableRow>
+            <Box m={35}>
+                {charts.map(chart => (
+                    <React.Fragment key={chart.provider}>
+                        {chart.lineNames.length === 0 ? null : (
+                            <>
+                                <Heading.h5>Daily usage for past month (Provider: {chart.provider})</Heading.h5>
+                                <Box mt={20} mb={20}>
+                                    <ResponsiveContainer width="100%" height={200}>
+                                        <BarChart
+                                            syncId="someId"
+                                            data={chart.points}
+                                            margin={{
+                                                top: 10, right: 30, left: 0, bottom: 0,
+                                            }}
+                                        >
+                                            <CartesianGrid strokeDasharray="3 3"/>
+                                            <XAxis dataKey="time" tickFormatter={dateFormatter}/>
+                                            <YAxis width={150} tickFormatter={creditFormatter}/>
+                                            <Tooltip labelFormatter={dateFormatter} formatter={creditFormatter}/>
+                                            {chart.lineNames.map((id, idx) => (
+                                                <Bar
+                                                    key={id}
+                                                    dataKey={id}
+                                                    fill={theme.chartColors[idx]}
+                                                    barSize={24}
+                                                />
                                             ))}
-                                            </tbody>
-                                        </Table>
-                                    </Box>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </Box>
 
-                                    <Heading.h5>Usage for {chart.provider}</Heading.h5>
-                                    <Box mt={20} mb={20}>
-                                        <ResponsiveContainer width="100%" height={200}>
-                                            <BarChart
-                                                syncId="someId"
-                                                data={chart.points}
-                                                margin={{
-                                                    top: 10, right: 30, left: 0, bottom: 0,
-                                                }}
-                                            >
-                                                <CartesianGrid strokeDasharray="3 3"/>
-                                                <XAxis dataKey="time" tickFormatter={dateFormatter}/>
-                                                <YAxis width={150} tickFormatter={creditFormatter}/>
-                                                <Tooltip labelFormatter={dateFormatter} formatter={creditFormatter}/>
-                                                {chart.lineNames.map((id, idx) => (
-                                                    <Bar
-                                                        key={id}
-                                                        dataKey={id}
-                                                        fill={theme.chartColors[idx]}
+                                <Box mb={40}>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHeaderCell width={30}/>
+                                                <TableHeaderCell/>
+                                                <TableHeaderCell textAlign="right">Credits Used In
+                                                    Period</TableHeaderCell>
+                                                <TableHeaderCell textAlign="right">Remaining</TableHeaderCell>
+                                                <TableHeaderCell textAlign={"right"}>Include In Chart</TableHeaderCell>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <tbody>
+                                        {chart.lineNames.map((p, idx) => (
+                                            <TableRow key={p}>
+                                                <TableCell>
+                                                    <Box width={20} height={20}
+                                                         backgroundColor={theme.chartColors[idx]}/>
+                                                </TableCell>
+                                                <TableCell>{p}</TableCell>
+                                                <TableCell textAlign="right">
+                                                    {creditFormatter(creditsUsedByWallet[chart.provider]![p]!)}
+                                                </TableCell>
+                                                <TableCell textAlign="right">
+                                                    {creditFormatter(
+                                                        balance.data.wallets.find(it =>
+                                                            it.wallet.id === chart.lineNameToWallet[p].id &&
+                                                            it.wallet.paysFor.provider === chart.lineNameToWallet[p].paysFor.provider &&
+                                                            it.wallet.paysFor.id === chart.lineNameToWallet[p].paysFor.id
+                                                        )?.balance ?? 0
+                                                    )}
+                                                </TableCell>
+                                                <TableCell textAlign={"right"}>
+                                                    <Toggle
+                                                        onChange={() => 42}
+                                                        scale={1.5}
+                                                        activeColor={"green"}
                                                     />
-                                                ))}
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </Box>
-                                </React.Fragment>
-                            ))}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                        </tbody>
+                                    </Table>
+                                </Box>
+                            </>
+                        )}
+                    </React.Fragment>
+                ))}
 
-                        </Box>
-
-                        <SummaryCard title={"Storage"} creditsUsed={0} balance={0} allocatedToChildren={0}/>
-                    </Box>
-                </>
-            )}
-        />
+            </Box>
+        </Box>
     );
 };
+
 
 const SummaryStat = styled.figure`
     flex-grow: 1;
@@ -284,9 +315,9 @@ const SummaryCard: React.FunctionComponent<{
                 numerator={props.allocatedToChildren}
                 denominator={props.balance}
                 colorRanges={[
-                    { breakpoint: 80, color: "green" },
-                    { breakpoint: 100, color: "yellow" },
-                    { breakpoint: 175, color: "red" }
+                    {breakpoint: 80, color: "green"},
+                    {breakpoint: 100, color: "yellow"},
+                    {breakpoint: 175, color: "red"}
                 ]}
             />
             <figcaption>Allocated to subprojects</figcaption>

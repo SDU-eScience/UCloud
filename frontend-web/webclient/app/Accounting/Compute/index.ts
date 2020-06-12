@@ -15,6 +15,13 @@ export enum ProductArea {
     STORAGE = "STORAGE"
 }
 
+export function productAreaTitle(area: ProductArea): string {
+    switch (area) {
+        case ProductArea.COMPUTE: return "Compute";
+        case ProductArea.STORAGE: return "Storage";
+    }
+}
+
 export interface WalletBalance {
     wallet: Wallet;
     balance: number;
@@ -142,6 +149,7 @@ export interface UsagePoint {
 }
 
 export interface UsageLine {
+    area: ProductArea;
     category: string;
     projectPath?: string;
     projectId?: string;
@@ -189,12 +197,14 @@ export interface NativeChart {
     lineNameToWallet: Dictionary<Wallet>;
 }
 
-export function transformUsageChartForCharting(chart: UsageChart): NativeChart {
+export function transformUsageChartForCharting(chart: UsageChart, type: ProductArea): NativeChart {
     const builder: Dictionary<NativeChartPoint> = {};
     const lineNames: string[] = [];
     const lineNameToWallet: Dictionary<Wallet> = {};
 
     for (const line of chart.lines) {
+        if (type !== line.area) continue;
+
         const lineId = line.projectPath ? `${line.projectPath} (${line.category})` : line.category;
         lineNames.push(lineId);
         lineNameToWallet[lineId] = {
