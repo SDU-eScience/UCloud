@@ -6,13 +6,14 @@ import dk.sdu.cloud.downtime.management.rpc.*
 import dk.sdu.cloud.downtime.management.services.DowntimeDAO
 import dk.sdu.cloud.downtime.management.services.DowntimeHibernateDao
 import dk.sdu.cloud.downtime.management.services.DowntimeManagementService
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 
 class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
 
     override fun start() {
 
-        val db = micro.hibernateDatabase
+        val db = AsyncDBSessionFactory(micro.databaseConfig)
         val downtimeDAO = DowntimeHibernateDao()
         val downtimeService = DowntimeManagementService(db, downtimeDAO)
         with(micro.server) {

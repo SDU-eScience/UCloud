@@ -7,57 +7,49 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.SQLTable
+import dk.sdu.cloud.service.db.async.long
+import dk.sdu.cloud.service.db.async.text
+import dk.sdu.cloud.service.db.async.timestamp
 import java.util.*
 import javax.persistence.*
 
-@Entity
-@Table(name = "downtimes")
-data class DowntimeEntity(
-    @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "start_time")
-    var start: Date,
-    @Temporal(TemporalType.TIMESTAMP)
-    @Column(name = "end_time")
-    var end: Date,
-
-    @Column(columnDefinition = "TEXT")
-    var text: String,
-
-    @Id
-    @GeneratedValue
-    var id: Long? = 0L
-) {
-    companion object : HibernateEntity<DowntimeEntity>, WithId<Long>
+object DowntimeTable : SQLTable("downtimes") {
+    val start = timestamp("start_time", notNull = true)
+    val end = timestamp("end_time", notNull = true)
+    val text = text("text", notNull = true)
+    val id = long("id")
 }
 
-interface DowntimeDAO<Session> {
-    fun add(
-        session: Session,
+interface DowntimeDAO {
+    suspend fun add(
+        db: DBContext,
         downtime: DowntimeWithoutId
     )
 
-    fun remove(
-        session: Session,
+    suspend fun remove(
+        db: DBContext,
         id: Long
     )
 
-    fun listAll(
-        session: Session,
+    suspend fun listAll(
+        db: DBContext,
         paging: NormalizedPaginationRequest
     ): Page<Downtime>
 
-    fun listPending(
-        session: Session,
+    suspend fun listPending(
+        db: DBContext,
         paging: NormalizedPaginationRequest
     ): Page<Downtime>
 
-    fun removeExpired(
-        session: Session,
+    suspend fun removeExpired(
+        db: DBContext,
         user: SecurityPrincipal
     )
 
-    fun getById(
-        session: Session,
+    suspend fun getById(
+        db: DBContext,
         id: Long
     ): Downtime
 }
