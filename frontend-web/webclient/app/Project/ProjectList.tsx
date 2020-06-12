@@ -154,7 +154,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             icon: "properties",
             onClick: ([project]) => {
                 props.setProject(project.projectId);
-                history.push("/projects/view");
+                history.push("/project/dashboard");
             }
         }
     ];
@@ -492,7 +492,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         await runCommand(createProject({title: projectId}));
         setCreatingProject(false);
         props.setProject(projectId);
-        history.push("/projects/view");
+        history.push("/project/dashboard");
     }
 
     async function onToggleFavorite(projectId: string): Promise<void> {

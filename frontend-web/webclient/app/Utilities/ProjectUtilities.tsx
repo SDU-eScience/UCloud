@@ -115,7 +115,7 @@ export function UpdatePermissionsDialog(props: { client: HttpClient; repository:
     const history = useHistory();
 
     const onCreateGroup = useCallback(() => {
-        history.push("/projects/view");
+        history.push("/project/dashboard");
         dialogStore.failure();
     }, [history]);
     return (

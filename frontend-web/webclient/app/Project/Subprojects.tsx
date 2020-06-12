@@ -9,7 +9,8 @@ import {
 } from "Project/index";
 import * as React from "react";
 import {useEffect} from "react";
-import {Box, Button, Flex, Icon, Input, Relative, Absolute, Label} from "ui-components";
+import {Box, Button, Flex, Icon, Input, Relative, Absolute, Label, theme} from "ui-components";
+import * as Heading from "ui-components/Heading";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -23,6 +24,11 @@ import {addStandardDialog, addStandardInputDialog} from "UtilityComponents";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
+import {TextSpan} from "ui-components/Text";
+import {InputLabel} from "ui-components/Input";
+import ClickableDropdown from "ui-components/ClickableDropdown";
+import {dialogStore} from "Dialog/DialogStore";
+import {Wallet, RetrieveBalanceResponse, retrieveBalance} from "Accounting/Compute";
 
 const SearchContainer = styled(Flex)`
     flex-wrap: wrap;
@@ -35,6 +41,140 @@ const SearchContainer = styled(Flex)`
         margin-bottom: 10px;
     }
 `;
+
+function AssignCreditsModal(
+    {project}: {project: UserInProject}
+): JSX.Element {
+    const amountField = React.useRef<HTMLInputElement>(null);
+    const [currentProjectBalance, fetchProjectBalance] = useCloudAPI<RetrieveBalanceResponse>(
+        {noop: true},
+        {wallets: []}
+    );
+
+    const [selectedWallet, setSelectedWallet] = React.useState<string>("Standard computation");
+
+    const walletTypes = [{text: "Test wallet", value: "1", balance:"123"}];
+
+
+    useEffect(() => {
+        if (project.projectId === "") return;
+        fetchProjectBalance(retrieveBalance({id: project.projectId, type: "PROJECT"}));
+        console.log(currentProjectBalance);
+        const walletTypes = currentProjectBalance.data.wallets.map(wallet =>
+            ({text: wallet.category.id, value: wallet.category.id})
+        );
+
+
+    }, [project]);
+
+        return (
+        <Box>
+            <div>
+                <Flex alignItems="center">
+                    <Heading.h3>
+                        <TextSpan color="gray">Assign credits to </TextSpan> {project.title}
+                    </Heading.h3>
+                </Flex>
+                <Box mt={16}>
+                    <form>
+                            <Box>Wallet</Box>
+                            <InputLabel width={450} mb={20}>
+                                <ClickableDropdown
+                                    chevron
+                                    width="450px"
+                                    onChange={(val: string) => setSelectedWallet(val)}
+                                    trigger={
+                                        <Box as="span" minWidth="450px" color="gray">{selectedWallet}</Box>
+                                    }
+                                    options={walletTypes}
+                                />
+                            </InputLabel>
+                            <Box>
+                                Credits left in wallet:
+                            </Box>
+                            <Box mb={20}>
+                                Assignable credits available:
+                            </Box>
+                            <Flex alignItems="center" mb={20}>
+                                <Input
+                                    mr={10}
+                                    required
+                                    type="text"
+                                    ref={amountField}
+                                    placeholder="Amount"
+                                />
+                                <TextSpan>DKK</TextSpan>
+                            </Flex>
+
+                            <Flex alignItems="center">
+                                <Button color="red" mr="5px">
+                                    Cancel
+                                </Button>
+
+                                <Button
+                                    color="green"
+                                    type={"submit"}
+                                >
+                                    Assign credits
+                                </Button>
+                            </Flex>
+                    </form>
+                </Box>
+                {/*accessList.length > 0 ? (
+                    <Box maxHeight="80vh">
+                        <Table width="700px">
+                            <LeftAlignedTableHeader>
+                                <TableRow>
+                                    <TableHeaderCell width={150}>Type</TableHeaderCell>
+                                    <TableHeaderCell width={500}>Name</TableHeaderCell>
+                                    <TableHeaderCell width={200}>Permission</TableHeaderCell>
+                                    <TableHeaderCell width={50}>Delete</TableHeaderCell>
+                                </TableRow>
+                            </LeftAlignedTableHeader>
+                            <tbody>
+                                {accessList.map((accessEntry, index) => (
+                                    <TableRow key={index}>
+                                        <TableCell>
+                                            {accessEntry.entity.user ? (
+                                                prettifyEntityType(UserEntityType.USER)
+                                            ) : (
+                                                    prettifyEntityType(UserEntityType.PROJECT_GROUP)
+                                                )}
+                                        </TableCell>
+                                        <TableCell>
+                                            {accessEntry.entity.user ? (
+                                                accessEntry.entity.user
+                                            ) : (
+                                                    accessEntry.entity.project + " " + accessEntry.entity.group
+                                                )}
+                                        </TableCell>
+                                        <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
+                                        <TableCell textAlign="right">
+                                            <Button
+                                                color="red"
+                                                type="button"
+                                                paddingLeft={10}
+                                                paddingRight={10}
+                                                onClick={() => setAccessEntryToDelete(accessEntry)}
+                                            >
+                                                <Icon size={16} name="trash" />
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </tbody>
+                        </Table>
+                    </Box>
+                                            ) : <Text textAlign="center">No access entries found</Text>*/}
+            </div>
+        </Box>
+    );
+}
+
+function openAssignCreditsModal(subproject: UserInProject): void {
+    dialogStore.addDialog(<AssignCreditsModal project={subproject} />, () => undefined);
+}
+
 
 
 const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
@@ -126,9 +266,8 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
                                 searchQuery={subprojectSearchQuery}
                                 loading={subprojects.loading}
                                 fetchParams={setSubprojectParams}
-                                onAssignCredits={async (subprojectId, subprojectTitle)  => addStandardInputDialog({
-                                        title: `Assign credits to ${subprojectTitle}?`
-                                    })
+                                onAssignCredits={async (subproject) => 
+                                    openAssignCreditsModal(subproject)
                                 }
                                 onRemoveSubproject={async (subprojectId, subprojectTitle) => addStandardDialog({
                                     title: "Delete subproject",
