@@ -61,10 +61,10 @@ export function MembersList(props: Readonly<{
                             <RadioTilesContainer height="48px">
                                 <RadioTile
                                     name={member.username}
-                                    icon="userPi"
+                                    icon={roleToIcon(member.role)}
                                     height={40}
                                     labeled
-                                    label="PI"
+                                    label={member.role}
                                     fontSize="0.5em"
                                     checked
                                     onChange={() => undefined}
@@ -137,4 +137,15 @@ export function MembersList(props: Readonly<{
             </>
         )}
     </>);
+}
+
+function roleToIcon(role: ProjectRole): "user" | "userAdmin" | "userPi" {
+    switch (role) {
+        case ProjectRole.ADMIN:
+            return "userAdmin";
+        case ProjectRole.PI:
+            return "userPi";
+        case ProjectRole.USER:
+            return "user";
+    }
 }
