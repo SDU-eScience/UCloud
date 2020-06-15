@@ -36,30 +36,49 @@ function dateFormatter(timestamp: number): string {
         `${date.getSeconds().toString().padStart(2, "0")}`;
 }
 
-export function creditFormatter(credits: number): string {
-    let digitsToRemove = 4;
-    let unit = "DKK";
+export function creditFormatter(credits: number, precision: number = 2): string {
+    if (precision < 0 || precision > 6) throw "Precision must be in 0..6";
 
+    // Edge-case handling
     if (credits < 0) {
         return "-" + creditFormatter(-credits);
     } else if (credits === 0) {
         return "0 DKK";
-    } else if (credits < 100) {
-        return "< 0,01 Øre (DKK)";
-    } else if (credits < 100_000) { // < 0.10 DKK
-        unit = "Øre (DKK)";
-        digitsToRemove = 2;
+    } else if (credits < Math.pow(10, 6 - precision)) {
+        if (precision === 0) return "< 1 DKK";
+        let builder = "< 0,";
+        for (let i = 0; i < precision - 1; i++) builder += "0";
+        builder += "1 DKK";
+        return builder;
     }
 
-    let stringified = credits.toString();
-    const a = stringified.substr(0, stringified.length - digitsToRemove);
+    // Group into before and after decimal separator
+    let stringified = credits.toString().padStart(6, "0");
 
-    let before = a.substr(0, a.length - 2);
-    let after = a.substr(a.length - 2);
+    let before = stringified.substr(0, stringified.length - 6);
+    let after = stringified.substr(stringified.length - 6);
     if (before === "") before = "0";
     if (after === "") after = "0";
-    after = after.padStart(2, "0");
+    after = after.padStart(precision, "0");
+    after = after.substr(0, precision);
 
+    // Truncate trailing zeroes (but keep at least two)
+    if (precision > 2) {
+        let firstZeroAt = -1;
+        for (let i = 2; i < after.length; i++) {
+            if (after[i] === "0") {
+                if (firstZeroAt === -1) firstZeroAt = i;
+            } else {
+                firstZeroAt = -1;
+            }
+        }
+
+        if (firstZeroAt !== -1) { // We have trailing zeroes
+            after = after.substr(0, firstZeroAt);
+        }
+    }
+
+    // Thousand separator
     let beforeFormatted = "";
     {
         const chunksInTotal = Math.ceil(before.length / 3);
@@ -78,7 +97,8 @@ export function creditFormatter(credits: number): string {
         }
     }
 
-    return `${beforeFormatted},${after} ${unit}`;
+    if (after === "") return `${beforeFormatted} DKK`;
+    else return `${beforeFormatted},${after} DKK`;
 }
 
 interface Duration {
@@ -295,7 +315,7 @@ const VisualizationForArea: React.FunctionComponent<{
                                             <CartesianGrid strokeDasharray="3 3"/>
                                             <XAxis dataKey="time" tickFormatter={dateFormatter}/>
                                             <YAxis width={150} tickFormatter={creditFormatter}/>
-                                            <Tooltip labelFormatter={dateFormatter} formatter={creditFormatter}/>
+                                            <Tooltip labelFormatter={dateFormatter} formatter={n => creditFormatter(n as number, 2)}/>
                                             {chart.lineNames.map((id, idx) => {
                                                 if ((includeInCharts[chart.provider] ?? {})[id] ?? true) {
                                                     return <Bar
