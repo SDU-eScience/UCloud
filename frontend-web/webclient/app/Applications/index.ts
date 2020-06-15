@@ -7,6 +7,7 @@ import * as React from "react";
 import {match} from "react-router";
 import {Page, PaginationRequest} from "Types";
 import {ParameterValues} from "Utilities/ApplicationUtilities";
+import {MachineReservation} from "Accounting/Compute";
 
 /** @deprecated */
 export type Analysis = JobWithStatus;
@@ -178,6 +179,7 @@ export interface RunAppState {
     previousRuns: Page<File>;
     unknownParameters: string[];
     reservation: string;
+    reservationMachine?: MachineReservation;
 }
 
 export interface RunOperations extends SetStatusLoading {

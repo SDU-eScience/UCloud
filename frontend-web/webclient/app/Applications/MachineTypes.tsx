@@ -9,11 +9,28 @@ import Icon from "ui-components/Icon";
 import {listMachines, MachineReservation} from "Accounting/Compute";
 import {Page} from "Types";
 import {emptyPage} from "DefaultObjects";
+import {creditFormatter} from "Project/ProjectUsage";
+import Table, {TableHeader, TableHeaderCell, TableCell, TableRow} from "ui-components/Table";
+
+const MachineTypesWrapper = styled.div`
+    ${TableHeaderCell} {
+        text-align: left;
+    }
+    
+    ${TableRow} {
+        padding: 8px;
+    }
+    
+    tbody > ${TableRow}:hover {
+        cursor: pointer;
+        background-color: var(--lightGray, #f00);
+        color: var(--black, #f00);
+    }
+`;
 
 export const MachineTypes: React.FunctionComponent<{
     reservation: string;
-    setReservation: (name: string) => void;
-    runAsRoot: boolean;
+    setReservation: (name: string, machine: MachineReservation) => void;
 }> = props => {
     const [machines] = useCloudAPI<Page<MachineReservation>>(
         listMachines({itemsPerPage: 100, page: 0, provider: "ucloud", productCategory: "COMPUTE"}),
@@ -36,17 +53,53 @@ export const MachineTypes: React.FunctionComponent<{
                 </MachineDropdown>
             )}
         >
-            {machines.data.items.map(machine => (
-                <Box key={machine.id} onClick={() => props.setReservation(machine.id)}>
-                    <MachineBox machine={machine} />
-                </Box>
-            ))}
+            <MachineTypesWrapper>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHeaderCell>Name</TableHeaderCell>
+                            <TableHeaderCell>vCPU</TableHeaderCell>
+                            <TableHeaderCell>RAM (GB)</TableHeaderCell>
+                            <TableHeaderCell>GPU</TableHeaderCell>
+                            <TableHeaderCell>Price</TableHeaderCell>
+                        </TableRow>
+                    </TableHeader>
+                    <tbody>
+                        {machines.data.items.map(machine => {
+                            if (machine === null) return null;
+                            return <TableRow key={machine.id} onClick={() => props.setReservation(machine.id, machine)}>
+                                <TableCell>{machine.id}</TableCell>
+                                <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>
+                                <TableCell>{machine.memoryInGigs ?? "Unspecified"}</TableCell>
+                                <TableCell>{machine.gpu ?? 0}</TableCell>
+                                <TableCell>{creditFormatter(machine.pricePerUnit * 60)}/hour</TableCell>
+                            </TableRow>
+                        })}
+                    </tbody>
+                </Table>
+            </MachineTypesWrapper>
         </ClickableDropdown>
     );
 };
 
+const MachineBoxWrapper = styled.div`
+    cursor: pointer;
+    padding: 16px;
+    
+    ul {
+        list-style: none;    
+        margin: 0;
+        padding: 0;
+    }
+    
+    li {
+        display: inline-block;
+        margin-right: 16px;
+    }
+`;
+
 const MachineBox: React.FunctionComponent<{machine: MachineReservation | null}> = ({machine}) => (
-    <p style={{cursor: "pointer"}}>
+    <MachineBoxWrapper>
         {machine ? null : (
             <b>No machine selected</b>
         )}
@@ -54,33 +107,21 @@ const MachineBox: React.FunctionComponent<{machine: MachineReservation | null}> 
         {!machine ? null : (
             <>
                 <b>{machine.id}</b><br />
-                {!machine.cpu || !machine.memoryInGigs ?
-                    "Uses all available CPU and memory. Recommended for most applications."
-                    : null
-                }
-                {machine.cpu && machine.memoryInGigs ? (
-                    <>
-                        vCPU: {machine.cpu}<br />
-                        Memory: {machine.memoryInGigs} GB
-                    </>
-                ) : null}
-                {machine.gpu ? (
-                    <>
-                        <br />
-                        GPU: {machine.gpu}
-                    </>
-                ) : null}
+                <ul>
+                    <li>{machine.cpu ? <>vCPU: {machine.cpu}</> : <>vCPU: Unspecified</>}</li>
+                    <li>{machine.memoryInGigs ? <>Memory: {machine.memoryInGigs}GB</> : <>Memory: Unspecified</>}</li>
+                    {machine.gpu ? <li>GPU: {machine.gpu}</li> : null}
+                    <li>Price: {creditFormatter(machine.pricePerUnit * 60, 3)}/hour</li>
+                </ul>
             </>
         )}
-
-    </p>
+    </MachineBoxWrapper>
 );
 
 const MachineDropdown = styled(Box)`
     cursor: pointer;
     border-radius: 5px;
     border: ${theme.borderWidth} solid var(--midGray, #f00);
-    padding: 15px;
     width: 100%;
 
     & p {

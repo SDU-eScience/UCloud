@@ -28,7 +28,7 @@ import {
     Label,
     OutlineButton,
     VerticalButtonGroup,
-    Checkbox
+    Checkbox, Icon
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Error from "ui-components/Error";
@@ -74,6 +74,8 @@ import {TextSpan} from "ui-components/Text";
 import Warning from "ui-components/Warning";
 import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import * as PublicLinks from "Applications/PublicLinks/Management";
+import {creditFormatter} from "Project/ProjectUsage";
+import {MachineReservation} from "Accounting/Compute";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -225,6 +227,25 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                         >
                             Submit
                         </Button>
+                        <Box mt={32} color={"black"} textAlign={"center"}>
+                            {!this.state.reservationMachine ? null : (
+                                <>
+                                    <Icon name={"grant"} />{" "}
+                                    Estimated cost: <br />
+
+                                    {
+                                        creditFormatter(
+                                            this.state.reservationMachine.pricePerUnit * (
+                                                this.state.schedulingOptions.maxTime.hours * 60 +
+                                                this.state.schedulingOptions.maxTime.minutes +
+                                                (this.state.schedulingOptions.maxTime.seconds > 0 ? 1 : 0)
+                                            ),
+                                            3
+                                        )
+                                    }
+                                </>
+                            )}
+                        </Box>
                     </VerticalButtonGroup>
                 )}
 
@@ -291,7 +312,9 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                     onChange={this.onJobSchedulingParamsChange}
                                     options={schedulingOptions}
                                     reservation={this.state.reservation}
-                                    setReservation={reservation => this.setState({reservation})}
+                                    setReservation={(reservation, reservationMachine) =>
+                                        this.setState({reservation, reservationMachine})
+                                    }
                                     urlEnabled={this.state.useUrl}
                                     setUrlEnabled={() => this.setState({useUrl: !this.state.useUrl})}
                                     url={this.state.url}
@@ -966,7 +989,7 @@ interface JobSchedulingOptionsProps {
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
     reservation: string;
-    setReservation: (name: string) => void;
+    setReservation: (name: string, reservationMachine: MachineReservation) => void;
     urlEnabled: boolean;
     setUrlEnabled: React.Dispatch<React.SetStateAction<boolean>>;
     url: React.RefObject<HTMLInputElement>;
@@ -1038,7 +1061,6 @@ const JobSchedulingOptions = (props: JobSchedulingOptionsProps): JSX.Element | n
             <div>
                 <Label>Machine type</Label>
                 <MachineTypes
-                    runAsRoot={props.app.invocation.container?.runAsRoot ?? false}
                     reservation={props.reservation}
                     setReservation={props.setReservation}
                 />
