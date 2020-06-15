@@ -66,7 +66,7 @@ class DowntimeServiceTest {
 
     @Test
     fun `Create downtime`() {
-        val dao = DowntimeHibernateDao()
+        val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         runBlocking {
             service.add(TestUsers.admin, DowntimeWithoutId(Date().time - 1, Date().time + 1, "This is some text"))
@@ -77,7 +77,7 @@ class DowntimeServiceTest {
 
     @Test
     fun `Remove downtime`() {
-        val dao = DowntimeHibernateDao()
+        val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         runBlocking {
             service.add(TestUsers.admin, DowntimeWithoutId(Date().time - 100, Date().time + 100, "Text for the weary soul."))
@@ -91,7 +91,7 @@ class DowntimeServiceTest {
     // Is this necessary? We do test the function DowntimeManagementDescriptions#listAll in almost every other test.
     @Test
     fun `List all downtimes`() = runBlocking {
-        val dao = DowntimeHibernateDao()
+        val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         (0..99).forEach { i ->
             service.add(TestUsers.admin, DowntimeWithoutId(Date().time, Date().time, "$i"))
@@ -101,7 +101,7 @@ class DowntimeServiceTest {
 
     @Test
     fun `List pending downtimes`() = runBlocking {
-        val dao = DowntimeHibernateDao()
+        val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         (0..99).forEach { i ->
             service.add(TestUsers.admin, DowntimeWithoutId(Date().time - i, Date().time - i, "$i"))
@@ -115,7 +115,7 @@ class DowntimeServiceTest {
 
     @Test
     fun `Remove expired downtimes`() = runBlocking {
-        val dao = DowntimeHibernateDao()
+        val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         (0..99).forEach { i ->
             service.add(TestUsers.admin, DowntimeWithoutId(Date().time - i, Date().time - i, "$i"))
@@ -130,7 +130,7 @@ class DowntimeServiceTest {
 
     @Test
     fun `Get downtime by id`() = runBlocking {
-        val dao = DowntimeHibernateDao()
+        val dao = DowntimeDao()
         val service = DowntimeManagementService(db, dao)
         (0..9).forEach { i ->
             service.add(TestUsers.admin, DowntimeWithoutId(i.toLong(), i.toLong(), "$i"))

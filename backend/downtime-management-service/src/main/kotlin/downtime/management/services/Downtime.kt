@@ -6,26 +6,32 @@ import dk.sdu.cloud.downtime.management.api.Downtime
 import dk.sdu.cloud.downtime.management.api.DowntimeWithoutId
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.insert
+import dk.sdu.cloud.service.db.async.long
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.text
+import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.deleteCriteria
-import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.paginatedCriteria
 import dk.sdu.cloud.service.mapItems
 import dk.sdu.cloud.service.paginate
 import io.ktor.http.HttpStatusCode
-import io.ktor.util.toZonedDateTime
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
 
-class DowntimeHibernateDao : DowntimeDAO {
-    override suspend fun add(db: DBContext, downtime: DowntimeWithoutId) {
+object DowntimeTable : SQLTable("downtimes") {
+    val start = timestamp("start_time", notNull = true)
+    val end = timestamp("end_time", notNull = true)
+    val text = text("text", notNull = true)
+    val id = long("id")
+}
+
+class DowntimeDao {
+    suspend fun add(db: DBContext, downtime: DowntimeWithoutId) {
         if (downtime.start > downtime.end) {
             throw RPCException("Downtime can't end before it begins.", HttpStatusCode.BadRequest)
         }
@@ -40,7 +46,7 @@ class DowntimeHibernateDao : DowntimeDAO {
         }
     }
 
-    override suspend fun remove(db: DBContext, id: Long) {
+    suspend fun remove(db: DBContext, id: Long) {
         val count = db.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -58,7 +64,7 @@ class DowntimeHibernateDao : DowntimeDAO {
         }
     }
 
-    override suspend fun removeExpired(db: DBContext, user: SecurityPrincipal) {
+    suspend fun removeExpired(db: DBContext, user: SecurityPrincipal) {
         val now = Date().time
         db.withSession { session ->
             session
@@ -74,7 +80,7 @@ class DowntimeHibernateDao : DowntimeDAO {
         }
     }
 
-    override suspend fun listAll(db: DBContext, paging: NormalizedPaginationRequest): Page<Downtime> {
+    suspend fun listAll(db: DBContext, paging: NormalizedPaginationRequest): Page<Downtime> {
         return db.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -97,7 +103,7 @@ class DowntimeHibernateDao : DowntimeDAO {
     }
 
 
-    override suspend fun listPending(db: DBContext, paging: NormalizedPaginationRequest): Page<Downtime> {
+    suspend fun listPending(db: DBContext, paging: NormalizedPaginationRequest): Page<Downtime> {
         val now = Date().time
         return db.withSession { session ->
             session
@@ -124,7 +130,7 @@ class DowntimeHibernateDao : DowntimeDAO {
         }
     }
 
-    override suspend fun getById(db: DBContext, id: Long): Downtime {
+    suspend fun getById(db: DBContext, id: Long): Downtime {
         val queryResult = db.withSession { session ->
             session
                 .sendPreparedStatement(
