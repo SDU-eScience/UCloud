@@ -12,7 +12,8 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis} from "recharts";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
 import {
-    ProductArea, productAreaTitle,
+    ProductArea,
+    productAreaTitle,
     retrieveBalance,
     RetrieveBalanceResponse,
     transformUsageChartForCharting,
@@ -115,7 +116,27 @@ const durationOptions: Duration[] = [
 const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const {projectId, ...projectManagement} = useProjectManagementStatus();
 
-    const [durationOption, setDurationOption] = useState<Duration>(durationOptions[3])
+    const [durationOption, setDurationOption] = useState<Duration>(durationOptions[3]);
+
+    // ProductArea -> Provider -> LineName -> includeInChartStatus (default: true)
+    const [includeInCharts, setIncludeInCharts] = useState<Dictionary<Dictionary<Dictionary<boolean>>>>({});
+
+    const computeIncludeInCharts: Dictionary<Dictionary<boolean>> = includeInCharts[ProductArea.COMPUTE] ?? {};
+    const storageIncludeInCharts:  Dictionary<Dictionary<boolean>> = includeInCharts[ProductArea.STORAGE] ?? {};
+
+    const onIncludeInChart = (area: ProductArea) => (provider: string, lineName: string) => {
+        const existingAtProvider: Dictionary<boolean> = (includeInCharts[area] ?? {})[provider] ?? {};
+        const newIncludeAtProvider: Dictionary<boolean> = {...existingAtProvider};
+        newIncludeAtProvider[lineName] = !(existingAtProvider[lineName] ?? true);
+
+        const newComputeInclude = {...computeIncludeInCharts};
+        newComputeInclude[provider] = newIncludeAtProvider;
+
+        const newState = {...includeInCharts};
+        newState[area] = newComputeInclude;
+
+        setIncludeInCharts(newState);
+    };
 
     const now = new Date().getTime();
     const [balance, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
@@ -138,6 +159,8 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
             periodStart: now - durationOption.timeInPast,
             periodEnd: now
         }));
+
+        setIncludeInCharts({});
     }, [durationOption]);
 
     useEffect(() => {
@@ -171,13 +194,19 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                         projectId={projectId}
                         usageResponse={usageResponse}
                         durationOption={durationOption}
-                        balance={balance}/>
+                        balance={balance}
+                        includeInCharts={computeIncludeInCharts}
+                        onIncludeInChart={onIncludeInChart(ProductArea.COMPUTE)}
+                    />
                     <VisualizationForArea
                         area={ProductArea.STORAGE}
                         projectId={projectId}
                         usageResponse={usageResponse}
                         durationOption={durationOption}
-                        balance={balance}/>
+                        balance={balance}
+                        includeInCharts={storageIncludeInCharts}
+                        onIncludeInChart={onIncludeInChart(ProductArea.STORAGE)}
+                    />
                 </>
             )}
         />
@@ -189,8 +218,10 @@ const VisualizationForArea: React.FunctionComponent<{
     projectId: string,
     usageResponse: APICallState<UsageResponse>,
     balance: APICallState<RetrieveBalanceResponse>,
-    durationOption: Duration
-}> = ({area, projectId, usageResponse, balance, durationOption}) => {
+    durationOption: Duration,
+    includeInCharts: Dictionary<Dictionary<boolean>>,
+    onIncludeInChart: (provider: string, lineName: string) => void
+}> = ({area, projectId, usageResponse, balance, durationOption, includeInCharts, onIncludeInChart}) => {
     const charts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, area));
 
     const remainingBalance = balance.data.wallets.reduce((sum, wallet) => {
@@ -251,14 +282,18 @@ const VisualizationForArea: React.FunctionComponent<{
                                             <XAxis dataKey="time" tickFormatter={dateFormatter}/>
                                             <YAxis width={150} tickFormatter={creditFormatter}/>
                                             <Tooltip labelFormatter={dateFormatter} formatter={creditFormatter}/>
-                                            {chart.lineNames.map((id, idx) => (
-                                                <Bar
-                                                    key={id}
-                                                    dataKey={id}
-                                                    fill={theme.chartColors[idx]}
-                                                    barSize={24}
-                                                />
-                                            ))}
+                                            {chart.lineNames.map((id, idx) => {
+                                                if ((includeInCharts[chart.provider] ?? {})[id] ?? true) {
+                                                    return <Bar
+                                                        key={id}
+                                                        dataKey={id}
+                                                        fill={theme.chartColors[idx]}
+                                                        barSize={24}
+                                                    />;
+                                                } else {
+                                                    return null;
+                                                }
+                                            })}
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </Box>
@@ -297,9 +332,10 @@ const VisualizationForArea: React.FunctionComponent<{
                                                 </TableCell>
                                                 <TableCell textAlign={"right"}>
                                                     <Toggle
-                                                        onChange={() => 42}
+                                                        onChange={() => onIncludeInChart(chart.provider, p)}
                                                         scale={1.5}
                                                         activeColor={"green"}
+                                                        checked={(includeInCharts[chart.provider] ?? {})[p] ?? true}
                                                     />
                                                 </TableCell>
                                             </TableRow>

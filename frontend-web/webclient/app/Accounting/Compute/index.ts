@@ -197,7 +197,10 @@ export interface NativeChart {
     lineNameToWallet: Dictionary<Wallet>;
 }
 
-export function transformUsageChartForCharting(chart: UsageChart, type: ProductArea): NativeChart {
+export function transformUsageChartForCharting(
+    chart: UsageChart,
+    type: ProductArea
+): NativeChart {
     const builder: Dictionary<NativeChartPoint> = {};
     const lineNames: string[] = [];
     const lineNameToWallet: Dictionary<Wallet> = {};
