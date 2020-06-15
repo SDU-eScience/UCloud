@@ -366,13 +366,14 @@ export function rejectInvite(request: RejectInviteRequest): APICallParameters<Re
     };
 }
 
-type LeaveProjectRequest = {};
-export function leaveProject(request: LeaveProjectRequest): APICallParameters<LeaveProjectRequest> {
+interface LeaveProjectRequest {}
+export function leaveProject(request: LeaveProjectRequest, projectOverride?: string): APICallParameters<LeaveProjectRequest> {
     return {
         method: "DELETE",
         path: "/projects/leave",
         parameters: request,
-        payload: request
+        payload: request,
+        projectOverride
     };
 }
 
@@ -408,13 +409,14 @@ export interface ArchiveProjectRequest {
     archiveStatus: boolean;
 }
 
-export function setProjectArchiveStatus(request: ArchiveProjectRequest): APICallParameters<ArchiveProjectRequest> {
+export function setProjectArchiveStatus(request: ArchiveProjectRequest, projectOverride?: string): APICallParameters<ArchiveProjectRequest> {
     return {
         method: "POST",
         path: "/projects/archive",
         parameters: request,
         payload: request,
-        reloadId: Math.random()
+        reloadId: Math.random(),
+        projectOverride
     };
 }
 
