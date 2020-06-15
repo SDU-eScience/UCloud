@@ -36,9 +36,23 @@ function dateFormatter(timestamp: number): string {
         `${date.getSeconds().toString().padStart(2, "0")}`;
 }
 
-function creditFormatter(credits: number): string {
-    let s = credits.toString();
-    const a = s.substr(0, s.length - 4);
+export function creditFormatter(credits: number): string {
+    let digitsToRemove = 4;
+    let unit = "DKK";
+
+    if (credits < 0) {
+        return "-" + creditFormatter(-credits);
+    } else if (credits === 0) {
+        return "0 DKK";
+    } else if (credits < 100) {
+        return "< 0,01 Øre (DKK)";
+    } else if (credits < 100_000) { // < 0.10 DKK
+        unit = "Øre (DKK)";
+        digitsToRemove = 2;
+    }
+
+    let stringified = credits.toString();
+    const a = stringified.substr(0, stringified.length - digitsToRemove);
 
     let before = a.substr(0, a.length - 2);
     let after = a.substr(a.length - 2);
@@ -64,7 +78,7 @@ function creditFormatter(credits: number): string {
         }
     }
 
-    return `${beforeFormatted},${after} DKK`;
+    return `${beforeFormatted},${after} ${unit}`;
 }
 
 interface Duration {
@@ -304,8 +318,9 @@ const VisualizationForArea: React.FunctionComponent<{
                                             <TableRow>
                                                 <TableHeaderCell width={30}/>
                                                 <TableHeaderCell/>
-                                                <TableHeaderCell textAlign="right">Credits Used In
-                                                    Period</TableHeaderCell>
+                                                <TableHeaderCell textAlign="right">
+                                                    Credits Used In Period
+                                                </TableHeaderCell>
                                                 <TableHeaderCell textAlign="right">Remaining</TableHeaderCell>
                                                 <TableHeaderCell textAlign={"right"}>Include In Chart</TableHeaderCell>
                                             </TableRow>
