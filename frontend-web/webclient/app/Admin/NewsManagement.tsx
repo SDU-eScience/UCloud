@@ -11,7 +11,7 @@ import {Dispatch} from "redux";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Page} from "Types";
-import {Box, Button, Flex, Icon, Input, InputGroup, List, TextArea, Link, Text, Card, Markdown, SelectableTextWrapper, SelectableText} from "ui-components";
+import {Box, Button, Flex, Icon, Input, InputGroup, List, TextArea, Link, Text, Card, Markdown, SelectableTextWrapper, SelectableText, Checkbox, Label} from "ui-components";
 import {DatePicker} from "ui-components/DatePicker";
 import * as Heading from "ui-components/Heading";
 import {SidebarPages} from "ui-components/Sidebar";
@@ -25,7 +25,11 @@ import {addStandardDialog} from "UtilityComponents";
 
 const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
-function NewsManagement(props: {onInit: () => void}): JSX.Element | null {
+interface NewsManagementOperations {
+    onInit: () => void;
+}
+
+function NewsManagement(props: NewsManagementOperations): JSX.Element | null {
     const [start, setStart] = React.useState<Date | null>(null);
     const [end, setEnd] = React.useState<Date | null>(null);
     const [loading, setLoading] = React.useState(false);
@@ -94,7 +98,7 @@ function NewsManagement(props: {onInit: () => void}): JSX.Element | null {
                                     <DatePicker
                                         placeholderText="Show until (Optional)"
                                         fontSize="18px"
-                                        selected={end} 
+                                        selected={end}
                                         onChange={setEnd}
                                         dateFormat={DATE_FORMAT}
                                         startDate={start}
@@ -157,7 +161,7 @@ function NewsManagement(props: {onInit: () => void}): JSX.Element | null {
 
     function pageRenderer(page: Page<NewsPost>): JSX.Element {
         return (
-            <Box width="420px" mt="10px">
+            <Box width={1} mt="10px">
                 <NewsList news={page.items} title="Posts" toggleHidden={toggleHidden} />
             </Box>
         );
@@ -168,8 +172,6 @@ function NewsManagement(props: {onInit: () => void}): JSX.Element | null {
             await promises.makeCancelable(
                 Client.post("/news/toggleHidden", {id})
             ).promise;
-            const hidden = !news.items.find(it => it.id === id)?.hidden ? "Now hidden" : "Now visible";
-            snackbarStore.addSuccess(hidden, false);
             fetchNewsPost(news.pageNumber, news.itemsPerPage);
         } catch (e) {
             displayErrorMessageOrDefault(e, "Could not toggle post visibility.");
@@ -254,24 +256,17 @@ function SingleNewsPost(props: {post: NewsPost, toggleHidden?: (id: number) => v
         <Link to={`/news/detailed/${props.post.id}`}>
             <Heading.h4>{props.post.title}</Heading.h4>
             <Text>{props.post.subtitle}</Text>
-            <Spacer
-                left={
-                    <>
-                        <Input my="6px" mx="6px" readOnly width="50%" value={format(props.post.showFrom, DATE_FORMAT)} />
-                        {props.post.hideFrom == null ? "No expiration" : <Input my="6px" mx="6px" readOnly width="50%" value={format(props.post.hideFrom, DATE_FORMAT)} />}
-                    </>
-                }
-                right={props.toggleHidden ? (
-                    <Icon
-                        mt="16px"
-                        ml="5px"
-                        cursor="pointer"
-                        name={props.post.hidden ? "radioEmpty" : "radioChecked"}
-                        color="blue"
-                        onClick={onToggleHidden}
-                    />
+            <Flex>
+                <Input my="6px" mx="6px" width="210px" readOnly value={format(props.post.showFrom, DATE_FORMAT)} />
+                {props.post.hideFrom == null ? <Box style={{content: ""}} width="222px" /> : <Input my="6px" mx="6px" readOnly width="210px" value={format(props.post.hideFrom, DATE_FORMAT)} />}
+                {props.toggleHidden ? (
+                    <Flex mt="18px" ml="10px">
+                        <Label onClick={onToggleHidden}>
+                            Hidden <Checkbox checked={props.post.hidden} />
+                        </Label>
+                    </Flex>
                 ) : null}
-            />
+            </Flex>
         </Link>
     );
 
@@ -300,7 +295,7 @@ const Categories = (props: {categories: string[], onSelect: (cat: string) => voi
     );
 }
 
-const mapDispatchToProps = (dispatch: Dispatch) => ({
+const mapDispatchToProps = (dispatch: Dispatch): NewsManagementOperations => ({
     onInit: () => {
         dispatch(setActivePage(SidebarPages.Admin));
         dispatch(updatePageTitle("News Management"));

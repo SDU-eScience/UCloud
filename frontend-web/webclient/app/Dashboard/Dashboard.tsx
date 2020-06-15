@@ -114,7 +114,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     } = props;
 
     const main = (
-        <Griddy minmax={315}>
+        <DashboardGrid minmax={315}>
             <DashboardMessageOfTheDay news={news.data.items} />
             <DashboardFavoriteFiles
                 error={favoritePage.error?.why}
@@ -139,15 +139,14 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 <Box pb="12px" />
                 <Accounting.Usage resource="compute" subResource="timeUsed" renderTitle />
             </DashboardCard>
-        </Griddy>
+        </DashboardGrid>
     );
 
     return (<MainContainer main={main} />);
 }
 
-const Griddy = styled(GridCardGroup)`
+const DashboardGrid = styled(GridCardGroup)`
     & ${Card}:first-child {
-        grid-template-columns: minmax(630px, 1fr);
         grid-column: 1 / 3;
         grid-row: 1 / 3;
     }
@@ -328,7 +327,7 @@ function DashboardMessageOfTheDay({news}: {news: NewsPost[]}): JSX.Element | nul
             </Box>
             <Box mx="8px" my="5px">
                 {newestPost ? <Link to={`/news/detailed/${newestPost.id}`}>
-                    <Heading.h4>{newestPost.title}</Heading.h4>
+                    <Heading.h3>{newestPost.title}</Heading.h3>
                     <Heading.h5>{newestPost.subtitle}</Heading.h5>
                     <Box overflow="scroll">
                         <Markdown

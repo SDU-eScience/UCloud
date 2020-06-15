@@ -5,10 +5,6 @@ import dk.sdu.cloud.news.api.NewsPost
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDate
-import org.joda.time.LocalDateTime
-import java.util.*
 
 object NewsTable : SQLTable("news") {
     val id = long("id", notNull = true)
@@ -29,22 +25,29 @@ class NewsService {
         title: String,
         subtitle: String,
         body: String,
-        showFrom: Date,
-        hideFrom: Date?,
+        showFrom: Long,
+        hideFrom: Long?,
         category: String
     ) {
         ctx.withSession { session ->
-            session.insert(NewsTable) {
-                set(NewsTable.id, session.allocateId("id_sequence"))
-                set(NewsTable.postedBy, postedBy)
-                set(NewsTable.title, title)
-                set(NewsTable.subtitle, subtitle)
-                set(NewsTable.body, body)
-                set(NewsTable.showFrom, LocalDateTime(showFrom, DateTimeZone.UTC))
-                set(NewsTable.hideFrom, LocalDateTime(hideFrom, DateTimeZone.UTC))
-                set(NewsTable.hidden, false)
-                set(NewsTable.category, category.toLowerCase())
-            }
+            session.sendPreparedStatement(
+                {
+                    setParameter("id", session.allocateId("id_sequence"))
+                    setParameter("title", title)
+                    setParameter("subtitle", subtitle)
+                    setParameter("body", body)
+                    setParameter("posted_by", postedBy)
+                    setParameter("show_from", showFrom / 1000)
+                    setParameter("hide_from", hideFrom?.let { it / 1000 })
+                    setParameter("hidden", false)
+                    setParameter("category", category.toLowerCase())
+                },
+                """
+                    INSERT INTO News
+                    (id, title, subtitle, body, posted_by, show_from, hide_from, hidden, category)
+                    VALUES (?id, ?title, ?subtitle, ?body, ?posted_by, to_timestamp(?show_from), to_timestamp(?hide_from), ?hidden, ?category)
+                """.trimIndent()
+            )
         }
     }
 
@@ -55,14 +58,15 @@ class NewsService {
         withHidden: Boolean
     ): Page<NewsPost> {
         return ctx.withSession { session ->
-            val items = session.sendPreparedStatement({
-                setParameter("categoryFilter", categoryFilter)
-                setParameter("offset", pagination.page * pagination.itemsPerPage)
-                setParameter("limit", pagination.itemsPerPage)
-                setParameter("withHidden", withHidden)
-            },
-            //language=sql
-            """
+            val items = session.sendPreparedStatement(
+                {
+                    setParameter("categoryFilter", categoryFilter)
+                    setParameter("offset", pagination.page * pagination.itemsPerPage)
+                    setParameter("limit", pagination.itemsPerPage)
+                    setParameter("withHidden", withHidden)
+                },
+                //language=sql
+                """
                 select
                     n.id,
                     n.title,
@@ -76,15 +80,15 @@ class NewsService {
                 from news n
                 where (?categoryFilter::text is null or n.category = ?categoryFilter) and
                       (?withHidden = true or n.show_from <= now()) and
-                      (?withHidden = true or n.hide_from > now()) and
+                      (?withHidden = true or (n.hide_from is null or n.hide_from > now())) and
                       (?withHidden = true or n.hidden = false)
                 order by n.show_from desc
                 offset ?offset
                 limit ?limit
             """.trimIndent()
             )
-            .rows
-            .map {row -> toNewsPost(row)}
+                .rows
+                .map { row -> toNewsPost(row) }
 
             Page(items.size, pagination.itemsPerPage, pagination.page, items)
         }
@@ -101,7 +105,7 @@ class NewsService {
                     from news
                 """.trimIndent()
             )
-            .rows.map { rowData -> rowData.getString(0)!!}
+                .rows.map { rowData -> rowData.getField(NewsTable.category) }
         }
     }
 
@@ -123,16 +127,18 @@ class NewsService {
 
     suspend fun getPostById(ctx: DBContext, id: Long): NewsPost {
         return ctx.withSession { session ->
-            toNewsPost(session.sendPreparedStatement(
-                {
-                    setParameter("id", id)
-                },
-                """
+            toNewsPost(
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                    },
+                    """
                     SELECT *
                     FROM news n
                     WHERE n.id = ?id
                 """.trimIndent()
-            ).rows.single())
+                ).rows.single()
+            )
         }
     }
 }
@@ -144,8 +150,8 @@ fun toNewsPost(row: RowData): NewsPost {
         subtitle = row.getField(NewsTable.subtitle),
         body = row.getField(NewsTable.body),
         postedBy = row.getField(NewsTable.postedBy),
-        showFrom = row.getField(NewsTable.showFrom).toDateTime(DateTimeZone.UTC).millis,
-        hideFrom = row.getField(NewsTable.hideFrom).toDateTime(DateTimeZone.UTC).millis,
+        showFrom = row.getField(NewsTable.showFrom).toDateTime().millis,
+        hideFrom = row.getFieldNullable(NewsTable.hideFrom)?.let { it.toDateTime().millis },
         hidden = row.getField(NewsTable.hidden),
         category = row.getField(NewsTable.category)
     )

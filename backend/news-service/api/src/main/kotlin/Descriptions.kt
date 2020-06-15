@@ -31,9 +31,9 @@ data class NewPostRequest(
     val title: String,
     val subtitle: String,
     val body: String,
-    val showFrom: Date,
+    val showFrom: Long,
     val category: String,
-    val hideFrom: Date?
+    val hideFrom: Long?
 )
 typealias NewPostResponse = Unit
 
