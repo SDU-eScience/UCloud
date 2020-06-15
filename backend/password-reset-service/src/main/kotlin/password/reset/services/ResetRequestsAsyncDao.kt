@@ -21,8 +21,8 @@ object PasswordResetRequestTable : SQLTable("password_reset_requests") {
     val expiresAt = timestamp("expires_at", notNull = true)
 }
 
-class ResetRequestsAsyncDao : ResetRequestsDao {
-    override suspend fun create(db: DBContext, token: String, userId: String) {
+class ResetRequestsAsyncDao {
+    suspend fun create(db: DBContext, token: String, userId: String) {
         val timeSource = LocalDateTime.now(DateTimeZone.UTC)
 
         // Set to expire in 30 minutes
@@ -37,7 +37,7 @@ class ResetRequestsAsyncDao : ResetRequestsDao {
         }
     }
 
-    override suspend fun get(db: DBContext, token: String): ResetRequest? {
+    suspend fun get(db: DBContext, token: String): ResetRequest? {
         return db.withSession { session ->
             session
                 .sendPreparedStatement(

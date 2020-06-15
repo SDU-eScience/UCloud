@@ -33,7 +33,7 @@ data class ResetRequest(
 class PasswordResetService(
     private val db: DBContext,
     private val authenticatedClient: AuthenticatedClient,
-    private val resetRequestsDao: ResetRequestsDao,
+    private val resetRequestsDao: ResetRequestsAsyncDao,
     private val secureRandom: SecureRandom
 ) {
     suspend fun createResetRequest(email: String) {
