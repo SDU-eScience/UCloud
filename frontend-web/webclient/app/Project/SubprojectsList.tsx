@@ -63,8 +63,6 @@ export function SubprojectsList(props: Readonly<{
             return (
                 <Flex key={subproject.id} alignItems="center" mb="16px">
                     <Text bold>{subproject.title}</Text>
-                    <Text color={theme.colors.gray}>{subproject.id}</Text>
-
                     <Box flexGrow={1} />
 
                     <Flex alignItems={"center"}>
