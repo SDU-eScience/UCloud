@@ -55,20 +55,19 @@ function AssignCreditsModal(
 
     const [isOpen, setOpen] = React.useState<boolean>(true);
     const [wallets, setWallets] = React.useState<WalletBalance[]>([]);
-    const [walletOptions, setWalletOptions] = React.useState<{text: string; value: string}[]>([{text: "Undefined wallet", value:"undefined"}]);
+    const [walletOptions, setWalletOptions] = React.useState<{text: string; value: string}[]>([{text: "No wallets found", value:"undefined"}]);
     const [selectedWallet, setSelectedWallet] = React.useState<WalletBalance|undefined>(undefined);
 
     useEffect(() => {
         if (project.parent === undefined) return;
         fetchParentProjectBalance(retrieveBalance({id: project.parent, type: "PROJECT"}));
-
     }, [project]);
 
     useEffect(() => {
         if (parentProjectBalance.data.wallets.length < 1) return;
         setWallets(parentProjectBalance.data.wallets);
         setWalletOptions(parentProjectBalance.data.wallets.map(wallet => (
-            {text: wallet.category.id + " - " + wallet.category.provider + " (Balance: " + wallet.balance + " DKK)", value: wallet.category.provider+wallet.category.id}
+            {text: wallet.wallet.paysFor.provider + " " + wallet.wallet.paysFor.id + " (Balance: " + wallet.balance + " DKK)", value: wallet.wallet.id}
         )));
     }, [parentProjectBalance.data]);
 
@@ -86,97 +85,51 @@ function AssignCreditsModal(
                 </Flex>
                 <Box mt={16}>
                     <form>
-                            <Box>From wallet</Box>
-                            <InputLabel width={450} mb={20}>
-                                <ClickableDropdown
-                                    chevron
-                                    width="450px"
-                                    onChange={(val) => setSelectedWallet(wallets.find(wallet => wallet.category.provider+wallet.category.id === val))}
-                                    trigger={
-                                        <Box as="span" minWidth="450px" color="gray">
-                                            {
-                                                selectedWallet !== undefined ?
-                                                    selectedWallet.category.provider + " " + selectedWallet.category.id + " (Balance: " + selectedWallet.balance + ")"
-                                                : "No wallet selected"
-                                            }
-                                        </Box>
-                                    }
-                                    options={walletOptions}
-                                />
-                            </InputLabel>
+                        <Box>From wallet</Box>
+                        <InputLabel width={450} mb={20}>
+                            <ClickableDropdown
+                                chevron
+                                width="450px"
+                                onChange={(val) => setSelectedWallet(wallets.find(wallet => wallet.wallet.id === val))}
+                                trigger={
+                                    <Box as="span" minWidth="450px" color="gray">
+                                        {
+                                            selectedWallet !== undefined ?
+                                                selectedWallet.wallet.paysFor.provider + " " + selectedWallet.wallet.paysFor.id + " (Balance: " + selectedWallet.balance + " DKK)"
+                                            : "Please select a wallet"
+                                        }
+                                    </Box>
+                                }
+                                options={walletOptions}
+                            />
+                        </InputLabel>
 
-                            <Box>Amount</Box>
-                            <Flex alignItems="center" mb={20}>
-                                <Input
-                                    mr={10}
-                                    required
-                                    type="text"
-                                    ref={amountField}
-                                    placeholder="Amount"
-                                />
-                                <TextSpan>DKK</TextSpan>
-                            </Flex>
+                        <Box>Amount</Box>
+                        <Flex alignItems="center" mb={20}>
+                            <Input
+                                mr={10}
+                                required
+                                type="text"
+                                ref={amountField}
+                                placeholder="Amount"
+                            />
+                            <TextSpan>DKK</TextSpan>
+                        </Flex>
 
-                            <Flex alignItems="center">
-                                <Button color="red" mr="5px" onClick={() => {setOpen(false)}}>
-                                    Cancel
-                                </Button>
+                        <Flex alignItems="center">
+                            <Button color="red" mr="5px" onClick={() => {setOpen(false)}}>
+                                Cancel
+                            </Button>
 
-                                <Button
-                                    color="green"
-                                    type={"submit"}
-                                >
-                                    Assign credits
-                                </Button>
-                            </Flex>
+                            <Button
+                                color="green"
+                                type={"submit"}
+                            >
+                                Assign credits
+                            </Button>
+                        </Flex>
                     </form>
                 </Box>
-                {/*accessList.length > 0 ? (
-                    <Box maxHeight="80vh">
-                        <Table width="700px">
-                            <LeftAlignedTableHeader>
-                                <TableRow>
-                                    <TableHeaderCell width={150}>Type</TableHeaderCell>
-                                    <TableHeaderCell width={500}>Name</TableHeaderCell>
-                                    <TableHeaderCell width={200}>Permission</TableHeaderCell>
-                                    <TableHeaderCell width={50}>Delete</TableHeaderCell>
-                                </TableRow>
-                            </LeftAlignedTableHeader>
-                            <tbody>
-                                {accessList.map((accessEntry, index) => (
-                                    <TableRow key={index}>
-                                        <TableCell>
-                                            {accessEntry.entity.user ? (
-                                                prettifyEntityType(UserEntityType.USER)
-                                            ) : (
-                                                    prettifyEntityType(UserEntityType.PROJECT_GROUP)
-                                                )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {accessEntry.entity.user ? (
-                                                accessEntry.entity.user
-                                            ) : (
-                                                    accessEntry.entity.project + " " + accessEntry.entity.group
-                                                )}
-                                        </TableCell>
-                                        <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
-                                        <TableCell textAlign="right">
-                                            <Button
-                                                color="red"
-                                                type="button"
-                                                paddingLeft={10}
-                                                paddingRight={10}
-                                                onClick={() => setAccessEntryToDelete(accessEntry)}
-                                            >
-                                                <Icon size={16} name="trash" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </tbody>
-                        </Table>
-                    </Box>
-                                            ) : <Text textAlign="center">No access entries found</Text>*/}
             </div>
         </Box>
     );
@@ -277,7 +230,7 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
                                 searchQuery={subprojectSearchQuery}
                                 loading={subprojects.loading}
                                 fetchParams={setSubprojectParams}
-                                onAssignCredits={async (subproject) => 
+                                onAssignCredits={async (subproject) =>
                                     openAssignCreditsModal(subproject)
                                 }
                                 onRemoveSubproject={async (subprojectId, subprojectTitle) => addStandardDialog({

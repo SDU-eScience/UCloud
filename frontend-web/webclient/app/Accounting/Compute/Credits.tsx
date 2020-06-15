@@ -97,8 +97,8 @@ export const BalanceForAccount: React.FunctionComponent<{
         {!props.balance.error ? null : <>{props.balance.error.why}</>}
 
         {props.balance.error ? null : props.balance.data.wallets.map(it => (
-            <Box key={it.category.id} mt={8} mb={8}>
-                <Heading.h4>Balance ({it.category.id}): {it.balance}</Heading.h4>
+            <Box key={it.wallet.paysFor.id} mt={8} mb={8}>
+                <Heading.h4>Balance ({it.wallet.paysFor.id}): {it.balance}</Heading.h4>
 
                 <WalletContainer>
                     <form onSubmit={async e => {

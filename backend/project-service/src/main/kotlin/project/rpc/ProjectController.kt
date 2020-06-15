@@ -14,6 +14,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.project.services.QueryService
+import dk.sdu.cloud.service.normalizeWithFullReadEnabled
 import dk.sdu.cloud.service.toActor
 import io.ktor.http.HttpStatusCode
 
@@ -184,8 +185,8 @@ class ProjectController(
             ok(
                 queries.listSubProjects(
                     db,
-                    request.normalize(),
-                    ctx.securityPrincipal.username,
+                    request.normalizeWithFullReadEnabled(ctx.securityPrincipal.toActor()),
+                    ctx.securityPrincipal.toActor(),
                     ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
                 )
             )

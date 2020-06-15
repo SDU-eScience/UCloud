@@ -716,12 +716,22 @@ class QueryService(
 
     suspend fun listSubProjects(
         ctx: DBContext,
-        pagination: NormalizedPaginationRequest,
-        requestedBy: String,
+        pagination: NormalizedPaginationRequest?,
+        actor: Actor,
         id: String
     ): Page<Project> {
         return ctx.withSession { session ->
-            val isAdmin = projects.findRoleOfMember(ctx, id, requestedBy) in ProjectRole.ADMINS
+            val isAdmin = when (actor) {
+                Actor.System -> true
+
+                is Actor.User, is Actor.SystemOnBehalfOfUser -> {
+                    if (actor is Actor.User && actor.principal.role in Roles.PRIVILEDGED) {
+                        true
+                    } else {
+                        projects.findRoleOfMember(ctx, id, actor.username) in ProjectRole.ADMINS
+                    }
+                }
+            }
 
             if (isAdmin) {
                 session
@@ -734,16 +744,19 @@ class QueryService(
             } else {
                 val params: EnhancedPreparedStatement.() -> Unit = {
                     setParameter("id", id)
-                    setParameter("username", requestedBy)
-                    setParameter("offset", pagination.offset)
-                    setParameter("limit", pagination.itemsPerPage)
+                    setParameter("username", actor.username)
+                    setParameter("offset", pagination?.offset ?: 0)
+                    setParameter("limit", pagination?.itemsPerPage ?: Int.MAX_VALUE)
                 }
 
-                val count = session
-                    .sendPreparedStatement(
-                        params,
+                val count =
+                    if (pagination == null) null
+                    else {
+                        session
+                            .sendPreparedStatement(
+                                params,
 
-                        """
+                                """
                             select count(p.id)
                             from projects p, project_members pm
                             where
@@ -752,10 +765,11 @@ class QueryService(
                                 pm.username = ?username and
                                 (pm.role = 'ADMIN' or pm.role = 'PI')
                         """
-                    )
-                    .rows
-                    .single()
-                    .getLong(0) ?: 0L
+                            )
+                            .rows
+                            .single()
+                            .getLong(0) ?: 0L
+                    }
 
                 val items = session
                     .sendPreparedStatement(
@@ -776,7 +790,8 @@ class QueryService(
                     .rows
                     .map { it.toProject() }
 
-                Page(count.toInt(), pagination.itemsPerPage, pagination.page, items)
+                val itemsInTotal = count?.toInt() ?: items.size
+                Page.forRequest(pagination, itemsInTotal, items)
             }
         }
     }
@@ -809,7 +824,7 @@ class QueryService(
                 }
             }
         }
-        return resultList
+        return resultList.asReversed()
     }
 
     private fun RowData.toProject(): Project {

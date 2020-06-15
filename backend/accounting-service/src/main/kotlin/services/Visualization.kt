@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services
 
+import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.TimeRangeQuery
 import dk.sdu.cloud.accounting.api.UsageChart
@@ -42,6 +43,7 @@ class VisualizationService(
                 val timestamp: Long
             )
 
+            val productAreas = HashMap<ProductCategoryId, ProductArea>()
             val relevantProductCategoriesByProvider = HashMap<String, HashSet<ProductCategoryId>>()
             val relevantAccountsByProvider = HashMap<String, HashSet<String>>()
             val allCreditsUsed = HashMap<RowKey, Long>()
@@ -52,7 +54,7 @@ class VisualizationService(
                     {
                         setParameter("periodStart", query.periodStart / 1000L)
                         setParameter("periodEnd", query.periodEnd / 1000L)
-                        setParameter("bucketSize", "${query.bucketSize} ms")
+                        setParameter("bucketSize", "${query.bucketSize / 1000} s")
                         setParameter("accountId", accountId)
                         setParameter("accountType", accountType.name)
                     },
@@ -63,7 +65,8 @@ class VisualizationService(
                             t.product_provider,
                             t.product_category,
                             sum(t.amount)::bigint,
-                            extract(epoch from timestamps.ts)::bigint
+                            extract(epoch from timestamps.ts)::bigint,
+                            pc.area
 
                         from
                             (
@@ -78,13 +81,19 @@ class VisualizationService(
                                 t.is_reserved = false and
                                 t.account_id = ?accountId and
                                 t.account_type = ?accountType
-                            )
+                            ),
+                            product_categories pc
+                            
+                        where
+                            pc.category = t.product_category and
+                            pc.provider = t.product_provider
 
                         group by
                             timestamps.ts,
                             t.original_account_id,
                             t.product_provider,
-                            t.product_category
+                            t.product_category,
+                            pc.area
                     """
                 )
                 .rows
@@ -96,6 +105,7 @@ class VisualizationService(
                     val productProvider = row.getString(1)!!
                     val productCategory = row.getString(2)!!
                     val creditsUsed = row.getLong(3)!!
+                    val area = ProductArea.valueOf(row.getString(5)!!)
 
                     val relevantAccounts = relevantAccountsByProvider[productProvider] ?: HashSet()
                     relevantAccountsByProvider[productProvider] = relevantAccounts
@@ -103,7 +113,10 @@ class VisualizationService(
 
                     val relevantCategories = relevantProductCategoriesByProvider[productProvider] ?: HashSet()
                     relevantProductCategoriesByProvider[productProvider] = relevantCategories
-                    relevantCategories.add(ProductCategoryId(productCategory, productProvider))
+
+                    val category = ProductCategoryId(productCategory, productProvider)
+                    relevantCategories.add(category)
+                    productAreas[category] = area
 
                     allCreditsUsed[RowKey(childAccountId, productProvider, productCategory, timestamp)] = creditsUsed
                 }
@@ -194,7 +207,7 @@ class VisualizationService(
                                 null
                             }
 
-                            UsageLine(category.id, projectPath, account, points)
+                            UsageLine(productAreas.getValue(category), category.id, projectPath, account, points)
                         }
                     }
 

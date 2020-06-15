@@ -3,6 +3,7 @@ package dk.sdu.cloud.service.db.async
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.offset
 
 /**
  * Utility function for pagination queries.
@@ -29,25 +30,29 @@ import dk.sdu.cloud.service.Page
  * ```
  */
 suspend fun AsyncDBConnection.paginatedQuery(
-    pagination: NormalizedPaginationRequest,
+    pagination: NormalizedPaginationRequest?,
     block: EnhancedPreparedStatement.() -> Unit,
     query: String,
     orderBy: String? = null
 ): Page<RowData> {
-    val itemsInTotal = sendPreparedStatement(
-        block,
-        "select count(*) $query"
-    ).rows.singleOrNull()?.getLong(0) ?: 0
+    val itemsInTotal =
+        if (pagination == null) null
+        else {
+            sendPreparedStatement(
+                block,
+                "select count(*) $query"
+            ).rows.singleOrNull()?.getLong(0) ?: 0
+        }
 
     val items = sendPreparedStatement(
         {
             block()
-            setParameter("limit", pagination.itemsPerPage)
-            setParameter("offset", pagination.itemsPerPage * pagination.page)
+            setParameter("limit", pagination?.itemsPerPage ?: Int.MAX_VALUE)
+            setParameter("offset", pagination?.offset ?: 0)
         },
 
         "select * $query ${orderBy ?: ""} limit ?limit offset ?offset"
     ).rows
 
-    return Page(itemsInTotal.toInt(), pagination.itemsPerPage, pagination.page, items)
+    return Page.forRequest(pagination, itemsInTotal?.toInt(), items)
 }
