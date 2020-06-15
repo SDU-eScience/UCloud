@@ -1,4 +1,4 @@
-import {ProjectRole, UserInProject, deleteProject, listProjects, listSubprojects, ListSubprojectsRequest} from "Project/index";
+import {ProjectRole, UserInProject, deleteProject, listProjects, listSubprojects, ListSubprojectsRequest, Project} from "Project/index";
 import {useAsyncCommand, APICallParameters} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
 import * as Pagination from "Pagination";
@@ -11,11 +11,11 @@ import {Page} from "Types";
 
 
 export function SubprojectsList(props: Readonly<{
-    subprojects: Page<UserInProject>;
+    subprojects: Page<Project>;
     searchQuery: string;
     loading: boolean;
     onRemoveSubproject(subprojectId: string, subprojectTitle): void;
-    onAssignCredits(subproject: UserInProject): void;
+    onAssignCredits(subproject: Project): void;
     allowRoleManagement: boolean;
     reload?: () => void;
     fetchParams(params: APICallParameters<ListSubprojectsRequest>);
@@ -51,7 +51,7 @@ export function SubprojectsList(props: Readonly<{
         </Box>
     </>);
 
-    function pageRenderer(page: Page<UserInProject>): JSX.Element[] {
+    function pageRenderer(page: Page<Project>): JSX.Element[] {
         const filteredItems = (props.searchQuery !== "" ?
             page.items.filter(it =>
                 it.title.toLowerCase().search(props.searchQuery.toLowerCase().replace(/\W|_|\*/g, "")) !== -1)
@@ -61,15 +61,15 @@ export function SubprojectsList(props: Readonly<{
 
         return filteredItems.map(subproject => {
             return (
-                <Flex key={subproject.projectId} alignItems="center" mb="16px">
+                <Flex key={subproject.id} alignItems="center" mb="16px">
                     <Text bold>{subproject.title}</Text>
-                    <Text color={theme.colors.gray}>{subproject.projectId}</Text>
+                    <Text color={theme.colors.gray}>{subproject.id}</Text>
 
                     <Box flexGrow={1} />
 
                     <Flex alignItems={"center"}>
                         <Button width="150px" height="35px" onClick={() => props.onAssignCredits(subproject)}>Assign credits</Button>
-                        <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveSubproject(subproject.projectId, subproject.title)} />
+                        <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveSubproject(subproject.id, subproject.title)} />
                     </Flex>
                 </Flex>
             );

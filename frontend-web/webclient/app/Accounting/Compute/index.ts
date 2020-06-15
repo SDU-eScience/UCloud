@@ -32,7 +32,7 @@ export interface RetrieveBalanceResponse {
 export function retrieveBalance(request: RetrieveBalanceRequest): APICallParameters<RetrieveBalanceRequest> {
     return {
         method: "GET",
-        path: buildQueryString("/accounting/compute/balance", request),
+        path: buildQueryString("/accounting/wallets/balance", request),
         parameters: request,
         reloadId: Math.random()
     };

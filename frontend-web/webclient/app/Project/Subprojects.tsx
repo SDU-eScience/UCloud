@@ -6,6 +6,7 @@ import {
     listSubprojects,
     useProjectManagementStatus,
     deleteProject,
+    Project,
 } from "Project/index";
 import * as React from "react";
 import {useEffect} from "react";
@@ -28,7 +29,7 @@ import {TextSpan} from "ui-components/Text";
 import {InputLabel} from "ui-components/Input";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {dialogStore} from "Dialog/DialogStore";
-import {Wallet, RetrieveBalanceResponse, retrieveBalance} from "Accounting/Compute";
+import {Wallet, RetrieveBalanceResponse, retrieveBalance, WalletBalance} from "Accounting/Compute";
 
 const SearchContainer = styled(Flex)`
     flex-wrap: wrap;
@@ -43,29 +44,37 @@ const SearchContainer = styled(Flex)`
 `;
 
 function AssignCreditsModal(
-    {project}: {project: UserInProject}
+    {project}: {project: Project}
 ): JSX.Element {
+
     const amountField = React.useRef<HTMLInputElement>(null);
-    const [currentProjectBalance, fetchProjectBalance] = useCloudAPI<RetrieveBalanceResponse>(
+    const [parentProjectBalance, fetchParentProjectBalance] = useCloudAPI<RetrieveBalanceResponse>(
         {noop: true},
         {wallets: []}
     );
 
-    const [selectedWallet, setSelectedWallet] = React.useState<string>("Standard computation");
-
-    const walletTypes = [{text: "Test wallet", value: "1", balance:"123"}];
-
+    const [isOpen, setOpen] = React.useState<boolean>(true);
+    const [wallets, setWallets] = React.useState<WalletBalance[]>([]);
+    const [walletOptions, setWalletOptions] = React.useState<{text: string; value: string}[]>([{text: "Undefined wallet", value:"undefined"}]);
+    const [selectedWallet, setSelectedWallet] = React.useState<WalletBalance|undefined>(undefined);
 
     useEffect(() => {
-        if (project.projectId === "") return;
-        fetchProjectBalance(retrieveBalance({id: project.projectId, type: "PROJECT"}));
-        console.log(currentProjectBalance);
-        const walletTypes = currentProjectBalance.data.wallets.map(wallet =>
-            ({text: wallet.category.id, value: wallet.category.id})
-        );
-
+        if (project.parent === undefined) return;
+        fetchParentProjectBalance(retrieveBalance({id: project.parent, type: "PROJECT"}));
 
     }, [project]);
+
+    useEffect(() => {
+        if (parentProjectBalance.data.wallets.length < 1) return;
+        setWallets(parentProjectBalance.data.wallets);
+        setWalletOptions(parentProjectBalance.data.wallets.map(wallet => (
+            {text: wallet.category.id + " - " + wallet.category.provider + " (Balance: " + wallet.balance + " DKK)", value: wallet.category.provider+wallet.category.id}
+        )));
+    }, [parentProjectBalance.data]);
+
+    useEffect(() => {
+        if (isOpen === false) return;
+    }, [isOpen]);
 
         return (
         <Box>
@@ -77,24 +86,26 @@ function AssignCreditsModal(
                 </Flex>
                 <Box mt={16}>
                     <form>
-                            <Box>Wallet</Box>
+                            <Box>From wallet</Box>
                             <InputLabel width={450} mb={20}>
                                 <ClickableDropdown
                                     chevron
                                     width="450px"
-                                    onChange={(val: string) => setSelectedWallet(val)}
+                                    onChange={(val) => setSelectedWallet(wallets.find(wallet => wallet.category.provider+wallet.category.id === val))}
                                     trigger={
-                                        <Box as="span" minWidth="450px" color="gray">{selectedWallet}</Box>
+                                        <Box as="span" minWidth="450px" color="gray">
+                                            {
+                                                selectedWallet !== undefined ?
+                                                    selectedWallet.category.provider + " " + selectedWallet.category.id + " (Balance: " + selectedWallet.balance + ")"
+                                                : "No wallet selected"
+                                            }
+                                        </Box>
                                     }
-                                    options={walletTypes}
+                                    options={walletOptions}
                                 />
                             </InputLabel>
-                            <Box>
-                                Credits left in wallet:
-                            </Box>
-                            <Box mb={20}>
-                                Assignable credits available:
-                            </Box>
+
+                            <Box>Amount</Box>
                             <Flex alignItems="center" mb={20}>
                                 <Input
                                     mr={10}
@@ -107,7 +118,7 @@ function AssignCreditsModal(
                             </Flex>
 
                             <Flex alignItems="center">
-                                <Button color="red" mr="5px">
+                                <Button color="red" mr="5px" onClick={() => {setOpen(false)}}>
                                     Cancel
                                 </Button>
 
@@ -171,7 +182,7 @@ function AssignCreditsModal(
     );
 }
 
-function openAssignCreditsModal(subproject: UserInProject): void {
+function openAssignCreditsModal(subproject: Project): void {
     dialogStore.addDialog(<AssignCreditsModal project={subproject} />, () => undefined);
 }
 
@@ -188,7 +199,7 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
         setSubprojectSearchQuery
     } = useProjectManagementStatus();
 
-    const [subprojects, setSubprojectParams, subprojectParams] = useCloudAPI<Page<UserInProject>>(
+    const [subprojects, setSubprojectParams, subprojectParams] = useCloudAPI<Page<Project>>(
         listSubprojects({itemsPerPage: 50, page: 0}),
         emptyPage
     );

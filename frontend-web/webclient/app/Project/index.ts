@@ -199,13 +199,15 @@ export interface ProjectMember {
 export interface Project {
     id: string;
     title: string;
-    members: ProjectMember[];
+    parent?: string;
+    archived: boolean;
 }
 
 export const emptyProject = (id: string): Project => ({
     id,
     title: "",
-    members: []
+    parent: undefined,
+    archived: false
 });
 
 export enum ProjectRole {
