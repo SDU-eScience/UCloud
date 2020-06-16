@@ -173,8 +173,8 @@ export const AppCard = styled(Link)`
     }
 `;
 
-export const Tag = ({label}: {label: string}): JSX.Element => (
-    <RatingBadge mr="3px" bg="darkGray"><Heading.h6>{label}</Heading.h6></RatingBadge>
+export const Tag = ({label, bg = "darkGray"}: {label: string; bg?: string}): JSX.Element => (
+    <RatingBadge mr="3px" bg={bg}><Heading.h6>{label}</Heading.h6></RatingBadge>
 );
 
 const appColors = theme.appColors;
@@ -288,10 +288,10 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     const appC = appColor(hash);
     return (
         <AppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
-            <AbsoluteNoPointerEvents right={0} top={0} 
+            <AbsoluteNoPointerEvents right={0} top={0}
                 cursor="inherit"
                 height="100%"
-                width="10px" 
+                width="10px"
                 background={bgGradients[appC]} />
             {(!onFavorite && !isFavorite) ? null : (
                 <AppRibbonContainer

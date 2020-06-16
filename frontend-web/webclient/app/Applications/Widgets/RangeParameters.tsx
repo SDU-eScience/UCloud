@@ -29,7 +29,7 @@ function RangeParameter(props: RangeParameterProps) {
     return (
         <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             {first} to {second}
-{/*             <Range
+            {/*  <Range
                 max={parameter.max}
                 min={parameter.min}
                 included

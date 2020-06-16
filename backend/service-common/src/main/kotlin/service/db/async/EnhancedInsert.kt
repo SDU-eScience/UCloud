@@ -51,8 +51,8 @@ suspend fun AsyncDBConnection.insert(table: String, columnToValue: Map<String, A
  * }
  * ```
  */
-suspend fun AsyncDBConnection.insert(table: SQLTable, block: SQLRow.() -> Unit) {
-    val row = SQLRow().also(block)
+suspend fun AsyncDBConnection.insert(table: SQLTable, block: suspend SQLRow.() -> Unit) {
+    val row = SQLRow().also { it.block() }
     val keys = row.keys().toList()
     sendPreparedStatement(
         "insert into $table (${keys.joinToString(",") { it.name }}) values (${keys.joinToString(",") { "?" }})",
