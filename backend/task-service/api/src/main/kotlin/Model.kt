@@ -10,7 +10,8 @@ data class Task(
     val title: String?,
     val status: String?,
     val complete: Boolean,
-    val startedAt: Long
+    val startedAt: Long,
+    val modifiedAt: Long
 )
 
 data class TaskUpdate(

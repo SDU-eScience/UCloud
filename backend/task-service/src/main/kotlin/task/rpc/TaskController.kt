@@ -14,7 +14,7 @@ import kotlinx.coroutines.delay
 
 class TaskController(
     private val subscriptionService: SubscriptionService,
-    private val taskService: TaskService<*>
+    private val taskService: TaskService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(Tasks.listen) {
