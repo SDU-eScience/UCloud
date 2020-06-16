@@ -102,7 +102,7 @@ const MembersPanel: React.FunctionComponent = () => {
                             }
                         }}
                     >
-                        <Icon name={"open"} />
+                        <Icon name="open" />
                     </Button>
                     <Button attached type={"submit"}>Add</Button>
                 </form>

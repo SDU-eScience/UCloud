@@ -270,9 +270,16 @@ class QueryService(
                     setParameter("limit", pagination.itemsPerPage)
                     setParameter("offset", pagination.itemsPerPage * pagination.page)
                 },
+                //language=sql
                 """
                     select * $baseQuery 
-                    order by role, created_at
+                    order by 
+                        CASE role
+                            WHEN 'PI' THEN 1
+                            WHEN 'ADMIN' THEN 2
+                            WHEN 'USER' THEN 3
+                            ELSE 4
+                        END, username, created_at
                     limit ?limit offset ?offset
                 """
             )

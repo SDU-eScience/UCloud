@@ -39,7 +39,8 @@ export function useGlobal<Property extends keyof HookStore>(
 }
 
 /**
- * Similar to useGlobal but merges previous value with new value. Keys in the new object take precedence over old values.
+ * Similar to useGlobal but merges previous value with new value.
+ * Keys in the new object take precedence over old values.
  */
 export function useGlobalWithMerge<Property extends keyof HookStore>(
     property: Property,
