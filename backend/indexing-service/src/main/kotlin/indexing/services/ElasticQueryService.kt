@@ -1,6 +1,7 @@
 package dk.sdu.cloud.indexing.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.file.api.joinPath
@@ -20,6 +21,7 @@ import dk.sdu.cloud.indexing.util.search
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
+import io.ktor.http.HttpStatusCode
 import mbuhot.eskotlin.query.compound.bool
 import mbuhot.eskotlin.query.fulltext.match_phrase_prefix
 import mbuhot.eskotlin.query.term.range
@@ -52,6 +54,9 @@ class ElasticQueryService(
         paging: NormalizedPaginationRequest? = null,
         sorting: SortRequest? = null
     ): Page<ElasticIndexedFile> {
+        if (paging != null && (paging.page * paging.itemsPerPage + paging.itemsPerPage) > 10000) {
+            throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
         return elasticClient.search<ElasticIndexedFile>(mapper, paging, FILES_INDEX) {
             if (sorting != null) {
                 val field = when (sorting.field) {
@@ -66,10 +71,21 @@ class ElasticQueryService(
                 }
 
                 sort(field, direction)
-            }
 
+            }
+            if (paging != null) {
+                if (paging.page * paging.itemsPerPage + paging.itemsPerPage <= 10000) {
+                    from(paging.page * paging.itemsPerPage)
+                    size(paging.itemsPerPage)
+                } else {
+                    size(10000)
+                }
+            } else {
+                //If pagination is not given then limit to 10000 results. If more needed use scroll API.
+                size(10000)
+            }
             searchBasedOnQuery(query).also {
-                log.debug(it.toString())
+                log.info(it.toString())
             }
         }
     }

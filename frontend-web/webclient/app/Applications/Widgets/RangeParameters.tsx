@@ -1,6 +1,6 @@
 import * as Types from "Applications";
 import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
-import {Range} from "rc-slider";
+// import {Range} from "rc-slider";
 import "rc-slider/assets/index.css";
 import * as React from "react";
 

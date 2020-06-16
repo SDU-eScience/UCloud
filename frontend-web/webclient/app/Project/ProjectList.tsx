@@ -7,7 +7,7 @@ import {
     ListProjectsRequest,
     UserInProject,
     createProject,
-    IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite, ListFavoriteProjectsRequest, listFavoriteProjects
+    IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite, ListFavoriteProjectsRequest, listFavoriteProjects, ProjectRole
 } from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -107,22 +107,13 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     }, [archived]);
 
     const projectOperations: ProjectOperation[] = [
-        /* {
-            text: "Settings",
-            disabled: projects => projects.length !== 1,
-            icon: "properties",
-            onClick: ([project]) => {
-                props.setProject(project.projectId);
-                history.push("/projects/view/-/settings");
-            }
-        }, */
         {
             text: "Archive",
-            disabled: projects => projects.length !== 1 || projects.every(it => it.archived),
+            disabled: projects => projects.length !== 1 || projects.every(it => it.archived) || projects[0].whoami.role === ProjectRole.USER,
             icon: "tags",
             onClick: ([project]) => dialogStore.addDialog(
                 <ArchiveProject
-                    onSuccess={() => dialogStore.success()}
+                    onSuccess={() => reload()}
                     isArchived={project.archived}
                     projectId={project.projectId}
                     projectRole={project.whoami.role}
@@ -132,11 +123,11 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         },
         {
             text: "Unarchive",
-            disabled: projects => projects.length !== 1 || projects.every(it => !it.archived),
+            disabled: projects => projects.length !== 1 || projects.every(it => !it.archived) || projects[0].whoami.role === ProjectRole.USER,
             icon: "tags",
             onClick: ([project]) => dialogStore.addDialog(
                 <ArchiveProject
-                    onSuccess={() => dialogStore.success()}
+                    onSuccess={() => reload()}
                     isArchived={project.archived}
                     projectId={project.projectId}
                     projectRole={project.whoami.role}
@@ -150,7 +141,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             icon: "open",
             onClick: ([project]) => dialogStore.addDialog(
                 <LeaveProject
-                    onSuccess={() => dialogStore.success()}
+                    onSuccess={() => reload()}
                     projectId={project.projectId}
                     projectRole={project.whoami.role}
                 />,
@@ -262,8 +253,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 icon={<Icon
                                     cursor="pointer"
                                     size="24"
-                                    name={"starEmpty"}
-                                    color={"midGray"}
+                                    name="starEmpty"
+                                    color="midGray"
                                     hoverColor="blue"
                                 />}
                                 left={<form onSubmit={onCreateProject}>

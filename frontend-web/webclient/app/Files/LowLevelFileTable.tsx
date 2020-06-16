@@ -38,7 +38,8 @@ import {
     OutlineButton,
     Text,
     Tooltip,
-    Truncate
+    Truncate,
+    ButtonGroup
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
@@ -910,6 +911,36 @@ interface NameBoxProps {
     isEmbedded?: boolean;
 }
 
+const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: string) => void}) => {
+    const ref = React.useRef<HTMLInputElement>(null);
+    return (
+        <Flex width={1} alignItems="center">
+            <Input
+                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+                pt="0px"
+                pb="0px"
+                pr="0px"
+                pl="0px"
+                mb="-4px"
+                noBorder
+                fontSize={20}
+                maxLength={1024}
+                borderRadius="0px"
+                type="text"
+                ref={ref}
+                autoFocus
+                data-tag="renameField"
+                onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
+            />
+            <ButtonGroup width="220px">
+                <Button onClick={() => props.onRenameFile?.(KeyCode.ENTER, ref.current?.value ?? "")} color="green">Create</Button>
+                <Button onClick={() => props.onRenameFile?.(KeyCode.ESC, "")} color="red">Cancel</Button>
+            </ButtonGroup>
+        </Flex>
+    );
+};
+
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const favorites = useFavoriteStatus();
     const canNavigate = isDirectory({fileType: props.file.fileType});
@@ -926,32 +957,12 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
     const beingRenamed = props.file.path !== null && props.file.path === props.fileBeingRenamed;
     const fileName = beingRenamed ? (
-        <Flex width={1} alignItems="center">
-            <Input
-                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
-                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
-                pt="0px"
-                pb="0px"
-                pr="0px"
-                pl="0px"
-                mb="-4px"
-                noBorder
-                fontSize={20}
-                maxLength={1024}
-                borderRadius="0px"
-                type="text"
-                width={1}
-                autoFocus
-                data-tag="renameField"
-                onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
-            />
-            <Icon ml="10px" mb="-4px" size="16px" cursor="pointer" name="close" color="red" onClick={() => props.onRenameFile?.(KeyCode.ESC, "")} />
-        </Flex>
+        <RenameBox file={props.file} onRenameFile={props.onRenameFile} />
     ) : (
-            <Truncate width={1} mb="-4px" fontSize={20}>
-                {getFileNameForNameBox(props.file.path)}
-            </Truncate>
-        );
+        <Truncate width={1} mb="-4px" fontSize={20}>
+            {getFileNameForNameBox(props.file.path)}
+        </Truncate>
+    );
 
     return (
         <Flex maxWidth={`calc(100% - ${220 + (props.isEmbedded ? 15 : 0)}px)`}>
