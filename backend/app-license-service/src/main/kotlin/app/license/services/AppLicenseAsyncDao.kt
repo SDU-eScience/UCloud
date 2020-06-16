@@ -32,7 +32,7 @@ fun RowData.toLicenseServerWithId(): LicenseServerWithId {
         name = getField(LicenseServerTable.name),
         address = getField(LicenseServerTable.address),
         port = getField(LicenseServerTable.port),
-        license = if (getField(LicenseServerTable.license).isBlank()) {null}
+        license = if (getField(LicenseServerTable.license).isNullOrBlank()) {null}
                     else {getField(LicenseServerTable.license)}
     )
 }
@@ -85,7 +85,8 @@ class AppLicenseAsyncDao {
         projectGroups: List<ProjectAndGroup>
     ): List<LicenseServerId>? {
         var query = """
-            SELECT LS.id, LS.name, LS.address, LS.port, LS.license FROM license_servers AS LS
+            SELECT * 
+            FROM license_servers AS LS
             INNER JOIN permissions as P
                 ON LS.id = P.server_id
             WHERE LS.id IN (SELECT T.license_server FROM tags AS T where T.name IN (select unnest(?tags)))

@@ -26,43 +26,41 @@ class AclAsyncDao {
         permission: ServerAccessRight
     ): Boolean {
         return db.withSession { session ->
-            if (permission == ServerAccessRight.READ_WRITE) {
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("user", accessEntity.user ?: "")
-                            setParameter("project", accessEntity.project ?: "")
-                            setParameter("group", accessEntity.group ?: "")
-                            setParameter("write", ServerAccessRight.READ_WRITE.toString())
-                        },
-                        """
-                            SELECT *
-                            WHERE (
-                                (username = ?user) OR (project = ?project AND project_group = ?group)
-                            ) AND ( permission = ?write)
-                        """.trimIndent()
-                    ).rows.isNotEmpty()
+            var query = """
+                SELECT * 
+                FROM permissions
+                WHERE 
+            """.trimIndent()
+            query += if (accessEntity.user != null) {
+                """ (username = ?user) """
             } else {
-                session
-                    .sendPreparedStatement(
-                        {
+                """ (project = ?project AND project_group = ?group) """
+            }
+            query += if (permission == ServerAccessRight.READ_WRITE) {
+                """ AND (permission = ?write)"""
+            } else {
+                """ AND (permission = ?read OR permission = ?write)"""
+            }
+            session
+                .sendPreparedStatement(
+                    {
+                        if (accessEntity.user != null) {
                             setParameter("user", accessEntity.user ?: "")
+                        } else {
                             setParameter("project", accessEntity.project ?: "")
                             setParameter("group", accessEntity.group ?: "")
-                            setParameter("read", ServerAccessRight.READ.toString())
+                        }
+                        if (permission == ServerAccessRight.READ_WRITE) {
                             setParameter("write", ServerAccessRight.READ_WRITE.toString())
-                        },
-                        """
-                            SELECT *
-                            WHERE (
-                                (username = ?user) OR (project = ?project AND project_group = ?group)
-                            ) AND (permission = ?read OR permission = ?write)
-                        """.trimIndent()
-                    ).rows.isNotEmpty()
-            }
+                        } else {
+                            setParameter("write", ServerAccessRight.READ_WRITE.toString())
+                            setParameter("read", ServerAccessRight.READ.toString())
+                        }
+                    },
+                    query
+                ).rows.isNotEmpty()
         }
     }
-
 
     suspend fun updatePermissions(
         db: DBContext,

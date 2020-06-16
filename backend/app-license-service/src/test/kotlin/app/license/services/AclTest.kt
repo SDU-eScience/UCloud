@@ -3,11 +3,7 @@ package dk.sdu.cloud.app.license.services
 import dk.sdu.cloud.app.license.services.acl.*
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.*
 import kotlinx.coroutines.runBlocking
 import kotlin.test.assertFalse
@@ -18,33 +14,77 @@ import kotlin.test.Test
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.app.license.api.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.withSession
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
+import org.junit.AfterClass
+import org.junit.BeforeClass
+import kotlin.test.AfterTest
 
 class AclTest {
-    private lateinit var micro: Micro
-    private lateinit var aclService: AclService<HibernateSession>
-    private lateinit var licenseService: AppLicenseService<HibernateSession>
+    companion object {
+        private lateinit var embDb: EmbeddedPostgres
+        private lateinit var db: AsyncDBSessionFactory
+
+        @BeforeClass
+        @JvmStatic
+        fun setup() {
+            val (db, embDb) = TestDB.from(AppLicenseServiceDescription)
+            this.db = db
+            this.embDb = embDb
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun close() {
+            runBlocking {
+                db.close()
+            }
+            embDb.close()
+        }
+    }
+
+    private lateinit var aclService: AclService
+    private lateinit var licenseService: AppLicenseService
 
     @BeforeTest
     fun initializeTest() {
-        micro = initializeMicro()
-        micro.install(HibernateFeature)
-
+        runBlocking {
+            db.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        """
+                            TRUNCATE license_servers, permissions, tags
+                        """.trimIndent()
+                    )
+            }
+        }
         val authClient = mockk<AuthenticatedClient>(relaxed = true)
 
         ClientMock.mockCall(UserDescriptions.lookupUsers) {
             TestCallResult.Ok(
-                LookupUsersResponse(it.users.map { it to UserLookup(it, it.hashCode().toLong(), Role.USER) }.toMap())
+                LookupUsersResponse(it.users.map { user ->
+                    user to UserLookup(user, user.hashCode().toLong(), Role.USER)
+                }.toMap())
             )
         }
 
-        aclService = AclService(micro.hibernateDatabase, ClientMock.authenticatedClient, AclHibernateDao())
-        licenseService = AppLicenseService(micro.hibernateDatabase, aclService, AppLicenseHibernateDao(), authClient)
+        aclService = AclService(db, ClientMock.authenticatedClient, AclAsyncDao())
+        licenseService = AppLicenseService(db, aclService, AppLicenseAsyncDao(), authClient)
 
+    }
+
+    @AfterTest
+    fun after() {
         runBlocking {
-            micro.hibernateDatabase.withTransaction {
-                it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;")
-                    .executeUpdate()
+            db.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        """
+                            TRUNCATE license_servers, permissions, tags
+                        """.trimIndent()
+                    )
             }
         }
     }
@@ -86,9 +126,6 @@ class AclTest {
 
     @Test
     fun `add user to acl`() = runBlocking {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-
         val userEntity = AccessEntity("user", null, null)
         val userEntity2 = AccessEntity("user2", null, null)
 
@@ -102,7 +139,7 @@ class AclTest {
             userEntity
         )
 
-
+        println(embDb.getJdbcUrl("postgres", "postgres"))
         assertFalse(aclService.hasPermission(serverId, userEntity2, ServerAccessRight.READ))
 
         val changes = listOf(AclEntryRequest(userEntity2, ServerAccessRight.READ))
@@ -136,10 +173,10 @@ class AclTest {
         val list = aclService.listAcl(serverId)
         assertThatPropertyEquals(list, { it.size }, 2)
 
-        assertEquals(user2.user, list.first().entity.user)
-        assertEquals(ServerAccessRight.READ, list.first().permission)
+        assertEquals(user.user, list.first().entity.user)
+        assertEquals(ServerAccessRight.READ_WRITE, list.first().permission)
 
-        assertEquals(user.user, list.last().entity.user)
-        assertEquals(ServerAccessRight.READ_WRITE, list.last().permission)
+        assertEquals(user2.user, list.last().entity.user)
+        assertEquals(ServerAccessRight.READ, list.last().permission)
     }
 }
