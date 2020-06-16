@@ -29,7 +29,7 @@ import {TextSpan} from "ui-components/Text";
 import {InputLabel} from "ui-components/Input";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {dialogStore} from "Dialog/DialogStore";
-import {Wallet, RetrieveBalanceResponse, retrieveBalance, WalletBalance} from "Accounting/Compute";
+import {Wallet, RetrieveBalanceResponse, retrieveBalance, WalletBalance, setCredits, SetCreditsRequest} from "Accounting/Compute";
 
 const SearchContainer = styled(Flex)`
     flex-wrap: wrap;
@@ -43,7 +43,14 @@ const SearchContainer = styled(Flex)`
     }
 `;
 
-function AssignCreditsModal(
+const WalletDropdown = styled(Box)`
+    border: 2px solid var(--borderGray);
+    border-radius: 5px;
+    padding: 8px;
+
+`;
+
+function AllocateCreditsModal(
     {project}: {project: Project}
 ): JSX.Element {
 
@@ -53,10 +60,17 @@ function AssignCreditsModal(
         {wallets: []}
     );
 
+    const [subprojectWallets, fetchSubprojectWallets] = useCloudAPI<RetrieveBalanceResponse>(
+        {noop: true},
+        {wallets: []}
+    );
+
     const [isOpen, setOpen] = React.useState<boolean>(true);
     const [wallets, setWallets] = React.useState<WalletBalance[]>([]);
     const [walletOptions, setWalletOptions] = React.useState<{text: string; value: string}[]>([{text: "No wallets found", value:"undefined"}]);
     const [selectedWallet, setSelectedWallet] = React.useState<WalletBalance|undefined>(undefined);
+    const [subprojectWallet, setSubprojectWallet] = React.useState<WalletBalance|undefined>(undefined);
+    const [allocatedCredits, setAllocatedCredits] = useCloudAPI<{}, SetCreditsRequest>({ noop: true }, {});
 
     useEffect(() => {
         if (project.parent === undefined) return;
@@ -75,24 +89,73 @@ function AssignCreditsModal(
         if (isOpen === false) return;
     }, [isOpen]);
 
-        return (
+    useEffect(() => {
+        fetchSubprojectWallets(retrieveBalance({id: project.id, type: "PROJECT"}));
+
+
+    }, [selectedWallet]);
+
+    useEffect(() => {
+        if (selectedWallet !== undefined) {
+            setSubprojectWallet(subprojectWallets.data.wallets.find(wallet =>
+                wallet.wallet.id === project.id &&
+                wallet.wallet.type === "PROJECT" &&
+                wallet.wallet.paysFor.id === selectedWallet.wallet.paysFor.id &&
+                wallet.wallet.paysFor.provider === selectedWallet.wallet.paysFor.provider
+            ));
+        }
+    }, [subprojectWallets]);
+
+    return (
         <Box>
             <div>
                 <Flex alignItems="center">
                     <Heading.h3>
-                        <TextSpan color="gray">Assign credits to </TextSpan> {project.title}
+                        <TextSpan color="gray">Set allocated funds for subproject </TextSpan> {project.title}
                     </Heading.h3>
                 </Flex>
                 <Box mt={16}>
-                    <form>
+                    <form onSubmit={e => {
+                        e.preventDefault();
+                        if (selectedWallet === undefined) {
+                            snackbarStore.addFailure("No wallet selected", true);
+                            return;
+                        }
+
+                        const chosenAmount = amountField.current;
+                        if (chosenAmount === null) return;
+                        if (chosenAmount.value === "") return;
+
+                        if (parseInt(chosenAmount.value, 10) > selectedWallet.balance) {
+                            snackbarStore.addFailure("Not enough funds", true);
+                            return;
+                        }
+
+                        const lastKnownBalance = subprojectWallet?.balance ?? 0;
+                        const newBalanceInCredits = parseInt(chosenAmount.value, 10) * 1000000;
+
+                        console.log(newBalanceInCredits);
+
+                        setAllocatedCredits(setCredits({
+                            wallet: {
+                                id: project.id,
+                                type: selectedWallet.wallet.type,
+                                paysFor: selectedWallet.wallet.paysFor
+                            },
+                            lastKnownBalance,
+                            newBalance: newBalanceInCredits
+                        }));
+
+                        snackbarStore.addSuccess(`Allocated funds for ${project.title} set to ${chosenAmount.value}`, true);
+                    }}>
                         <Box>From wallet</Box>
-                        <InputLabel width={450} mb={20}>
+                        <WalletDropdown width="100%" mb={20}>
                             <ClickableDropdown
                                 chevron
                                 width="450px"
                                 onChange={(val) => setSelectedWallet(wallets.find(wallet => wallet.wallet.id === val))}
                                 trigger={
-                                    <Box as="span" minWidth="450px" color="gray">
+                                    <Box as="span" minWidth="450px">
                                         {
                                             selectedWallet !== undefined ?
                                                 selectedWallet.wallet.paysFor.provider + " " + selectedWallet.wallet.paysFor.id + " (Balance: " + selectedWallet.balance + " DKK)"
@@ -102,22 +165,27 @@ function AssignCreditsModal(
                                 }
                                 options={walletOptions}
                             />
-                        </InputLabel>
+                        </WalletDropdown>
 
-                        <Box>Amount</Box>
-                        <Flex alignItems="center" mb={20}>
-                            <Input
-                                mr={10}
-                                required
-                                type="text"
-                                ref={amountField}
-                                placeholder="Amount"
-                            />
-                            <TextSpan>DKK</TextSpan>
-                        </Flex>
+                        {selectedWallet !== undefined ? (
+                            <>
+                                <Box>Allocated funds for wallet {selectedWallet.wallet.paysFor.provider + " " + selectedWallet.wallet.paysFor.id}</Box>
+                                <Flex alignItems="center" mb={20}>
+                                    <Input
+                                        mr={10}
+                                        required
+                                        type="number"
+                                        ref={amountField}
+                                        placeholder="Amount"
+                                        defaultValue={subprojectWallet !== undefined ? subprojectWallet.balance/1000000 : undefined}
+                                    />
+                                    <TextSpan>DKK</TextSpan>
+                                </Flex>
+                            </>
+                        ) : null}
 
                         <Flex alignItems="center">
-                            <Button color="red" mr="5px" onClick={() => {setOpen(false)}}>
+                            <Button color="red" mr="5px" type="button" onClick={() => dialogStore.failure()}>
                                 Cancel
                             </Button>
 
@@ -125,7 +193,7 @@ function AssignCreditsModal(
                                 color="green"
                                 type={"submit"}
                             >
-                                Assign credits
+                                Allocate funds
                             </Button>
                         </Flex>
                     </form>
@@ -135,8 +203,8 @@ function AssignCreditsModal(
     );
 }
 
-function openAssignCreditsModal(subproject: Project): void {
-    dialogStore.addDialog(<AssignCreditsModal project={subproject} />, () => undefined);
+function openAllocateCreditsModal(subproject: Project): void {
+    dialogStore.addDialog(<AllocateCreditsModal project={subproject} />, () => undefined);
 }
 
 
@@ -230,8 +298,8 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
                                 searchQuery={subprojectSearchQuery}
                                 loading={subprojects.loading}
                                 fetchParams={setSubprojectParams}
-                                onAssignCredits={async (subproject) =>
-                                    openAssignCreditsModal(subproject)
+                                onAllocateCredits={async (subproject) =>
+                                    openAllocateCreditsModal(subproject)
                                 }
                                 onRemoveSubproject={async (subprojectId, subprojectTitle) => addStandardDialog({
                                     title: "Delete subproject",

@@ -5,9 +5,11 @@ import * as Pagination from "Pagination";
 import * as React from "react";
 import {useEffect} from "react";
 import {Flex, Text, Box, Button, theme} from "ui-components";
-import {IconName} from "ui-components/Icon";
+import Icon, {IconName} from "ui-components/Icon";
 import {RemoveButton} from "Files/FileInputSelector";
 import {Page} from "Types";
+import {ListRow} from "ui-components/List";
+import Table, {TableCell, TableRow, TableHeaderCell, TableHeader} from "ui-components/Table";
 
 
 export function SubprojectsList(props: Readonly<{
@@ -15,7 +17,7 @@ export function SubprojectsList(props: Readonly<{
     searchQuery: string;
     loading: boolean;
     onRemoveSubproject(subprojectId: string, subprojectTitle): void;
-    onAssignCredits(subproject: Project): void;
+    onAllocateCredits(subproject: Project): void;
     allowRoleManagement: boolean;
     reload?: () => void;
     fetchParams(params: APICallParameters<ListSubprojectsRequest>);
@@ -33,6 +35,7 @@ export function SubprojectsList(props: Readonly<{
     return (<>
         <Box mt={20}>
             <>
+                <Table>
                 <Pagination.List
                     page={props.subprojects}
                     pageRenderer={pageRenderer}
@@ -47,6 +50,7 @@ export function SubprojectsList(props: Readonly<{
                     }}
                     customEmptyPage={<div />}
                 />
+                </Table>
             </>
         </Box>
     </>);
@@ -61,15 +65,17 @@ export function SubprojectsList(props: Readonly<{
 
         return filteredItems.map(subproject => {
             return (
-                <Flex key={subproject.id} alignItems="center" mb="16px">
-                    <Text bold>{subproject.title}</Text>
-                    <Box flexGrow={1} />
-
-                    <Flex alignItems={"center"}>
-                        <Button width="150px" height="35px" onClick={() => props.onAssignCredits(subproject)}>Assign credits</Button>
-                        <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveSubproject(subproject.id, subproject.title)} />
-                    </Flex>
-                </Flex>
+                <TableRow key={subproject.id}>
+                        <TableCell>
+                            <Text>{subproject.title}</Text>
+                        </TableCell>
+                        <TableCell>
+                            <Flex alignItems={"right"} justifyContent="flex-end">
+                                <Button height="35px" onClick={() => props.onAllocateCredits(subproject)}><Icon mr={10} size="20px" name="grant" /> Allocate</Button>
+                                <RemoveButton width="35px" height="35px" onClick={() => props.onRemoveSubproject(subproject.id, subproject.title)} />
+                            </Flex>
+                    </TableCell>
+                </TableRow>
             );
         });
     }
