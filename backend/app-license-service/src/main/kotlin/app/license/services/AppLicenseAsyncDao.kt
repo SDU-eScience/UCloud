@@ -89,7 +89,7 @@ class AppLicenseAsyncDao {
             FROM license_servers AS LS
             INNER JOIN permissions as P
                 ON LS.id = P.server_id
-            WHERE LS.id IN (SELECT T.license_server FROM tags AS T where T.name IN (select unnest(?tags)))
+            WHERE LS.id IN (SELECT T.license_server FROM tags AS T where T.name IN (select unnest(?tags::text[])))
                 AND (
                     P.username = ?user
         """
@@ -138,7 +138,7 @@ class AppLicenseAsyncDao {
                     """
                         SELECT * 
                         FROM license_servers
-                        WHERE ?role in (select unnest(?privileged)) 
+                        WHERE ?role in (select unnest(?privileged::text[])) 
                     """.trimIndent()
                 ).rows.map { it.toLicenseServerWithId() }
         }

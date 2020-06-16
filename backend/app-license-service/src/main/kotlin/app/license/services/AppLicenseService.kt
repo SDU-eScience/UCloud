@@ -139,6 +139,9 @@ class AppLicenseService(
             // Delete Acl entries for the license server
             aclService.revokeAllServerPermissionsWithSession(request.id)
 
+            // Delete tags
+            val tagsToServer = listTags(request.id)
+            tagsToServer.forEach { deleteTag(it, request.id) }
             // Delete license server
             appLicenseDao.delete(db, request.id)
         } else {
