@@ -9,12 +9,12 @@ export const JobStateIcon: React.FunctionComponent<{
     isExpired: boolean;
     size?: number | string;
     color?: ThemeColor;
-} & SpaceProps> = props => {
+} & SpaceProps> = ({isExpired, ...props}) => {
     let iconName: IconName;
     // let defaultColor: ThemeColor = "iconColor";
     let defaultColor;
 
-    if (props.isExpired) {
+    if (isExpired) {
         return (
             <Icon
                 name="chrono"

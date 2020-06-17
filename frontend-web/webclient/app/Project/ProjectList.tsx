@@ -153,7 +153,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             icon: "properties",
             onClick: ([project]) => {
                 props.setProject(project.projectId);
-                history.push("/projects/view");
+                history.push("/projects/view/");
             }
         }
     ];
@@ -366,7 +366,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                             }}
                             height="30px"
                         >
-                            <Link to="/projects/view">
+                            <Link to="/projects/view/">
                                 {e.title}
                             </Link>
                         </Box>
@@ -484,6 +484,7 @@ function ProjectOperations(props: ProjectOperations): JSX.Element | null {
                 ml="-17px"
                 mr="-17px"
                 pl="15px"
+                key={op.text}
                 cursor="pointer"
                 onClick={() => op.onClick(props.selectedProjects, Client)}
             >
