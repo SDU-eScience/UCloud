@@ -63,20 +63,19 @@ class Server(
 
         log.info("Serving files from ${fsRootFile.absolutePath}")
 
-        // Authorization
         val homeFolderService = HomeFolderService()
         val db = AsyncDBSessionFactory(micro.databaseConfig)
         val metadataDao = MetadataDao()
         val metadataService = MetadataService(db, metadataDao)
         val projectCache = ProjectCache(client)
         val newAclService = AclService(metadataService, homeFolderService, client, projectCache)
+        val limitChecker = LimitChecker(db, newAclService, projectCache, client, config.product)
 
         val processRunner = LinuxFSRunnerFactory(micro.backgroundScope)
-        val fs = LinuxFS(fsRootFile, newAclService, projectCache)
+        val fs = LinuxFS(fsRootFile, newAclService, cephConfig)
         val coreFileSystem =
-            CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService)
+            CoreFileSystemService(fs, wsClient, micro.backgroundScope, metadataService, limitChecker)
 
-        // Specialized operations (built on high level FS)
         val fileLookupService = FileLookupService(processRunner, coreFileSystem)
         val indexingService = IndexingService<LinuxFSRunner>(newAclService)
 
@@ -112,7 +111,8 @@ class Server(
                 ActionController(
                     commandRunnerForCalls,
                     coreFileSystem,
-                    fileLookupService
+                    fileLookupService,
+                    limitChecker
                 ),
 
                 LookupController(

@@ -17,7 +17,7 @@ class MembershipController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(ProjectMembers.userStatus) {
-            val inputUsername = if (ctx.securityPrincipal.role in Roles.PRIVILEDGED) {
+            val inputUsername = if (ctx.securityPrincipal.role in Roles.PRIVILEGED) {
                 request.username
             } else {
                 null

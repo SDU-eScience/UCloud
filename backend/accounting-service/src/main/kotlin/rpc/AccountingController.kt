@@ -24,12 +24,7 @@ class AccountingController(
             balance.reserveCredits(
                 db,
                 Actor.SystemOnBehalfOfUser(request.jobInitiatedBy),
-                request.account,
-                request.jobId,
-                request.amount,
-                request.expiresAt,
-                request.productId,
-                request.productUnits
+                request
             )
 
             ok(Unit)

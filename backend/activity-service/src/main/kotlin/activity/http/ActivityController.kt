@@ -33,7 +33,7 @@ class ActivityController(
 
         implement(ActivityDescriptions.activityFeed) {
             val user = if (ctx.project == null) {
-                request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEDGED }
+                request.user?.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEGED }
                     ?: ctx.securityPrincipal.username
             } else {
                 ctx.securityPrincipal.username

@@ -113,7 +113,7 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
         "listAllGroupMembers"
     ) {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -219,7 +219,7 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
 
     val isMember = call<IsMemberRequest, IsMemberResponse, CommonErrorMessage>("isMember") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -237,7 +237,7 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
 
     val groupExists = call<GroupExistsRequest, GroupExistsResponse, CommonErrorMessage>("groupExists") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 

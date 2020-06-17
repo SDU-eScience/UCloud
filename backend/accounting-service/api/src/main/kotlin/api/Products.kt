@@ -224,7 +224,7 @@ object Products : CallDescriptionContainer("products") {
         ) {
             auth {
                 access = AccessRight.READ
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
             }
 
             http {

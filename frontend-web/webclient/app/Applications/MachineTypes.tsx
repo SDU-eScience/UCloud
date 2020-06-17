@@ -111,7 +111,7 @@ const MachineBox: React.FunctionComponent<{machine: MachineReservation | null}> 
                     <li>{machine.cpu ? <>vCPU: {machine.cpu}</> : <>vCPU: Unspecified</>}</li>
                     <li>{machine.memoryInGigs ? <>Memory: {machine.memoryInGigs}GB</> : <>Memory: Unspecified</>}</li>
                     {machine.gpu ? <li>GPU: {machine.gpu}</li> : null}
-                    <li>Price: {creditFormatter(machine.pricePerUnit * 60, 3)}/hour</li>
+                    <li>Price: {creditFormatter(machine.pricePerUnit * 60, 4)}/hour</li>
                 </ul>
             </>
         )}

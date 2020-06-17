@@ -41,7 +41,7 @@ private object LookupDescriptions : CallDescriptionContainer("indexing") {
 
     val reverseLookup = call<ReverseLookupRequest, ReverseLookupResponse, CommonErrorMessage>("reverseLookup") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 

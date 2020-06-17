@@ -17,7 +17,7 @@ class TaskService<Session>(
     private val subscriptionService: SubscriptionService
 ) {
     suspend fun create(processor: SecurityPrincipal, title: String, status: String?, owner: String): Task {
-        if (processor.role !in Roles.PRIVILEDGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        if (processor.role !in Roles.PRIVILEGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val startedAt = System.currentTimeMillis()
         val id = db.withTransaction { session ->
@@ -30,7 +30,7 @@ class TaskService<Session>(
 
     suspend fun postStatus(processor: SecurityPrincipal, status: TaskUpdate) {
         val id = status.jobId
-        if (processor.role !in Roles.PRIVILEDGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        if (processor.role !in Roles.PRIVILEGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val task = db.withTransaction { session ->
             dao.updateLastPing(session, id, processor)
@@ -43,7 +43,7 @@ class TaskService<Session>(
     }
 
     suspend fun markAsComplete(processor: SecurityPrincipal, id: String) {
-        if (processor.role !in Roles.PRIVILEDGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        if (processor.role !in Roles.PRIVILEGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         val task = db.withTransaction { session ->
             if (!dao.markAsComplete(session, id, processor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             dao.findOrNull(session, id, processor.username)

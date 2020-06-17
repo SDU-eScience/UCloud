@@ -85,7 +85,7 @@ object Tasks : CallDescriptionContainer("task") {
     val create = call<CreateRequest, CreateResponse, CommonErrorMessage>("create") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
         }
 
         http {
@@ -104,7 +104,7 @@ object Tasks : CallDescriptionContainer("task") {
     val postStatus = call<PostStatusRequest, PostStatusResponse, CommonErrorMessage>("postStatus") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
         }
 
         http {
@@ -123,7 +123,7 @@ object Tasks : CallDescriptionContainer("task") {
     val markAsComplete = call<MarkAsCompleteRequest, MarkAsCompleteResponse, CommonErrorMessage>("markAsComplete") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
         }
 
         http {

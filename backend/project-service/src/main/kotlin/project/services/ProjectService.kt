@@ -64,7 +64,7 @@ class ProjectService(
         title: String,
         parent: String?
     ) {
-        if (parent == null && createdBy.role !in Roles.PRIVILEDGED) throw ProjectException.Forbidden()
+        if (parent == null && createdBy.role !in Roles.PRIVILEGED) throw ProjectException.Forbidden()
         if (parent != null) {
             // TODO Introduce setting for normal user project creation
             requireRole(ctx, createdBy.username, parent, ProjectRole.ADMINS)

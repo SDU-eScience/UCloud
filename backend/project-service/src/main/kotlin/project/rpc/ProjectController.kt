@@ -66,7 +66,7 @@ class ProjectController(
             val showArchived = request.archived ?: true
 
             val user = when (ctx.securityPrincipal.role) {
-                in Roles.PRIVILEDGED -> {
+                in Roles.PRIVILEGED -> {
                     request.user ?: ctx.securityPrincipal.username
                 }
                 else -> ctx.securityPrincipal.username
@@ -79,7 +79,7 @@ class ProjectController(
             val showArchived = request.archived ?: true
             val noFavorites = request.noFavorites ?: false
             val user = when (ctx.securityPrincipal.role) {
-                in Roles.PRIVILEDGED -> {
+                in Roles.PRIVILEGED -> {
                     request.user ?: ctx.securityPrincipal.username
                 }
                 else -> ctx.securityPrincipal.username
@@ -87,7 +87,7 @@ class ProjectController(
 
             val pagination = when {
                 request.itemsPerPage == null && request.page == null &&
-                    ctx.securityPrincipal.role in Roles.PRIVILEDGED -> null
+                    ctx.securityPrincipal.role in Roles.PRIVILEGED -> null
 
                 else -> request.normalize()
             }

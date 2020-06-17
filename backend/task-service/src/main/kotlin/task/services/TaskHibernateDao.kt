@@ -111,7 +111,7 @@ internal class TaskHibernateDao : TaskDao<HibernateSession> {
         owner: String,
         processor: SecurityPrincipal
     ): String {
-        if (processor.role !in Roles.PRIVILEDGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        if (processor.role !in Roles.PRIVILEGED) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val id = UUID.randomUUID().toString()
         val entity = TaskEntity(

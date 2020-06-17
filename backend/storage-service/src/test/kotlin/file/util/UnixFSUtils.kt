@@ -4,6 +4,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
+import dk.sdu.cloud.file.CephConfiguration
 import dk.sdu.cloud.file.services.HomeFolderService
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.linuxfs.LinuxFS
@@ -46,7 +47,7 @@ fun linuxFSWithRelaxedMocks(
         LinuxFS(
             File(fsRoot),
             aclService,
-            mockk(relaxed = true)
+            CephConfiguration()
         ),
         aclService
     )

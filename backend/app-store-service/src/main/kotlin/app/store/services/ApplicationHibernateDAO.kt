@@ -82,7 +82,7 @@ class ApplicationHibernateDAO(
         appVersion: String,
         permission: ApplicationAccessRight
     ): Boolean {
-        if (user.role in Roles.PRIVILEDGED) return true
+        if (user.role in Roles.PRIVILEGED) return true
         if (isPublic(session, user, appName, appVersion)) return true
         return aclDAO.hasPermission(
             session,
@@ -164,7 +164,7 @@ class ApplicationHibernateDAO(
             .setParameter("role", user.role)
             .setParameter("project", project)
             .setParameterList("groups", groups)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .paginatedList(paging)
             .asSequence()
             .map { it.toModel() }
@@ -222,7 +222,7 @@ class ApplicationHibernateDAO(
             .setParameterList("groups", memberGroups)
             .setParameterList("tags", tags)
             .setParameter("role", user.role)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .resultList.distinctBy { it.applicationName }.map { it.applicationName }
     }
 
@@ -268,7 +268,7 @@ class ApplicationHibernateDAO(
             .setParameter("project", project)
             .setParameterList("groups", memberGroups)
             .setParameter("role", user.role)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .resultList.size
 
         return Pair(
@@ -307,7 +307,7 @@ class ApplicationHibernateDAO(
                 .setParameter("project", project)
                 .setParameterList("groups", memberGroups)
                 .setParameter("role", user.role)
-                .setParameterList("privileged", Roles.PRIVILEDGED)
+                .setParameterList("privileged", Roles.PRIVILEGED)
             , itemsInTotal
         )
     }
@@ -456,7 +456,7 @@ class ApplicationHibernateDAO(
             .setParameter("project", project)
             .setParameter("groups", groups)
             .setParameter("role", user.role)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .also {
                 for ((i, item) in keywords.withIndex()) {
                     it.setParameter("query$i", item)
@@ -508,7 +508,7 @@ class ApplicationHibernateDAO(
             .setParameter("project", project)
             .setParameter("groups", groups)
             .setParameter("role", user.role)
-            .setParameterList("privileged", Roles.PRIVILEDGED).also {
+            .setParameterList("privileged", Roles.PRIVILEGED).also {
                 for ((i, item) in keywords.withIndex()) {
                     it.setParameter("query$i", item)
                 }
@@ -584,7 +584,7 @@ class ApplicationHibernateDAO(
             .setParameter("project", currentProject)
             .setParameter("groups", groups)
             .setParameter("role", user.role)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .singleResult.toInt()
 
         println(count)
@@ -624,7 +624,7 @@ class ApplicationHibernateDAO(
             .setParameter("project", currentProject)
             .setParameter("groups", groups)
             .setParameter("role", user.role)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
@@ -652,7 +652,7 @@ class ApplicationHibernateDAO(
             """.trimIndent()
         ).setParameter("query", "")
             .setParameter("role", user.role)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .setParameter("user", user.username).resultList
     }
 
@@ -719,7 +719,7 @@ class ApplicationHibernateDAO(
                 .setParameter("project", currentProject)
                 .setParameterList("groups", groups)
                 .setParameter("role", user?.role ?: Role.UNKNOWN)
-                .setParameterList("privileged", Roles.PRIVILEDGED)
+                .setParameterList("privileged", Roles.PRIVILEGED)
                 .resultList.paginate(paging).mapItems { it.toModelWithInvocation() }
         )
     }
@@ -908,7 +908,7 @@ class ApplicationHibernateDAO(
             .setParameter("role", cleanRole)
             .setParameter("project", currentProject)
             .setParameterList("groups", groups)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .list().size
 
         val items = session.createNativeQuery<ApplicationEntity>(
@@ -942,7 +942,7 @@ class ApplicationHibernateDAO(
             .setParameter("role", cleanRole)
             .setParameter("project", currentProject)
             .setParameterList("groups", groups)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
 
@@ -1268,7 +1268,7 @@ class ApplicationHibernateDAO(
         appVersion: String,
         public: Boolean
     ) {
-        if (user.role !in Roles.PRIVILEDGED) throw ApplicationException.NotAllowed()
+        if (user.role !in Roles.PRIVILEGED) throw ApplicationException.NotAllowed()
         val existing = internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
         if (!canUserPerformWriteOperation(existing.owner, user)) throw ApplicationException.NotAllowed()
 
@@ -1326,7 +1326,7 @@ class ApplicationHibernateDAO(
             .setParameter("role", user.role)
             .setParameter("project", project)
             .setParameterList("groups", groups)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .resultList.size
 
         val items = session.createNativeQuery<ApplicationEntity>(
@@ -1366,7 +1366,7 @@ class ApplicationHibernateDAO(
             .setParameter("role", user.role)
             .setParameter("project", project)
             .setParameterList("groups", groups)
-            .setParameterList("privileged", Roles.PRIVILEDGED)
+            .setParameterList("privileged", Roles.PRIVILEGED)
             .paginatedList(paging)
             .map { it.toModelWithInvocation() }
 

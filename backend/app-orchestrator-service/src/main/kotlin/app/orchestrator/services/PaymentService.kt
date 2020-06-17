@@ -30,7 +30,7 @@ class PaymentService(
     ) {
         val pricePerUnit = job.reservation.pricePerUnit
 
-        val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong()
+        val units = ceil(timeUsedInMillis / MILLIS_PER_MINUTE.toDouble()).toLong() * job.nodes
         val price = pricePerUnit * units
         val result = Wallets.chargeReservation.call(
             ChargeReservationRequest(
@@ -55,7 +55,7 @@ class PaymentService(
 
     suspend fun reserve(job: VerifiedJob) {
         val pricePerUnit = job.reservation.pricePerUnit
-        val units = ceil(job.maxTime.toMillis() / MILLIS_PER_MINUTE.toDouble()).toLong()
+        val units = ceil(job.maxTime.toMillis() / MILLIS_PER_MINUTE.toDouble()).toLong() * job.nodes
         val price = pricePerUnit * units
 
         val code = Wallets.reserveCredits.call(

@@ -57,5 +57,5 @@ class DowntimeManagementService<Session>(
 }
 
 fun verifyUserIsPrivileged(user: SecurityPrincipal) {
-    if (user.role !in Roles.PRIVILEDGED) throw RPCException("User is not privileged enough.", HttpStatusCode.Forbidden)
+    if (user.role !in Roles.PRIVILEGED) throw RPCException("User is not privileged enough.", HttpStatusCode.Forbidden)
 }

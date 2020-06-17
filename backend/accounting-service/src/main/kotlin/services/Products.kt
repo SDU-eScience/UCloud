@@ -13,7 +13,6 @@ import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.PostgresErrorCodes
 import dk.sdu.cloud.service.db.async.SQLTable
@@ -298,7 +297,7 @@ class ProductService {
     private fun requirePermission(ctx: DBContext, actor: Actor, readOnly: Boolean) {
         if (readOnly) return
         if (actor is Actor.System) return
-        if (actor is Actor.User && actor.principal.role in Roles.PRIVILEDGED) return
+        if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) return
 
         throw RPCException("Forbidden", HttpStatusCode.Forbidden)
     }

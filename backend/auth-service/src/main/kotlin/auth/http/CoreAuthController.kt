@@ -2,7 +2,6 @@ package dk.sdu.cloud.auth.http
 
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.auth.api.AccessToken
@@ -146,7 +145,7 @@ class CoreAuthController<DBSession>(
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
 
                 log.debug("Validating extender role versus input token")
-                if (securityPrincipal.role !in Roles.PRIVILEDGED) {
+                if (securityPrincipal.role !in Roles.PRIVILEGED) {
                     throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                 }
 

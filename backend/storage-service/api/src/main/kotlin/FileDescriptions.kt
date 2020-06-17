@@ -254,6 +254,14 @@ data class CreatePersonalRepositoryRequest(val project: String, val username: St
 
 typealias CreatePersonalRepositoryResponse = Unit
 
+data class RetrieveQuotaRequest(val path: String)
+data class RetrieveQuotaResponse(val quotaInMegaBytes: Long)
+
+data class UpdateQuotaRequest(val path: String, val quotaInMegaBytes: Long)
+typealias UpdateQuotaResponse = Unit
+
+const val NO_QUOTA = -1L
+
 object FileDescriptions : CallDescriptionContainer("files") {
     val baseContext = "/api/files"
     val wsBaseContext = "$baseContext/ws"
@@ -454,7 +462,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
             CommonErrorMessage>("verifyFileKnowledge")
     {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -600,7 +608,7 @@ object FileDescriptions : CallDescriptionContainer("files") {
         call<CreatePersonalRepositoryRequest, CreatePersonalRepositoryResponse, CommonErrorMessage>("createPersonalRepository") {
             auth {
                 access = AccessRight.READ_WRITE
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
             }
 
             websocket(wsBaseContext)
@@ -616,4 +624,38 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 body { bindEntireRequestFromBody() }
             }
         }
+
+    val retrieveQuota = call<RetrieveQuotaRequest, RetrieveQuotaResponse, CommonErrorMessage>("retrieveQuota") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        websocket(wsBaseContext)
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"quota"
+            }
+        }
+    }
+
+    val updateQuota = call<UpdateQuotaRequest, UpdateQuotaResponse, CommonErrorMessage>("updateQuota") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        websocket(wsBaseContext)
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"quota"
+            }
+        }
+    }
 }

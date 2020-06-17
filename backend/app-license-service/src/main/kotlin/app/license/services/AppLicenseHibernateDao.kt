@@ -142,7 +142,7 @@ class AppLicenseHibernateDao : AppLicenseDao<HibernateSession> {
         """.trimIndent(), LicenseServerEntity::class.java
         ).also {
             it.setParameter("role", user.role)
-            it.setParameter("privileged", Roles.PRIVILEDGED)
+            it.setParameter("privileged", Roles.PRIVILEGED)
         }.list().map { entity ->
             entity.toModel()
         }

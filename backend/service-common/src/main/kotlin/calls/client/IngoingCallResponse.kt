@@ -1,5 +1,6 @@
 package dk.sdu.cloud.calls.client
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.HttpStatusCode
 
@@ -15,6 +16,12 @@ sealed class IngoingCallResponse<S : Any, E : Any> {
 
 fun <T : Any> IngoingCallResponse<T, *>.orThrow(): T {
     if (this !is IngoingCallResponse.Ok) {
+        if (this is IngoingCallResponse.Error) {
+            val error = this.error
+            if (error is CommonErrorMessage) {
+                throw RPCException(error.why, statusCode)
+            }
+        }
         throw RPCException.fromStatusCode(statusCode)
     }
     return result

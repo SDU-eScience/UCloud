@@ -69,8 +69,27 @@ data class ReserveCreditsRequest(
     val account: Wallet,
     val jobInitiatedBy: String,
     val productId: String,
-    val productUnits: Long
-)
+    val productUnits: Long,
+
+    /**
+     * If this is true the reservation will be deleted immediately after the limit check has passed
+     *
+     * The reservation will never be committed. This allows clients to perform a limit check without actually
+     * committing anything.
+     */
+    val discardAfterLimitCheck: Boolean = false,
+
+    /**
+     * Immediately charge the wallet for the [amount] specified.
+     */
+    val chargeImmediately: Boolean = false
+) {
+    init {
+        if (discardAfterLimitCheck && chargeImmediately) {
+            throw RPCException("Cannot discard and charge at the same time", HttpStatusCode.BadRequest)
+        }
+    }
+}
 
 typealias ReserveCreditsResponse = Unit
 
@@ -138,7 +157,7 @@ object Wallets : CallDescriptionContainer("wallets") {
     val reserveCredits = call<ReserveCreditsRequest, ReserveCreditsResponse, CommonErrorMessage>("reserveCredits") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
         }
 
         http {
@@ -158,7 +177,7 @@ object Wallets : CallDescriptionContainer("wallets") {
     ) {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
         }
 
         http {

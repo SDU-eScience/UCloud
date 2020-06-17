@@ -1,9 +1,11 @@
 package dk.sdu.cloud.file.services
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AclService
 import dk.sdu.cloud.file.services.acl.MetadataService
+import dk.sdu.cloud.file.services.linuxfs.LinuxFSRunner
 import dk.sdu.cloud.file.util.FSException
 import dk.sdu.cloud.file.util.retryWithCatch
 import dk.sdu.cloud.micro.BackgroundScope
@@ -13,6 +15,7 @@ import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.task.api.MeasuredSpeedInteger
 import dk.sdu.cloud.task.api.Progress
 import dk.sdu.cloud.task.api.runTask
+import io.ktor.http.HttpStatusCode
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -20,7 +23,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     private val fs: LowLevelFileSystemInterface<Ctx>,
     private val wsServiceClient: AuthenticatedClient,
     private val backgroundScope: BackgroundScope,
-    private val metadataService: MetadataService
+    private val metadataService: MetadataService,
+    private val limitChecker: LimitChecker
 ) {
     suspend fun write(
         ctx: Ctx,
@@ -33,6 +37,7 @@ class CoreFileSystemService<Ctx : FSUserContext>(
             renameAccordingToPolicy(ctx, normalizedPath, conflictPolicy)
 
         fs.openForWriting(ctx, targetPath, conflictPolicy.allowsOverwrite())
+        checkLimitAndQuota(ctx, path)
         fs.write(ctx, writer)
         return targetPath
     }
@@ -56,6 +61,11 @@ class CoreFileSystemService<Ctx : FSUserContext>(
     ): String {
         val normalizedFrom = from.normalize()
         val fromStat = stat(ctx, from, setOf(StorageFileAttribute.fileType, StorageFileAttribute.size))
+
+        // The to stat makes sure that we have checked permissions against the target before we continue
+        stat(ctx, to.parent(), setOf(StorageFileAttribute.fileType, StorageFileAttribute.size))
+        checkLimitAndQuota(ctx, to)
+
         if (fromStat.fileType != FileType.DIRECTORY) {
             runTask(wsServiceClient, backgroundScope, "File copy", ctx.user) {
                 status = "Copying file from '$from' to '$to'"
@@ -180,6 +190,8 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         ctx: Ctx,
         path: String
     ) {
+        // You are allowed to create new directories in case of limit has been reached. This is needed partially for
+        // trash to function.
         fs.makeDirectory(ctx, path)
     }
 
@@ -245,6 +257,20 @@ class CoreFileSystemService<Ctx : FSUserContext>(
         path: String
     ): SensitivityLevel? {
         return fs.getSensitivityLevel(ctx, path)
+    }
+
+    private suspend fun checkLimitAndQuota(ctx: Ctx, path: String) {
+        val estimatedUsage = fs.estimateRecursiveStorageUsedMakeItFast(ctx, findHomeDirectoryFromPath(path))
+        limitChecker.performLimitCheck(path, estimatedUsage)
+        try {
+            limitChecker.performQuotaCheck(path, estimatedUsage)
+        } catch (ex: RPCException) {
+            if (ex.httpStatusCode == HttpStatusCode.PaymentRequired) {
+                limitChecker.performQuotaCheck(path, fs.calculateRecursiveStorageUsed(ctx, path))
+            } else {
+                throw ex
+            }
+        }
     }
 
     private suspend fun renameAccordingToPolicy(

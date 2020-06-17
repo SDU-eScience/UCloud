@@ -68,7 +68,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
         }
 
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -96,7 +96,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
      */
     val jobVerified = call<VerifiedJob, Unit, ComputationErrorMessage>("jobVerified") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -118,7 +118,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
      */
     val jobPrepared = call<VerifiedJob, Unit, ComputationErrorMessage>("jobPrepared") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -139,7 +139,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
      */
     val cleanup = call<VerifiedJob, Unit, ComputationErrorMessage>("cleanup") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -159,7 +159,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
     @Deprecated("Replaced with web sockets")
     val follow = call<InternalFollowStdStreamsRequest, InternalStdStreamsResponse, CommonErrorMessage>("follow") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -177,7 +177,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
 
     val cancelWSStream = call<CancelWSStreamRequest, CancelWSStreamResponse, CommonErrorMessage>("cancelWSStream") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -192,7 +192,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
         }
 
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -204,7 +204,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
             "queryInternalVncParameters"
         ) {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ
             }
 
@@ -226,7 +226,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
         ) {
             auth {
                 access = AccessRight.READ
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
             }
 
             http {
@@ -244,7 +244,7 @@ abstract class ComputationDescriptions(namespace: String) : CallDescriptionConta
     val cancel = call<CancelInternalRequest, CancelInternalResponse, CommonErrorMessage>("cancel") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
         }
 
         http {

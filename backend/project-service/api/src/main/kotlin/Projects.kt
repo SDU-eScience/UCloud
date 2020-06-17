@@ -4,7 +4,6 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.project.favorite.api.ListFavoritesRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
@@ -151,7 +150,7 @@ object Projects : CallDescriptionContainer("project") {
     val viewMemberInProject =
         call<ViewMemberInProjectRequest, ViewMemberInProjectResponse, CommonErrorMessage>("viewMemberInProject") {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ
             }
 
@@ -431,7 +430,7 @@ object Projects : CallDescriptionContainer("project") {
     val exists = call<ExistsRequest, ExistsResponse, CommonErrorMessage>("exists") {
         auth {
             access = AccessRight.READ_WRITE
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
         }
 
         http {

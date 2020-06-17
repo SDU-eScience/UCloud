@@ -33,7 +33,7 @@ fun WithPaginationRequest.normalizeWithFullReadEnabled(
     privilegedOnly: Boolean = true
 ): NormalizedPaginationRequest? {
     if (!privilegedOnly || actor == Actor.System ||
-        (actor is Actor.User && actor.principal.role in Roles.PRIVILEDGED)
+        (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED)
     ) {
         if (itemsPerPage == PaginationRequest.FULL_READ) return null
     }

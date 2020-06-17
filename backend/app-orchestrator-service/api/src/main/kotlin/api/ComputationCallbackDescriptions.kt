@@ -38,7 +38,7 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
      */
     val addStatus = call<AddStatusJob, Unit, CommonErrorMessage>("addStatus") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -59,7 +59,7 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
      */
     val requestStateChange = call<StateChangeRequest, Unit, CommonErrorMessage>("requestStateChange") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -86,7 +86,7 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
         }
 
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -109,7 +109,7 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
 
     val lookup = call<FindByStringId, VerifiedJob, CommonErrorMessage>("lookup") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -126,7 +126,7 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
 
     val lookupUrl = call<FindByStringId, VerifiedJob, CommonErrorMessage>("lookupUrl") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -143,7 +143,7 @@ object ComputationCallbackDescriptions : CallDescriptionContainer("app.compute")
 
     val completed = call<JobCompletedRequest, Unit, CommonErrorMessage>("completed") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 

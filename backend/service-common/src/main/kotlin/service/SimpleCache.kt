@@ -3,7 +3,7 @@ package dk.sdu.cloud.service
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-class SimpleCache<K, V>(
+class SimpleCache<K, V : Any>(
     private val maxAge: Long = 60_000,
     private val lookup: suspend (K) -> V?
 ) {
@@ -15,6 +15,10 @@ class SimpleCache<K, V>(
 
     suspend fun clearAll() {
         mutex.withLock { internalMap.clear() }
+    }
+
+    suspend fun remove(key: K) {
+        mutex.withLock { internalMap.remove(key) }
     }
 
     suspend fun get(key: K): V? {
@@ -58,7 +62,8 @@ class SimpleCache<K, V>(
         nextRemoveExpired = System.currentTimeMillis() + (maxAge * 5)
     }
 
-    companion object {
+    companion object : Loggable {
+        override val log = logger()
         const val DONT_EXPIRE = -1L
     }
 }

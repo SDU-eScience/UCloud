@@ -84,7 +84,7 @@ class LookupController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.findHomeFolder) {
             try {
-                val username = if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.username.isNotBlank()) {
+                val username = if (ctx.securityPrincipal.role in Roles.PRIVILEGED && request.username.isNotBlank()) {
                     request.username
                 } else {
                     ctx.securityPrincipal.username

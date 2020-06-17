@@ -242,7 +242,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
     val isPublic =
         call<IsPublicRequest, IsPublicResponse, CommonErrorMessage>("isPublic") {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ
             }
 
@@ -263,7 +263,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val setPublic = call<SetPublicRequest, Unit, CommonErrorMessage>("setPublic")  {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -346,7 +346,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
             List<EntityWithPermission>,
             CommonErrorMessage>("listAcl") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -361,7 +361,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -442,7 +442,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val create = call<Unit, Unit, CommonErrorMessage>("create") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -471,7 +471,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val createTag = call<CreateTagsRequest, Unit, CommonErrorMessage>("createTag") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -489,7 +489,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val removeTag = call<DeleteTagsRequest, Unit, CommonErrorMessage>("removeTag") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -508,7 +508,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
     val uploadLogo =
         call<UploadApplicationLogoRequest, UploadApplicationLogoResponse, CommonErrorMessage>("uploadLogo") {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ_WRITE
             }
 
@@ -533,7 +533,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
     val clearLogo =
         call<ClearLogoRequest, ClearLogoResponse, CommonErrorMessage>("clearLogo") {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ_WRITE
             }
 

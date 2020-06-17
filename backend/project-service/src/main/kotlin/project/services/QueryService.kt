@@ -694,7 +694,7 @@ class QueryService(
                 }
 
                 is Actor.User, is Actor.SystemOnBehalfOfUser -> {
-                    if (actor is Actor.User && actor.principal.role in Roles.PRIVILEDGED) {
+                    if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) {
                         // Allowed
                     } else {
                         projects.requireRole(ctx, actor.username, id, ProjectRole.ALL)
@@ -725,7 +725,7 @@ class QueryService(
                 Actor.System -> true
 
                 is Actor.User, is Actor.SystemOnBehalfOfUser -> {
-                    if (actor is Actor.User && actor.principal.role in Roles.PRIVILEDGED) {
+                    if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) {
                         true
                     } else {
                         projects.findRoleOfMember(ctx, id, actor.username) in ProjectRole.ADMINS

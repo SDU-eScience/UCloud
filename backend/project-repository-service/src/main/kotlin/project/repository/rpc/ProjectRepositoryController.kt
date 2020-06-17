@@ -9,8 +9,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.file.api.FileDescriptions
-import dk.sdu.cloud.file.api.FileType
-import dk.sdu.cloud.file.api.StorageFile
 import dk.sdu.cloud.project.repository.api.*
 import dk.sdu.cloud.project.repository.services.RepositoryService
 import dk.sdu.cloud.service.*
@@ -53,12 +51,12 @@ class ProjectRepositoryController(
 
         implement(ProjectRepository.list) {
             val username = when(ctx.securityPrincipal.role) {
-                in Roles.PRIVILEDGED -> request.user ?: ctx.securityPrincipal.username
+                in Roles.PRIVILEGED -> request.user ?: ctx.securityPrincipal.username
                 else -> ctx.securityPrincipal.username
             }
 
             val paging = when {
-                ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.itemsPerPage == null
+                ctx.securityPrincipal.role in Roles.PRIVILEGED && request.itemsPerPage == null
                         && request.page == null -> {
                     null
                 }

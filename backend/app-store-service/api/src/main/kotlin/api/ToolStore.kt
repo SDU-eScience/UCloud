@@ -73,7 +73,7 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
 
     val create = call<Unit, Unit, CommonErrorMessage>("create") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -89,7 +89,7 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
     val uploadLogo =
         call<UploadToolLogoRequest, UploadToolLogoResponse, CommonErrorMessage>("uploadLogo") {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ_WRITE
             }
 
@@ -114,7 +114,7 @@ object ToolStore : CallDescriptionContainer("hpc.tools") {
     val clearLogo =
         call<ClearLogoRequest, ClearLogoResponse, CommonErrorMessage>("clearLogo") {
             auth {
-                roles = Roles.PRIVILEDGED
+                roles = Roles.PRIVILEGED
                 access = AccessRight.READ_WRITE
             }
 

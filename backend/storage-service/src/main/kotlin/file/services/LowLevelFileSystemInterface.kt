@@ -229,4 +229,19 @@ interface LowLevelFileSystemInterface<in Ctx : CommandRunner> {
     suspend fun requirePermission(ctx: Ctx, path: String, permission: AccessRight)
 
     suspend fun normalizePermissions(ctx: Ctx, path: String)
+
+    /**
+     * Estimates recursive storage used
+     *
+     * This function _must_ return fast! If the underlying storage mechanism has no way of retrieving this efficiently
+     * it should instead rely on an old cached value of [calculateRecursiveStorageUsed].
+     */
+    suspend fun estimateRecursiveStorageUsedMakeItFast(ctx: Ctx, path: String): Long
+
+    /**
+     * Calculates actual recursive storage used
+     *
+     * This function does not need to be fast.
+     */
+    suspend fun calculateRecursiveStorageUsed(ctx: Ctx, path: String): Long
 }

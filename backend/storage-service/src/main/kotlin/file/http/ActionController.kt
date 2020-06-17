@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.http
 
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
@@ -11,14 +10,17 @@ import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.CoreFileSystemService
 import dk.sdu.cloud.file.services.FSUserContext
 import dk.sdu.cloud.file.services.FileLookupService
+import dk.sdu.cloud.file.services.LimitChecker
 import dk.sdu.cloud.file.util.CallResult
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.toActor
 import io.ktor.http.HttpStatusCode
 
 class ActionController<Ctx : FSUserContext>(
     private val commandRunnerFactory: CommandRunnerFactoryForCalls<Ctx>,
     private val coreFs: CoreFileSystemService<Ctx>,
-    private val fileLookupService: FileLookupService<Ctx>
+    private val fileLookupService: FileLookupService<Ctx>,
+    private val limitChecker: LimitChecker
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(FileDescriptions.createPersonalRepository) {
@@ -30,7 +32,7 @@ class ActionController<Ctx : FSUserContext>(
 
         implement(FileDescriptions.createDirectory) {
             val sensitivity = request.sensitivity
-            if (ctx.securityPrincipal.role in Roles.PRIVILEDGED && request.owner != null) {
+            if (ctx.securityPrincipal.role in Roles.PRIVILEGED && request.owner != null) {
                 val owner = request.owner!!
                 commandRunnerFactory.withCtxAndTimeout(this, user = owner) {
                     coreFs.makeDirectory(it, request.path)
@@ -121,6 +123,20 @@ class ActionController<Ctx : FSUserContext>(
             }
 
             ok(Unit)
+        }
+
+        implement(FileDescriptions.updateQuota) {
+            limitChecker.setQuota(
+                ctx.securityPrincipal.toActor(),
+                request.path,
+                request.quotaInMegaBytes * 1000 * 1000
+            )
+
+            ok(Unit)
+        }
+
+        implement(FileDescriptions.retrieveQuota) {
+            ok(RetrieveQuotaResponse(limitChecker.retrieveQuota(ctx.securityPrincipal.toActor(), request.path)))
         }
     }
 }

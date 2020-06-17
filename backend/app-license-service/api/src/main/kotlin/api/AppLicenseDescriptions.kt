@@ -106,7 +106,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val get = call<LicenseServerRequest, LicenseServerWithId, CommonErrorMessage>("get") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -143,7 +143,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val listAll = call<Unit, List<LicenseServerWithId>, CommonErrorMessage>("listAll") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 
@@ -160,7 +160,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -178,7 +178,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val listAcl = call<ListAclRequest, List<AccessEntityWithPermission>, CommonErrorMessage>("listAcl") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -198,7 +198,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val update = call<UpdateServerRequest, UpdateServerResponse, CommonErrorMessage>("update") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -223,7 +223,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val delete = call<DeleteServerRequest, Unit, CommonErrorMessage>("update") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 
@@ -244,7 +244,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
 
     val new = call<NewServerRequest, NewServerResponse, CommonErrorMessage>("new") {
         auth {
-            roles = Roles.PRIVILEDGED
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
         }
 

@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.ReserveCreditsRequest
 import dk.sdu.cloud.accounting.api.WalletOwnerType
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletBalance
@@ -63,7 +64,8 @@ class BalanceService(
         walletOwnerType: WalletOwnerType
     ) {
         if (initiatedBy == Actor.System) return
-        if (initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEDGED) return
+        if (initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEGED) return
+        if (initiatedBy != Actor.System && initiatedBy.username.startsWith("_")) return
 
         if (walletOwnerType == WalletOwnerType.USER && initiatedBy.username == accountId) return
         if (walletOwnerType == WalletOwnerType.PROJECT) {
@@ -86,7 +88,8 @@ class BalanceService(
         walletOwnerType: WalletOwnerType
     ) {
         if (initiatedBy == Actor.System) return
-        if (initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEDGED) return
+        if (initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEGED) return
+        if (initiatedBy != Actor.System && initiatedBy.username.startsWith("_")) return
 
         if (walletOwnerType == WalletOwnerType.PROJECT) {
             val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
@@ -354,18 +357,16 @@ class BalanceService(
         }
     }
 
+    private class ReservationUserRequestedAbortException : RuntimeException()
     suspend fun reserveCredits(
         ctx: DBContext,
         initiatedBy: Actor,
-        wallet: Wallet,
-        reservationId: String,
-        amount: Long,
-        expiresAt: Long,
-        productId: String,
-        units: Long,
+        request: ReserveCreditsRequest,
         reserveForAncestors: Boolean = true,
-        originalWallet: Wallet = wallet
-    ) {
+        origWallet: Wallet? = null
+    ): Unit = with(request) {
+        val wallet = request.account
+        val originalWallet = origWallet ?: wallet
         require(originalWallet.paysFor == wallet.paysFor)
         require(originalWallet.type == wallet.type)
 
@@ -373,45 +374,54 @@ class BalanceService(
             throw IllegalStateException("System cannot initiate a reservation")
         }
 
-        ctx.withSession { session ->
-            val ancestorWallets = if (reserveForAncestors) wallet.ancestors() else emptyList()
+        try {
+            ctx.withSession { session ->
+                val ancestorWallets = if (reserveForAncestors) wallet.ancestors() else emptyList()
 
-            val (balance, _) = getBalance(ctx, initiatedBy, wallet, true)
-            val reserved = getReservedCredits(ctx, wallet)
-            if (reserved + amount > balance) {
-                throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
-            }
+                val (balance, _) = getBalance(ctx, initiatedBy, wallet, true)
+                val reserved = getReservedCredits(ctx, wallet)
+                if (reserved + amount > balance) {
+                    throw RPCException("Insufficient funds", HttpStatusCode.PaymentRequired)
+                }
 
-            session.insert(TransactionTable) {
-                set(TransactionTable.accountId, wallet.id)
-                set(TransactionTable.accountType, wallet.type.name)
-                set(TransactionTable.productCategory, wallet.paysFor.id)
-                set(TransactionTable.productProvider, wallet.paysFor.provider)
-                set(TransactionTable.amount, amount)
-                set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
-                set(TransactionTable.initiatedBy, initiatedBy.username)
-                set(TransactionTable.isReserved, true)
-                set(TransactionTable.productId, productId)
-                set(TransactionTable.units, units)
-                set(TransactionTable.completedAt, LocalDateTime.now(DateTimeZone.UTC))
-                set(TransactionTable.originalAccountId, originalWallet.id)
-                set(TransactionTable.id, reservationId)
-            }
+                session.insert(TransactionTable) {
+                    set(TransactionTable.accountId, wallet.id)
+                    set(TransactionTable.accountType, wallet.type.name)
+                    set(TransactionTable.productCategory, wallet.paysFor.id)
+                    set(TransactionTable.productProvider, wallet.paysFor.provider)
+                    set(TransactionTable.amount, amount)
+                    set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
+                    set(TransactionTable.initiatedBy, initiatedBy.username)
+                    set(TransactionTable.isReserved, true)
+                    set(TransactionTable.productId, productId)
+                    set(TransactionTable.units, productUnits)
+                    set(TransactionTable.completedAt, LocalDateTime.now(DateTimeZone.UTC))
+                    set(TransactionTable.originalAccountId, originalWallet.id)
+                    set(TransactionTable.id, jobId)
+                }
 
-            ancestorWallets.forEach { ancestor ->
-                reserveCredits(
-                    session,
-                    initiatedBy,
-                    ancestor,
-                    reservationId,
-                    amount,
-                    expiresAt,
-                    productId,
-                    units,
-                    reserveForAncestors = false,
-                    originalWallet = wallet
-                )
+                ancestorWallets.forEach { ancestor ->
+                    // discardAfterLimitCheck should not be true for children since it would cause an exception to be
+                    // thrown too early
+                    reserveCredits(
+                        session,
+                        initiatedBy,
+                        request.copy(account = ancestor, discardAfterLimitCheck = false),
+                        reserveForAncestors = false,
+                        origWallet = wallet
+                    )
+                }
+
+                if (discardAfterLimitCheck) {
+                    throw ReservationUserRequestedAbortException()
+                }
+
+                if (chargeImmediately) {
+                    chargeFromReservation(session, request.jobId, request.amount, request.productUnits)
+                }
             }
+        } catch (ignored: ReservationUserRequestedAbortException) {
+            // Ignored
         }
     }
 
