@@ -7,7 +7,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {UploadPolicy} from "Uploader/api";
 import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
-import {defaultErrorHandler} from "UtilityFunctions";
+import {defaultErrorHandler, errorMessageOrDefault} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
@@ -28,6 +28,7 @@ export async function copyOrMoveFilesNew(
     let successes = 0;
     let failures = 0;
     const failurePaths: string[] = [];
+    const failureMessages: string[] = [];
     let applyToAll = false;
     let policy = UploadPolicy.REJECT;
     let allowRewrite = false;
@@ -100,8 +101,9 @@ export async function copyOrMoveFilesNew(
                     `Operation for ${f.path} is in progress.`,
                     true
                 );
-            } catch {
+            } catch (e) {
                 failures++;
+                failureMessages.push(errorMessageOrDefault(e, "Unknown"));
                 failurePaths.push(getFilenameFromPath(f.path));
             }
         }
@@ -110,8 +112,13 @@ export async function copyOrMoveFilesNew(
     if (!failures && successes) {
         onOnlySuccess({operation: operation === CopyOrMove.Copy ? "Copied" : "Moved", fileCount: filesToCopy.length});
     } else if (failures) {
+        let failureMessage = "";
+        for (let i = 0; i < failurePaths.length; i++) {
+            if (i !== 0) failureMessage += ", ";
+            failureMessage += `${failurePaths[i]} (${failureMessages[i]})`;
+        }
         snackbarStore.addFailure(
-            `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} files: ${failurePaths.join(", ")}`,
+            `Failed to ${operation === CopyOrMove.Copy ? "copy" : "move"} some files: ${failureMessage}`,
             true
         );
     }

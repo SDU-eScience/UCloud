@@ -30,8 +30,16 @@ export const multipartUpload = async ({
     request.open("POST", Client.computeURL("/api", "/files/upload/file"));
     request.onreadystatechange = () => {
         if (!inSuccessRange(request.status) && request.status !== 0) {
-            !!onError ? onError(`Upload failed: ${statusToError(request.status)}`) :
-                snackbarStore.addFailure(statusToError(request.status), true);
+            let errorMessage = statusToError(request.status);
+            try {
+                const why = JSON.parse(request.responseText).why
+                if (why && typeof why === "string") errorMessage = why;
+            } catch (e) {
+                // Ignored
+            }
+
+            !!onError ? onError(`Upload failed: ${errorMessage}`) :
+                snackbarStore.addFailure(errorMessage, true);
         }
     };
     request.setRequestHeader("Authorization", `Bearer ${token}`);
