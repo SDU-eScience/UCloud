@@ -142,8 +142,8 @@ const GroupList: React.FunctionComponent = () => {
     return <>
         <Spacer
             left={
-                <BreadCrumbsBase>
-                    <li><span>Groups</span></li>
+                <BreadCrumbsBase embedded={false}>
+                    <span>Groups</span>
                 </BreadCrumbsBase>
             }
 

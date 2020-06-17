@@ -189,23 +189,21 @@ const View: React.FunctionComponent<ViewOperations> = props => {
     return (
         <MainContainer
             header={<Flex>
-                <MembersBreadcrumbs>
-                    <li>
+                <MembersBreadcrumbs embedded={false}>
+                    <span title={"My Projects"}>
                         <Link to="/projects">
                             My Projects
                         </Link>
-                    </li>
-                    <li>
+                    </span>
+                    <span title={memberText}>
                         {isSettingsPage ?
                             <Link to={`/projects/view/${group ? encodeURIComponent(group) : "-"}`}>
                                 {memberText}
                             </Link> :
-                            <li>
-                                {memberText}
-                            </li>
+                            memberText
                         }
-                    </li>
-                    {isSettingsPage ? <li>Settings</li> : null}
+                    </span>
+                    {isSettingsPage ? <span>Settings</span> : null}
                 </MembersBreadcrumbs>
                 <Flex>
                     <Link to={isSettingsPage ? "/projects/view/" : "/projects/view/-/settings"}>

@@ -8,6 +8,6 @@ export const defaultModalStyle = {
         transform: "translate(-50%, -50%)",
         background: "",
         minWidth: "500px",
-       maxHeight: "80vh"
+        maxHeight: "80vh"
     }
 };

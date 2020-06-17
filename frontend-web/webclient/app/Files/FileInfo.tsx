@@ -70,6 +70,7 @@ function FileInfo(props: Readonly<FileInfo>): JSX.Element | null {
                 <Box>
                     <Flex>
                         <BreadCrumbs
+                            embedded={false}
                             currentPath={file.path}
                             navigate={p => props.history.push(fileTablePage(expandHomeOrProjectFolder(p, Client)))}
                             client={Client}

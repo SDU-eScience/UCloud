@@ -463,6 +463,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Spacer
                     left={(
                         <BreadCrumbs
+                            embedded={props.embedded ?? false}
                             currentPath={props.path ?? ""}
                             navigate={onFileNavigation}
                             client={Client}
@@ -479,11 +480,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                             )}
 
                             {isEmbedded ? null : (
-                                <Pagination.EntriesPerPageSelector
-                                    content="Files per page"
-                                    entriesPerPage={page.itemsPerPage}
-                                    onChange={amount => onPageChanged(0, amount)}
-                                />
+                                <Flex minWidth="160px">
+                                    <Pagination.EntriesPerPageSelector
+                                        content="Files per page"
+                                        entriesPerPage={page.itemsPerPage}
+                                        onChange={amount => onPageChanged(0, amount)}
+                                    />
+                                </Flex>
                             )}
                         </>
                     )}
@@ -959,10 +962,10 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const fileName = beingRenamed ? (
         <RenameBox file={props.file} onRenameFile={props.onRenameFile} />
     ) : (
-        <Truncate width={1} mb="-4px" fontSize={20}>
-            {getFileNameForNameBox(props.file.path)}
-        </Truncate>
-    );
+            <Truncate width={1} mb="-4px" fontSize={20}>
+                {getFileNameForNameBox(props.file.path)}
+            </Truncate>
+        );
 
     return (
         <Flex maxWidth={`calc(100% - ${220 + (props.isEmbedded ? 15 : 0)}px)`}>
