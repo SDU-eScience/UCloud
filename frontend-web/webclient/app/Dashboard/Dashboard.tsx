@@ -37,7 +37,6 @@ import {
 } from "./Redux/DashboardActions";
 import {JobStateIcon} from "Applications/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
-import {Spacer} from "ui-components/Spacer";
 import {getCssVar} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
 import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
@@ -45,6 +44,7 @@ import {Page, PaginationRequest} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
 import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
+import {Spacer} from "ui-components/Spacer";
 
 export const DashboardCard: React.FunctionComponent<{title: string; color: string; isLoading: boolean}> = ({title, color, isLoading, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={0} borderRadius={6}>
@@ -115,7 +115,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 
     const main = (
         <DashboardGrid minmax={315}>
-            <DashboardMessageOfTheDay news={news.data.items} />
+            <DashboardMessageOfTheDay news={news.data.items} loading={news.loading} />
             <DashboardFavoriteFiles
                 error={favoritePage.error?.why}
                 files={favoritePage.data.items}
@@ -308,23 +308,14 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
     };
 }
 
-function DashboardMessageOfTheDay({news}: {news: NewsPost[]}): JSX.Element | null {
+function DashboardMessageOfTheDay({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
     const [newestPost] = news;
     return (
-        <Card height="auto" width="100%" overflow="hidden" boxShadow="sm" borderWidth={1} borderRadius={6}>
-            <Box bg="lightGray" color="darkGray" px={3} py={2}>
-                <Spacer
-                    left={<>
-                        <Heading.h4>Message of the day</Heading.h4>
-                        <Link ml="8px" mt="4px" to="/news/list/">View more</Link>
-                    </>}
-                    right={newestPost == null ? null :
-                        <Text color="gray" mr="8px" mt="4px" fontSize={1}>
-                            From {formatDistanceToNow(new Date(newestPost.showFrom), {addSuffix: true})}
-                        </Text>
-                    }
-                />
-            </Box>
+        <DashboardCard title="Message of the Day" color="orange" isLoading={loading}>
+            <Spacer
+                left={null}
+                right={<Link to="/news/list/">View more</Link>}
+            />
             <Box mx="8px" my="5px">
                 {newestPost ? <Link to={`/news/detailed/${newestPost.id}`}>
                     <Heading.h3>{newestPost.title}</Heading.h3>
@@ -337,7 +328,7 @@ function DashboardMessageOfTheDay({news}: {news: NewsPost[]}): JSX.Element | nul
                     </Box>
                 </Link> : "No posts found"}
             </Box>
-        </Card>
+        </DashboardCard>
     );
 }
 

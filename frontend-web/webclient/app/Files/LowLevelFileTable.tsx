@@ -914,7 +914,7 @@ interface NameBoxProps {
     isEmbedded?: boolean;
 }
 
-const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: string) => void}) => {
+const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: string) => void}): JSX.Element => {
     const ref = React.useRef<HTMLInputElement>(null);
     return (
         <Flex width={1} alignItems="center">

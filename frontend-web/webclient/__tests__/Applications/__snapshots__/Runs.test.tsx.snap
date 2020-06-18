@@ -1000,7 +1000,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           <img
             alt=""
             onErrorCapture={[Function]}
-            src="undefined/api/hpc/apps/logo/?cacheBust=undefined"
+            src="undefined/api/hpc/apps/logo/"
             style={
               Object {
                 "height": "36px",
@@ -1149,7 +1149,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           <img
             alt=""
             onErrorCapture={[Function]}
-            src="undefined/api/hpc/apps/logo/?cacheBust=undefined"
+            src="undefined/api/hpc/apps/logo/"
             style={
               Object {
                 "height": "36px",
@@ -1298,7 +1298,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           <img
             alt=""
             onErrorCapture={[Function]}
-            src="undefined/api/hpc/apps/logo/?cacheBust=undefined"
+            src="undefined/api/hpc/apps/logo/"
             style={
               Object {
                 "height": "36px",
@@ -1447,7 +1447,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           <img
             alt=""
             onErrorCapture={[Function]}
-            src="undefined/api/hpc/apps/logo/?cacheBust=undefined"
+            src="undefined/api/hpc/apps/logo/"
             style={
               Object {
                 "height": "36px",
