@@ -1,74 +1,102 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.AuthServiceDescription
+import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.withDatabase
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RefreshTokenAndUserTest {
+    companion object {
+        lateinit var db: AsyncDBSessionFactory
+        lateinit var embDB: EmbeddedPostgres
+
+        @BeforeClass
+        @JvmStatic
+        fun setup() {
+            val (db, embDB) = TestDB.from(AuthServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun close() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
+    }
+
+    @BeforeTest
+    fun before() {
+        dbTruncate(db)
+    }
+
+    @AfterTest
+    fun after() {
+        dbTruncate(db)
+    }
+
     private val passwordHashingService = PasswordHashingService()
     private val personService = PersonService(passwordHashingService, mockk(relaxed = true))
 
+    val email = "test@testmail.com"
+    val token = "tokenToGive"
+
+    val person = personService.createUserByPassword(
+        "FirstName Middle",
+        "Lastname",
+        email,
+        Role.ADMIN,
+        "ThisIsMyPassword",
+        email
+    )
+
     @Test
     fun `insert, find and delete`() {
-        withDatabase { db ->
-            runBlocking {
-                val email = "test@testmail.com"
-                val token = "tokenToGive"
+        runBlocking {
+            db.withTransaction { session ->
+                UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO()).insert(session, person)
+                val refreshTAU = RefreshTokenAndUser(email, token, "")
+                val refreshDao = RefreshTokenAsyncDAO()
 
-                db.withTransaction { session ->
-                    val person = personService.createUserByPassword(
-                        "FirstName Middle",
-                        "Lastname",
-                        email,
-                        Role.ADMIN,
-                        "ThisIsMyPassword",
-                        email
-                    )
-                    UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO()).insert(session, person)
-                    val refreshTAU = RefreshTokenAndUser(email, token, "")
-                    val refreshHibernateTAU = RefreshTokenHibernateDAO()
+                refreshDao.insert(session, refreshTAU)
 
-                    refreshHibernateTAU.insert(session, refreshTAU)
-
-                    assertEquals(email, refreshHibernateTAU.findById(session, token)?.associatedUser)
-                    assertTrue(refreshHibernateTAU.delete(session, token))
-                    assertNull(refreshHibernateTAU.findById(session, token))
-                }
+                assertEquals(email, refreshDao.findById(session, token)?.associatedUser)
+                assertTrue(refreshDao.delete(session, token))
+                assertNull(refreshDao.findById(session, token))
             }
         }
     }
+
     @Test
     fun `insert and delete expired`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
-        val dao = RefreshTokenHibernateDAO()
-        val email = "test@testmail.com"
-        val token = "tokenToGive"
-
+        val dao = RefreshTokenAsyncDAO()
         runBlocking {
             db.withTransaction { session ->
-                val person = personService.createUserByPassword(
-                    "FirstName Middle",
-                    "Lastname",
-                    email,
-                    Role.ADMIN,
-                    "ThisIsMyPassword",
-                    email
-                )
-                UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO()).insert(session, person)
+                UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO()).insert(session, person)
                 dao.insert(session, RefreshTokenAndUser(
                     email, "token", "csrf", refreshTokenExpiry = (System.currentTimeMillis() + 1000000))
                 )
@@ -102,23 +130,10 @@ class RefreshTokenAndUserTest {
 
     @Test
     fun `insert and delete expired (both null)`() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
-        val db = micro.hibernateDatabase
-        val dao = RefreshTokenHibernateDAO()
-        val email = "test@testmail.com"
-
+        val dao = RefreshTokenAsyncDAO()
         runBlocking {
             db.withTransaction { session ->
-                val person = personService.createUserByPassword(
-                    "FirstName Middle",
-                    "Lastname",
-                    email,
-                    Role.ADMIN,
-                    "ThisIsMyPassword",
-                    email
-                )
-                UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO()).insert(session, person)
+                UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO()).insert(session, person)
                 dao.insert(session, RefreshTokenAndUser(email, "token", "csrf"))
                 dao.insert(session, RefreshTokenAndUser(email, "token2", "csrf"))
             }
@@ -153,25 +168,23 @@ class RefreshTokenAndUserTest {
 
     @Test(expected = UserException.NotFound::class)
     fun `insert - user not found`() {
-        withDatabase { db ->
             runBlocking {
                 db.withTransaction { session ->
                     val refreshTAU = RefreshTokenAndUser("non existing User", "token", "")
-                    val refreshHibernateTAU = RefreshTokenHibernateDAO()
+                    val refreshHibernateTAU = RefreshTokenAsyncDAO()
                     refreshHibernateTAU.insert(session, refreshTAU)
                 }
             }
-        }
+
     }
 
     @Test
     fun `delete - does not exist`() {
-        withDatabase { db ->
-            runBlocking {
-                db.withTransaction { session ->
-                    assertFalse(RefreshTokenHibernateDAO().delete(session, "token"))
-                }
+        runBlocking {
+            db.withSession { session ->
+                assertFalse(RefreshTokenAsyncDAO().delete(session, "token"))
             }
         }
     }
+
 }

@@ -1,22 +1,33 @@
 package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
+import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.insert
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.every
 import io.mockk.mockk
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
 import org.hibernate.NonUniqueObjectException
+import org.joda.time.DateTimeZone
+import org.joda.time.LocalDateTime
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
 import java.util.*
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -24,24 +35,34 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class UserHibernateDAOTest {
-    private lateinit var db: DBSessionFactory<HibernateSession>
-    private lateinit var passwordHashingService: PasswordHashingService
-    private lateinit var personService: PersonService
-    private lateinit var userHibernate: UserHibernateDAO
+    companion object {
+        lateinit var db: AsyncDBSessionFactory
+        lateinit var embDB: EmbeddedPostgres
 
-    private val email = "test@testmail.com"
-    private lateinit var person: Person
-    private val email2 = "anotherEmail@test.com"
-    private lateinit var person2: Person
+        @BeforeClass
+        @JvmStatic
+        fun setup() {
+            val (db, embDB) = TestDB.from(AuthServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun close() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
+    }
 
     @BeforeTest
-    fun initTests() {
-        val micro = initializeMicro()
-        micro.install(HibernateFeature)
+    fun before() {
+        dbTruncate(db)
 
-        db = micro.hibernateDatabase
         passwordHashingService = PasswordHashingService()
-        userHibernate = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
+        userHibernate = UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO())
         personService = PersonService(passwordHashingService, UniqueUsernameService(db, userHibernate))
 
         person = personService.createUserByPassword(
@@ -63,10 +84,24 @@ class UserHibernateDAOTest {
         )
     }
 
+    @AfterTest
+    fun after() {
+        dbTruncate(db)
+    }
+
+    private lateinit var passwordHashingService: PasswordHashingService
+    private lateinit var personService: PersonService
+    private lateinit var userHibernate: UserAsyncDAO
+
+    private val email = "test@testmail.com"
+    private lateinit var person: Person
+    private val email2 = "anotherEmail@test.com"
+    private lateinit var person2: Person
+
     @Test
     fun `insert, find and delete`(): Unit = runBlocking {
         db.withTransaction { session ->
-            val userHibernate = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
+            val userHibernate = UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO())
             userHibernate.insert(session, person)
             assertEquals(email, userHibernate.findById(session, email).id)
             userHibernate.delete(session, email)
@@ -77,7 +112,7 @@ class UserHibernateDAOTest {
     @Test(expected = NonUniqueObjectException::class)
     fun `insert 2 with same email`(): Unit = runBlocking {
         db.withTransaction { session ->
-            val userHibernate = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
+            val userHibernate = UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO())
             userHibernate.insert(session, person)
             userHibernate.insert(session, person)
 
@@ -87,14 +122,14 @@ class UserHibernateDAOTest {
     @Test(expected = UserException.NotFound::class)
     fun `delete non existing user`(): Unit = runBlocking {
         val session = db.openSession()
-        val userHibernate = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
+        val userHibernate = UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO())
         userHibernate.delete(session, "test@testmail.com")
     }
 
     @Test
     fun `insert WAYF`(): Unit = runBlocking {
         val auth = mockk<SamlRequestProcessor>()
-        val userDao = UserHibernateDAO(passwordHashingService, TwoFactorHibernateDAO())
+        val userDao = UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO())
         every { auth.authenticated } returns true
         every { auth.attributes } answers {
             val h = HashMap<String, List<String>>(10)
@@ -111,83 +146,6 @@ class UserHibernateDAOTest {
         }
         assertEquals("sdu.dk", person.organizationId)
     }
-
-    @Test
-    fun `Create Service Entity`() {
-        val date = Date()
-        val entity = ServiceEntity("_id", Role.SERVICE, date, date)
-        assertEquals(date, entity.createdAt)
-        assertEquals(date, entity.modifiedAt)
-
-        val principal = entity.toModel(false)
-        assertEquals(ServicePrincipal("_id", Role.SERVICE), principal)
-        val backToEntity = principal.toEntity()
-        assertEquals(backToEntity.id, entity.id)
-        assertEquals(backToEntity.role, entity.role)
-    }
-
-    @Test
-    fun `Create Person Entity and use hashcode and equals test`() {
-        val date = Date()
-        val person1 = PersonEntityByPassword(
-            "id",
-            Role.USER,
-            date,
-            date,
-            "title",
-            "firstname",
-            "lastname",
-            "phone",
-            "orcid",
-            hashedPassword = ByteArray(2),
-            salt = ByteArray(4),
-            serviceLicenseAgreement = 0
-        )
-        val person2 = PersonEntityByPassword(
-            "id",
-            Role.USER,
-            date,
-            date,
-            "title",
-            "firstname",
-            "lastname",
-            "phone",
-            "orcid",
-            hashedPassword = ByteArray(2),
-            salt = ByteArray(4),
-            serviceLicenseAgreement = 0
-        )
-
-        assertEquals(person1, person2)
-
-        val hashedPerson = person1.hashCode()
-        val hashedPerson2 = person2.hashCode()
-        //Same values, so should be same hash
-        assertEquals(hashedPerson, hashedPerson2)
-    }
-
-    @Test
-    fun `create Person by WAYF Entity and transform to model`() {
-        val entity = PersonEntityByWAYF(
-            "id",
-            Role.USER,
-            Date(),
-            Date(),
-            "title",
-            "Firstname",
-            "lastname",
-            "phone",
-            "orcid",
-            orgId = "orgid",
-            wayfId = "wayfid",
-            serviceLicenseAgreement = 0
-        )
-        val model = entity.toModel(false)
-        val backToEntity = model.toEntity()
-
-        assertEquals(entity.id, backToEntity.id)
-    }
-
 
     @Test
     fun `toggle emails`() {
