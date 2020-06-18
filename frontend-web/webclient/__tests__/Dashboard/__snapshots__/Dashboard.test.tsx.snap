@@ -341,7 +341,7 @@ exports[`Dashboard Dashboard mount 1`] = `
 }
 
 .c10:hover {
-  color: #006aff;
+  color: var(--textHighlight);
 }
 
 .c19 {
@@ -352,7 +352,7 @@ exports[`Dashboard Dashboard mount 1`] = `
 }
 
 .c19:hover {
-  color: #006aff;
+  color: var(--textHighlight);
 }
 
 .c21 {
@@ -367,7 +367,7 @@ exports[`Dashboard Dashboard mount 1`] = `
   border-bottom: 0px;
 }
 
-.c4 .c5:first-child {
+.c4 > .c5:first-child {
   grid-column: 1 / 3;
   grid-row: 1 / 3;
 }
@@ -426,7 +426,6 @@ exports[`Dashboard Dashboard mount 1`] = `
             <a
               className="c10"
               color="text"
-              hoverColor="textHighlight"
               href="/news/list/"
               ml="8px"
               mt="4px"
@@ -483,7 +482,6 @@ exports[`Dashboard Dashboard mount 1`] = `
             <a
               className="c19"
               color="text"
-              hoverColor="textHighlight"
               href="/files?path=%2Fhome%2Ftest%40test.dk"
               onClick={[Function]}
             >
@@ -539,7 +537,6 @@ exports[`Dashboard Dashboard mount 1`] = `
             <a
               className="c19"
               color="text"
-              hoverColor="textHighlight"
               href="/applications/overview"
               onClick={[Function]}
             >

@@ -51,7 +51,7 @@ function NewsManagement(props: NewsManagementOperations): JSX.Element | null {
         path: "/news/listCategories"
     }, []);
 
-    const [fuse, setFuse] = React.useState(new Fuse([], {
+    const [fuse, setFuse] = React.useState(new Fuse([] as string[], {
         shouldSort: true,
         threshold: 0.2,
         location: 0,
@@ -62,7 +62,10 @@ function NewsManagement(props: NewsManagementOperations): JSX.Element | null {
     React.useEffect(() => {
         setFuse(new Fuse(categories.data, {
             shouldSort: true,
-            minMatchCharLength: 1
+            threshold: 0.2,
+            location: 0,
+            distance: 100,
+            minMatchCharLength: 1,
         }));
     }, [categories.data, categories.data.length]);
 
@@ -293,14 +296,13 @@ const Categories = (props: {categories: string[], onSelect: (cat: string) => voi
             ))}
         </Card>
     );
-}
+};
 
 const mapDispatchToProps = (dispatch: Dispatch): NewsManagementOperations => ({
     onInit: () => {
         dispatch(setActivePage(SidebarPages.Admin));
         dispatch(updatePageTitle("News Management"));
-    },
-
+    }
 });
 
 export default connect(null, mapDispatchToProps)(NewsManagement);

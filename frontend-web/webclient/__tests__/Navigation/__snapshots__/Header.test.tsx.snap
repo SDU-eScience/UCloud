@@ -186,7 +186,7 @@ exports[`Header Mount header 1`] = `
 }
 
 .c1:hover {
-  color: #006aff;
+  color: var(--textHighlight);
 }
 
 .c8 {
@@ -352,7 +352,6 @@ exports[`Header Mount header 1`] = `
   <a
     className="c1"
     color="text"
-    hoverColor="textHighlight"
     href="/"
     onClick={[Function]}
     width={

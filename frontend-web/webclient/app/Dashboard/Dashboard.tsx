@@ -17,12 +17,11 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Box, Button, Card, Flex, Icon, Link, Text, Markdown} from "ui-components";
 import Error from "ui-components/Error";
-import Grid, {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
 import {EllipsedText} from "ui-components/Text";
-import {fileTablePage, sizeToHumanReadableWithUnit} from "Utilities/FileUtilities";
+import {fileTablePage} from "Utilities/FileUtilities";
 import {
     getFilenameFromPath,
     getParentPath,
@@ -45,6 +44,7 @@ import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
 import {Page, PaginationRequest} from "Types";
 import {buildQueryString} from "Utilities/URIUtilities";
 import styled from "styled-components";
+import {GridCardGroup} from "ui-components/Grid";
 
 export const DashboardCard: React.FunctionComponent<{title: string; color: string; isLoading: boolean}> = ({title, color, isLoading, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={0} borderRadius={6}>
@@ -146,7 +146,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
 }
 
 const DashboardGrid = styled(GridCardGroup)`
-    & ${Card}:first-child {
+    & > ${Card}:first-child {
         grid-column: 1 / 3;
         grid-row: 1 / 3;
     }
