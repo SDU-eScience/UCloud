@@ -17,8 +17,10 @@ export enum ProductArea {
 
 export function productAreaTitle(area: ProductArea): string {
     switch (area) {
-        case ProductArea.COMPUTE: return "Compute";
-        case ProductArea.STORAGE: return "Storage";
+        case ProductArea.COMPUTE:
+            return "Compute";
+        case ProductArea.STORAGE:
+            return "Storage";
     }
 }
 
@@ -32,6 +34,14 @@ export interface Wallet {
     id: string;
     type: AccountType;
     paysFor: ProductCategoryId;
+}
+
+export function walletEquals(a: Wallet, b: Wallet): boolean {
+    return a.id === b.id && a.type === b.type && productCategoryEquals(a.paysFor, b.paysFor);
+}
+
+export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId) {
+    return a.provider === b.provider && a.id === b.id;
 }
 
 export interface RetrieveBalanceRequest {
@@ -124,6 +134,7 @@ export interface ListMachinesRequest extends PaginationRequest {
     provider: string;
     productCategory: string;
 }
+
 export type ListMachinesResponse = MachineReservation[];
 
 export function listMachines(request: ListMachinesRequest): APICallParameters<ListMachinesRequest> {
@@ -141,7 +152,8 @@ export interface TimeRangeQuery {
     periodEnd: number;
 }
 
-export interface UsageRequest extends TimeRangeQuery {}
+export interface UsageRequest extends TimeRangeQuery {
+}
 
 export interface UsagePoint {
     timestamp: number;
@@ -226,5 +238,5 @@ export function transformUsageChartForCharting(
         }
     }
 
-    return { provider: chart.provider, lineNames, points: Object.values(builder), lineNameToWallet };
+    return {provider: chart.provider, lineNames, points: Object.values(builder), lineNameToWallet};
 }

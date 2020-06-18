@@ -45,7 +45,7 @@ class SnackbarStore {
     public addInformation(message: string, addAsNotification: boolean, lifetime?: number): void {
         this.addSnack({
             message,
-            type: SnackType.Success,
+            type: SnackType.Information,
             addAsNotification,
             lifetime
         });

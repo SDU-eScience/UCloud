@@ -41,7 +41,7 @@ import {useCloudAPI} from "Authentication/DataHook";
 import {Page} from "Types";
 import {IconName} from "ui-components/Icon";
 
-export const DashboardCard: React.FunctionComponent<{title: string; color: string; isLoading: boolean; icon?: IconName}> = ({title, color, isLoading, icon = undefined, children}) => (
+export const DashboardCard: React.FunctionComponent<{title?: string; color: string; isLoading: boolean; icon?: IconName}> = ({title, color, isLoading, icon = undefined, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={0} borderRadius={6}>
         <Flex px={3} py={2} alignItems="center" style={{borderTop:`5px solid ${color}`}} >
             {icon !== undefined ? (
@@ -53,7 +53,7 @@ export const DashboardCard: React.FunctionComponent<{title: string; color: strin
                     color={theme.colors.darkGray}
                 />
             ) : (null)}
-            <Heading.h3>{title}</Heading.h3>
+            {title ? <Heading.h3>{title}</Heading.h3> : null}
         </Flex>
         <Box px={3} py={1}>
             {!isLoading ? children : <Spinner /> }
