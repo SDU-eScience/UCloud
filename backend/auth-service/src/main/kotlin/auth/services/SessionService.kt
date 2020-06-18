@@ -7,22 +7,22 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 import java.time.LocalDateTime
 import java.time.ZoneOffset
 
-class SessionService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val refreshTokenDao: RefreshTokenDAO<DBSession>
+class SessionService(
+    private val db: DBContext,
+    private val refreshTokenDao: RefreshTokenAsyncDAO
 ) {
     suspend fun listSessions(user: SecurityPrincipalToken, paging: NormalizedPaginationRequest): Page<Session> {
         validateToken(user)
 
-        return db.withTransaction { session ->
-            refreshTokenDao.findUserSessions(session, user.principal.username, paging)
-        }.mapItems {
+        return refreshTokenDao.findUserSessions(db, user.principal.username, paging)
+            .mapItems {
             Session(
                 it.ip ?: "Unknown location",
                 it.userAgent ?: "Unknown device",
@@ -33,10 +33,7 @@ class SessionService<DBSession>(
 
     suspend fun invalidateSessions(user: SecurityPrincipalToken) {
         validateToken(user)
-
-        db.withTransaction { session ->
-            refreshTokenDao.invalidateUserSessions(session, user.principal.username)
-        }
+        refreshTokenDao.invalidateUserSessions(db, user.principal.username)
     }
 
     private fun validateToken(user: SecurityPrincipalToken) {

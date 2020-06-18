@@ -4,6 +4,7 @@ import dk.sdu.cloud.auth.api.TwoFactorAuthDescriptions
 import dk.sdu.cloud.auth.api.TwoFactorStatusResponse
 import dk.sdu.cloud.auth.services.TwoFactorChallenge
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
+import dk.sdu.cloud.auth.services.TwoFactorChallengeType
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
@@ -16,9 +17,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.response.respond
 import org.slf4j.Logger
 
-class TwoFactorAuthController<DBSession>(
-    private val twoFactorChallengeService: TwoFactorChallengeService<DBSession>,
-    private val loginResponder: LoginResponder<DBSession>
+class TwoFactorAuthController(
+    private val twoFactorChallengeService: TwoFactorChallengeService,
+    private val loginResponder: LoginResponder
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(TwoFactorAuthDescriptions.createCredentials) {
@@ -54,20 +55,19 @@ class TwoFactorAuthController<DBSession>(
             fail()
         }
 
-        when (challenge) {
-            is TwoFactorChallenge.Login -> {
+        when {
+            challenge!!.type.contains(TwoFactorChallengeType.LOGIN.name) -> {
                 if (verified) {
                     loginResponder.handleSuccessful2FA(
                         call,
-                        challenge.service,
+                        challenge.service!!,
                         challenge.credentials.principal
                     )
                 } else {
                     fail()
                 }
             }
-
-            is TwoFactorChallenge.Setup -> {
+            challenge!!.type.contains(TwoFactorChallengeType.SETUP.name) -> {
                 if (verified) {
                     twoFactorChallengeService.upgradeCredentials(challenge.credentials)
                     call.respond(HttpStatusCode.NoContent)

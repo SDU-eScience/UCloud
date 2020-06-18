@@ -1,5 +1,6 @@
 package dk.sdu.cloud.auth.services
 
+import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
@@ -16,6 +17,17 @@ import dk.sdu.cloud.service.db.HibernateEntity
 import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.HibernateSessionFactory
 import dk.sdu.cloud.service.db.WithId
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.SQLTable
+import dk.sdu.cloud.service.db.async.getField
+import dk.sdu.cloud.service.db.async.insert
+import dk.sdu.cloud.service.db.async.int
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.text
+import dk.sdu.cloud.service.db.async.timestamp
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.get
 import dk.sdu.cloud.service.db.updateCriteria
 import dk.sdu.cloud.service.db.withTransaction
@@ -28,6 +40,8 @@ import org.hibernate.ScrollMode
 import org.hibernate.ScrollableResults
 import org.hibernate.StatelessSession
 import org.hibernate.annotations.NaturalId
+import org.joda.time.DateTimeZone
+import org.joda.time.LocalDateTime
 import org.slf4j.Logger
 import java.util.*
 import java.util.concurrent.Executors
@@ -49,8 +63,8 @@ class UserIterationService(
     private val localhostName: String,
     private val localPort: Int,
 
-    private val db: HibernateSessionFactory,
-    private val cursorStateDao: CursorStateDao<HibernateSession>,
+    private val db: DBContext,
+    private val cursorStateDao: CursorStateAsyncDao,
 
     private val client: RpcClient,
     private val authenticator: RefreshingJWTAuthenticator,
@@ -61,8 +75,7 @@ class UserIterationService(
 
     private data class OpenIterator(
         val state: CursorState,
-        val session: StatelessSession,
-        val iterator: ScrollableResults
+        val session: AsyncDBConnection
     )
 
     private val openIterators: MutableMap<String, OpenIterator> = HashMap()
@@ -77,9 +90,7 @@ class UserIterationService(
                         val iterator = openIterators.iterator()
                         while (iterator.hasNext()) {
                             val next = iterator.next()
-                            val state = db.withTransaction {
-                                cursorStateDao.findByIdOrNull(it, next.key)
-                            }
+                            val state = cursorStateDao.findByIdOrNull(db, next.key)
 
                             if (state == null) {
                                 log.debug("Removing ${next.key} (could not find in db)")
@@ -106,32 +117,50 @@ class UserIterationService(
     }
 
     suspend fun create(): String {
+        require(db is AsyncDBSessionFactory)
+        val session = db.openSession()
+        db.openTransaction(session)
         mutex.withLock {
             if (openIterators.size >= maxConnections) throw UserIteratorException.TooManyOpen()
 
             val id = UUID.randomUUID().toString()
-            val session = db.openStatelessSession()
-            val iterator = session.createQuery("from PrincipalEntity").scroll(ScrollMode.FORWARD_ONLY)
+
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("cursorID", id)
+                },
+                """
+                    DECLARE ?cursorID NO SCROLL CURSOR WITH HOLD
+                    FOR SELECT * FROM principals;
+                """.trimIndent()
+            )
             val state = CursorState(id, localhostName, localPort, nextExpiresAt())
 
-            db.withTransaction {
-                cursorStateDao.create(
-                    it,
-                    state
-                )
-            }
+            cursorStateDao.create(session, state)
 
-            openIterators[id] = OpenIterator(state, session, iterator)
+            openIterators[id] = OpenIterator(state, session)
             return id
         }
     }
 
     private fun closeLocal(id: String) {
+        require(db is AsyncDBSessionFactory)
         synchronized(this) {
             val open = openIterators[id] ?: return
-            runCatching { open.iterator.close() }
-            runCatching { open.session.close() }.getOrThrow()
+            runBlocking {
+                open.session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("cursorID", id)
+                        },
+                        """
+                                CLOSE ?cursorID
+                            """.trimIndent()
+                    )
 
+                db.commit(open.session)
+            }
             openIterators.remove(id)
         }
     }
@@ -140,16 +169,20 @@ class UserIterationService(
     private fun nextExpiresAt(): Long =
         System.currentTimeMillis() + 1000L * 60 * 30
 
-    private fun fetchLocal(id: String): List<Principal> {
-        val state = openIterators[id] ?: throw UserIterationException.BadIterator()
-        val result = ArrayList<Principal>()
-        val it = state.iterator
-        while (result.size < PAGE_SIZE && it.next()) {
-            val nextRow = it.get(0) as? PrincipalEntity ?: break
-            result.add(nextRow.toModel(false))
-        }
-        return result
+    private suspend fun fetchLocal(id: String): List<Principal> {
+        val open = openIterators[id] ?: throw UserIterationException.BadIterator()
+        return open.session
+            .sendPreparedStatement(
+                {
+                    setParameter("pageSize", PAGE_SIZE)
+                    setParameter("cursorID", id)
+                },
+                """
+                    FETCH FORWARD ?pageSize FROM ?cursorID
+                """.trimIndent()
+            ).rows.map { it.toPrincipal(false) }
     }
+
 
     suspend fun fetchNext(id: String): List<Principal> {
         return if (id in openIterators) {
@@ -182,9 +215,7 @@ class UserIterationService(
     }
 
     private suspend fun findRemoteCloud(id: String): HostInfo {
-        val state = db.withTransaction {
-            cursorStateDao.findByIdOrNull(it, id)
-        } ?: throw UserIterationException.BadIterator()
+        val state = cursorStateDao.findByIdOrNull(db, id) ?: throw UserIterationException.BadIterator()
 
         if (state.hostname == localhostName && state.port == localPort) {
             throw UserIterationException.BadIterator()
@@ -211,55 +242,65 @@ data class CursorState(
     val expiresAt: Long
 )
 
-interface CursorStateDao<Session> {
-    fun create(session: Session, state: CursorState)
-    fun findByIdOrNull(session: Session, id: String): CursorState?
-    fun updateExpiresAt(session: Session, id: String, newExpiry: Long)
+object CursorStateTable : SQLTable("cursor_state") {
+    val id = text("id", notNull = true)
+    val hostname = text("hostname", notNull = true)
+    val port = int("port", notNull = true)
+    val expiresAt = timestamp("expires_at", notNull = true)
 }
 
-@Entity
-@Table(name = "cursor_state")
-data class CursorStateEntity(
-    @Id
-    @NaturalId
-    val id: String,
-
-    val hostname: String,
-    val port: Int,
-
-    @Temporal(TemporalType.TIMESTAMP)
-    val expiresAt: Date
-) {
-    companion object : HibernateEntity<CursorStateEntity>, WithId<String>
-}
-
-class CursorStateHibernateDao : CursorStateDao<HibernateSession> {
-    override fun create(session: HibernateSession, state: CursorState) {
-        session.save(state.toEntity())
-    }
-
-    override fun findByIdOrNull(session: HibernateSession, id: String): CursorState? {
-        return CursorStateEntity[session, id]?.toModel()
-    }
-
-    override fun updateExpiresAt(session: HibernateSession, id: String, newExpiry: Long) {
-        session.updateCriteria<CursorStateEntity>(
-            setProperties = {
-                criteria.set(entity[CursorStateEntity::expiresAt], Date(newExpiry))
-            },
-
-            where = {
-                entity[CursorStateEntity::id] equal id
+class CursorStateAsyncDao {
+    suspend fun create(db: DBContext, state: CursorState) {
+        db.withSession { session ->
+            session.insert(CursorStateTable) {
+                set(CursorStateTable.id, state.id)
+                set(CursorStateTable.hostname, state.hostname)
+                set(CursorStateTable.port, state.port)
+                set(CursorStateTable.expiresAt, LocalDateTime(state.expiresAt / 1000, DateTimeZone.UTC))
             }
-        ).executeUpdate().takeIf { it == 1 } ?: throw UserIterationException.BadIterator()
+        }
     }
 
-    private fun CursorState.toEntity(): CursorStateEntity {
-        return CursorStateEntity(id, hostname, port, Date(expiresAt))
+    suspend fun findByIdOrNull(db: DBContext, id: String): CursorState? {
+        return db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                    },
+                    """
+                        SELECT *
+                        FROM cursor_state
+                        WHERE id = ?id
+                    """.trimIndent()
+                ).rows.singleOrNull()?.toCursorState()
+        }
     }
 
-    private fun CursorStateEntity.toModel(): CursorState {
-        return CursorState(id, hostname, port, expiresAt.time)
+    suspend fun updateExpiresAt(db: DBContext, id: String, newExpiry: Long) {
+        db.withSession { session ->
+            val rowsAffected = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("time", newExpiry / 1000)
+                        setParameter("id", id)
+                    },
+                    """
+                        UPDATE cursor_state
+                        SET expires_at = to_timestamp(?time)
+                        WHERE id = ?id
+                    """.trimIndent()
+                ).rowsAffected
+            if (rowsAffected != 1L) throw UserIterationException.BadIterator()
+        }
+    }
+
+    private fun RowData.toCursorState(): CursorState {
+        return CursorState(
+            getField(CursorStateTable.id),
+            getField(CursorStateTable.hostname),
+            getField(CursorStateTable.port),
+            getField(CursorStateTable.expiresAt).toDateTime().millis)
     }
 }
 

@@ -28,8 +28,8 @@ typealias SAMLRequestProcessorFactory = (Saml2Settings, ApplicationCall, Paramet
 class SAMLController(
     private val authSettings: Saml2Settings,
     private val samlProcessorFactory: SAMLRequestProcessorFactory,
-    private val tokenService: TokenService<*>,
-    private val loginResponder: LoginResponder<*>
+    private val tokenService: TokenService,
+    private val loginResponder: LoginResponder
 ) {
     fun configure(routing: Route): Unit = with(routing) {
         get("metadata") {

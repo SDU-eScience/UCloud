@@ -7,7 +7,7 @@ import dk.sdu.cloud.service.Loggable
 
 class PersonService(
     private val passwordHashingService: PasswordHashingService,
-    private val usernameGenerator: UniqueUsernameService<*>
+    private val usernameGenerator: UniqueUsernameService
 ) {
     fun createUserByPassword(
         firstNames: String,

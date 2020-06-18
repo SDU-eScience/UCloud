@@ -6,8 +6,8 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.TokenService
+import dk.sdu.cloud.auth.services.UserAsyncDAO
 import dk.sdu.cloud.auth.services.UserCreationService
-import dk.sdu.cloud.auth.services.UserDAO
 import dk.sdu.cloud.auth.services.UserIterationService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
@@ -17,20 +17,20 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.application.call
 import io.ktor.features.origin
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.userAgent
 
-class UserController<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
+class UserController(
+    private val db: AsyncDBSessionFactory,
     private val personService: PersonService,
-    private val userDAO: UserDAO<DBSession>,
-    private val userCreationService: UserCreationService<DBSession>,
+    private val userDAO: UserAsyncDAO,
+    private val userCreationService: UserCreationService,
     private val userIterationService: UserIterationService,
-    private val tokenService: TokenService<DBSession>,
+    private val tokenService: TokenService,
     private val unconditionalPasswordResetWhitelist: List<String>,
     private val developmentMode: Boolean = false
 ) : Controller {
