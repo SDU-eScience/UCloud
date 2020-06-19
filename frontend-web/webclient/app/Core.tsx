@@ -43,8 +43,6 @@ import AvataaarModification from "UserSettings/Avataaar";
 import UserSettings from "UserSettings/UserSettings";
 import {inDevEnvironment} from "UtilityFunctions";
 import {areProjectsEnabled} from "Project";
-import {Credits} from "Accounting/Compute/Credits";
-import {MachineAdmin} from "Accounting/Compute/Machines";
 import ProjectDashboard from "Project/ProjectDashboard";
 import {ProjectSettings} from "Project/ProjectSettings";
 import ProjectUsage from "Project/ProjectUsage";
@@ -104,7 +102,6 @@ const Core = (): JSX.Element => (
                 <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)}/>
                 <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)}/>
                 <Route exact path="/admin/downtime" component={requireAuth(DowntimeManagement)}/>
-                <Route exact path="/admin/machines" component={requireAuth(MachineAdmin)}/>
 
                 <Route exact path="/downtime/detailed/:id" component={requireAuth(DetailedDowntime)}/>
 
@@ -116,7 +113,6 @@ const Core = (): JSX.Element => (
                 <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)}/>
 
                 <Route exact path="/search/:priority" component={requireAuth(Search)}/>
-                <Route exact path={"/accounting/compute/credits"} component={requireAuth(Credits)} />
 
                 {areProjectsEnabled() ? (
                         <>

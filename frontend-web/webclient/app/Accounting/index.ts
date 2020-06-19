@@ -40,7 +40,7 @@ export function walletEquals(a: Wallet, b: Wallet): boolean {
     return a.id === b.id && a.type === b.type && productCategoryEquals(a.paysFor, b.paysFor);
 }
 
-export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId) {
+export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
     return a.provider === b.provider && a.id === b.id;
 }
 
@@ -239,4 +239,45 @@ export function transformUsageChartForCharting(
     }
 
     return {provider: chart.provider, lineNames, points: Object.values(builder), lineNameToWallet};
+}
+
+
+export interface RetrieveQuotaRequest {
+    path: string;
+}
+
+export interface RetrieveQuotaResponse {
+    quotaInBytes: number;
+}
+
+export function retrieveQuota(request: RetrieveQuotaRequest): APICallParameters<RetrieveQuotaRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/files/quota", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface UpdateQuotaRequest {
+    path: string;
+    quotaInBytes: number;
+}
+
+export type UpdateQuotaResponse = {};
+
+export function updateQuota(request: UpdateQuotaRequest): APICallParameters<UpdateQuotaRequest> {
+    return {
+        method: "POST",
+        path: "/files/quota",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
+export const UCLOUD_PROVIDER = "ucloud";
+
+export function isQuotaSupported(category: ProductCategoryId): boolean {
+    return category.provider === UCLOUD_PROVIDER && category.id === "cephfs";
 }

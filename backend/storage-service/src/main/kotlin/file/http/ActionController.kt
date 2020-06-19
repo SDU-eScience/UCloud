@@ -129,7 +129,7 @@ class ActionController<Ctx : FSUserContext>(
             limitChecker.setQuota(
                 ctx.securityPrincipal.toActor(),
                 request.path,
-                request.quotaInMegaBytes * 1000 * 1000
+                request.quotaInBytes
             )
 
             ok(Unit)

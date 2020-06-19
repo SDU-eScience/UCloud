@@ -6,7 +6,7 @@ import {theme} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
-import {listMachines, MachineReservation} from "Accounting/Compute";
+import {listMachines, MachineReservation} from "Accounting";
 import {Page} from "Types";
 import {emptyPage} from "DefaultObjects";
 import {creditFormatter} from "Project/ProjectUsage";

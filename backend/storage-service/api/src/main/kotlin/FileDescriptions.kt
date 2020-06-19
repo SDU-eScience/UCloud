@@ -255,9 +255,9 @@ data class CreatePersonalRepositoryRequest(val project: String, val username: St
 typealias CreatePersonalRepositoryResponse = Unit
 
 data class RetrieveQuotaRequest(val path: String)
-data class RetrieveQuotaResponse(val quotaInMegaBytes: Long)
+data class RetrieveQuotaResponse(val quotaInBytes: Long)
 
-data class UpdateQuotaRequest(val path: String, val quotaInMegaBytes: Long)
+data class UpdateQuotaRequest(val path: String, val quotaInBytes: Long)
 typealias UpdateQuotaResponse = Unit
 
 const val NO_QUOTA = -1L
@@ -639,6 +639,10 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 using(baseContext)
                 +"quota"
             }
+
+            params {
+                +boundTo(RetrieveQuotaRequest::path)
+            }
         }
     }
 
@@ -656,6 +660,8 @@ object FileDescriptions : CallDescriptionContainer("files") {
                 using(baseContext)
                 +"quota"
             }
+
+            body { bindEntireRequestFromBody() }
         }
     }
 }

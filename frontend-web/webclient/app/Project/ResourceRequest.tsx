@@ -5,7 +5,7 @@ import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
 import {Box, Button, Flex, Icon, Input, TextArea, theme} from "ui-components";
 import {useCloudAPI} from "Authentication/DataHook";
-import {ProductArea, retrieveBalance, RetrieveBalanceResponse} from "Accounting/Compute";
+import {ProductArea, retrieveBalance, RetrieveBalanceResponse} from "Accounting";
 import {useCallback, useEffect} from "react";
 import {creditFormatter} from "Project/ProjectUsage";
 import styled from "styled-components";
@@ -58,7 +58,7 @@ const RequestFormContainer = styled.div`
 `;
 
 export const ResourceRequest: React.FunctionComponent = () => {
-    const {projectId, projectDetails} = useProjectManagementStatus();
+    const {projectId} = useProjectManagementStatus();
     const [wallets, setWalletParams] = useCloudAPI<RetrieveBalanceResponse>(
         retrieveBalance({id: projectId, type: "PROJECT", includeChildren: true}),
         {wallets: []}

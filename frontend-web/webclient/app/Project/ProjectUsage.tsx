@@ -19,7 +19,7 @@ import {
     transformUsageChartForCharting,
     usage,
     UsageResponse
-} from "Accounting/Compute";
+} from "Accounting";
 import {useProjectManagementStatus} from "Project";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import styled from "styled-components";

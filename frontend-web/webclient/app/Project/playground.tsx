@@ -6,7 +6,7 @@ import {useCallback, useRef} from "react";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {useProjectStatus} from "Project/cache";
 import {createProject} from "Project/index";
-import {grantCredits} from "Accounting/Compute";
+import {grantCredits} from "Accounting";
 
 export const ProjectPlayground: React.FunctionComponent = () => {
     const projectStatus = useProjectStatus();

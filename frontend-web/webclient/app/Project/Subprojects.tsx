@@ -4,13 +4,8 @@ import {createProject, listSubprojects, Project, useProjectManagementStatus,} fr
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text, theme} from "ui-components";
-import {connect} from "react-redux";
-import {Dispatch} from "redux";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {loadingAction} from "Loading";
 import styled from "styled-components";
 import {emptyPage} from "DefaultObjects";
-import {dispatchSetProjectAction} from "Project/Redux";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {Page} from "Types";
@@ -19,14 +14,56 @@ import Table, {TableCell, TableRow} from "ui-components/Table";
 import * as Pagination from "Pagination";
 import * as Heading from "ui-components/Heading";
 import {
+    isQuotaSupported,
     ProductArea, productCategoryEquals,
     retrieveBalance,
-    RetrieveBalanceResponse, setCredits, Wallet,
+    RetrieveBalanceResponse, retrieveQuota, RetrieveQuotaResponse, setCredits, updateQuota,
     WalletBalance, walletEquals
-} from "Accounting/Compute";
+} from "Accounting";
 import {creditFormatter} from "Project/ProjectUsage";
 import {DashboardCard} from "Dashboard/Dashboard";
 import HexSpin, {HexSpinWrapper} from "LoadingIcon/LoadingIcon";
+import {Client} from "Authentication/HttpClientInstance";
+import {sizeToString} from "Utilities/FileUtilities";
+
+const WalletContainer = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, auto));
+    grid-gap: 32px;
+    
+    margin: 32px 0;
+    
+    &.shaking {
+        transform: translate3d(0, 0, 0); 
+        animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
+    }
+    
+    .request-resources {
+        grid-column-start: span 2;
+    }
+    
+    .request-resources ${Card} {
+        height: 100%;
+    }
+    
+    @keyframes shake {
+      10%, 90% {
+        transform: translate3d(-1px, 0, 0);
+      }
+      
+      20%, 80% {
+        transform: translate3d(2px, 0, 0);
+      }
+
+      30%, 50%, 70% {
+        transform: translate3d(-4px, 0, 0);
+      }
+
+      40%, 60% {
+        transform: translate3d(4px, 0, 0);
+      }
+    }
+`;
 
 const SelectableWalletWrapper = styled.div`
     ${Card} {
@@ -65,7 +102,8 @@ const SelectableWallet: React.FunctionComponent<{
     wallet: WalletBalance,
     allocated?: number,
     selected?: boolean,
-    onClick?: () => void
+    onClick?: () => void,
+    quotaInBytes?: number
 }> = props => {
     return (
         <SelectableWalletWrapper className={props.selected === true ? "selected" : ""} onClick={props.onClick}>
@@ -86,6 +124,12 @@ const SelectableWallet: React.FunctionComponent<{
                             <td>{creditFormatter(props.allocated)}</td>
                         </tr>
                     )}
+                    {props.quotaInBytes === undefined ? null : (
+                        <tr>
+                            <th>Quota</th>
+                            <td>{props.quotaInBytes === -1 ? "No quota" : sizeToString(props.quotaInBytes)}</td>
+                        </tr>
+                    )}
                     <tr>
                         <th/>
                         <td>
@@ -102,40 +146,6 @@ const SelectableWallet: React.FunctionComponent<{
     );
 };
 
-const WalletContainer = styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, auto));
-    grid-gap: 32px;
-    
-    margin: 32px 0;
-    
-    &.shaking {
-        transform: translate3d(0, 0, 0); 
-        animation: shake 0.82s cubic-bezier(.36,.07,.19,.97) both;
-    }
-    
-    .request-resources {
-        grid-column-start: span 2;
-    }
-    
-    @keyframes shake {
-      10%, 90% {
-        transform: translate3d(-1px, 0, 0);
-      }
-      
-      20%, 80% {
-        transform: translate3d(2px, 0, 0);
-      }
-
-      30%, 50%, 70% {
-        transform: translate3d(-4px, 0, 0);
-      }
-
-      40%, 60% {
-        transform: translate3d(4px, 0, 0);
-      }
-    }
-`;
 
 const SearchContainer = styled(Flex)`
     flex-wrap: wrap;
@@ -149,7 +159,7 @@ const SearchContainer = styled(Flex)`
     }
 `;
 
-const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
+const Subprojects: React.FunctionComponent = () => {
     const newSubprojectRef = React.useRef<HTMLInputElement>(null);
     const [isLoading, runCommand] = useAsyncCommand();
 
@@ -157,9 +167,13 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
         projectId,
         allowManagement,
         subprojectSearchQuery,
-        setSubprojectSearchQuery,
-        projectDetails
+        setSubprojectSearchQuery
     } = useProjectManagementStatus();
+
+    const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
+        retrieveQuota({path: Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder}),
+        {quotaInBytes: 0}
+    );
 
     const [wallets, setWalletParams] = useCloudAPI<RetrieveBalanceResponse>(
         retrieveBalance({id: projectId, type: "PROJECT", includeChildren: true}),
@@ -168,6 +182,7 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
 
     const reloadWallets = useCallback(() => {
         setWalletParams(retrieveBalance({id: projectId, type: "PROJECT", includeChildren: true}));
+        fetchQuota(retrieveQuota({path: Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder}));
     }, [setWalletParams, projectId]);
 
     const [selectedWallet, setSelectedWallet] = useState<WalletBalance | null>(null);
@@ -237,6 +252,9 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
                                             prev + it.balance : prev
                                     ), 0)
                                 }
+                                quotaInBytes={isQuotaSupported(w.wallet.paysFor) ?
+                                    quota.data.quotaInBytes : undefined
+                                }
                                 onClick={() => setSelectedWallet(w)}/>
                         )}
 
@@ -244,7 +262,10 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
                             <DashboardCard color={theme.colors.blue} isLoading={false}>
                                 <Box m={8} mt={0}>
                                     <Heading.h3>Need more resources?</Heading.h3>
-                                    <p>Aut corporis dolores eveniet laudantium maxime natus officiis quisquam quo tenetur voluptas!</p>
+                                    <p>
+                                        You can request more resources from your parent project.
+                                        Click the button below to get started.
+                                    </p>
                                     <Flex justifyContent={"flex-end"}>
                                         <Link to={"/project/resource-request"}><Button>Request resources</Button></Link>
                                     </Flex>
@@ -296,20 +317,20 @@ const Subprojects: React.FunctionComponent<SubprojectsOperations> = () => {
                                 <>
                                     <Table>
                                         <tbody>
-                                            <Pagination.List
-                                                page={subprojects.data}
-                                                pageRenderer={pageRenderer}
-                                                loading={subprojects.loading}
-                                                onPageChanged={newPage => {
-                                                    setSubprojectParams(
-                                                        listSubprojects({
-                                                            page: newPage,
-                                                            itemsPerPage: 50,
-                                                        })
-                                                    );
-                                                }}
-                                                customEmptyPage={<div/>}
-                                            />
+                                        <Pagination.List
+                                            page={subprojects.data}
+                                            pageRenderer={pageRenderer}
+                                            loading={subprojects.loading}
+                                            onPageChanged={newPage => {
+                                                setSubprojectParams(
+                                                    listSubprojects({
+                                                        page: newPage,
+                                                        itemsPerPage: 50,
+                                                    })
+                                                );
+                                            }}
+                                            customEmptyPage={<div/>}
+                                        />
                                         </tbody>
                                     </Table>
                                 </>
@@ -370,6 +391,10 @@ const AllocationForm = styled.form`
 `;
 
 const SubprojectRowWrapper = styled(TableRow)`
+    td {
+        vertical-align: top;
+    }
+
     ${TableCell}.allocation {
         width: 80%;
     }
@@ -383,8 +408,22 @@ const SubprojectRow: React.FunctionComponent<{
 }> = ({subproject, walletBalance, shakeWallets, requestReload}) => {
     const balance = walletBalance?.balance;
     const [isEditing, setIsEditing] = useState<boolean>(false);
+    const [isEditingQuota, setIsEditingQuota] = useState<boolean>(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const quotaRef = useRef<HTMLInputElement>(null);
     const [loading, runCommand] = useAsyncCommand();
+    const [quota, fetchQuota, quotaParams] = useCloudAPI<RetrieveQuotaResponse>(
+        {noop: true},
+        {quotaInBytes: 0}
+    );
+    const quotaInBytes = walletBalance && isQuotaSupported(walletBalance.wallet.paysFor) ?
+        quota.data.quotaInBytes : undefined;
+
+    useEffect(() => {
+        if (walletBalance && isQuotaSupported(walletBalance.wallet.paysFor)) {
+            fetchQuota(retrieveQuota({path: `/projects/${subproject.id}`}));
+        }
+    }, [subproject.id, walletBalance?.wallet?.paysFor?.id, walletBalance?.wallet?.paysFor?.provider]);
 
     const onSubmit = useCallback(async (e) => {
         e.preventDefault();
@@ -411,40 +450,70 @@ const SubprojectRow: React.FunctionComponent<{
         if (requestReload) requestReload();
     }, [setIsEditing, inputRef.current, loading, walletBalance, balance, runCommand]);
 
+    const onSubmitQuota = useCallback(async (e) => {
+        e.preventDefault();
+        if (loading) return;
+        const rawValue = quotaRef.current!.value;
+        const parsedValue = parseInt(rawValue, 10);
+        if (isNaN(parsedValue) || parsedValue < 0) {
+            snackbarStore.addFailure("Please enter a valid number", false);
+            return;
+        }
+
+        const valueInBytes = parsedValue * 1000000000;
+        await runCommand(updateQuota({path: `/projects/${subproject.id}`, quotaInBytes: valueInBytes}));
+
+        setIsEditingQuota(false);
+        fetchQuota({...quotaParams, reloadId: Math.random()});
+        if (requestReload) requestReload();
+    }, [setIsEditingQuota, quotaParams, fetchQuota, quotaRef, runCommand, loading]);
+
     useEffect(() => {
         if (inputRef.current && isEditing) {
             inputRef.current!.value = ((balance ?? 0) / 1000000).toString();
         }
     }, [inputRef.current, isEditing]);
 
-    return <SubprojectRowWrapper>
-        <TableCell>
-            <Text>{subproject.title}</Text>
-        </TableCell>
-        <TableCell className={"allocation"}>
-            <Flex alignItems={"center"} justifyContent={"flex-end"}>
-                {balance === undefined ? (
-                    <>
-                        <Button height="35px" width={"135px"} onClick={() => {
-                            snackbarStore.addInformation("You must select a resource above", false);
-                            if (shakeWallets) shakeWallets();
-                        }}>
-                            Edit allocation
-                        </Button>
-                    </>
-                ) : (
-                    <>
-                        {!isEditing ? (
-                            <>
-                                <AllocationEditor>
-                                    {creditFormatter(balance, 0)}
-                                </AllocationEditor>
-                                <Button height="35px" width={"135px"} onClick={() => setIsEditing(true)}>
-                                    Edit allocation
-                                </Button>
-                            </>
-                        ) : (
-                            <AllocationForm onSubmit={onSubmit}>
+    useEffect(() => {
+        if (quotaRef.current && isEditingQuota) {
+            if (quotaInBytes === -1) {
+                quotaRef.current!.value = "0";
+            } else {
+                quotaRef.current!.value = ((quotaInBytes ?? 0) / 1000000000).toString();
+            }
+        }
+    }, [quotaRef.current, isEditingQuota]);
+
+    return <>
+        <SubprojectRowWrapper>
+            <TableCell>
+                <Text>{subproject.title}</Text>
+            </TableCell>
+            <TableCell className={"allocation"}>
+
+                <Flex alignItems={"center"} justifyContent={"flex-end"} mb={16}>
+                    {balance === undefined ? (
+                        <>
+                            <Button height="35px" width={"135px"} onClick={() => {
+                                snackbarStore.addInformation("You must select a resource above", false);
+                                if (shakeWallets) shakeWallets();
+                            }}>
+                                Edit allocation
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            {!isEditing ? (
+                                <>
+                                    <AllocationEditor>
+                                        {creditFormatter(balance, 0)}
+                                    </AllocationEditor>
+                                    <Button height="35px" width={"135px"} onClick={() => setIsEditing(true)}>
+                                        Edit allocation
+                                    </Button>
+                                </>
+                            ) : (
+                                <AllocationForm onSubmit={onSubmit}>
                                     <AllocationEditor>
                                         <Input ref={inputRef} noBorder autoFocus/>
                                         <span>DKK</span>
@@ -466,27 +535,57 @@ const SubprojectRow: React.FunctionComponent<{
                                             disabled={loading}>
                                         Allocate
                                     </Button>
-                            </AllocationForm>
-                        )
-                        }
+                                </AllocationForm>
+                            )
+                            }
+                        </>
+                    )}
+                </Flex>
 
-                    </>
-                )}
-            </Flex>
-        </TableCell>
-    </SubprojectRowWrapper>;
-}
+                <Flex alignItems={"center"} justifyContent={"flex-end"}>
+                    {quotaInBytes === undefined ? null : (
+                        <>
+                            {!isEditingQuota ? (
+                                <>
+                                    <AllocationEditor>
+                                        {quotaInBytes === -1 ? "No quota" : sizeToString(quotaInBytes)}
+                                    </AllocationEditor>
+                                    <Button height="35px" width={"135px"} onClick={() => setIsEditingQuota(true)}>
+                                        Edit quota
+                                    </Button>
+                                </>
+                            ) : (
+                                <AllocationForm onSubmit={onSubmitQuota}>
+                                    <AllocationEditor>
+                                        <Input ref={quotaRef} noBorder autoFocus/>
+                                        <span>GB</span>
+                                        {loading ?
+                                            <HexSpin size={16}/>
+                                            :
+                                            <Icon
+                                                size={16}
+                                                ml="10px"
+                                                cursor="pointer"
+                                                name="close"
+                                                color="red"
+                                                onClick={() => setIsEditingQuota(false)}
+                                            />
+                                        }
+                                    </AllocationEditor>
 
-interface SubprojectsOperations {
-    setRefresh: (refresh?: () => void) => void;
-    setLoading: (loading: boolean) => void;
-    setActiveProject: (project: string) => void;
-}
+                                    <Button type={"submit"} height={"35px"} width={"135px"} color={"green"}
+                                            disabled={loading}>
+                                        Allocate
+                                    </Button>
+                                </AllocationForm>
+                            )
+                            }
+                        </>
+                    )}
+                </Flex>
+            </TableCell>
+        </SubprojectRowWrapper>
+    </>;
+};
 
-const mapDispatchToProps = (dispatch: Dispatch): SubprojectsOperations => ({
-    setRefresh: refresh => dispatch(setRefreshFunction(refresh)),
-    setLoading: loading => dispatch(loadingAction(loading)),
-    setActiveProject: project => dispatchSetProjectAction(dispatch, project),
-});
-
-export default connect(null, mapDispatchToProps)(Subprojects);
+export default Subprojects;
