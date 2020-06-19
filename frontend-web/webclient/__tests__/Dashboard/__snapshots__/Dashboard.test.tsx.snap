@@ -449,7 +449,7 @@ exports[`Dashboard Dashboard mount 1`] = `
             <a
               className="c12"
               color="text"
-              href="/files?path=%2Fhome%2Ftest%40test.dk"
+              href="/files?path=%2Fhome%2Ftest%40test"
               onClick={[Function]}
             >
               <button

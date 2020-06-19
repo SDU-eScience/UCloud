@@ -63,7 +63,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         listFavorites({itemsPerPage: 10, page: 0}),
         emptyPage
     );
-    const [news, setNewsParams, newsParams] = useCloudAPI<Page<NewsPost>>(newsRequest({
+    const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
         withHidden: false,

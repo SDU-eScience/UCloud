@@ -138,16 +138,16 @@ class MockHttpClient {
         maxRetries = 5,
         withCredentials = false
     }): Promise<any> =>
-        new Promise((resolve, reject) => {
+        new Promise(resolve => {
             switch (path) {
                 case "/accounting/storage/bytesUsed/usage":
-                    resolve({usage: 14690218167, quota: null, dataType: "bytes", title: "Storage Used"});
+                    resolve({request: {} as XMLHttpRequest, response: {usage: 14690218167, quota: null, dataType: "bytes", title: "Storage Used"}});
                     return;
                 case "/accounting/compute/timeUsed/usage":
-                    resolve({usage: 36945000, quota: null, dataType: "duration", title: "Compute Time Used"});
+                    resolve({request: {} as XMLHttpRequest, response: {usage: 36945000, quota: null, dataType: "duration", title: "Compute Time Used"}});
                     return;
             }
-            resolve(emptyPage);
+            resolve({request: {} as XMLHttpRequest,  response: emptyPage});
         })
 
     public get = (path: string, context = this.apiContext) =>
