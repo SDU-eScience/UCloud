@@ -75,8 +75,8 @@ const SelectableWalletWrapper = styled.div`
     }
     
     &.selected ${Card} {
-        margin-top: -10px;
         background-color: var(--lightBlue, #f00);
+        transform: translate3d(0, -10px, 0);
     }
     
     &:hover ${Card} {
