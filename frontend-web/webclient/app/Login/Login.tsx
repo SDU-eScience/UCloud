@@ -92,7 +92,7 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
             handleAuthState(await response.json());
         } catch (e) {
             snackbarStore.addFailure(
-                errorMessageOrDefault({request: e, response: await e.json()}, "An error occurred"), false
+                errorMessageOrDefault({request: e, response: "json" in e ? await e.json() : e}, "An error occurred"), false
             );
         } finally {
             setLoading(false);
