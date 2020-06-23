@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Role
-import dk.sdu.cloud.accounting.api.WalletBalance
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
@@ -51,7 +49,7 @@ sealed class UserCriteria {
 
 data class AutomaticApprovalSettings(
     val from: List<UserCriteria>,
-    val maxResources: List<WalletBalance>
+    val maxResources: List<ResourceRequest>
 )
 
 data class UploadRequestSettingsRequest(
@@ -110,13 +108,20 @@ sealed class GrantRecipient {
     }
 }
 
+data class ResourceRequest(
+    val productCategory: String,
+    val productProvider: String,
+    val creditsRequested: Long?,
+    val quotaRequested: Long?
+)
+
 data class Application(
     val status: ApplicationStatus,
     val resourcesOwnedBy: String, // Project ID of the project owning the resources
     val requestedBy: String, // Username of user submitting the request
     val grantRecipient: GrantRecipient,
     val document: String,
-    val requestedResource: List<WalletBalance>, // This is _always_ additive to existing resources
+    val requestedResource: List<ResourceRequest>, // This is _always_ additive to existing resources
     val id: Long? = null
 )
 

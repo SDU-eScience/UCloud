@@ -4,6 +4,7 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.offset
+import org.intellij.lang.annotations.Language
 
 /**
  * Utility function for pagination queries.
@@ -32,7 +33,9 @@ import dk.sdu.cloud.service.offset
 suspend fun AsyncDBConnection.paginatedQuery(
     pagination: NormalizedPaginationRequest?,
     block: EnhancedPreparedStatement.() -> Unit,
+    @Language("sql", prefix = "select count(*) ")
     query: String,
+    @Language("sql", prefix = "select 1 ")
     orderBy: String? = null
 ): Page<RowData> {
     val itemsInTotal =

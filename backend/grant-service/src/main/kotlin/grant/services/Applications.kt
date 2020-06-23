@@ -1,21 +1,21 @@
 package dk.sdu.cloud.grant.services
 
-import dk.sdu.cloud.accounting.api.WalletBalance
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.GrantRecipient
+import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.insert
-import dk.sdu.cloud.service.db.async.int
 import dk.sdu.cloud.service.db.async.long
+import dk.sdu.cloud.service.db.async.paginatedQuery
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
+import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
@@ -28,6 +28,8 @@ object ApplicationTable : SQLTable("applications") {
     val grantRecipient = text("grant_recipient", notNull = true)
     val grantRecipientType = text("grant_recipient_type", notNull = true)
     val document = text("document", notNull = true)
+    val createdAt = timestamp("created_at", notNull = true)
+    val updatedAt = timestamp("updated_at", notNull = true)
 }
 
 object RequestedResourceTable : SQLTable("requested_resources") {
@@ -69,8 +71,9 @@ class ApplicationService {
                             })
                         }
                     },
+                    //language=sql
                     """
-                        insert into applications(
+                        insert into "grant".applications(
                             status,
                             resources_owned_by,
                             requested_by,
@@ -78,12 +81,12 @@ class ApplicationService {
                             grant_recipient_type,
                             document
                         ) values (
-                            ?status,
-                            ?resources_owned_by,
-                            ?requested_by,
-                            ?grant_recipient,
-                            ?grant_recipient_type,
-                            ?document
+                            :status,
+                            :resources_owned_by,
+                            :requested_by,
+                            :grant_recipient,
+                            :grant_recipient_type,
+                            :document
                         ) returning id
                     """
                 )
@@ -99,17 +102,17 @@ class ApplicationService {
 
     private suspend fun insertResources(
         ctx: DBContext,
-        requestedResources: List<WalletBalance>,
+        requestedResources: List<ResourceRequest>,
         id: Long
     ) {
         ctx.withSession { session ->
             requestedResources.forEach { request ->
                 session.insert(RequestedResourceTable) {
                     set(RequestedResourceTable.applicationId, id)
-                    set(RequestedResourceTable.productCategory, request.wallet.paysFor.id)
-                    set(RequestedResourceTable.productProvider, request.wallet.paysFor.provider)
-                    set(RequestedResourceTable.creditsRequested, request.balance)
-                    // TODO set(RequestedResourceTable.quotaRequestedBytes)
+                    set(RequestedResourceTable.productCategory, request.productCategory)
+                    set(RequestedResourceTable.productProvider, request.productProvider)
+                    set(RequestedResourceTable.creditsRequested, request.creditsRequested)
+                    set(RequestedResourceTable.quotaRequestedBytes, request.quotaRequested)
                 }
             }
         }
@@ -122,7 +125,7 @@ class ApplicationService {
         actor: Actor,
         id: Long,
         newDocument: String,
-        newResources: List<WalletBalance>
+        newResources: List<ResourceRequest>
     ) {
         ctx.withSession { session ->
             val isProjectAdmin = checkIfWeAreProjectAdmin()
@@ -138,10 +141,10 @@ class ApplicationService {
                     //language=sql
                     """
                         update applications 
-                        set document = ?document 
+                        set document = :document 
                         where 
-                            id = ?id and
-                            (?isProjectAdmin or requested_by = ?requestedBy)
+                            id = :id and
+                            (:isProjectAdmin or requested_by = :requestedBy)
                     """
                 )
                 .rowsAffected > 0L
@@ -153,7 +156,8 @@ class ApplicationService {
             session
                 .sendPreparedStatement(
                     { setParameter("id", id) },
-                    "delete from requested_resources where id = ?id"
+                    //language=sql
+                    "delete from requested_resources where application_id = :id"
                 )
 
             insertResources(session, newResources, id)
@@ -167,7 +171,23 @@ class ApplicationService {
         newStatus: ApplicationStatus
     ) {
         require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED or REJECTED!" }
-        TODO()
+        ctx.withSession { session ->
+            // TODO ACL
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("id", id)
+                        setParameter("status", newStatus.name)
+                    },
+                    """
+                        update "grant".applications 
+                        set
+                            status = :status
+                        where
+                            id = :id
+                    """
+                )
+        }
     }
 
     suspend fun listIngoingApplications(
@@ -176,6 +196,27 @@ class ApplicationService {
         projectId: String,
         pagination: NormalizedPaginationRequest?
     ): Page<Unit> {
+        ctx.withSession { session ->
+            // TODO ACL
+
+            session
+                .paginatedQuery(
+                    pagination,
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                        from "grant".applications a
+                        where 
+                            a.resources_owned_by = :projectId and
+                            a.status = 'IN_PROGRESS'
+                    """,
+
+                    """
+                       order by "grant".applications.updated_at
+                    """
+                )
+        }
         TODO()
     }
 
@@ -184,6 +225,24 @@ class ApplicationService {
         actor: Actor,
         pagination: NormalizedPaginationRequest?
     ): Page<Unit> {
+        ctx.withSession { session ->
+            session
+                .paginatedQuery(
+                    pagination,
+                    {
+                        setParameter("requestedBy", actor.safeUsername())
+                    },
+                    """
+                        from "grant".applications a
+                        where
+                            a.requested_by = :requestedBy and
+                            a.status = 'IN_PROGRESS'
+                    """,
+                    """
+                        order by "grant".applications.updated_at
+                    """
+                )
+        }
         TODO()
     }
 
@@ -192,6 +251,23 @@ class ApplicationService {
         actor: Actor,
         projectId: String
     ): Unit {
+        ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                        setParameter("requestedBy", actor.safeUsername())
+                    },
+                    """
+                        select * 
+                        from "grant".applications a
+                        where
+                            a.resources_owned_by = :projectId and
+                            a.requested_by = :requestedBy and
+                            a.status = 'IN_PROGRESS'
+                    """
+                )
+        }
         TODO()
     }
 }

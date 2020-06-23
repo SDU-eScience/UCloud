@@ -7,6 +7,8 @@ create table applications(
     grant_recipient text not null,
     grant_recipient_type text not null,
     document text not null,
+    created_at timestamp not null default now(),
+    updated_at timestamp not null default now(),
     id int primary key default nextval('application_id')
 );
 
@@ -37,15 +39,22 @@ create table allow_applications_from(
     primary key (project_id, type, applicant_id)
 );
 
-create table automatic_approval(
+create table automatic_approval_users(
     project_id text not null,
     type text not null,
-    applicant_id text default null,
+    applicant_id text default null
+);
+
+create table automatic_approval_limits(
+    project_id text not null,
     product_category text not null,
     product_provider text not null,
     maximum_credits bigint default null,
     maximum_quota_bytes bigint default null
 );
+
+create index automatic_approval_users_pid on automatic_approval_users(project_id);
+create index automatic_approval_limits_pid on automatic_approval_limits(project_id);
 
 create table templates(
     project_id text not null primary key,

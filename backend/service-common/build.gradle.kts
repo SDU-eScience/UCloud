@@ -3,6 +3,8 @@ dependencies {
     val jacksonVersion = "2.10.0.pr3"
     val jasyncVersion = "1.0.12"
 
+    api("org.jetbrains:annotations:16.0.2")
+
     // Redis
     api("io.lettuce:lettuce-core:5.1.6.RELEASE")
 

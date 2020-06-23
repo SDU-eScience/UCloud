@@ -35,11 +35,7 @@ class CommentService {
                         setParameter("id", id)
                         setParameter("comment", comment)
                     },
-
-                    //language=sql
-                    """
-                        insert into "comments" (application_id, comment, posted_by) values (?id, ?comment, ?postedBy)
-                    """
+                    "insert into comments (application_id, comment, posted_by) values (:id, :comment, :postedBy)"
                 )
         }
     }
@@ -58,11 +54,7 @@ class CommentService {
                         setParameter("appId", id)
                         setParameter("commentId", commentId)
                     },
-
-                    //language=sql
-                    """
-                        delete from comments where id = ?commentId and application_id = ?appId
-                    """
+                    "delete from comments where id = :commentId and application_id = :appId"
                 )
         }
     }

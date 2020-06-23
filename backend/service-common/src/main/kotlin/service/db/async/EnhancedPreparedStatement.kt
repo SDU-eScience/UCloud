@@ -2,6 +2,7 @@ package dk.sdu.cloud.service.db.async
 
 import com.github.jasync.sql.db.QueryResult
 import dk.sdu.cloud.service.Loggable
+import org.intellij.lang.annotations.Language
 import org.joda.time.LocalDateTime
 
 /**
@@ -41,7 +42,10 @@ import org.joda.time.LocalDateTime
  * )
  * ```
  */
-class EnhancedPreparedStatement(statement: String) {
+class EnhancedPreparedStatement(
+    @Language("sql")
+    statement: String
+) {
     private val parameterNamesToIndex: Map<String, List<Int>>
     private val boundValues = HashSet<String>()
     private val preparedStatement: String
@@ -139,6 +143,7 @@ class EnhancedPreparedStatement(statement: String) {
 
 suspend inline fun AsyncDBConnection.sendPreparedStatement(
     block: EnhancedPreparedStatement.() -> Unit,
+    @Language("sql")
     query: String,
     release: Boolean = false
 ): QueryResult {
