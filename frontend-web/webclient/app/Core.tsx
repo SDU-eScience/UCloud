@@ -30,7 +30,6 @@ import NoVNCClient from "NoVNC/NoVNCClient";
 import {Playground} from "Playground/Playground";
 import ProjectList from "Project/ProjectList";
 import ProjectMembers from "Project/Members";
-import ProjectView from "Project/View";
 import * as React from "react";
 import {Route, RouteComponentProps, Switch} from "react-router-dom";
 import Search from "Search/Search";

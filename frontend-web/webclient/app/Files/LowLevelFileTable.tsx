@@ -72,7 +72,7 @@ import {
     MOCK_REPO_CREATE_TAG,
     MOCK_VIRTUAL,
     mockFile,
-    moveFile,
+    moveFile, projectIdFromPath,
     resolvePath,
     sizeToString
 } from "Utilities/FileUtilities";
@@ -85,7 +85,7 @@ import {createRepository, isAdminOrPI, isRepository, renameRepository} from "Uti
 import {ProjectRole} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
-import {useProjectStatus} from "Project/cache";
+import {ProjectStatus, useProjectStatus} from "Project/cache";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -895,9 +895,14 @@ const Shell: React.FunctionComponent<ShellProps> = props => {
     );
 };
 
-function getFileNameForNameBox(path: string): string {
+
+function getFileNameForNameBox(path: string, projectStatus: ProjectStatus): string {
     if (isMyPersonalFolder(path)) {
-        return `Personal Files (${Client.username})`
+        return `Personal Files (${Client.username})`;
+    } else if (isProjectHome(path)) {
+        const projectId = projectIdFromPath(path);
+        return projectStatus.fetch().membership.find(it => it.projectId === projectId)?.title
+            ?? getFilenameFromPath(path);
     }
 
     return getFilenameFromPath(path);
@@ -945,6 +950,7 @@ const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: st
 };
 
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
+    const projectStatus = useProjectStatus();
     const favorites = useFavoriteStatus();
     const canNavigate = isDirectory({fileType: props.file.fileType});
 
@@ -963,7 +969,7 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
         <RenameBox file={props.file} onRenameFile={props.onRenameFile} />
     ) : (
             <Truncate width={1} mb="-4px" fontSize={20}>
-                {getFileNameForNameBox(props.file.path)}
+                {getFileNameForNameBox(props.file.path, projectStatus)}
             </Truncate>
         );
 

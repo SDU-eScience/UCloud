@@ -57,7 +57,12 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                         </Link>
                                     </Box>
                                 </DashboardCard>
-                                <DashboardCard title="Subprojects" icon="projects"  color={theme.colors.purple} isLoading={false}>
+                                <DashboardCard
+                                    title="Subprojects"
+                                    icon="projects"
+                                    color={theme.colors.purple}
+                                    isLoading={false}
+                                >
                                     <Box>
                                         123 subprojects
                                     </Box>

@@ -133,7 +133,7 @@ class EnhancedPreparedStatement(statement: String) {
 
     companion object : Loggable {
         override val log = logger()
-        private val statementInputRegex = Regex("(^|[^:])[?:]([a-zA-Z0-9]+)")
+        private val statementInputRegex = Regex("(^|[^:])[?:]([a-zA-Z0-9_]+)")
     }
 }
 

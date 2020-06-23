@@ -1,13 +1,16 @@
 import * as React from "react";
-import {useProjectManagementStatus} from "Project/index";
+import {
+    leaveProject,
+    ProjectRole,
+    setProjectArchiveStatus,
+    useProjectManagementStatus,
+    UserInProject
+} from "Project/index";
 import {Box, Button, Flex, Text} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
-import {useAsyncCommand, callAPIWithErrorHandler} from "Authentication/DataHook";
-import {leaveProject, ProjectRole, setProjectArchiveStatus} from "Project/index";
-import {useAsyncCommand} from "Authentication/DataHook";
-import {leaveProject, ProjectRole, setProjectArchiveStatus, UserInProject} from "Project/index";
+import {callAPIWithErrorHandler} from "Authentication/DataHook";
 import {useHistory} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
@@ -75,7 +78,6 @@ interface ArchiveProjectProps {
 }
 
 export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
-    const [, runCommand] = useAsyncCommand();
     return <>
         {props.projectRole === ProjectRole.USER ? null : (
             <ActionBox>

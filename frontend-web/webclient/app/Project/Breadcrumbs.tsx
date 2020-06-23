@@ -15,6 +15,7 @@ const ProjectBreadcrumbsWrapper = styled(BreadCrumbsBase)`
     
     ${HexSpinWrapper} {
         margin: 0;
+        display: inline;
     }
 `;
 
@@ -26,14 +27,14 @@ export const ProjectBreadcrumbs: React.FunctionComponent<ProjectBreadcrumbsProps
         projectNameComponent = <>{title.slice(0, 20).trim()}{title.length > 20 ? "..." : ""}</>;
     }
 
-    return <ProjectBreadcrumbsWrapper>
-        <li><Link to="/projects">My Projects</Link></li>
-        {projectId ? <li><Link to={`/project/dashboard`}>{projectNameComponent}</Link></li> : null}
+    return <ProjectBreadcrumbsWrapper embedded={false}>
+        <span><Link to="/projects">My Projects</Link></span>
+        {projectId ? <span><Link to={`/project/dashboard`}>{projectNameComponent}</Link></span> : null}
         {props.crumbs.map((crumb, idx) => {
             if (crumb.link) {
-                return <li key={idx}><Link to={crumb.link}>{crumb.title}</Link></li>
+                return <span key={idx}><Link to={crumb.link}>{crumb.title}</Link></span>
             } else {
-                return <li key={idx}>{crumb.title}</li>;
+                return <span key={idx}>{crumb.title}</span>;
             }
         })}
     </ProjectBreadcrumbsWrapper>;

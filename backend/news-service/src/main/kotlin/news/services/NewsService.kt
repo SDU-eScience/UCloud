@@ -42,10 +42,11 @@ class NewsService {
                     setParameter("hidden", false)
                     setParameter("category", category.toLowerCase())
                 },
+                //language=sql
                 """
-                    INSERT INTO News
+                    INSERT INTO news
                     (id, title, subtitle, body, posted_by, show_from, hide_from, hidden, category)
-                    VALUES (?id, ?title, ?subtitle, ?body, ?posted_by, to_timestamp(?show_from), to_timestamp(?hide_from), ?hidden, ?category)
+                    VALUES (:id, :title, :subtitle, :body, :posted_by, to_timestamp(:show_from), to_timestamp(:hide_from), :hidden, :category)
                 """.trimIndent()
             )
         }

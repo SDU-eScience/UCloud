@@ -1,5 +1,3 @@
-import * as Accounting from "Accounting";
-import {fetchUsage} from "Accounting/Redux/AccountingActions";
 import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatDistanceToNow} from "date-fns/esm";
@@ -15,7 +13,7 @@ import {notificationRead, readAllNotifications} from "Notifications/Redux/Notifi
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Card, Flex, Icon, Link, Text, Markdown} from "ui-components";
+import {Box, Button, Card, Flex, Icon, Link, Text, Markdown, theme} from "ui-components";
 import Error from "ui-components/Error";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
@@ -37,7 +35,7 @@ import {
 } from "./Redux/DashboardActions";
 import {JobStateIcon} from "Applications/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
-import {getCssVar} from "ui-components/Icon";
+import {getCssVar, IconName} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
 import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
 import {Page, PaginationRequest} from "Types";
@@ -46,10 +44,24 @@ import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
 
-export const DashboardCard: React.FunctionComponent<{title: string; color: string; isLoading: boolean}> = ({title, color, isLoading, children}) => (
+export const DashboardCard: React.FunctionComponent<{
+    title?: string;
+    color: string;
+    isLoading: boolean;
+    icon?: IconName
+}> = ({title, color, isLoading, icon = undefined, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={0} borderRadius={6}>
         <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid ${color}`}} >
-            <Heading.h3>{title}</Heading.h3>
+            {icon !== undefined ? (
+                <Icon
+                    name={icon}
+                    m={8}
+                    ml={0}
+                    size="20"
+                    color={theme.colors.darkGray}
+                />
+            ) : null}
+            {title ? <Heading.h3>{title}</Heading.h3> : null}
         </Flex>
         <Box px={3} py={1}>
             {!isLoading ? children : <Spinner />}
@@ -80,7 +92,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         props.setAllLoading(loading);
         setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
         props.fetchRecentAnalyses();
-        props.fetchUsage();
     }
 
     const onNotificationAction = (notification: Notification): void => {
@@ -134,11 +145,6 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 notifications={notifications}
                 readAll={props.readAll}
             />
-            <DashboardCard title="Resources" color="red" isLoading={false}>
-                <Accounting.Usage resource="storage" subResource="bytesUsed" renderTitle />
-                <Box pb="12px" />
-                <Accounting.Usage resource="compute" subResource="timeUsed" renderTitle />
-            </DashboardCard>
         </DashboardGrid>
     );
 
@@ -339,10 +345,6 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     setAllLoading: loading => dispatch(setAllLoading(loading)),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
-    fetchUsage: async () => {
-        dispatch(await fetchUsage("storage", "bytesUsed"));
-        dispatch(await fetchUsage("compute", "timeUsed"));
-    },
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
