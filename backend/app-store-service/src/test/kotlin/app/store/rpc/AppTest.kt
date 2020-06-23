@@ -1,30 +1,36 @@
 package dk.sdu.cloud.app.store.rpc
 
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.cloud.sdu.app.store.rpc.AppLogoController
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.services.AppStoreAsyncDao
 import dk.sdu.cloud.app.store.services.AppStoreService
-import dk.sdu.cloud.app.store.services.ApplicationHibernateDAO
-import dk.sdu.cloud.app.store.services.ElasticDAO
+import dk.sdu.cloud.app.store.services.ApplicationLogoAsyncDao
+import dk.sdu.cloud.app.store.services.ApplicationPublicAsyncDao
+import dk.sdu.cloud.app.store.services.ApplicationPublicService
+import dk.sdu.cloud.app.store.services.ApplicationSearchAsyncDao
+import dk.sdu.cloud.app.store.services.ApplicationSearchService
+import dk.sdu.cloud.app.store.services.ApplicationTagsAsyncDao
+import dk.sdu.cloud.app.store.services.ApplicationTagsService
+import dk.sdu.cloud.app.store.services.ElasticDao
+import dk.sdu.cloud.app.store.services.FavoriteAsyncDao
+import dk.sdu.cloud.app.store.services.FavoriteService
 import dk.sdu.cloud.app.store.services.LogoService
-import dk.sdu.cloud.app.store.services.ToolDAO
-import dk.sdu.cloud.app.store.services.ToolHibernateDAO
-import dk.sdu.cloud.app.store.services.acl.AclDao
-import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
+import dk.sdu.cloud.app.store.services.ToolAsyncDao
+import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.app.store.util.normAppDesc
 import dk.sdu.cloud.app.store.util.normAppDesc2
 import dk.sdu.cloud.app.store.util.normToolDesc
+import dk.sdu.cloud.app.store.util.truncate
 import dk.sdu.cloud.app.store.util.withNameAndVersion
 import dk.sdu.cloud.app.store.util.withNameAndVersionAndTitle
-import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertStatus
@@ -35,59 +41,119 @@ import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.setBody
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
-import org.junit.Ignore
+import org.junit.AfterClass
+import org.junit.BeforeClass
 import org.junit.Test
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 
 private fun KtorApplicationTestSetupContext.configureAppServer(
-    appDao: ApplicationHibernateDAO,
-    elasticDAO: ElasticDAO
+    toolDao: ToolAsyncDao,
+    aclDao: AclAsyncDao,
+    appDao: AppStoreAsyncDao,
+    tagDao: ApplicationTagsAsyncDao,
+    searchDao: ApplicationSearchAsyncDao,
+    appPublicDao: ApplicationPublicAsyncDao,
+    favoriteDao: FavoriteAsyncDao,
+    appLogoDao: ApplicationLogoAsyncDao,
+    elasticDao: ElasticDao,
+    db: AsyncDBSessionFactory
 ): List<Controller> {
-    val toolDao = mockk<ToolDAO<HibernateSession>>(relaxed = true)
-    val aclDao = mockk<AclDao<HibernateSession>>(relaxed = true)
     val authClient = mockk<AuthenticatedClient>(relaxed = true)
     val appStore = AppStoreService(
-        micro.hibernateDatabase,
+        db,
         authClient,
         appDao,
+        appPublicDao,
         toolDao,
         aclDao,
-        elasticDAO,
+        elasticDao,
         micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
     )
-    val logoService = LogoService(micro.hibernateDatabase, appDao, toolDao)
-    return listOf(AppStoreController(appStore, logoService))
+    val logoService = LogoService(db, appLogoDao, toolDao)
+    val tagService = ApplicationTagsService(db, tagDao, elasticDao)
+    val searchService = ApplicationSearchService(db, searchDao, elasticDao, appDao, authClient)
+    val publicService = ApplicationPublicService(db, appPublicDao)
+    val favoriteService = FavoriteService(db, favoriteDao, authClient)
+    return listOf(
+        AppStoreController(appStore), 
+        AppLogoController(logoService), 
+        AppTagController(tagService), 
+        AppSearchController(searchService), 
+        AppPublicController(publicService), 
+        AppFavoriteController(favoriteService)
+    )
 }
 
 class AppTest {
+    companion object {
+        private lateinit var embDB: EmbeddedPostgres
+        private lateinit var db: AsyncDBSessionFactory
+
+        @BeforeClass
+        @JvmStatic
+        fun before() {
+            val (db,embDB) = TestDB.from(AppStoreServiceDescription)
+            this.db = db
+            this.embDB = embDB
+        }
+
+        @AfterClass
+        @JvmStatic
+        fun after() {
+            runBlocking {
+                db.close()
+            }
+            embDB.close()
+        }
+    }
+
+    @BeforeTest
+    fun beforeEach() {
+        truncate(db)
+    }
+    @AfterTest
+    fun afterEach() {
+        truncate(db)
+    }
 
     @Test
     fun `Favorite test`() {
         withKtorTest(
             setup = {
                 val user = TestUsers.user
-                val toolDao = ToolHibernateDAO()
-                val elasticDAO = mockk<ElasticDAO>()
-                val aclDao = AclHibernateDao()
-                val appDao = ApplicationHibernateDAO(toolDao, aclDao)
-                micro.install(HibernateFeature)
+
+                val elasticDAO = mockk<ElasticDao>()
+
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = ApplicationPublicAsyncDao()
+                val appDao = AppStoreAsyncDao(toolDao, aclDao, appPublicDao)
+
+                val tagDao = ApplicationTagsAsyncDao()
+                val searchDao = ApplicationSearchAsyncDao(appDao)
+                val favoriteDao = FavoriteAsyncDao(appPublicDao, aclDao)
+                val appLogoDao = ApplicationLogoAsyncDao(appDao)
                 runBlocking {
-                    micro.hibernateDatabase.withTransaction {
-                        toolDao.create(it, user, normToolDesc)
-                        appDao.create(it, user, normAppDesc)
+                    db.withSession {
+                        toolDao.create(it, user, normToolDesc, "original")
+                        appDao.create(it, user, normAppDesc, "original")
                         appDao.create(
                             it,
                             user,
-                            normAppDesc2.copy(metadata = normAppDesc2.metadata.copy(name = "App4", version = "4.4"))
-                        )
+                            normAppDesc2.copy(metadata = normAppDesc2.metadata.copy(name = "App4", version = "4.4")),
+                            "original")
                     }
                 }
-                configureAppServer(appDao, elasticDAO)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
 
             test = {
@@ -156,17 +222,29 @@ class AppTest {
     fun `Search tags CC test`() {
         withKtorTest(
             setup = {
-                micro.install(HibernateFeature)
-                val appDao = mockk<ApplicationHibernateDAO>()
-                val elasticDAO = mockk<ElasticDAO>()
-                every { appDao.searchTags(any(), any(), any(), any(), any(), any()) } answers {
+                val elasticDAO = mockk<ElasticDao>()
+
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = ApplicationPublicAsyncDao()
+                val appDao = AppStoreAsyncDao(toolDao, aclDao, appPublicDao)
+
+                val tagDao = ApplicationTagsAsyncDao()
+                val searchDao = mockk<ApplicationSearchAsyncDao>()
+                val favoriteDao = FavoriteAsyncDao(appPublicDao, aclDao)
+                val appLogoDao = ApplicationLogoAsyncDao(appDao)
+                coEvery { searchDao.searchByTags(any(), any(), any(), any(), any(), any()) } answers {
                     val items = listOf(
-                        mockk<ApplicationSummaryWithFavorite>(relaxed = true)
+                        ApplicationSummaryWithFavorite(
+                            normAppDesc.metadata,
+                            true,
+                            listOf("tag1", "tag2")
+                        )
                     )
                     val page = Page(1, 10, 0, items)
                     page
                 }
-                configureAppServer(appDao, elasticDAO)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
             test = {
                 run {
@@ -192,30 +270,38 @@ class AppTest {
         withKtorTest(
             setup = {
                 val user = TestUsers.user
-                val toolDao = ToolHibernateDAO()
-                val aclDao = AclHibernateDao()
-                val elasticDAO = mockk<ElasticDAO>()
-                val appDao = ApplicationHibernateDAO(toolDao, aclDao)
-                micro.install(HibernateFeature)
+                val elasticDAO = mockk<ElasticDao>()
+
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = ApplicationPublicAsyncDao()
+                val appDao = AppStoreAsyncDao(toolDao, aclDao, appPublicDao)
+
+                val tagDao = ApplicationTagsAsyncDao()
+                val searchDao = ApplicationSearchAsyncDao(appDao)
+                val favoriteDao = FavoriteAsyncDao(appPublicDao, aclDao)
+                val appLogoDao = ApplicationLogoAsyncDao(appDao)
                 runBlocking {
-                    micro.hibernateDatabase.withTransaction {
-                        toolDao.create(it, user, normToolDesc)
+                    db.withSession {
+                        toolDao.create(it, user, normToolDesc, "original")
                         appDao.create(
                             it,
                             user,
-                            normAppDesc.withNameAndVersionAndTitle("name1", "1", "1title")
+                            normAppDesc.withNameAndVersionAndTitle("name1", "1", "1title"),
+                            "original"
                         )
                         appDao.create(
                             it,
                             user,
-                            normAppDesc2.withNameAndVersionAndTitle("name2", "2", "2title")
+                            normAppDesc2.withNameAndVersionAndTitle("name2", "2", "2title"),
+                            "original"
                         )
 
-                        appDao.createTags(it, user, "name1", listOf("tag1", "tag2"))
-                        appDao.createTags(it, user, "name2", listOf("tag2", "tag3"))
+                        tagDao.createTags(it, user, "name1", listOf("tag1", "tag2"))
+                        tagDao.createTags(it, user, "name2", listOf("tag2", "tag3"))
                     }
                 }
-                configureAppServer(appDao, elasticDAO)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
 
             test = {
@@ -278,19 +364,25 @@ class AppTest {
 
         withKtorTest(
             setup = {
-                val toolDao = ToolHibernateDAO()
-                val aclDao = AclHibernateDao()
-                val elasticDAO = mockk<ElasticDAO>()
-                val appDao = ApplicationHibernateDAO(toolDao, aclDao)
-                micro.install(HibernateFeature)
+                val elasticDAO = mockk<ElasticDao>()
+
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = ApplicationPublicAsyncDao()
+                val appDao = AppStoreAsyncDao(toolDao, aclDao, appPublicDao)
+
+                val tagDao = ApplicationTagsAsyncDao()
+                val searchDao = ApplicationSearchAsyncDao(appDao)
+                val favoriteDao = FavoriteAsyncDao(appPublicDao, aclDao)
+                val appLogoDao = ApplicationLogoAsyncDao(appDao)
                 runBlocking {
-                    micro.hibernateDatabase.withTransaction {
-                        toolDao.create(it, TestUsers.user, normToolDesc)
-                        appDao.create(it, TestUsers.user, app)
+                    db.withSession {
+                        toolDao.create(it, TestUsers.user, normToolDesc, "original")
+                        appDao.create(it, TestUsers.user, app, "original")
 
                     }
                 }
-                configureAppServer(appDao, elasticDAO)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
 
             test = {
@@ -329,7 +421,6 @@ class AppTest {
         )
     }
 
-    @Ignore
     @Test
     fun `find By Name And Version test`() {
         val name = "app"
@@ -338,10 +429,28 @@ class AppTest {
 
         withKtorTest(
             setup = {
-                val appDao = mockk<ApplicationHibernateDAO>()
-                val elasticDAO = mockk<ElasticDAO>()
+                val elasticDAO = mockk<ElasticDao>()
 
-                every { appDao.findByNameAndVersionForUser(any(), any(), any(), any(), any(), any()) } answers {
+                val toolDao = mockk<ToolAsyncDao>()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = mockk<ApplicationPublicAsyncDao>()
+                val appDao = mockk<AppStoreAsyncDao>()
+
+                val tagDao = mockk<ApplicationTagsAsyncDao>()
+                val searchDao = mockk<ApplicationSearchAsyncDao>()
+                val favoriteDao = mockk<FavoriteAsyncDao>()
+                val appLogoDao = mockk<ApplicationLogoAsyncDao>()
+
+                coEvery { toolDao.findByNameAndVersion(any(), any(), any(), any()) } answers {
+                    Tool(
+                        "owner",
+                        123456,
+                        123456,
+                        normToolDesc
+                    )
+                }
+
+                coEvery { appDao.findByNameAndVersionForUser(any(), any(), any(), any(), any(), any()) } answers {
                     ApplicationWithFavoriteAndTags(
                         application.metadata,
                         application.invocation,
@@ -350,16 +459,18 @@ class AppTest {
                     )
                 }
 
-                micro.install(HibernateFeature)
-                configureAppServer(appDao, elasticDAO)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
 
             },
             test = {
-                sendRequest(
+                val request = sendRequest(
                     method = HttpMethod.Get,
                     path = "/api/hpc/apps/$name/$version?itemsPerPage=10&page=0",
                     user = TestUsers.user
-                ).assertSuccess()
+                )
+                println(request)
+                println(request.response.status())
+                request.assertSuccess()
             }
         )
     }
@@ -372,10 +483,19 @@ class AppTest {
 
         withKtorTest(
             setup = {
-                val appDao = mockk<ApplicationHibernateDAO>()
-                val elasticDAO = mockk<ElasticDAO>()
+                val elasticDAO = mockk<ElasticDao>()
 
-                every { appDao.findAllByName(any(), any(), any(), any(), any(), any()) } answers {
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = mockk<ApplicationPublicAsyncDao>()
+                val appDao = mockk<AppStoreAsyncDao>()
+
+                val tagDao = mockk<ApplicationTagsAsyncDao>()
+                val searchDao = mockk<ApplicationSearchAsyncDao>()
+                val favoriteDao = mockk<FavoriteAsyncDao>()
+                val appLogoDao = mockk<ApplicationLogoAsyncDao>()
+
+                coEvery { appDao.findAllByName(any(), any(), any(), any(), any(), any()) } answers {
                     Page(
                         1,
                         10,
@@ -384,8 +504,7 @@ class AppTest {
                     )
                 }
 
-                micro.install(HibernateFeature)
-                configureAppServer(appDao, elasticDAO)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
 
             test = {
@@ -408,10 +527,19 @@ class AppTest {
     fun `list all test`() {
         withKtorTest(
             setup = {
-                val appDao = mockk<ApplicationHibernateDAO>()
-                val elasticDAO = mockk<ElasticDAO>()
+                val elasticDAO = mockk<ElasticDao>()
 
-                every { appDao.listLatestVersion(any(), any(), any(), any(), any()) } answers {
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = mockk<ApplicationPublicAsyncDao>()
+                val appDao = mockk<AppStoreAsyncDao>()
+
+                val tagDao = mockk<ApplicationTagsAsyncDao>()
+                val searchDao = mockk<ApplicationSearchAsyncDao>()
+                val favoriteDao = mockk<FavoriteAsyncDao>()
+                val appLogoDao = mockk<ApplicationLogoAsyncDao>()
+
+                coEvery { appDao.listLatestVersion(any(), any(), any(), any(), any()) } answers {
                     Page(
                         1,
                         10,
@@ -420,8 +548,7 @@ class AppTest {
                     )
                 }
 
-                micro.install(HibernateFeature)
-                configureAppServer(appDao, elasticDAO)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
 
             test = {
@@ -446,11 +573,19 @@ class AppTest {
     fun `create test`() {
         withKtorTest(
             setup = {
-                val appDao = mockk<ApplicationHibernateDAO>()
-                val elasticDAO = mockk<ElasticDAO>()
+                val elasticDAO = mockk<ElasticDao>()
 
-                micro.install(HibernateFeature)
-                configureAppServer(appDao, elasticDAO)
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = mockk<ApplicationPublicAsyncDao>()
+                val appDao = AppStoreAsyncDao(toolDao, aclDao, appPublicDao)
+
+                val tagDao = mockk<ApplicationTagsAsyncDao>()
+                val searchDao = mockk<ApplicationSearchAsyncDao>()
+                val favoriteDao = mockk<FavoriteAsyncDao>()
+                val appLogoDao = mockk<ApplicationLogoAsyncDao>()
+
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
 
             test = {
@@ -467,15 +602,23 @@ class AppTest {
     fun `createTag deleteTag test`() {
         withKtorTest(
             setup = {
-                val appDao = mockk<ApplicationHibernateDAO>()
-                val elasticDAO = mockk<ElasticDAO>()
+                val elasticDAO = mockk<ElasticDao>()
 
-                every { appDao.createTags(any(), any(), any(), any()) } just runs
-                every { appDao.deleteTags(any(), any(), any(), any()) } just runs
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = mockk<ApplicationPublicAsyncDao>()
+                val appDao = AppStoreAsyncDao(toolDao, aclDao, appPublicDao)
+
+                val tagDao = mockk<ApplicationTagsAsyncDao>()
+                val searchDao = mockk<ApplicationSearchAsyncDao>()
+                val favoriteDao = mockk<FavoriteAsyncDao>()
+                val appLogoDao = mockk<ApplicationLogoAsyncDao>()
+
+                coEvery { tagDao.createTags(any(), any(), any(), any()) } just runs
+                coEvery { tagDao.deleteTags(any(), any(), any(), any()) } just runs
                 every { elasticDAO.addTagToElastic(any(), any()) } just runs
                 every { elasticDAO.removeTagFromElastic(any(), any()) } just runs
-                micro.install(HibernateFeature)
-                configureAppServer(appDao, elasticDAO)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
 
             test = {
@@ -506,45 +649,22 @@ class AppTest {
         )
     }
 
-    /*
-        @Test
-        fun advancedSearch() {
-            withKtorTest(
-                setup = {
-                    micro.install(ElasticFeature)
-                    micro.install(HibernateFeature)
-                    val appDao = mockk<ApplicationHibernateDAO>(relaxed = true)
-                    val elasticDAO = mockk<ElasticDAO>(relaxed = true)
-                    configureAppServer(appDao, elasticDAO)
-                },
-                test = {
-                    val advancedSearchRequest = sendJson(
-                        method = HttpMethod.Post,
-                        path = "api/hpc/apps/advancedSearch",
-                        user = TestUsers.admin,
-                        request = AdvancedSearchRequest(
-                            normAppDesc2.metadata.name,
-                            normAppDesc2.metadata.version,
-                            normAppDesc2.metadata.description,
-                            null,
-                            10,
-                            0
-                        )
-                    )
-
-                    advancedSearchRequest.assertSuccess()
-                }
-            )
-        }
-    */
     @Test
     fun `update Logo test`() {
         withKtorTest(
             setup = {
-                micro.install(HibernateFeature)
-                val appDao = mockk<ApplicationHibernateDAO>(relaxed = true)
-                val elasticDAO = mockk<ElasticDAO>(relaxed = true)
-                configureAppServer(appDao, elasticDAO)
+                val elasticDAO = mockk<ElasticDao>()
+
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = mockk<ApplicationPublicAsyncDao>(relaxed = true)
+                val appDao = AppStoreAsyncDao(toolDao, aclDao, appPublicDao)
+
+                val tagDao = mockk<ApplicationTagsAsyncDao>(relaxed = true)
+                val searchDao = mockk<ApplicationSearchAsyncDao>(relaxed = true)
+                val favoriteDao = mockk<FavoriteAsyncDao>(relaxed = true)
+                val appLogoDao = mockk<ApplicationLogoAsyncDao>(relaxed = true)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
             test = {
                 val updateLogoRequest = sendRequest(
@@ -568,9 +688,18 @@ class AppTest {
         withKtorTest(
             setup = {
                 micro.install(HibernateFeature)
-                val appDao = mockk<ApplicationHibernateDAO>(relaxed = true)
-                val elasticDAO = mockk<ElasticDAO>(relaxed = true)
-                configureAppServer(appDao, elasticDAO)
+                val elasticDAO = mockk<ElasticDao>()
+
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = mockk<ApplicationPublicAsyncDao>()
+                val appDao = AppStoreAsyncDao(toolDao, aclDao, appPublicDao)
+
+                val tagDao = mockk<ApplicationTagsAsyncDao>()
+                val searchDao = mockk<ApplicationSearchAsyncDao>()
+                val favoriteDao = mockk<FavoriteAsyncDao>()
+                val appLogoDao = mockk<ApplicationLogoAsyncDao>(relaxed = true)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
             test = {
                 val clearLogoRequest = sendRequest(
@@ -588,10 +717,21 @@ class AppTest {
     fun `fetch Logo test`() {
         withKtorTest(
             setup = {
-                micro.install(HibernateFeature)
-                val appDao = mockk<ApplicationHibernateDAO>(relaxed = true)
-                val elasticDAO = mockk<ElasticDAO>(relaxed = true)
-                configureAppServer(appDao, elasticDAO)
+                val elasticDAO = mockk<ElasticDao>()
+
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = mockk<ApplicationPublicAsyncDao>()
+                val appDao = AppStoreAsyncDao(toolDao, aclDao, appPublicDao)
+
+                val tagDao = mockk<ApplicationTagsAsyncDao>()
+                val searchDao = mockk<ApplicationSearchAsyncDao>()
+                val favoriteDao = mockk<FavoriteAsyncDao>()
+                val appLogoDao = mockk<ApplicationLogoAsyncDao>()
+                coEvery {appLogoDao.fetchLogo(any(), any())} answers {
+                    ByteArray(1234)
+                }
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
             test = {
                 val fetchLogoRequest = sendRequest(
@@ -609,10 +749,18 @@ class AppTest {
     fun `find latest by tool test`() {
         withKtorTest(
             setup = {
-                micro.install(HibernateFeature)
-                val appDao = mockk<ApplicationHibernateDAO>(relaxed = true)
-                val elasticDAO = mockk<ElasticDAO>(relaxed = true)
-                configureAppServer(appDao, elasticDAO)
+                val elasticDAO = mockk<ElasticDao>()
+
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = mockk<ApplicationPublicAsyncDao>()
+                val appDao = AppStoreAsyncDao(toolDao, aclDao, appPublicDao)
+
+                val tagDao = mockk<ApplicationTagsAsyncDao>()
+                val searchDao = mockk<ApplicationSearchAsyncDao>()
+                val favoriteDao = mockk<FavoriteAsyncDao>()
+                val appLogoDao = mockk<ApplicationLogoAsyncDao>(relaxed = true)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
             test = {
                 val findLatestByToolRequest = sendRequest(
@@ -630,13 +778,21 @@ class AppTest {
     fun `delete app test`() {
         withKtorTest(
             setup = {
-                micro.install(HibernateFeature)
-                val appDao = mockk<ApplicationHibernateDAO>()
-                val elasticDAO = mockk<ElasticDAO>()
+                val elasticDAO = mockk<ElasticDao>()
 
-                every { appDao.delete(any(), any(), any(), any(), any(), any()) } just runs
+                val toolDao = ToolAsyncDao()
+                val aclDao = AclAsyncDao()
+                val appPublicDao = mockk<ApplicationPublicAsyncDao>()
+                val appDao = mockk<AppStoreAsyncDao>()
+
+                val tagDao = mockk<ApplicationTagsAsyncDao>()
+                val searchDao = mockk<ApplicationSearchAsyncDao>()
+                val favoriteDao = mockk<FavoriteAsyncDao>()
+                val appLogoDao = mockk<ApplicationLogoAsyncDao>()
+
+                coEvery { appDao.delete(any(), any(), any(), any(), any(), any()) } just runs
                 every { elasticDAO.deleteApplicationInElastic(any(), any()) } just runs
-                configureAppServer(appDao, elasticDAO)
+                configureAppServer(toolDao, aclDao, appDao, tagDao, searchDao, appPublicDao, favoriteDao, appLogoDao, elasticDAO, db)
             },
             test = {
                 val deleteRequest = sendJson(
