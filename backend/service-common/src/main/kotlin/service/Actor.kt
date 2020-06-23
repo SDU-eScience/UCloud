@@ -29,5 +29,12 @@ sealed class Actor {
     }
 }
 
+fun Actor.safeUsername(systemUsername: String = "_ucloud"): String {
+    return when (this) {
+        Actor.System -> systemUsername
+        else -> username
+    }
+}
+
 fun SecurityPrincipalToken.toActor(): Actor = Actor.User(principal)
 fun SecurityPrincipal.toActor(): Actor = Actor.User(this)

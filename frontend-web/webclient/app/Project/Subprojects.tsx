@@ -329,7 +329,12 @@ const Subprojects: React.FunctionComponent = () => {
                                                     })
                                                 );
                                             }}
-                                            customEmptyPage={<div/>}
+                                            customEmptyPage={
+                                                <Flex justifyContent={"center"} alignItems={"center"} height={"200px"}>
+                                                    This project doesn&apos;t have any subprojects.
+                                                    You can create one by using the &apos;Create&apos; button above.
+                                                </Flex>
+                                            }
                                         />
                                         </tbody>
                                     </Table>
@@ -360,6 +365,7 @@ const Subprojects: React.FunctionComponent = () => {
                     undefined :
                     subprojectWallets.find(it => it.wallet.id === subproject.id) ?? {...selectedWallet, balance: 0}
                 }
+                hasPendingRequest={Math.ceil(Math.random() * 100) % 2 === 0}
             />;
         });
     }
@@ -397,6 +403,7 @@ const SubprojectRowWrapper = styled(TableRow)`
 
     ${TableCell}.allocation {
         width: 80%;
+        vertical-align: middle;
     }
 `;
 
@@ -404,8 +411,9 @@ const SubprojectRow: React.FunctionComponent<{
     subproject: Project,
     walletBalance?: WalletBalance,
     shakeWallets?: () => void,
-    requestReload?: () => void
-}> = ({subproject, walletBalance, shakeWallets, requestReload}) => {
+    requestReload?: () => void,
+    hasPendingRequest?: boolean
+}> = ({subproject, walletBalance, shakeWallets, requestReload, hasPendingRequest}) => {
     const balance = walletBalance?.balance;
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [isEditingQuota, setIsEditingQuota] = useState<boolean>(false);
@@ -488,101 +496,113 @@ const SubprojectRow: React.FunctionComponent<{
         <SubprojectRowWrapper>
             <TableCell>
                 <Text>{subproject.title}</Text>
+                {hasPendingRequest === true ?
+                    <Text bold fontSize={"10pt"}><Icon name={"grant"} size={16} /> Resources requested</Text> :
+                    null
+                }
             </TableCell>
             <TableCell className={"allocation"}>
-
-                <Flex alignItems={"center"} justifyContent={"flex-end"} mb={16}>
-                    {balance === undefined ? (
-                        <>
-                            <Button height="35px" width={"135px"} onClick={() => {
-                                snackbarStore.addInformation("You must select a resource above", false);
-                                if (shakeWallets) shakeWallets();
-                            }}>
-                                Edit allocation
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            {!isEditing ? (
+                {hasPendingRequest !== true ? null : (
+                    <Flex alignItems={"center"} justifyContent={"flex-end"}>
+                        <Button height="35px" width={"135px"} color={"orange"} onClick={() => setIsEditing(true)}>
+                            View request
+                        </Button>
+                    </Flex>
+                )}
+                {hasPendingRequest === true ? null : (
+                    <>
+                        <Flex alignItems={"center"} justifyContent={"flex-end"}>
+                            {balance === undefined ? (
                                 <>
-                                    <AllocationEditor>
-                                        {creditFormatter(balance, 0)}
-                                    </AllocationEditor>
-                                    <Button height="35px" width={"135px"} onClick={() => setIsEditing(true)}>
+                                    <Button height="35px" width={"135px"} onClick={() => {
+                                        snackbarStore.addInformation("You must select a resource above", false);
+                                        if (shakeWallets) shakeWallets();
+                                    }}>
                                         Edit allocation
                                     </Button>
                                 </>
                             ) : (
-                                <AllocationForm onSubmit={onSubmit}>
-                                    <AllocationEditor>
-                                        <Input ref={inputRef} noBorder autoFocus/>
-                                        <span>DKK</span>
-                                        {loading ?
-                                            <HexSpin size={16}/>
-                                            :
-                                            <Icon
-                                                size={16}
-                                                ml="10px"
-                                                cursor="pointer"
-                                                name="close"
-                                                color="red"
-                                                onClick={() => setIsEditing(false)}
-                                            />
-                                        }
-                                    </AllocationEditor>
-
-                                    <Button type={"submit"} height={"35px"} width={"135px"} color={"green"}
-                                            disabled={loading}>
-                                        Allocate
-                                    </Button>
-                                </AllocationForm>
-                            )
-                            }
-                        </>
-                    )}
-                </Flex>
-
-                <Flex alignItems={"center"} justifyContent={"flex-end"}>
-                    {quotaInBytes === undefined ? null : (
-                        <>
-                            {!isEditingQuota ? (
                                 <>
-                                    <AllocationEditor>
-                                        {quotaInBytes === -1 ? "No quota" : sizeToString(quotaInBytes)}
-                                    </AllocationEditor>
-                                    <Button height="35px" width={"135px"} onClick={() => setIsEditingQuota(true)}>
-                                        Edit quota
-                                    </Button>
-                                </>
-                            ) : (
-                                <AllocationForm onSubmit={onSubmitQuota}>
-                                    <AllocationEditor>
-                                        <Input ref={quotaRef} noBorder autoFocus/>
-                                        <span>GB</span>
-                                        {loading ?
-                                            <HexSpin size={16}/>
-                                            :
-                                            <Icon
-                                                size={16}
-                                                ml="10px"
-                                                cursor="pointer"
-                                                name="close"
-                                                color="red"
-                                                onClick={() => setIsEditingQuota(false)}
-                                            />
-                                        }
-                                    </AllocationEditor>
+                                    {!isEditing ? (
+                                        <>
+                                            <AllocationEditor>
+                                                {creditFormatter(balance, 0)}
+                                            </AllocationEditor>
+                                            <Button height="35px" width={"135px"} onClick={() => setIsEditing(true)}>
+                                                Edit allocation
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <AllocationForm onSubmit={onSubmit}>
+                                            <AllocationEditor>
+                                                <Input ref={inputRef} noBorder autoFocus/>
+                                                <span>DKK</span>
+                                                {loading ?
+                                                    <HexSpin size={16}/>
+                                                    :
+                                                    <Icon
+                                                        size={16}
+                                                        ml="10px"
+                                                        cursor="pointer"
+                                                        name="close"
+                                                        color="red"
+                                                        onClick={() => setIsEditing(false)}
+                                                    />
+                                                }
+                                            </AllocationEditor>
 
-                                    <Button type={"submit"} height={"35px"} width={"135px"} color={"green"}
-                                            disabled={loading}>
-                                        Allocate
-                                    </Button>
-                                </AllocationForm>
-                            )
-                            }
-                        </>
-                    )}
-                </Flex>
+                                            <Button type={"submit"} height={"35px"} width={"135px"} color={"green"}
+                                                    disabled={loading}>
+                                                Allocate
+                                            </Button>
+                                        </AllocationForm>
+                                    )
+                                    }
+                                </>
+                            )}
+                        </Flex>
+
+                        {quotaInBytes === undefined ? null : (
+                            <Flex alignItems={"center"} justifyContent={"flex-end"} mt={16}>
+                                    {!isEditingQuota ? (
+                                        <>
+                                            <AllocationEditor>
+                                                {quotaInBytes === -1 ? "No quota" : sizeToString(quotaInBytes)}
+                                            </AllocationEditor>
+                                            <Button height="35px" width={"135px"}
+                                                    onClick={() => setIsEditingQuota(true)}>
+                                                Edit quota
+                                            </Button>
+                                        </>
+                                    ) : (
+                                        <AllocationForm onSubmit={onSubmitQuota}>
+                                            <AllocationEditor>
+                                                <Input ref={quotaRef} noBorder autoFocus/>
+                                                <span>GB</span>
+                                                {loading ?
+                                                    <HexSpin size={16}/>
+                                                    :
+                                                    <Icon
+                                                        size={16}
+                                                        ml="10px"
+                                                        cursor="pointer"
+                                                        name="close"
+                                                        color="red"
+                                                        onClick={() => setIsEditingQuota(false)}
+                                                    />
+                                                }
+                                            </AllocationEditor>
+
+                                            <Button type={"submit"} height={"35px"} width={"135px"} color={"green"}
+                                                    disabled={loading}>
+                                                Allocate
+                                            </Button>
+                                        </AllocationForm>
+                                    )}
+                            </Flex>
+                        )}
+                    </>
+                )}
             </TableCell>
         </SubprojectRowWrapper>
     </>;
