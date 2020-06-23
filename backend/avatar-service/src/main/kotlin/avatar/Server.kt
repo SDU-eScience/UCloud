@@ -1,7 +1,7 @@
 package dk.sdu.cloud.avatar
 
 import dk.sdu.cloud.avatar.http.AvatarController
-import dk.sdu.cloud.avatar.services.AvatarHibernateDao
+import dk.sdu.cloud.avatar.services.AvatarAsyncDao
 import dk.sdu.cloud.avatar.services.AvatarService
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.databaseConfig
@@ -19,7 +19,7 @@ class Server(
     override val log = logger()
 
     override fun start() {
-        val avatarDao = AvatarHibernateDao()
+        val avatarDao = AvatarAsyncDao()
         val completedJobsService = AvatarService(db, avatarDao)
 
         // Initialize server

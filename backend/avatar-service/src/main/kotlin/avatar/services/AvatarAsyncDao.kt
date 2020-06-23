@@ -74,7 +74,7 @@ private fun RowData.toAvatar(): Avatar = Avatar(
     HatColor.fromString(getField(AvatarTable.hatColor))
 )
 
-class AvatarHibernateDao {
+class AvatarAsyncDao {
 
     suspend fun upsert(
         ctx: DBContext,

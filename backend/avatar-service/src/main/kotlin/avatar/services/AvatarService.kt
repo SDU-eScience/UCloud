@@ -7,7 +7,7 @@ import dk.sdu.cloud.service.db.async.withSession
 
 class AvatarService(
     private val db: DBContext,
-    private val dao: AvatarHibernateDao
+    private val dao: AvatarAsyncDao
 ) {
     suspend fun upsert(user: String, avatar: Avatar) {
         db.withSession{ dao.upsert(it, user, avatar) }

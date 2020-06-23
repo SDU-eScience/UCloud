@@ -38,7 +38,7 @@ class AvatarServiceTest {
     @Test
     fun `Insert and find`() {
         runBlocking {
-            val dao = AvatarHibernateDao()
+            val dao = AvatarAsyncDao()
             val service = AvatarService(db, dao)
 
             // Nothing inserted - Finds Default
@@ -82,7 +82,7 @@ class AvatarServiceTest {
     @Test
     fun `insert, update and find test`() {
         runBlocking {
-            val dao = AvatarHibernateDao()
+            val dao = AvatarAsyncDao()
             val service = AvatarService(db, dao)
 
             var findResult = service.findByUser(user)
@@ -131,7 +131,7 @@ class AvatarServiceTest {
     @Test
     fun `bulk test`() {
         runBlocking {
-            val dao = AvatarHibernateDao()
+            val dao = AvatarAsyncDao()
             val service = AvatarService(db, dao)
 
             service.upsert(TestUsers.user.username, avatar)
