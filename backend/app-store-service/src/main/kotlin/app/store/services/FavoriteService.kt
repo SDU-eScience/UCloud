@@ -1,4 +1,4 @@
-package app.store.services
+package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
@@ -10,7 +10,7 @@ import dk.sdu.cloud.service.db.async.withSession
 
 class FavoriteService (
     private val db: AsyncDBSessionFactory,
-    private val favoriteDao: FavoriteAsyncDAO,
+    private val favoriteDao: FavoriteAsyncDao,
     private val authenticatedClient: AuthenticatedClient
 ) {
     suspend fun toggleFavorite(securityPrincipal: SecurityPrincipal, project: String?, appName: String, appVersion: String) {

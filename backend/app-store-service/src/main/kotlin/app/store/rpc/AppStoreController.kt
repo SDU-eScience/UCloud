@@ -1,63 +1,30 @@
 package dk.sdu.cloud.app.store.rpc
 
-import app.store.services.ApplicationPublicService
-import app.store.services.ApplicationSearchService
-import app.store.services.ApplicationTagsService
-import app.store.services.FavoriteService
 import com.fasterxml.jackson.databind.JsonMappingException
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.ApplicationDescription
-import dk.sdu.cloud.app.store.api.IsPublicResponse
-import dk.sdu.cloud.app.store.api.tags
 import dk.sdu.cloud.app.store.services.AppStoreService
-import dk.sdu.cloud.app.store.services.LogoService
-import dk.sdu.cloud.app.store.services.LogoType
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.calls.types.BinaryStream
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.application.call
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.request.ContentTransformationException
 import io.ktor.request.receiveText
-import kotlinx.coroutines.io.jvm.javaio.toByteReadChannel
 import org.yaml.snakeyaml.reader.ReaderException
-import java.io.ByteArrayInputStream
 
 class AppStoreController(
-    private val appStore: AppStoreService,
-    private val logoService: LogoService,
-    private val tagsService: ApplicationTagsService,
-    private val searchService: ApplicationSearchService,
-    private val publicService: ApplicationPublicService,
-    private val favoriteService: FavoriteService
+    private val appStore: AppStoreService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-
-        implement(AppStore.toggleFavorite) {
-            ok(favoriteService.toggleFavorite(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion))
-        }
-
-        implement(AppStore.retrieveFavorites) {
-            ok(favoriteService.retrieveFavorites(ctx.securityPrincipal, ctx.project, request))
-        }
-
-        implement(AppStore.searchTags) {
-            ok(searchService.searchByTags(ctx.securityPrincipal, ctx.project, request.tags, request.normalize()))
-        }
-
-        implement(AppStore.searchApps) {
-            ok(searchService.searchApps(ctx.securityPrincipal, ctx.project, request.query, request.normalize()))
-        }
 
         implement(AppStore.findByNameAndVersion) {
             ok(appStore.findByNameAndVersion(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion))
@@ -89,27 +56,8 @@ class AppStoreController(
             ok(appStore.findByName(ctx.securityPrincipal, ctx.project, request.appName, request.normalize()))
         }
 
-        implement(AppStore.isPublic) {
-            ok(IsPublicResponse(publicService.isPublic(ctx.securityPrincipal, request.applications)))
-        }
-
-        implement(AppStore.setPublic) {
-            ok(publicService.setPublic(ctx.securityPrincipal, request.appName, request.appVersion, request.public))
-        }
-
         implement(AppStore.listAll) {
             ok(appStore.listAll(ctx.securityPrincipal, ctx.project, request.normalize()))
-        }
-
-        implement(AppStore.advancedSearch) {
-            ok(searchService.advancedSearch(
-                ctx.securityPrincipal,
-                ctx.project,
-                request.query,
-                request.tags,
-                request.showAllVersions,
-                request.normalize()
-            ))
         }
 
         implement(AppStore.create) {
@@ -157,51 +105,6 @@ class AppStoreController(
         implement(AppStore.delete) {
             appStore.delete(ctx.securityPrincipal, ctx.project, request.appName, request.appVersion)
             ok(Unit)
-        }
-
-        implement(AppStore.createTag) {
-            tagsService.createTags(
-                request.tags,
-                request.applicationName,
-                ctx.securityPrincipal
-            )
-            ok(Unit)
-        }
-
-        implement(AppStore.removeTag) {
-            tagsService.deleteTags(
-                request.tags,
-                request.applicationName,
-                ctx.securityPrincipal
-            )
-            ok(Unit)
-        }
-
-        implement(AppStore.uploadLogo) {
-            logoService.acceptUpload(
-                ctx.securityPrincipal,
-                LogoType.APPLICATION,
-                request.name,
-                request.data.asIngoing()
-            )
-
-            ok(Unit)
-        }
-
-        implement(AppStore.clearLogo) {
-            logoService.clearLogo(ctx.securityPrincipal, LogoType.APPLICATION, request.name)
-            ok(Unit)
-        }
-
-        implement(AppStore.fetchLogo) {
-            val logo = logoService.fetchLogo(LogoType.APPLICATION, request.name)
-            ok(
-                BinaryStream.outgoingFromChannel(
-                    ByteArrayInputStream(logo).toByteReadChannel(),
-                    logo.size.toLong(),
-                    ContentType.Image.Any
-                )
-            )
         }
 
         implement(AppStore.findLatestByTool) {

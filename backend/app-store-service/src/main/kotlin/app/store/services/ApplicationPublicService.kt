@@ -1,4 +1,4 @@
-package app.store.services
+package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.NameAndVersion
@@ -7,7 +7,7 @@ import dk.sdu.cloud.service.db.async.withSession
 
 class ApplicationPublicService(
     private val ctx: DBContext,
-    private val applicationPublicAsyncDAO: ApplicationPublicAsyncDAO
+    private val applicationPublicAsyncDao: ApplicationPublicAsyncDao
 ) {
     suspend fun isPublic(
         securityPrincipal: SecurityPrincipal,
@@ -17,7 +17,7 @@ class ApplicationPublicService(
             applications.map { app ->
                 Pair<NameAndVersion, Boolean>(
                     NameAndVersion(app.name, app.version),
-                    applicationPublicAsyncDAO.isPublic(
+                    applicationPublicAsyncDao.isPublic(
                         session,
                         securityPrincipal,
                         app.name,
@@ -35,7 +35,7 @@ class ApplicationPublicService(
         public: Boolean
     ) {
         ctx.withSession {
-            applicationPublicAsyncDAO.setPublic(
+            applicationPublicAsyncDao.setPublic(
                 it,
                 securityPrincipal,
                 appName,

@@ -1,6 +1,5 @@
 package dk.sdu.cloud.app.store.services
 
-import app.store.services.retrieveUserProjectGroups
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
@@ -25,11 +24,11 @@ import io.ktor.http.HttpStatusCode
 class AppStoreService(
     private val db: AsyncDBSessionFactory,
     private val authenticatedClient: AuthenticatedClient,
-    private val applicationDAO: ApplicationDAO,
-    private val publicDAO: PublicDAO,
-    private val toolDao: ToolDAO,
-    private val aclDao: AclDao,
-    private val elasticDAO: ElasticDAO,
+    private val applicationDao: AppStoreAsyncDao,
+    private val publicDAO: ApplicationPublicAsyncDao,
+    private val toolDao: ToolAsyncDao,
+    private val aclDao: AclAsyncDao,
+    private val elasticDao: ElasticDao,
     private val appEventProducer : AppEventProducer
 ) {
 
@@ -46,7 +45,7 @@ class AppStoreService(
         }
 
         return db.withSession { session ->
-            val result = applicationDAO.findByNameAndVersionForUser(
+            val result = applicationDao.findByNameAndVersionForUser(
                 session,
                 securityPrincipal,
                 project,
@@ -205,7 +204,7 @@ class AppStoreService(
         }
 
         return db.withTransaction {
-            applicationDAO.findBySupportedFileExtension(
+            applicationDao.findBySupportedFileExtension(
                 it,
                 securityPrincipal,
                 project,
@@ -228,7 +227,7 @@ class AppStoreService(
         }
 
         return db.withTransaction {
-            applicationDAO.findAllByName(
+            applicationDao.findAllByName(
                 it,
                 securityPrincipal,
                 project,
@@ -254,7 +253,7 @@ class AppStoreService(
         println(projectGroups)
 
         return db.withTransaction { session ->
-            applicationDAO.listLatestVersion(
+            applicationDao.listLatestVersion(
                 session,
                 securityPrincipal,
                 project,
@@ -266,9 +265,9 @@ class AppStoreService(
 
     suspend fun create(securityPrincipal: SecurityPrincipal, application: Application, content: String) {
         db.withTransaction { session ->
-            applicationDAO.create(session, securityPrincipal, application, content)
+            applicationDao.create(session, securityPrincipal, application, content)
         }
-        elasticDAO.createApplicationInElastic(
+        elasticDao.createApplicationInElastic(
             application.metadata.name,
             application.metadata.version,
             application.metadata.description,
@@ -284,7 +283,7 @@ class AppStoreService(
         }
 
         db.withTransaction { session ->
-            applicationDAO.delete(session, securityPrincipal, project, projectGroups, appName, appVersion)
+            applicationDao.delete(session, securityPrincipal, project, projectGroups, appName, appVersion)
         }
 
         appEventProducer.produce(AppEvent.Deleted(
@@ -292,7 +291,7 @@ class AppStoreService(
             appVersion
         ))
 
-        elasticDAO.deleteApplicationInElastic(appName, appVersion)
+        elasticDao.deleteApplicationInElastic(appName, appVersion)
     }
 
     suspend fun findLatestByTool(
@@ -308,7 +307,7 @@ class AppStoreService(
         }
 
         return db.withTransaction { session ->
-            applicationDAO.findLatestByTool(session, user, project, projectGroups, tool, paging)
+            applicationDao.findLatestByTool(session, user, project, projectGroups, tool, paging)
         }
     }
 

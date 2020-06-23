@@ -1,11 +1,7 @@
-package app.store.services
+package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.store.services.AppStoreAsyncDAO
-import dk.sdu.cloud.app.store.services.ApplicationLogoDAO
-import dk.sdu.cloud.app.store.services.ApplicationLogosTable
-import dk.sdu.cloud.app.store.services.ToolLogoTable
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.async.DBContext
@@ -15,11 +11,11 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
 
-class ApplicationLogoAsyncDAO(
-    private val appStoreAsyncDAO: AppStoreAsyncDAO
-) : ApplicationLogoDAO {
+class ApplicationLogoAsyncDao(
+    private val appStoreAsyncDao: AppStoreAsyncDao
+) {
 
-    override suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal, name: String, imageBytes: ByteArray) {
+    suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal, name: String, imageBytes: ByteArray) {
         val applicationOwner = ctx.withSession { session ->
             findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
@@ -53,7 +49,7 @@ class ApplicationLogoAsyncDAO(
         }
     }
 
-    override suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
+    suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
         val application =
             ctx.withSession { session ->
                 findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -75,7 +71,7 @@ class ApplicationLogoAsyncDAO(
         }
     }
 
-    override suspend fun fetchLogo(ctx: DBContext, name: String): ByteArray? {
+    suspend fun fetchLogo(ctx: DBContext, name: String): ByteArray? {
         val logoFromApp = ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -97,7 +93,7 @@ class ApplicationLogoAsyncDAO(
                 emptyList(),
                 name,
                 PaginationRequest().normalize(),
-                appStoreAsyncDAO
+                appStoreAsyncDao
             ).items.firstOrNull()
         } ?: return null
         val toolName = app.invocation.tool.name

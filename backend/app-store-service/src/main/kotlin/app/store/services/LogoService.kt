@@ -18,8 +18,8 @@ enum class LogoType {
 
 class LogoService(
     private val db: AsyncDBSessionFactory,
-    private val appDao: ApplicationLogoDAO,
-    private val toolDao: ToolDAO
+    private val appDao: ApplicationLogoAsyncDao,
+    private val toolDao: ToolAsyncDao
 ) {
     suspend fun acceptUpload(user: SecurityPrincipal, type: LogoType, name: String, stream: BinaryStream.Ingoing) {
         val streamLength = stream.length

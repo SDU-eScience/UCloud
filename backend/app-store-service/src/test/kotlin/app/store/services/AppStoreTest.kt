@@ -1,33 +1,20 @@
 package dk.sdu.cloud.app.store.services
 
-import app.store.services.ApplicationPublicAsyncDAO
-import app.store.services.ApplicationPublicService
-import app.store.services.ApplicationSearchAsyncDAO
-import app.store.services.ApplicationSearchService
-import app.store.services.ApplicationTagsAsyncDAO
-import app.store.services.ApplicationTagsService
-import app.store.services.FavoriteAsyncDAO
-import app.store.services.FavoriteService
 import dk.sdu.cloud.app.store.api.ACLEntryRequest
 import dk.sdu.cloud.app.store.api.AccessEntity
 import dk.sdu.cloud.app.store.api.AppStoreServiceDescription
 import dk.sdu.cloud.app.store.api.AppStoreStreams
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
+import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.app.store.util.*
-import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
-import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.PaginationRequest
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.ClientMock
@@ -86,23 +73,22 @@ class AppStoreTest {
         val micro = initializeMicro()
         micro.install(ElasticFeature)
 
-        val toolHibernateDAO = mockk<ToolHibernateDAO>(relaxed = true)
-        val aclHibernateDao = mockk<AclHibernateDao>(relaxed = true)
-        val publicDao = mockk<ApplicationPublicAsyncDAO>(relaxed = true)
-        val appDao = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
-        val elasticDAO = ElasticDAO(micro.elasticHighLevelClient)
-        val aclDao = AclHibernateDao()
+        val toolAsyncDao = mockk<ToolAsyncDao>(relaxed = true)
+        val aclAsyncDao = mockk<AclAsyncDao>(relaxed = true)
+        val publicDao = mockk<ApplicationPublicAsyncDao>(relaxed = true)
+        val appDao = AppStoreAsyncDao(toolAsyncDao, aclAsyncDao, publicDao)
+        val elasticDAO = ElasticDao(micro.elasticHighLevelClient)
         val authClient = mockk<AuthenticatedClient>(relaxed = true)
-        val searchDao = mockk<ApplicationSearchAsyncDAO>(relaxed = true)
-        val tagDao = mockk<ApplicationTagsAsyncDAO>(relaxed = true)
+        val searchDao = mockk<ApplicationSearchAsyncDao>(relaxed = true)
+        val tagDao = mockk<ApplicationTagsAsyncDao>(relaxed = true)
         val applicationService =
             AppStoreService(
                 db,
                 authClient,
                 appDao,
                 publicDao,
-                toolHibernateDAO,
-                aclDao,
+                toolAsyncDao,
+                aclAsyncDao,
                 elasticDAO,
                 micro.eventStreamService.createProducer(AppStoreStreams.AppDeletedStream)
             )
@@ -232,17 +218,17 @@ class AppStoreTest {
 
     private fun initAppStoreWithMockedElasticAndTool(): AppStoreService {
         val micro = initializeMicro()
-        val toolHibernateDAO = ToolHibernateDAO()
-        val aclHibernateDao = AclHibernateDao()
-        val publicDao = ApplicationPublicAsyncDAO()
-        val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
-        val aclDao = AclHibernateDao()
-        val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+        val toolHibernateDAO = ToolAsyncDao()
+        val aclHibernateDao = AclAsyncDao()
+        val publicDao = ApplicationPublicAsyncDao()
+        val appDAO = AppStoreAsyncDao(toolHibernateDAO, aclHibernateDao, publicDao)
+        val aclDao = AclAsyncDao()
+        val elasticDAO = mockk<ElasticDao>(relaxed = true)
         val authClient = mockk<AuthenticatedClient>(relaxed = true)
 
         runBlocking {
             db.withSession { session ->
-                toolHibernateDAO.create(session, TestUsers.user, normToolDesc)
+                toolHibernateDAO.create(session, TestUsers.user, normToolDesc, "original")
             }
         }
 
@@ -262,18 +248,18 @@ class AppStoreTest {
     @Test
     fun `toggle favorites and retrieve`() {
         val micro = initializeMicro()
-        val toolHibernateDAO = ToolHibernateDAO()
-        val aclHibernateDao = AclHibernateDao()
-        val publicDao = ApplicationPublicAsyncDAO()
-        val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
-        val aclDao = AclHibernateDao()
-        val favoriteDao = FavoriteAsyncDAO(publicDao, aclDao)
-        val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+        val toolHibernateDAO = ToolAsyncDao()
+        val aclHibernateDao = AclAsyncDao()
+        val publicDao = ApplicationPublicAsyncDao()
+        val appDAO = AppStoreAsyncDao(toolHibernateDAO, aclHibernateDao, publicDao)
+        val aclDao = AclAsyncDao()
+        val favoriteDao = FavoriteAsyncDao(publicDao, aclDao)
+        val elasticDAO = mockk<ElasticDao>(relaxed = true)
         val authClient = mockk<AuthenticatedClient>(relaxed = true)
 
         runBlocking {
             db.withSession { session ->
-                toolHibernateDAO.create(session, TestUsers.user, normToolDesc)
+                toolHibernateDAO.create(session, TestUsers.user, normToolDesc, "original")
             }
         }
 
@@ -320,22 +306,22 @@ class AppStoreTest {
     fun `add remove search tags`() {
         runBlocking {
             val micro = initializeMicro()
-            val toolHibernateDAO = ToolHibernateDAO()
-            val aclHibernateDao = AclHibernateDao()
-            val publicDao = ApplicationPublicAsyncDAO()
-            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
-            val aclDao = AclHibernateDao()
-            val tagDao = ApplicationTagsAsyncDAO()
-            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val toolHibernateDAO = ToolAsyncDao()
+            val aclHibernateDao = AclAsyncDao()
+            val publicDao = ApplicationPublicAsyncDao()
+            val appDAO = AppStoreAsyncDao(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclAsyncDao()
+            val tagDao = ApplicationTagsAsyncDao()
+            val elasticDAO = mockk<ElasticDao>(relaxed = true)
             val authClient = mockk<AuthenticatedClient>(relaxed = true)
 
             runBlocking {
                 db.withSession { session ->
-                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc)
+                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc, "original")
                 }
             }
 
-            val searchDao = ApplicationSearchAsyncDAO(appDAO)
+            val searchDao = ApplicationSearchAsyncDao(appDAO)
             val appStoreService = AppStoreService(
                 db,
                 authClient,
@@ -372,22 +358,22 @@ class AppStoreTest {
     fun `add tags and delete tags - duplicate tags `() {
         runBlocking {
             val micro = initializeMicro()
-            val toolHibernateDAO = ToolHibernateDAO()
-            val aclHibernateDao = AclHibernateDao()
-            val publicDao = ApplicationPublicAsyncDAO()
-            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
-            val aclDao = AclHibernateDao()
-            val tagDao = ApplicationTagsAsyncDAO()
-            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val toolHibernateDAO = ToolAsyncDao()
+            val aclHibernateDao = AclAsyncDao()
+            val publicDao = ApplicationPublicAsyncDao()
+            val appDAO = AppStoreAsyncDao(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclAsyncDao()
+            val tagDao = ApplicationTagsAsyncDao()
+            val elasticDAO = mockk<ElasticDao>(relaxed = true)
             val authClient = mockk<AuthenticatedClient>(relaxed = true)
 
             runBlocking {
                 db.withSession { session ->
-                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc)
+                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc, "original")
                 }
             }
 
-            val searchDao = ApplicationSearchAsyncDAO(appDAO)
+            val searchDao = ApplicationSearchAsyncDao(appDAO)
             val appStoreService = AppStoreService(
                 db,
                 authClient,
@@ -426,21 +412,21 @@ class AppStoreTest {
     fun `Add and search for app`() {
         runBlocking {
             val micro = initializeMicro()
-            val toolHibernateDAO = ToolHibernateDAO()
-            val aclHibernateDao = AclHibernateDao()
-            val publicDao = ApplicationPublicAsyncDAO()
-            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
-            val aclDao = AclHibernateDao()
-            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val toolHibernateDAO = ToolAsyncDao()
+            val aclHibernateDao = AclAsyncDao()
+            val publicDao = ApplicationPublicAsyncDao()
+            val appDAO = AppStoreAsyncDao(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclAsyncDao()
+            val elasticDAO = mockk<ElasticDao>(relaxed = true)
             val authClient = mockk<AuthenticatedClient>(relaxed = true)
 
             runBlocking {
                 db.withSession { session ->
-                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc)
+                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc, "original")
                 }
             }
 
-            val searchDao = ApplicationSearchAsyncDAO(appDAO)
+            val searchDao = ApplicationSearchAsyncDao(appDAO)
             val appStoreService = AppStoreService(
                 db,
                 authClient,
@@ -496,17 +482,17 @@ class AppStoreTest {
     fun `app set public and bulk test is public`() {
         runBlocking {
             val micro = initializeMicro()
-            val toolHibernateDAO = ToolHibernateDAO()
-            val aclHibernateDao = AclHibernateDao()
-            val publicDao = ApplicationPublicAsyncDAO()
-            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
-            val aclDao = AclHibernateDao()
-            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val toolHibernateDAO = ToolAsyncDao()
+            val aclHibernateDao = AclAsyncDao()
+            val publicDao = ApplicationPublicAsyncDao()
+            val appDAO = AppStoreAsyncDao(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclAsyncDao()
+            val elasticDAO = mockk<ElasticDao>(relaxed = true)
             val authClient = mockk<AuthenticatedClient>(relaxed = true)
 
             runBlocking {
                 db.withSession { session ->
-                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc)
+                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc, "original")
                 }
             }
             val appStoreService = AppStoreService(
@@ -603,12 +589,12 @@ class AppStoreTest {
     fun `permissions test`() {
         runBlocking {
             val micro = initializeMicro()
-            val toolHibernateDAO = ToolHibernateDAO()
-            val aclHibernateDao = AclHibernateDao()
-            val publicDao = ApplicationPublicAsyncDAO()
-            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
-            val aclDao = AclHibernateDao()
-            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val toolHibernateDAO = ToolAsyncDao()
+            val aclHibernateDao = AclAsyncDao()
+            val publicDao = ApplicationPublicAsyncDao()
+            val appDAO = AppStoreAsyncDao(toolHibernateDAO, aclHibernateDao, publicDao)
+            val aclDao = AclAsyncDao()
+            val elasticDAO = mockk<ElasticDao>(relaxed = true)
             val authClient = ClientMock.authenticatedClient
 
             ClientMock.mockCallSuccess(
@@ -633,7 +619,7 @@ class AppStoreTest {
             )
             runBlocking {
                 db.withSession { session ->
-                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc)
+                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc, "original")
                 }
                 appStoreService.create(TestUsers.user, normAppDescNotPublic, "content")
             }
@@ -697,14 +683,14 @@ class AppStoreTest {
     fun `test supported file ext`() {
         runBlocking {
             val micro = initializeMicro()
-            val toolHibernateDAO = ToolHibernateDAO()
-            val aclHibernateDao = AclHibernateDao()
-            val publicDao = ApplicationPublicAsyncDAO()
-            val appDAO = AppStoreAsyncDAO(toolHibernateDAO, aclHibernateDao, publicDao)
-            val aclDao = AclHibernateDao()
-            val elasticDAO = mockk<ElasticDAO>(relaxed = true)
+            val toolHibernateDAO = ToolAsyncDao()
+            val aclAsyncDao = AclAsyncDao()
+            val publicDao = ApplicationPublicAsyncDao()
+            val appDAO = AppStoreAsyncDao(toolHibernateDAO, aclAsyncDao, publicDao)
+            val aclDao = AclAsyncDao()
+            val elasticDAO = mockk<ElasticDao>(relaxed = true)
             val authClient = ClientMock.authenticatedClient
-            val favoriteDao = FavoriteAsyncDAO(publicDao, aclDao)
+            val favoriteDao = FavoriteAsyncDao(publicDao, aclDao)
             val appStoreService = AppStoreService(
                 db,
                 authClient,
@@ -719,7 +705,7 @@ class AppStoreTest {
 
             runBlocking {
                 db.withSession { session ->
-                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc)
+                    toolHibernateDAO.create(session, TestUsers.user, normToolDesc, "original")
                 }
                 appStoreService.create(TestUsers.user, normAppDesc, "content")
                 appStoreService.create(TestUsers.user, normAppDescDiffVersion, "content")

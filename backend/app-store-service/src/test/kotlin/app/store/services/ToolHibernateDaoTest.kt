@@ -120,7 +120,7 @@ class ToolHibernateDaoTest {
     fun `find all by name test - no results`() {
         runBlocking {
             db.withSession { session ->
-                val tool = ToolHibernateDAO()
+                val tool = ToolAsyncDao()
                 val results =
                     tool.findAllByName(session, TestUsers.user, "name", NormalizedPaginationRequest(10, 0))
                 assertEquals(0, results.itemsInTotal)
@@ -132,7 +132,7 @@ class ToolHibernateDaoTest {
     fun `find all by name and version test - no results`() {
         runBlocking {
             db.withSession { session ->
-                val tool = ToolHibernateDAO()
+                val tool = ToolAsyncDao()
                 tool.findByNameAndVersion(session, TestUsers.user, "name", "2.2")
             }
         }
@@ -142,15 +142,15 @@ class ToolHibernateDaoTest {
     fun `find latest Version`() {
         runBlocking {
             db.withSession { session ->
-                val tool = ToolHibernateDAO()
+                val tool = ToolAsyncDao()
 
-                tool.create(session, user, normToolDesc)
+                tool.create(session, user, normToolDesc, "original")
                 Thread.sleep(1000)
-                tool.create(session, user, normToolDesc2)
+                tool.create(session, user, normToolDesc2, "original")
                 Thread.sleep(1000)
-                tool.create(session, user, normToolDesc3)
+                tool.create(session, user, normToolDesc3, "original")
                 Thread.sleep(1000)
-                tool.create(session, user, normToolDesc4)
+                tool.create(session, user, normToolDesc4, "original")
                 Thread.sleep(1000)
 
                 val allListed = tool.listLatestVersion(session, user, NormalizedPaginationRequest(10, 0))
@@ -172,8 +172,8 @@ class ToolHibernateDaoTest {
     fun `create Test`() {
         runBlocking {
             db.withSession {
-                val tool = ToolHibernateDAO()
-                tool.create(it, user, normToolDesc)
+                val tool = ToolAsyncDao()
+                tool.create(it, user, normToolDesc, "original")
                 val result =
                     tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10, 0))
                 assertEquals(1, result.itemsInTotal)
@@ -185,9 +185,9 @@ class ToolHibernateDaoTest {
     fun `create Test - duplicate`() {
         runBlocking {
             db.withSession {
-                val tool = ToolHibernateDAO()
-                tool.create(it, user, normToolDesc)
-                tool.create(it, user, normToolDesc)
+                val tool = ToolAsyncDao()
+                tool.create(it, user, normToolDesc, "original")
+                tool.create(it, user, normToolDesc, "original")
             }
         }
     }
@@ -196,9 +196,9 @@ class ToolHibernateDaoTest {
     fun `create Test - not the owner`() {
         runBlocking {
             db.withSession {
-                val tool = ToolHibernateDAO()
-                tool.create(it, user, normToolDesc)
-                tool.create(it, TestUsers.user5, normToolDesc)
+                val tool = ToolAsyncDao()
+                tool.create(it, user, normToolDesc, "original")
+                tool.create(it, TestUsers.user5, normToolDesc, "original")
             }
         }
     }
@@ -207,17 +207,18 @@ class ToolHibernateDaoTest {
     fun `update description Test`() {
         runBlocking {
             db.withSession {
-                val tool = ToolHibernateDAO()
-                tool.create(it, user, normToolDesc)
+                val tool = ToolAsyncDao()
+                tool.create(it, user, normToolDesc, "original")
                 val hits = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10, 0))
                 val description = hits.items.first().description.description
-                assertEquals(normToolDesc.description, description)
+                assertEquals(normToolDesc.description, description, "original")
                 tool.updateDescription(
                     it,
                     user,
                     normToolDesc.info.name,
                     normToolDesc.info.version,
-                    "This is a new description"
+                    "This is a new description",
+                    null
                 )
                 val newHits =
                     tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10, 0))
@@ -231,8 +232,8 @@ class ToolHibernateDaoTest {
     fun `update author Test`() {
         runBlocking {
             db.withSession {
-                val tool = ToolHibernateDAO()
-                tool.create(it, user, normToolDesc)
+                val tool = ToolAsyncDao()
+                tool.create(it, user, normToolDesc, "original")
                 val hits = tool.findAllByName(it, user, normToolDesc.info.name, NormalizedPaginationRequest(10, 0))
                 assertFalse(hits.items.first().description.authors.contains("new Author"))
                 tool.updateDescription(
@@ -255,8 +256,8 @@ class ToolHibernateDaoTest {
     fun `update description Test - not same user`() {
         runBlocking {
             db.withSession {
-                val tool = ToolHibernateDAO()
-                tool.create(it, user, normToolDesc)
+                val tool = ToolAsyncDao()
+                tool.create(it, user, normToolDesc, "original")
                 tool.updateDescription(
                     it,
                     TestUsers.user5,
@@ -273,7 +274,7 @@ class ToolHibernateDaoTest {
     fun `update description Test - description not found`() {
         runBlocking {
             db.withSession {
-                val tool = ToolHibernateDAO()
+                val tool = ToolAsyncDao()
                 tool.updateDescription(
                     it,
                     TestUsers.user5,

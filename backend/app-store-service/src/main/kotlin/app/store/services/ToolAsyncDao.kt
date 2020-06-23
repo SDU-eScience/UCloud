@@ -24,10 +24,10 @@ import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*
 
-class ToolHibernateDAO : ToolDAO {
+class ToolAsyncDao {
     private val byNameAndVersionCache = Collections.synchronizedMap(HashMap<NameAndVersion, Pair<Tool, Long>>())
 
-    override suspend fun findAllByName(
+    suspend fun findAllByName(
         ctx: DBContext,
         user: SecurityPrincipal?,
         name: String,
@@ -47,7 +47,7 @@ class ToolHibernateDAO : ToolDAO {
         }
     }
 
-    override suspend fun findByNameAndVersion(
+    suspend fun findByNameAndVersion(
         ctx: DBContext,
         user: SecurityPrincipal?,
         name: String,
@@ -63,7 +63,7 @@ class ToolHibernateDAO : ToolDAO {
         return result
     }
 
-    override suspend fun listLatestVersion(
+    suspend fun listLatestVersion(
         ctx: DBContext,
         user: SecurityPrincipal?,
         paging: NormalizedPaginationRequest
@@ -115,7 +115,7 @@ class ToolHibernateDAO : ToolDAO {
         )
     }
 
-    override suspend fun create(
+    suspend fun create(
         ctx: DBContext,
         user: SecurityPrincipal,
         description: NormalizedToolDescription,
@@ -148,7 +148,7 @@ class ToolHibernateDAO : ToolDAO {
         }
     }
 
-    override suspend fun updateDescription(
+    suspend fun updateDescription(
         ctx: DBContext,
         user: SecurityPrincipal,
         name: String,
@@ -198,7 +198,7 @@ class ToolHibernateDAO : ToolDAO {
         byNameAndVersionCache.remove(NameAndVersion(name, version))
     }
 
-    override suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal, name: String, imageBytes: ByteArray) {
+    suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal, name: String, imageBytes: ByteArray) {
         val tool =
             ctx.withSession { session ->
                 findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -235,7 +235,7 @@ class ToolHibernateDAO : ToolDAO {
         }
     }
 
-    override suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
+    suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
         val application =
             ctx.withSession { session ->
                 findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -257,7 +257,7 @@ class ToolHibernateDAO : ToolDAO {
         }
     }
 
-    override suspend fun fetchLogo(ctx: DBContext, name: String): ByteArray? {
+    suspend fun fetchLogo(ctx: DBContext, name: String): ByteArray? {
         return ctx.withSession { session ->
             session.sendPreparedStatement(
                 {

@@ -1,4 +1,4 @@
-package app.store.services
+package dk.sdu.cloud.app.store.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Role
@@ -6,10 +6,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
-import dk.sdu.cloud.app.store.services.AppStoreAsyncDAO
-import dk.sdu.cloud.app.store.services.ApplicationTable
-import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
-import dk.sdu.cloud.app.store.services.toApplicationWithInvocation
+import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -37,11 +34,11 @@ internal suspend fun internalHasPermission(
     appName: String,
     appVersion: String,
     permission: ApplicationAccessRight,
-    publicDAO: ApplicationPublicAsyncDAO,
-    aclDao: AclHibernateDao
+    publicDao: ApplicationPublicAsyncDao,
+    aclDao: AclAsyncDao
 ): Boolean {
     if (user.role in Roles.PRIVILEDGED) return true
-    if (ctx.withSession { session -> publicDAO.isPublic(session, user, appName, appVersion)}) return true
+    if (ctx.withSession { session -> publicDao.isPublic(session, user, appName, appVersion)}) return true
     return ctx.withSession { session ->
         aclDao.hasPermission(
             session,
@@ -61,7 +58,7 @@ internal suspend fun internalFindAllByName(
     projectGroups: List<String>,
     appName: String,
     paging: NormalizedPaginationRequest,
-    appStoreAsyncDAO: AppStoreAsyncDAO
+    appStoreAsyncDao: AppStoreAsyncDao
 ): Page<ApplicationWithFavoriteAndTags> {
     val groups = if (projectGroups.isEmpty()) {
         listOf("")
@@ -70,7 +67,7 @@ internal suspend fun internalFindAllByName(
     }
 
     return ctx.withSession { session ->
-        appStoreAsyncDAO.preparePageForUser(
+        appStoreAsyncDao.preparePageForUser(
             session,
             user?.username,
             session.sendPreparedStatement(

@@ -23,8 +23,8 @@ object PermissionTable : SQLTable("permissions") {
     val permission = text("permission", notNull = true)
 }
 
-class AclHibernateDao : AclDao {
-    override suspend fun hasPermission(
+class AclAsyncDao {
+     suspend fun hasPermission(
         ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
@@ -59,7 +59,7 @@ class AclHibernateDao : AclDao {
         return false
     }
 
-    override suspend fun updatePermissions(
+    suspend fun updatePermissions(
         ctx: DBContext,
         accessEntity: AccessEntity,
         applicationName: String,
@@ -111,7 +111,7 @@ class AclHibernateDao : AclDao {
         }
     }
 
-    override suspend fun revokePermission(
+    suspend fun revokePermission(
         ctx: DBContext,
         accessEntity: AccessEntity,
         applicationName: String
@@ -134,7 +134,7 @@ class AclHibernateDao : AclDao {
         }
     }
 
-    override suspend fun listAcl(
+    suspend fun listAcl(
         ctx: DBContext,
         applicationName: String
     ): List<EntityWithPermission> {

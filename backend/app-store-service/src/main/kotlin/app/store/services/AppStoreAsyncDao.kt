@@ -1,18 +1,12 @@
 package dk.sdu.cloud.app.store.services
 
-import app.store.services.ApplicationPublicAsyncDAO
-import app.store.services.canUserPerformWriteOperation
-import app.store.services.findOwnerOfApplication
-import app.store.services.internalByNameAndVersion
-import app.store.services.internalFindAllByName
-import app.store.services.internalHasPermission
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
-import dk.sdu.cloud.app.store.services.acl.*
+import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.*
@@ -27,11 +21,11 @@ import org.joda.time.LocalDateTime
 import java.util.*
 
 @Suppress("TooManyFunctions") // Does not make sense to split
-class AppStoreAsyncDAO(
-    private val toolDAO: ToolHibernateDAO,
-    private val aclDAO: AclHibernateDao,
-    private val publicAsyncDAO: ApplicationPublicAsyncDAO
-) : ApplicationDAO {
+class AppStoreAsyncDao(
+    private val toolDAO: ToolAsyncDao,
+    private val aclDAO: AclAsyncDao,
+    private val publicAsyncDao: ApplicationPublicAsyncDao
+) {
     private val byNameAndVersionCache = Collections.synchronizedMap(HashMap<NameAndVersion, Pair<Application, Long>>())
 
     internal suspend fun findAppNamesFromTags(
@@ -42,39 +36,46 @@ class AppStoreAsyncDAO(
         tags: List<String>
     ): List<String> {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("user", user.username)
-                    setParameter("project", project)
-                    setParameter("groups", memberGroups)
-                    setParameter("tags", tags)
-                    setParameter("role", user.role.toString())
-                    setParameter("privileged", Roles.PRIVILEDGED.toList())
-                },
-                """
-                SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
-                WHERE T.application_name = A.name AND T.tag IN (select unnest(?tags::text[])) AND (
-                    (
-                        A.is_public = TRUE
-                    ) OR (
-                        cast(?project as text) is null AND ?user IN (
-                            SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("user", user.username)
+                        setParameter("project", project)
+                        setParameter("groups", memberGroups)
+                        setParameter("tags", tags)
+                        setParameter("role", user.role.toString())
+                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                    },
+                    """
+                    SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
+                    WHERE T.application_name = A.name AND T.tag IN (select unnest(?tags::text[])) AND (
+                        (
+                            A.is_public = TRUE
+                        ) OR (
+                            cast(?project as text) is null AND ?user IN (
+                                SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
+                            )
+                        ) OR (
+                            cast(?project as text) IS not null AND exists (
+                                SELECT P2.project_group FROM permissions AS P2 WHERE
+                                    P2.application_name = A.name AND
+                                    P2.project = cast(?project as text) AND
+                                    P2.project_group IN (select unnest (?groups::text[]))
+                            )
+                        ) or (
+                            ?role in (select unnest(?privileged::text[]))
                         )
-                    ) OR (
-                        cast(?project as text) IS not null AND exists (
-                            SELECT P2.project_group FROM permissions AS P2 WHERE
-                                P2.application_name = A.name AND
-                                P2.project = cast(?project as text) AND
-                                P2.project_group IN (select unnest (?groups::text[]))
-                        )
-                    ) or (
-                        ?role in (select unnest(?privileged::text[]))
-                    )
-                ) 
-                """.trimIndent()
-            ).rows.toList()
-                .distinctBy { it.getField(TagTable.applicationName) }
-                .map { it.getField(TagTable.applicationName) }
+                    ) 
+                    """.trimIndent()
+                )
+                .rows
+                .toList()
+                .distinctBy {
+                    it.getField(TagTable.applicationName)
+                }
+                .map {
+                    it.getField(TagTable.applicationName)
+                }
         }
     }
 
@@ -84,18 +85,19 @@ class AppStoreAsyncDAO(
         project: String?,
         memberGroups: List<String>,
         applicationNames: List<String>
-    ): Pair<List<RowData>, Int> {
+    ): Pair<List<Application>, Int> {
         val items = ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("applications", applicationNames)
-                    setParameter("user", user.username)
-                    setParameter("project", project)
-                    setParameter("groups", memberGroups)
-                    setParameter("role", user.role.toString())
-                    setParameter("privileged", Roles.PRIVILEDGED.toList())
-                },
-                """
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("applications", applicationNames)
+                        setParameter("user", user.username)
+                        setParameter("project", project)
+                        setParameter("groups", memberGroups)
+                        setParameter("role", user.role.toString())
+                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                    },
+                    """
                 SELECT A.*
                 FROM applications as A
                 WHERE (A.created_at) IN (
@@ -122,7 +124,10 @@ class AppStoreAsyncDAO(
                     ) 
                 )
                 """.trimIndent()
-            ).rows.toList()
+                )
+                .rows
+                .toList()
+                .map { it.toApplicationWithInvocation() }
 
         }
 
@@ -133,19 +138,20 @@ class AppStoreAsyncDAO(
 
     suspend fun getAllApps(ctx: DBContext, user: SecurityPrincipal): List<RowData> {
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("query", "")
-                    setParameter("role", user.role.toString())
-                    setParameter("privileged", Roles.PRIVILEDGED.toList())
-                    setParameter("user", user.username)
-                },
-                """
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("query", "")
+                        setParameter("role", user.role.toString())
+                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("user", user.username)
+                    },
+                    """
                     SELECT *
                     FROM applications as A
                     WHERE LOWER(title) like '%' || ?query || '%' AND
                     (
-                        is_Public = TRUE OR 
+                        is_public = TRUE OR 
                         ?user IN (
                             SELECT P.username FROM permissions AS P WHERE P.application_name = A.name
                         ) OR 
@@ -153,11 +159,13 @@ class AppStoreAsyncDAO(
                     )
                     ORDER BY A.title
                 """.trimIndent()
-            ).rows.toList()
+                )
+                .rows
+                .toList()
         }
     }
 
-    override suspend fun findAllByName(
+    suspend fun findAllByName(
         ctx: DBContext,
         user: SecurityPrincipal?,
         currentProject: String?,
@@ -178,7 +186,7 @@ class AppStoreAsyncDAO(
         }
     }
 
-    override suspend fun findByNameAndVersion(
+    suspend fun findByNameAndVersion(
         ctx: DBContext,
         user: SecurityPrincipal?,
         currentProject: String?,
@@ -189,7 +197,7 @@ class AppStoreAsyncDAO(
         val cacheKey = NameAndVersion(appName, appVersion)
         val (cached, expiry) = byNameAndVersionCache[cacheKey] ?: Pair(null, 0L)
         if (cached != null && expiry > System.currentTimeMillis()) {
-            if (ctx.withSession { session ->
+            val hasPermission = ctx.withSession { session ->
                     internalHasPermission(
                         session,
                         user!!,
@@ -198,11 +206,11 @@ class AppStoreAsyncDAO(
                         cached.metadata.name,
                         cached.metadata.version,
                         ApplicationAccessRight.LAUNCH,
-                        publicAsyncDAO,
+                        publicAsyncDao,
                         aclDAO
                     )
                 }
-            ) {
+            if (hasPermission) {
                 return cached
             }
         }
@@ -210,7 +218,7 @@ class AppStoreAsyncDAO(
         val result = ctx.withSession { session -> internalByNameAndVersion(session, appName, appVersion)}
             ?.toApplicationWithInvocation() ?: throw ApplicationException.NotFound()
 
-        if (ctx.withSession { session ->
+        val hasPermission = ctx.withSession { session ->
                 internalHasPermission(
                     session,
                     user!!,
@@ -219,11 +227,11 @@ class AppStoreAsyncDAO(
                     result.metadata.name,
                     result.metadata.version,
                     ApplicationAccessRight.LAUNCH,
-                    publicAsyncDAO,
+                    publicAsyncDao,
                     aclDAO
                 )
             }
-        ) {
+        if (hasPermission) {
             byNameAndVersionCache[cacheKey] = Pair(result, System.currentTimeMillis() + (1000L * 60 * 60))
             return result
         } else {
@@ -231,7 +239,7 @@ class AppStoreAsyncDAO(
         }
     }
 
-    override suspend fun findBySupportedFileExtension(
+    suspend fun findBySupportedFileExtension(
         ctx: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
@@ -264,17 +272,21 @@ class AppStoreAsyncDAO(
 
 
         return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("user", user.username)
-                    fileExtensions.forEachIndexed { index, ext ->
-                        setParameter("ext$index", ext)
-                    }
-                },
-                query
-            ).rows.toList()
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("user", user.username)
+                        fileExtensions.forEachIndexed { index, ext ->
+                            setParameter("ext$index", ext)
+                        }
+                    },
+                    query
+                )
+                .rows
+                .toList()
                 .filter { rowData ->
-                    defaultMapper.readValue<ApplicationInvocationDescription>(rowData.getField(ApplicationTable.application)).parameters.all {
+                    defaultMapper.readValue<ApplicationInvocationDescription>(rowData.getField(ApplicationTable.application))
+                        .parameters.all {
                         it.optional
                     }
                 }
@@ -287,7 +299,7 @@ class AppStoreAsyncDAO(
         }
     }
 
-    override suspend fun findByNameAndVersionForUser(
+    suspend fun findByNameAndVersionForUser(
         ctx: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
@@ -304,7 +316,7 @@ class AppStoreAsyncDAO(
                     appName,
                     appVersion,
                     ApplicationAccessRight.LAUNCH,
-                    publicAsyncDAO,
+                    publicAsyncDao,
                     aclDAO
                 )
             }
@@ -317,7 +329,7 @@ class AppStoreAsyncDAO(
         return ctx.withSession { session -> preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()}
     }
 
-    override suspend fun listLatestVersion(
+    suspend fun listLatestVersion(
         ctx: DBContext,
         user: SecurityPrincipal?,
         currentProject: String?,
@@ -328,16 +340,6 @@ class AppStoreAsyncDAO(
             listOf("")
         } else {
             projectGroups
-        }
-
-        val userString = if (user != null) {
-            if (user.username != null) {
-                user.username
-            } else {
-                ""
-            }
-        } else {
-            ""
         }
 
         val cleanRole = if (user != null) {
@@ -351,42 +353,44 @@ class AppStoreAsyncDAO(
         }
 
         val items = ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("role", cleanRole.toString())
-                    setParameter("project", currentProject)
-                    setParameter("groups", groups)
-                    setParameter("privileged", Roles.PRIVILEDGED.toList())
-                    setParameter("user", user?.username ?: "")
-                },
-                """
-                SELECT A.*
-                FROM applications AS A WHERE (A.created_at) IN (
-                    SELECT MAX(created_at)
-                    FROM applications as B
-                    WHERE A.name = B.name AND (
-                        (
-                            B.is_public = TRUE
-                        ) or (
-                            cast(?project as text) is null and ?user in (
-                                SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = B.name
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("role", cleanRole.toString())
+                        setParameter("project", currentProject)
+                        setParameter("groups", groups)
+                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("user", user?.username ?: "")
+                    },
+                    """
+                    SELECT A.*
+                    FROM applications AS A WHERE (A.created_at) IN (
+                        SELECT MAX(created_at)
+                        FROM applications as B
+                        WHERE A.name = B.name AND (
+                            (
+                                B.is_public = TRUE
+                            ) or (
+                                cast(?project as text) is null and ?user in (
+                                    SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = B.name
+                                )
+                            ) or (
+                                cast(?project as text) is not null AND exists (
+                                    SELECT P2.project_group FROM permissions AS P2 WHERE
+                                        P2.application_name = B.name AND
+                                        P2.project = cast(?project as text) AND
+                                        P2.project_group IN ( select unnest(?groups::text[]))
+                                )
+                            ) or (
+                                ?role IN (?privileged)
                             )
-                        ) or (
-                            cast(?project as text) is not null AND exists (
-                                SELECT P2.project_group FROM permissions AS P2 WHERE
-                                    P2.application_name = B.name AND
-                                    P2.project = cast(?project as text) AND
-                                    P2.project_group IN ( select unnest(?groups::text[]))
-                            )
-                        ) or (
-                            ?role IN (?privileged)
                         )
+                        GROUP BY B.name
                     )
-                    GROUP BY B.name
+                    ORDER BY A.name
+                    """.trimIndent()
                 )
-                ORDER BY A.name
-            """.trimIndent()
-            ).rows.toList()
+                .rows
         }
 
         return ctx.withSession { session ->
@@ -403,7 +407,7 @@ class AppStoreAsyncDAO(
         }
     }
 
-    override suspend fun create(
+    suspend fun create(
         ctx: DBContext,
         user: SecurityPrincipal,
         description: Application,
@@ -445,7 +449,7 @@ class AppStoreAsyncDAO(
         }
     }
 
-    override suspend fun delete(
+    suspend fun delete(
         ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
@@ -459,7 +463,7 @@ class AppStoreAsyncDAO(
         }
 
         // Prevent deletion of last version of application
-        if (ctx.withSession { session ->
+        val isLast = ctx.withSession { session ->
                 internalFindAllByName(
                     session,
                     user,
@@ -470,7 +474,7 @@ class AppStoreAsyncDAO(
                     this
                 ).itemsInTotal <= 1
             }
-        ) {
+        if (isLast) {
             throw ApplicationException.NotAllowed()
         }
         ctx.withSession { session ->
@@ -482,36 +486,39 @@ class AppStoreAsyncDAO(
                 existingApp.getField(ApplicationTable.idName),
                 existingApp.getField(ApplicationTable.idVersion))
 
-            session.sendPreparedStatement(
-                {
-                    setParameter("appname", existingApp.getField(ApplicationTable.idName))
-                    setParameter("appversion", existingApp.getField(ApplicationTable.idVersion))
-                },
-                """
-                    DELETE FROM applications
-                    WHERE (name = ?appname) AND (version = ?appversion)
-                """.trimIndent()
-            )
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("appname", existingApp.getField(ApplicationTable.idName))
+                        setParameter("appversion", existingApp.getField(ApplicationTable.idVersion))
+                    },
+                    """
+                        DELETE FROM applications
+                        WHERE (name = ?appname) AND (version = ?appversion)
+                    """.trimIndent()
+                )
         }
     }
 
     private suspend fun cleanupBeforeDelete(ctx: DBContext, appName: String, appVersion: String) {
         ctx.withSession { session ->
             //DELETE FROM FAVORITES
-            session.sendPreparedStatement(
-                {
-                    setParameter("appname", appName)
-                    setParameter("appversion", appVersion)
-                },
-                """
-                    DELETE FROM favorited_by
-                    WHERE (application_name = ?appname) AND (application_version = ?appversion)
-                """.trimIndent()
-            ).rows.toList()
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("appname", appName)
+                        setParameter("appversion", appVersion)
+                    },
+                    """
+                        DELETE FROM favorited_by
+                        WHERE (application_name = ?appname) AND (application_version = ?appversion)
+                    """.trimIndent()
+                )
+                .rows
         }
     }
 
-    override suspend fun updateDescription(
+    suspend fun updateDescription(
         ctx: DBContext,
         user: SecurityPrincipal,
         appName: String,
@@ -519,74 +526,82 @@ class AppStoreAsyncDAO(
         newDescription: String?,
         newAuthors: List<String>?
     ) {
-        val existing = ctx.withSession { session -> internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()}
-        if (!canUserPerformWriteOperation(existing.getField(ApplicationTable.owner), user)) throw ApplicationException.NotAllowed()
-
         ctx.withSession { session ->
-            var query =
-                """UPDATE applications
-                SET 
-                """.trimMargin()
-            if (newDescription != null) {
-                query += """ description =?newdesc """
-            }
-            if (newAuthors != null) {
-                if (newDescription != null) {
-                    query += ","
-                }
-                query += """ authors =?newauthors """
-            }
-            query += """ WHERE (name = ?name) AND (version = ?version)"""
-            session.sendPreparedStatement(
-                {
-                    if (newDescription != null) setParameter("newdesc", newDescription)
-                    if (newAuthors != null) setParameter("newauthors", defaultMapper.writeValueAsString(newAuthors))
-                    setParameter("name", appName)
-                    setParameter("version", appVersion)
-                },
-                query
-            )
+            val existing = internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
+            if (!canUserPerformWriteOperation(
+                    existing.getField(ApplicationTable.owner),
+                    user
+                )
+            ) throw ApplicationException.NotAllowed()
+
+            val existingApplication = existing.toApplicationWithInvocation()
+            session
+                .sendPreparedStatement(
+                    {
+                        if (newDescription != null) {
+                            setParameter("newdesc", newDescription)
+                        } else {
+                            setParameter("newdesc", existingApplication.metadata.description)
+                        }
+                        if (newAuthors != null) {
+                            setParameter("newauthors", defaultMapper.writeValueAsString(newAuthors))
+                        } else {
+                            setParameter("newauthors", defaultMapper.writeValueAsString(existingApplication.metadata.authors))
+                        }
+                        setParameter("name", appName)
+                        setParameter("version", appVersion)
+                    },
+                    """
+                        UPDATE applications
+                        SET description = ?newdesc, authors = ?newauthors
+                        WHERE (name = ?name) AND (version = ?version)
+                    """.trimIndent()
+                )
         }
         // We allow for this to be cached for some time. But this instance might as well clear the cache now.
         byNameAndVersionCache.remove(NameAndVersion(appName, appVersion))
     }
 
-    override suspend fun isOwnerOfApplication(ctx: DBContext, user: SecurityPrincipal, appName: String): Boolean =
+    suspend fun isOwnerOfApplication(ctx: DBContext, user: SecurityPrincipal, appName: String): Boolean =
         ctx.withSession {session -> findOwnerOfApplication(session, appName)!! == user.username}
 
 
-    override suspend fun preparePageForUser(
+    suspend fun preparePageForUser(
         ctx: DBContext,
         user: String?,
         page: Page<Application>
     ): Page<ApplicationWithFavoriteAndTags> {
         if (!user.isNullOrBlank()) {
             val allFavorites = ctx.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("user", user)
-                    },
-                    """
-                        SELECT * 
-                        FROM favorited_by
-                        WHERE the_user = ?user
-                    """.trimIndent()
-                ).rows.toList()
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("user", user)
+                        },
+                        """
+                            SELECT * 
+                            FROM favorited_by
+                            WHERE the_user = ?user
+                        """.trimIndent()
+                    )
+                    .rows
             }
 
             val allApplicationsOnPage = page.items.map { it.metadata.name }.toSet()
 
             val allTagsForApplicationsOnPage = ctx.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("allapps", allApplicationsOnPage.toList())
-                    },
-                    """
-                        SELECT *
-                        FROM application_tags
-                        WHERE application_name IN (select unnest(?allapps::text[]))
-                    """.trimIndent()
-                ).rows.toList()
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("allapps", allApplicationsOnPage.toList())
+                        },
+                        """
+                            SELECT *
+                            FROM application_tags
+                            WHERE application_name IN (select unnest(?allapps::text[]))
+                        """.trimIndent()
+                    )
+                    .rows
             }
             val preparedPageItems = page.items.map { item ->
                 val isFavorite = allFavorites.any { fav ->
@@ -607,16 +622,23 @@ class AppStoreAsyncDAO(
         } else {
             val preparedPageItems = page.items.map { item ->
                 val allTagsForApplication = ctx.withSession { session ->
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("appname", item.metadata.name)
-                        },
-                        """
-                            SELECT * 
-                            FROM application_tags
-                            WHERE application_name = ?appname
-                        """.trimIndent()
-                    ).rows.map { it.getField(TagTable.tag) }.toSet().toList()
+                    session
+                        .sendPreparedStatement(
+                            {
+                                setParameter("appname", item.metadata.name)
+                            },
+                            """
+                                SELECT * 
+                                FROM application_tags
+                                WHERE application_name = ?appname
+                            """.trimIndent()
+                        )
+                        .rows
+                        .map {
+                            it.getField(TagTable.tag)
+                        }
+                        .toSet()
+                        .toList()
                 }
 
                 ApplicationWithFavoriteAndTags(item.metadata, item.invocation, false, allTagsForApplication)
@@ -625,7 +647,7 @@ class AppStoreAsyncDAO(
         }
     }
 
-    override suspend fun findLatestByTool(
+    suspend fun findLatestByTool(
         ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
@@ -640,60 +662,62 @@ class AppStoreAsyncDAO(
         }
 
         val items = ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("toolName", tool)
-                    setParameter("user", user.username)
-                    setParameter("role", user.role.toString())
-                    setParameter("project", project)
-                    setParameter("groups", groups)
-                    setParameter("privileged", Roles.PRIVILEDGED.toList())
-                },
-                """
-                    SELECT A.*
-                    FROM applications AS A 
-                    WHERE 
-                        (A.created_at) IN (
-                            SELECT MAX(created_at)
-                            FROM applications AS B
-                            WHERE A.name = B.name
-                            GROUP BY name
-                        ) AND A.tool_name = ?toolName AND (
-                            (
-                                A.is_public = TRUE
-                            ) OR (
-                                cast(?project as text) is null AND ?user in (
-                                    SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
-                                )
-                            ) OR (
-                                cast(?project as text) is not null AND exists (
-                                    SELECT P2.project_group
-                                    FROM permissions AS P2
-                                    WHERE
-                                        P2.application_name = A.name AND
-                                        P2.project = cast(?project as text) AND
-                                        P2.project_group in (?groups)
-                                )
-                            ) or (
-                                ?role in (?privileged)
-                            ) 
-                        )
-                    order by A.name
-                """.trimIndent()
-            ).rows.toList()
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("toolName", tool)
+                        setParameter("user", user.username)
+                        setParameter("role", user.role.toString())
+                        setParameter("project", project)
+                        setParameter("groups", groups)
+                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                    },
+                    """
+                        SELECT A.*
+                        FROM applications AS A 
+                        WHERE 
+                            (A.created_at) IN (
+                                SELECT MAX(created_at)
+                                FROM applications AS B
+                                WHERE A.name = B.name
+                                GROUP BY name
+                            ) AND A.tool_name = ?toolName AND (
+                                (
+                                    A.is_public = TRUE
+                                ) OR (
+                                    cast(?project as text) is null AND ?user in (
+                                        SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
+                                    )
+                                ) OR (
+                                    cast(?project as text) is not null AND exists (
+                                        SELECT P2.project_group
+                                        FROM permissions AS P2
+                                        WHERE
+                                            P2.application_name = A.name AND
+                                            P2.project = cast(?project as text) AND
+                                            P2.project_group in (?groups)
+                                    )
+                                ) or (
+                                    ?role in (?privileged)
+                                ) 
+                            )
+                        order by A.name
+                    """.trimIndent()
+                )
+                .rows
         }
 
         return Page(items.size, paging.itemsPerPage, paging.page, items.map { it.toApplicationWithInvocation() })
     }
 
-    override suspend fun findAllByID(
+    suspend fun findAllByID(
         ctx: DBContext,
         user: SecurityPrincipal,
         project: String?,
         projectGroups: List<String>,
         embeddedNameAndVersionList: List<EmbeddedNameAndVersion>,
         paging: NormalizedPaginationRequest
-    ): List<RowData> {
+    ): List<Application> {
         if (embeddedNameAndVersionList.isEmpty()) {
             return emptyList()
         }
@@ -711,15 +735,18 @@ class AppStoreAsyncDAO(
                 }
             }
 
-            session.sendPreparedStatement(
-                {
-                    embeddedNameAndVersionList.forEachIndexed { index, embeddedNameAndVersion ->
-                        setParameter("name$index", embeddedNameAndVersion.name)
-                        setParameter("version$index", embeddedNameAndVersion.version)
-                    }
-                },
-                query
-            ).rows.toList()
+            session
+                .sendPreparedStatement(
+                    {
+                        embeddedNameAndVersionList.forEachIndexed { index, embeddedNameAndVersion ->
+                            setParameter("name$index", embeddedNameAndVersion.name)
+                            setParameter("version$index", embeddedNameAndVersion.version)
+                        }
+                    },
+                    query
+                )
+                .rows
+                .map { it.toApplicationWithInvocation() }
         }
     }
 }

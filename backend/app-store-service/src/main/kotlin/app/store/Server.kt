@@ -1,31 +1,35 @@
 package dk.sdu.cloud.app.store
 
-import app.store.services.ApplicationLogoAsyncDAO
-import app.store.services.ApplicationPublicAsyncDAO
-import app.store.services.ApplicationPublicService
-import app.store.services.ApplicationSearchAsyncDAO
-import app.store.services.ApplicationSearchService
-import app.store.services.ApplicationTagsAsyncDAO
-import app.store.services.ApplicationTagsService
-import app.store.services.FavoriteAsyncDAO
-import app.store.services.FavoriteService
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.cloud.sdu.app.store.rpc.AppLogoController
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.AppStoreStreams
 import dk.sdu.cloud.app.store.api.ApplicationDescription
 import dk.sdu.cloud.app.store.api.ToolDescription
+import dk.sdu.cloud.app.store.rpc.AppFavoriteController
+import dk.sdu.cloud.app.store.rpc.AppPublicController
+import dk.sdu.cloud.app.store.rpc.AppSearchController
 import dk.sdu.cloud.app.store.rpc.AppStoreController
+import dk.sdu.cloud.app.store.rpc.AppTagController
 import dk.sdu.cloud.app.store.rpc.ToolController
-import dk.sdu.cloud.app.store.services.AppStoreAsyncDAO
+import dk.sdu.cloud.app.store.services.AppStoreAsyncDao
 import dk.sdu.cloud.app.store.services.AppStoreService
+import dk.sdu.cloud.app.store.services.ApplicationLogoAsyncDao
+import dk.sdu.cloud.app.store.services.ApplicationPublicAsyncDao
+import dk.sdu.cloud.app.store.services.ApplicationPublicService
+import dk.sdu.cloud.app.store.services.ApplicationSearchAsyncDao
+import dk.sdu.cloud.app.store.services.ApplicationSearchService
 import dk.sdu.cloud.app.store.services.ApplicationTable
-import dk.sdu.cloud.app.store.services.ElasticDAO
+import dk.sdu.cloud.app.store.services.ApplicationTagsAsyncDao
+import dk.sdu.cloud.app.store.services.ApplicationTagsService
+import dk.sdu.cloud.app.store.services.ElasticDao
+import dk.sdu.cloud.app.store.services.FavoriteAsyncDao
+import dk.sdu.cloud.app.store.services.FavoriteService
 import dk.sdu.cloud.app.store.services.LogoService
-import dk.sdu.cloud.app.store.services.PublicDAO
 import dk.sdu.cloud.app.store.services.TagTable
-import dk.sdu.cloud.app.store.services.ToolHibernateDAO
-import dk.sdu.cloud.app.store.services.acl.AclHibernateDao
+import dk.sdu.cloud.app.store.services.ToolAsyncDao
+import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -47,15 +51,15 @@ class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
 
     override fun start() {
-        val elasticDAO = ElasticDAO(micro.elasticHighLevelClient)
-        val toolDAO = ToolHibernateDAO()
-        val aclDao = AclHibernateDao()
-        val publicDAO = ApplicationPublicAsyncDAO()
-        val applicationDAO = AppStoreAsyncDAO(toolDAO, aclDao, publicDAO)
-        val appLogoDAO = ApplicationLogoAsyncDAO(applicationDAO)
-        val tagDAO = ApplicationTagsAsyncDAO()
-        val searchDAO = ApplicationSearchAsyncDAO(applicationDAO)
-        val favoriteDAO = FavoriteAsyncDAO(publicDAO, aclDao)
+        val elasticDAO = ElasticDao(micro.elasticHighLevelClient)
+        val toolDAO = ToolAsyncDao()
+        val aclDao = AclAsyncDao()
+        val publicDAO = ApplicationPublicAsyncDao()
+        val applicationDAO = AppStoreAsyncDao(toolDAO, aclDao, publicDAO)
+        val appLogoDAO = ApplicationLogoAsyncDao(applicationDAO)
+        val tagDAO = ApplicationTagsAsyncDao()
+        val searchDAO = ApplicationSearchAsyncDao(applicationDAO)
+        val favoriteDAO = FavoriteAsyncDao(publicDAO, aclDao)
 
         val db = AsyncDBSessionFactory(micro.databaseConfig)
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
@@ -77,8 +81,13 @@ class Server(override val micro: Micro) : CommonServer {
 
         with(micro.server) {
             configureControllers(
-                AppStoreController(appStoreService, logoService, tagService, searchService, publicService, favoriteService),
-                ToolController(db, toolDAO, logoService)
+                AppStoreController(appStoreService),
+                ToolController(db, toolDAO, logoService),
+                AppLogoController(logoService),
+                AppTagController(tagService),
+                AppSearchController(searchService),
+                AppPublicController(publicService),
+                AppFavoriteController(favoriteService)
             )
         }
 
@@ -96,7 +105,7 @@ class Server(override val micro: Micro) : CommonServer {
                         tools.listFiles()?.forEach {
                             try {
                                 val description = yamlMapper.readValue<ToolDescription>(it)
-                                toolDAO.create(session, dummyUser, description.normalize())
+                                toolDAO.create(session, dummyUser, description.normalize(), "original")
                             } catch (ex: Exception) {
                                 log.info("Could not create tool: $it")
                                 log.info(ex.stackTraceToString())
@@ -107,7 +116,7 @@ class Server(override val micro: Micro) : CommonServer {
                         apps.listFiles()?.forEach {
                             try {
                                 val description = yamlMapper.readValue<ApplicationDescription>(it)
-                                applicationDAO.create(session, dummyUser, description.normalize())
+                                applicationDAO.create(session, dummyUser, description.normalize(), "original")
                             } catch (ex: Exception) {
                                 log.info("Could not create app: $it")
                                 log.info(ex.stackTraceToString())
