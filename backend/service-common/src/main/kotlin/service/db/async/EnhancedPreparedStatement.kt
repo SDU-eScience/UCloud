@@ -7,7 +7,7 @@ import org.joda.time.LocalDateTime
 /**
  * Provides an enhanced prepared statement adding support for named parameters.
  *
- * Named parameters use the following syntax: "?PARAMNAME".
+ * Named parameters use the following syntax: ":PARAMNAME".
  *
  * Examples:
  *
@@ -20,7 +20,7 @@ import org.joda.time.LocalDateTime
  *     },
  *
  *     """
- *         select ?example
+ *         select :example
  *     """
  * )
  * ```
@@ -36,7 +36,7 @@ import org.joda.time.LocalDateTime
  *     """
  *         select *
  *         from my_table
- *         where id = ?id
+ *         where id = :id
  *     """
  * )
  * ```
@@ -50,40 +50,17 @@ class EnhancedPreparedStatement(statement: String) {
     init {
         val parameterNamesToIndex = HashMap<String, List<Int>>()
 
-        val queryBuilder = StringBuilder()
         var parameterIndex = 0
-        var stringIndex = 0
-        while (stringIndex < statement.length) {
-            // Find the next parameter by looking for a '?'
-            val nextParameter = statement.indexOf('?', stringIndex)
-            if (nextParameter == -1) {
-                // We're at the end of the string. We just append the remainder to the query.
-                queryBuilder.append(statement.substring(stringIndex))
-                break
-            }
-
-            // Add everything up to and including the '?'. We use this for the prepared statement.
-            queryBuilder.append(statement.substring(stringIndex, nextParameter + 1)) // include '?'
-
-            // Parse the parameter name. We only allow alphanumeric and underscores.
-            val endOfParameterName = statement.substring(nextParameter + 1)
-                .indexOfFirst { it !in 'a'..'z' && it !in 'A'..'Z' && it !in '0'..'9' && it != '_' }
-                .takeIf { it != -1 }
-                ?.let { it + nextParameter + 1 }
-                ?: statement.length
-
-            // Write down the parameter name and move past it
-            val parameterName = statement.substring(nextParameter + 1, endOfParameterName)
-            stringIndex = endOfParameterName
-
+        statementInputRegex.findAll(statement).forEach {
+            val parameterName = it.groups[2]!!.value
             parameterNamesToIndex[parameterName] =
                 (parameterNamesToIndex[parameterName] ?: emptyList()) + listOf(parameterIndex)
 
             parameterIndex++
         }
 
+        preparedStatement = statementInputRegex.replace(statement) { it.groups[1]!!.value + "?" }
         this.parameterNamesToIndex = parameterNamesToIndex
-        preparedStatement = queryBuilder.toString()
         parameters = Array(parameterIndex) { null }
     }
 
@@ -156,6 +133,7 @@ class EnhancedPreparedStatement(statement: String) {
 
     companion object : Loggable {
         override val log = logger()
+        private val statementInputRegex = Regex("(^|[^:])[?:]([a-zA-Z0-9]+)")
     }
 }
 

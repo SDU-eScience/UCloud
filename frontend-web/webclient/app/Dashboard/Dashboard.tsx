@@ -1,3 +1,5 @@
+import * as Accounting from "Accounting";
+import {fetchUsage} from "Accounting/Redux/AccountingActions";
 import {JobWithStatus} from "Applications";
 import {Client} from "Authentication/HttpClientInstance";
 import {formatDistanceToNow} from "date-fns/esm";
@@ -13,9 +15,8 @@ import {notificationRead, readAllNotifications} from "Notifications/Redux/Notifi
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Button, Card, Flex, Icon, Link, Text, theme} from "ui-components";
+import {Box, Button, Card, Flex, Icon, Link, Text, Markdown} from "ui-components";
 import Error from "ui-components/Error";
-import {GridCardGroup} from "ui-components/Grid";
 import * as Heading from "ui-components/Heading";
 import List from "ui-components/List";
 import {SidebarPages} from "ui-components/Sidebar";
@@ -36,27 +37,22 @@ import {
 } from "./Redux/DashboardActions";
 import {JobStateIcon} from "Applications/JobStateIcon";
 import {isRunExpired} from "Utilities/ApplicationUtilities";
+import {getCssVar} from "ui-components/Icon";
 import {listFavorites, useFavoriteStatus} from "Files/favorite";
-import {useCloudAPI} from "Authentication/DataHook";
-import {Page} from "Types";
-import {IconName} from "ui-components/Icon";
+import {useCloudAPI, APICallParameters} from "Authentication/DataHook";
+import {Page, PaginationRequest} from "Types";
+import {buildQueryString} from "Utilities/URIUtilities";
+import styled from "styled-components";
+import {GridCardGroup} from "ui-components/Grid";
+import {Spacer} from "ui-components/Spacer";
 
-export const DashboardCard: React.FunctionComponent<{title?: string; color: string; isLoading: boolean; icon?: IconName}> = ({title, color, isLoading, icon = undefined, children}) => (
+export const DashboardCard: React.FunctionComponent<{title: string; color: string; isLoading: boolean}> = ({title, color, isLoading, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={0} borderRadius={6}>
-        <Flex px={3} py={2} alignItems="center" style={{borderTop:`5px solid ${color}`}} >
-            {icon !== undefined ? (
-                <Icon
-                    name={icon}
-                    m={8}
-                    ml={0}
-                    size="20"
-                    color={theme.colors.darkGray}
-                />
-            ) : (null)}
-            {title ? <Heading.h3>{title}</Heading.h3> : null}
+        <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid ${color}`}} >
+            <Heading.h3>{title}</Heading.h3>
         </Flex>
         <Box px={3} py={1}>
-            {!isLoading ? children : <Spinner /> }
+            {!isLoading ? children : <Spinner />}
         </Box>
     </Card>
 );
@@ -67,6 +63,12 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         listFavorites({itemsPerPage: 10, page: 0}),
         emptyPage
     );
+    const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
+        itemsPerPage: 10,
+        page: 0,
+        withHidden: false,
+    }), emptyPage);
+
     React.useEffect(() => {
         props.onInit();
         reload(true);
@@ -78,6 +80,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         props.setAllLoading(loading);
         setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
         props.fetchRecentAnalyses();
+        props.fetchUsage();
     }
 
     const onNotificationAction = (notification: Notification): void => {
@@ -98,7 +101,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         }
     };
 
-    const favoriteOrUnfavorite = async (file: File) => {
+    const favoriteOrUnfavorite = async (file: File): Promise<void> => {
         await favorites.toggle(file.path);
         setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
     };
@@ -111,35 +114,43 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     } = props;
 
     const main = (
-        <>
-            <GridCardGroup minmax={315}>
-                <DashboardFavoriteFiles
-                    error={favoritePage.error?.why}
-                    files={favoritePage.data.items}
-                    isLoading={favoritePage.loading}
-                    favorite={favoriteOrUnfavorite}
-                />
+        <DashboardGrid minmax={315}>
+            <DashboardMessageOfTheDay news={news.data.items} loading={news.loading} />
+            <DashboardFavoriteFiles
+                error={favoritePage.error?.why}
+                files={favoritePage.data.items}
+                isLoading={favoritePage.loading}
+                favorite={favoriteOrUnfavorite}
+            />
 
-                <DashboardAnalyses
-                    error={recentJobsError}
-                    analyses={recentAnalyses}
-                    isLoading={analysesLoading}
-                />
+            <DashboardAnalyses
+                error={recentJobsError}
+                analyses={recentAnalyses}
+                isLoading={analysesLoading}
+            />
 
-                <DashboardNotifications
-                    onNotificationAction={onNotificationAction}
-                    notifications={notifications}
-                    readAll={props.readAll}
-                />
-                <DashboardCard title="Resources" color={theme.colors.red} isLoading={false}>
-
-                </DashboardCard>
-            </GridCardGroup>
-        </>
+            <DashboardNotifications
+                onNotificationAction={onNotificationAction}
+                notifications={notifications}
+                readAll={props.readAll}
+            />
+            <DashboardCard title="Resources" color="red" isLoading={false}>
+                <Accounting.Usage resource="storage" subResource="bytesUsed" renderTitle />
+                <Box pb="12px" />
+                <Accounting.Usage resource="compute" subResource="timeUsed" renderTitle />
+            </DashboardCard>
+        </DashboardGrid>
     );
 
     return (<MainContainer main={main} />);
 }
+
+const DashboardGrid = styled(GridCardGroup)`
+    & > ${Card}:first-child {
+        grid-column: 1 / 3;
+        grid-row: 1 / 3;
+    }
+`;
 
 
 const DashboardFavoriteFiles = ({
@@ -148,7 +159,7 @@ const DashboardFavoriteFiles = ({
     favorite,
     error
 }: {files: File[]; isLoading: boolean; favorite: (file: File) => void; error?: string}): JSX.Element => (
-        <DashboardCard title="Favorite Files" color={theme.colors.blue} isLoading={isLoading}>
+        <DashboardCard title="Favorite Files" color="blue" isLoading={isLoading}>
             {files.length || error ? null : (
                 <NoEntries
                     text="Your favorite files will appear here"
@@ -207,10 +218,10 @@ const DashboardAnalyses = ({
     isLoading,
     error,
 }: {analyses: JobWithStatus[]; isLoading: boolean; error?: string}): JSX.Element => (
-        <DashboardCard title="Recent Jobs"  color={theme.colors.purple} isLoading={isLoading}>
+        <DashboardCard title="Recent Runs" color="purple" isLoading={isLoading}>
             {analyses.length || error ? null : (
                 <NoEntries
-                    text="No recent jobs"
+                    text="No recent runs"
                     buttonText="Explore apps"
                     to="/applications/overview"
                 />
@@ -249,7 +260,7 @@ interface DashboardNotificationProps {
 
 const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element => (
     <Card height="auto" width={1} overflow="hidden" boxShadow="sm" borderWidth={0} borderRadius={6}>
-        <Flex px={3} py={2} style={{borderTop:`5px solid ${theme.colors.darkGreen}`}}>
+        <Flex px={3} py={2} style={{borderTop: `5px solid ${getCssVar("darkGreen")}`}}>
             <Heading.h3>Recent Notifications</Heading.h3>
             <Box ml="auto" />
             <Icon
@@ -272,6 +283,55 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
     </Card>
 );
 
+export interface NewsPost {
+    id: number;
+    title: string;
+    subtitle: string;
+    body: string;
+    postedBy: string;
+    showFrom: number;
+    hideFrom: number | null;
+    hidden: boolean;
+    category: string;
+}
+
+interface NewsRequestProps extends PaginationRequest {
+    filter?: string;
+    withHidden: boolean;
+}
+
+export function newsRequest(payload: NewsRequestProps): APICallParameters<PaginationRequest> {
+    return {
+        reloadId: Math.random(),
+        method: "GET",
+        path: buildQueryString("/news/list", payload)
+    };
+}
+
+function DashboardMessageOfTheDay({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
+    const [newestPost] = news;
+    return (
+        <DashboardCard title="Message of the Day" color="orange" isLoading={loading}>
+            <Spacer
+                left={null}
+                right={<Link to="/news/list/">View more</Link>}
+            />
+            <Box mx="8px" my="5px">
+                {newestPost ? <Link to={`/news/detailed/${newestPost.id}`}>
+                    <Heading.h3>{newestPost.title}</Heading.h3>
+                    <Heading.h5>{newestPost.subtitle}</Heading.h5>
+                    <Box overflow="scroll">
+                        <Markdown
+                            source={newestPost.body}
+                            unwrapDisallowed
+                        />
+                    </Box>
+                </Link> : "No posts found"}
+            </Box>
+        </DashboardCard>
+    );
+}
+
 const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     onInit: () => {
         dispatch(updatePageTitle("Dashboard"));
@@ -279,6 +339,10 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     setAllLoading: loading => dispatch(setAllLoading(loading)),
     fetchRecentAnalyses: async () => dispatch(await fetchRecentAnalyses()),
+    fetchUsage: async () => {
+        dispatch(await fetchUsage("storage", "bytesUsed"));
+        dispatch(await fetchUsage("compute", "timeUsed"));
+    },
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))

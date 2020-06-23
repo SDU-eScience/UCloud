@@ -1,4 +1,3 @@
-import {Downtime} from "Admin/DowntimeManagement";
 import {
     AdvancedSearchRequest as AppSearchRequest,
     DetailedApplicationSearchReduxState,
@@ -45,6 +44,7 @@ import {
 } from "UtilityFunctions";
 import {DEV_SITE, STAGING_SITE, PRODUCT_NAME, STATUS_PAGE, VERSION_TEXT} from "../../site.config.json";
 import {ContextSwitcher} from "Project/ContextSwitcher";
+import {NewsPost} from "Dashboard/Dashboard";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -99,7 +99,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             </ui.Hide>
             <ui.Box mr="auto" />
             {upcomingDowntime !== -1 ? (
-                <Link to={`/downtime/detailed/${upcomingDowntime}`}>
+                <Link to={`/news/detailed/${upcomingDowntime}`}>
                     <ui.Tooltip
                         right="0"
                         bottom="1"
@@ -179,7 +179,7 @@ function Header(props: HeaderProps): JSX.Element | null {
     async function fetchDowntimes(): Promise<void> {
         try {
             if (!Client.isLoggedIn) return;
-            const result = await promises.makeCancelable(Client.get<Page<Downtime>>("/downtime/listPending")).promise;
+            const result = await promises.makeCancelable(Client.get<Page<NewsPost>>("/news/listDowntimes")).promise;
             if (result.response.itemsInTotal > 0) setUpcomingDowntime(result.response.items[0].id);
         } catch (err) {
             displayErrorMessageOrDefault(err, "Could not fetch upcoming downtimes.");

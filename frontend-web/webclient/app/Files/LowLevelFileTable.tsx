@@ -38,7 +38,8 @@ import {
     OutlineButton,
     Text,
     Tooltip,
-    Truncate
+    Truncate,
+    ButtonGroup
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
@@ -71,7 +72,7 @@ import {
     MOCK_REPO_CREATE_TAG,
     MOCK_VIRTUAL,
     mockFile,
-    moveFile, projectIdFromPath,
+    moveFile,
     resolvePath,
     sizeToString
 } from "Utilities/FileUtilities";
@@ -84,8 +85,7 @@ import {createRepository, isAdminOrPI, isRepository, renameRepository} from "Uti
 import {ProjectRole} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
-import {ProjectStatus, useProjectStatus} from "Project/cache";
-import {shortUUID} from "UtilityFunctions";
+import {useProjectStatus} from "Project/cache";
 
 export interface LowLevelFileTableProps {
     page?: Page<File>;
@@ -123,7 +123,7 @@ export interface ListDirectoryRequest {
     type?: FileType;
 }
 
-export const statFile = (request: { path: string }): APICallParameters<{ path: string }> => ({
+export const statFile = (request: {path: string}): APICallParameters<{path: string}> => ({
     method: "GET",
     path: buildQueryString("/files/stat", request),
     parameters: request,
@@ -131,13 +131,13 @@ export const statFile = (request: { path: string }): APICallParameters<{ path: s
 });
 
 export const listDirectory = ({
-                                  path,
-                                  page,
-                                  itemsPerPage,
-                                  order,
-                                  sortBy,
-                                  type
-                              }: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
+    path,
+    page,
+    itemsPerPage,
+    order,
+    sortBy,
+    type
+}: ListDirectoryRequest): APICallParameters<ListDirectoryRequest> => ({
     method: "GET",
     path: buildQueryString(
         "/files",
@@ -387,12 +387,12 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             if (props.path === undefined) return;
             const path = `${props.path}/newFolder`;
             setInjectedViaState([
-                    mockFile({
-                        path,
-                        tag: isRepo ? MOCK_REPO_CREATE_TAG : MOCK_RENAME_TAG,
-                        type: "DIRECTORY"
-                    })
-                ]
+                mockFile({
+                    path,
+                    tag: isRepo ? MOCK_REPO_CREATE_TAG : MOCK_RENAME_TAG,
+                    type: "DIRECTORY"
+                })
+            ]
             );
             setFileBeingRenamed(path);
 
@@ -463,6 +463,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Spacer
                     left={(
                         <BreadCrumbs
+                            embedded={props.embedded ?? false}
                             currentPath={props.path ?? ""}
                             navigate={onFileNavigation}
                             client={Client}
@@ -479,11 +480,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                             )}
 
                             {isEmbedded ? null : (
-                                <Pagination.EntriesPerPageSelector
-                                    content="Files per page"
-                                    entriesPerPage={page.itemsPerPage}
-                                    onChange={amount => onPageChanged(0, amount)}
-                                />
+                                <Flex minWidth="160px">
+                                    <Pagination.EntriesPerPageSelector
+                                        content="Files per page"
+                                        entriesPerPage={page.itemsPerPage}
+                                        onChange={amount => onPageChanged(0, amount)}
+                                    />
+                                </Flex>
                             )}
                         </>
                     )}
@@ -494,8 +497,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Box pl="5px" pr="5px" height="calc(100% - 20px)">
                     {isForbiddenPath ? <></> : (
                         <VerticalButtonGroup>
-                            <RepositoryOperations role={projectMember.role} path={props.path}
-                                                  createFolder={callbacks.requestFolderCreation}/>
+                            <RepositoryOperations role={projectMember.role} path={props.path} createFolder={callbacks.requestFolderCreation} />
                             <FileOperations
                                 files={checkedFilesWithInfo}
                                 fileOperations={fileOperations}
@@ -511,7 +513,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                 })}
                             />
 
-                            <Box flexGrow={1}/>
+                            <Box flexGrow={1} />
 
                             {/* Note: Current hack to hide sidebar/header requires a full re-load. */}
 
@@ -542,7 +544,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
             main={(
                 <>
-                    {!sortingSupported ? <div/> : (
+                    {!sortingSupported ? <div /> : (
                         <StickyBox backgroundColor="white">
                             <Spacer
                                 left={isMasterDisabled ? null : (
@@ -585,7 +587,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                 pl="15px"
                                                 onClick={(): void => setSorting(
                                                     sortByColumn, order === SortOrder.ASCENDING ?
-                                                        SortOrder.DESCENDING : SortOrder.ASCENDING, true
+                                                    SortOrder.DESCENDING : SortOrder.ASCENDING, true
                                                 )}
                                             >
                                                 <>
@@ -594,7 +596,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                                     )}
                                                 </>
                                             </Box>
-                                            <Divider/>
+                                            <Divider />
                                             {Object.values(SortBy)
                                                 .filter(it => it !== sortByColumn)
                                                 .map((sortByValue: SortBy, j) => (
@@ -744,58 +746,57 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                     )}
                                     {!(props.previewEnabled && isFilePreviewSupported(f)) ? null :
                                         f.size != null
-                                        && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
-                                            <Tooltip
-                                                wrapperOffsetLeft="0"
-                                                wrapperOffsetTop="4px"
-                                                right="0"
-                                                top="1"
-                                                mb="50px"
-                                                trigger={(
-                                                    <Link to={filePreviewQuery(f.path)}>
+                                            && UF.inRange({status: f.size, max: PREVIEW_MAX_SIZE, min: 1}) ? (
+                                                <Tooltip
+                                                    wrapperOffsetLeft="0"
+                                                    wrapperOffsetTop="4px"
+                                                    right="0"
+                                                    top="1"
+                                                    mb="50px"
+                                                    trigger={(
+                                                        <Link to={filePreviewQuery(f.path)}>
+                                                            <Icon
+                                                                cursor="pointer"
+                                                                size="24px"
+                                                                mr="8px"
+                                                                color="midGray"
+                                                                hoverColor="gray"
+                                                                name="preview"
+                                                            />
+                                                        </Link>
+                                                    )}
+                                                >
+                                                    Preview available
+                                                </Tooltip>
+                                            ) : (
+                                                <Tooltip
+                                                    wrapperOffsetLeft="0"
+                                                    wrapperOffsetTop="4px"
+                                                    tooltipContentWidth="85px"
+                                                    right="0"
+                                                    top="1"
+                                                    mb="50px"
+                                                    trigger={(
                                                         <Icon
-                                                            cursor="pointer"
+                                                            opacity="0.5"
+                                                            cursor="default"
                                                             size="24px"
                                                             mr="8px"
                                                             color="midGray"
-                                                            hoverColor="gray"
                                                             name="preview"
                                                         />
-                                                    </Link>
-                                                )}
-                                            >
-                                                Preview available
-                                            </Tooltip>
-                                        ) : (
-                                            <Tooltip
-                                                wrapperOffsetLeft="0"
-                                                wrapperOffsetTop="4px"
-                                                tooltipContentWidth="85px"
-                                                right="0"
-                                                top="1"
-                                                mb="50px"
-                                                trigger={(
-                                                    <Icon
-                                                        opacity="0.5"
-                                                        cursor="default"
-                                                        size="24px"
-                                                        mr="8px"
-                                                        color="midGray"
-                                                        name="preview"
-                                                    />
-                                                )}
-                                            >
-                                                {(f.size ?? 0) > 0 ? "File too large for preview" : "File is empty"}
-                                            </Tooltip>
-                                        )}
+                                                    )}
+                                                >
+                                                    {(f.size ?? 0) > 0 ? "File too large for preview" : "File is empty"}
+                                                </Tooltip>
+                                            )}
                                     {props.omitQuickLaunch ? null : f.fileType !== "FILE" ? null :
                                         ((applications.get(f.path) ?? []).length < 1) ? null : (
                                             <ClickableDropdown
                                                 width="auto"
                                                 minWidth="175px"
                                                 left="-160px"
-                                                trigger={<Icon mr="8px" name="play" size="1em" color="midGray"
-                                                               hoverColor="gray" style={{display: "block"}}/>}
+                                                trigger={<Icon mr="8px" name="play" size="1em" color="midGray" hoverColor="gray" style={{display: "block"}} />}
                                             >
                                                 <QuickLaunchApps
                                                     file={f}
@@ -808,8 +809,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                             </ClickableDropdown>
                                         )
                                     }
-                                    <SensitivityIcon sensitivity={f.sensitivityLevel}/>
-                                    {checkedFiles.size !== 0 ? <Box width="33px"/> :
+                                    <SensitivityIcon sensitivity={f.sensitivityLevel} />
+                                    {checkedFiles.size !== 0 ? <Box width="33px" /> :
                                         <FileOperations
                                             inDropdown={fileOperations.length > 1}
                                             files={[f]}
@@ -846,7 +847,7 @@ function toWebDav(): void {
     document.body.removeChild(a);
 }
 
-const mapStateToProps = ({uploader}: ReduxObject): { activeUploadCount: number } => {
+const mapStateToProps = ({uploader}: ReduxObject): {activeUploadCount: number} => {
     const activeUploadCount = uploader.uploads.filter(it =>
         (it.uploadXHR?.readyState ?? -1 > XMLHttpRequest.UNSENT) &&
         (it.uploadXHR?.readyState ?? -1 < XMLHttpRequest.DONE)).length;
@@ -856,9 +857,7 @@ const mapStateToProps = ({uploader}: ReduxObject): { activeUploadCount: number }
 
 interface LowLevelFileTableOperations {
     showUploader(path: string): void;
-
     setUploaderCallback(cb?: () => void): void;
-
     appendUpload(upload: Upload): void;
 }
 
@@ -896,13 +895,9 @@ const Shell: React.FunctionComponent<ShellProps> = props => {
     );
 };
 
-function getFileNameForNameBox(path: string, projectStatus: ProjectStatus): string {
+function getFileNameForNameBox(path: string): string {
     if (isMyPersonalFolder(path)) {
-        return `Personal Files (${Client.username})`;
-    } else if (isProjectHome(path)) {
-        const projectId = projectIdFromPath(path);
-        return projectStatus.fetch().membership.find(it => it.projectId === projectId)?.title
-            ?? getFilenameFromPath(path);
+        return `Personal Files (${Client.username})`
     }
 
     return getFilenameFromPath(path);
@@ -919,8 +914,37 @@ interface NameBoxProps {
     isEmbedded?: boolean;
 }
 
+const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: string) => void}): JSX.Element => {
+    const ref = React.useRef<HTMLInputElement>(null);
+    return (
+        <Flex width={1} alignItems="center">
+            <Input
+                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+                pt="0px"
+                pb="0px"
+                pr="0px"
+                pl="0px"
+                mb="-4px"
+                noBorder
+                fontSize={20}
+                maxLength={1024}
+                borderRadius="0px"
+                type="text"
+                ref={ref}
+                autoFocus
+                data-tag="renameField"
+                onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
+            />
+            <ButtonGroup width="220px">
+                <Button onClick={() => props.onRenameFile?.(KeyCode.ENTER, ref.current?.value ?? "")} color="green">Create</Button>
+                <Button onClick={() => props.onRenameFile?.(KeyCode.ESC, "")} color="red">Cancel</Button>
+            </ButtonGroup>
+        </Flex>
+    );
+};
+
 const NameBox: React.FunctionComponent<NameBoxProps> = props => {
-    const projectStatus = useProjectStatus();
     const favorites = useFavoriteStatus();
     const canNavigate = isDirectory({fileType: props.file.fileType});
 
@@ -936,38 +960,17 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
 
     const beingRenamed = props.file.path !== null && props.file.path === props.fileBeingRenamed;
     const fileName = beingRenamed ? (
-        <Flex width={1}>
-            <Input
-                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
-                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
-                pt="0px"
-                pb="0px"
-                pr="0px"
-                pl="0px"
-                mb="-4px"
-                noBorder
-                fontSize={20}
-                maxLength={1024}
-                borderRadius="0px"
-                type="text"
-                width={1}
-                autoFocus
-                data-tag="renameField"
-                onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
-            />
-            <Icon ml="10px" mt="3px" cursor="pointer" name="close" color="red"
-                  onClick={() => props.onRenameFile?.(KeyCode.ESC, "")}/>
-        </Flex>
+        <RenameBox file={props.file} onRenameFile={props.onRenameFile} />
     ) : (
-        <Truncate width={1} mb="-4px" fontSize={20}>
-            {getFileNameForNameBox(props.file.path, projectStatus)}
-        </Truncate>
-    );
+            <Truncate width={1} mb="-4px" fontSize={20}>
+                {getFileNameForNameBox(props.file.path)}
+            </Truncate>
+        );
 
     return (
         <Flex maxWidth={`calc(100% - ${220 + (props.isEmbedded ? 15 : 0)}px)`}>
-            <Flex mx="10px" alignItems="center">
-                {isAnyMockFile([props.file]) ? <Box width="24px"/> : (
+            <Flex mx="10px" alignItems="center" >
+                {isAnyMockFile([props.file]) ? <Box width="24px" /> : (
                     <Icon
                         cursor="pointer"
                         size="24"
@@ -994,9 +997,9 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         {fileName}
                     </BaseLink>
                 ) : props.previewEnabled && isFilePreviewSupported(props.file) && !beingRenamed &&
-                UF.inRange({status: props.file.size ?? 0, min: 1, max: PREVIEW_MAX_SIZE}) ?
-                    <Link to={filePreviewQuery(props.file.path)}>{fileName}</Link> :
-                    fileName
+                    UF.inRange({status: props.file.size ?? 0, min: 1, max: PREVIEW_MAX_SIZE}) ?
+                        <Link to={filePreviewQuery(props.file.path)}>{fileName}</Link> :
+                        fileName
                 }
 
                 <Hide sm xs>
@@ -1008,17 +1011,16 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
                         )}
                         {!props.file.modifiedAt ? null : (
                             <Text title="Modified at" fontSize={0} mr="12px" color="gray">
-                                <Icon size="10" mr="3px" name="edit"/>
+                                <Icon size="10" mr="3px" name="edit" />
                                 {format(props.file.modifiedAt, "HH:mm:ss dd/MM/yyyy")}
                             </Text>
                         )}
                         {!((props.file.acl?.length ?? 0) > 0) ? (
                             !isPartOfProject(props.file.path) || isPartOfSomePersonalFolder(props.file.path) ||
-                            props.projectRole === undefined || !isAdminOrPI(props.projectRole) ?
+                                props.projectRole === undefined || !isAdminOrPI(props.projectRole) ?
                                 null :
                                 <Text color={"red"} mr={"12px"} fontSize={0}>PROJECT ADMINS ONLY</Text>
-                        ) : (<Text title="Members" fontSize={0} mr="12px"
-                                   color="gray">{props.file.acl?.length} members</Text>)}
+                        ) : (<Text title="Members" fontSize={0} mr="12px" color="gray">{props.file.acl?.length} members</Text>)}
                     </Flex>
                 </Hide>
             </Box>
@@ -1037,7 +1039,7 @@ function RepositoryOperations(props: {
     return <Button width="100%" onClick={() => props.createFolder(true)}>New Folder</Button>;
 }
 
-const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }): JSX.Element => {
+const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): JSX.Element => {
     interface IconDef {
         color: string;
         text: string;
@@ -1076,7 +1078,7 @@ const SensitivityIcon = (props: { sensitivity: SensitivityLevelMap | null }): JS
     );
 };
 
-const SensitivityBadge = styled.div<{ bg: string }>`
+const SensitivityBadge = styled.div<{bg: string}>`
     content: '';
     height: 2em;
     width: 2em;
@@ -1115,7 +1117,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
         return true;
     };
 
-    const Operation = ({fileOp}: { fileOp: FileOperation }): JSX.Element | null => {
+    const Operation = ({fileOp}: {fileOp: FileOperation}): JSX.Element | null => {
         // TODO Fixes complaints about not having a callable signature, but loses some typesafety.
         const filesInCallback = fileOp.currentDirectoryMode === true ? [props.directory!] : files;
         let As: StyledComponent<any, any>;
@@ -1145,7 +1147,7 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
                 pl={props.inDropdown ? "15px" : undefined}
                 {...props}
             >
-                {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName}/> : null}
+                {fileOp.icon ? <Icon size={16} mr="1em" name={fileOp.icon as IconName} /> : null}
                 <span>{fileOp.text}</span>
             </As>
         );
@@ -1154,42 +1156,42 @@ const FileOperations = ({files, fileOperations, role, ...props}: FileOperations)
     const filteredButtons = buttons.filter(it => isLegalOperation(it));
     const filteredOptions = options.filter(it => isLegalOperation(it));
     if (filteredButtons.length === 0 && filteredOptions.length === 0) {
-        return <Box width="38px"/>;
+        return <Box width="38px" />;
     }
 
     const content = (
         <>
-            {filteredButtons.map((op, i) => <Operation fileOp={op} key={i}/>)}
+            {filteredButtons.map((op, i) => <Operation fileOp={op} key={i} />)}
             {files.length === 0 || fileOperations.length === 1 || props.inDropdown ? null :
                 <div><TextSpan bold>{files.length} {files.length === 1 ? "file" : "files"} selected</TextSpan></div>
             }
-            {filteredOptions.map((op, i) => <Operation fileOp={op} key={i}/>)}
+            {filteredOptions.map((op, i) => <Operation fileOp={op} key={i} />)}
         </>
     );
 
     return (props.inDropdown ?
-            <Box>
-                <ClickableDropdown
-                    width="175px"
-                    left="-160px"
-                    trigger={(
-                        <Icon
-                            onClick={UF.preventDefault}
-                            ml="5px"
-                            mr="10px"
-                            name="ellipsis"
-                            size="1em"
-                            rotation={90}
-                        />
-                    )}
-                >
-                    {content}
-                </ClickableDropdown>
-            </Box> : (
-                <>
-                    {content}
-                </>
-            )
+        <Box>
+            <ClickableDropdown
+                width="175px"
+                left="-160px"
+                trigger={(
+                    <Icon
+                        onClick={UF.preventDefault}
+                        ml="5px"
+                        mr="10px"
+                        name="ellipsis"
+                        size="1em"
+                        rotation={90}
+                    />
+                )}
+            >
+                {content}
+            </ClickableDropdown>
+        </Box> : (
+            <>
+                {content}
+            </>
+        )
     );
 };
 
@@ -1203,7 +1205,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
     if (applications === undefined) return null;
     if (applications.length < 1) return null;
 
-    const Operation = ({quickLaunchApp}: { quickLaunchApp: QuickLaunchApp }): React.ReactElement => {
+    const Operation = ({quickLaunchApp}: {quickLaunchApp: QuickLaunchApp}): React.ReactElement => {
         return (
             <Flex
                 cursor="pointer"
@@ -1212,7 +1214,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
                 width="auto"
                 {...props}
             >
-                <AppToolLogo name={quickLaunchApp.metadata.name} size="20px" type="APPLICATION"/>
+                <AppToolLogo name={quickLaunchApp.metadata.name} size="20px" type="APPLICATION" />
                 <span style={{marginLeft: "5px", marginRight: "5px"}}>{quickLaunchApp.metadata.title}</span>
             </Flex>
         );
@@ -1220,7 +1222,7 @@ const QuickLaunchApps = ({file, applications, ...props}: QuickLaunchApps): JSX.E
 
     return (
         <>
-            {applications.map((ap, i) => <Operation quickLaunchApp={ap} key={i}/>)}
+            {applications.map((ap, i) => <Operation quickLaunchApp={ap} key={i} />)}
         </>
     );
 };

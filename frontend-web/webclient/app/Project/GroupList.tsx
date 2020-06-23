@@ -64,9 +64,8 @@ const GroupList: React.FunctionComponent = () => {
         <>
             {groupList.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
             <List>
-                {groupList.data.items.map(g => (<>
+                {groupList.data.items.map((g, index) => (<React.Fragment key={g.group + index}>
                     <ListRow
-                        key={g.group}
                         left={
                             renamingGroup !== g.group ? g.group : (
                                 <NamingField
@@ -116,7 +115,7 @@ const GroupList: React.FunctionComponent = () => {
                         }
                         isSelected={false}
                     />
-                </>))}
+                </React.Fragment>))}
 
                 {creatingGroup ?
                     <ListRow
@@ -142,8 +141,8 @@ const GroupList: React.FunctionComponent = () => {
     return <>
         <Spacer
             left={
-                <BreadCrumbsBase>
-                    <li><span>Groups</span></li>
+                <BreadCrumbsBase embedded={false}>
+                    <span>Groups</span>
                 </BreadCrumbsBase>
             }
 

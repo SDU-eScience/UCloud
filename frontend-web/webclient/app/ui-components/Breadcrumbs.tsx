@@ -1,42 +1,36 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Icon, Text} from "ui-components";
+import {Box, Icon, Text, Flex} from "ui-components";
 import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import HttpClient from "Authentication/lib";
 import {pathComponents} from "Utilities/FileUtilities";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
-export const BreadCrumbsBase = styled.ul`
-    padding: 0;
-    padding-right: 10px;
-    margin: 0;
-    list-style: none;
-    height: 60px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-
-    & li {
-        display: flex;
-        flex-direction: row;
+export const BreadCrumbsBase = styled(Flex) <{embedded: boolean}>`
+    width: calc(100% - ${(props): string => props.embedded ? "50px" : "180px"});
+    & > span {
+        width: 1;
         font-size: 25px;
+        display: inline-block;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
     }
 
-    & li + li:before {
+    & > span + span:before {
         padding: 0 8px;
         vertical-align: top;
         color: var(--text, #f00);
         content: "/";
     }
 
-    & li span {
+    & > span {
         color: var(--text, #f00);
         text-decoration: none;
     }
 
-    & li span:hover {
+    & > span:hover {
         cursor: pointer;
         color: var(--blue, #f00);
         text-decoration: none;
@@ -47,6 +41,7 @@ export interface BreadcrumbsList {
     currentPath: string;
     navigate: (path: string) => void;
     client: HttpClient;
+    embedded: boolean;
 }
 
 export interface BreadCrumbMapping {
@@ -57,7 +52,8 @@ export interface BreadCrumbMapping {
 export const BreadCrumbs = ({
     currentPath,
     navigate,
-    client
+    client,
+    embedded
 }: BreadcrumbsList): JSX.Element | null => {
     if (!currentPath) return null;
     const projectStatus = useProjectStatus();
@@ -65,12 +61,10 @@ export const BreadCrumbs = ({
     const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, client.projectId ?? "", projectStatus);
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
-    const breadcrumbs = pathsMapping.map((p, index) => (
-        <li key={index}>
-            <span title={p.local} onClick={() => navigate(p.actualPath)}>
-                {`${p.local.slice(0, 20).trim()}${p.local.length > 20 ? "..." : ""}`}
-            </span>
-        </li>
+    const breadcrumbs = pathsMapping.map(p => (
+        <span key={p.local} title={p.local} onClick={() => navigate(p.actualPath)}>
+            {p.local}
+        </span>
     ));
 
     const addHomeFolderLink = !(
@@ -90,11 +84,11 @@ export const BreadCrumbs = ({
                     <Text ml="6px" mr="6px" fontSize="24px">|</Text>
                 </>
             ) : null}
-            <BreadCrumbsBase>
+            <BreadCrumbsBase embedded={embedded}>
                 {breadcrumbs}
-                <li title={activePathsMapping.local}>
-                    {activePathsMapping.local.slice(0, 20).trim()}{activePathsMapping.local.length > 20 ? "..." : ""}
-                </li>
+                <span title={activePathsMapping.local}>
+                    {activePathsMapping.local}
+                </span>
             </BreadCrumbsBase>
         </>
     );

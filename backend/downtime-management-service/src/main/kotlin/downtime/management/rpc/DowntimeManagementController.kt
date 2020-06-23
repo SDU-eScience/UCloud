@@ -7,8 +7,8 @@ import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.downtime.management.services.DowntimeManagementService
 import dk.sdu.cloud.service.Loggable
 
-class DowntimeManagementController<DBSession>(
-    private val downtimeManagementService: DowntimeManagementService<DBSession>
+class DowntimeManagementController(
+    private val downtimeManagementService: DowntimeManagementService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
 

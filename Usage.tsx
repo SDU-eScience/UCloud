@@ -4,7 +4,7 @@ import Spinner from "LoadingIcon/LoadingIcon";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Box, Link} from "ui-components";
+import {Box} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import * as API from "./api";
 import * as DataTypes from "./DataTypes";
@@ -65,13 +65,13 @@ const Usage: React.FunctionComponent<{
 
 
 class UsageContainer extends React.Component<UsageProps> {
-    public componentDidMount() {
+    public componentDidMount(): void {
         if (this.props.usage.content === undefined) {
             this.props.refresh();
         }
     }
 
-    public render() {
+    public render(): React.ReactNode {
         return <Container>{this.content()}</Container>;
     }
 

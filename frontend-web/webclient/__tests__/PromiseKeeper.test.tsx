@@ -17,31 +17,32 @@ describe("Promise Keeper", () => {
         expect((keeper as any).promises.length).toBe(1);
     });
 
-    test("Make resolving promise and add to Promise Keeper", () => {
+    test("Make resolving promise and add to Promise Keeper", async () => {
         const keeper = new PromiseKeeper();
-        keeper.makeCancelable<number>(new Promise(resolve => resolve(1)));
+        await keeper.makeCancelable<number>(new Promise(resolve => resolve(1)));
         keeper.cancelPromises();
         expect((keeper as any).promises.length).toBe(0);
     });
 
-    test("Make rejecting promise and add to Promise Keeper", () => {
+    test("Make rejecting promise and add to Promise Keeper", async () => {
         const keeper = new PromiseKeeper();
-        keeper.makeCancelable<number>(new Promise((_, reject) => reject(1)));
-        keeper.cancelPromises();
-        expect((keeper as any).promises.length).toBe(0);
-    });
-
-    test("Make resolving promise and cancel before resolved", () => {
-        const keeper = new PromiseKeeper();
-        keeper.makeCancelable<number>(new Promise(resolve => { keeper.cancelPromises(); resolve(1) }));
+        keeper.makeCancelable<number>(new Promise((_, reject) => setTimeout(() => {
+            reject(1);
+        }, 15_000)));
         keeper.cancelPromises();
         expect((keeper as any).promises.length).toBe(0);
     });
 
     test("Make rejecting promise and cancel before rejected", () => {
         const keeper = new PromiseKeeper();
-        keeper.makeCancelable<number>(new Promise((_, reject) => { keeper.cancelPromises(); reject(1) }));
-        keeper.cancelPromises();
-        expect((keeper as any).promises.length).toBe(0);
+        try {
+            keeper.makeCancelable<number>(new Promise((_, reject) => {
+                keeper.cancelPromises();
+                setTimeout(() => reject(1), 15_000);
+            }));
+        } catch (e) {
+            keeper.cancelPromises();
+            expect((keeper as any).promises.length).toBe(0);
+        }
     });
-})
+});

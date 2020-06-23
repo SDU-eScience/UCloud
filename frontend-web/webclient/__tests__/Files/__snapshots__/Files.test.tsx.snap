@@ -8,6 +8,14 @@ exports[`Mount Files component 1`] = `
   display: flex;
 }
 
+.c9 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  min-width: 160px;
+}
+
 .c0 {
   margin-left: 190px;
   padding-top: 48px;
@@ -25,25 +33,25 @@ exports[`Mount Files component 1`] = `
   margin-left: auto;
 }
 
-.c15 {
+.c16 {
   padding-left: 5px;
   padding-right: 5px;
   height: calc(100% - 20px);
 }
 
-.c21 {
+.c22 {
   -webkit-box-flex: 1;
   -webkit-flex-grow: 1;
   -ms-flex-positive: 1;
   flex-grow: 1;
 }
 
-.c22 {
+.c23 {
   padding-top: 96px;
   padding-right: 240px;
 }
 
-.c18 {
+.c19 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -75,21 +83,21 @@ exports[`Mount Files component 1`] = `
   padding: 9.5px 18px;
 }
 
-.c18:disabled {
+.c19:disabled {
   opacity: 0.25;
 }
 
-.c18:focus {
+.c19:focus {
   outline: none;
 }
 
-.c18:hover {
+.c19:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c20 {
+.c21 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -127,21 +135,21 @@ exports[`Mount Files component 1`] = `
   padding: 7.5px 18px;
 }
 
-.c20:disabled {
+.c21:disabled {
   opacity: 0.25;
 }
 
-.c20:focus {
+.c21:focus {
   outline: none;
 }
 
-.c20:hover {
+.c21:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
 }
 
-.c20:hover {
+.c21:hover {
   border: 2px solid;
   background-color: transparent;
   -webkit-transition: ease 0.1s;
@@ -156,7 +164,7 @@ exports[`Mount Files component 1`] = `
   cursor: pointer;
 }
 
-.c12 {
+.c13 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -165,7 +173,7 @@ exports[`Mount Files component 1`] = `
   margin-left: .7em;
 }
 
-.c25 {
+.c26 {
   -webkit-flex: none;
   -ms-flex: none;
   flex: none;
@@ -190,22 +198,22 @@ exports[`Mount Files component 1`] = `
   margin-right: 6px;
 }
 
-.c10 {
+.c11 {
   cursor: pointer;
 }
 
-.c11 {
+.c12 {
   cursor: inherit;
 }
 
-.c26 {
+.c27 {
   cursor: inherit;
   font-size: 24px;
   margin: 0;
   font-weight: 400;
 }
 
-.c16 {
+.c17 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -217,18 +225,18 @@ exports[`Mount Files component 1`] = `
   margin-top: 4px;
 }
 
-.c16 .c17,
-.c16 .c19 {
+.c17 .c18,
+.c17 .c20 {
   width: 100%;
   margin-bottom: 8px;
 }
 
-.c9 {
+.c10 {
   position: relative;
   display: inline-block;
 }
 
-.c9:hover > div {
+.c10:hover > div {
   display: block;
 }
 
@@ -247,7 +255,7 @@ exports[`Mount Files component 1`] = `
   z-index: 50;
 }
 
-.c14 {
+.c15 {
   padding-top: 144px;
   padding-left: 14px;
   padding-right: 14px;
@@ -262,56 +270,43 @@ exports[`Mount Files component 1`] = `
 }
 
 .c7 {
-  padding: 0;
-  padding-right: 10px;
-  margin: 0;
-  list-style: none;
-  height: 60px;
-  overflow-y: auto;
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
   display: flex;
-  -webkit-flex-direction: row;
-  -ms-flex-direction: row;
-  flex-direction: row;
-  -webkit-flex-wrap: wrap;
-  -ms-flex-wrap: wrap;
-  flex-wrap: wrap;
+  width: calc(100% - 180px);
 }
 
-.c7 li {
-  display: -webkit-box;
-  display: -webkit-flex;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-flex-direction: row;
-  -ms-flex-direction: row;
-  flex-direction: row;
+.c7 > span {
+  width: 1;
   font-size: 25px;
+  display: inline-block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
-.c7 li + li:before {
+.c7 > span + span:before {
   padding: 0 8px;
   vertical-align: top;
   color: var(--text,#f00);
   content: "/";
 }
 
-.c7 li span {
+.c7 > span {
   color: var(--text,#f00);
   -webkit-text-decoration: none;
   text-decoration: none;
 }
 
-.c7 li span:hover {
+.c7 > span:hover {
   cursor: pointer;
   color: var(--blue,#f00);
   -webkit-text-decoration: none;
   text-decoration: none;
 }
 
-.c24 {
+.c25 {
   background-color: #fff;
   position: -webkit-sticky;
   position: sticky;
@@ -320,37 +315,37 @@ exports[`Mount Files component 1`] = `
 }
 
 @media screen and (max-width:511px) {
-  .c13 {
+  .c14 {
     display: none;
   }
 }
 
 @media screen and (min-width:512px) and (max-width:639px) {
-  .c13 {
+  .c14 {
     display: none;
   }
 }
 
 @media screen and (min-width:640px) and (max-width:767px) {
-  .c13 {
+  .c14 {
     display: none;
   }
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c23 {
+  .c24 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c23 {
+  .c24 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c23 {
+  .c24 {
     display: none;
   }
 }
@@ -401,72 +396,75 @@ exports[`Mount Files component 1`] = `
       >
         |
       </div>
-      <ul
+      <div
         className="c7"
       >
-        <li
+        <span
           title="Home of jonas@hinchely.dk"
         >
-          Home of jonas@hinche
-          ...
-        </li>
-      </ul>
+          Home of jonas@hinchely.dk
+        </span>
+      </div>
       <div
         className="c8"
       />
       <div
         className="c9"
-        data-tag="dropdown"
       >
-        <span
+        <div
           className="c10"
-          cursor="pointer"
-          onClick={[Function]}
+          data-tag="dropdown"
         >
           <span
             className="c11"
-            cursor="inherit"
+            cursor="pointer"
+            onClick={[Function]}
           >
-             
-            Files per page 25
+            <span
+              className="c12"
+              cursor="inherit"
+            >
+               
+              Files per page 25
+            </span>
+            <svg
+              className="c13"
+              clipRule="evenodd"
+              cursor="inherit"
+              fill="currentcolor"
+              fillRule="evenodd"
+              height=".7em"
+              ml=".7em"
+              viewBox="0 0 24 20"
+              width=".7em"
+            >
+              <path
+                d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+                fillRule="nonzero"
+              />
+            </svg>
           </span>
-          <svg
-            className="c12"
-            clipRule="evenodd"
-            cursor="inherit"
-            fill="currentcolor"
-            fillRule="evenodd"
-            height=".7em"
-            ml=".7em"
-            viewBox="0 0 24 20"
-            width=".7em"
-          >
-            <path
-              d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
-              fillRule="nonzero"
-            />
-          </svg>
-        </span>
+        </div>
       </div>
     </div>
   </div>
   <div
-    className="c13"
+    className="c14"
   >
     <div
-      className="sc-AxgMl c14"
+      className="sc-AxgMl c15"
       height="100%"
       width={240}
     >
       <div
-        className="c15"
+        className="c16"
         height="calc(100% - 20px)"
       >
         <div
-          className="c16"
+          className="c17"
         >
           <button
-            className="c17 c18"
+            className="c18 c19"
             color="blue"
             cursor="pointer"
             onClick={[Function]}
@@ -476,7 +474,7 @@ exports[`Mount Files component 1`] = `
             </span>
           </button>
           <button
-            className="c17 c19 c20"
+            className="c18 c20 c21"
             color="blue"
             cursor="pointer"
             onClick={[Function]}
@@ -486,10 +484,10 @@ exports[`Mount Files component 1`] = `
             </span>
           </button>
           <div
-            className="c21"
+            className="c22"
           />
           <button
-            className="c17 c19 c20"
+            className="c18 c20 c21"
             color="blue"
             onClick={[Function]}
           >
@@ -500,20 +498,20 @@ exports[`Mount Files component 1`] = `
     </div>
   </div>
   <div
-    className="c22"
+    className="c23"
   >
     <div
-      className="c23"
+      className="c24"
     >
       <div
-        className="c15"
+        className="c16"
         height="calc(100% - 20px)"
       >
         <div
-          className="c16"
+          className="c17"
         >
           <button
-            className="c17 c18"
+            className="c18 c19"
             color="blue"
             cursor="pointer"
             onClick={[Function]}
@@ -523,7 +521,7 @@ exports[`Mount Files component 1`] = `
             </span>
           </button>
           <button
-            className="c17 c19 c20"
+            className="c18 c20 c21"
             color="blue"
             cursor="pointer"
             onClick={[Function]}
@@ -533,10 +531,10 @@ exports[`Mount Files component 1`] = `
             </span>
           </button>
           <div
-            className="c21"
+            className="c22"
           />
           <button
-            className="c17 c19 c20"
+            className="c18 c20 c21"
             color="blue"
             onClick={[Function]}
           >
@@ -546,7 +544,7 @@ exports[`Mount Files component 1`] = `
       </div>
     </div>
     <div
-      className="c24"
+      className="c25"
     >
       <div
         className="c2"
@@ -555,16 +553,16 @@ exports[`Mount Files component 1`] = `
           className="c8"
         />
         <div
-          className="c9"
+          className="c10"
           data-tag="dropdown"
         >
           <span
-            className="c10"
+            className="c11"
             cursor="pointer"
             onClick={[Function]}
           >
             <svg
-              className="c25"
+              className="c26"
               clipRule="evenodd"
               cursor="pointer"
               fill="currentcolor"
@@ -582,7 +580,7 @@ exports[`Mount Files component 1`] = `
             Sort by: 
             Filename
             <svg
-              className="c12"
+              className="c13"
               clipRule="evenodd"
               cursor="inherit"
               fill="currentcolor"
@@ -602,7 +600,7 @@ exports[`Mount Files component 1`] = `
       </div>
     </div>
     <h3
-      className="c26"
+      className="c27"
       cursor="inherit"
       fontSize={4}
     >

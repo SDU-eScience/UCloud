@@ -1,6 +1,6 @@
 import * as Types from "Applications";
 import {BaseParameter, ParameterProps} from "Applications/Widgets/BaseParameter";
-import {Range} from "rc-slider";
+// import {Range} from "rc-slider";
 import "rc-slider/assets/index.css";
 import * as React from "react";
 
@@ -29,7 +29,7 @@ function RangeParameter(props: RangeParameterProps) {
     return (
         <BaseParameter parameter={props.parameter} onRemove={props.onParamRemove}>
             {first} to {second}
-            <Range
+            {/*  <Range
                 max={parameter.max}
                 min={parameter.min}
                 included
@@ -37,7 +37,7 @@ function RangeParameter(props: RangeParameterProps) {
                 defaultValue={!parameter.defaultValue ? undefined :
                     [parameter.defaultValue.min, parameter.defaultValue.max]}
                 onChange={setValues}
-            />
+            /> */}
         </BaseParameter>
     );
 }

@@ -191,7 +191,6 @@ export function SharePrompt({paths, client}: {paths: string[]; client: HttpClien
                     <Divider />
                     Collaborators
                     <Label>
-
                         <Dropdown fullWidth hover={false}>
                             <Flex mb="8px">
                                 <Input

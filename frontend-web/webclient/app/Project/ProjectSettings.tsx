@@ -4,11 +4,14 @@ import {Box, Button, Flex, Text} from "ui-components";
 import * as Heading from "ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "UtilityComponents";
+import {useAsyncCommand, callAPIWithErrorHandler} from "Authentication/DataHook";
+import {leaveProject, ProjectRole, setProjectArchiveStatus} from "Project/index";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {leaveProject, ProjectRole, setProjectArchiveStatus, UserInProject} from "Project/index";
 import {useHistory} from "react-router";
 import {fileTablePage} from "Utilities/FileUtilities";
 import {Client} from "Authentication/HttpClientInstance";
+import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 
@@ -116,15 +119,17 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
                                 message: `Are you sure you wish to ` +
                                     `${props.isArchived ? "unarchive" : "archive"} ${props.projectId}?`,
                                 onConfirm: async () => {
-                                    const success = await runCommand(
+                                    const success = await callAPIWithErrorHandler(
                                         setProjectArchiveStatus({
-                                            archiveStatus: !props.isArchived
-                                        })
+                                            archiveStatus: !props.isArchived,
+                                        }, props.projectId)
                                     );
                                     if (success) {
                                         props.onSuccess();
+                                        dialogStore.success();
                                     }
                                 },
+                                addToFront: true,
                                 confirmText: `${props.isArchived ? "Unarchive" : "Archive"} project`
                             });
                         }}
@@ -145,7 +150,6 @@ interface LeaveProjectProps {
 }
 
 export const LeaveProject: React.FC<LeaveProjectProps> = props => {
-    const [, runCommand] = useAsyncCommand();
     return (
         <ActionBox>
             <Box flexGrow={1}>
@@ -186,9 +190,10 @@ export const LeaveProject: React.FC<LeaveProjectProps> = props => {
                             title: "Are you sure?",
                             message: `Are you sure you wish to leave ${props.projectDetails.title}?`,
                             onConfirm: async () => {
-                                const success = await runCommand(leaveProject({}));
+                                const success = await callAPIWithErrorHandler(leaveProject({}, props.projectId));
                                 if (success) {
                                     props.onSuccess();
+                                    dialogStore.success();
                                 }
                             },
                             confirmText: "Leave project",

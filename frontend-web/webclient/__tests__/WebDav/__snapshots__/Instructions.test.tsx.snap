@@ -1,0 +1,336 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Mount instructions 1`] = `
+.c6 {
+  margin-left: auto;
+}
+
+.c8 {
+  margin: 10px;
+}
+
+.c9 {
+  font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: var(--blue,#f00);
+  color: var(--white,#f00);
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  width: 100%;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c9:disabled {
+  opacity: 0.25;
+}
+
+.c9:focus {
+  outline: none;
+}
+
+.c9:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c1 {
+  cursor: inherit;
+  font-size: 32px;
+  margin: 0;
+  margin-top: 16px;
+}
+
+.c2 {
+  cursor: inherit;
+  font-size: 24px;
+  margin: 0;
+}
+
+.c5 {
+  cursor: inherit;
+  font-size: 20px;
+  margin: 0;
+}
+
+.c7 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+.c4 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+}
+
+.c3 {
+  cursor: pointer;
+  margin-top: 16px;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  border-bottom: 1px solid black;
+}
+
+.c0 {
+  width: 800px;
+  margin: 0 auto;
+}
+
+<div
+  className="c0"
+>
+  <h2
+    className="c1"
+    cursor="inherit"
+    fontSize={5}
+  >
+    UCloud
+     - Mounting Your Files Locally (Beta)
+  </h2>
+  <h3
+    className="c2"
+    cursor="inherit"
+    fontSize={4}
+  >
+    To continue select your platform below
+  </h3>
+  <div
+    className=""
+  >
+    <div
+      className="c3"
+      onClick={[Function]}
+    >
+      <div
+        className="c4"
+      >
+        <h4
+          className="c5"
+          cursor="inherit"
+          fontSize={3}
+        >
+          Windows
+        </h4>
+        <div
+          className="c6"
+        />
+        <svg
+          className="c7"
+          clipRule="evenodd"
+          cursor="inherit"
+          fill="currentcolor"
+          fillRule="evenodd"
+          height={24}
+          rotation={0}
+          viewBox="0 0 24 20"
+          width={24}
+        >
+          <path
+            d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+            fillRule="nonzero"
+          />
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div
+    className=""
+  >
+    <div
+      className="c3"
+      onClick={[Function]}
+    >
+      <div
+        className="c4"
+      >
+        <h4
+          className="c5"
+          cursor="inherit"
+          fontSize={3}
+        >
+          macOS
+        </h4>
+        <div
+          className="c6"
+        />
+        <svg
+          className="c7"
+          clipRule="evenodd"
+          cursor="inherit"
+          fill="currentcolor"
+          fillRule="evenodd"
+          height={24}
+          rotation={0}
+          viewBox="0 0 24 20"
+          width={24}
+        >
+          <path
+            d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+            fillRule="nonzero"
+          />
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div
+    className=""
+  >
+    <div
+      className="c3"
+      onClick={[Function]}
+    >
+      <div
+        className="c4"
+      >
+        <h4
+          className="c5"
+          cursor="inherit"
+          fontSize={3}
+        >
+          Linux (Nautilus)
+        </h4>
+        <div
+          className="c6"
+        />
+        <svg
+          className="c7"
+          clipRule="evenodd"
+          cursor="inherit"
+          fill="currentcolor"
+          fillRule="evenodd"
+          height={24}
+          rotation={0}
+          viewBox="0 0 24 20"
+          width={24}
+        >
+          <path
+            d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+            fillRule="nonzero"
+          />
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div
+    className=""
+  >
+    <div
+      className="c3"
+      onClick={[Function]}
+    >
+      <div
+        className="c4"
+      >
+        <h4
+          className="c5"
+          cursor="inherit"
+          fontSize={3}
+        >
+          Linux (CLI)
+        </h4>
+        <div
+          className="c6"
+        />
+        <svg
+          className="c7"
+          clipRule="evenodd"
+          cursor="inherit"
+          fill="currentcolor"
+          fillRule="evenodd"
+          height={24}
+          rotation={0}
+          viewBox="0 0 24 20"
+          width={24}
+        >
+          <path
+            d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+            fillRule="nonzero"
+          />
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div
+    className=""
+  >
+    <div
+      className="c3"
+      onClick={[Function]}
+    >
+      <div
+        className="c4"
+      >
+        <h4
+          className="c5"
+          cursor="inherit"
+          fontSize={3}
+        >
+          Other
+        </h4>
+        <div
+          className="c6"
+        />
+        <svg
+          className="c7"
+          clipRule="evenodd"
+          cursor="inherit"
+          fill="currentcolor"
+          fillRule="evenodd"
+          height={24}
+          rotation={0}
+          viewBox="0 0 24 20"
+          width={24}
+        >
+          <path
+            d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+            fillRule="nonzero"
+          />
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div
+    className="c8"
+  />
+  <a
+    href="/app"
+  >
+    <button
+      className="c9"
+      color="blue"
+    >
+      Return to 
+      UCloud
+    </button>
+  </a>
+</div>
+`;
