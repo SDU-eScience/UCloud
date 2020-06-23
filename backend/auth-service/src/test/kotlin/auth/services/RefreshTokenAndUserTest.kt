@@ -23,6 +23,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -145,7 +146,20 @@ class RefreshTokenAndUserTest {
                 assertEquals(2, foundSessions.itemsInTotal)
                 assertEquals("token", foundSessions.items.first().token)
                 assertEquals("token2", foundSessions.items.last().token)
+                val findToken = dao.findTokenForUser(db, email)
+                assertNotNull(findToken)
+                assertEquals("token", findToken.token)
             }
+        }
+
+        runBlocking {
+            val found = dao.findById(db, "token")
+            assertNotNull(found)
+            assertEquals("csrf", found.csrf)
+            dao.updateCsrf(db, "token", "newCsrf")
+            val foundAfterUpdate = dao.findById(db, "token")
+            assertNotNull(foundAfterUpdate)
+            assertEquals("newCsrf", foundAfterUpdate.csrf)
         }
 
         runBlocking {
@@ -158,8 +172,12 @@ class RefreshTokenAndUserTest {
             db.withTransaction { session ->
                 val foundSessions = dao.findUserSessions(session, email, NormalizedPaginationRequest(10, 0))
                 assertEquals(2, foundSessions.itemsInTotal)
-                assertEquals("token", foundSessions.items.first().token)
-                assertEquals("token2", foundSessions.items.last().token)
+                assertEquals("token2", foundSessions.items.first().token)
+                assertEquals("token", foundSessions.items.last().token)
+                dao.invalidateUserSessions(db, email)
+                val foundSessionsAfterInvalid = dao.findUserSessions(session, email, NormalizedPaginationRequest(10, 0))
+                assertEquals(0, foundSessionsAfterInvalid.itemsInTotal)
+
             }
         }
     }

@@ -65,7 +65,7 @@ class OneTimeTokenDaoTest {
             }
         }
     }
-
+    /*
     @Test
     fun `claim test - with exception`() {
         runBlocking {
@@ -77,5 +77,5 @@ class OneTimeTokenDaoTest {
             val returnValue = ott.claim(session, "jti", "claimedByMe")
             assertFalse(returnValue)
         }
-    }
+    }*/
 }

@@ -17,7 +17,9 @@ import dk.sdu.cloud.service.test.initializeMicro
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import io.mockk.verify
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import junit.framework.TestCase.assertEquals
@@ -99,7 +101,7 @@ class TwoFactorChallengeServiceTest {
     private fun initTest(
         totpService: TOTPService = WSTOTPService(),
         qrService: QRService = ZXingQRService(),
-        twoFactorDAO: TwoFactorAsyncDAO = mockk(relaxed = true),
+        twoFactorDAO: TwoFactorAsyncDAO = mockk(),
         userDAO: UserAsyncDAO = mockk(relaxed = true),
         db: AsyncDBSessionFactory = mockk(relaxed = true)
     ): TestContext {
@@ -119,6 +121,8 @@ class TwoFactorChallengeServiceTest {
             val user = userDAO.withUser()
 
             coEvery { twoFactorDAO.findEnforcedCredentialsOrNull(any(), user.id) } returns null
+            coEvery { twoFactorDAO.createChallenge(any(), any()) } just runs
+            coEvery { twoFactorDAO.createCredentials(any(), any()) } returns 2
 
             val result = service.createSetupCredentialsAndChallenge(user.id)
             coVerify {
@@ -210,6 +214,7 @@ class TwoFactorChallengeServiceTest {
     @Test
     fun `test upgrading credentials - happy path`(): Unit = runBlocking {
         with(initTest()) {
+            coEvery { twoFactorDAO.createCredentials(any(), any()) } returns 2
             val user = userDAO.withUser()
             val credentials = TwoFactorCredentials(user, "secret", false, 42)
             service.upgradeCredentials(credentials)
@@ -286,7 +291,7 @@ class TwoFactorChallengeServiceTest {
 
     @Test
     fun `test creating login challenge - no enforced`(): Unit = runBlocking {
-        with(initTest()) {
+        with(initTest(db = db)) {
             coEvery { twoFactorDAO.findEnforcedCredentialsOrNull(any(), any()) } returns null
 
             assertNull(service.createLoginChallengeOrNull("user", "service"))
@@ -295,7 +300,7 @@ class TwoFactorChallengeServiceTest {
 
     @Test
     fun `test creating login challenge`(): Unit = runBlocking {
-        with(initTest()) {
+        with(initTest(db = db)) {
             val user = userDAO.withUser()
             coEvery { twoFactorDAO.findEnforcedCredentialsOrNull(any(), any()) } returns TwoFactorCredentials(
                 user,
@@ -303,7 +308,7 @@ class TwoFactorChallengeServiceTest {
                 true,
                 42
             )
-
+            coEvery { twoFactorDAO.createChallenge(any(), any()) } just runs
             assertNotNull(service.createLoginChallengeOrNull(user.id, "service"))
 
             coVerify {

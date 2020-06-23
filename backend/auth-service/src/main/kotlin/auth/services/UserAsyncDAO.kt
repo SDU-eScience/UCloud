@@ -203,7 +203,7 @@ class UserAsyncDAO(
                         setParameter("username", username)
                     },
                     """
-                        UPDATE permissions
+                        UPDATE principals
                         SET first_names = ?firstNames, last_name = ?lastName, email = ?email
                         WHERE id = ?username
                     """.trimIndent()
@@ -260,16 +260,14 @@ class UserAsyncDAO(
                     """.trimIndent()
                 ).rows
                 .map { rowData ->
-                rowData.toPrincipal(status.getValue(rowData.getField(PrincipalTable.id)))
+                    rowData.toPrincipal(status.getValue(rowData.getField(PrincipalTable.id)))
                 }
                 .associateBy { principal ->
                     principal.id
                 }
         }
-
         val usersWeDidntFind = ids.filter { it !in usersWeFound }
         val nullEntries = usersWeDidntFind.map { it to null as Principal? }.toMap()
-
         return usersWeFound + nullEntries
     }
 
@@ -317,16 +315,22 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE uid IN (select unnest(?uids::text[]))
+                        WHERE uid IN (select unnest(?uids::bigint[]))
                     """.trimIndent()
                 ).rows
         }
-
         val twoFactorStatus = twoFactorDAO.findStatusBatched(db, users.map { it.getField(PrincipalTable.id) })
 
+        users.forEach {
+            println(it.toPrincipal(false))
+        }
+
         val usersWeFound = users
-            .map { it.toPrincipal(twoFactorStatus.getValue(it.getField(PrincipalTable.id))) }
+            .map { rowData ->
+                rowData.toPrincipal(twoFactorStatus.getValue(rowData.getField(PrincipalTable.id))) }
             .associateBy { it.uid }
+
+        println( usersWeFound)
 
         val usersWeDidntFind = uids.filter { it !in usersWeFound }
         val nullEntires = usersWeDidntFind.map { it to null as Principal? }.toMap()
@@ -339,12 +343,12 @@ class UserAsyncDAO(
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("prefix", "%$prefix")
+                        setParameter("prefix", "$prefix%")
                     },
                     """
                         SELECT *
                         FROM principals
-                        WHERE id = ?prefix
+                        WHERE id LIKE ?prefix
                     """.trimIndent()
                 ).rows.map { it.toPrincipal(false) }
         }
@@ -360,7 +364,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE wayf_id = :wayfId
+                        WHERE wayf_id = ?wayfId
                     """.trimIndent()
                 ).rows.singleOrNull()?.toPrincipal(false) as? Person.ByWAYF ?: throw UserException.NotFound()
         }
@@ -376,7 +380,7 @@ class UserAsyncDAO(
                     """
                         SELECT *
                         FROM principals
-                        WHERE wayfId = ?wayfId
+                        WHERE wayf_id = ?wayfId
                     """.trimIndent()
                 ).rows.firstOrNull()
 
@@ -391,7 +395,7 @@ class UserAsyncDAO(
                         """
                             UPDATE principals
                             SET email = ?email
-                            WHERE wayfId = ?wayfId
+                            WHERE wayf_id = ?wayfId
                         """.trimIndent()
                     )
             }
@@ -402,75 +406,91 @@ class UserAsyncDAO(
 
     suspend fun insert(db: DBContext, principal: Principal) {
         db.withSession { session ->
-            when (principal) {
-                is Person.ByWAYF ->
-                    session.insert(PrincipalTable) {
-                        set(PrincipalTable.type, USERTYPE.WAYF.name)
-                        set(PrincipalTable.id, principal.id)
-                        set(PrincipalTable.role, principal.role.toString())
-                        set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
-                        set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
-                        set(PrincipalTable.uid, principal.uid)
-                        set(PrincipalTable.firstNames, principal.firstNames)
-                        set(PrincipalTable.lastName, principal.lastName)
-                        set(PrincipalTable.orcId, principal.orcId)
-                        set(PrincipalTable.phoneNumber, principal.phoneNumber)
-                        set(PrincipalTable.title, principal.title)
-                        set(PrincipalTable.orgId, principal.organizationId)
-                        set(PrincipalTable.wayfId, principal.wayfId)
-                        set(PrincipalTable.email, principal.email)
-                        set(PrincipalTable.serviceLicenseAgreement, 0)
-                        set(PrincipalTable.wantsEmails, true)
-                    }
-                is Person.ByPassword ->
-                    session.insert(PrincipalTable) {
-                        set(PrincipalTable.type, USERTYPE.PASSWORD.name)
-                        set(PrincipalTable.id, principal.id)
-                        set(PrincipalTable.role, principal.role.toString())
-                        set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
-                        set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
-                        set(PrincipalTable.title, principal.title)
-                        set(PrincipalTable.firstNames, principal.firstNames)
-                        set(PrincipalTable.lastName, principal.lastName)
-                        set(PrincipalTable.phoneNumber, principal.phoneNumber)
-                        set(PrincipalTable.orcId, principal.orcId)
-                        set(PrincipalTable.uid, principal.uid)
-                        set(PrincipalTable.email, principal.email)
-                        set(PrincipalTable.serviceLicenseAgreement, principal.serviceLicenseAgreement)
-                        set(PrincipalTable.wantsEmails, principal.wantsEmails)
-                        set(PrincipalTable.hashedPassword, principal.password)
-                        set(PrincipalTable.salt, principal.salt)
-                    }
+            val found = session.sendPreparedStatement(
+                {
+                    setParameter("id", principal.id)
+                },
+                """
+                    SELECT *
+                    FROM principals
+                    WHERE id = ?id
+                """.trimIndent()
+            ).rows.singleOrNull()
+            if (found != null) {
+                throw UserException.AlreadyExists()
+            } else {
+                when (principal) {
+                    is Person.ByWAYF ->
+                        session.insert(PrincipalTable) {
+                            set(PrincipalTable.type, USERTYPE.WAYF.name)
+                            set(PrincipalTable.id, principal.id)
+                            set(PrincipalTable.role, principal.role.toString())
+                            set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.uid, principal.uid)
+                            set(PrincipalTable.firstNames, principal.firstNames)
+                            set(PrincipalTable.lastName, principal.lastName)
+                            set(PrincipalTable.orcId, principal.orcId)
+                            set(PrincipalTable.phoneNumber, principal.phoneNumber)
+                            set(PrincipalTable.title, principal.title)
+                            set(PrincipalTable.orgId, principal.organizationId)
+                            set(PrincipalTable.wayfId, principal.wayfId)
+                            set(PrincipalTable.email, principal.email)
+                            set(PrincipalTable.serviceLicenseAgreement, 0)
+                            set(PrincipalTable.wantsEmails, true)
+                        }
+                    is Person.ByPassword ->
+                        session.insert(PrincipalTable) {
+                            set(PrincipalTable.type, USERTYPE.PASSWORD.name)
+                            set(PrincipalTable.id, principal.id)
+                            set(PrincipalTable.role, principal.role.toString())
+                            set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.title, principal.title)
+                            set(PrincipalTable.firstNames, principal.firstNames)
+                            set(PrincipalTable.lastName, principal.lastName)
+                            set(PrincipalTable.phoneNumber, principal.phoneNumber)
+                            set(PrincipalTable.orcId, principal.orcId)
+                            set(PrincipalTable.uid, principal.uid)
+                            set(PrincipalTable.email, principal.email)
+                            set(PrincipalTable.serviceLicenseAgreement, principal.serviceLicenseAgreement)
+                            set(PrincipalTable.wantsEmails, principal.wantsEmails)
+                            set(PrincipalTable.hashedPassword, principal.password)
+                            set(PrincipalTable.salt, principal.salt)
+                        }
 
-                is ServicePrincipal ->
-                    session.insert(PrincipalTable) {
-                        set(PrincipalTable.type, USERTYPE.SERVICE.name)
-                        set(PrincipalTable.id, principal.id)
-                        set(PrincipalTable.role, principal.role.toString())
-                        set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
-                        set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
-                        set(PrincipalTable.uid, principal.uid)
+                    is ServicePrincipal ->
+                        session.insert(PrincipalTable) {
+                            set(PrincipalTable.type, USERTYPE.SERVICE.name)
+                            set(PrincipalTable.id, principal.id)
+                            set(PrincipalTable.role, principal.role.toString())
+                            set(PrincipalTable.createdAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.modifiedAt, LocalDateTime(DateTimeZone.UTC))
+                            set(PrincipalTable.uid, principal.uid)
+                        }
+                    else -> {
+                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unknown principal type")
                     }
-                else -> {
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unknown principal type")
                 }
             }
         }
     }
 
     suspend fun delete(db: DBContext, id: String) {
-        db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("id", id)
-                    },
-                    """
+        if (
+            db.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("id", id)
+                        },
+                        """
                         DELETE from principals
                         WHERE id = ?id
                     """.trimIndent()
-                )
-        }
+                    ).rowsAffected == 0L
+            }
+        ) throw UserException.NotFound()
     }
 
     suspend fun updatePassword(
@@ -609,12 +629,12 @@ class UserAsyncDAO(
                 session
                     .sendPreparedStatement(
                         {
-                            setParameter("wantEmails", !wantsEmails)
+                            setParameter("wantsEmails", !wantsEmails)
                             setParameter("username", username)
                         },
                         """
                             UPDATE principals 
-                            SET want_emails = ?wantEmails
+                            SET wants_emails = ?wantsEmails
                             WHERE id = ?username
                         """.trimIndent()
                     )

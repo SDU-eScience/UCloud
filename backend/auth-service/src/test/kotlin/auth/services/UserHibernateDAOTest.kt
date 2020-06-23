@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.testUtil.dbTruncate
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.hibernateDatabase
 import dk.sdu.cloud.micro.install
@@ -16,6 +17,7 @@ import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.initializeMicro
+import io.ktor.http.HttpStatusCode
 import io.mockk.every
 import io.mockk.mockk
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
@@ -31,6 +33,7 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -81,7 +84,7 @@ class UserHibernateDAOTest {
             Role.USER,
             "Password1234",
             email2
-        )
+        ).copy(uid = 1)
     }
 
     @AfterTest
@@ -109,12 +112,16 @@ class UserHibernateDAOTest {
         }
     }
 
-    @Test(expected = NonUniqueObjectException::class)
+    @Test
     fun `insert 2 with same email`(): Unit = runBlocking {
         db.withTransaction { session ->
             val userHibernate = UserAsyncDAO(passwordHashingService, TwoFactorAsyncDAO())
             userHibernate.insert(session, person)
-            userHibernate.insert(session, person)
+            try {
+                userHibernate.insert(session, person)
+            } catch (ex: RPCException) {
+                assertEquals(HttpStatusCode.Conflict, ex.httpStatusCode)
+            }
 
         }
     }
@@ -149,15 +156,6 @@ class UserHibernateDAOTest {
 
     @Test
     fun `toggle emails`() {
-        val email = "test@testmail.com"
-        val person = personService.createUserByPassword(
-            "FirstName Middle",
-            "Lastname",
-            email,
-            Role.ADMIN,
-            "ThisIsMyPassword",
-            email = email
-        )
         runBlocking {
             db.withTransaction { session ->
                 userHibernate.insert(session, person)
@@ -169,9 +167,75 @@ class UserHibernateDAOTest {
                 assertFalse(userHibernate.wantEmails(session, person.id))
 
                 userHibernate.toggleEmail(session, person.id)
-
-
             }
         }
     }
+
+    @Test
+    fun `findBY test`() {
+        runBlocking {
+            db.withTransaction { session ->
+                userHibernate.insert(session, person)
+                userHibernate.insert(session, person2)
+            }
+            println(TestDB.getEmbeddedPostgresInfo())
+            db.withSession {
+                val foundById = userHibernate.findAllByIds(db, listOf(person.id, person2.id))
+                assertEquals(2, foundById.size)
+                val foundPerson = foundById[person.id]
+                foundPerson as Person.ByPassword
+                assertEquals(0, foundPerson.serviceLicenseAgreement)
+
+                userHibernate.setAcceptedSlaVersion(db, person.id, 4)
+                val foundById2 = userHibernate.findAllByIds(db, listOf(person.id))
+                assertEquals(1, foundById2.size)
+                val foundPerson2 = foundById2[person.id] as Person.ByPassword
+                assertEquals(4, foundPerson2.serviceLicenseAgreement)
+
+                val foundByEmail = userHibernate.findByEmail(db, email)
+                assertEquals(person.id, foundByEmail.userId)
+
+                val foundInfo = userHibernate.getUserInfo(db, person.id)
+                assertEquals(person.firstNames, foundInfo.firstNames)
+
+                userHibernate.updateUserInfo(db, person.id, "newName", "newLast", "newEmail")
+                val foundAfterUpdate = userHibernate.getUserInfo(db, person.id)
+                assertEquals("newEmail", foundAfterUpdate.email)
+                assertEquals("newName", foundAfterUpdate.firstNames)
+                assertEquals("newLast", foundAfterUpdate.lastName)
+
+                val foundByUid = userHibernate.findAllByUIDs(db, listOf(person.uid, person2.uid))
+                assertEquals(2, foundByUid.size)
+                assertEquals("newName", (foundByUid[person.uid] as Person).firstNames)
+            }
+        }
+    }
+
+    @Test
+    fun `Update Password test`() {
+        runBlocking {
+            db.withTransaction { session ->
+                userHibernate.insert(session, person)
+            }
+            println(TestDB.getEmbeddedPostgresInfo())
+            db.withSession {
+                val foundById = userHibernate.findAllByIds(db, listOf(person.id))
+                assertEquals(1, foundById.size)
+                val foundPerson = foundById[person.id]
+                foundPerson as Person.ByPassword
+
+                userHibernate.updatePassword(db, person.id, "NEWPass", "ThisIsMyPassword")
+
+                val found = userHibernate.findById(db, person.id) as Person.ByPassword
+                assertNotEquals(foundPerson.password, found.password)
+
+                userHibernate.unconditionalUpdatePassword(db, person.id, "IDidItAgain")
+
+                val foundAgain = userHibernate.findById(db, person.id) as Person.ByPassword
+                assertNotEquals(found.password, foundAgain.password)
+            }
+        }
+    }
+
+
 }

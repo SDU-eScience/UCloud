@@ -123,22 +123,16 @@ class UserIterationService(
         mutex.withLock {
             if (openIterators.size >= maxConnections) throw UserIteratorException.TooManyOpen()
 
-            val id = UUID.randomUUID().toString()
-
-
+            //CursorID Must not start with number and contain "-"
+            val id = "a${UUID.randomUUID().toString().replace("-", "_")}"
             session.sendPreparedStatement(
-                {
-                    setParameter("cursorID", id)
-                },
                 """
-                    DECLARE ?cursorID NO SCROLL CURSOR WITH HOLD
+                    DECLARE $id NO SCROLL CURSOR WITH HOLD
                     FOR SELECT * FROM principals;
                 """.trimIndent()
             )
             val state = CursorState(id, localhostName, localPort, nextExpiresAt())
-
             cursorStateDao.create(session, state)
-
             openIterators[id] = OpenIterator(state, session)
             return id
         }
@@ -151,11 +145,8 @@ class UserIterationService(
             runBlocking {
                 open.session
                     .sendPreparedStatement(
-                        {
-                            setParameter("cursorID", id)
-                        },
                         """
-                                CLOSE ?cursorID
+                                CLOSE $id
                             """.trimIndent()
                     )
 
@@ -173,12 +164,8 @@ class UserIterationService(
         val open = openIterators[id] ?: throw UserIterationException.BadIterator()
         return open.session
             .sendPreparedStatement(
-                {
-                    setParameter("pageSize", PAGE_SIZE)
-                    setParameter("cursorID", id)
-                },
                 """
-                    FETCH FORWARD ?pageSize FROM ?cursorID
+                    FETCH FORWARD $PAGE_SIZE FROM $id
                 """.trimIndent()
             ).rows.map { it.toPrincipal(false) }
     }

@@ -560,6 +560,7 @@ class CoreAuthTest {
     fun `Web refresh - test bad csrf token`() {
         withBasicSetup { ctx ->
             val token = webRefreshInitialize(ctx)
+            println(embDB.getJdbcUrl("postgres", "postgres"))
             val response = webRefresh(token, addCsrfToken = false, headersToUse = *arrayOf(HttpHeaders.Origin)) {
                 addHeader(CoreAuthController.REFRESH_WEB_CSRF_TOKEN, "Bad csrf token")
             }

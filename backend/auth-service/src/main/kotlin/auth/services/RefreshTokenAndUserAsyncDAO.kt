@@ -90,9 +90,9 @@ class RefreshTokenAsyncDAO{
                     """
                         SELECT *
                         FROM refresh_tokens
-                        WHERE associated_user = ?id
+                        WHERE associated_user_id = ?id
                     """.trimIndent()
-                ).rows.singleOrNull()?.toRefreshTokenAndUser()
+                ).rows.firstOrNull()?.toRefreshTokenAndUser()
         }
     }
 
@@ -102,14 +102,14 @@ class RefreshTokenAsyncDAO{
                 .sendPreparedStatement(
                     {
                         setParameter("token", token)
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis / 1000)
+                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis )
                     },
                     """
                         SELECT *
-                        FROM refresh_token
+                        FROM refresh_tokens
                         WHERE token = ?token AND (
                             refresh_token_expiry is NULL OR
-                            refresh_token_expiry > to_timestamp(?time)
+                            refresh_token_expiry > ?time
                         )
                     """.trimIndent()
                 ).rows.singleOrNull()?.toRefreshTokenAndUser()
@@ -128,7 +128,7 @@ class RefreshTokenAsyncDAO{
                         FROM principals
                         WHERE id = ?user
                     """.trimIndent()
-                ).rows.singleOrNull()?.getField(RefreshTokenTable.token)/*PrincipalTable.id)*/ ?: throw UserException.NotFound()
+                ).rows.singleOrNull()?.getField(PrincipalTable.id) ?: throw UserException.NotFound()
            session.insert(RefreshTokenTable) {
                set(RefreshTokenTable.associatedUser, principal)
                set(RefreshTokenTable.token, tokenAndUser.token)
@@ -196,11 +196,11 @@ class RefreshTokenAsyncDAO{
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis / 1000)
+                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis)
                     },
                     """
                         DELETE FROM refresh_tokens
-                        WHERE refresh_token_expiry < to_timestamp(?time)
+                        WHERE refresh_token_expiry < ?time
                     """.trimIndent()
                 )
         }
@@ -220,7 +220,7 @@ class RefreshTokenAsyncDAO{
                     """
                         SELECT *
                         FROM refresh_tokens
-                        WHERE associated_user = ?user AND
+                        WHERE associated_user_id = ?user AND
                                 extended_by is NULL
                     """.trimIndent()
                 ).rows.paginate(pagination)
@@ -237,7 +237,7 @@ class RefreshTokenAsyncDAO{
                     },
                     """
                         DELETE FROM refresh_tokens
-                        WHERE associated_user = ?user AND 
+                        WHERE associated_user_id = ?user AND 
                                 extended_by is NULL
                     """.trimIndent()
                 )
