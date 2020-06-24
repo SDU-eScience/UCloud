@@ -55,7 +55,8 @@ class NewsService {
         ctx: DBContext,
         pagination: NormalizedPaginationRequest,
         categoryFilter: String?,
-        withHidden: Boolean
+        withHidden: Boolean,
+        userIsAdmin: Boolean
     ): Page<NewsPost> {
         return ctx.withSession { session ->
             val items = session.sendPreparedStatement(
@@ -63,7 +64,7 @@ class NewsService {
                     setParameter("categoryFilter", categoryFilter)
                     setParameter("offset", pagination.page * pagination.itemsPerPage)
                     setParameter("limit", pagination.itemsPerPage)
-                    setParameter("withHidden", withHidden)
+                    setParameter("withHidden", withHidden && userIsAdmin)
                 },
                 //language=sql
                 """
