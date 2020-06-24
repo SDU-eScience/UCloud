@@ -152,8 +152,8 @@ export function shareDialog(paths: string[], client: HttpClient): void {
 interface ConfirmCancelButtonsProps {
     confirmText?: string;
     cancelText?: string;
-    onConfirm(): void;
-    onCancel(): void;
+    onConfirm(e: React.SyntheticEvent<HTMLButtonElement>): void;
+    onCancel(e: React.SyntheticEvent<HTMLButtonElement>): void;
 }
 
 export const ConfirmCancelButtons = ({
@@ -162,9 +162,9 @@ export const ConfirmCancelButtons = ({
     onConfirm,
     onCancel
 }: ConfirmCancelButtonsProps): JSX.Element => (
-    <ButtonGroup width="220px">
-        <Button onClick={onConfirm} color="green">{confirmText}</Button>
-        <Button onClick={onCancel} color="red">{cancelText}</Button>
+    <ButtonGroup width="150px">
+        <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
+        <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
     </ButtonGroup>
 );
 
