@@ -41,7 +41,7 @@ export class DataList extends React.PureComponent<DataListProps, {
 
     public render(): JSX.Element {
         const results = this.state.text ?
-            this.state.fuse.search(this.state.text) : this.props.options.slice(0, this.totalShown);
+            this.state.fuse.search(this.state.text).map(it => it.item) : this.props.options.slice(0, this.totalShown);
         return (
             <ClickableDropdown
                 colorOnHover={results.length !== 0}
@@ -59,8 +59,7 @@ export class DataList extends React.PureComponent<DataListProps, {
                     </FormField>
                 )}
             >
-                {/* FIXME: Map is not allowed due to union types */}
-                {(results as any).map(({content, value}) => (
+                {results.map(({content, value}) => (
                     <Box key={content} onClick={() => this.onSelect(content, value)} mb="0.5em">
                         {content}
                     </Box>
