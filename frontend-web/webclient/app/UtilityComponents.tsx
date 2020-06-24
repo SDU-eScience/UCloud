@@ -7,7 +7,7 @@ import List from "Shares/List";
 import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text} from "ui-components";
+import {Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text, ButtonGroup} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Dropdown, DropdownContent} from "ui-components/Dropdown";
 import * as Heading from "ui-components/Heading";
@@ -149,10 +149,29 @@ export function shareDialog(paths: string[], client: HttpClient): void {
     dialogStore.addDialog(<SharePrompt client={client} paths={paths} />, () => undefined);
 }
 
+interface ConfirmCancelButtonsProps {
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm(): void;
+    onCancel(): void;
+}
+
+export const ConfirmCancelButtons = ({
+    confirmText = "Confirm",
+    cancelText = "Cancel",
+    onConfirm,
+    onCancel
+}: ConfirmCancelButtonsProps): JSX.Element => (
+    <ButtonGroup width="220px">
+        <Button onClick={onConfirm} color="green">{confirmText}</Button>
+        <Button onClick={onCancel} color="red">{cancelText}</Button>
+    </ButtonGroup>
+);
+
 const SharePromptWrapper = styled(Box)`
-    overflowY: auto;
-    overflowX: hidden;
-    maxHeight: 80vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: 80vh;
     width: 620px;
 `;
 
