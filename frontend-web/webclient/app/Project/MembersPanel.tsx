@@ -63,6 +63,7 @@ const MembersPanel: React.FunctionComponent = () => {
                     <Input
                         id="new-project-member"
                         placeholder="Username"
+                        autoComplete="off"
                         disabled={isLoading}
                         ref={newMemberRef}
                         onChange={e => {
