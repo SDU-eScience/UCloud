@@ -137,6 +137,7 @@ const GroupList: React.FunctionComponent = () => {
     );
     return <>
         <Spacer
+            mb="12px"
             left={
                 <BreadCrumbsBase embedded={false}>
                     <span>Groups</span>

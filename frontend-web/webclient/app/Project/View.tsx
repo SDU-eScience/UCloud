@@ -188,36 +188,6 @@ const View: React.FunctionComponent<ViewOperations> = props => {
 
     return (
         <MainContainer
-            header={<Flex>
-                <MembersBreadcrumbs embedded={false}>
-                    <span title={"My Projects"}>
-                        <Link to="/projects">
-                            My Projects
-                        </Link>
-                    </span>
-                    <span title={memberText}>
-                        {isSettingsPage ?
-                            <Link to={`/projects/view/${group ? encodeURIComponent(group) : "-"}`}>
-                                {memberText}
-                            </Link> :
-                            memberText
-                        }
-                    </span>
-                    {isSettingsPage ? <span>Settings</span> : null}
-                </MembersBreadcrumbs>
-                <Flex>
-                    <Link to={isSettingsPage ? "/projects/view/" : "/projects/view/-/settings"}>
-                        <Icon
-                            name="properties"
-                            m={8}
-                            color={isSettingsPage ? "blue" : undefined}
-                            hoverColor="blue"
-                            cursor="pointer"
-                        />
-                    </Link>
-                </Flex>
-            </Flex>}
-            sidebar={null}
             main={(
                 <>
                     {!shouldVerify.data.shouldVerify ? null : (
@@ -245,6 +215,33 @@ const View: React.FunctionComponent<ViewOperations> = props => {
                     )}
                     <TwoColumnLayout>
                         <Box className="members">
+                            <Flex mb="12px">
+                                <MembersBreadcrumbs embedded={false}>
+                                    <span title={"My Projects"}>
+                                        <Link to="/projects">
+                                            My Projects
+                                        </Link>
+                                    </span>
+                                    <span title={memberText}>
+                                        {isSettingsPage ?
+                                            <Link to={`/projects/view/${group ? encodeURIComponent(group) : "-"}`}>
+                                                {memberText}
+                                            </Link> :
+                                            memberText
+                                        }
+                                    </span>
+                                    {isSettingsPage ? <span>Settings</span> : null}
+                                </MembersBreadcrumbs>
+                                <Link to={isSettingsPage ? "/projects/view/" : "/projects/view/-/settings"}>
+                                    <Icon
+                                        name="properties"
+                                        m={8}
+                                        color={isSettingsPage ? "blue" : undefined}
+                                        hoverColor="blue"
+                                        cursor="pointer"
+                                    />
+                                </Link>
+                            </Flex>
                             <Box ml={8} mr={8}>
                                 {isSettingsPage ? <ProjectSettings /> : <ProjectMembers />}
                             </Box>
@@ -274,6 +271,11 @@ const TwoColumnLayout = styled.div`
     }
     
     @media screen and (min-width: 1200px) {
+        & > .members {
+            padding-right: 10px;
+            border-right: 2px solid var(--black);
+        }
+
         & {
             height: calc(100vh - 100px);
             overflow: hidden;
