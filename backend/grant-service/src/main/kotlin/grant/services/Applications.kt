@@ -40,7 +40,9 @@ object RequestedResourceTable : SQLTable("requested_resources") {
     val quotaRequestedBytes = long("quota_requested_bytes", notNull = false)
 }
 
-class ApplicationService {
+class ApplicationService(
+    private val projects: ProjectCache
+) {
     suspend fun submit(
         ctx: DBContext,
         actor: Actor,
@@ -118,8 +120,6 @@ class ApplicationService {
         }
     }
 
-    private suspend fun checkIfWeAreProjectAdmin(): Boolean = TODO()
-
     suspend fun updateApplication(
         ctx: DBContext,
         actor: Actor,
@@ -128,7 +128,14 @@ class ApplicationService {
         newResources: List<ResourceRequest>
     ) {
         ctx.withSession { session ->
-            val isProjectAdmin = checkIfWeAreProjectAdmin()
+            val projectId = session
+                .sendPreparedStatement(
+                    { setParameter("id", id) },
+                    """select resources_owned_by from "grant".applications where id = :id"""
+                )
+                .rows.singleOrNull()?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            val isProjectAdmin = projects.isAdminOfProject(projectId, actor)
             val success = session
                 .sendPreparedStatement(
                     {
@@ -172,8 +179,7 @@ class ApplicationService {
     ) {
         require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED or REJECTED!" }
         ctx.withSession { session ->
-            // TODO ACL
-            session
+            val updatedProjectId = session
                 .sendPreparedStatement(
                     {
                         setParameter("id", id)
@@ -181,12 +187,16 @@ class ApplicationService {
                     },
                     """
                         update "grant".applications 
-                        set
-                            status = :status
-                        where
-                            id = :id
+                        set status = :status
+                        where id = :id
+                        returning resources_owned_by
                     """
                 )
+                .rows.singleOrNull()?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            if (!projects.isAdminOfParent(updatedProjectId, actor)) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
         }
     }
 
@@ -197,7 +207,9 @@ class ApplicationService {
         pagination: NormalizedPaginationRequest?
     ): Page<Unit> {
         ctx.withSession { session ->
-            // TODO ACL
+            if (!projects.isAdminOfProject(projectId, actor)) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            }
 
             session
                 .paginatedQuery(
