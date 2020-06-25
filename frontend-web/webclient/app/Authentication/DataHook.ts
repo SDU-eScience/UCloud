@@ -22,6 +22,7 @@ function dataFetchReducer(state, action) {
         case "FETCH_FAILURE":
             return {
                 ...state,
+                data: action.data,
                 loading: false,
                 error: action.error
             };
@@ -124,7 +125,7 @@ export function useCloudAPI<T, Parameters = any>(
                                 why = e.response.why;
                             }
 
-                            dispatch({type: "FETCH_FAILURE", error: {why, statusCode}});
+                            dispatch({type: "FETCH_FAILURE", data: dataInitial, error: {why, statusCode}});
                         }
                     }
                 }

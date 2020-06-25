@@ -8,7 +8,7 @@ import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.QueryContactsRequest
 import dk.sdu.cloud.contact.book.api.QueryContactsResponse
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
-import dk.sdu.cloud.contact.book.services.ContactBookElasticDAO
+import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
 import dk.sdu.cloud.contact.book.services.ContactBookService
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.ElasticFeature
@@ -18,36 +18,26 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.initializeMicro
 import dk.sdu.cloud.service.test.sendJson
-import dk.sdu.cloud.service.test.sendRequest
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
-import org.apache.lucene.search.TotalHits
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
-import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.common.document.DocumentField
-import org.elasticsearch.common.text.Text
-import org.elasticsearch.search.SearchHit
-import org.elasticsearch.search.SearchHits
 import org.junit.Ignore
 import org.junit.Test
-import java.util.*
 import kotlin.test.assertEquals
 
 class ContactBookTest {
 
     private fun KtorApplicationTestSetupContext.configureContactServer(
-        elasticDAO: ContactBookElasticDAO
+        elasticDao: ContactBookElasticDao
     ): List<Controller> {
-        val contactBookService = ContactBookService(elasticDAO)
+        val contactBookService = ContactBookService(elasticDao)
         return listOf(ContactBookController(contactBookService))
     }
 
@@ -66,7 +56,7 @@ class ContactBookTest {
         withKtorTest(
             setup = {
                 micro.install(ElasticFeature)
-                val elasticDAO = ContactBookElasticDAO(micro.elasticHighLevelClient)
+                val elasticDAO = ContactBookElasticDao(micro.elasticHighLevelClient)
                 elasticDAO.createIndex()
                 configureContactServer(elasticDAO)
             },

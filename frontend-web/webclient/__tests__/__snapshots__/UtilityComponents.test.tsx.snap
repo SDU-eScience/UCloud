@@ -630,9 +630,9 @@ exports[`Share prompt 1`] = `
 }
 
 .c0 {
-  overflowY: auto;
-  overflowX: hidden;
-  maxHeight: 80vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 80vh;
   width: 620px;
 }
 

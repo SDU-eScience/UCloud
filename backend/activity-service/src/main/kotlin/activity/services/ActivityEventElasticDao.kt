@@ -38,8 +38,16 @@ data class AuditEntry<E>(
     val requestJson: E
 )
 
-class ActivityEventElasticDao(private val client: RestHighLevelClient) : ActivityEventDao {
-    override fun findByFilePath(
+data class ActivityEventFilter(
+    val minTimestamp: Long? = null,
+    val maxTimestamp: Long? = null,
+    val type: ActivityEventType? = null,
+    val user: String? = null,
+    val offset: Int? = null
+)
+
+class ActivityEventElasticDao(private val client: RestHighLevelClient) {
+    fun findByFilePath(
         pagination: NormalizedPaginationRequest,
         filePath: String
     ): Page<ActivityForFrontend> {
@@ -125,7 +133,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) : Activit
         return query
     }
 
-    override fun findProjectEvents(
+    fun findProjectEvents(
         scrollSize: Int,
         filter: ActivityEventFilter,
         projectID: String,
@@ -180,7 +188,7 @@ class ActivityEventElasticDao(private val client: RestHighLevelClient) : Activit
 
     }
 
-    override fun findUserEvents(scrollSize: Int, filter: ActivityEventFilter): List<ActivityEvent> {
+    fun findUserEvents(scrollSize: Int, filter: ActivityEventFilter): List<ActivityEvent> {
         val query = applyTimeFilter(filter)
         val index = getIndexByType(filter.type).toTypedArray()
         val userHome = "/home/${filter.user}"

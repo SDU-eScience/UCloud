@@ -27,7 +27,7 @@ class ContactBookTest {
 
     @Test
     fun `insert Test`() {
-        val mockDao = mockk<ContactBookElasticDAO>()
+        val mockDao = mockk<ContactBookElasticDao>()
         val service = ContactBookService(mockDao)
         every { mockDao.insertContact(any(), any(), any()) } just Runs
         service.insertContact("fromUser#123", listOf("toUser#1487"), ServiceOrigin.SHARE_SERVICE)
@@ -35,7 +35,7 @@ class ContactBookTest {
 
     @Test (expected = RPCException::class)
     fun `insert blank Test`() {
-        val mockDao = mockk<ContactBookElasticDAO>()
+        val mockDao = mockk<ContactBookElasticDao>()
         val service = ContactBookService(mockDao)
         every { mockDao.insertContact(any(), any(), any()) } just Runs
         service.insertContact("fromUser#123", listOf("    "), ServiceOrigin.SHARE_SERVICE)
@@ -43,7 +43,7 @@ class ContactBookTest {
 
     @Test (expected = RPCException::class)
     fun `insert empty Test`() {
-        val mockDao = mockk<ContactBookElasticDAO>()
+        val mockDao = mockk<ContactBookElasticDao>()
         val service = ContactBookService(mockDao)
         every { mockDao.insertContact(any(), any(), any()) } just Runs
         service.insertContact("fromUser#123", emptyList(), ServiceOrigin.SHARE_SERVICE)
@@ -51,7 +51,7 @@ class ContactBookTest {
 
     @Test
     fun `insert Bulk Test`() {
-        val mockDao = mockk<ContactBookElasticDAO>()
+        val mockDao = mockk<ContactBookElasticDao>()
         val service = ContactBookService(mockDao)
         every { mockDao.insertContactsBulk(any(), any(), any()) } just Runs
         service.insertContact("fromUser#123", listOf("toUser#1487", "toUser#4810"), ServiceOrigin.SHARE_SERVICE)
@@ -59,7 +59,7 @@ class ContactBookTest {
 
     @Test
     fun `delete test`() {
-        val mockDao = mockk<ContactBookElasticDAO>()
+        val mockDao = mockk<ContactBookElasticDao>()
         val service = ContactBookService(mockDao)
         every { mockDao.deleteContact(any(), any(), any()) } just Runs
         service.deleteContact("fromUser#123", "toUser#4810", ServiceOrigin.SHARE_SERVICE)
@@ -67,7 +67,7 @@ class ContactBookTest {
 
     @Test
     fun `query test`() {
-        val mockDao = mockk<ContactBookElasticDAO>()
+        val mockDao = mockk<ContactBookElasticDao>()
         val service = ContactBookService(mockDao)
         every { mockDao.queryContacts(any() ,any(), any()) } answers {
             val hits = mockk<SearchHits>()
@@ -84,7 +84,7 @@ class ContactBookTest {
 
     @Test
     fun `get All test`() {
-        val mockDao = mockk<ContactBookElasticDAO>()
+        val mockDao = mockk<ContactBookElasticDao>()
         val service = ContactBookService(mockDao)
         every { mockDao.getAllContactsForUser(any() ,any()) } answers {
             val hits = mockk<SearchHits>()

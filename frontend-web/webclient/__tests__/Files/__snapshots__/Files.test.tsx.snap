@@ -306,6 +306,11 @@ exports[`Mount Files component 1`] = `
   text-decoration: none;
 }
 
+.c7 > span:last-child:hover {
+  color: var(--text,#f00);
+  cursor: default;
+}
+
 .c25 {
   background-color: #fff;
   position: -webkit-sticky;

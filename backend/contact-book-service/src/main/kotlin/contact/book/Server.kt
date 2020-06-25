@@ -3,8 +3,7 @@ package dk.sdu.cloud.contact.book
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.contact.book.rpc.*
-import dk.sdu.cloud.contact.book.services.ContactBookDAO
-import dk.sdu.cloud.contact.book.services.ContactBookElasticDAO
+import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
 import dk.sdu.cloud.contact.book.services.ContactBookService
 import java.lang.Exception
 import kotlin.system.exitProcess
@@ -14,7 +13,7 @@ class Server(override val micro: Micro) : CommonServer {
 
     override fun start() {
 
-        val contactsDAO = ContactBookElasticDAO(micro.elasticHighLevelClient)
+        val contactsDAO = ContactBookElasticDao(micro.elasticHighLevelClient)
 
         val contactBookService = ContactBookService(contactsDAO)
 
