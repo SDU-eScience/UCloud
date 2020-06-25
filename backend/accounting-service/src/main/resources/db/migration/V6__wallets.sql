@@ -2,9 +2,9 @@ drop table if exists transactions;
 drop table if exists grant_administrators;
 drop table if exists balance;
 
-alter table products drop constraint products_provider_fkey;
+alter table products drop constraint if exists products_provider_fkey;
 
-alter table product_categories drop constraint product_categories_pkey;
+alter table product_categories drop constraint if exists product_categories_pkey cascade;
 alter table product_categories add primary key (provider, category);
 
 alter table products add foreign key (provider, category) references product_categories(provider, category);

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.grant.services
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.AutomaticApprovalSettings
 import dk.sdu.cloud.grant.api.UserCriteria
 import dk.sdu.cloud.service.Actor
@@ -9,6 +10,7 @@ import dk.sdu.cloud.service.db.async.long
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.withSession
+import io.ktor.http.HttpStatusCode
 
 object AllowApplicationsFromTable : SQLTable("allow_applications_from") {
     val projectId = text("project_id", notNull = true)
@@ -30,16 +32,18 @@ object AutomaticApprovalLimitsTable : SQLTable("automatic_approval_limits") {
     val maximumQuota = long("maximum_quota_bytes", notNull = false)
 }
 
-class SettingsService {
+class SettingsService(
+    private val projects: ProjectCache
+) {
     suspend fun updateApplicationsFromList(
         ctx: DBContext,
         actor: Actor,
         projectId: String,
         applicantWhitelist: List<UserCriteria>
     ) {
-        ctx.withSession { session ->
-            // TODO ACL
+        if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
+        ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     { setParameter("projectId", projectId) },
@@ -66,8 +70,9 @@ class SettingsService {
         projectId: String,
         settings: AutomaticApprovalSettings
     ) {
-        ctx.withSession { session ->
-            // TODO ACL
+       if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+       ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     { setParameter("projectId", projectId) },

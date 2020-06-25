@@ -15,6 +15,7 @@ import dk.sdu.cloud.avatar.api.Top
 import dk.sdu.cloud.avatar.api.TopAccessory
 import dk.sdu.cloud.avatar.avatar
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.withDatabase
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres

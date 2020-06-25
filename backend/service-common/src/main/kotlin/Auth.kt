@@ -122,7 +122,9 @@ data class SecurityPrincipal(
     /**
      * A boolean indicating if the service agreement has been accepted
      */
-    val serviceAgreementAccepted: Boolean = false
+    val serviceAgreementAccepted: Boolean = false,
+
+    val organization: String? = null
 )
 
 /**

@@ -23,7 +23,7 @@ data class UploadTemplatesRequest(
 typealias UploadTemplatesResponse = Unit
 
 data class ReadTemplatesRequest(val projectId: String)
-typealias ReadTemplatesResponse = Unit // TODO
+typealias ReadTemplatesResponse = UploadTemplatesRequest
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
@@ -59,20 +59,26 @@ data class UploadRequestSettingsRequest(
 
 typealias UploadRequestSettingsResponse = Unit
 
-data class ApproveApplicationRequest(val requestId: String)
+data class ApproveApplicationRequest(val requestId: Long)
 typealias ApproveApplicationResponse = Unit
 
-data class RejectApplicationRequest(val requestId: String)
+data class RejectApplicationRequest(val requestId: Long)
 typealias RejectApplicationResponse = Unit
 
-data class CommentOnApplicationRequest(val requestId: String)
+data class CommentOnApplicationRequest(val requestId: Long, val comment: String)
 typealias CommentOnApplicationResponse = Unit
 
+data class DeleteCommentRequest(val commentId: Long)
+typealias DeleteCommentResponse = Unit
+
 data class IngoingApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
-typealias IngoingApplicationsResponse = Page<Unit>
+typealias IngoingApplicationsResponse = Page<Application>
+
+data class Comment(val id: Long, val postedBy: String, val postedAt: Long)
+data class ApplicationWithComments(val application: Application, val comment: List<Comment>)
 
 data class OutgoingApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
-typealias OutgoingApplicationsResponse = Page<Unit>
+typealias OutgoingApplicationsResponse = Page<Application>
 
 typealias SubmitApplicationRequest = Unit
 typealias SubmitApplicationResponse = Unit
@@ -124,6 +130,9 @@ data class Application(
     val requestedResource: List<ResourceRequest>, // This is _always_ additive to existing resources
     val id: Long? = null
 )
+
+data class ViewApplicationRequest(val id: Long)
+typealias ViewApplicationResponse = ApplicationWithComments
 
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
@@ -218,6 +227,23 @@ object Grants : CallDescriptionContainer("grant") {
             }
         }
 
+    val deleteComment = call<DeleteCommentRequest, DeleteCommentResponse, CommonErrorMessage>("deleteComment") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Delete
+
+            path {
+                using(baseContext)
+                +"comment"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
     val approveApplication = call<ApproveApplicationRequest, ApproveApplicationResponse, CommonErrorMessage>("approveApplication") {
         auth {
             access = AccessRight.READ_WRITE
@@ -310,4 +336,19 @@ object Grants : CallDescriptionContainer("grant") {
                 }
             }
         }
+
+    val viewApplication = call<ViewApplicationRequest, ViewApplicationResponse, CommonErrorMessage>("viewApplication") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +boundTo(ViewApplicationRequest::id)
+            }
+        }
+    }
 }

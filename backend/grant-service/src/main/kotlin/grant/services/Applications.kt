@@ -1,27 +1,17 @@
 package dk.sdu.cloud.grant.services
 
+import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
-import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.NormalizedPaginationRequest
-import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.insert
-import dk.sdu.cloud.service.db.async.long
-import dk.sdu.cloud.service.db.async.paginatedQuery
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.text
-import dk.sdu.cloud.service.db.async.timestamp
-import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.safeUsername
+import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
 
 object ApplicationTable : SQLTable("applications") {
-    val id = text("id", notNull = true)
+    val id = long("id", notNull = true)
     val status = text("status", notNull = true)
     val resourcesOwnedBy = text("resources_owned_by", notNull = true)
     val requestedBy = text("requested_by", notNull = true)
@@ -205,65 +195,104 @@ class ApplicationService(
         actor: Actor,
         projectId: String,
         pagination: NormalizedPaginationRequest?
-    ): Page<Unit> {
-        ctx.withSession { session ->
-            if (!projects.isAdminOfProject(projectId, actor)) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+    ): Page<Application> {
+        if (!projects.isAdminOfProject(projectId, actor)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        return ctx.withSession { session ->
+            val itemsInTotal = if (pagination == null) {
+                null
+            } else {
+                session
+                    .sendPreparedStatement(
+                        { setParameter("projectId", projectId) },
+
+                        """
+                            select count(id)::bigint from "grant".applications 
+                            where resources_owned_by = :projectId and status = 'IN_PROGRESS'
+                        """
+                    ).rows.singleOrNull()?.getLong(0) ?: 0L
             }
 
-            session
-                .paginatedQuery(
-                    pagination,
+            val items = session
+                .sendPreparedStatement(
                     {
                         setParameter("projectId", projectId)
+                        setParameter("o", pagination?.offset ?: 0)
+                        setParameter("l", pagination?.itemsPerPage ?: Int.MAX_VALUE)
                     },
-                    """
-                        from "grant".applications a
-                        where 
-                            a.resources_owned_by = :projectId and
-                            a.status = 'IN_PROGRESS'
-                    """,
 
                     """
-                       order by "grant".applications.updated_at
+                        select *    
+                        from "grant".applications a, requested_resources r
+                        where 
+                            a.resources_owned_by = :projectId and 
+                            a.status = 'IN_PROGRESS' and 
+                            a.id = r.application_id
+                        order by a.updated_at
+                        limit :l
+                        offset :o
                     """
                 )
+                .rows.toApplications()
+
+            Page.forRequest(pagination, itemsInTotal?.toInt(), items.toList())
         }
-        TODO()
     }
 
     suspend fun listOutgoingApplications(
         ctx: DBContext,
         actor: Actor,
         pagination: NormalizedPaginationRequest?
-    ): Page<Unit> {
-        ctx.withSession { session ->
-            session
-                .paginatedQuery(
-                    pagination,
+    ): Page<Application> {
+        return ctx.withSession { session ->
+            val itemsInTotal = if (pagination == null) {
+                null
+            } else {
+                session
+                    .sendPreparedStatement(
+                        { setParameter("requestedBy", actor.safeUsername()) },
+
+                        """
+                            select count(id)::bigint from "grant".applications 
+                            where requested_by = :requestedBy and status = 'IN_PROGRESS'
+                        """
+                    ).rows.singleOrNull()?.getLong(0) ?: 0L
+            }
+
+            val items = session
+                .sendPreparedStatement(
                     {
                         setParameter("requestedBy", actor.safeUsername())
+                        setParameter("o", pagination?.offset ?: 0)
+                        setParameter("l", pagination?.itemsPerPage ?: Int.MAX_VALUE)
                     },
+
                     """
-                        from "grant".applications a
-                        where
-                            a.requested_by = :requestedBy and
-                            a.status = 'IN_PROGRESS'
-                    """,
-                    """
-                        order by "grant".applications.updated_at
+                        select *    
+                        from "grant".applications a, requested_resources r
+                        where 
+                            a.requested_by = :requestedBy and 
+                            a.status = 'IN_PROGRESS' and 
+                            a.id = r.application_id
+                        order by a.updated_at
+                        limit :l
+                        offset :o
                     """
                 )
+                .rows.toApplications()
+
+            Page.forRequest(pagination, itemsInTotal?.toInt(), items.toList())
         }
-        TODO()
     }
 
     suspend fun findActiveApplication(
         ctx: DBContext,
         actor: Actor,
         projectId: String
-    ): Unit {
-        ctx.withSession { session ->
+    ): Application? {
+        return ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
@@ -272,14 +301,76 @@ class ApplicationService(
                     },
                     """
                         select * 
-                        from "grant".applications a
+                        from "grant".applications a, requested_resources r
                         where
                             a.resources_owned_by = :projectId and
                             a.requested_by = :requestedBy and
-                            a.status = 'IN_PROGRESS'
+                            a.status = 'IN_PROGRESS' and
+                            a.id = r.application_id
                     """
                 )
+                .rows.toApplications().singleOrNull()
         }
-        TODO()
+    }
+
+    suspend fun viewApplicationById(ctx: DBContext, actor: Actor, id: Long): Application {
+        return ctx.withSession { session ->
+            val application = session
+                .sendPreparedStatement(
+                    { setParameter("id", id) },
+                    """
+                        select * from "grant".applications a, requested_resources r 
+                        where a.id = :id and a.id = r.application_id
+                    """
+                )
+                .rows.toApplications().singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            if (application.requestedBy != actor.safeUsername() &&
+                !projects.isAdminOfProject(application.resourcesOwnedBy, actor)
+            ) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            }
+
+            application
+        }
+    }
+
+    private fun Iterable<RowData>.toApplications(): Collection<Application> {
+        return asSequence()
+            .map {
+                Application(
+                    ApplicationStatus.valueOf(it.getField(ApplicationTable.status)),
+                    it.getField(ApplicationTable.resourcesOwnedBy),
+                    it.getField(ApplicationTable.requestedBy),
+                    grantRecipientFromTable(
+                        it.getField(ApplicationTable.grantRecipient),
+                        it.getField(ApplicationTable.grantRecipientType)
+                    ),
+                    it.getField(ApplicationTable.document),
+                    listOf(
+                        ResourceRequest(
+                            it.getField(RequestedResourceTable.productCategory),
+                            it.getField(RequestedResourceTable.productProvider),
+                            it.getFieldNullable(RequestedResourceTable.creditsRequested),
+                            it.getFieldNullable(RequestedResourceTable.quotaRequestedBytes)
+                        )
+                    ),
+                    it.getField(ApplicationTable.id)
+                )
+            }
+            .groupingBy { it.id }
+            .reduce { _, accumulator, element ->
+                accumulator.copy(requestedResource = accumulator.requestedResource + element.requestedResource)
+            }
+            .values
+    }
+
+    private fun grantRecipientFromTable(id: String, type: String): GrantRecipient {
+        return when (type) {
+            GrantRecipient.PERSONAL_TYPE -> GrantRecipient.PersonalProject(id)
+            GrantRecipient.EXISTING_PROJECT_TYPE -> GrantRecipient.ExistingProject(id)
+            GrantRecipient.NEW_PROJECT_TYPE -> GrantRecipient.NewProject(id)
+            else -> throw IllegalArgumentException("Unknown type")
+        }
     }
 }

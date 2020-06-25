@@ -363,9 +363,10 @@ const Subprojects: React.FunctionComponent = () => {
                 requestReload={reloadWallets}
                 walletBalance={selectedWallet === null ?
                     undefined :
-                    subprojectWallets.find(it => it.wallet.id === subproject.id) ?? {...selectedWallet, balance: 0}
+                    subprojectWallets.find(it => it.wallet.id === subproject.id) ??
+                        {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
                 }
-                hasPendingRequest={Math.ceil(Math.random() * 100) % 2 === 0}
+                hasPendingRequest={false}
             />;
         });
     }
@@ -377,7 +378,7 @@ const AllocationEditor = styled.div`
     justify-content: flex-end;
     width: 250px;
     margin: 0 16px;
-    
+
     ${Input} {
         width: 1px;
         flex-grow: 1;
@@ -385,7 +386,7 @@ const AllocationEditor = styled.div`
         padding-bottom: 0;
         text-align: right;
     }
-    
+
     ${HexSpinWrapper} {
         margin: -12px 0 0 10px;
     }

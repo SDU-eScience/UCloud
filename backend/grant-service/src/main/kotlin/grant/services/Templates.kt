@@ -1,13 +1,10 @@
 package dk.sdu.cloud.grant.services
 
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.grant.api.ReadTemplatesResponse
 import dk.sdu.cloud.grant.api.UploadTemplatesRequest
 import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.text
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
 
 object TemplateTable : SQLTable("templates") {
@@ -18,7 +15,8 @@ object TemplateTable : SQLTable("templates") {
 }
 
 class TemplateService(
-    private val projects: ProjectCache
+    private val projects: ProjectCache,
+    private val defaultApplication: String = ""
 ) {
     suspend fun uploadTemplates(
         ctx: DBContext,
@@ -53,5 +51,29 @@ class TemplateService(
                     """
                 )
         }
-   }
+    }
+
+    suspend fun fetchTemplates(
+       ctx: DBContext,
+       actor: Actor,
+       projectId: String
+    ): ReadTemplatesResponse {
+        // TODO Check ACL
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    { setParameter("projectId", projectId) },
+                    "select * from templates where project_id = :projectId limit 1"
+                )
+                .rows
+                .singleOrNull()
+                ?.let {
+                    ReadTemplatesResponse(
+                        it.getFieldNullable(TemplateTable.personalProject) ?: defaultApplication,
+                        it.getFieldNullable(TemplateTable.newProject) ?: defaultApplication,
+                        it.getFieldNullable(TemplateTable.existingProject) ?: defaultApplication
+                    )
+                } ?: ReadTemplatesResponse(defaultApplication, defaultApplication, defaultApplication)
+        }
+    }
 }

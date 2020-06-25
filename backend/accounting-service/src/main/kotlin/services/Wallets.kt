@@ -224,7 +224,7 @@ class BalanceService(
             requirePermissionToWriteBalance(session, initiatedBy, account.id, account.type)
             val (currentBalance, exists) = getBalance(session, initiatedBy, account, true)
             if (currentBalance != lastKnownBalance) {
-                throw RPCException("Balance has been updated since you last viewed it!", HttpStatusCode.Conflict)
+                throw RPCException("Balance has been updated since you last viewed it! ($currentBalance / $lastKnownBalance)", HttpStatusCode.Conflict)
             }
 
             if (!exists) {
