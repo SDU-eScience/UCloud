@@ -1,10 +1,10 @@
 import {callAPIWithErrorHandler, useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
-import {useProjectManagementStatus,} from "Project/index";
+import {useProjectManagementStatus, } from "Project/index";
 import * as Heading from "ui-components/Heading";
 import * as React from "react";
-import {useCallback, useEffect} from "react";
-import {Box, Button, Link, Flex} from "ui-components";
+import {useEffect} from "react";
+import {Box, Button} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -74,7 +74,6 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
 
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs crumbs={[{title: "Members"}]} />}
             sidebar={null}
             main={(
                 <>
@@ -103,6 +102,7 @@ const Members: React.FunctionComponent<MembersOperations> = props => {
                     )}
                     <TwoColumnLayout>
                         <Box className="members">
+                            <ProjectBreadcrumbs crumbs={[{title: "Members"}]} />
                             <Box ml={8} mr={8}>
                                 {isSettingsPage ? <ProjectSettings /> : <ProjectMembers />}
                             </Box>
@@ -138,6 +138,7 @@ const TwoColumnLayout = styled.div`
         }
         
         & > .members {
+            border-right: 2px solid var(--black, #f00);
             height: 100%;
             flex: 1;
             overflow-y: auto;
