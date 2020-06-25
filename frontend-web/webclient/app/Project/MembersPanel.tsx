@@ -46,7 +46,7 @@ const MembersPanel: React.FunctionComponent = () => {
         const username = inputField.value;
         try {
             await runCommand(inviteMember({
-                project: projectId,
+                projectId: projectId,
                 usernames: [username]
             }));
             inputField.value = "";
@@ -91,7 +91,7 @@ const MembersPanel: React.FunctionComponent = () => {
                                     .map(it => it.trim())
                                     .filter(it => it.length > 0);
 
-                                await runCommand(inviteMember({project: projectId, usernames}));
+                                await runCommand(inviteMember({projectId: projectId, usernames}));
                                 reloadMembers();
                             } catch (ignored) {
                                 // Ignored

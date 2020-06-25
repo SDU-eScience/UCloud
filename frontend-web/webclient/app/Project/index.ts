@@ -239,7 +239,7 @@ export const createProject = (payload: {title: string; parent?: string}): APICal
     reloadId: Math.random()
 });
 
-export const inviteMember = (payload: {project: string; usernames: string[]}): APICallParameters => ({
+export const inviteMember = (payload: {projectId: string; usernames: string[]}): APICallParameters => ({
     method: "POST",
     path: "/projects/invites",
     payload,
