@@ -16,6 +16,7 @@ object TemplateTable : SQLTable("templates") {
 
 class TemplateService(
     private val projects: ProjectCache,
+    private val settings: SettingsService,
     private val defaultApplication: String = ""
 ) {
     suspend fun uploadTemplates(
@@ -24,9 +25,9 @@ class TemplateService(
         projectId: String,
         templates: UploadTemplatesRequest
     ) {
-        ctx.withSession { session ->
-            if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
+        ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
@@ -58,8 +59,20 @@ class TemplateService(
        actor: Actor,
        projectId: String
     ): ReadTemplatesResponse {
-        // TODO Check ACL
+        val isProjectAdmin = projects.isAdminOfProject(projectId, actor)
+
         return ctx.withSession { session ->
+            if (!isProjectAdmin) {
+                if (actor is Actor.User) {
+                    val settings = settings.fetchSettings(session, projectId)
+                    if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
+                        throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                    }
+                } else {
+                    throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                }
+            }
+
             session
                 .sendPreparedStatement(
                     { setParameter("projectId", projectId) },

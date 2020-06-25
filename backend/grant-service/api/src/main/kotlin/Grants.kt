@@ -52,11 +52,12 @@ data class AutomaticApprovalSettings(
     val maxResources: List<ResourceRequest>
 )
 
-data class UploadRequestSettingsRequest(
+data class ProjectApplicationSettings(
     val automaticApproval: AutomaticApprovalSettings,
     val allowRequestsFrom: List<UserCriteria>
 )
 
+typealias UploadRequestSettingsRequest = ProjectApplicationSettings
 typealias UploadRequestSettingsResponse = Unit
 
 data class ApproveApplicationRequest(val requestId: Long)
@@ -80,10 +81,14 @@ data class ApplicationWithComments(val application: Application, val comment: Li
 data class OutgoingApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias OutgoingApplicationsResponse = Page<Application>
 
-typealias SubmitApplicationRequest = Unit
+typealias SubmitApplicationRequest = Application
 typealias SubmitApplicationResponse = Unit
 
-typealias EditApplicationRequest = Unit
+data class EditApplicationRequest(
+    val id: Long,
+    val newDocument: String,
+    val newResources: List<ResourceRequest>
+)
 typealias EditApplicationResponse = Unit
 
 enum class ApplicationStatus {

@@ -1,15 +1,13 @@
 package dk.sdu.cloud.grant.services
 
+import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.AutomaticApprovalSettings
+import dk.sdu.cloud.grant.api.ProjectApplicationSettings
+import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.api.UserCriteria
 import dk.sdu.cloud.service.Actor
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.long
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.text
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
 
 object AllowApplicationsFromTable : SQLTable("allow_applications_from") {
@@ -64,15 +62,15 @@ class SettingsService(
         }
     }
 
-   suspend fun updateAutomaticApprovalList(
+    suspend fun updateAutomaticApprovalList(
         ctx: DBContext,
         actor: Actor,
         projectId: String,
         settings: AutomaticApprovalSettings
     ) {
-       if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-       ctx.withSession { session ->
+        ctx.withSession { session ->
             session
                 .sendPreparedStatement(
                     { setParameter("projectId", projectId) },
@@ -116,6 +114,46 @@ class SettingsService(
         }
     }
 
+    suspend fun fetchSettings(
+        ctx: DBContext,
+        projectId: String
+    ): ProjectApplicationSettings {
+        return ctx.withSession { session ->
+            val allowFrom = session
+                .sendPreparedStatement(
+                    { setParameter("projectId", projectId) },
+
+                    """
+                        select * from allow_applications_from
+                        where project_id = :projectId
+                    """
+                )
+                .rows.map { it.toUserCriteria() }
+
+            val limits = session
+                .sendPreparedStatement(
+                    { setParameter("projectId", projectId) },
+                    """
+                        select * from automatic_approval_limits
+                        where project_id = :projectId
+                    """
+                )
+                .rows.map { it.toAutomaticApproval() }
+
+            val automaticApprovalUsers = session
+                .sendPreparedStatement(
+                    { setParameter("projectId", projectId) },
+                    """
+                        select * from automatic_approval_users
+                        where project_id = :projectId
+                    """
+                )
+                .rows.map { it.toUserCriteria() }
+
+            ProjectApplicationSettings(AutomaticApprovalSettings(automaticApprovalUsers, limits), allowFrom)
+        }
+    }
+
     private fun UserCriteria.toSqlApplicantId(): String? {
         return when (this) {
             UserCriteria.Anyone -> null
@@ -130,5 +168,24 @@ class SettingsService(
             is UserCriteria.EmailDomain -> UserCriteria.EMAIL_TYPE
             is UserCriteria.WayfOrganization -> UserCriteria.WAYF_TYPE
         }
+    }
+
+    private fun RowData.toUserCriteria(): UserCriteria {
+        val id = getField(AllowApplicationsFromTable.applicantId)
+        return when (getField(AllowApplicationsFromTable.type)) {
+            UserCriteria.ANYONE_TYPE -> UserCriteria.Anyone
+            UserCriteria.EMAIL_TYPE -> UserCriteria.EmailDomain(id)
+            UserCriteria.WAYF_TYPE -> UserCriteria.WayfOrganization(id)
+            else -> throw IllegalArgumentException("Unknown type")
+        }
+    }
+
+    private fun RowData.toAutomaticApproval(): ResourceRequest {
+        return ResourceRequest(
+            getField(AutomaticApprovalLimitsTable.productCategory),
+            getField(AutomaticApprovalLimitsTable.productProvider),
+            getFieldNullable(AutomaticApprovalLimitsTable.maximumCredits),
+            getFieldNullable(AutomaticApprovalLimitsTable.maximumQuota)
+        )
     }
 }

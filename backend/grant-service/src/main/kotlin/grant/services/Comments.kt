@@ -46,20 +46,17 @@ class CommentService(
     suspend fun deleteComment(
         ctx: DBContext,
         actor: Actor,
-        id: Long,
         commentId: Long
     ) {
         ctx.withSession { session ->
-            checkPermissions(session, id, actor)
-
-            session
+            val projectId = session
                 .sendPreparedStatement(
-                    {
-                        setParameter("appId", id)
-                        setParameter("commentId", commentId)
-                    },
-                    "delete from comments where id = :commentId and application_id = :appId"
+                    { setParameter("commentId", commentId) },
+                    "delete from comments where id = :commentId returning application_id"
                 )
+                .rows.singleOrNull()?.getLong(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            checkPermissions(session, projectId, actor)
         }
     }
 
