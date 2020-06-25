@@ -151,7 +151,8 @@ sensitive data in it.
   "principalType": "password",
   "firstNames": "User",
   "lastName": "User",
-  "uid": 10
+  "uid": 10,
+  "orgId": "sdu"
 }
 ```
 
@@ -284,3 +285,4 @@ considered secret and does not allow a user to create new JWTs.
 | `firstNames`    | First name(s).                             |
 | `lastName`      | Last name.                                 |
 | `uid`           | Unique user ID                             |
+| `orgId`         | Organization ID (provided by WAYF)         |

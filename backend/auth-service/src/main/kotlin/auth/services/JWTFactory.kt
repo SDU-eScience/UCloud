@@ -43,6 +43,7 @@ class JWTFactory(
                 if (user.orcId != null) withClaim("orcId", user.orcId)
                 if (user.title != null) withClaim("title", user.title)
                 if (user.email != null) withClaim("email", user.email)
+                if (user is Person.ByWAYF) withClaim("orgId", user.organizationId)
                 withClaim("twoFactorAuthentication", user.twoFactorAuthentication)
                 withClaim(
                     "serviceLicenseAgreement",
@@ -55,7 +56,6 @@ class JWTFactory(
             }
         }
 
-        // TODO This doesn't seem right
         val type = when (user) {
             is Person.ByWAYF -> "wayf"
             is Person.ByPassword -> "password"
