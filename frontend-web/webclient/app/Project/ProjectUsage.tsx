@@ -32,8 +32,17 @@ function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
     return `${date.getDate()}/${date.getMonth() + 1} ` +
         `${date.getHours().toString().padStart(2, "0")}:` +
-        `${date.getMinutes().toString().padStart(2, "0")}:` +
-        `${date.getSeconds().toString().padStart(2, "0")}`;
+        `${date.getMinutes().toString().padStart(2, "0")}`
+}
+
+function dateFormatterDay(timestamp: number): string {
+    const date = new Date(timestamp);
+    return `${date.getDate()}/${date.getMonth() + 1} `
+}
+
+function dateFormatterMonth(timestamp: number): string {
+    const date = new Date(timestamp);
+    return `${date.getMonth()+1}/${date.getFullYear() } `
 }
 
 export function creditFormatter(credits: number, precision: number = 2): string {
@@ -125,7 +134,7 @@ const durationOptions: Duration[] = [
         text: "Past 14 days",
         bucketSize: 1000 * 60 * 60 * 24,
         bucketSizeText: "every day",
-        timeInPast: 1000 * 60 * 60 * 24 * 7
+        timeInPast: 1000 * 60 * 60 * 24 * 14
     },
     {
         text: "Past 30 days",
@@ -172,7 +181,70 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
         setIncludeInCharts(newState);
     };
 
-    const now = new Date().getTime();
+    function periodStartFunction(time: Date, duration: Duration): number {
+        switch (duration.text) {
+            case "Today":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate(),
+                    time.getHours() + 1,
+                    0,
+                    0
+                ).getTime();
+            case "Past week":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate(),
+                    time.getHours() + 1,
+                    0,
+                    0
+                ).getTime();
+            case "Past 14 days":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate() + 1,
+                    0,
+                    0,
+                    0
+                ).getTime();
+            case "Past 30 days":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate() + 1,
+                    0,
+                    0,
+                    0
+                ).getTime();
+            case "Past 180 days":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate() + 1,
+                    0,
+                    0,
+                    0
+                ).getTime();
+            case "Past 365 days":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate() + 1,
+                    0,
+                    0,
+                    0
+                ).getTime();
+            default:
+                return time.getTime();
+        }
+    }
+
+    const currentTime = new Date();
+    const now = periodStartFunction(currentTime, durationOption);
+
     const [balance, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
         retrieveBalance({includeChildren: true}),
         {wallets: []}
@@ -288,6 +360,21 @@ const VisualizationForArea: React.FunctionComponent<{
         }
     }
 
+    function needDay(duration: Duration): Boolean {
+        switch (duration.text) {
+            case "Past 14 days":
+                return true;
+            case "Past 30 days":
+                return true;
+            case "Past 180 days":
+                return true;
+            default:
+                return false
+        }    }
+    function needMonth(duration: Duration): Boolean {
+        return duration.text === "Past 365 days";
+    }
+
     return (
         <Box>
             <SummaryCard
@@ -313,9 +400,20 @@ const VisualizationForArea: React.FunctionComponent<{
                                             }}
                                         >
                                             <CartesianGrid strokeDasharray="3 3"/>
-                                            <XAxis dataKey="time" tickFormatter={dateFormatter}/>
+                                            {needMonth(durationOption) ?
+                                                <XAxis dataKey="time" tickFormatter={dateFormatterMonth}/> :
+                                                needDay(durationOption) ?
+                                                    <XAxis dataKey="time" tickFormatter={dateFormatterDay}/> :
+                                                    <XAxis dataKey="time" tickFormatter={dateFormatter}/>
+                                            }
                                             <YAxis width={150} tickFormatter={creditFormatter}/>
-                                            <Tooltip labelFormatter={dateFormatter} formatter={n => creditFormatter(n as number, 2)}/>
+                                            <Tooltip labelFormatter={
+                                                needMonth(durationOption) ?
+                                                    dateFormatterMonth :
+                                                    needDay(durationOption) ?
+                                                       dateFormatterDay:
+                                                        dateFormatter
+                                            } formatter={n => creditFormatter(n as number, 2)}/>
                                             {chart.lineNames.map((id, idx) => {
                                                 if ((includeInCharts[chart.provider] ?? {})[id] ?? true) {
                                                     return <Bar
