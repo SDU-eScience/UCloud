@@ -6,7 +6,7 @@ import {theme} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
-import {listMachines, MachineReservation} from "Accounting";
+import {listProducts, Product} from "Accounting";
 import {Page} from "Types";
 import {emptyPage} from "DefaultObjects";
 import {creditFormatter} from "Project/ProjectUsage";
@@ -30,13 +30,13 @@ const MachineTypesWrapper = styled.div`
 
 export const MachineTypes: React.FunctionComponent<{
     reservation: string;
-    setReservation: (name: string, machine: MachineReservation) => void;
+    setReservation: (name: string, machine: Product) => void;
 }> = props => {
-    const [machines] = useCloudAPI<Page<MachineReservation>>(
-        listMachines({itemsPerPage: 100, page: 0, provider: "ucloud", productCategory: "COMPUTE"}),
+    const [machines] = useCloudAPI<Page<Product>>(
+        listProducts({itemsPerPage: 100, page: 0, provider: "ucloud", productCategory: "COMPUTE"}),
         emptyPage
     );
-    const [selected, setSelected] = useState<MachineReservation | null>(null);
+    const [selected, setSelected] = useState<Product | null>(null);
 
     useEffect(() => {
         setSelected(machines.data.items.find(it => it.id === props.reservation) ?? null);
@@ -98,7 +98,7 @@ const MachineBoxWrapper = styled.div`
     }
 `;
 
-const MachineBox: React.FunctionComponent<{machine: MachineReservation | null}> = ({machine}) => (
+const MachineBox: React.FunctionComponent<{machine: Product | null}> = ({machine}) => (
     <MachineBoxWrapper>
         {machine ? null : (
             <b>No machine selected</b>

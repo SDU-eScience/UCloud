@@ -223,7 +223,7 @@ export interface UserInProject {
     needsVerification: boolean;
     favorite: boolean;
     archived: boolean;
-    parentId?: string;
+    parent?: string;
 }
 
 export interface UserGroupSummary {

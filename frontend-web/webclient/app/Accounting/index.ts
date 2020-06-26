@@ -118,7 +118,7 @@ export function retrieveCredits(request: RetrieveCreditsRequest): APICallParamet
 
 // Machines
 
-export interface MachineReservation {
+export interface Product {
     id: string;
     pricePerUnit: number;
     category: ProductCategoryId;
@@ -128,19 +128,33 @@ export interface MachineReservation {
     cpu?: number;
     memoryInGigs?: number;
     gpu?: number;
+    type: "compute" | "storage";
 }
 
-export interface ListMachinesRequest extends PaginationRequest {
+export interface ListProductsRequest extends PaginationRequest {
     provider: string;
     productCategory: string;
 }
 
-export type ListMachinesResponse = MachineReservation[];
+export type ListProductsResponse = Product[];
 
-export function listMachines(request: ListMachinesRequest): APICallParameters<ListMachinesRequest> {
+export function listProducts(request: ListProductsRequest): APICallParameters<ListProductsRequest> {
     return {
         method: "GET",
         path: buildQueryString("/products/list", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface RetrieveFromProviderRequest { provider: string; }
+export type RetrieveFromProviderResponse = Product[];
+export function retrieveFromProvider(
+    request: RetrieveFromProviderRequest
+): APICallParameters<RetrieveFromProviderRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/products/retrieve", request),
         parameters: request,
         reloadId: Math.random()
     };

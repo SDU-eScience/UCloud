@@ -20,7 +20,7 @@ data class UserStatusInProject(
     val projectId: String,
     val title: String,
     val whoami: ProjectMember,
-    val parentId: String?
+    val parent: String?
 )
 
 data class UserStatusResponse(

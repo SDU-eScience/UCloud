@@ -5,6 +5,7 @@ import dk.sdu.cloud.grant.api.ReadTemplatesResponse
 import dk.sdu.cloud.grant.api.UploadTemplatesRequest
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
 
 object TemplateTable : SQLTable("templates") {
@@ -60,9 +61,15 @@ class TemplateService(
        projectId: String
     ): ReadTemplatesResponse {
         val isProjectAdmin = projects.isAdminOfProject(projectId, actor)
+        val isAdminOfChildProject = if (!isProjectAdmin) {
+            projects.memberStatus.get(actor.safeUsername())
+                ?.membership?.any { it.parent == projectId && it.whoami.role.isAdmin() } ?: false
+        } else {
+            false
+        }
 
         return ctx.withSession { session ->
-            if (!isProjectAdmin) {
+            if (!isProjectAdmin && !isAdminOfChildProject) {
                 if (actor is Actor.User) {
                     val settings = settings.fetchSettings(session, projectId)
                     if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {

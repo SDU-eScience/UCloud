@@ -1,4 +1,4 @@
-package dk.sdu.cloud.grant.controller
+package dk.sdu.cloud.grant.rpc
 
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer

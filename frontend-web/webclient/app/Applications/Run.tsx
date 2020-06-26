@@ -75,7 +75,7 @@ import Warning from "ui-components/Warning";
 import {getQueryParam, RouterLocationProps} from "Utilities/URIUtilities";
 import * as PublicLinks from "Applications/PublicLinks/Management";
 import {creditFormatter} from "Project/ProjectUsage";
-import {MachineReservation} from "Accounting";
+import {Product} from "Accounting";
 
 const hostnameRegex = new RegExp(
     "^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*" +
@@ -989,7 +989,7 @@ interface JobSchedulingOptionsProps {
     options: JobSchedulingOptionsForInput;
     app: WithAppMetadata & WithAppInvocation;
     reservation: string;
-    setReservation: (name: string, reservationMachine: MachineReservation) => void;
+    setReservation: (name: string, reservationMachine: Product) => void;
     urlEnabled: boolean;
     setUrlEnabled: React.Dispatch<React.SetStateAction<boolean>>;
     url: React.RefObject<HTMLInputElement>;

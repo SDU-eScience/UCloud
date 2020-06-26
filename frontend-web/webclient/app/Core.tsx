@@ -46,8 +46,7 @@ import ProjectDashboard from "Project/ProjectDashboard";
 import {ProjectSettings} from "Project/ProjectSettings";
 import ProjectUsage from "Project/ProjectUsage";
 import Subprojects from "Project/Subprojects";
-import {ProjectPlayground} from "Project/playground";
-import {ResourceRequest} from "Project/ResourceRequest";
+import {GrantApplicationEditor, RequestTarget} from "Project/Grant/ResourceRequest";
 import {DetailedNews} from "NewsPost/DetailedNews";
 import {NewsList} from "NewsPost/NewsList";
 
@@ -123,8 +122,16 @@ const Core = (): JSX.Element => (
                             <Route exact path="/project/settings" component={requireAuth(ProjectSettings)}/>
                             <Route exact path="/project/usage" component={requireAuth(ProjectUsage)}/>
                             <Route exact path="/project/subprojects" component={requireAuth(Subprojects)}/>
-                            <Route exact path="/project/resource-request" component={requireAuth(ResourceRequest)}/>
-                            <Route exact path="/project/playground" component={requireAuth(ProjectPlayground)}/>
+                            <Route
+                                exact
+                                path="/project/resource-request/existing"
+                                component={requireAuth(GrantApplicationEditor(RequestTarget.EXISTING))}
+                            />
+                            <Route
+                                exact
+                                path="/project/resource-request/new/:projectId"
+                                component={requireAuth(GrantApplicationEditor(RequestTarget.NEW))}
+                            />
                             <Route exact path="/project/members/:group?/:member?" component={requireAuth(ProjectMembers)}/>
                         </>
                     )

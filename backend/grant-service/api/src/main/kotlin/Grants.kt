@@ -132,7 +132,7 @@ data class Application(
     val requestedBy: String, // Username of user submitting the request
     val grantRecipient: GrantRecipient,
     val document: String,
-    val requestedResource: List<ResourceRequest>, // This is _always_ additive to existing resources
+    val requestedResources: List<ResourceRequest>, // This is _always_ additive to existing resources
     val id: Long? = null
 )
 

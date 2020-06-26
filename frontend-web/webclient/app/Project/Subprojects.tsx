@@ -241,7 +241,7 @@ const Subprojects: React.FunctionComponent = () => {
                 <>
                     <Heading.h3>Resources</Heading.h3>
                     <WalletContainer ref={walletContainer}>
-                        {projectWallets.map((w, i) => 
+                        {projectWallets.map((w, i) =>
                             <SelectableWallet
                                 key={i}
                                 wallet={w}
@@ -267,7 +267,7 @@ const Subprojects: React.FunctionComponent = () => {
                                         Click the button below to get started.
                                     </p>
                                     <Flex justifyContent={"flex-end"}>
-                                        <Link to={"/project/resource-request"}><Button>Request resources</Button></Link>
+                                        <Link to={"/project/resource-request/existing"}><Button>Request resources</Button></Link>
                                     </Flex>
                                 </Box>
                             </DashboardCard>
