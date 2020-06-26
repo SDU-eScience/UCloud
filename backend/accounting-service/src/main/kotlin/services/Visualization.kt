@@ -16,6 +16,7 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
+import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import java.util.*
 import kotlin.collections.HashMap
@@ -49,6 +50,31 @@ class VisualizationService(
             val allCreditsUsed = HashMap<RowKey, Long>()
             val allTimestamps = TreeSet<Long>()
 
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("periodStart", query.periodStart / 1000L)
+                        setParameter("periodEnd", query.periodEnd / 1000L)
+                        setParameter("bucketSize", "${query.bucketSize / 1000L } s")
+                    },
+                    """
+                        select
+                            extract(epoch from timestamps.ts)::bigint
+                        from (
+                             Select generate_series(
+                                     to_timestamp(?periodStart) :: timestamp,
+                                     to_timestamp(?periodEnd) :: timestamp,
+                                     ?bucketSize :: interval
+                              ) as ts
+                        ) as timestamps;
+                    """.trimIndent()
+                )
+                .rows
+                .forEach { row ->
+                    val timestamp = row.getLong(0)!! * 1000L
+                    allTimestamps.add(timestamp)
+
+                }
             session
                 .sendPreparedStatement(
                     {
@@ -97,11 +123,10 @@ class VisualizationService(
                     """
                 )
                 .rows
-                .forEach { row ->
+                .forEachIndexed { index,  row ->
                     val timestamp = row.getLong(4)!! * 1000L
-                    allTimestamps.add(timestamp)
 
-                    val childAccountId = row.getString(0) ?: return@forEach
+                    val childAccountId = row.getString(0) ?: return@forEachIndexed
                     val productProvider = row.getString(1)!!
                     val productCategory = row.getString(2)!!
                     val creditsUsed = row.getLong(3)!!
@@ -198,6 +223,8 @@ class VisualizationService(
                     val lines = categories.flatMap { category ->
                         accounts.map { account ->
                             val points = allTimestamps.map { ts ->
+                                println(ts)
+                                println(allCreditsUsed[RowKey(account, provider, category.id, ts)] ?: 0)
                                 UsagePoint(ts, allCreditsUsed[RowKey(account, provider, category.id, ts)] ?: 0L)
                             }
 
