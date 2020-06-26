@@ -1,6 +1,8 @@
 package dk.sdu.cloud.news.rpc
 
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.news.api.News
 import dk.sdu.cloud.news.services.NewsService
 import dk.sdu.cloud.service.Controller
@@ -14,7 +16,16 @@ class NewsController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(News.newPost) {
-            newsService.createNewsPost(db, "UCloud", request.title, request.subtitle, request.body, request.showFrom, request.hideFrom, request.category)
+            newsService.createNewsPost(
+                db,
+                "UCloud",
+                request.title,
+                request.subtitle,
+                request.body,
+                request.showFrom,
+                request.hideFrom,
+                request.category
+            )
             ok(Unit)
         }
 
@@ -23,7 +34,15 @@ class NewsController(
         }
 
         implement(News.listPosts) {
-            ok(newsService.listNewsPosts(db, request.normalize(), request.filter, request.withHidden))
+            ok(
+                newsService.listNewsPosts(
+                    db,
+                    request.normalize(),
+                    request.filter,
+                    request.withHidden,
+                    ctx.securityPrincipal.role in Roles.PRIVILEDGED
+                )
+            )
         }
 
         implement(News.listCategories) {
@@ -31,7 +50,13 @@ class NewsController(
         }
 
         implement(News.listDowntimes) {
-            ok(newsService.listNewsPosts(db, NormalizedPaginationRequest(10, 0), "downtime", false))
+            ok(
+                newsService.listNewsPosts(
+                    db, NormalizedPaginationRequest(10, 0), "downtime",
+                    withHidden = false,
+                    userIsAdmin = false
+                )
+            )
         }
 
         implement(News.getPostById) {
