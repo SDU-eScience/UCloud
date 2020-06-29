@@ -20,7 +20,7 @@ import {creditFormatter} from "Project/ProjectUsage";
 import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {
-    Comment, commentOnGrantApplication, deleteGrantApplicationComment,
+    Comment, commentOnGrantApplication, deleteGrantApplicationComment, editGrantApplication,
     GrantApplicationStatus,
     GrantRecipient,
     readTemplates,
@@ -328,19 +328,30 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             } as ResourceRequest;
         }).filter(it => it !== null) as ResourceRequest[];
 
-        const response = await runWork<{ id: number }>(submitGrantApplication({
-            document: state.documentRef.current!.value,
-            requestedBy: Client.username!,
-            resourcesOwnedBy: state.targetProject!,
-            status: GrantApplicationStatus.IN_PROGRESS, // This is ignored by the backend
-            requestedResources,
-            grantRecipient
-        }));
+        const newDocument = state.documentRef.current!.value;
+        if (state.applicationId === undefined) {
+            const response = await runWork<{ id: number }>(submitGrantApplication({
+                document: newDocument,
+                requestedBy: Client.username!,
+                resourcesOwnedBy: state.targetProject!,
+                status: GrantApplicationStatus.IN_PROGRESS, // This is ignored by the backend
+                requestedResources,
+                grantRecipient
+            }));
 
-        if (response) {
-            history.push(`/project/resource-request/view/${response.id}`);
+            if (response) {
+                history.push(`/project/resource-request/view/${response.id}`);
+            }
+        } else {
+            await runWork(editGrantApplication({
+                id: state.applicationId!,
+                newDocument,
+                newResources: requestedResources
+            }));
+            state.reload();
         }
-    }, [state.targetProject, state.documentRef, state.recipient, state.wallets, projectTitleRef]);
+    }, [state.targetProject, state.documentRef, state.recipient, state.wallets, projectTitleRef,
+        state.applicationId, state.reload]);
 
     useEffect(() => {
         if (state.applicationId !== undefined) {
@@ -511,7 +522,9 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                             </RequestFormContainer>
                         </CommentApplicationWrapper>
                         <Box p={32}>
-                            <Button fullWidth onClick={submitRequest}>Submit request</Button>
+                            <Button fullWidth onClick={submitRequest}>
+                                {target === RequestTarget.VIEW_APPLICATION ? "Edit Request" : "Submit request"}
+                            </Button>
                         </Box>
                     </Box>
                 </Flex>

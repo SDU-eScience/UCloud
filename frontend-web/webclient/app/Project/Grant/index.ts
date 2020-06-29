@@ -132,3 +132,21 @@ export function deleteGrantApplicationComment(
         reloadId: Math.random()
     };
 }
+
+export interface EditGrantApplicationRequest {
+    id: number;
+    newDocument: string;
+    newResources: ResourceRequest[];
+}
+
+export function editGrantApplication(
+    request: EditGrantApplicationRequest
+): APICallParameters<EditGrantApplicationRequest> {
+    return {
+        method: "POST",
+        path: "/grant/edit",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
