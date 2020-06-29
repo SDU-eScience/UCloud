@@ -27,7 +27,7 @@ export const ProjectBreadcrumbs: React.FunctionComponent<ProjectBreadcrumbsProps
         projectNameComponent = <>{title.slice(0, 20).trim()}{title.length > 20 ? "..." : ""}</>;
     }
 
-    return <ProjectBreadcrumbsWrapper embedded={false}>
+    return <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
         <span><Link to="/projects">My Projects</Link></span>
         {projectId ? <span><Link to={`/project/dashboard`}>{projectNameComponent}</Link></span> : null}
         {props.crumbs.map((crumb, idx) => {

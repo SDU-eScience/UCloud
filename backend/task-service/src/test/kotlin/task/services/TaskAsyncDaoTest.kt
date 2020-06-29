@@ -5,6 +5,7 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.task.api.TaskServiceDescription
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres

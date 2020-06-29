@@ -6,23 +6,23 @@ import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.defaultMapper
 import io.ktor.http.HttpStatusCode
 
-class ContactBookService(private val elasticDAO: ContactBookElasticDAO) {
+class ContactBookService(private val elasticDao: ContactBookElasticDao) {
 
     fun insertContact(fromUser: String, toUser: List<String>, serviceOrigin: ServiceOrigin) {
         val sanitizedList = toUser.filter { !it.isNullOrBlank() }
         when {
             sanitizedList.isEmpty() -> throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-            sanitizedList.size == 1 -> elasticDAO.insertContact(fromUser, sanitizedList.first(), serviceOrigin.name)
-            else -> elasticDAO.insertContactsBulk(fromUser, sanitizedList, serviceOrigin.name)
+            sanitizedList.size == 1 -> elasticDao.insertContact(fromUser, sanitizedList.first(), serviceOrigin.name)
+            else -> elasticDao.insertContactsBulk(fromUser, sanitizedList, serviceOrigin.name)
         }
     }
 
     fun deleteContact(fromUser: String, toUser: String, serviceOrigin: ServiceOrigin) {
-        elasticDAO.deleteContact(fromUser, toUser, serviceOrigin.name)
+        elasticDao.deleteContact(fromUser, toUser, serviceOrigin.name)
     }
 
     fun listAllContactsForUser(fromUser: String, serviceOrigin: ServiceOrigin): List<String> {
-        val allContacts = elasticDAO.getAllContactsForUser(fromUser, serviceOrigin.name)
+        val allContacts = elasticDao.getAllContactsForUser(fromUser, serviceOrigin.name)
         return allContacts.hits.map {
             val hit = defaultMapper.readValue<ElasticIndexedContact>(it.sourceAsString)
             hit.toUser
@@ -35,7 +35,7 @@ class ContactBookService(private val elasticDAO: ContactBookElasticDAO) {
         if (normalizedQuery.isNullOrBlank()) {
             return emptyList()
         }
-        val matchingContacts = elasticDAO.queryContacts(fromUser, normalizedQuery, serviceOrigin.name)
+        val matchingContacts = elasticDao.queryContacts(fromUser, normalizedQuery, serviceOrigin.name)
         return matchingContacts.hits.map {
             val hit = defaultMapper.readValue<ElasticIndexedContact>(it.sourceAsString)
             hit.toUser

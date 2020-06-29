@@ -46,7 +46,7 @@ const MembersPanel: React.FunctionComponent = () => {
         const username = inputField.value;
         try {
             await runCommand(inviteMember({
-                project: projectId,
+                projectId: projectId,
                 usernames: [username]
             }));
             inputField.value = "";
@@ -63,6 +63,7 @@ const MembersPanel: React.FunctionComponent = () => {
                     <Input
                         id="new-project-member"
                         placeholder="Username"
+                        autoComplete="off"
                         disabled={isLoading}
                         ref={newMemberRef}
                         onChange={e => {
@@ -90,7 +91,7 @@ const MembersPanel: React.FunctionComponent = () => {
                                     .map(it => it.trim())
                                     .filter(it => it.length > 0);
 
-                                await runCommand(inviteMember({project: projectId, usernames}));
+                                await runCommand(inviteMember({projectId: projectId, usernames}));
                                 reloadMembers();
                             } catch (ignored) {
                                 // Ignored

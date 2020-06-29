@@ -35,6 +35,11 @@ export const BreadCrumbsBase = styled(Flex) <{embedded: boolean}>`
         color: var(--blue, #f00);
         text-decoration: none;
     }
+
+    & > span:last-child:hover {
+        color: var(--text, #f00);
+        cursor: default;
+    }
 `;
 
 export interface BreadcrumbsList {

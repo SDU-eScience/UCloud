@@ -63,9 +63,9 @@ class QueryService(
                         where
                             (gm.project, gm.the_group, gm.username) in (
                                 select
-                                    unnest(?projects::text[]),
-                                    unnest(?groups::text[]),
-                                    unnest(?usernames::text[])
+                                    unnest(:projects::text[]),
+                                    unnest(:groups::text[]),
+                                    unnest(:usernames::text[])
                             )
                     """
                 )
@@ -107,8 +107,8 @@ class QueryService(
                         select *
                         from groups
                         where
-                            the_group = ?group and
-                            project = ?project
+                            the_group = :group and
+                            project = :project
                     """
                 )
                 .rows
@@ -142,9 +142,9 @@ class QueryService(
                         select count(*) 
                         from group_members 
                         where 
-                            project = ?project and
-                            (?group = '' or the_group = ?group) and
-                            (?username::text is null or check_group_acl(?username, ?userIsAdmin, ?group))
+                            project = :project and
+                            (:group = '' or the_group = :group) and
+                            (:username::text is null or check_group_acl(:username, :userIsAdmin, :group))
                     """
                 )
                 .rows
@@ -162,13 +162,13 @@ class QueryService(
                         select *
                         from group_members
                         where
-                            project = ?project and 
-                            (?group = '' or the_group = ?group) and
-                            (?username::text is null or check_group_acl(?username, ?userIsAdmin, ?group))
+                            project = :project and 
+                            (:group = '' or the_group = :group) and
+                            (:username::text is null or check_group_acl(:username, :userIsAdmin, :group))
                         order by
                             project, the_group, username
-                        limit ?limit
-                        offset ?offset
+                        limit :limit
+                        offset :offset
                     """
                 )
                 .rows
@@ -207,8 +207,8 @@ class QueryService(
                         select count(g.the_group)
                         from groups g
                         where
-                            g.project = ?project and
-                            check_group_acl(?username, ?userIsAdmin, g.the_group)
+                            g.project = :project and
+                            check_group_acl(:username, :userIsAdmin, g.the_group)
                     """
                 )
                 .rows
@@ -226,12 +226,12 @@ class QueryService(
                         select g.the_group, count(gm.username)
                         from groups g left join group_members gm on g.project = gm.project and g.the_group = gm.the_group
                         where
-                              g.project = ?project and
-                              check_group_acl(?username, ?userIsAdmin, g.the_group)
+                              g.project = :project and
+                              check_group_acl(:username, :userIsAdmin, g.the_group)
                         group by g.the_group
                         order by g.the_group
-                        offset ?offset
-                        limit ?limit
+                        offset :offset
+                        limit :limit
                     """
                 )
                 .rows
@@ -270,21 +270,21 @@ class QueryService(
                 """
                     from project_members pm
                     where
-                          pm.project_id = ?project and
-                          pm.username ilike ?usernameQuery
+                          pm.project_id = :project and
+                          pm.username ilike :usernameQuery
                 """
             } else {
                 """
                     from project_members pm
                     where
-                    pm.project_id = ?project and
-                    pm.username ilike ?usernameQuery and
+                    pm.project_id = :project and
+                    pm.username ilike :usernameQuery and
                     pm.username not in (
                         select pm.username
                             from group_members gm
                             where
                             gm.project = pm.project_id and
-                            gm.the_group = ?notInGroup and
+                            gm.the_group = :notInGroup and
                             gm.username = pm.username
                     )
                 """
@@ -295,7 +295,7 @@ class QueryService(
                 "select count(*) $baseQuery"
             ).rows.singleOrNull()?.getLong(0) ?: 0
 
-            val items = session.sendPreparedStatement(
+            @Suppress("SqlResolve") val items = session.sendPreparedStatement(
                 {
                     parameters()
                     setParameter("limit", pagination.itemsPerPage)
@@ -311,7 +311,7 @@ class QueryService(
                             WHEN 'USER' THEN 3
                             ELSE 4
                         END, username, created_at
-                    limit ?limit offset ?offset
+                    limit :limit offset :offset
                 """
             )
 
@@ -342,7 +342,7 @@ class QueryService(
                         select pm.*, p.title as title, p.parent as parent
                         from project_members pm, projects p
                         where 
-                            pm.username = ?username and
+                            pm.username = :username and
                             p.id = pm.project_id 
                     """
                 )
@@ -367,7 +367,7 @@ class QueryService(
                     """
                         select *
                         from group_members
-                        where username = ?username
+                        where username = :username
                     """
                 )
                 .rows
@@ -408,17 +408,18 @@ class QueryService(
                             p.id, 
                             p.title, 
                             is_favorite(mem.username, p.id) as is_fav,
-                            p.archived
+                            p.archived,
+                            p.parent
                         from 
                             project_members mem inner join projects p on mem.project_id = p.id
                         where 
-                            mem.username = ?username and
-                            (?showArchived or p.archived = false) and
+                            mem.username = :username and
+                            (:showArchived or p.archived = false) and
                             (is_favorite(mem.username, p.id))
                         order by is_fav desc, p.id
-                        offset ?offset
-                        limit ?limit
-                    """.trimIndent()
+                        offset :offset
+                        limit :limit
+                    """
                 )
                 .rows
                 .map {
@@ -427,6 +428,7 @@ class QueryService(
                     val title = it.getString(2)!!
                     val isFavorite = it.getBoolean(3)!!
                     val isArchived = it.getBoolean(4)!!
+                    val parent = it.getString(5)
 
                     // TODO (Performance) Not ideal code
                     val needsVerification = if (role.isAdmin()) {
@@ -441,7 +443,8 @@ class QueryService(
                         ProjectMember(username, role),
                         needsVerification,
                         isFavorite,
-                        isArchived
+                        isArchived,
+                        parent
                     )
                 }
 
@@ -477,17 +480,18 @@ class QueryService(
                             p.id, 
                             p.title, 
                             is_favorite(mem.username, p.id) as is_fav,
-                            p.archived
+                            p.archived,
+                            p.parent
                         from 
                             project_members mem inner join projects p on mem.project_id = p.id
                         where 
-                            mem.username = ?username and
-                            (?showArchived or p.archived = false) and
-                            (?projectId::text is null or p.id = ?projectId) and
-                            (not ?noFavorites or not is_favorite(mem.username, p.id))
+                            mem.username = :username and
+                            (:showArchived or p.archived = false) and
+                            (:projectId::text is null or p.id = :projectId) and
+                            (not :noFavorites or not is_favorite(mem.username, p.id))
                         order by is_fav desc, p.id
-                        offset ?offset
-                        limit ?limit
+                        offset :offset
+                        limit :limit
                     """
                 )
                 .rows
@@ -497,6 +501,7 @@ class QueryService(
                     val title = it.getString(2)!!
                     val isFavorite = it.getBoolean(3)!!
                     val isArchived = it.getBoolean(4)!!
+                    val parent = it.getString(5)
 
                     // TODO (Performance) Not ideal code
                     val needsVerification = if (role.isAdmin()) {
@@ -511,7 +516,8 @@ class QueryService(
                         ProjectMember(username, role),
                         needsVerification,
                         isFavorite,
-                        isArchived
+                        isArchived,
+                        parent
                     )
                 }
 
@@ -528,10 +534,10 @@ class QueryService(
                             from
                                 project_members mem inner join projects p on mem.project_id = p.id
                             where 
-                                username = ?username and
-                                (?showArchived or p.archived = false) and
-                                (?projectId::text is null or p.id = ?projectId) and
-                                (not ?noFavorites or not is_favorite(mem.username, p.id))
+                                username = :username and
+                                (:showArchived or p.archived = false) and
+                                (:projectId::text is null or p.id = :projectId) and
+                                (not :noFavorites or not is_favorite(mem.username, p.id))
                         """
                     )
                     .rows
@@ -553,7 +559,7 @@ class QueryService(
                     """
                         select * 
                         from project_membership_verification 
-                        where project_id = ?project  
+                        where project_id = :project  
                         order by verification desc
                         limit 1
                     """
@@ -591,7 +597,7 @@ class QueryService(
                                  select project_id
                                  from project_membership_verification v
                                  group by project_id
-                                 having max(verification) <= (now() - (?days || ' day')::interval)
+                                 having max(verification) <= (now() - (:days || ' day')::interval)
                              ) as latest
                              
                         where 
@@ -633,7 +639,7 @@ class QueryService(
                     },
                     """
                         from invites 
-                        where project_id = ?project
+                        where project_id = :project
                     """
                 )
                 .mapItems {
@@ -660,7 +666,7 @@ class QueryService(
                     },
                     """
                         from invites 
-                        where username = ?username
+                        where username = :username
                     """
                 )
                 .mapItems {
@@ -681,7 +687,7 @@ class QueryService(
             session
                 .sendPreparedStatement(
                     { setParameter("projectId", projectId) },
-                    "select count(*) from projects where id = ?projectId"
+                    "select count(*) from projects where id = :projectId"
                 )
                 .rows
                 .single()
@@ -712,7 +718,7 @@ class QueryService(
             session
                 .sendPreparedStatement(
                     { setParameter("id", id) },
-                    "select * from projects where id = ?id"
+                    "select * from projects where id = :id"
                 )
                 .rows
                 .singleOrNull()
@@ -745,7 +751,7 @@ class QueryService(
                     .paginatedQuery(
                         pagination,
                         { setParameter("id", id) },
-                        "from projects where parent = ?id"
+                        "from projects where parent = :id"
                     )
                     .mapItems { it.toProject() }
             } else {
@@ -767,9 +773,9 @@ class QueryService(
                             select count(p.id)
                             from projects p, project_members pm
                             where
-                                p.parent = ?id and
+                                p.parent = :id and
                                 pm.project_id = p.id and
-                                pm.username = ?username and
+                                pm.username = :username and
                                 (pm.role = 'ADMIN' or pm.role = 'PI')
                         """
                             )
@@ -786,12 +792,12 @@ class QueryService(
                             select p.*
                             from projects p, project_members pm
                             where
-                                p.parent = ?id and
+                                p.parent = :id and
                                 pm.project_id = p.id and
-                                pm.username = ?username and
+                                pm.username = :username and
                                 (pm.role = 'ADMIN' or pm.role = 'PI')
-                            offset ?offset
-                            limit ?limit
+                            offset :offset
+                            limit :limit
                         """
                     )
                     .rows

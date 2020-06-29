@@ -69,7 +69,8 @@ data class UserProjectSummary(
     val whoami: ProjectMember,
     val needsVerification: Boolean,
     val isFavorite: Boolean,
-    val archived: Boolean
+    val archived: Boolean,
+    val parent: String?
 )
 
 data class UserGroupSummary(

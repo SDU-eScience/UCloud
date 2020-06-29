@@ -1,17 +1,31 @@
 package dk.sdu.cloud.grant 
 
+import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.grant.rpc.GrantController
+import dk.sdu.cloud.grant.services.*
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.databaseConfig
 import dk.sdu.cloud.micro.server
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
 
 class Server(override val micro: Micro) : CommonServer {
     override val log = logger()
     
     override fun start() {
+        val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val db = AsyncDBSessionFactory(micro.databaseConfig)
+        val projects = ProjectCache(serviceClient)
+        val settings = SettingsService(projects)
+        val templates = TemplateService(projects, settings, "Default")
+        val applications = ApplicationService(projects, settings)
+        val comments = CommentService(projects, applications)
+
         with(micro.server) {
-            // Add controllers below
-            // configureControllers()
+            configureControllers(GrantController(applications, comments, settings, templates, db))
         }
         
         startServices()

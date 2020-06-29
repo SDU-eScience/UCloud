@@ -103,6 +103,11 @@ Array [
   text-decoration: none;
 }
 
+.c0 > span:last-child:hover {
+  color: var(--text,#f00);
+  cursor: default;
+}
+
 <div
     className="sc-fzpans c0"
   >
@@ -218,6 +223,11 @@ Array [
   color: var(--blue,#f00);
   -webkit-text-decoration: none;
   text-decoration: none;
+}
+
+.c0 > span:last-child:hover {
+  color: var(--text,#f00);
+  cursor: default;
 }
 
 <div

@@ -86,7 +86,7 @@ class AsyncDBSessionFactory(config: DatabaseConfig) : DBSessionFactory<AsyncDBCo
     override suspend fun openTransaction(session: AsyncDBConnection) {
         // We always begin by setting the search_path to our schema. The schema is checked in the init block to make
         // this safe.
-        session.sendQuery("set search_path to $schema")
+        session.sendQuery("set search_path to \"$schema\"")
         session.sendQuery("begin")
     }
 

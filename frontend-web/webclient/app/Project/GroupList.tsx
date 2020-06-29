@@ -9,7 +9,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault, preventDefault} from "UtilityFunctions";
 import {usePromiseKeeper} from "PromiseKeeper";
 import {Client} from "Authentication/HttpClientInstance";
-import {addStandardDialog} from "UtilityComponents";
+import {addStandardDialog, ConfirmCancelButtons} from "UtilityComponents";
 import {KeyCode} from "DefaultObjects";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
@@ -64,6 +64,22 @@ const GroupList: React.FunctionComponent = () => {
         <>
             {groupList.data.items.length === 0 ? <Heading.h3>You have no groups to manage.</Heading.h3> : null}
             <List>
+                {creatingGroup ?
+                    <ListRow
+                        left={
+                            <NamingField
+                                onSubmit={createGroup}
+                                onCancel={() => setCreatingGroup(false)}
+                                inputRef={createGroupRef}
+                            />
+                        }
+                        leftSub={
+                            <div />
+                        }
+                        right={<div />}
+                        isSelected={false}
+                        select={() => undefined}
+                    /> : null}
                 {groupList.data.items.map((g, index) => (<React.Fragment key={g.group + index}>
                     <ListRow
                         left={
@@ -116,30 +132,12 @@ const GroupList: React.FunctionComponent = () => {
                         isSelected={false}
                     />
                 </React.Fragment>))}
-
-                {creatingGroup ?
-                    <ListRow
-                        left={
-                            <NamingField
-                                onSubmit={createGroup}
-                                onCancel={() => setCreatingGroup(false)}
-                                inputRef={createGroupRef}
-                            />
-                        }
-                        leftSub={
-                            <Text ml="4px" color="gray" fontSize={0}>
-                                <Icon color="gray" mt="-2px" size="10" name="projects" /> 0
-                            </Text>
-                        }
-                        right={<div />}
-                        isSelected={false}
-                        select={() => undefined}
-                    /> : null}
             </List>
         </>
     );
     return <>
         <Spacer
+            mb="12px"
             left={
                 <BreadCrumbsBase embedded={false}>
                     <span>Groups</span>
@@ -231,21 +229,29 @@ const NamingField: React.FunctionComponent<{
 
     return (
         <form onSubmit={submit}>
-            <Input
-                pt="0px"
-                pb="0px"
-                pr="0px"
-                pl="0px"
-                noBorder
-                fontSize={20}
-                maxLength={1024}
-                onKeyDown={keyDown}
-                borderRadius="0px"
-                type="text"
-                width="100%"
-                autoFocus
-                ref={props.inputRef}
-            />
+            <Flex>
+                <Input
+                    pt="0px"
+                    pb="0px"
+                    pr="0px"
+                    pl="0px"
+                    noBorder
+                    fontSize={20}
+                    maxLength={1024}
+                    onKeyDown={keyDown}
+                    borderRadius="0px"
+                    type="text"
+                    width="100%"
+                    autoFocus
+                    ref={props.inputRef}
+                />
+                <ConfirmCancelButtons
+                    confirmText="Create"
+                    cancelText="Cancel"
+                    onConfirm={submit}
+                    onCancel={props.onCancel}
+                />
+            </Flex>
         </form>
     );
 };

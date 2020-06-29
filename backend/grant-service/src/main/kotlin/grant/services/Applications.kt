@@ -31,15 +31,22 @@ object RequestedResourceTable : SQLTable("requested_resources") {
 }
 
 class ApplicationService(
-    private val projects: ProjectCache
+    private val projects: ProjectCache,
+    private val settings: SettingsService
 ) {
     suspend fun submit(
         ctx: DBContext,
         actor: Actor,
         application: Application
     ): Long {
+        if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
         return ctx.withSession { session ->
-            // TODO Check some permissions
+            val settings = settings.fetchSettings(session, application.resourcesOwnedBy)
+            if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            }
+
             val id = session
                 .sendPreparedStatement(
                     {
@@ -86,7 +93,7 @@ class ApplicationService(
                 .single()
                 .getLong("id")!!
 
-            insertResources(session, application.requestedResource, id)
+            insertResources(session, application.requestedResources, id)
 
             id
         }
@@ -360,7 +367,7 @@ class ApplicationService(
             }
             .groupingBy { it.id }
             .reduce { _, accumulator, element ->
-                accumulator.copy(requestedResource = accumulator.requestedResource + element.requestedResource)
+                accumulator.copy(requestedResources = accumulator.requestedResources + element.requestedResources)
             }
             .values
     }
