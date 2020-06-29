@@ -4,6 +4,7 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.*
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.getField
@@ -12,6 +13,7 @@ import dk.sdu.cloud.service.db.async.int
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.withSession
+import io.ktor.http.HttpStatusCode
 
 object TagLicenseTable : SQLTable ("tags") {
     val name = text("name", notNull = true)
@@ -128,25 +130,27 @@ class AppLicenseAsyncDao {
         db: DBContext,
         user: SecurityPrincipal
     ): List<LicenseServerWithId>? {
-        return db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
-                    },
-                    """
+        if (user.role in Roles.PRIVILEDGED) {
+            return db.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("role", user.role.toString())
+                        },
+                        """
                         SELECT * 
                         FROM license_servers
-                        WHERE ?role in (select unnest(?privileged::text[])) 
                     """.trimIndent()
-                ).rows.map { it.toLicenseServerWithId() }
+                    ).rows.map { it.toLicenseServerWithId() }
+            }
+        } else {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
     }
 
     suspend fun update(db: DBContext, appLicenseServer: LicenseServerWithId) {
         db.withSession { session ->
-            val existing = session
+            session
                 .sendPreparedStatement(
                     {
                         setParameter("licenseID", appLicenseServer.id)
@@ -156,25 +160,28 @@ class AppLicenseAsyncDao {
                         FROM license_servers
                         WHERE id = ?licenseID
                     """.trimIndent()
-                ).rows.firstOrNull()
+                )
+                .rows
+                .firstOrNull()
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "License server does not exist.")
 
-            if (existing != null) {
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("address", appLicenseServer.address)
-                            setParameter("port", appLicenseServer.port)
-                            setParameter("license", appLicenseServer.license)
-                            setParameter("name", appLicenseServer.name)
-                            setParameter("licenseID", appLicenseServer.id)
-                        },
-                        """
-                            UPDATE license_servers
-                            SET address = ?address, port = ?port, license = ?license, name = ?name
-                            WHERE id = ?licenseID
-                        """.trimIndent()
-                    )
-            }
+
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("address", appLicenseServer.address)
+                        setParameter("port", appLicenseServer.port)
+                        setParameter("license", appLicenseServer.license)
+                        setParameter("name", appLicenseServer.name)
+                        setParameter("licenseID", appLicenseServer.id)
+                    },
+                    """
+                        UPDATE license_servers
+                        SET address = ?address, port = ?port, license = ?license, name = ?name
+                        WHERE id = ?licenseID
+                    """.trimIndent()
+                )
+
         }
     }
 

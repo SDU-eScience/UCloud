@@ -137,7 +137,7 @@ class AclAsyncDao {
                         WHERE (server_id = ?serverID) AND
                             (project = ?project) AND
                             (project_group =? ?group)
-                    """.trimIndent()
+                        """.trimIndent()
                     )
             } else {
                 session
@@ -147,9 +147,9 @@ class AclAsyncDao {
                             setParameter("user", accessEntity.user)
                         },
                         """
-                        DELETE FROM permissions
-                        WHERE (server_id = ?serverID) AND (username = ?user)
-                    """.trimIndent()
+                            DELETE FROM permissions
+                            WHERE (server_id = ?serverID) AND (username = ?user)
+                        """.trimIndent()
                     )
             }
         }
@@ -202,9 +202,9 @@ class AclAsyncDao {
                             setParameter("group", accessEntity.group)
                         },
                         """
-                        DELETE FROM permissions
-                        WHERE (project = ?project) AND (project_group = group)
-                    """.trimIndent()
+                            DELETE FROM permissions
+                            WHERE (project = ?project) AND (project_group = group)
+                        """.trimIndent()
                     )
             } else {
                 session
@@ -213,9 +213,9 @@ class AclAsyncDao {
                             setParameter("user", accessEntity.user)
                         },
                         """
-                        DELETE FROM permissions
-                        WHERE username = ?user
-                    """.trimIndent()
+                            DELETE FROM permissions
+                            WHERE username = ?user
+                        """.trimIndent()
                     )
             }
         }
