@@ -2,28 +2,46 @@ import {createMemoryHistory} from "history";
 import * as React from "react";
 import {Provider} from "react-redux";
 import {MemoryRouter} from "react-router";
-import {create} from "react-test-renderer";
+import {create, act} from "react-test-renderer";
 import {Store} from "redux";
 import {ThemeProvider} from "styled-components";
 import Dashboard from "../../app/Dashboard/Dashboard";
-import {ReduxObject} from "../../app/DefaultObjects";
+import {ReduxObject, emptyPage} from "../../app/DefaultObjects";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
+import {render} from "react-dom";
 
-const WrappedDashboard: React.FunctionComponent<{store: Store<ReduxObject>}> = props => {
-    return (
-        <Provider store={props.store}>
-            <ThemeProvider theme={theme}>
-                <MemoryRouter>
-                    <Dashboard history={createMemoryHistory()} />
-                </MemoryRouter>
-            </ThemeProvider>
-        </Provider>
-    );
-};
+jest.mock("Authentication/HttpClientInstance", () => ({
+    Client: {
+        get: (path: string) => {
+            switch (path) {
+                case "/accounting/storage/bytesUsed/usage":
+                    return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: {usage: 14690218167, quota: null, dataType: "bytes", title: "Storage Used"}});
+                case "/accounting/compute/timeUsed/usage":
+                    return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: {usage: 36945000, quota: null, dataType: "duration", title: "Compute Time Used"}});
+            }
+            return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage});
+        },
+        call: () => Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage}),
+        homeFolder: "/home/test@test/"
+    }
+}));
+
+const WrappedDashboard: React.FunctionComponent<{store: Store<ReduxObject>}> = props => (
+    <Provider store={props.store}>
+        <ThemeProvider theme={theme}>
+            <MemoryRouter>
+                <Dashboard history={createMemoryHistory()} />
+            </MemoryRouter>
+        </ThemeProvider>
+    </Provider>
+);
 
 describe("Dashboard", () => {
-    test("Dashboard mount", () => {
-        expect(create(<WrappedDashboard store={store} />)).toMatchSnapshot();
+    test("Dashboard mount", async () => {
+        await act(async () => {
+            const dash = await create(<WrappedDashboard store={store} />);
+            expect(dash.toJSON()).toMatchSnapshot();
+        });
     });
 });

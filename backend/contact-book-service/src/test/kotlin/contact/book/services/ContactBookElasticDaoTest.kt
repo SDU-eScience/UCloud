@@ -8,20 +8,15 @@ import dk.sdu.cloud.service.test.initializeMicro
 import io.ktor.http.HttpStatusCode
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.runs
 import org.apache.lucene.search.TotalHits
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
-import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.admin.indices.flush.FlushResponse
 import org.elasticsearch.action.bulk.BulkResponse
-import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.delete.DeleteResponse
 import org.elasticsearch.action.index.IndexResponse
-import org.elasticsearch.action.search.MultiSearchRequest
 import org.elasticsearch.action.search.MultiSearchResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
-import org.elasticsearch.client.Response
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.client.indices.CreateIndexResponse
@@ -32,7 +27,7 @@ import org.junit.Ignore
 import org.junit.Test
 import kotlin.test.assertEquals
 
-class ContactBookElasticDAOTest{
+class ContactBookElasticDaoTest{
 
     //FULL TEST REQUIRE RUNNING ELASTICSEARCH CLUSTER WITH NO CONTACT BOOK INDEX ALSO DELETES INDEX AFTER
     @Ignore
@@ -43,7 +38,7 @@ class ContactBookElasticDAOTest{
 
         val elasticClient = micro.elasticHighLevelClient
 
-        val dao = ContactBookElasticDAO(elasticClient)
+        val dao = ContactBookElasticDao(elasticClient)
         try {
             dao.createIndex()
 
@@ -102,7 +97,7 @@ class ContactBookElasticDAOTest{
     @Test
     fun `insert single - already exists - test`() {
         val client = mockk<RestHighLevelClient>()
-        val elasticDao = ContactBookElasticDAO(client)
+        val elasticDao = ContactBookElasticDao(client)
         every { client.search(any(), any()) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {
@@ -126,7 +121,7 @@ class ContactBookElasticDAOTest{
     @Test
     fun `insert single test`() {
         val client = mockk<RestHighLevelClient>()
-        val elasticDao = ContactBookElasticDAO(client)
+        val elasticDao = ContactBookElasticDao(client)
         every { client.search(any(), any()) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {
@@ -155,7 +150,7 @@ class ContactBookElasticDAOTest{
     @Test (expected = RPCException::class)
     fun `insert - duplicate error - test`() {
         val client = mockk<RestHighLevelClient>()
-        val elasticDao = ContactBookElasticDAO(client)
+        val elasticDao = ContactBookElasticDao(client)
         every { client.search(any(), any()) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {
@@ -196,7 +191,7 @@ class ContactBookElasticDAOTest{
     @Test
     fun `insert bulk test`() {
         val client = mockk<RestHighLevelClient>()
-        val elasticDao = ContactBookElasticDAO(client)
+        val elasticDao = ContactBookElasticDao(client)
         every { client.msearch(any(), any()) } answers {
             val response = mockk<MultiSearchResponse>()
             every { response.responses } answers {
@@ -219,7 +214,7 @@ class ContactBookElasticDAOTest{
     @Test
     fun `create index dummy test`() {
         val client = mockk<RestHighLevelClient>()
-        val elasticDAO = ContactBookElasticDAO(client)
+        val elasticDAO = ContactBookElasticDao(client)
         every { client.indices().create(any<CreateIndexRequest>(), any()) } answers {
             val response = mockk<CreateIndexResponse>()
             response
@@ -242,7 +237,7 @@ class ContactBookElasticDAOTest{
     @Test
     fun `delete test`() {
         val client = mockk<RestHighLevelClient>()
-        val elasticDao = ContactBookElasticDAO(client)
+        val elasticDao = ContactBookElasticDao(client)
         every { client.search(any(), any()) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {
@@ -269,7 +264,7 @@ class ContactBookElasticDAOTest{
     @Test (expected = RPCException::class)
     fun `delete - not found - test`() {
         val client = mockk<RestHighLevelClient>()
-        val elasticDao = ContactBookElasticDAO(client)
+        val elasticDao = ContactBookElasticDao(client)
         every { client.search(any(), any()) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {
@@ -289,7 +284,7 @@ class ContactBookElasticDAOTest{
     @Test
     fun `query test`() {
         val client = mockk<RestHighLevelClient>()
-        val elasticDao = ContactBookElasticDAO(client)
+        val elasticDao = ContactBookElasticDao(client)
         every { client.search(any(), any()) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {
@@ -312,7 +307,7 @@ class ContactBookElasticDAOTest{
     @Test
     fun `get all test`() {
         val client = mockk<RestHighLevelClient>()
-        val elasticDao = ContactBookElasticDAO(client)
+        val elasticDao = ContactBookElasticDao(client)
         every { client.search(any(), any()) } answers {
             val response = mockk<SearchResponse>()
             every { response.hits } answers {

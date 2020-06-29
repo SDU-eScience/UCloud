@@ -39,7 +39,8 @@ import {
     Text,
     Tooltip,
     Truncate,
-    ButtonGroup
+    ButtonGroup,
+    Card
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
@@ -77,7 +78,7 @@ import {
     sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {addStandardDialog, FileIcon} from "UtilityComponents";
+import {addStandardDialog, FileIcon, ConfirmCancelButtons} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
@@ -455,6 +456,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
         props.onLoadingState?.(isAnyLoading);
     }, [isAnyLoading]);
 
+    React.useEffect(() => {
+        setInjectedViaState([]);
+        setFileBeingRenamed(null);
+    }, [Client.projectId]);
+
     return (
         <Shell
             embedded={isEmbedded}
@@ -463,6 +469,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                 <Spacer
                     left={(
                         <BreadCrumbs
+                            embedded={props.embedded ?? false}
                             currentPath={props.path ?? ""}
                             navigate={onFileNavigation}
                             client={Client}
@@ -479,11 +486,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                             )}
 
                             {isEmbedded ? null : (
-                                <Pagination.EntriesPerPageSelector
-                                    content="Files per page"
-                                    entriesPerPage={page.itemsPerPage}
-                                    onChange={amount => onPageChanged(0, amount)}
-                                />
+                                <Flex minWidth="160px">
+                                    <Pagination.EntriesPerPageSelector
+                                        content="Files per page"
+                                        entriesPerPage={page.itemsPerPage}
+                                        onChange={amount => onPageChanged(0, amount)}
+                                    />
+                                </Flex>
                             )}
                         </>
                     )}
@@ -911,7 +920,7 @@ interface NameBoxProps {
     isEmbedded?: boolean;
 }
 
-const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: string) => void}) => {
+const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: string) => void}): JSX.Element => {
     const ref = React.useRef<HTMLInputElement>(null);
     return (
         <Flex width={1} alignItems="center">
@@ -933,10 +942,12 @@ const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: st
                 data-tag="renameField"
                 onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
             />
-            <ButtonGroup width="220px">
-                <Button onClick={() => props.onRenameFile?.(KeyCode.ENTER, ref.current?.value ?? "")} color="green">Create</Button>
-                <Button onClick={() => props.onRenameFile?.(KeyCode.ESC, "")} color="red">Cancel</Button>
-            </ButtonGroup>
+            <ConfirmCancelButtons
+                confirmText="Create"
+                cancelText="Cancel"
+                onConfirm={() => props.onRenameFile?.(KeyCode.ENTER, ref.current?.value ?? "")}
+                onCancel={() => props.onRenameFile?.(KeyCode.ESC, "")}
+            />
         </Flex>
     );
 };
@@ -959,10 +970,10 @@ const NameBox: React.FunctionComponent<NameBoxProps> = props => {
     const fileName = beingRenamed ? (
         <RenameBox file={props.file} onRenameFile={props.onRenameFile} />
     ) : (
-        <Truncate width={1} mb="-4px" fontSize={20}>
-            {getFileNameForNameBox(props.file.path)}
-        </Truncate>
-    );
+            <Truncate width={1} mb="-4px" fontSize={20}>
+                {getFileNameForNameBox(props.file.path)}
+            </Truncate>
+        );
 
     return (
         <Flex maxWidth={`calc(100% - ${220 + (props.isEmbedded ? 15 : 0)}px)`}>

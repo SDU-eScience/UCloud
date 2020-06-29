@@ -149,6 +149,7 @@ const FilePreview = (props: FilePreviewStateProps): JSX.Element => {
             main={(
                 <>
                     <BreadCrumbs
+                        embedded
                         currentPath={path}
                         navigate={onFileNavigation}
                         client={Client}

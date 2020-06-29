@@ -17,12 +17,8 @@ import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
 import {File, FileSelectorProps} from ".";
 import {FileOperationRepositoryMode} from "Files/FileOperations";
 import {Page} from "Types";
-import {callAPIWithErrorHandler, callAPI} from "Authentication/DataHook";
-import {emptyPage} from "DefaultObjects";
-import {listFavorites} from "./favorite";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {listProjects, listRepositoryFiles, UserInProject} from "Project";
-
+import {callAPI} from "Authentication/DataHook";
+import {listProjects, UserInProject} from "Project";
 const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
     const [path, setPath] = useState<string>(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder);
     useEffect(() => {
@@ -81,41 +77,39 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
                 onRequestClose={() => props.onFileSelect(null)}
                 style={FileSelectorModalStyle}
             >
-                <Box>
-                    <VirtualFileTable
-                        {...virtualFolders}
-                        omitQuickLaunch
-                        embedded
-                        fileOperations={[{
-                            text: "Select",
-                            repositoryMode: FileOperationRepositoryMode.ANY,
-                            onClick: files => props.onFileSelect(files[0]),
-                            disabled: files => {
-                                if (files.some(it => isProjectHome(it.path))) {
-                                    return true;
-                                }
-
-                                if (files.some(it => removeTrailingSlash(resolvePath(it.path)) === "/projects")) {
-                                    return true;
-                                }
-
-                                if (files.some(it => it.mockTag !== undefined && it.mockTag !== MOCK_RELATIVE)) {
-                                    return true;
-                                }
-
-                                return !(files.length === 1 && (
-                                    (canSelectFolders && files[0].fileType === "DIRECTORY") ||
-                                    (!canSelectFolders && files[0].fileType === "FILE")
-                                ));
+                <VirtualFileTable
+                    {...virtualFolders}
+                    omitQuickLaunch
+                    embedded
+                    fileOperations={[{
+                        text: "Select",
+                        repositoryMode: FileOperationRepositoryMode.ANY,
+                        onClick: files => props.onFileSelect(files[0]),
+                        disabled: files => {
+                            if (files.some(it => isProjectHome(it.path))) {
+                                return true;
                             }
-                        }]}
-                        foldersOnly={props.onlyAllowFolders}
-                        fileFilter={file => !props.onlyAllowFolders || isDirectory(file)}
-                        onFileNavigation={setPath}
-                        injectedFiles={injectedFiles}
-                        path={path}
-                    />
-                </Box>
+
+                            if (files.some(it => removeTrailingSlash(resolvePath(it.path)) === "/projects")) {
+                                return true;
+                            }
+
+                            if (files.some(it => it.mockTag !== undefined && it.mockTag !== MOCK_RELATIVE)) {
+                                return true;
+                            }
+
+                            return !(files.length === 1 && (
+                                (canSelectFolders && files[0].fileType === "DIRECTORY") ||
+                                (!canSelectFolders && files[0].fileType === "FILE")
+                            ));
+                        }
+                    }]}
+                    foldersOnly={props.onlyAllowFolders}
+                    fileFilter={file => !props.onlyAllowFolders || isDirectory(file)}
+                    onFileNavigation={setPath}
+                    injectedFiles={injectedFiles}
+                    path={path}
+                />
             </ReactModal>
         </>
     );

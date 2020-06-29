@@ -2,7 +2,7 @@ import {AppOrTool} from "Applications/api";
 import {AppLogo, hashF} from "Applications/Card";
 import {Client} from "Authentication/HttpClientInstance";
 import * as React from "react";
-import {useEffect, useState} from "react";
+import {useState} from "react";
 
 interface AppToolLogoProps {
     name: string;
@@ -16,9 +16,7 @@ export const AppToolLogo: React.FunctionComponent<AppToolLogoProps> = props => {
     const size = props.size !== undefined ? props.size : "48px";
     const context = props.type === "APPLICATION" ? "apps" : "tools";
 
-    useEffect(() => setLoadedImage(true), [props.cacheBust]);
-
-    const url = Client.computeURL("/api", `/hpc/${context}/logo/${props.name}?cacheBust=${props.cacheBust}`);
+    const url = Client.computeURL("/api", `/hpc/${context}/logo/${props.name}`);
 
     return (
         <>

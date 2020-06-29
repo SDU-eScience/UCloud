@@ -15,7 +15,7 @@ export function useProjectStatus(): ProjectStatus {
         {expiresAt: 0, status: {groups: [], membership: []}}
     );
 
-    const [_, invokeCommand] = useAsyncCommand();
+    const [, invokeCommand] = useAsyncCommand();
 
     const reload = useCallback(async () => {
         if (cacheIsLoading) return;

@@ -26,7 +26,7 @@ import org.slf4j.Logger
 
 private const val SEARCH_RESPONSE_SIZE = 200
 
-class ElasticDAO(
+class ElasticDao(
     val elasticClient: RestHighLevelClient
 ) {
 

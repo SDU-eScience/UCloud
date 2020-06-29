@@ -66,7 +66,7 @@ fun SQLTable.bool(
     notNull: Boolean = false
 ) = addField(name, "bool", SqlType.TBoolean, notNull)
 
-fun SQLTable.bytesArray(
+fun SQLTable.byteArray(
     name: String,
     notNull: Boolean = false
 ) = addField(name, "bytea", SqlType.TBytes, notNull)

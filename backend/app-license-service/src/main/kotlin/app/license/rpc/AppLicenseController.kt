@@ -14,7 +14,7 @@ import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import org.hibernate.Session
 
-class AppLicenseController(appLicenseService: AppLicenseService<Session>) : Controller {
+class AppLicenseController(appLicenseService: AppLicenseService) : Controller {
     private val licenseService = appLicenseService
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {

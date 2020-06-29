@@ -1000,7 +1000,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           <img
             alt=""
             onErrorCapture={[Function]}
-            src="undefined/api/hpc/apps/logo/?cacheBust=undefined"
+            src="undefined/api/hpc/apps/logo/"
             style={
               Object {
                 "height": "36px",
@@ -1119,7 +1119,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               fill="currentcolor"
               fillRule="evenodd"
               height={24}
-              isExpired={false}
               mr="8px"
               state="FAILURE"
               viewBox="0 0 25 24"
@@ -1150,7 +1149,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           <img
             alt=""
             onErrorCapture={[Function]}
-            src="undefined/api/hpc/apps/logo/?cacheBust=undefined"
+            src="undefined/api/hpc/apps/logo/"
             style={
               Object {
                 "height": "36px",
@@ -1269,7 +1268,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               fill="currentcolor"
               fillRule="evenodd"
               height={24}
-              isExpired={false}
               mr="8px"
               state="FAILURE"
               viewBox="0 0 25 24"
@@ -1300,7 +1298,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           <img
             alt=""
             onErrorCapture={[Function]}
-            src="undefined/api/hpc/apps/logo/?cacheBust=undefined"
+            src="undefined/api/hpc/apps/logo/"
             style={
               Object {
                 "height": "36px",
@@ -1419,7 +1417,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               fill="currentcolor"
               fillRule="evenodd"
               height={24}
-              isExpired={false}
               mr="8px"
               state="FAILURE"
               viewBox="0 0 25 24"
@@ -1450,7 +1447,7 @@ exports[`Runs component Mount component with non-empty page 1`] = `
           <img
             alt=""
             onErrorCapture={[Function]}
-            src="undefined/api/hpc/apps/logo/?cacheBust=undefined"
+            src="undefined/api/hpc/apps/logo/"
             style={
               Object {
                 "height": "36px",
@@ -1569,7 +1566,6 @@ exports[`Runs component Mount component with non-empty page 1`] = `
               fill="currentcolor"
               fillRule="evenodd"
               height={24}
-              isExpired={false}
               mr="8px"
               state="SUCCESS"
               viewBox="0 0 25 19"

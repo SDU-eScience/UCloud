@@ -21,7 +21,7 @@ import org.elasticsearch.search.builder.SearchSourceBuilder
 import java.util.*
 import kotlin.collections.HashMap
 
-class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): ContactBookDAO {
+class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
 
     fun createIndex() {
         if(elasticClient.indices().exists(GetIndexRequest(CONTACT_BOOK_INDEX), RequestOptions.DEFAULT)) {
@@ -93,7 +93,7 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
         return request
     }
 
-    override fun insertContact(fromUser: String, toUser: String, serviceOrigin: String) {
+    fun insertContact(fromUser: String, toUser: String, serviceOrigin: String) {
         if (!elasticClient.indices().exists(GetIndexRequest(CONTACT_BOOK_INDEX), RequestOptions.DEFAULT)) {
             createIndex()
         }
@@ -104,7 +104,7 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
         }
     }
 
-    override fun insertContactsBulk(fromUser: String, toUser: List<String>, serviceOrigin: String) {
+    fun insertContactsBulk(fromUser: String, toUser: List<String>, serviceOrigin: String) {
         val request = BulkRequest(CONTACT_BOOK_INDEX)
         val multiSearchRequest = MultiSearchRequest()
         toUser.forEach { shareReceiver ->
@@ -160,14 +160,14 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
         }
     }
 
-    override fun deleteContact(fromUser: String, toUser: String, serviceOrigin: String) {
+    fun deleteContact(fromUser: String, toUser: String, serviceOrigin: String) {
         val doc = findSingleContactOrNull(fromUser, toUser, serviceOrigin)
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val deleteRequest = DeleteRequest(CONTACT_BOOK_INDEX, doc.id)
         elasticClient.delete(deleteRequest, RequestOptions.DEFAULT)
     }
 
-    override fun getAllContactsForUser(fromUser: String, serviceOrigin: String): SearchHits {
+    fun getAllContactsForUser(fromUser: String, serviceOrigin: String): SearchHits {
         val searchRequest = SearchRequest(CONTACT_BOOK_INDEX)
         val searchSource = SearchSourceBuilder().query(
             QueryBuilders.boolQuery()
@@ -187,7 +187,7 @@ class ContactBookElasticDAO(private val elasticClient: RestHighLevelClient): Con
         return response.hits
     }
 
-    override fun queryContacts(fromUser: String, query: String, serviceOrigin: String): SearchHits {
+    fun queryContacts(fromUser: String, query: String, serviceOrigin: String): SearchHits {
         val searchRequest = SearchRequest(CONTACT_BOOK_INDEX)
         val searchSource = SearchSourceBuilder().query(
             QueryBuilders.boolQuery()

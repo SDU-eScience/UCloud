@@ -210,13 +210,6 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
                 +"update"
             }
 
-            params {
-                +boundTo(UpdateServerRequest::name)
-                +boundTo(UpdateServerRequest::address)
-                +boundTo(UpdateServerRequest::license)
-                +boundTo(UpdateServerRequest::withId)
-            }
-
             body { bindEntireRequestFromBody() }
         }
     }
