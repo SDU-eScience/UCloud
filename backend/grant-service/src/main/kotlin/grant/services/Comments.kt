@@ -66,7 +66,7 @@ class CommentService(
         applicationId: Long
     ): ApplicationWithComments {
         return ctx.withSession { session ->
-            val application = applications.viewApplicationById(session, actor, applicationId)
+            val (application, approver) = applications.viewApplicationById(session, actor, applicationId)
             val comments = session
                 .sendPreparedStatement(
                     {
@@ -90,7 +90,7 @@ class CommentService(
                     )
                 }
 
-            ApplicationWithComments(application, comments)
+            ApplicationWithComments(application, comments, approver)
         }
     }
 

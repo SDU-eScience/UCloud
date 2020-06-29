@@ -85,7 +85,7 @@ export interface ViewGrantApplicationRequest {
     id: number;
 }
 
-export type ViewGrantApplicationResponse = { application: GrantApplication, comments: Comment[] } ;
+export type ViewGrantApplicationResponse = { application: GrantApplication, comments: Comment[], approver: boolean } ;
 
 export function viewGrantApplication(
     request: ViewGrantApplicationRequest
@@ -145,6 +145,38 @@ export function editGrantApplication(
     return {
         method: "POST",
         path: "/grant/edit",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface ApproveGrantApplicationRequest {
+    requestId: number;
+}
+
+export function approveGrantApplication(
+    request: ApproveGrantApplicationRequest
+): APICallParameters<ApproveGrantApplicationRequest> {
+    return {
+        method: "POST",
+        path: "/grant/approve",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface RejectGrantApplicationRequest {
+    requestId: number;
+}
+
+export function rejectGrantApplication(
+    request: RejectGrantApplicationRequest
+): APICallParameters<RejectGrantApplicationRequest> {
+    return {
+        method: "POST",
+        path: "/grant/reject",
         parameters: request,
         payload: request,
         reloadId: Math.random()

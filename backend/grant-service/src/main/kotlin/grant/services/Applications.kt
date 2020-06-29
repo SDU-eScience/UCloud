@@ -323,7 +323,7 @@ class ApplicationService(
         }
     }
 
-    suspend fun viewApplicationById(ctx: DBContext, actor: Actor, id: Long): Application {
+    suspend fun viewApplicationById(ctx: DBContext, actor: Actor, id: Long): Pair<Application, Boolean> {
         return ctx.withSession { session ->
             val application = session
                 .sendPreparedStatement(
@@ -338,13 +338,12 @@ class ApplicationService(
 
             log.debug("Found application: $application")
 
-            if (application.requestedBy != actor.safeUsername() &&
-                !projects.isAdminOfProject(application.resourcesOwnedBy, actor)
-            ) {
+            val isApprover = projects.isAdminOfProject(application.resourcesOwnedBy, actor)
+            if (application.requestedBy != actor.safeUsername() && !isApprover) {
                 throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             }
 
-            application
+            Pair(application, isApprover)
         }
     }
 
