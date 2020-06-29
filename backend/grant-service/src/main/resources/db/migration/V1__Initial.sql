@@ -9,7 +9,7 @@ create table applications(
     document text not null,
     created_at timestamp not null default now(),
     updated_at timestamp not null default now(),
-    id int primary key default nextval('application_id')
+    id bigint primary key default nextval('application_id')
 );
 
 create table requested_resources(
@@ -28,7 +28,7 @@ create table comments(
     comment text not null,
     posted_by text not null,
     created_at timestamp not null default now(),
-    id int primary key default nextval('comment_id'),
+    id bigint primary key default nextval('comment_id'),
     foreign key (application_id) references applications(id)
 );
 

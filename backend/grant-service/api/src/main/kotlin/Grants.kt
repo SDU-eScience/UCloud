@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
@@ -82,7 +83,7 @@ data class OutgoingApplicationsRequest(override val itemsPerPage: Int?, override
 typealias OutgoingApplicationsResponse = Page<Application>
 
 typealias SubmitApplicationRequest = Application
-typealias SubmitApplicationResponse = Unit
+typealias SubmitApplicationResponse = FindByLongId
 
 data class EditApplicationRequest(
     val id: Long,
@@ -103,9 +104,9 @@ enum class ApplicationStatus {
     property = TYPE_PROPERTY
 )
 @JsonSubTypes(
-    JsonSubTypes.Type(value = UserCriteria.Anyone::class, name = UserCriteria.ANYONE_TYPE),
-    JsonSubTypes.Type(value = UserCriteria.EmailDomain::class, name = UserCriteria.EMAIL_TYPE),
-    JsonSubTypes.Type(value = UserCriteria.WayfOrganization::class, name = UserCriteria.WAYF_TYPE)
+    JsonSubTypes.Type(value = GrantRecipient.PersonalProject::class, name = GrantRecipient.PERSONAL_TYPE),
+    JsonSubTypes.Type(value = GrantRecipient.ExistingProject::class, name = GrantRecipient.EXISTING_PROJECT_TYPE),
+    JsonSubTypes.Type(value = GrantRecipient.NewProject::class, name = GrantRecipient.NEW_PROJECT_TYPE)
 )
 sealed class GrantRecipient {
     class PersonalProject(val username: String) : GrantRecipient()

@@ -37,7 +37,7 @@ export interface GrantRecipientNew {
     type: "new_project";
 }
 
-export interface ResourceRequest{
+export interface ResourceRequest {
     productCategory: string;
     productProvider: string;
     creditsRequested?: number;
@@ -70,6 +70,23 @@ export function submitGrantApplication(request: SubmitGrantApplicationRequest): 
         path: "/grant/submit-application",
         parameters: request,
         payload: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface ViewGrantApplicationRequest {
+    id: number;
+}
+
+export type ViewGrantApplicationResponse = { application: GrantApplication, comments: {}[] } ;
+
+export function viewGrantApplication(
+    request: ViewGrantApplicationRequest
+): APICallParameters<ViewGrantApplicationRequest> {
+    return {
+        method: "GET",
+        path: `/grant/${request.id}`,
+        parameters: request,
         reloadId: Math.random()
     };
 }

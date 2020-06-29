@@ -77,6 +77,7 @@ internal object Log4j2ConfigFactory : ConfigurationFactory() {
             configureLogLevelForPackage("org.hibernate", Level.INFO)
             configureLogLevelForPackage("com.zaxxer.hikari", Level.INFO)
             configureLogLevelForPackage("io.mockk.impl", Level.INFO)
+            configureLogLevelForPackage("com.github.jasync.sql.db.postgresql.codec.PostgreSQLConnectionHandler", Level.WARN)
         }.build()
     }
 

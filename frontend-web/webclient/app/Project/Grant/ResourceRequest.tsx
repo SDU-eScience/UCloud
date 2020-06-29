@@ -7,7 +7,8 @@ import * as Heading from "ui-components/Heading";
 import {Box, Button, Flex, Icon, Input, Label, TextArea, theme} from "ui-components";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
-    ProductArea, ProductCategoryId,
+    ProductArea, productCategoryEquals,
+    ProductCategoryId,
     retrieveBalance,
     RetrieveBalanceResponse,
     retrieveFromProvider,
@@ -19,12 +20,16 @@ import {creditFormatter} from "Project/ProjectUsage";
 import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {
-    GrantApplicationStatus, GrantRecipient,
+    GrantApplicationStatus,
+    GrantRecipient,
     readTemplates,
-    ReadTemplatesResponse, ResourceRequest,
-    submitGrantApplication
+    ReadTemplatesResponse,
+    ResourceRequest,
+    submitGrantApplication,
+    viewGrantApplication,
+    ViewGrantApplicationResponse
 } from "Project/Grant/index";
-import {useParams} from "react-router";
+import {useHistory, useParams} from "react-router";
 import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 
@@ -75,17 +80,46 @@ const RequestFormContainer = styled.div`
 `;
 
 export enum RequestTarget {
-    EXISTING = "existing",
-    NEW = "new",
-    PERSONAL = "personal"
+    EXISTING_PROJECT = "existing",
+    NEW_PROJECT = "new",
+    PERSONAL_PROJECT = "personal",
+    VIEW_APPLICATION = "view"
 }
 
 // eslint-disable-next-line
 function useRequestInformation(target: RequestTarget) {
     let targetProject: string | undefined;
-    let wallets: WalletBalance[];
-    let reloadWallets: () => void;
+    let wallets: WalletBalance[] = [];
+    let reloadWallets: () => void = () => { /* empty */ };
     let recipient: GrantRecipient;
+    let applicationId: number | undefined;
+    let prefilledDocument: string | undefined;
+
+    let availableProducts: { area: ProductArea, category: ProductCategoryId }[];
+    let reloadProducts: () => void;
+    {
+        const [products, fetchProducts] = useCloudAPI<RetrieveFromProviderResponse>(
+            {noop: true},
+            []
+        );
+
+        const allCategories: { category: ProductCategoryId, area: "compute" | "storage"}[] =
+            products.data.map(it => ({ category: it.category, area: it.type }));
+
+        const uniqueCategories: { category: ProductCategoryId, area: "compute" | "storage"}[] = Array.from(
+            new Set(allCategories.map(it => JSON.stringify(it))).values()
+        ).map(it => JSON.parse(it));
+
+        availableProducts = uniqueCategories.map(it => {
+            return {
+                area: it.area === "compute" ? ProductArea.COMPUTE : ProductArea.STORAGE,
+                category: it.category,
+            };
+        });
+        reloadProducts = useCallback(() => {
+            fetchProducts(retrieveFromProvider({provider: UCLOUD_PROVIDER}));
+        }, []);
+    }
 
     const documentRef = useRef<HTMLTextAreaElement>(null);
     const [templates, fetchTemplates] = useCloudAPI<ReadTemplatesResponse>(
@@ -94,7 +128,7 @@ function useRequestInformation(target: RequestTarget) {
     );
 
     switch (target) {
-        case RequestTarget.EXISTING: {
+        case RequestTarget.EXISTING_PROJECT: {
             const {projectId, projectDetails} = useProjectManagementStatus();
             targetProject = projectDetails.data.parent;
             const [w, fetchWallets] = useCloudAPI<RetrieveBalanceResponse>(
@@ -109,70 +143,121 @@ function useRequestInformation(target: RequestTarget) {
             break;
         }
 
-        case RequestTarget.NEW:
-        case RequestTarget.PERSONAL: {
+        case RequestTarget.NEW_PROJECT:
+        case RequestTarget.PERSONAL_PROJECT: {
             const {projectId} = useParams();
-            const [products, fetchProducts] = useCloudAPI<RetrieveFromProviderResponse>(
-                {noop: true},
-                []
-            );
             targetProject = projectId;
 
-            const allCategories: { category: ProductCategoryId, area: "compute" | "storage"}[] =
-                products.data.map(it => ({ category: it.category, area: it.type }));
-
-            const uniqueCategories: { category: ProductCategoryId, area: "compute" | "storage"}[] = Array.from(
-                new Set(allCategories.map(it => JSON.stringify(it))).values()
-            ).map(it => JSON.parse(it));
-
-            wallets = uniqueCategories.map(it => {
-                return {
-                    area: it.area === "compute" ? ProductArea.COMPUTE : ProductArea.STORAGE,
-                    wallet: {
-                        id: "unknown",
-                        paysFor: it.category,
-                        type: target === RequestTarget.NEW ? "PROJECT" : "USER"
-                    },
-                    balance: 0
-                };
-            });
-            reloadWallets = useCallback(() => {
-                fetchProducts(retrieveFromProvider({provider: UCLOUD_PROVIDER}));
-            }, []);
-
-            if (target === RequestTarget.NEW) {
+            if (target === RequestTarget.NEW_PROJECT) {
                 recipient = {type: "new_project", projectTitle: "placeholder"};
             } else {
                 recipient = {type: "personal", username: Client.username!};
             }
             break;
         }
+
+        case RequestTarget.VIEW_APPLICATION:
+            const {appId} = useParams();
+
+            const [grantApplication, fetchGrantApplication] = useCloudAPI<ViewGrantApplicationResponse>(
+                {noop: true},
+                {
+                    application: {
+                        document: "",
+                        grantRecipient: {type: "personal", username: Client.username ?? ""},
+                        requestedBy: Client.username ?? "",
+                        requestedResources: [],
+                        resourcesOwnedBy: "unknown",
+                        status: GrantApplicationStatus.IN_PROGRESS
+                    },
+                    comments: []
+                }
+            );
+
+            applicationId = parseInt(appId, 10);
+            targetProject = grantApplication.data.application.resourcesOwnedBy;
+            wallets = grantApplication.data.application.requestedResources.map(it => {
+                // Note: Some of these are simply placeholder values and are replaced later
+                return {
+                    wallet: {
+                        paysFor: {
+                            id: it.productCategory,
+                            provider: it.productProvider
+                        },
+                        id: "unknown",
+                        type: "USER"
+                    },
+                    balance: it.creditsRequested ?? 0,
+                    area: ProductArea.COMPUTE
+                };
+            });
+            recipient = grantApplication.data.application.grantRecipient;
+            prefilledDocument = grantApplication.data.application.document;
+
+            reloadWallets = useCallback(() => {
+                fetchGrantApplication(viewGrantApplication({id: parseInt(appId, 10)}));
+            }, [appId]);
+
+            useEffect(() => {
+                reloadWallets();
+            }, [appId]);
+
+            break;
     }
 
     useEffect(() => {
         if (targetProject) {
             fetchTemplates(readTemplates({projectId: targetProject}));
             reloadWallets();
+            reloadProducts();
         }
-    }, [targetProject, reloadWallets]);
+    }, [targetProject]);
 
     useEffect(() => {
         if (documentRef.current) {
             switch (target) {
-                case RequestTarget.PERSONAL:
+                case RequestTarget.PERSONAL_PROJECT:
                     documentRef.current.value = templates.data.personalProject;
                     break;
-                case RequestTarget.EXISTING:
+                case RequestTarget.EXISTING_PROJECT:
                     documentRef.current.value = templates.data.existingProject;
                     break;
-                case RequestTarget.NEW:
+                case RequestTarget.NEW_PROJECT:
                     documentRef.current.value = templates.data.newProject;
+                    break;
+                case RequestTarget.VIEW_APPLICATION:
+                    documentRef.current.value = prefilledDocument ?? "";
                     break;
             }
         }
-    }, [templates, documentRef.current]);
+    }, [templates, documentRef.current, prefilledDocument]);
 
-    return {wallets, reloadWallets, targetProject, documentRef, templates, recipient};
+    const mergedWallets: WalletBalance[] = [];
+    {
+        // Put in all products and attach a price, if there is one
+        for (const product of availableProducts) {
+            mergedWallets.push({
+                area: product.area,
+                balance: 0,
+                wallet: {
+                    type: "USER",
+                    id: "unknown",
+                    paysFor: product.category
+                }
+            });
+        }
+
+        for (const wallet of wallets) {
+            for (const pWallet of mergedWallets) {
+                if (productCategoryEquals(pWallet.wallet.paysFor, wallet.wallet.paysFor)) {
+                    pWallet.balance = wallet.balance;
+                    break;
+                }
+            }
+        }
+    }
+
+    return {wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, applicationId};
 }
 
 function productCategoryId(pid: ProductCategoryId): string {
@@ -187,15 +272,16 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
     const state = useRequestInformation(target);
     const [loading, runWork] = useAsyncCommand();
     const projectTitleRef = useRef<HTMLInputElement>(null);
+    const history = useHistory();
 
-    const submitRequest = useCallback(() => {
+    const submitRequest = useCallback(async () => {
         if (state.targetProject === undefined) {
             snackbarStore.addFailure("Unknown target. Root level projects cannot apply for more resources.", false);
             return;
         }
 
         let grantRecipient: GrantRecipient = state.recipient;
-        if (target === RequestTarget.NEW) {
+        if (target === RequestTarget.NEW_PROJECT) {
             grantRecipient = {type: "new_project", projectTitle: projectTitleRef.current!.value};
         }
 
@@ -214,7 +300,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             } as ResourceRequest;
         }).filter(it => it !== null) as ResourceRequest[];
 
-        runWork(submitGrantApplication({
+        const response = await runWork<{id: number}>(submitGrantApplication({
             document: state.documentRef.current!.value,
             requestedBy: Client.username!,
             resourcesOwnedBy: state.targetProject!,
@@ -222,17 +308,35 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             requestedResources,
             grantRecipient
         }));
+
+        if (response) {
+            history.push(`/project/resource-request/view/${response.id}`);
+        }
     }, [state.targetProject, state.documentRef, state.recipient, state.wallets, projectTitleRef]);
+
+    useEffect(() => {
+        if (state.applicationId !== undefined) {
+            for (const wallet of state.wallets) {
+                const input = document.querySelector<HTMLInputElement>(
+                    `input[data-target="${productCategoryId(wallet.wallet.paysFor)}"]`
+                )!;
+
+                if (input) {
+                    input.value = (wallet.balance / 1000000).toFixed(0);
+                }
+            }
+        }
+    }, [state.wallets]);
 
     return (
         <MainContainer
-            header={target === RequestTarget.EXISTING ?
+            header={target === RequestTarget.EXISTING_PROJECT ?
                 <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]}/> : null
             }
             sidebar={null}
             main={
                 <>
-                    {target !== RequestTarget.NEW ? null : (
+                    {target !== RequestTarget.NEW_PROJECT ? null : (
                         <>
                             <Heading.h2>Project Information</Heading.h2>
                             <Label mb={16} mt={16}>
@@ -269,12 +373,19 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                 />
                                             </td>
                                         </tr>
+                                        {state.applicationId !== undefined ? null : (
+                                            <tr>
+                                                <th>Current balance</th>
+                                                <td>{creditFormatter(it.balance)}</td>
+                                            </tr>
+                                        )}
                                         <tr>
-                                            <th>Current balance</th>
-                                            <td>{creditFormatter(it.balance)}</td>
-                                        </tr>
-                                        <tr>
-                                            <th>Request additional resources</th>
+                                            <th>
+                                                {state.applicationId !== undefined ?
+                                                    "Resources requested" :
+                                                    "Request additional resources"
+                                                }
+                                            </th>
                                             <td>
                                                 <Flex alignItems={"center"}>
                                                     <Input

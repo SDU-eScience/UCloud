@@ -125,12 +125,17 @@ const Core = (): JSX.Element => (
                             <Route
                                 exact
                                 path="/project/resource-request/existing"
-                                component={requireAuth(GrantApplicationEditor(RequestTarget.EXISTING))}
+                                component={requireAuth(GrantApplicationEditor(RequestTarget.EXISTING_PROJECT))}
                             />
                             <Route
                                 exact
                                 path="/project/resource-request/new/:projectId"
-                                component={requireAuth(GrantApplicationEditor(RequestTarget.NEW))}
+                                component={requireAuth(GrantApplicationEditor(RequestTarget.NEW_PROJECT))}
+                            />
+                            <Route
+                                exact
+                                path="/project/resource-request/view/:appId"
+                                component={requireAuth(GrantApplicationEditor(RequestTarget.VIEW_APPLICATION))}
                             />
                             <Route exact path="/project/members/:group?/:member?" component={requireAuth(ProjectMembers)}/>
                         </>
