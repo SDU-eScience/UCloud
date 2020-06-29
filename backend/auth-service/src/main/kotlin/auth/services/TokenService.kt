@@ -18,6 +18,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.delay
@@ -248,19 +249,21 @@ class TokenService(
 
     suspend fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {
         log.debug("Refreshing token: rawToken='$rawToken'")
-        val token = refreshTokenDao.findById(db, rawToken) ?: run {
-            log.debug("Could not find token!")
-            throw RefreshTokenException.InvalidToken()
-        }
+        return db.withSession { session ->
+            val token = refreshTokenDao.findById(session, rawToken) ?: run {
+                log.debug("Could not find token!")
+                throw RefreshTokenException.InvalidToken()
+            }
 
-        val user = userDao.findByIdOrNull(db, token.associatedUser) ?: run {
-            log.warn(
-                "Received a valid token, but was unable to resolve the associated user: " +
-                        token.associatedUser
-            )
-            throw RefreshTokenException.InternalError()
+            val user = userDao.findByIdOrNull(session, token.associatedUser) ?: run {
+                log.warn(
+                    "Received a valid token, but was unable to resolve the associated user: " +
+                            token.associatedUser
+                )
+                throw RefreshTokenException.InternalError()
+            }
+            refresh(user, token, csrfToken)
         }
-        return refresh(user, token, csrfToken)
     }
 
     suspend fun logout(refreshToken: String, csrfToken: String? = null) {
@@ -268,23 +271,25 @@ class TokenService(
     }
 
     suspend fun bulkLogout(tokens: List<RefreshTokenAndCsrf>, suppressExceptions: Boolean = false) {
-        tokens.forEach { (refreshToken, csrfToken) ->
-            if (csrfToken == null) {
-                if (!refreshTokenDao.delete(db, refreshToken)) {
-                    if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
-                }
-            } else {
-                val userAndToken = refreshTokenDao.findById(db, refreshToken) ?: run {
-                    if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
-                    else return@forEach
-                }
+        db.withSession { session ->
+            tokens.forEach { (refreshToken, csrfToken) ->
+                if (csrfToken == null) {
+                    if (!refreshTokenDao.delete(session, refreshToken)) {
+                        if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
+                    }
+                } else {
+                    val userAndToken = refreshTokenDao.findById(session, refreshToken) ?: run {
+                        if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
+                        else return@forEach
+                    }
 
-                if (csrfToken != userAndToken.csrf) {
-                    if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
-                    else return@forEach
-                }
-                if (!refreshTokenDao.delete(db, refreshToken)) {
-                    if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
+                    if (csrfToken != userAndToken.csrf) {
+                        if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
+                        else return@forEach
+                    }
+                    if (!refreshTokenDao.delete(session, refreshToken)) {
+                        if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
+                    }
                 }
             }
         }

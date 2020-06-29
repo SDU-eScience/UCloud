@@ -178,7 +178,6 @@ class UserHibernateDAOTest {
                 userHibernate.insert(session, person)
                 userHibernate.insert(session, person2)
             }
-            println(TestDB.getEmbeddedPostgresInfo())
             db.withSession {
                 val foundById = userHibernate.findAllByIds(db, listOf(person.id, person2.id))
                 assertEquals(2, foundById.size)
@@ -224,12 +223,12 @@ class UserHibernateDAOTest {
                 val foundPerson = foundById[person.id]
                 foundPerson as Person.ByPassword
 
-                userHibernate.updatePassword(db, person.id, "NEWPass", "ThisIsMyPassword")
+                userHibernate.updatePassword(db, person.id, "NEWPass", true, "ThisIsMyPassword")
 
                 val found = userHibernate.findById(db, person.id) as Person.ByPassword
                 assertNotEquals(foundPerson.password, found.password)
 
-                userHibernate.unconditionalUpdatePassword(db, person.id, "IDidItAgain")
+                userHibernate.updatePassword(db, person.id, "IDidItAgain", false, null)
 
                 val foundAgain = userHibernate.findById(db, person.id) as Person.ByPassword
                 assertNotEquals(found.password, foundAgain.password)

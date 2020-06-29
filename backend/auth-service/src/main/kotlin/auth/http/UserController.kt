@@ -106,6 +106,7 @@ class UserController(
                     session,
                     ctx.securityPrincipal.username,
                     request.newPassword,
+                    true,
                     request.currentPassword
                 )
                 ok(Unit)
@@ -120,10 +121,12 @@ class UserController(
             }
 
             db.withTransaction { session ->
-                userDAO.unconditionalUpdatePassword(
+                userDAO.updatePassword(
                     session,
                     request.userId,
-                    request.newPassword
+                    request.newPassword,
+                    conditionalChange = false,
+                    currentPasswordForVerification = null
                 )
                 ok(Unit)
             }

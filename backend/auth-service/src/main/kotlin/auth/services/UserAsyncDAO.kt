@@ -7,13 +7,10 @@ import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.bool
-import dk.sdu.cloud.service.db.async.bytesArray
+import dk.sdu.cloud.service.db.async.byteArray
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.int
@@ -22,8 +19,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
 import io.ktor.http.HttpStatusCode
 import org.hibernate.annotations.NaturalId
 import org.joda.time.DateTimeZone
@@ -64,8 +59,8 @@ object PrincipalTable : SQLTable("principals") {
     val orcId = text("orc_id")
     val phoneNumber = text("phone_number")
     val title = text("title")
-    val hashedPassword = bytesArray("hashed_password")
-    val salt = bytesArray("salt")
+    val hashedPassword = byteArray("hashed_password")
+    val salt = byteArray("salt")
     val orgId = text("org_id")
     val wayfId = text("wayf_id")
     val email = text("email")
@@ -152,8 +147,10 @@ class UserAsyncDAO(
                         SELECT * 
                         FROM principals
                         WHERE id = ?username
-                    """.trimIndent()
-                ).rows.singleOrNull() ?: throw UserException.NotFound()
+                    """
+                )
+                .rows
+                .singleOrNull() ?: throw UserException.NotFound()
         }
         return UserInformation(
             user.getField(PrincipalTable.email),
@@ -170,43 +167,28 @@ class UserAsyncDAO(
         email: String?
     ) {
         db.withSession { session ->
-            val user = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("username", username)
-                    },
-                    """
-                        SELECT *
-                        FROM principals
-                        WHERE id = ?username
-                    """.trimIndent()
-                ).rows.singleOrNull() ?: throw UserException.NotFound()
-
             session
                 .sendPreparedStatement(
                     {
-                        if (!firstNames.isNullOrBlank()) {
-                            setParameter("firstNames", firstNames)
-                        } else {
-                            setParameter("firstNames", user.getField(PrincipalTable.firstNames))
-                        }
-                        if (!lastName.isNullOrBlank()) {
-                            setParameter("lastName", lastName)
-                        } else {
-                            setParameter("lastName", user.getField(PrincipalTable.lastName))
-                        }
-                        if (!email.isNullOrBlank()) {
-                            setParameter("email", email)
-                        } else {
-                            setParameter("email", user.getField(PrincipalTable.email))
-                        }
+                        setParameter("firstNames", firstNames)
+                        setParameter("lastName", lastName)
+                        setParameter("email", email)
                         setParameter("username", username)
                     },
                     """
                         UPDATE principals
-                        SET first_names = ?firstNames, last_name = ?lastName, email = ?email
-                        WHERE id = ?username
-                    """.trimIndent()
+                        SET first_names = (
+                                SELECT COALESCE (:firstNames, p.first_names)
+                            ), 
+                            last_name = (
+                                SELECT COALESCE (:lastName, p.last_name)
+                            ), 
+                            email = (
+                                SELECT COALESCE (:email, p.email)
+                            )
+                        FROM ( SELECT * FROM principals WHERE id = :username) AS p
+                        WHERE principals.id = p.id
+                    """
                 )
         }
     }
@@ -223,8 +205,11 @@ class UserAsyncDAO(
                         SELECT *
                         FROM principals
                         WHERE id = ?id
-                    """.trimIndent()
-                ).rows.singleOrNull()?.toPrincipal(status.getValue(id)) ?: throw UserException.NotFound()
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?.toPrincipal(status.getValue(id)) ?: throw UserException.NotFound()
         }
     }
 
@@ -240,8 +225,11 @@ class UserAsyncDAO(
                         SELECT *
                         FROM principals
                         WHERE id = ?id
-                    """.trimIndent()
-                ).rows.singleOrNull()?.toPrincipal(status.getValue(id))
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?.toPrincipal(status.getValue(id))
         }
     }
 
@@ -257,7 +245,7 @@ class UserAsyncDAO(
                         SELECT *
                         FROM principals
                         WHERE id IN (select unnest(?ids::text[]))
-                    """.trimIndent()
+                    """
                 ).rows
                 .map { rowData ->
                     rowData.toPrincipal(status.getValue(rowData.getField(PrincipalTable.id)))
@@ -282,8 +270,11 @@ class UserAsyncDAO(
                         SELECT *
                         FROM principals
                         WHERE id = ?id
-                    """.trimIndent()
-                ).rows.singleOrNull()?.getField(PrincipalTable.email)
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?.getField(PrincipalTable.email)
         }
     }
 
@@ -298,8 +289,10 @@ class UserAsyncDAO(
                         SELECT *
                         FROM principals
                         WHERE email = ?email
-                    """.trimIndent()
-                ).rows.singleOrNull() ?: throw UserException.NotFound()
+                    """
+                )
+                .rows
+                .singleOrNull() ?: throw UserException.NotFound()
         }
 
         return UserIdAndName(user.getField(PrincipalTable.id), user.getField(PrincipalTable.firstNames))
@@ -316,7 +309,7 @@ class UserAsyncDAO(
                         SELECT *
                         FROM principals
                         WHERE uid IN (select unnest(?uids::bigint[]))
-                    """.trimIndent()
+                    """
                 ).rows
         }
         val twoFactorStatus = twoFactorDAO.findStatusBatched(db, users.map { it.getField(PrincipalTable.id) })
@@ -329,8 +322,6 @@ class UserAsyncDAO(
             .map { rowData ->
                 rowData.toPrincipal(twoFactorStatus.getValue(rowData.getField(PrincipalTable.id))) }
             .associateBy { it.uid }
-
-        println( usersWeFound)
 
         val usersWeDidntFind = uids.filter { it !in usersWeFound }
         val nullEntires = usersWeDidntFind.map { it to null as Principal? }.toMap()
@@ -349,8 +340,12 @@ class UserAsyncDAO(
                         SELECT *
                         FROM principals
                         WHERE id LIKE ?prefix
-                    """.trimIndent()
-                ).rows.map { it.toPrincipal(false) }
+                    """
+                )
+                .rows
+                .map {
+                    it.toPrincipal(false)
+                }
         }
     }
 
@@ -365,27 +360,17 @@ class UserAsyncDAO(
                         SELECT *
                         FROM principals
                         WHERE wayf_id = ?wayfId
-                    """.trimIndent()
-                ).rows.singleOrNull()?.toPrincipal(false) as? Person.ByWAYF ?: throw UserException.NotFound()
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?.toPrincipal(false) as? Person.ByWAYF ?: throw UserException.NotFound()
         }
     }
 
     suspend fun findByWayfIdAndUpdateEmail(db: DBContext, wayfId: String, email: String?): Person.ByWAYF {
         val principal = db.withSession { session ->
-            val principal = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("wayfId", wayfId)
-                    },
-                    """
-                        SELECT *
-                        FROM principals
-                        WHERE wayf_id = ?wayfId
-                    """.trimIndent()
-                ).rows.firstOrNull()
-
-
-            if (principal != null && email != null) {
+            if (email != null) {
                 session
                     .sendPreparedStatement(
                         {
@@ -396,10 +381,10 @@ class UserAsyncDAO(
                             UPDATE principals
                             SET email = ?email
                             WHERE wayf_id = ?wayfId
-                        """.trimIndent()
-                    )
-            }
-            principal
+                            RETURNING *
+                        """
+                    ).rows.singleOrNull()
+            } else null
         }
         return principal?.toPrincipal(false) as? Person.ByWAYF ?: throw UserException.NotFound()
     }
@@ -414,7 +399,7 @@ class UserAsyncDAO(
                     SELECT *
                     FROM principals
                     WHERE id = ?id
-                """.trimIndent()
+                """
             ).rows.singleOrNull()
             if (found != null) {
                 throw UserException.AlreadyExists()
@@ -485,9 +470,9 @@ class UserAsyncDAO(
                             setParameter("id", id)
                         },
                         """
-                        DELETE from principals
-                        WHERE id = ?id
-                    """.trimIndent()
+                            DELETE from principals
+                            WHERE id = ?id
+                        """
                     ).rowsAffected == 0L
             }
         ) throw UserException.NotFound()
@@ -497,6 +482,7 @@ class UserAsyncDAO(
         db: DBContext,
         id: String,
         newPassword: String,
+        conditionalChange: Boolean = true,
         currentPasswordForVerification: String?
     ) {
         db.withSession { session ->
@@ -509,21 +495,29 @@ class UserAsyncDAO(
                         SELECT *
                         FROM principals
                         WHERE id = ?id
-                    """.trimIndent()
-                ).rows.singleOrNull() ?: throw UserException.NotFound()
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?: throw UserException.NotFound()
             if (!principal.getField(PrincipalTable.type).contains(USERTYPE.PASSWORD.name)) {
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
                     "User is not Password but: ${principal.getField(PrincipalTable.type)}")
             }
-            if (currentPasswordForVerification != null) {
-                if (!passwordHashingService.checkPassword(
+            if(conditionalChange) {
+                if (currentPasswordForVerification != null) {
+                    val isInvalidPassword = !passwordHashingService.checkPassword(
                         principal.getField(PrincipalTable.hashedPassword),
                         principal.getField(PrincipalTable.salt),
                         currentPasswordForVerification
                     )
-                ) {
-                    throw UserException.InvalidAuthentication()
+                    if (isInvalidPassword) {
+                        throw UserException.InvalidAuthentication()
+                    }
+                }
+                else {
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "No verification password given")
                 }
             }
             val (hashedPassword, salt) = passwordHashingService.hashPassword(newPassword)
@@ -538,62 +532,14 @@ class UserAsyncDAO(
                         UPDATE principals
                         SET hashed_password = ?hashed, salt = ?salt
                         WHERE id = ?id
-                    """.trimIndent()
-                )
-        }
-    }
-
-    suspend fun unconditionalUpdatePassword(db: DBContext, id: String, newPassword: String) {
-        db.withSession { session ->
-            val principal = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("id", id)
-                    },
                     """
-                        SELECT *
-                        FROM principals
-                        WHERE id = ?id
-                    """.trimIndent()
-                ).rows.singleOrNull() ?: throw UserException.NotFound()
-            if (!principal.getField(PrincipalTable.type).contains(USERTYPE.PASSWORD.name)) {
-                throw RPCException.fromStatusCode(
-                    HttpStatusCode.BadRequest,
-                    "User is not Password but: ${principal.getField(PrincipalTable.type)}"
-                )
-            }
-            val (hashedPassword, salt) = passwordHashingService.hashPassword(newPassword)
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("hashed", hashedPassword)
-                        setParameter("salt", salt)
-                        setParameter("id", id)
-                    },
-                    """
-                        UPDATE principals
-                        SET hashed_password = ?hashed, salt = ?salt
-                        WHERE id = ?id
-                    """.trimIndent()
                 )
         }
     }
 
     suspend fun setAcceptedSlaVersion(db: DBContext, user: String, version: Int) {
         db.withSession { session ->
-            val principal = session
-                .sendPreparedStatement(
-                    {
-                        setParameter("id", user)
-                    },
-                    """
-                        SELECT *
-                        FROM principals
-                        WHERE id = ?id
-                    """.trimIndent()
-                ).rows.singleOrNull() ?: throw UserException.NotFound()
-
-            session
+            val affected = session
                 .sendPreparedStatement(
                     {
                         setParameter("sla", version)
@@ -603,45 +549,35 @@ class UserAsyncDAO(
                         UPDATE principals
                         SET service_license_agreement = ?sla
                         WHERE id = ?id
-                    """.trimIndent()
+                    """
                 )
+                .rowsAffected
+            if (affected == 0L) {
+                throw UserException.NotFound()
+            }
         }
     }
 
     //Should be moved out of AUTH in case of expanding functionality of subscriptions
     suspend fun toggleEmail(db: DBContext, username: String) {
         db.withSession { session ->
-            val user = session
+            val affected = session
                 .sendPreparedStatement(
                     {
                         setParameter("username", username)
                     },
                     """
-                        SELECT * 
-                        FROM principals
-                        WHERE id = ?username
-                    """.trimIndent()
-                ).rows.singleOrNull() ?: throw UserException.NotFound()
-
-            val wantsEmails = user.getField(PrincipalTable.wantsEmails)
-            //WantEmails can be null even is IDE says it can't.
-            if (wantsEmails != null) {
-                session
-                    .sendPreparedStatement(
-                        {
-                            setParameter("wantsEmails", !wantsEmails)
-                            setParameter("username", username)
-                        },
-                        """
-                            UPDATE principals 
-                            SET wants_emails = ?wantsEmails
-                            WHERE id = ?username
-                        """.trimIndent()
-                    )
-            } else {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "User not found")
+                        UPDATE principals
+                        SET wants_emails = NOT w.wants_emails
+                        FROM (SELECT * FROM principals WHERE id = :username) AS w
+                        WHERE principals.id = w.id
+                    """
+                ).rowsAffected
+            if (affected == 0L) {
+                throw UserException.NotFound()
             }
         }
+
     }
     //Should be moved out of AUTH in case of expanding functionality of subscriptions
     suspend fun wantEmails(db: DBContext, username: String): Boolean {
@@ -655,7 +591,7 @@ class UserAsyncDAO(
                         SELECT *
                         FROM principals
                         WHERE id = ?id
-                    """.trimIndent()
+                    """
                 ).rows.singleOrNull()?.getField(PrincipalTable.wantsEmails) ?: throw UserException.NotFound()
         }
     }

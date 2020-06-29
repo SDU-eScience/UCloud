@@ -54,27 +54,31 @@ class TwoFactorAuthController(
         if (!verified && challenge == null) {
             fail()
         }
-
-        when {
-            challenge!!.type.contains(TwoFactorChallengeType.LOGIN.name) -> {
-                if (verified) {
-                    loginResponder.handleSuccessful2FA(
-                        call,
-                        challenge.service!!,
-                        challenge.credentials.principal
-                    )
-                } else {
-                    fail()
+        if (challenge != null ) {
+            when {
+                challenge.type.contains(TwoFactorChallengeType.LOGIN.name) -> {
+                    if (verified) {
+                        loginResponder.handleSuccessful2FA(
+                            call,
+                            challenge.service!!,
+                            challenge.credentials.principal
+                        )
+                    } else {
+                        fail()
+                    }
+                }
+                challenge.type.contains(TwoFactorChallengeType.SETUP.name) -> {
+                    if (verified) {
+                        twoFactorChallengeService.upgradeCredentials(challenge.credentials)
+                        call.respond(HttpStatusCode.NoContent)
+                    } else {
+                        fail()
+                    }
                 }
             }
-            challenge!!.type.contains(TwoFactorChallengeType.SETUP.name) -> {
-                if (verified) {
-                    twoFactorChallengeService.upgradeCredentials(challenge.credentials)
-                    call.respond(HttpStatusCode.NoContent)
-                } else {
-                    fail()
-                }
-            }
+        } else {
+            log.debug("Challenge is null")
+            fail()
         }
     }
 

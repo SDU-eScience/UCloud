@@ -46,33 +46,35 @@ class TwoFactorChallengeService(
      */
     suspend fun createSetupCredentialsAndChallenge(username: String): Create2FACredentialsResponse {
         val newCredentials = totpService.createSharedSecret()
-        val user = userDAO.findByIdOrNull(db, username) ?: run {
-            log.warn("Could not lookup user in createSetupCredentialsAndChallenge: $username")
-            throw TwoFactorException.InternalError()
-        }
+        return db.withSession { session ->
+            val user = userDAO.findByIdOrNull(session, username) ?: run {
+                log.warn("Could not lookup user in createSetupCredentialsAndChallenge: $username")
+                throw TwoFactorException.InternalError()
+            }
 
-        val person = user as? Person ?: throw TwoFactorException.InvalidPrincipalType()
+            val person = user as? Person ?: throw TwoFactorException.InvalidPrincipalType()
 
-        val enforcedCredentials = twoFactorDAO.findEnforcedCredentialsOrNull(db, username)
-        if (enforcedCredentials != null) throw TwoFactorException.AlreadyBound()
+            val enforcedCredentials = twoFactorDAO.findEnforcedCredentialsOrNull(session, username)
+            if (enforcedCredentials != null) throw TwoFactorException.AlreadyBound()
 
-        val otpAuthUri = newCredentials.toOTPAuthURI(person.displayName, ISSUER).toASCIIString()
-        val qrData = qrService.encode(otpAuthUri, QR_WIDTH_PX, QR_HEIGHT_PX).toDataURI()
-        val twoFactorCredentials = TwoFactorCredentials(user, newCredentials.secretBase32Encoded, false)
-        val credentialsId = twoFactorDAO.createCredentials(db, twoFactorCredentials)
+            val otpAuthUri = newCredentials.toOTPAuthURI(person.displayName, ISSUER).toASCIIString()
+            val qrData = qrService.encode(otpAuthUri, QR_WIDTH_PX, QR_HEIGHT_PX).toDataURI()
+            val twoFactorCredentials = TwoFactorCredentials(user, newCredentials.secretBase32Encoded, false)
+            val credentialsId = twoFactorDAO.createCredentials(session, twoFactorCredentials)
 
-        val challengeId = createChallengeId()
-        twoFactorDAO.createChallenge(
-            db,
-            TwoFactorChallenge(
-                TwoFactorChallengeType.SETUP.name,
-                challengeId,
-                createChallengeExpiryTimestamp(),
-                twoFactorCredentials.copy(id = credentialsId)
+            val challengeId = createChallengeId()
+            twoFactorDAO.createChallenge(
+                session,
+                TwoFactorChallenge(
+                    TwoFactorChallengeType.SETUP.name,
+                    challengeId,
+                    createChallengeExpiryTimestamp(),
+                    twoFactorCredentials.copy(id = credentialsId)
+                )
             )
-        )
 
-        return Create2FACredentialsResponse(otpAuthUri, qrData, newCredentials.secretBase32Encoded, challengeId)
+             Create2FACredentialsResponse(otpAuthUri, qrData, newCredentials.secretBase32Encoded, challengeId)
+        }
     }
 
     /**

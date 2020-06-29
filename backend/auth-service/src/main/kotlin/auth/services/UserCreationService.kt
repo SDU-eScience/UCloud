@@ -7,6 +7,7 @@ import dk.sdu.cloud.auth.api.UserEventProducer
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
@@ -28,19 +29,20 @@ class UserCreationService(
     }
 
     suspend fun createUsers(users: List<Principal>) {
-        users.forEach { user ->
-            val exists = userDao.findByIdOrNull(db, user.id) != null
-            if (exists) {
-                throw UserException.AlreadyExists()
-            } else {
-                log.info("Creating user: $user")
-                userDao.insert(db, user)
+        db.withSession { session ->
+            users.forEach { user ->
+                val exists = userDao.findByIdOrNull(session, user.id) != null
+                if (exists) {
+                    throw UserException.AlreadyExists()
+                } else {
+                    log.info("Creating user: $user")
+                    userDao.insert(session, user)
+                }
             }
-        }
 
-
-        users.forEach { user ->
-            userEventProducer.produce(UserEvent.Created(user.id, user))
+            users.forEach { user ->
+                userEventProducer.produce(UserEvent.Created(user.id, user))
+            }
         }
     }
 

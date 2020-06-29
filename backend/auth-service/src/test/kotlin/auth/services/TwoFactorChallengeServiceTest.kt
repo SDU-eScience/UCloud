@@ -117,7 +117,7 @@ class TwoFactorChallengeServiceTest {
 
     @Test
     fun `test creating credentials for valid user`(): Unit = runBlocking {
-        with(initTest()) {
+        with(initTest(db = db)) {
             val user = userDAO.withUser()
 
             coEvery { twoFactorDAO.findEnforcedCredentialsOrNull(any(), user.id) } returns null
@@ -138,7 +138,7 @@ class TwoFactorChallengeServiceTest {
 
     @Test(expected = TwoFactorException.InvalidPrincipalType::class)
     fun `test creating credentials for service`(): Unit = runBlocking {
-        with(initTest()) {
+        with(initTest(db = db)) {
             val user = userDAO.withUser(ServicePrincipal("_foobar", Role.SERVICE))
 
             coEvery { twoFactorDAO.findEnforcedCredentialsOrNull(any(), user.id) } returns null
@@ -150,7 +150,7 @@ class TwoFactorChallengeServiceTest {
 
     @Test(expected = TwoFactorException.AlreadyBound::class)
     fun `test creating credentials when already bound`(): Unit = runBlocking {
-        with(initTest()) {
+        with(initTest(db = db)) {
             val user = userDAO.withUser()
 
             coEvery { twoFactorDAO.findEnforcedCredentialsOrNull(any(), user.id) } returns TwoFactorCredentials(
@@ -167,7 +167,7 @@ class TwoFactorChallengeServiceTest {
 
     @Test(expected = TwoFactorException.InternalError::class)
     fun `test creating credentials when user does not exist`(): Unit = runBlocking {
-        with(initTest()) {
+        with(initTest(db = db)) {
             coEvery { userDAO.findByIdOrNull(any(), any()) } returns null
             coEvery { userDAO.findById(any(), any()) } throws UserException.NotFound()
 

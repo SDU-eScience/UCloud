@@ -124,15 +124,15 @@ class UserIterationService(
             if (openIterators.size >= maxConnections) throw UserIteratorException.TooManyOpen()
 
             //CursorID Must not start with number and contain "-"
-            val id = "a${UUID.randomUUID().toString().replace("-", "_")}"
+            val id = UUID.randomUUID().toString()
             session.sendPreparedStatement(
                 """
-                    DECLARE $id NO SCROLL CURSOR WITH HOLD
+                    DECLARE curs NO SCROLL CURSOR WITH HOLD
                     FOR SELECT * FROM principals;
                 """.trimIndent()
             )
             val state = CursorState(id, localhostName, localPort, nextExpiresAt())
-            cursorStateDao.create(session, state)
+            cursorStateDao.create(db, state)
             openIterators[id] = OpenIterator(state, session)
             return id
         }
@@ -146,8 +146,8 @@ class UserIterationService(
                 open.session
                     .sendPreparedStatement(
                         """
-                                CLOSE $id
-                            """.trimIndent()
+                            CLOSE curs
+                        """.trimIndent()
                     )
 
                 db.commit(open.session)
@@ -165,7 +165,7 @@ class UserIterationService(
         return open.session
             .sendPreparedStatement(
                 """
-                    FETCH FORWARD $PAGE_SIZE FROM $id
+                    FETCH FORWARD 1000 FROM curs
                 """.trimIndent()
             ).rows.map { it.toPrincipal(false) }
     }
@@ -213,8 +213,6 @@ class UserIterationService(
 
     companion object : Loggable {
         override val log: Logger = logger()
-
-        const val PAGE_SIZE = 1000
     }
 }
 

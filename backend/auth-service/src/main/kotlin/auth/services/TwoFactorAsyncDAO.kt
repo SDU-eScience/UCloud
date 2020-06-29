@@ -53,7 +53,10 @@ class TwoFactorAsyncDAO {
                         WHERE enforced = ?enforced AND
                             principal_id = ?user
                     """.trimIndent()
-                ).rows.singleOrNull()?.toTwoFactorCredentials(session)
+                )
+                .rows
+                .singleOrNull()
+                ?.toTwoFactorCredentials(session)
         }
     }
 
@@ -70,30 +73,26 @@ class TwoFactorAsyncDAO {
                         FROM two_factor_challenges
                         WHERE challenge_id = ?id AND expires_at > to_timestamp(?time)
                     """.trimIndent()
-                ).rows.singleOrNull()?.toTwoFactorChallenge(session)
+                )
+                .rows
+                .firstOrNull()
+                ?.toTwoFactorChallenge(session)
         }
     }
 
     suspend fun createCredentials(db: DBContext, twoFactorCredentials: TwoFactorCredentials): Long {
         if (hasCredentials(db, twoFactorCredentials.principal.id)) throw TwoFactorException.AlreadyBound()
         return db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", twoFactorCredentials.principal.id)
-                },
-                """
-                    SELECT * 
-                    FROM principals 
-                    WHERE id = ?id
-                """.trimIndent()
-            ).rows.singleOrNull() ?: UserException.NotFound()
-
             val id = session.allocateId()
-            session.insert(TwoFactorCredentialsTable) {
-                set(TwoFactorCredentialsTable.principal, twoFactorCredentials.principal.id)
-                set(TwoFactorCredentialsTable.sharedSecret, twoFactorCredentials.sharedSecret)
-                set(TwoFactorCredentialsTable.enforced, twoFactorCredentials.enforced)
-                set(TwoFactorCredentialsTable.id, id)
+            try {
+                session.insert(TwoFactorCredentialsTable) {
+                    set(TwoFactorCredentialsTable.principal, twoFactorCredentials.principal.id)
+                    set(TwoFactorCredentialsTable.sharedSecret, twoFactorCredentials.sharedSecret)
+                    set(TwoFactorCredentialsTable.enforced, twoFactorCredentials.enforced)
+                    set(TwoFactorCredentialsTable.id, id)
+                }
+            } catch ( ex: Exception ) {
+                throw UserException.NotFound()
             }
             id
         }
@@ -110,7 +109,7 @@ class TwoFactorAsyncDAO {
                     FROM two_factor_credentials
                     WHERE id = ?id
                 """.trimIndent()
-            ).rows.singleOrNull() ?: RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            ).rows.singleOrNull() ?: RPCException.fromStatusCode(HttpStatusCode.Conflict)
             session.insert(TwoFactorChallengeTable) {
                 set(TwoFactorChallengeTable.type, challenge.type)
                 set(TwoFactorChallengeTable.challengeId, challenge.challengeId)

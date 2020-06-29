@@ -102,7 +102,7 @@ class RefreshTokenAsyncDAO{
                 .sendPreparedStatement(
                     {
                         setParameter("token", token)
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis )
+                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis)
                     },
                     """
                         SELECT *
