@@ -42,7 +42,22 @@ function dateFormatterDay(timestamp: number): string {
 
 function dateFormatterMonth(timestamp: number): string {
     const date = new Date(timestamp);
-    return `${date.getMonth()+1}/${date.getFullYear() } `
+    return `${date.getMonth() + 1}/${date.getFullYear()} `
+}
+
+function getDateFormatter(duration: Duration): (timestamp: number) => string {
+    switch (duration.text) {
+        case "Past 14 days":
+        case "Past 30 days":
+        case "Past 180 days":
+            return dateFormatterDay;
+        case "Past 365 days":
+            return dateFormatterMonth;
+        case "Past 7 days":
+        case "Today":
+        default:
+            return dateFormatter;
+    }
 }
 
 export function creditFormatter(credits: number, precision: number = 2): string {
@@ -165,7 +180,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const [includeInCharts, setIncludeInCharts] = useState<Dictionary<Dictionary<Dictionary<boolean>>>>({});
 
     const computeIncludeInCharts: Dictionary<Dictionary<boolean>> = includeInCharts[ProductArea.COMPUTE] ?? {};
-    const storageIncludeInCharts:  Dictionary<Dictionary<boolean>> = includeInCharts[ProductArea.STORAGE] ?? {};
+    const storageIncludeInCharts: Dictionary<Dictionary<boolean>> = includeInCharts[ProductArea.STORAGE] ?? {};
 
     const onIncludeInChart = (area: ProductArea) => (provider: string, lineName: string) => {
         const existingAtProvider: Dictionary<boolean> = (includeInCharts[area] ?? {})[provider] ?? {};
@@ -284,7 +299,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                 <Flex>
                     <ProjectBreadcrumbs crumbs={[{title: "Usage"}]}/>
                     <ClickableDropdown
-                        trigger={<Heading.h4>{durationOption.text} <Icon name={"chevronDown"} size={16} /></Heading.h4>}
+                        trigger={<Heading.h4>{durationOption.text} <Icon name={"chevronDown"} size={16}/></Heading.h4>}
                         onChange={opt => setDurationOption(durationOptions[parseInt(opt)])}
                         options={durationOptions.map((it, idx) => {
                             return {text: it.text, value: `${idx}`};
@@ -360,21 +375,6 @@ const VisualizationForArea: React.FunctionComponent<{
         }
     }
 
-    function needDay(duration: Duration): Boolean {
-        switch (duration.text) {
-            case "Past 14 days":
-                return true;
-            case "Past 30 days":
-                return true;
-            case "Past 180 days":
-                return true;
-            default:
-                return false
-        }    }
-    function needMonth(duration: Duration): Boolean {
-        return duration.text === "Past 365 days";
-    }
-
     return (
         <Box>
             <SummaryCard
@@ -400,20 +400,11 @@ const VisualizationForArea: React.FunctionComponent<{
                                             }}
                                         >
                                             <CartesianGrid strokeDasharray="3 3"/>
-                                            {needMonth(durationOption) ?
-                                                <XAxis dataKey="time" tickFormatter={dateFormatterMonth}/> :
-                                                needDay(durationOption) ?
-                                                    <XAxis dataKey="time" tickFormatter={dateFormatterDay}/> :
-                                                    <XAxis dataKey="time" tickFormatter={dateFormatter}/>
-                                            }
+                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)}/>
                                             <YAxis width={150} tickFormatter={creditFormatter}/>
-                                            <Tooltip labelFormatter={
-                                                needMonth(durationOption) ?
-                                                    dateFormatterMonth :
-                                                    needDay(durationOption) ?
-                                                       dateFormatterDay:
-                                                        dateFormatter
-                                            } formatter={n => creditFormatter(n as number, 2)}/>
+                                            <Tooltip labelFormatter={ getDateFormatter(durationOption)}
+                                                     formatter={n => creditFormatter(n as number, 2)}
+                                            />
                                             {chart.lineNames.map((id, idx) => {
                                                 if ((includeInCharts[chart.provider] ?? {})[id] ?? true) {
                                                     return <Bar
