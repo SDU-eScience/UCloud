@@ -74,11 +74,18 @@ export function submitGrantApplication(request: SubmitGrantApplicationRequest): 
     };
 }
 
+export interface Comment {
+    id: number;
+    postedBy: string;
+    postedAt: number;
+    comment: string;
+}
+
 export interface ViewGrantApplicationRequest {
     id: number;
 }
 
-export type ViewGrantApplicationResponse = { application: GrantApplication, comments: {}[] } ;
+export type ViewGrantApplicationResponse = { application: GrantApplication, comments: Comment[] } ;
 
 export function viewGrantApplication(
     request: ViewGrantApplicationRequest
@@ -87,6 +94,25 @@ export function viewGrantApplication(
         method: "GET",
         path: `/grant/${request.id}`,
         parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface CommentOnGrantApplicationRequest {
+    requestId: number;
+    comment: string;
+}
+
+export type CommentOnGrantApplicationResponse = {};
+
+export function commentOnGrantApplication(
+    request: CommentOnGrantApplicationRequest
+): APICallParameters<CommentOnGrantApplicationRequest> {
+    return {
+        method: "POST",
+        path: "/grant/comment",
+        parameters: request,
+        payload: request,
         reloadId: Math.random()
     };
 }

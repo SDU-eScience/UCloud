@@ -85,7 +85,8 @@ class CommentService(
                     Comment(
                         it.getField(CommentTable.id),
                         it.getField(CommentTable.postedBy),
-                        it.getField(CommentTable.createdAt).toTimestamp()
+                        it.getField(CommentTable.createdAt).toTimestamp(),
+                        it.getField(CommentTable.comment)
                     )
                 }
 
