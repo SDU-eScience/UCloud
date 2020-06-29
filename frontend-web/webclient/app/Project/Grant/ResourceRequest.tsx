@@ -7,7 +7,8 @@ import * as Heading from "ui-components/Heading";
 import {Box, Button, Flex, Grid, Icon, Input, Label, TextArea, theme} from "ui-components";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
-    ProductArea, productCategoryEquals,
+    ProductArea,
+    productCategoryEquals,
     ProductCategoryId,
     retrieveBalance,
     RetrieveBalanceResponse,
@@ -21,11 +22,15 @@ import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {
     approveGrantApplication,
-    Comment, commentOnGrantApplication, deleteGrantApplicationComment, editGrantApplication,
+    Comment,
+    commentOnGrantApplication,
+    deleteGrantApplicationComment,
+    editGrantApplication,
     GrantApplicationStatus,
     GrantRecipient,
     readTemplates,
-    ReadTemplatesResponse, rejectGrantApplication,
+    ReadTemplatesResponse,
+    rejectGrantApplication,
     ResourceRequest,
     submitGrantApplication,
     viewGrantApplication,
@@ -41,7 +46,6 @@ import {useAvatars} from "AvataaarLib/hook";
 import {Toggle} from "ui-components/Toggle";
 import {doNothing} from "UtilityFunctions";
 import Table, {TableCell, TableRow} from "ui-components/Table";
-import {dialogStore} from "Dialog/DialogStore";
 import {addStandardDialog} from "UtilityComponents";
 
 export const RequestForSingleResourceWrapper = styled.div`
@@ -109,6 +113,7 @@ function useRequestInformation(target: RequestTarget) {
     let prefilledDocument: string | undefined;
     let comments: Comment[] = [];
     let approver = false;
+    let status: GrantApplicationStatus = GrantApplicationStatus.IN_PROGRESS;
     const avatars = useAvatars();
 
     let availableProducts: { area: ProductArea, category: ProductCategoryId }[];
@@ -212,6 +217,7 @@ function useRequestInformation(target: RequestTarget) {
             prefilledDocument = grantApplication.data.application.document;
             comments = grantApplication.data.comments;
             approver = grantApplication.data.approver;
+            status = grantApplication.data.application.status;
 
             reloadWallets = useCallback(() => {
                 fetchGrantApplication(viewGrantApplication({id: parseInt(appId, 10)}));
@@ -288,7 +294,7 @@ function useRequestInformation(target: RequestTarget) {
 
     return {
         wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, applicationId,
-        comments, avatars, reload, approver
+        comments, avatars, reload, approver, status
     };
 }
 
@@ -426,6 +432,18 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                 <Label mb={16} mt={16}>
                                     Principal Investigator (PI)
                                     <Input value={"Some example PI"} disabled/>
+                                </Label>
+
+                                <Label mb={16} mt={16}>
+                                    Current Status
+                                    <Input
+                                        value={
+                                            state.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
+                                                state.status === GrantApplicationStatus.APPROVED ? "Approved" :
+                                                    "Rejected"
+                                        }
+                                       disabled
+                                    />
                                 </Label>
 
                                 <Label mt={16}>
