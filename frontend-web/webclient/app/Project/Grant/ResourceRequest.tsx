@@ -20,6 +20,7 @@ import {creditFormatter} from "Project/ProjectUsage";
 import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {
+    Comment, commentOnGrantApplication,
     GrantApplicationStatus,
     GrantRecipient,
     readTemplates,
@@ -32,6 +33,13 @@ import {
 import {useHistory, useParams} from "react-router";
 import {Client} from "Authentication/HttpClientInstance";
 import {snackbarStore} from "Snackbar/SnackbarStore";
+import {dateToString} from "Utilities/DateUtilities";
+import {UserAvatar} from "AvataaarLib/UserAvatar";
+import {AvatarType, defaultAvatar} from "UserSettings/Avataaar";
+import {useAvatars} from "AvataaarLib/hook";
+import {Toggle} from "ui-components/Toggle";
+import {doNothing} from "UtilityFunctions";
+import Table, {TableCell, TableRow} from "ui-components/Table";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -70,12 +78,12 @@ const ResourceContainer = styled.div`
 `;
 
 const RequestFormContainer = styled.div`
-    display: flex;
-    justify-content: center;
-
+    width: 100%;
+    
     ${TextArea} {
-        max-width: 800px;
         width: 100%;
+        height: calc(100% - 40px);
+        margin: 10px 0;
     }
 `;
 
@@ -90,10 +98,14 @@ export enum RequestTarget {
 function useRequestInformation(target: RequestTarget) {
     let targetProject: string | undefined;
     let wallets: WalletBalance[] = [];
-    let reloadWallets: () => void = () => { /* empty */ };
+    let reloadWallets: () => void = () => {
+        /* empty */
+    };
     let recipient: GrantRecipient;
     let applicationId: number | undefined;
     let prefilledDocument: string | undefined;
+    let comments: Comment[] = [];
+    const avatars = useAvatars();
 
     let availableProducts: { area: ProductArea, category: ProductCategoryId }[];
     let reloadProducts: () => void;
@@ -103,10 +115,10 @@ function useRequestInformation(target: RequestTarget) {
             []
         );
 
-        const allCategories: { category: ProductCategoryId, area: "compute" | "storage"}[] =
-            products.data.map(it => ({ category: it.category, area: it.type }));
+        const allCategories: { category: ProductCategoryId, area: "compute" | "storage" }[] =
+            products.data.map(it => ({category: it.category, area: it.type}));
 
-        const uniqueCategories: { category: ProductCategoryId, area: "compute" | "storage"}[] = Array.from(
+        const uniqueCategories: { category: ProductCategoryId, area: "compute" | "storage" }[] = Array.from(
             new Set(allCategories.map(it => JSON.stringify(it))).values()
         ).map(it => JSON.parse(it));
 
@@ -193,6 +205,7 @@ function useRequestInformation(target: RequestTarget) {
             });
             recipient = grantApplication.data.application.grantRecipient;
             prefilledDocument = grantApplication.data.application.document;
+            comments = grantApplication.data.comments;
 
             reloadWallets = useCallback(() => {
                 fetchGrantApplication(viewGrantApplication({id: parseInt(appId, 10)}));
@@ -232,6 +245,12 @@ function useRequestInformation(target: RequestTarget) {
         }
     }, [templates, documentRef.current, prefilledDocument]);
 
+    useEffect(() => {
+        const usernames = comments.map(it => it.postedBy);
+        usernames.push(Client.username!);
+        avatars.updateCache(usernames);
+    }, [comments]);
+
     const mergedWallets: WalletBalance[] = [];
     {
         // Put in all products and attach a price, if there is one
@@ -257,7 +276,10 @@ function useRequestInformation(target: RequestTarget) {
         }
     }
 
-    return {wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, applicationId};
+    return {
+        wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, applicationId,
+        comments, avatars
+    };
 }
 
 function productCategoryId(pid: ProductCategoryId): string {
@@ -300,7 +322,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             } as ResourceRequest;
         }).filter(it => it !== null) as ResourceRequest[];
 
-        const response = await runWork<{id: number}>(submitGrantApplication({
+        const response = await runWork<{ id: number }>(submitGrantApplication({
             document: state.documentRef.current!.value,
             requestedBy: Client.username!,
             resourcesOwnedBy: state.targetProject!,
@@ -335,84 +357,239 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             }
             sidebar={null}
             main={
-                <>
-                    {target !== RequestTarget.NEW_PROJECT ? null : (
-                        <>
-                            <Heading.h2>Project Information</Heading.h2>
-                            <Label mb={16} mt={16}>
-                                Principal Investigator (PI)
-                                <Input
-                                    value={
-                                        `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} ` +
-                                        `(${Client.username})`
-                                    }
-                                    disabled
-                                />
-                            </Label>
-                            <Label mb={16} mt={16}>
-                                Title
-                                <Input ref={projectTitleRef}/>
-                            </Label>
-                        </>
-                    )}
+                <Flex justifyContent={"center"}>
+                    <Box maxWidth={1400} width={"100%"}>
+                        {target !== RequestTarget.EXISTING_PROJECT ?
+                            <Heading.h4>Project Information</Heading.h4> : null
+                        }
+                        {target !== RequestTarget.NEW_PROJECT ? null : (
+                            <>
+                                <Label mb={16} mt={16}>
+                                    Principal Investigator (PI)
+                                    <Input
+                                        value={
+                                            `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} ` +
+                                            `(${Client.username})`
+                                        }
+                                        disabled
+                                    />
+                                </Label>
+                                <Label mb={16} mt={16}>
+                                    Title
+                                    <Input ref={projectTitleRef}/>
+                                </Label>
+                            </>
+                        )}
 
-                    <Heading.h2>Resources</Heading.h2>
-                    <ResourceContainer>
-                        {state.wallets.map((it, idx) => (
-                            <RequestForSingleResourceWrapper key={idx}>
-                                <DashboardCard color={theme.colors.blue} isLoading={false}>
-                                    <table>
-                                        <tbody>
-                                        <tr>
-                                            <th>Product</th>
-                                            <td>
-                                                {it.wallet.paysFor.id} / {it.wallet.paysFor.provider}
-                                                <Icon
-                                                    name={it.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
-                                                    size={32}
-                                                />
-                                            </td>
-                                        </tr>
-                                        {state.applicationId !== undefined ? null : (
+                        {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                            <>
+                                <Label mb={16} mt={16}>
+                                    Project Title
+                                    <Input value={"Some Example Project Title"} disabled />
+                                </Label>
+
+                                <Label mb={16} mt={16}>
+                                    Principal Investigator (PI)
+                                    <Input value={"Some example PI"} disabled />
+                                </Label>
+
+                                <Label mt={16}>
+                                    Project Type
+                                </Label>
+                                <Table mb={16}>
+                                    <tbody>
+                                    <TableRow>
+                                        <TableCell>Personal</TableCell>
+                                        <TableCell textAlign={"right"}>
+                                            <Toggle onChange={doNothing} scale={1.5}
+                                                    checked={state.recipient.type === "personal"} />
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell>New Project</TableCell>
+                                        <TableCell textAlign={"right"}>
+                                            <Toggle onChange={doNothing} scale={1.5}
+                                                    checked={state.recipient.type === "new_project"} />
+                                        </TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell>Existing Project</TableCell>
+                                        <TableCell textAlign={"right"}>
+                                            <Toggle onChange={doNothing} scale={1.5}
+                                                    checked={state.recipient.type === "existing_project"} />
+                                        </TableCell>
+                                    </TableRow>
+                                    </tbody>
+                                </Table>
+                            </>
+                        )}
+
+                        <Heading.h4>Resources Requested</Heading.h4>
+
+                        <ResourceContainer>
+                            {state.wallets.map((it, idx) => (
+                                <RequestForSingleResourceWrapper key={idx}>
+                                    <DashboardCard color={theme.colors.blue} isLoading={false}>
+                                        <table>
+                                            <tbody>
                                             <tr>
-                                                <th>Current balance</th>
-                                                <td>{creditFormatter(it.balance)}</td>
-                                            </tr>
-                                        )}
-                                        <tr>
-                                            <th>
-                                                {state.applicationId !== undefined ?
-                                                    "Resources requested" :
-                                                    "Request additional resources"
-                                                }
-                                            </th>
-                                            <td>
-                                                <Flex alignItems={"center"}>
-                                                    <Input
-                                                        placeholder={"0"}
-                                                        data-target={productCategoryId(it.wallet.paysFor)}
+                                                <th>Product</th>
+                                                <td>
+                                                    {it.wallet.paysFor.id} / {it.wallet.paysFor.provider}
+                                                    <Icon
+                                                        name={it.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
+                                                        size={32}
                                                     />
-                                                    <Box ml={10}>DKK</Box>
-                                                </Flex>
-                                            </td>
-                                        </tr>
-                                        </tbody>
-                                    </table>
-                                </DashboardCard>
-                            </RequestForSingleResourceWrapper>
-                        ))}
-                    </ResourceContainer>
+                                                </td>
+                                            </tr>
+                                            {state.applicationId !== undefined ? null : (
+                                                <tr>
+                                                    <th>Current balance</th>
+                                                    <td>{creditFormatter(it.balance)}</td>
+                                                </tr>
+                                            )}
+                                            <tr>
+                                                <th>
+                                                    {state.applicationId !== undefined ?
+                                                        "Resources requested" :
+                                                        "Request additional resources"
+                                                    }
+                                                </th>
+                                                <td>
+                                                    <Flex alignItems={"center"}>
+                                                        <Input
+                                                            placeholder={"0"}
+                                                            data-target={productCategoryId(it.wallet.paysFor)}
+                                                        />
+                                                        <Box ml={10}>DKK</Box>
+                                                    </Flex>
+                                                </td>
+                                            </tr>
+                                            </tbody>
+                                        </table>
+                                    </DashboardCard>
+                                </RequestForSingleResourceWrapper>
+                            ))}
+                        </ResourceContainer>
 
-                    <Heading.h2>Application</Heading.h2>
-                    <RequestFormContainer>
-                        <TextArea rows={25} ref={state.documentRef}/>
-                    </RequestFormContainer>
+                        <CommentApplicationWrapper>
+                            {state.applicationId === undefined ? null : (
+                                <Box width={"100%"}>
+                                    <Heading.h4>Comments</Heading.h4>
+                                    {state.comments.length > 0 ? null : (
+                                        <>
+                                            No comments have been posted yet.
+                                        </>
+                                    )}
 
-                    <Box p={32}>
-                        <Button fullWidth onClick={submitRequest}>Submit request</Button>
+                                    {state.comments.map(it => (
+                                        <CommentBox
+                                            key={it.id}
+                                            comment={it}
+                                            avatar={state.avatars.cache[it.postedBy] ?? defaultAvatar}
+                                        />
+                                    ))}
+
+                                    <PostCommentWidget
+                                        applicationId={state.applicationId}
+                                        avatar={state.avatars.cache[Client.username!] ?? defaultAvatar}
+                                    />
+                                </Box>
+                            )}
+
+                            <RequestFormContainer>
+                                <Heading.h4>Application</Heading.h4>
+                                <TextArea rows={25} ref={state.documentRef}/>
+                            </RequestFormContainer>
+                        </CommentApplicationWrapper>
+                        <Box p={32}>
+                            <Button fullWidth onClick={submitRequest}>Submit request</Button>
+                        </Box>
                     </Box>
-                </>
+                </Flex>
             }
         />
     );
+};
+
+const CommentApplicationWrapper = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
+    grid-gap: 32px;
+    max-width: 1400px;
+`;
+
+const CommentBoxWrapper = styled.div`
+    display: flex;
+    margin: 10px 0;
+    
+    .body {
+        flex-grow: 1;
+        margin: 0 6px;
+    }
+    
+    time {
+        color: var(--gray, #ff0);
+    }
+    
+    p {
+        margin: 0;
+    }
+`;
+
+const CommentBox: React.FunctionComponent<{comment: Comment, avatar: AvatarType}> = ({comment, avatar}) => {
+    return <CommentBoxWrapper>
+        <div className="avatar">
+            <UserAvatar avatar={avatar} width={"48px"} />
+        </div>
+
+        <div className={"body"}>
+            <p><strong>{comment.postedBy}</strong> says:</p>
+            <p>{comment.comment}</p>
+            <time>{dateToString(comment.postedAt)}</time>
+        </div>
+
+        <div>
+            <Icon cursor={"pointer"} name={"trash"} color={"red"} />
+        </div>
+    </CommentBoxWrapper>;
+};
+
+const PostCommentWrapper = styled.form`
+    .wrapper {
+        display: flex;
+    }
+    
+    ${TextArea} {
+        flex-grow: 1;
+        margin-left: 6px;
+    }
+    
+    .buttons {
+        display: flex;
+        margin-top: 6px;
+        justify-content: flex-end;
+    }
+`;
+
+const PostCommentWidget: React.FunctionComponent<{applicationId: number, avatar: AvatarType}> = ({applicationId, avatar}) => {
+    const commentBoxRef = useRef<HTMLTextAreaElement>(null);
+    const [loading, runWork] = useAsyncCommand();
+    const submitComment = useCallback(async (e) => {
+        e.preventDefault();
+
+        await runWork(commentOnGrantApplication({
+            requestId: applicationId,
+            comment: commentBoxRef.current!.value
+        }));
+    }, [runWork, applicationId, commentBoxRef.current]);
+    return <PostCommentWrapper onSubmit={submitComment}>
+        <div className="wrapper">
+            <UserAvatar avatar={avatar} width={"48px"} />
+            <TextArea rows={3} ref={commentBoxRef} placeholder={"Your comment"} />
+        </div>
+        <div className="buttons">
+            <Button disabled={loading}>Send</Button>
+        </div>
+    </PostCommentWrapper>;
 };

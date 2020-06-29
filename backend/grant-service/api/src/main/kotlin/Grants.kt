@@ -28,7 +28,7 @@ typealias ReadTemplatesResponse = UploadTemplatesRequest
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    include = JsonTypeInfo.As.PROPERTY,
     property = TYPE_PROPERTY
 )
 @JsonSubTypes(
@@ -76,8 +76,8 @@ typealias DeleteCommentResponse = Unit
 data class IngoingApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias IngoingApplicationsResponse = Page<Application>
 
-data class Comment(val id: Long, val postedBy: String, val postedAt: Long)
-data class ApplicationWithComments(val application: Application, val comment: List<Comment>)
+data class Comment(val id: Long, val postedBy: String, val postedAt: Long, val comment: String)
+data class ApplicationWithComments(val application: Application, val comments: List<Comment>)
 
 data class OutgoingApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias OutgoingApplicationsResponse = Page<Application>
@@ -100,7 +100,7 @@ enum class ApplicationStatus {
 
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
-    include = JsonTypeInfo.As.EXISTING_PROPERTY,
+    include = JsonTypeInfo.As.PROPERTY,
     property = TYPE_PROPERTY
 )
 @JsonSubTypes(
