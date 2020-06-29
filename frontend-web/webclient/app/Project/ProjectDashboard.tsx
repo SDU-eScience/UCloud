@@ -18,25 +18,10 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         return projectId === undefined || projectId === "";
     }
 
-    const isSettingsPage = membersPage === "settings";
-
     return (
         <MainContainer
             header={<Flex>
                 <ProjectBreadcrumbs crumbs={[]} />
-                <Flex>
-                    {isPersonalProjectActive(projectId) ? null : (
-                        <Link to={"/project/settings"}>
-                            <Icon
-                                name="properties"
-                                m={8}
-                                color={isSettingsPage ? "blue" : undefined}
-                                hoverColor="blue"
-                                cursor="pointer"
-                            />
-                        </Link>
-                    )}
-                </Flex>
             </Flex>}
             sidebar={null}
             main={(
@@ -87,6 +72,15 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Link>
                             </Box>
                         </DashboardCard>
+                        {isPersonalProjectActive(projectId) ? null : (
+                            <DashboardCard title="Settings" icon="properties" color={theme.colors.orange} isLoading={false}>
+                                <Box mt={68}>
+                                    <Link to="/project/settings">
+                                        <Button mb="10px" width="100%">Manage Settings</Button>
+                                    </Link>
+                                </Box>
+                            </DashboardCard>
+                        )}
                     </GridCardGroup>
                 </>
             )}
