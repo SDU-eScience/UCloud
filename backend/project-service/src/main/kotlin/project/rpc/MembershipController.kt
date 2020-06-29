@@ -40,5 +40,16 @@ class MembershipController(
                 )
             )
         }
+
+        implement(ProjectMembers.count) {
+            val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
+            ok(
+                queries.membersCount(
+                    db,
+                    ctx.securityPrincipal.username,
+                    project
+                )
+            )
+        }
     }
 }

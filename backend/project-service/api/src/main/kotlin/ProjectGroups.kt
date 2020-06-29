@@ -71,6 +71,9 @@ data class GroupExistsResponse(val exists: Boolean)
 data class ListAllGroupMembersRequest(val project: String, val group: String)
 typealias ListAllGroupMembersResponse = List<String>
 
+typealias GroupCountRequest = Unit
+typealias GroupCountResponse = Long
+
 object ProjectGroups : CallDescriptionContainer("project.group") {
     val baseContext = "/api/projects/groups"
 
@@ -250,6 +253,21 @@ object ProjectGroups : CallDescriptionContainer("project.group") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val count = call<GroupCountRequest, GroupCountResponse, CommonErrorMessage>("count") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"count"
+            }
         }
     }
 }

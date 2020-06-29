@@ -116,6 +116,19 @@ class QueryService(
         }
     }
 
+    suspend fun groupsCount(ctx: DBContext, projectId: String): Long {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", projectId)
+                },
+                """
+                    select count(*) from project.groups where project = :project
+                """
+            ).rows.singleOrNull()?.getLong(0) ?: 0
+        }
+    }
+
     suspend fun listGroupMembers(
         ctx: DBContext,
         requestedBy: String?,
@@ -325,6 +338,25 @@ class QueryService(
                     ProjectMember(username, role)
                 }
             )
+        }
+    }
+
+    suspend fun membersCount(
+            ctx: DBContext,
+            requestedBy: String,
+            projectId: String
+    ): Long {
+        return ctx.withSession { session ->
+            projects.requireRole(session, requestedBy, projectId, ProjectRole.ADMINS)
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("projectId", projectId)
+                },
+                """
+                    select count(*) from project.project_members where project_id = :projectId
+                """.trimIndent()
+            ).rows.singleOrNull()?.getLong(0) ?: 0
         }
     }
 

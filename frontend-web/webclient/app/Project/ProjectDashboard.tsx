@@ -1,5 +1,5 @@
 import {MainContainer} from "MainContainer/MainContainer";
-import {useProjectManagementStatus,} from "Project/index";
+import {useProjectManagementStatus, membersCountRequest, groupsCountRequest,} from "Project/index";
 import * as React from "react";
 import {Box, Button, Link, Flex, Icon, theme} from "ui-components";
 import {connect} from "react-redux";
@@ -10,6 +10,7 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
+import { useCloudAPI } from "Authentication/DataHook";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const {projectId, membersPage} = useProjectManagementStatus();
@@ -17,6 +18,31 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     function isPersonalProjectActive(projectId: string): boolean {
         return projectId === undefined || projectId === "";
     }
+
+    const [membersCount, setMembersCount] = useCloudAPI<number>(
+        membersCountRequest(),
+        0
+    );
+
+    const [groupsCount, setGroupsCount] = useCloudAPI<number>(
+        groupsCountRequest(),
+        0
+    );
+
+    React.useEffect(() => {
+        setMembersCount(
+            membersCountRequest()
+        );
+    }, []);
+
+    React.useEffect(() => {
+        setGroupsCount(
+            groupsCountRequest()
+        );
+    }, []);
+
+
+    
 
     return (
         <MainContainer
@@ -31,10 +57,10 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             <>
                                 <DashboardCard title="Members" icon="user" color={theme.colors.blue} isLoading={false}>
                                     <Box>
-                                        123 members
+                                        {membersCount.data} members
                                     </Box>
                                     <Box>
-                                        12 groups
+                                        {groupsCount.data} groups
                                     </Box>
                                     <Box mt={20}>
                                         <Link to="/project/members">

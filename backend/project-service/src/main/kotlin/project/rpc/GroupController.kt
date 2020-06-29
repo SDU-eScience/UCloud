@@ -79,5 +79,10 @@ class GroupController(
         implement(ProjectGroups.groupExists) {
             ok(GroupExistsResponse(queries.groupExists(db, request.project, request.group)))
         }
+
+        implement(ProjectGroups.count) {
+            val project = ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)
+            ok(queries.groupsCount(db, project))
+        }
     }
 }

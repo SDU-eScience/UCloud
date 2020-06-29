@@ -73,6 +73,22 @@ export function removeGroupMemberRequest(payload: RemoveGroupMemberProps): APICa
     };
 }
 
+export function membersCountRequest(): APICallParameters {
+    return {
+        method: "GET",
+        path: `${projectContext}membership/count`,
+        reloadId: Math.random(),
+    }
+}
+
+export function groupsCountRequest(): APICallParameters {
+    return {
+        method: "GET",
+        path: `${groupContext}count`,
+        reloadId: Math.random(),
+    }
+}
+
 export interface ShouldVerifyMembershipResponse {
     shouldVerify: boolean;
 }

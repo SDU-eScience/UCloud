@@ -36,6 +36,10 @@ data class SearchRequest(
 ) : WithPaginationRequest
 typealias SearchResponse = Page<ProjectMember>
 
+typealias CountRequest = Unit
+typealias CountResponse = Long
+
+
 /**
  * A service only API for querying about a user's project membership
  */
@@ -73,6 +77,21 @@ object ProjectMembers : CallDescriptionContainer("project.members") {
                 +boundTo(SearchRequest::itemsPerPage)
                 +boundTo(SearchRequest::page)
                 +boundTo(SearchRequest::notInGroup)
+            }
+        }
+    }
+
+    val count = call<CountRequest, CountResponse, CommonErrorMessage>("count") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"count"
             }
         }
     }
