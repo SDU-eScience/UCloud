@@ -133,10 +133,10 @@ class AclAsyncDao {
                             setParameter("group", accessEntity.group)
                         },
                         """
-                        DELETE FROM permissions
-                        WHERE (server_id = ?serverID) AND
-                            (project = ?project) AND
-                            (project_group =? ?group)
+                            DELETE FROM permissions
+                            WHERE (server_id = ?serverID) AND
+                                (project = ?project) AND
+                                (project_group =? ?group)
                         """.trimIndent()
                     )
             } else {

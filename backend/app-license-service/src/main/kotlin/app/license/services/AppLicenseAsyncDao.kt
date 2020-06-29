@@ -138,9 +138,9 @@ class AppLicenseAsyncDao {
                             setParameter("role", user.role.toString())
                         },
                         """
-                        SELECT * 
-                        FROM license_servers
-                    """.trimIndent()
+                            SELECT * 
+                            FROM license_servers
+                        """.trimIndent()
                     ).rows.map { it.toLicenseServerWithId() }
             }
         } else {
