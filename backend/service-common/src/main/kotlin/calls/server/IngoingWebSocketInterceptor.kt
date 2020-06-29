@@ -181,12 +181,12 @@ class IngoingWebSocketInterceptor(
 
                             if (frame is Frame.Text) {
                                 val text = frame.readText()
-                                log.debug("Received frame: $text")
+                                log.trace("Received frame: $text")
 
                                 @Suppress("BlockingMethodInNonBlockingContext")
                                 val parsedMessage = defaultMapper.readTree(text)
 
-                                log.debug("Parsed message: $parsedMessage")
+                                log.trace("Parsed message: $parsedMessage")
 
                                 // We silently discard messages that don't follow the correct format
                                 val requestedCall =
@@ -205,7 +205,7 @@ class IngoingWebSocketInterceptor(
                                         ?.textValue()
                                         ?: continue
 
-                                log.debug("streamId: $streamId")
+                                log.trace("streamId: $streamId")
 
                                 // We alert the caller if the send a well-formed message that we cannot handle
                                 val call = callsByName[requestedCall]
@@ -224,13 +224,13 @@ class IngoingWebSocketInterceptor(
                                 }
 
                                 launch {
-                                    log.debug("Handling call...")
+                                    log.trace("Handling call...")
                                     rpcServer.handleIncomingCall(
                                         this@IngoingWebSocketInterceptor,
                                         call,
                                         WSCall(session, parsedMessage, streamId)
                                     )
-                                    log.debug("Call has been handled")
+                                    log.trace("Call has been handled")
                                 }
                             }
                         }

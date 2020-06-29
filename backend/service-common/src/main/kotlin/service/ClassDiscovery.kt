@@ -17,10 +17,10 @@ class ClassDiscovery(
 ) {
     suspend fun detect() {
         val classPath = classPath()
-        if (log.isDebugEnabled) {
-            log.debug("Class path:")
+        if (log.isTraceEnabled) {
+            log.trace("Class path:")
             classPath.forEach {
-                log.debug("  Entry: $it")
+                log.trace("  Entry: $it")
             }
         }
 
