@@ -44,7 +44,10 @@ class ApplicationService(
         return ctx.withSession { session ->
             val settings = settings.fetchSettings(session, application.resourcesOwnedBy)
             if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                throw RPCException(
+                    "You are not allowed to submit applications to this project",
+                    HttpStatusCode.Forbidden
+                )
             }
 
             val id = session
@@ -63,7 +66,7 @@ class ApplicationService(
                                 is GrantRecipient.NewProject -> grantRecipient.projectTitle
                             })
 
-                            setParameter("grant_recipient_title", when (grantRecipient) {
+                            setParameter("grant_recipient_type", when (grantRecipient) {
                                 is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
                                 is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
                                 is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
@@ -326,11 +329,14 @@ class ApplicationService(
                 .sendPreparedStatement(
                     { setParameter("id", id) },
                     """
-                        select * from "grant".applications a, requested_resources r 
-                        where a.id = :id and a.id = r.application_id
+                        select * 
+                        from "grant".applications a left outer join "grant".requested_resources r on a.id = r.application_id
+                        where a.id = :id
                     """
                 )
                 .rows.toApplications().singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            log.debug("Found application: $application")
 
             if (application.requestedBy != actor.safeUsername() &&
                 !projects.isAdminOfProject(application.resourcesOwnedBy, actor)
@@ -342,6 +348,7 @@ class ApplicationService(
         }
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     private fun Iterable<RowData>.toApplications(): Collection<Application> {
         return asSequence()
             .map {
@@ -354,14 +361,17 @@ class ApplicationService(
                         it.getField(ApplicationTable.grantRecipientType)
                     ),
                     it.getField(ApplicationTable.document),
-                    listOf(
-                        ResourceRequest(
-                            it.getField(RequestedResourceTable.productCategory),
-                            it.getField(RequestedResourceTable.productProvider),
-                            it.getFieldNullable(RequestedResourceTable.creditsRequested),
-                            it.getFieldNullable(RequestedResourceTable.quotaRequestedBytes)
-                        )
-                    ),
+                    buildList {
+                        val productCategory = it.getFieldNullable(RequestedResourceTable.productCategory)
+                        if (productCategory != null) {
+                            add(ResourceRequest(
+                                it.getField(RequestedResourceTable.productCategory),
+                                it.getField(RequestedResourceTable.productProvider),
+                                it.getFieldNullable(RequestedResourceTable.creditsRequested),
+                                it.getFieldNullable(RequestedResourceTable.quotaRequestedBytes)
+                            ))
+                        }
+                    },
                     it.getField(ApplicationTable.id)
                 )
             }
@@ -379,5 +389,9 @@ class ApplicationService(
             GrantRecipient.NEW_PROJECT_TYPE -> GrantRecipient.NewProject(id)
             else -> throw IllegalArgumentException("Unknown type")
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

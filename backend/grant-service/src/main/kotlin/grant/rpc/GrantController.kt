@@ -1,5 +1,6 @@
 package dk.sdu.cloud.grant.rpc
 
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
@@ -55,8 +56,8 @@ class GrantController(
         }
 
         implement(Grants.submitApplication) {
-            applications.submit(db, ctx.securityPrincipal.toActor(), request)
-            ok(Unit)
+            val id = applications.submit(db, ctx.securityPrincipal.toActor(), request)
+            ok(FindByLongId(id))
         }
 
         implement(Grants.editApplication) {

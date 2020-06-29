@@ -379,7 +379,7 @@ class RpcServer {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
 
-            log.debug("Running BeforeResponse filters")
+            log.trace("Running BeforeResponse filters")
             val beforeResponse = filters.filterIsInstance<IngoingCallFilter.BeforeResponse>()
             beforeResponse
                 .filter { it.canUseContext(ctx) }
