@@ -1,7 +1,7 @@
 import styled from "styled-components";
 import {
     color,
-    ColorProps,
+    ColorProps, margin, MarginProps, maxWidth, MaxWidthProps,
     minWidth,
     MinWidthProps,
     textAlign,
@@ -11,12 +11,12 @@ import {
 } from "styled-system";
 import {Cursor} from "./Types";
 
-export const Table = styled.table<WidthProps & MinWidthProps & ColorProps>`
+export const Table = styled.table<WidthProps & MinWidthProps & MaxWidthProps & ColorProps & MarginProps>`
     ${color}
     border: 0px;
     border-spacing: 0;
     table-layout: fixed;
-    ${width} ${minWidth} ${color}
+    ${width} ${minWidth} ${color} ${maxWidth} ${margin}
 `;
 
 Table.displayName = "Table";

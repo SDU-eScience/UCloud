@@ -20,7 +20,7 @@ import {creditFormatter} from "Project/ProjectUsage";
 import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {
-    Comment, commentOnGrantApplication,
+    Comment, commentOnGrantApplication, deleteGrantApplicationComment,
     GrantApplicationStatus,
     GrantRecipient,
     readTemplates,
@@ -40,6 +40,8 @@ import {useAvatars} from "AvataaarLib/hook";
 import {Toggle} from "ui-components/Toggle";
 import {doNothing} from "UtilityFunctions";
 import Table, {TableCell, TableRow} from "ui-components/Table";
+import {dialogStore} from "Dialog/DialogStore";
+import {addStandardDialog} from "UtilityComponents";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -218,12 +220,16 @@ function useRequestInformation(target: RequestTarget) {
             break;
     }
 
-    useEffect(() => {
+    const reload = useCallback(() => {
         if (targetProject) {
             fetchTemplates(readTemplates({projectId: targetProject}));
             reloadWallets();
             reloadProducts();
         }
+    }, [targetProject]);
+
+    useEffect(() => {
+        reload();
     }, [targetProject]);
 
     useEffect(() => {
@@ -278,7 +284,7 @@ function useRequestInformation(target: RequestTarget) {
 
     return {
         wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, applicationId,
-        comments, avatars
+        comments, avatars, reload
     };
 }
 
@@ -385,12 +391,12 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                             <>
                                 <Label mb={16} mt={16}>
                                     Project Title
-                                    <Input value={"Some Example Project Title"} disabled />
+                                    <Input value={"Some Example Project Title"} disabled/>
                                 </Label>
 
                                 <Label mb={16} mt={16}>
                                     Principal Investigator (PI)
-                                    <Input value={"Some example PI"} disabled />
+                                    <Input value={"Some example PI"} disabled/>
                                 </Label>
 
                                 <Label mt={16}>
@@ -402,21 +408,21 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                         <TableCell>Personal</TableCell>
                                         <TableCell textAlign={"right"}>
                                             <Toggle onChange={doNothing} scale={1.5}
-                                                    checked={state.recipient.type === "personal"} />
+                                                    checked={state.recipient.type === "personal"}/>
                                         </TableCell>
                                     </TableRow>
                                     <TableRow>
                                         <TableCell>New Project</TableCell>
                                         <TableCell textAlign={"right"}>
                                             <Toggle onChange={doNothing} scale={1.5}
-                                                    checked={state.recipient.type === "new_project"} />
+                                                    checked={state.recipient.type === "new_project"}/>
                                         </TableCell>
                                     </TableRow>
                                     <TableRow>
                                         <TableCell>Existing Project</TableCell>
                                         <TableCell textAlign={"right"}>
                                             <Toggle onChange={doNothing} scale={1.5}
-                                                    checked={state.recipient.type === "existing_project"} />
+                                                    checked={state.recipient.type === "existing_project"}/>
                                         </TableCell>
                                     </TableRow>
                                     </tbody>
@@ -487,12 +493,14 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                             key={it.id}
                                             comment={it}
                                             avatar={state.avatars.cache[it.postedBy] ?? defaultAvatar}
+                                            reload={state.reload}
                                         />
                                     ))}
 
                                     <PostCommentWidget
                                         applicationId={state.applicationId}
                                         avatar={state.avatars.cache[Client.username!] ?? defaultAvatar}
+                                        reload={state.reload}
                                     />
                                 </Box>
                             )}
@@ -537,10 +545,28 @@ const CommentBoxWrapper = styled.div`
     }
 `;
 
-const CommentBox: React.FunctionComponent<{comment: Comment, avatar: AvatarType}> = ({comment, avatar}) => {
+const CommentBox: React.FunctionComponent<{
+    comment: Comment,
+    avatar: AvatarType,
+    reload: () => void
+}> = ({comment, avatar, reload}) => {
+    const [, runCommand] = useAsyncCommand();
+    const onDelete = useCallback(() => {
+        addStandardDialog({
+            title: "Confirm comment deletion",
+            message: "Are you sure you wish to delete your comment?",
+            confirmText: "Delete",
+            addToFront: true,
+            onConfirm: async () => {
+                await runCommand(deleteGrantApplicationComment({commentId: comment.id}));
+                reload();
+            }
+        });
+    }, [comment.id]);
+
     return <CommentBoxWrapper>
         <div className="avatar">
-            <UserAvatar avatar={avatar} width={"48px"} />
+            <UserAvatar avatar={avatar} width={"48px"}/>
         </div>
 
         <div className={"body"}>
@@ -550,7 +576,7 @@ const CommentBox: React.FunctionComponent<{comment: Comment, avatar: AvatarType}
         </div>
 
         <div>
-            <Icon cursor={"pointer"} name={"trash"} color={"red"} />
+            <Icon cursor={"pointer"} name={"trash"} color={"red"} onClick={onDelete}/>
         </div>
     </CommentBoxWrapper>;
 };
@@ -572,7 +598,11 @@ const PostCommentWrapper = styled.form`
     }
 `;
 
-const PostCommentWidget: React.FunctionComponent<{applicationId: number, avatar: AvatarType}> = ({applicationId, avatar}) => {
+const PostCommentWidget: React.FunctionComponent<{
+    applicationId: number,
+    avatar: AvatarType,
+    reload: () => void
+}> = ({applicationId, avatar, reload}) => {
     const commentBoxRef = useRef<HTMLTextAreaElement>(null);
     const [loading, runWork] = useAsyncCommand();
     const submitComment = useCallback(async (e) => {
@@ -582,11 +612,13 @@ const PostCommentWidget: React.FunctionComponent<{applicationId: number, avatar:
             requestId: applicationId,
             comment: commentBoxRef.current!.value
         }));
+        reload();
+        commentBoxRef.current!.value = "";
     }, [runWork, applicationId, commentBoxRef.current]);
     return <PostCommentWrapper onSubmit={submitComment}>
         <div className="wrapper">
-            <UserAvatar avatar={avatar} width={"48px"} />
-            <TextArea rows={3} ref={commentBoxRef} placeholder={"Your comment"} />
+            <UserAvatar avatar={avatar} width={"48px"}/>
+            <TextArea rows={3} ref={commentBoxRef} placeholder={"Your comment"}/>
         </div>
         <div className="buttons">
             <Button disabled={loading}>Send</Button>

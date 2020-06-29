@@ -13,7 +13,7 @@ create table applications(
 );
 
 create table requested_resources(
-    application_id int not null,
+    application_id bigint not null,
     product_category text not null,
     product_provider text not null,
     credits_requested bigint default null,
@@ -24,7 +24,7 @@ create table requested_resources(
 create sequence comment_id start 1;
 
 create table comments(
-    application_id int not null,
+    application_id bigint not null,
     comment text not null,
     posted_by text not null,
     created_at timestamp not null default now(),

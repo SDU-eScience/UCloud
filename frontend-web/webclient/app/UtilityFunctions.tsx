@@ -486,6 +486,10 @@ export function preventDefault(e: { preventDefault(): void }): void {
     e.preventDefault();
 }
 
+export function doNothing() {
+
+}
+
 export function stopPropagationAndPreventDefault(e: { preventDefault(): void; stopPropagation(): void }): void {
     preventDefault(e);
     stopPropagation(e);

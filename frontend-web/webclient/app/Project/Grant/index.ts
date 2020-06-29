@@ -116,3 +116,19 @@ export function commentOnGrantApplication(
         reloadId: Math.random()
     };
 }
+
+export interface DeleteGrantApplicationCommentRequest {
+    commentId: number;
+}
+
+export function deleteGrantApplicationComment(
+    request: DeleteGrantApplicationCommentRequest
+): APICallParameters<DeleteGrantApplicationCommentRequest> {
+    return {
+        method: "DELETE",
+        path: "/grant/comment",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
