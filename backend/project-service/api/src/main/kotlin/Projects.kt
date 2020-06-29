@@ -126,6 +126,9 @@ data class ListSubProjectsRequest(
 
 typealias ListSubProjectsResponse = Page<Project>
 
+typealias CountSubProjectsRequest = Unit
+typealias CountSubProjectsResponse = Long
+
 typealias ViewAncestorsRequest = Unit
 typealias ViewAncestorsResponse = List<Project>
 
@@ -462,6 +465,21 @@ object Projects : CallDescriptionContainer("project") {
             params {
                 +boundTo(ListSubProjectsRequest::itemsPerPage)
                 +boundTo(ListSubProjectsRequest::page)
+            }
+        }
+    }
+
+    val countSubProjects = call<CountSubProjectsRequest, CountSubProjectsResponse, CommonErrorMessage>("countSubProjects") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"sub-projects-count"
             }
         }
     }

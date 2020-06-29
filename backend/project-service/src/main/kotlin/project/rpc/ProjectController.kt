@@ -192,6 +192,16 @@ class ProjectController(
             )
         }
 
+        implement(Projects.countSubProjects) {
+            ok(
+                queries.subProjectsCount(
+                    db,
+                    ctx.securityPrincipal.username,
+                    ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                )
+            )
+        }
+
         implement(Projects.viewAncestors) {
             ok(
                 queries.viewAncestors(

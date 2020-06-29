@@ -841,6 +841,25 @@ class QueryService(
         }
     }
 
+    suspend fun subProjectsCount(
+        ctx: DBContext,
+        requestedBy: String,
+        projectId: String
+    ): Long {
+        return ctx.withSession { session ->
+            projects.requireRole(session, requestedBy, projectId, ProjectRole.ADMINS)
+
+            session.sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                    select count(*) from project.projects where parent = :projectId
+                """.trimIndent()
+            ).rows.singleOrNull()?.getLong(0) ?: 0
+        }
+    }
+
     suspend fun viewAncestors(
         ctx: DBContext,
         actor: Actor,

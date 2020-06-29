@@ -1,5 +1,5 @@
 import {MainContainer} from "MainContainer/MainContainer";
-import {useProjectManagementStatus, membersCountRequest, groupsCountRequest,} from "Project/index";
+import {useProjectManagementStatus, membersCountRequest, groupsCountRequest, subprojectsCountRequest} from "Project/index";
 import * as React from "react";
 import {Box, Button, Link, Flex, Icon, theme} from "ui-components";
 import {connect} from "react-redux";
@@ -29,20 +29,17 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         0
     );
 
-    React.useEffect(() => {
-        setMembersCount(
-            membersCountRequest()
-        );
-    }, []);
+    const [subprojectsCount, setSubprojectsCount] = useCloudAPI<number>(
+        subprojectsCountRequest(),
+        0
+    );
 
     React.useEffect(() => {
-        setGroupsCount(
-            groupsCountRequest()
-        );
+        setMembersCount(membersCountRequest());
+        setGroupsCount(groupsCountRequest());
+        setSubprojectsCount(subprojectsCountRequest());
     }, []);
 
-
-    
 
     return (
         <MainContainer
@@ -75,7 +72,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                     isLoading={false}
                                 >
                                     <Box>
-                                        123 subprojects
+                                        {subprojectsCount.data} subprojects
                                     </Box>
                                     <Box mt={44}>
                                         <Link to="/project/subprojects">
