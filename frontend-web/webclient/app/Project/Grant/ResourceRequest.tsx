@@ -575,9 +575,11 @@ const CommentBox: React.FunctionComponent<{
             <time>{dateToString(comment.postedAt)}</time>
         </div>
 
-        <div>
-            <Icon cursor={"pointer"} name={"trash"} color={"red"} onClick={onDelete}/>
-        </div>
+        {comment.postedBy === Client.username ? (
+            <div>
+                <Icon cursor={"pointer"} name={"trash"} color={"red"} onClick={onDelete}/>
+            </div>
+        ) : null}
     </CommentBoxWrapper>;
 };
 
