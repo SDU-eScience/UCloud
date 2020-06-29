@@ -15,6 +15,7 @@ import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals

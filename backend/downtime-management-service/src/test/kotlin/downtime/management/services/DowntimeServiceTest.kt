@@ -5,6 +5,7 @@ import dk.sdu.cloud.downtime.management.api.DowntimeWithoutId
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking

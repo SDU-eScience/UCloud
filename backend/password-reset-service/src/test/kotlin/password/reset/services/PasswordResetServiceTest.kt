@@ -10,6 +10,7 @@ import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.ClientMock
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import io.ktor.http.HttpStatusCode
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres

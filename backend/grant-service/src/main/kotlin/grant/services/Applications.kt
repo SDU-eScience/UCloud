@@ -93,7 +93,7 @@ class ApplicationService(
                 .single()
                 .getLong("id")!!
 
-            insertResources(session, application.requestedResource, id)
+            insertResources(session, application.requestedResources, id)
 
             id
         }
@@ -367,7 +367,7 @@ class ApplicationService(
             }
             .groupingBy { it.id }
             .reduce { _, accumulator, element ->
-                accumulator.copy(requestedResource = accumulator.requestedResource + element.requestedResource)
+                accumulator.copy(requestedResources = accumulator.requestedResources + element.requestedResources)
             }
             .values
     }

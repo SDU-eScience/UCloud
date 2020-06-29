@@ -33,7 +33,8 @@ class SensitivityTest : WithBackgroundScope() {
             fs,
             ClientMock.authenticatedClient,
             backgroundScope,
-            mockedMetadataService
+            mockedMetadataService,
+            mockk(relaxed = true)
         )
         val fileLookupService = FileLookupService(runner, coreFs)
 

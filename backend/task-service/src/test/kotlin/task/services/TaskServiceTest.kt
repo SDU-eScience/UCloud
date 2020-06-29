@@ -4,6 +4,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
 import dk.sdu.cloud.task.api.TaskServiceDescription
 import dk.sdu.cloud.task.api.TaskUpdate
