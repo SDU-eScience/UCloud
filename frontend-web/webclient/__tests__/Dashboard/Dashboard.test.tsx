@@ -9,7 +9,6 @@ import Dashboard from "../../app/Dashboard/Dashboard";
 import {ReduxObject, emptyPage} from "../../app/DefaultObjects";
 import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
-import {render} from "react-dom";
 
 jest.mock("Authentication/HttpClientInstance", () => ({
     Client: {
