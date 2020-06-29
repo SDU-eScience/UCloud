@@ -10,15 +10,14 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.project.api.UserStatusRequest
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 import java.util.*
 
-class AppLicenseService<Session>(
-    private val db: DBSessionFactory<Session>,
-    private val aclService: AclService<Session>,
-    private val appLicenseDao: AppLicenseDao<Session>,
+class AppLicenseService(
+    private val db: DBContext,
+    private val aclService: AclService,
+    private val appLicenseDao: AppLicenseAsyncDao,
     private val authenticatedClient: AuthenticatedClient
 ) {
     suspend fun getLicenseServer(securityPrincipal: SecurityPrincipal, serverId: String, accessEntity: AccessEntity): LicenseServerWithId? {
@@ -29,9 +28,8 @@ class AppLicenseService<Session>(
             throw RPCException("Unauthorized request to license server", HttpStatusCode.Unauthorized)
         }
 
-        return db.withTransaction { session ->
-            appLicenseDao.getById(session, serverId)
-        } ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
+        return appLicenseDao.getById(db, serverId)
+            ?: throw RPCException("The requested license server was not found", HttpStatusCode.NotFound)
     }
 
     suspend fun updateAcl(serverId: String, changes: List<AclEntryRequest>, principal: SecurityPrincipal) {
@@ -62,23 +60,17 @@ class AppLicenseService<Session>(
             ProjectAndGroup(it.projectId, it.group)
         }
 
-        return db.withTransaction { session ->
-            appLicenseDao.list(
-                session,
+        return appLicenseDao.list(
+                db,
                 tags,
                 principal,
                 projectGroups
-            )
-        } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
+            ) ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
     }
 
     suspend fun listAllServers(user: SecurityPrincipal): List<LicenseServerWithId> {
-        return db.withTransaction { session ->
-            appLicenseDao.listAll(
-                session,
-                user
-            )
-        } ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
+        return appLicenseDao.listAll( db, user )
+            ?: throw RPCException("No available license servers found", HttpStatusCode.NotFound)
     }
 
     suspend fun createLicenseServer(request: NewServerRequest, entity: AccessEntity): String {
@@ -95,9 +87,8 @@ class AppLicenseService<Session>(
             throw RPCException("Invalid port number", HttpStatusCode.BadRequest)
         }
 
-        db.withTransaction { session ->
-            appLicenseDao.create(
-                session,
+        appLicenseDao.create(
+                db,
                 serverId,
                 LicenseServer(
                     request.name,
@@ -107,9 +98,9 @@ class AppLicenseService<Session>(
                 )
             )
 
-            // Add rw permissions for the creator
-            aclService.updatePermissionsWithSession(session, serverId, entity, ServerAccessRight.READ_WRITE)
-        }
+        // Add rw permissions for the creator
+        aclService.updatePermissionsWithSession(serverId, entity, ServerAccessRight.READ_WRITE)
+
         return serverId
     }
 
@@ -119,18 +110,17 @@ class AppLicenseService<Session>(
             securityPrincipal.role in Roles.PRIVILEDGED
         ) {
             // Save information for existing license server
-            db.withTransaction { session ->
-                appLicenseDao.update(
-                    session,
-                    LicenseServerWithId(
-                        request.withId,
-                        request.name,
-                        request.address,
-                        request.port,
-                        request.license
-                    )
+            appLicenseDao.update(
+                db,
+                LicenseServerWithId(
+                    request.withId,
+                    request.name,
+                    request.address,
+                    request.port,
+                    request.license
                 )
-            }
+            )
+
 
             return request.withId
         } else {
@@ -140,36 +130,34 @@ class AppLicenseService<Session>(
 
     suspend fun deleteLicenseServer(securityPrincipal: SecurityPrincipal, request: DeleteServerRequest) {
         if (
-            aclService.hasPermission(request.id, AccessEntity(securityPrincipal.username, null, null), ServerAccessRight.READ_WRITE) ||
-            securityPrincipal.role in Roles.PRIVILEDGED
+            aclService.hasPermission(
+                request.id,
+                AccessEntity(securityPrincipal.username, null, null),
+                ServerAccessRight.READ_WRITE
+            ) || securityPrincipal.role in Roles.PRIVILEDGED
         ) {
-            db.withTransaction { session ->
-                // Delete Acl entries for the license server
-                aclService.revokeAllServerPermissionsWithSession(session, request.id)
+            // Delete Acl entries for the license server
+            aclService.revokeAllServerPermissionsWithSession(request.id)
 
-                // Delete license server
-                appLicenseDao.delete(session, request.id)
-            }
+            // Delete tags
+            val tagsToServer = listTags(request.id)
+            tagsToServer.forEach { deleteTag(it, request.id) }
+            // Delete license server
+            appLicenseDao.delete(db, request.id)
         } else {
             throw RPCException("Not authorized to delete license server", HttpStatusCode.Unauthorized)
         }
     }
 
     suspend fun addTag(name: String, serverId: String) {
-        db.withTransaction { session ->
-            appLicenseDao.addTag(session, name, serverId)
-        }
+        appLicenseDao.addTag(db, name, serverId)
     }
 
     suspend fun listTags(serverId: String): List<String> {
-        return db.withTransaction { session ->
-            appLicenseDao.listTags(session, serverId)
-        }
+        return appLicenseDao.listTags(db, serverId)
     }
 
     suspend fun deleteTag(name: String, serverId: String) {
-        db.withTransaction { session ->
-            appLicenseDao.deleteTag(session, name, serverId)
-        }
+        appLicenseDao.deleteTag(db, name, serverId)
     }
 }
