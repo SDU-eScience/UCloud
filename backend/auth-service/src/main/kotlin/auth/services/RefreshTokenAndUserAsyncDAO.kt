@@ -91,8 +91,11 @@ class RefreshTokenAsyncDAO{
                         SELECT *
                         FROM refresh_tokens
                         WHERE associated_user_id = ?id
-                    """.trimIndent()
-                ).rows.firstOrNull()?.toRefreshTokenAndUser()
+                    """
+                )
+                .rows
+                .firstOrNull()
+                ?.toRefreshTokenAndUser()
         }
     }
 
@@ -111,8 +114,11 @@ class RefreshTokenAsyncDAO{
                             refresh_token_expiry is NULL OR
                             refresh_token_expiry > ?time
                         )
-                    """.trimIndent()
-                ).rows.singleOrNull()?.toRefreshTokenAndUser()
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?.toRefreshTokenAndUser()
         }
     }
 
@@ -127,8 +133,11 @@ class RefreshTokenAsyncDAO{
                         SELECT * 
                         FROM principals
                         WHERE id = ?user
-                    """.trimIndent()
-                ).rows.singleOrNull()?.getField(PrincipalTable.id) ?: throw UserException.NotFound()
+                    """
+                )
+               .rows
+               .singleOrNull()
+               ?.getField(PrincipalTable.id) ?: throw UserException.NotFound()
            session.insert(RefreshTokenTable) {
                set(RefreshTokenTable.associatedUser, principal)
                set(RefreshTokenTable.token, tokenAndUser.token)
@@ -148,21 +157,7 @@ class RefreshTokenAsyncDAO{
     }
 
     suspend fun updateCsrf(db: DBContext, token: String, newCsrf: String) {
-        db.withSession { session ->
-            //Check to see if token exists
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("token", token)
-                    },
-                    """
-                        SELECT *
-                        FROM refresh_tokens
-                        WHERE token = ?token
-                    """.trimIndent()
-                ).rows.singleOrNull() ?: throw UserException.NotFound()
-
-            //if exists -> update
+        val affected = db.withSession { session ->
             session.sendPreparedStatement(
                 {
                     setParameter("token", token)
@@ -172,8 +167,11 @@ class RefreshTokenAsyncDAO{
                     UPDATE refresh_tokens
                     SET csrf = ?csrf
                     WHERE token = ?token
-                """.trimIndent()
-            )
+                """
+            ).rowsAffected
+        }
+        if (affected == 0L) {
+            throw UserException.NotFound()
         }
     }
 
@@ -186,7 +184,7 @@ class RefreshTokenAsyncDAO{
                 """
                     DELETE FROM refresh_tokens
                     WHERE token = ?token
-                """.trimIndent()
+                """
             ).rowsAffected > 0
         }
     }
@@ -196,12 +194,12 @@ class RefreshTokenAsyncDAO{
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("time", LocalDateTime.now(DateTimeZone.UTC).toDateTime().millis)
+                        setParameter("time", System.currentTimeMillis())
                     },
                     """
                         DELETE FROM refresh_tokens
                         WHERE refresh_token_expiry < ?time
-                    """.trimIndent()
+                    """
                 )
         }
     }
@@ -222,9 +220,13 @@ class RefreshTokenAsyncDAO{
                         FROM refresh_tokens
                         WHERE associated_user_id = ?user AND
                                 extended_by is NULL
-                    """.trimIndent()
-                ).rows.paginate(pagination)
-                .mapItems { it.toRefreshTokenAndUser() }
+                    """
+                )
+                .rows
+                .paginate(pagination)
+                .mapItems {
+                    it.toRefreshTokenAndUser()
+                }
         }
     }
 
@@ -239,7 +241,7 @@ class RefreshTokenAsyncDAO{
                         DELETE FROM refresh_tokens
                         WHERE associated_user_id = ?user AND 
                                 extended_by is NULL
-                    """.trimIndent()
+                    """
                 )
         }
     }
