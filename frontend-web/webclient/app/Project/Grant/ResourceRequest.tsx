@@ -4,10 +4,11 @@ import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
-import {Box, Button, Flex, Icon, Input, Label, TextArea, theme} from "ui-components";
+import {Box, Button, Flex, Grid, Icon, Input, Label, TextArea, theme} from "ui-components";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
-    ProductArea, productCategoryEquals,
+    ProductArea,
+    productCategoryEquals,
     ProductCategoryId,
     retrieveBalance,
     RetrieveBalanceResponse,
@@ -20,11 +21,16 @@ import {creditFormatter} from "Project/ProjectUsage";
 import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {
-    Comment, commentOnGrantApplication, deleteGrantApplicationComment, editGrantApplication,
+    approveGrantApplication,
+    Comment,
+    commentOnGrantApplication,
+    deleteGrantApplicationComment,
+    editGrantApplication,
     GrantApplicationStatus,
     GrantRecipient,
     readTemplates,
     ReadTemplatesResponse,
+    rejectGrantApplication,
     ResourceRequest,
     submitGrantApplication,
     viewGrantApplication,
@@ -40,7 +46,6 @@ import {useAvatars} from "AvataaarLib/hook";
 import {Toggle} from "ui-components/Toggle";
 import {doNothing} from "UtilityFunctions";
 import Table, {TableCell, TableRow} from "ui-components/Table";
-import {dialogStore} from "Dialog/DialogStore";
 import {addStandardDialog} from "UtilityComponents";
 
 export const RequestForSingleResourceWrapper = styled.div`
@@ -107,6 +112,8 @@ function useRequestInformation(target: RequestTarget) {
     let applicationId: number | undefined;
     let prefilledDocument: string | undefined;
     let comments: Comment[] = [];
+    let approver = false;
+    let status: GrantApplicationStatus = GrantApplicationStatus.IN_PROGRESS;
     const avatars = useAvatars();
 
     let availableProducts: { area: ProductArea, category: ProductCategoryId }[];
@@ -184,7 +191,8 @@ function useRequestInformation(target: RequestTarget) {
                         resourcesOwnedBy: "unknown",
                         status: GrantApplicationStatus.IN_PROGRESS
                     },
-                    comments: []
+                    comments: [],
+                    approver: false
                 }
             );
 
@@ -208,6 +216,8 @@ function useRequestInformation(target: RequestTarget) {
             recipient = grantApplication.data.application.grantRecipient;
             prefilledDocument = grantApplication.data.application.document;
             comments = grantApplication.data.comments;
+            approver = grantApplication.data.approver;
+            status = grantApplication.data.application.status;
 
             reloadWallets = useCallback(() => {
                 fetchGrantApplication(viewGrantApplication({id: parseInt(appId, 10)}));
@@ -284,7 +294,7 @@ function useRequestInformation(target: RequestTarget) {
 
     return {
         wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, applicationId,
-        comments, avatars, reload
+        comments, avatars, reload, approver, status
     };
 }
 
@@ -353,6 +363,20 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
     }, [state.targetProject, state.documentRef, state.recipient, state.wallets, projectTitleRef,
         state.applicationId, state.reload]);
 
+    const approveRequest = useCallback(async () => {
+        if (state.applicationId !== undefined) {
+            await runWork(approveGrantApplication({requestId: state.applicationId}));
+            state.reload();
+        }
+    }, [state.applicationId]);
+
+    const rejectRequest = useCallback(async () => {
+        if (state.applicationId !== undefined) {
+            await runWork(rejectGrantApplication({requestId: state.applicationId}));
+            state.reload();
+        }
+    }, [state.applicationId]);
+
     useEffect(() => {
         if (state.applicationId !== undefined) {
             for (const wallet of state.wallets) {
@@ -408,6 +432,18 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                 <Label mb={16} mt={16}>
                                     Principal Investigator (PI)
                                     <Input value={"Some example PI"} disabled/>
+                                </Label>
+
+                                <Label mb={16} mt={16}>
+                                    Current Status
+                                    <Input
+                                        value={
+                                            state.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
+                                                state.status === GrantApplicationStatus.APPROVED ? "Approved" :
+                                                    "Rejected"
+                                        }
+                                       disabled
+                                    />
                                 </Label>
 
                                 <Label mt={16}>
@@ -521,11 +557,21 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                 <TextArea rows={25} ref={state.documentRef}/>
                             </RequestFormContainer>
                         </CommentApplicationWrapper>
-                        <Box p={32}>
+                        <Box p={32} pb={16}>
                             <Button fullWidth onClick={submitRequest}>
-                                {target === RequestTarget.VIEW_APPLICATION ? "Edit Request" : "Submit request"}
+                                {target === RequestTarget.VIEW_APPLICATION ?
+                                    <>Edit Request {state.approver ? "(Does not approve/reject)" : null}</> :
+                                    <>Submit request</>
+                                }
                             </Button>
                         </Box>
+
+                        {target === RequestTarget.VIEW_APPLICATION && state.approver ?
+                            <Grid gridTemplateColumns={"repeat(auto-fit, minmax(100px, auto))"} gridGap={16} pl={32} pr={32}>
+                                <Button color={"red"} fullWidth onClick={rejectRequest}>Reject</Button>
+                                <Button color={"green"} fullWidth onClick={approveRequest}>Approve</Button>
+                            </Grid> : null
+                        }
                     </Box>
                 </Flex>
             }

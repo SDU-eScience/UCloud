@@ -77,7 +77,7 @@ data class IngoingApplicationsRequest(override val itemsPerPage: Int?, override 
 typealias IngoingApplicationsResponse = Page<Application>
 
 data class Comment(val id: Long, val postedBy: String, val postedAt: Long, val comment: String)
-data class ApplicationWithComments(val application: Application, val comments: List<Comment>)
+data class ApplicationWithComments(val application: Application, val comments: List<Comment>, val approver: Boolean)
 
 data class OutgoingApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias OutgoingApplicationsResponse = Page<Application>
