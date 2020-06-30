@@ -123,14 +123,17 @@ config("app-orchestrator") { ctx ->
         "production" -> {
             configure("machines", listOf(
                 MachineType("Unspecified", null, null),
-                MachineType("Small (S)", 1, 4),
-                MachineType("Medium (M)", 4, 16),
-                MachineType("Large (L)", 16, 32),
-                MachineType("Extra Large (XL)", 32, 160),
-                MachineType("Extra Extra Large (XXL)", 62, 350),
-                MachineType("GPU (S)", 20, 42, 1),
-                MachineType("GPU (M)", 40, 84, 2),
-                MachineType("GPU (L)", 78, 170, 4)
+                MachineType("u1-standard-1", 1, 6),
+                MachineType("u1-standard-2", 2, 12),
+                MachineType("u1-standard-4", 4, 24),
+                MachineType("u1-standard-8", 8, 48),
+                MachineType("u1-standard-16", 16, 96),
+                MachineType("u1-standard-32", 32, 192),
+                MachineType("u1-standard-64", 62, 370),
+                MachineType("u1-gpu-1", 16, 48, 1),
+                MachineType("u1-gpu-2", 32, 96, 2),
+                MachineType("u1-gpu-3", 48, 144, 3),
+                MachineType("u1-gpu-4", 78, 185, 4)
             ))
         }
     }
