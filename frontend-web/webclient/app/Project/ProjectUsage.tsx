@@ -108,7 +108,7 @@ interface Duration {
     timeInPast: number;
 }
 
-const durationOptions: Duration[] = [
+export const durationOptions: Duration[] = [
     {
         text: "Today",
         bucketSize: 1000 * 60 * 60,

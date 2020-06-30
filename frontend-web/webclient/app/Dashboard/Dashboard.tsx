@@ -46,10 +46,11 @@ import {Spacer} from "ui-components/Spacer";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: string;
+    subtitle?: string;
     color: string;
     isLoading: boolean;
     icon?: IconName
-}> = ({title, color, isLoading, icon = undefined, children}) => (
+}> = ({title, subtitle, color, isLoading, icon = undefined, children}) => (
     <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={0} borderRadius={6}>
         <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid ${color}`}} >
             {icon !== undefined ? (
@@ -62,6 +63,8 @@ export const DashboardCard: React.FunctionComponent<{
                 />
             ) : null}
             {title ? <Heading.h3>{title}</Heading.h3> : null}
+            <Box flexGrow={1}></Box>
+            {subtitle ? <Box color={theme.colors.gray}>{subtitle}</Box> : null}
         </Flex>
         <Box px={3} py={1}>
             {!isLoading ? children : <Spinner />}
