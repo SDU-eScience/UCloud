@@ -75,7 +75,8 @@ import {
     mockFile,
     moveFile,
     resolvePath,
-    sizeToString
+    sizeToString,
+    fileTablePage
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {addStandardDialog, FileIcon, ConfirmCancelButtons} from "UtilityComponents";
@@ -479,10 +480,26 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                     right={(
                         <>
                             {!isEmbedded && props.path ? null : (
-                                <Refresh
-                                    spin={isAnyLoading}
-                                    onClick={callbacks.requestReload}
-                                />
+                                <>
+                                    <Card
+                                        onClick={() => onFileNavigation(Client.homeFolder)}
+                                        cursor="pointer" mr="8px" height="auto" pb="4px" alignItems="center" width="100px" textAlign="center" boxShadow="sm" borderWidth={0} borderRadius={6}>
+                                        <Icon color="iconColor" color2="iconColor2" name="home" />
+                                        <Text fontSize={0}>Personal Home</Text>
+                                    </Card>
+                                    <Card
+                                        onClick={() => onFileNavigation(`${Client.homeFolder}Project List`)}
+                                        cursor="pointer" height="auto" mr="8px" pb="4px" alignItems="center" width="100px" textAlign="center" boxShadow="sm" borderWidth={0} borderRadius={6}>
+                                        <Icon color="iconColor" color2="iconColor2" name="projects" />
+                                        <Text fontSize={0}>Project List</Text>
+                                    </Card>
+                                    <Box mt="9px" ml="6px">
+                                        <Refresh
+                                            spin={isAnyLoading}
+                                            onClick={callbacks.requestReload}
+                                        />
+                                    </Box>
+                                </>
                             )}
 
                             {isEmbedded ? null : (

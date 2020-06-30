@@ -117,16 +117,12 @@ const FileSelector: React.FunctionComponent<FileSelectorProps> = props => {
 
 const useVirtualFolders = (path: string): VirtualFolderDefinition => {
     const {fakeFolders, loadFolder, isFakeFolder} = defaultVirtualFolders();
-    const [, projectName] = pathComponents(path);
     const homeProjectList = `${Client.homeFolder}Project List`;
-    const projectProjectList = `/projects/${projectName}/Project List`;
-    fakeFolders!.push(homeProjectList);
-    fakeFolders!.push(projectProjectList);
     return {
         fakeFolders,
-        isFakeFolder,
+        isFakeFolder: folder => homeProjectList === folder || (isFakeFolder?.(folder) ?? false),
         loadFolder: async (folder, page, itemsPerPage): Promise<Page<File>> => {
-            if ([homeProjectList, projectProjectList].includes(folder)) {
+            if (homeProjectList === folder) {
                 const response = await callAPI<Page<UserInProject>>(
                     listProjects({itemsPerPage, page, archived: false})
                 );
