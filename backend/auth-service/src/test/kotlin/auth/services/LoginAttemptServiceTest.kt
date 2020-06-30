@@ -15,6 +15,8 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.initializeMicro
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
+import org.joda.time.DateTimeZone
+import org.joda.time.LocalDateTime
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import kotlin.math.pow
@@ -58,8 +60,9 @@ class LoginAttemptServiceTest {
         dbTruncate(db)
     }
 
+    val time = System.currentTimeMillis()
     var currentTime: Long = 0
-    private val dao = LoginAttemptAsyncDao { currentTime + 1_000_000_000L }
+    private val dao = LoginAttemptAsyncDao { currentTime + time }
     val user = "user"
 
     @Test
@@ -110,7 +113,7 @@ class LoginAttemptServiceTest {
         )
 
         currentTime += LoginAttemptAsyncDao.LOCKOUT_DURATION_BASE_SECONDS.toDouble().pow(2).toLong() * 1000L +
-                LoginAttemptAsyncDao.COOLDOWN_EXPIRY + 1
+                LoginAttemptAsyncDao.COOLDOWN_EXPIRY + 1000
 
         assertNull(dao.timeUntilNextAllowedLogin(db, user))
 
@@ -120,8 +123,9 @@ class LoginAttemptServiceTest {
         }
 
         assertEquals(
-            LoginAttemptAsyncDao.LOCKOUT_DURATION_BASE_SECONDS .toDouble().pow(3).toLong() * 1000L,
+            LoginAttemptAsyncDao.LOCKOUT_DURATION_BASE_SECONDS.toLong() * 1000L,
             dao.timeUntilNextAllowedLogin(db, user)
         )
+
     }
 }
