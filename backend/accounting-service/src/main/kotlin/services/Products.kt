@@ -241,6 +241,36 @@ class ProductService {
         }
     }
 
+    suspend fun listByArea(
+        ctx: DBContext,
+        actor: Actor,
+        area: ProductArea,
+        provider: String,
+        paging: NormalizedPaginationRequest
+    ): Page<Product> {
+        return ctx.withSession { session ->
+            requirePermission(session, actor, readOnly = true)
+
+            session
+                .paginatedQuery(
+                    paging,
+
+                    {
+                        setParameter("provider", provider)
+                        setParameter("area", area.name)
+                    },
+
+                    """
+                        from products
+                        where provider = :provider AND area = :area
+                    """,
+
+                    "order by priority, id"
+                )
+                .mapItems { it.toProduct() }
+        }
+    }
+
     private suspend fun createProductCategoryIfNotExists(
         ctx: DBContext,
         provider: String,

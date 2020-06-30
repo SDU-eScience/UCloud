@@ -130,8 +130,15 @@ data class ListProductsRequest(
     override val itemsPerPage: Int?,
     override val page: Int?
 ) : WithPaginationRequest
-
 typealias ListProductsResponse = Page<Product>
+
+data class ListProductsByAreaRequest(
+    val provider: String,
+    val area: ProductArea,
+    override val itemsPerPage: Int?,
+    override val page: Int?
+) : WithPaginationRequest
+typealias ListProductsByAreaResponse = Page<Product>
 
 data class RetrieveAllFromProviderRequest(val provider: String)
 typealias RetrieveAllFromProviderResponse = List<Product>
@@ -196,6 +203,29 @@ object Products : CallDescriptionContainer("products") {
             }
         }
     }
+
+    val listProductsByType =
+        call<ListProductsByAreaRequest, ListProductsByAreaResponse, CommonErrorMessage>("listProductionsByType") {
+            auth {
+                access = AccessRight.READ
+
+                http {
+                    method = HttpMethod.Get
+
+                    path {
+                        using(baseContext)
+                        +"listByArea"
+                    }
+
+                    params {
+                        +boundTo(ListProductsByAreaRequest::provider)
+                        +boundTo(ListProductsByAreaRequest::area)
+                        +boundTo(ListProductsByAreaRequest::itemsPerPage)
+                        +boundTo(ListProductsByAreaRequest::page)
+                    }
+                }
+            }
+        }
 
     val listProducts = call<ListProductsRequest, ListProductsResponse, CommonErrorMessage>("listProducts") {
         auth {

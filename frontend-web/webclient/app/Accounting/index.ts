@@ -133,7 +133,11 @@ export interface Product {
 
 export interface ListProductsRequest extends PaginationRequest {
     provider: string;
-    productCategory: string;
+}
+
+export interface ListProductsByAreaRequest extends PaginationRequest{
+    provider: string;
+    area: string
 }
 
 export type ListProductsResponse = Product[];
@@ -142,6 +146,15 @@ export function listProducts(request: ListProductsRequest): APICallParameters<Li
     return {
         method: "GET",
         path: buildQueryString("/products/list", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export function listByProductArea(request: ListProductsByAreaRequest): APICallParameters<ListProductsByAreaRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/products/listByArea", request),
         parameters: request,
         reloadId: Math.random()
     };
