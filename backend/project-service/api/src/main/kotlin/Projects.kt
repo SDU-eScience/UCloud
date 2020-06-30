@@ -132,6 +132,9 @@ typealias CountSubProjectsResponse = Long
 typealias ViewAncestorsRequest = Unit
 typealias ViewAncestorsResponse = List<Project>
 
+typealias LookupPrincipalInvestigatorRequest = Unit
+data class LookupPrincipalInvestigatorResponse(val principalInvestigator: String)
+
 object Projects : CallDescriptionContainer("project") {
     val baseContext = "/api/projects"
 
@@ -498,4 +501,21 @@ object Projects : CallDescriptionContainer("project") {
             }
         }
     }
+
+    val lookupPrincipalInvestigator =
+        call<LookupPrincipalInvestigatorRequest, LookupPrincipalInvestigatorResponse, CommonErrorMessage>("lookupPrincipalInvestigator") {
+            auth {
+                access = AccessRight.READ
+                roles = Roles.PRIVILEGED
+            }
+
+            http {
+                method = HttpMethod.Get
+
+                path {
+                    using(baseContext)
+                    +"lookup-pi"
+                }
+            }
+        }
 }

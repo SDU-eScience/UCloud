@@ -82,7 +82,7 @@ data class ApplicationWithComments(val application: Application, val comments: L
 data class OutgoingApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias OutgoingApplicationsResponse = Page<Application>
 
-typealias SubmitApplicationRequest = Application
+typealias SubmitApplicationRequest = CreateApplication
 typealias SubmitApplicationResponse = FindByLongId
 
 data class EditApplicationRequest(
@@ -127,6 +127,13 @@ data class ResourceRequest(
     val quotaRequested: Long?
 )
 
+data class CreateApplication(
+    val resourcesOwnedBy: String, // Project ID of the project owning the resources
+    val grantRecipient: GrantRecipient,
+    val document: String,
+    val requestedResources: List<ResourceRequest> // This is _always_ additive to existing resources
+)
+
 data class Application(
     val status: ApplicationStatus,
     val resourcesOwnedBy: String, // Project ID of the project owning the resources
@@ -134,7 +141,10 @@ data class Application(
     val grantRecipient: GrantRecipient,
     val document: String,
     val requestedResources: List<ResourceRequest>, // This is _always_ additive to existing resources
-    val id: Long? = null
+    val id: Long,
+    val resourcesOwnedByTitle: String,
+    val grantRecipientPi: String,
+    val grantRecipientTitle: String
 )
 
 data class ViewApplicationRequest(val id: Long)

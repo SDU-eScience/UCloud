@@ -4,6 +4,7 @@ import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationStatus
+import dk.sdu.cloud.grant.api.CreateApplication
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.service.*
@@ -37,7 +38,7 @@ class ApplicationService(
     suspend fun submit(
         ctx: DBContext,
         actor: Actor,
-        application: Application
+        application: CreateApplication
     ): Long {
         if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
@@ -54,7 +55,7 @@ class ApplicationService(
                 .sendPreparedStatement(
                     {
                         with(application) {
-                            setParameter("status", status.name)
+                            setParameter("status", ApplicationStatus.IN_PROGRESS.name)
                             setParameter("resources_owned_by", resourcesOwnedBy)
                             setParameter("requested_by", actor.safeUsername())
                             setParameter("document", document)
@@ -348,17 +349,22 @@ class ApplicationService(
     }
 
     @OptIn(ExperimentalStdlibApi::class)
-    private fun Iterable<RowData>.toApplications(): Collection<Application> {
-        return asSequence()
-            .map {
-                Application(
-                    ApplicationStatus.valueOf(it.getField(ApplicationTable.status)),
-                    it.getField(ApplicationTable.resourcesOwnedBy),
-                    it.getField(ApplicationTable.requestedBy),
-                    grantRecipientFromTable(
-                        it.getField(ApplicationTable.grantRecipient),
-                        it.getField(ApplicationTable.grantRecipientType)
-                    ),
+    private suspend fun Iterable<RowData>.toApplications(): Collection<Application> {
+        return map {
+            val resourcesOwnedBy = it.getField(ApplicationTable.resourcesOwnedBy)
+
+            val grantRecipient = grantRecipientFromTable(
+                it.getField(ApplicationTable.grantRecipient),
+                it.getField(ApplicationTable.grantRecipientType)
+            )
+
+            val requestedBy = it.getField(ApplicationTable.requestedBy)
+
+            Application(
+                ApplicationStatus.valueOf(it.getField(ApplicationTable.status)),
+                resourcesOwnedBy,
+                requestedBy,
+                grantRecipient,
                     it.getField(ApplicationTable.document),
                     buildList {
                         val productCategory = it.getFieldNullable(RequestedResourceTable.productCategory)
@@ -371,7 +377,20 @@ class ApplicationService(
                             ))
                         }
                     },
-                    it.getField(ApplicationTable.id)
+                    it.getField(ApplicationTable.id),
+                    projects.ancestors.get(resourcesOwnedBy)?.last()?.title ?: resourcesOwnedBy,
+                    when (grantRecipient) {
+                        is GrantRecipient.PersonalProject -> grantRecipient.username
+                        is GrantRecipient.ExistingProject ->
+                            projects.principalInvestigators.get(grantRecipient.projectId) ?: requestedBy
+                        is GrantRecipient.NewProject -> requestedBy
+                    },
+                    when (grantRecipient) {
+                        is GrantRecipient.PersonalProject -> grantRecipient.username
+                        is GrantRecipient.ExistingProject ->
+                            projects.ancestors.get(grantRecipient.projectId)?.last()?.title ?: grantRecipient.projectId
+                        is GrantRecipient.NewProject -> grantRecipient.projectTitle
+                    }
                 )
             }
             .groupingBy { it.id }

@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.GroupWithSummary
 import dk.sdu.cloud.project.api.IngoingInvite
 import dk.sdu.cloud.project.api.IsMemberQuery
+import dk.sdu.cloud.project.api.LookupPrincipalInvestigatorResponse
 import dk.sdu.cloud.project.api.OutgoingInvite
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectMember
@@ -898,6 +899,25 @@ class QueryService(
             getFieldNullable(ProjectTable.parent),
             getField(ProjectTable.archived)
         )
+    }
+
+    suspend fun lookupPrincipalInvestigator(
+        ctx: DBContext,
+        actor: Actor,
+        projectId: String
+    ): LookupPrincipalInvestigatorResponse {
+        return ctx.withSession { session ->
+            findProject(session, actor, projectId)
+
+            val pi = session
+                .sendPreparedStatement(
+                    { setParameter("projectId", projectId)},
+                    "select username from project_members where project_id = :projectId and role = 'PI' limit 1"
+                )
+                .rows.firstOrNull()?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            LookupPrincipalInvestigatorResponse(pi)
+        }
     }
 
     companion object : Loggable {

@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.project.api.ListAllGroupMembersRequest
 import dk.sdu.cloud.project.api.ListSubProjectsRequest
+import dk.sdu.cloud.project.api.LookupPrincipalInvestigatorRequest
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectGroups
 import dk.sdu.cloud.project.api.ProjectMembers
@@ -42,6 +43,13 @@ class ProjectCache(private val serviceClient: AuthenticatedClient) {
             ViewAncestorsRequest,
             serviceClient.withProject(project)
         ).orThrow()
+    }
+
+    val principalInvestigators = SimpleCache<String, String> { project ->
+        Projects.lookupPrincipalInvestigator.call(
+            LookupPrincipalInvestigatorRequest,
+            serviceClient.withProject(project)
+        ).orThrow().principalInvestigator
     }
 
     val subprojects = SimpleCache<String, List<Project>> { project ->

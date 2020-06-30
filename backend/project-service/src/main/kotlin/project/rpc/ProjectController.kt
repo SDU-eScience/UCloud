@@ -211,6 +211,14 @@ class ProjectController(
                 )
             )
         }
+
+        implement(Projects.lookupPrincipalInvestigator) {
+            ok(queries.lookupPrincipalInvestigator(
+                db,
+                ctx.securityPrincipal.toActor(),
+                ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+            ))
+        }
     }
 
     companion object : Loggable {

@@ -50,17 +50,27 @@ export enum GrantApplicationStatus {
     IN_PROGRESS = "IN_PROGRESS"
 }
 
-export interface GrantApplication {
-    status: GrantApplicationStatus;
+export interface CreateGrantApplication {
     resourcesOwnedBy: string;
-    requestedBy: string;
     grantRecipient: GrantRecipient;
     document: string;
     requestedResources: ResourceRequest[]
-    id?: number;
 }
 
-export type SubmitGrantApplicationRequest = GrantApplication;
+export interface GrantApplication {
+    resourcesOwnedBy: string;
+    grantRecipient: GrantRecipient;
+    document: string;
+    requestedResources: ResourceRequest[]
+    status: GrantApplicationStatus;
+    requestedBy: string;
+    resourcesOwnedByTitle: string;
+    grantRecipientPi: string;
+    grantRecipientTitle: string;
+    id: number;
+}
+
+export type SubmitGrantApplicationRequest = CreateGrantApplication;
 
 export type SubmitGrantApplicationResponse = {};
 
