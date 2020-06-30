@@ -1,11 +1,46 @@
-import {ParameterTypes} from "../../app/Applications";
-import {findKnownParameterValues, hpcJobQuery} from "../../app/Utilities/ApplicationUtilities";
+import {ParameterTypes, RunsSortBy, JobState} from "../../app/Applications";
+import * as AppUtils from "../../app/Utilities/ApplicationUtilities";
+import {SortOrder} from "../../app/Files";
 
-describe("Application Utilities", () => {
-    test("Create hpcJobQuery string", () => {
-        expect(hpcJobQuery("job")).toBe("/hpc/jobs/job");
+test("Create hpcJobQuery string", () => {
+    expect(AppUtils.hpcJobQuery("job")).toBe("/hpc/jobs/job");
+});
+
+test("toolImageQuery", () => {
+    expect(AppUtils.toolImageQuery("tool", "0")).toBe("/hpc/tools/logo/tool?cacheBust=0")
+});
+
+describe("hpcJobsQuery", () => {
+    test("Empty", () => {
+        expect(AppUtils.hpcJobsQuery(25, 0)).toBe("/hpc/jobs/?itemsPerPage=25&page=0");
     });
 
+    test("Full", () => {
+        expect(AppUtils.hpcJobsQuery(25, 0, SortOrder.DESCENDING, RunsSortBy.application, 500, 1000, JobState.RUNNING))
+            .toBe("/hpc/jobs/?itemsPerPage=25&page=0&order=DESCENDING&sortBy=APPLICATION&minTimestamp=500&maxTimestamp=1000&filter=RUNNING");
+    });
+});
+
+test("hpcFavoriteApp", () => {
+    expect(AppUtils.hpcFavoriteApp("app", "1.2.1")).toBe("/hpc/apps/favorites/app/1.2.1");
+});
+
+describe("isFileOrDirectoryParam", () => {
+    test("input_file", () => {
+        expect(AppUtils.isFileOrDirectoryParam({type: "input_file"})).toBe(true);
+    });
+
+    test("input_directory", () => {
+        expect(AppUtils.isFileOrDirectoryParam({type: "input_directory"})).toBe(true);
+    });
+
+    test("neither", () => {
+        expect(AppUtils.isFileOrDirectoryParam({type: "foo_bar"})).toBe(false);
+    });
+});
+
+
+describe("Extract parameters", () => {
     test("Extract Parameters for version 1", () => {
         const validParameterTypes = [
             {name: "A", type: ParameterTypes.Boolean},
@@ -14,7 +49,7 @@ describe("Application Utilities", () => {
             {name: "D", type: ParameterTypes.Text}
         ];
         const parameters = {A: "Yes", B: "5", C: "5.0", D: "Pilgrimage"};
-        const extractedParameters = findKnownParameterValues({
+        const extractedParameters = AppUtils.findKnownParameterValues({
             nameToValue: parameters,
             allowedParameterKeys: validParameterTypes,
             siteVersion: 1
@@ -30,7 +65,7 @@ describe("Application Utilities", () => {
             {name: "D", type: ParameterTypes.Text}
         ];
         const parameters = {A: "Yes", B: "5", C: "5.0", D: "Pilgrimage"};
-        const extractedParameters = findKnownParameterValues({
+        const extractedParameters = AppUtils.findKnownParameterValues({
             nameToValue: parameters,
             allowedParameterKeys: validParameterTypes,
             siteVersion: -1
@@ -45,7 +80,7 @@ describe("Application Utilities", () => {
             {name: "C", type: ParameterTypes.FloatingPoint}
         ];
         const parameters = {A: "Yes", B: "5", C: "5.0", D: "Pilgrimage"};
-        const extractedParameters = findKnownParameterValues({
+        const extractedParameters = AppUtils.findKnownParameterValues({
             nameToValue: parameters,
             allowedParameterKeys: validParameterTypes,
             siteVersion: 1
@@ -61,7 +96,7 @@ describe("Application Utilities", () => {
             {name: "D", type: ParameterTypes.Text}
         ];
         const parameters = {A: "Yes", B: "5", C: "5.0"};
-        const extractedParameters = findKnownParameterValues({
+        const extractedParameters = AppUtils.findKnownParameterValues({
             nameToValue: parameters,
             allowedParameterKeys: validParameterTypes,
             siteVersion: 1
@@ -78,7 +113,7 @@ describe("Application Utilities", () => {
             A: "A",
             B: "B"
         };
-        const extractedParameters = findKnownParameterValues({
+        const extractedParameters = AppUtils.findKnownParameterValues({
             nameToValue: parameters,
             allowedParameterKeys: validParameterTypes,
             siteVersion: 1
@@ -95,7 +130,7 @@ describe("Application Utilities", () => {
             A: "A",
             B: "B"
         };
-        const extractedParameters = findKnownParameterValues({
+        const extractedParameters = AppUtils.findKnownParameterValues({
             nameToValue: parameters,
             allowedParameterKeys: validParameterTypes,
             siteVersion: 1
@@ -103,4 +138,3 @@ describe("Application Utilities", () => {
         expect(extractedParameters).toEqual({A: "A", B: "B"});
     });
 });
-

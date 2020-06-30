@@ -92,7 +92,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files, cb) => {
             if (files.length !== 1) return true;
             else if (isAnyMockFile(files)) return true;
-            else if (isAnyFixedFolder(files, Client)) return true;
+            else if (isAnyFixedFolder(files)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "rename"
@@ -140,7 +140,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files) => shareFiles({files, client: Client}),
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
-            else if (isAnyFixedFolder(files, Client)) return true;
+            else if (isAnyFixedFolder(files)) return true;
             else return !files.every(it => it.ownerName === Client.username);
         },
         icon: "share"
@@ -151,7 +151,7 @@ export const defaultFileOperations: FileOperation[] = [
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
-            else if (isAnyFixedFolder(files, Client)) return true;
+            else if (isAnyFixedFolder(files)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "sensitivity"
@@ -171,7 +171,7 @@ export const defaultFileOperations: FileOperation[] = [
             });
         },
         disabled: (files, cb) => {
-            if (isAnyFixedFolder(files, Client)) return true;
+            if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
@@ -193,7 +193,7 @@ export const defaultFileOperations: FileOperation[] = [
         },
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
-            else if (isAnyFixedFolder(files, Client))  return true;
+            else if (isAnyFixedFolder(files))  return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "move",
@@ -239,7 +239,7 @@ export const defaultFileOperations: FileOperation[] = [
         },
         disabled: (files, cb) => {
             if (!cb.permissions.requireForAll(files, AccessRight.WRITE)) return true;
-            else if (isAnyFixedFolder(files, Client)) return true;
+            else if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
             else return files.every(({path}) => isTrashFolder(path) || isTrashFolder(getParentPath(path)));
         },
@@ -290,7 +290,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) =>
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
         disabled: (files, cb) => isAnyMockFile(files) || !cb.permissions.requireForAll(files, AccessRight.WRITE) ||
-            isAnyFixedFolder(files, Client),
+            isAnyFixedFolder(files),
         icon: "sensitivity",
         repositoryMode: FileOperationRepositoryMode.REQUIRED
     },
