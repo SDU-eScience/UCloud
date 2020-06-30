@@ -74,9 +74,9 @@ private fun RowData.toAvatar(): Avatar = Avatar(
     HatColor.fromString(getField(AvatarTable.hatColor))
 )
 
-class AvatarHibernateDAO : AvatarDAO {
+class AvatarAsyncDao {
 
-    override suspend fun upsert(
+    suspend fun upsert(
         ctx: DBContext,
         user: String,
         avatar: Avatar
@@ -159,7 +159,7 @@ class AvatarHibernateDAO : AvatarDAO {
         }
     }
 
-    override suspend fun findByUser(
+    suspend fun findByUser(
         ctx: DBContext,
         user: String
     ): Avatar {
@@ -177,7 +177,7 @@ class AvatarHibernateDAO : AvatarDAO {
         }
     }
 
-    override suspend fun bulkFind(
+    suspend fun bulkFind(
         ctx: DBContext,
         users: List<String>
     ): Map<String, SerializedAvatar> {

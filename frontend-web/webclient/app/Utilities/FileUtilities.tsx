@@ -193,7 +193,7 @@ export function moveFileQuery(path: string, newPath: string, policy?: UploadPoli
 
 export function copyFileQuery(path: string, newPath: string, policy: UploadPolicy): string {
     let query = `/files/copy?path=${encodeURIComponent(resolvePath(path))}&newPath=${encodeURIComponent(newPath)}`;
-    if (policy) query += `&policy=${policy}`;
+    query += `&policy=${policy}`;
     return query;
 }
 
@@ -205,7 +205,7 @@ export const MOCK_VIRTUAL = "virtual";
 export const MOCK_RELATIVE = "relative";
 
 export function mockFile(props: {path: string; type: FileType; fileId?: string; tag?: string}): File {
-    const username = Client.activeUsername ? Client.activeUsername : "";
+    const username = Client.activeUsername ?? "";
     return {
         fileType: props.type,
         path: props.path,
@@ -255,7 +255,6 @@ export const isInvalidPathName = ({path, filePaths}: IsInvalidPathname): boolean
 export const isFixedFolder = (filePath: string): boolean => {
     if (isTrashFolder(filePath)) return true;
     else if (isJobsFolder(filePath)) return true;
-    else if (isTrashFolder(filePath)) return true;
     else return false;
 };
 
@@ -540,7 +539,7 @@ export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);
 }
 
-export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
+export function isAnyFixedFolder(files: File[]): boolean {
     return files.some(it => isFixedFolder(it.path));
 }
 

@@ -16,14 +16,12 @@ import dk.sdu.cloud.avatar.api.TopAccessory
 import dk.sdu.cloud.avatar.avatar
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.withDatabase
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 
 class AvatarServiceTest {
     private val user = TestUsers.user.username
@@ -40,7 +38,7 @@ class AvatarServiceTest {
     @Test
     fun `Insert and find`() {
         runBlocking {
-            val dao = AvatarHibernateDAO()
+            val dao = AvatarAsyncDao()
             val service = AvatarService(db, dao)
 
             // Nothing inserted - Finds Default
@@ -84,7 +82,7 @@ class AvatarServiceTest {
     @Test
     fun `insert, update and find test`() {
         runBlocking {
-            val dao = AvatarHibernateDAO()
+            val dao = AvatarAsyncDao()
             val service = AvatarService(db, dao)
 
             var findResult = service.findByUser(user)
@@ -133,7 +131,7 @@ class AvatarServiceTest {
     @Test
     fun `bulk test`() {
         runBlocking {
-            val dao = AvatarHibernateDAO()
+            val dao = AvatarAsyncDao()
             val service = AvatarService(db, dao)
 
             service.upsert(TestUsers.user.username, avatar)

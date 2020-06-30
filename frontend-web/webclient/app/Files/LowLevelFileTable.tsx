@@ -39,7 +39,8 @@ import {
     Text,
     Tooltip,
     Truncate,
-    ButtonGroup
+    ButtonGroup,
+    Card
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
@@ -77,7 +78,7 @@ import {
     sizeToString
 } from "Utilities/FileUtilities";
 import {buildQueryString} from "Utilities/URIUtilities";
-import {addStandardDialog, FileIcon} from "UtilityComponents";
+import {addStandardDialog, FileIcon, ConfirmCancelButtons} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
@@ -454,6 +455,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     React.useEffect(() => {
         props.onLoadingState?.(isAnyLoading);
     }, [isAnyLoading]);
+
+    React.useEffect(() => {
+        setInjectedViaState([]);
+        setFileBeingRenamed(null);
+    }, [Client.projectId]);
 
     return (
         <Shell
@@ -936,10 +942,12 @@ const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: st
                 data-tag="renameField"
                 onKeyDown={e => props.onRenameFile?.(e.keyCode, (e.target as HTMLInputElement).value)}
             />
-            <ButtonGroup width="220px">
-                <Button onClick={() => props.onRenameFile?.(KeyCode.ENTER, ref.current?.value ?? "")} color="green">Create</Button>
-                <Button onClick={() => props.onRenameFile?.(KeyCode.ESC, "")} color="red">Cancel</Button>
-            </ButtonGroup>
+            <ConfirmCancelButtons
+                confirmText="Create"
+                cancelText="Cancel"
+                onConfirm={() => props.onRenameFile?.(KeyCode.ENTER, ref.current?.value ?? "")}
+                onCancel={() => props.onRenameFile?.(KeyCode.ESC, "")}
+            />
         </Flex>
     );
 };
