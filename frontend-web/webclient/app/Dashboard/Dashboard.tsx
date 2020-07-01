@@ -43,6 +43,8 @@ import {buildQueryString} from "Utilities/URIUtilities";
 import styled from "styled-components";
 import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
+import {retrieveBalance, RetrieveBalanceResponse, Wallet, WalletBalance} from "Accounting";
+import {creditFormatter} from "Project/ProjectUsage";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: string;
@@ -75,11 +77,20 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
         listFavorites({itemsPerPage: 10, page: 0}),
         emptyPage
     );
+
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
         page: 0,
         withHidden: false,
     }), emptyPage);
+
+    const [wallets, setWalletsParams] = useCloudAPI<RetrieveBalanceResponse>(
+        retrieveBalance( {
+            id: undefined,
+            type: undefined,
+            includeChildren: false
+        }), {wallets:[]}
+    );
 
     React.useEffect(() => {
         props.onInit();
@@ -91,6 +102,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     function reload(loading: boolean): void {
         props.setAllLoading(loading);
         setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
+        setWalletsParams(retrieveBalance( {
+            id: undefined,
+            type: undefined,
+            includeChildren: false
+        }));
         props.fetchRecentAnalyses();
     }
 
@@ -144,6 +160,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
                 onNotificationAction={onNotificationAction}
                 notifications={notifications}
                 readAll={props.readAll}
+            />
+
+            <DashboardResources
+                wallets={wallets.data.wallets}
+                loading={wallets.loading}
             />
         </DashboardGrid>
     );
@@ -312,6 +333,25 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
         method: "GET",
         path: buildQueryString("/news/list", payload)
     };
+}
+
+function DashboardResources({wallets, loading}: {wallets: WalletBalance[]; loading: boolean}): JSX.Element | null {
+    wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
+    return (
+        <DashboardCard title="Resources" color="red" isLoading={loading}>
+            <Box mx="8px" my="5px">
+                {wallets.length === 0 ? <Heading.h3> No wallets found</Heading.h3> :
+                    wallets.slice(0,7).map((n, i) => (
+                        <List key={i}>
+                            <Heading.h3> {n.wallet.paysFor.provider}-{n.wallet.paysFor.id}</Heading.h3>
+                            <Heading.h3 style={{textAlign: "right"}}> {creditFormatter(n.balance)} </Heading.h3>
+                        </List>
+                        )
+                    )
+                }
+            </Box>
+        </DashboardCard>
+    )
 }
 
 function DashboardMessageOfTheDay({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
