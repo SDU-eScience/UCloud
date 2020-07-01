@@ -6,7 +6,7 @@ import {theme} from "ui-components";
 import Box from "ui-components/Box";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import Icon from "ui-components/Icon";
-import {listProducts, Product} from "Accounting";
+import {listByProductArea, listProducts, Product} from "Accounting";
 import {Page} from "Types";
 import {emptyPage} from "DefaultObjects";
 import {creditFormatter} from "Project/ProjectUsage";
@@ -33,7 +33,7 @@ export const MachineTypes: React.FunctionComponent<{
     setReservation: (name: string, machine: Product) => void;
 }> = props => {
     const [machines] = useCloudAPI<Page<Product>>(
-        listProducts({itemsPerPage: 100, page: 0, provider: "ucloud", productCategory: "COMPUTE"}),
+        listByProductArea({itemsPerPage: 100, page: 0, provider: "ucloud", area: "COMPUTE"}),
         emptyPage
     );
     const [selected, setSelected] = useState<Product | null>(null);
