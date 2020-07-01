@@ -1,7 +1,12 @@
 import {MainContainer} from "MainContainer/MainContainer";
-import {useProjectManagementStatus, membersCountRequest, groupsCountRequest, subprojectsCountRequest} from "Project/index";
+import {
+    useProjectManagementStatus,
+    membersCountRequest,
+    groupsCountRequest,
+    subprojectsCountRequest
+} from "Project/index";
 import * as React from "react";
-import {Box, Button, Link, Flex, Icon, theme, Card} from "ui-components";
+import {Box, Button, Link, Flex, theme, Card} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -10,15 +15,17 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import { useCloudAPI } from "Authentication/DataHook";
-import { retrieveBalance, RetrieveBalanceResponse, ProductArea, UsageResponse, transformUsageChartForCharting, usage } from "Accounting";
-import { creditFormatter, durationOptions } from "./ProjectUsage";
-import Table, { TableCell, TableRow } from "ui-components/Table";
-import { Dictionary } from "Types";
+import {useCloudAPI} from "Authentication/DataHook";
+import {ProductArea, UsageResponse, transformUsageChartForCharting, usage} from "Accounting";
+import {creditFormatter, durationOptions} from "./ProjectUsage";
+import Table, {TableCell, TableRow} from "ui-components/Table";
+import {Dictionary} from "Types";
 import styled from "styled-components";
+import {ingoingGrantApplications, IngoingGrantApplicationsResponse} from "Project/Grant";
+import {emptyPage} from "DefaultObjects";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
-    const {projectId, membersPage, projectDetails} = useProjectManagementStatus();
+    const {projectId, projectDetails} = useProjectManagementStatus();
 
     function isPersonalProjectActive(projectId: string): boolean {
         return projectId === undefined || projectId === "";
@@ -39,32 +46,21 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         0
     );
 
+    const [apps] = useCloudAPI<IngoingGrantApplicationsResponse>(
+        ingoingGrantApplications({itemsPerPage: 10, page: 0}),
+        emptyPage
+    );
+
     React.useEffect(() => {
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
         setSubprojectsCount(subprojectsCountRequest());
     }, []);
 
-    const [balance, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
-        retrieveBalance({includeChildren: true}),
-        {wallets: []}
-    );
-
     const durationOption = durationOptions[3];
-
-    const remainingComputeBalance = balance.data.wallets.reduce((sum, wallet) => {
-        if (wallet.area === ProductArea.COMPUTE && wallet.wallet.id === projectId) return sum + wallet.balance;
-        else return sum;
-    }, 0);
-
-    const remainingStorageBalance = balance.data.wallets.reduce((sum, wallet) => {
-        if (wallet.area === ProductArea.STORAGE && wallet.wallet.id === projectId) return sum + wallet.balance;
-        else return sum;
-    }, 0);
-
     const now = new Date().getTime();
 
-    const [usageResponse, setUsageParams, usageParams] = useCloudAPI<UsageResponse>(
+    const [usageResponse] = useCloudAPI<UsageResponse>(
         usage({
             bucketSize: durationOption.bucketSize,
             periodStart: now - durationOption.timeInPast,
@@ -104,7 +100,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         storageCreditsUsedByWallet[chart.provider] = usageByCurrentProvider;
 
         for (let i = 0; i < chart.points.length; i++) {
-            let point = chart.points[i];
+            const point = chart.points[i];
             for (const category of Object.keys(point)) {
                 if (category === "time") continue;
 
@@ -132,7 +128,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     return (
         <MainContainer
             header={<Flex>
-                <ProjectBreadcrumbs crumbs={[]} />
+                <ProjectBreadcrumbs crumbs={[]}/>
             </Flex>}
             sidebar={null}
             main={(
@@ -176,16 +172,19 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                     </DashboardCardButton>
                                 </DashboardCard>
                             </>
-                        ) : (null)}
-                        <DashboardCard title="Usage" subtitle="Past 30 days" icon="hourglass" color={theme.colors.green} isLoading={false}>
+                        ) : null}
+                        <DashboardCard title="Usage" subtitle="Past 30 days" icon="hourglass" color={theme.colors.green}
+                                       isLoading={false}>
                             <Table>
                                 <TableRow>
                                     <TableCell>Storage</TableCell>
-                                    <TableCell textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
+                                    <TableCell
+                                        textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
                                 </TableRow>
                                 <TableRow>
                                     <TableCell>Compute</TableCell>
-                                    <TableCell textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
+                                    <TableCell
+                                        textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
                                 </TableRow>
                             </Table>
                             <DashboardCardButton>
@@ -194,12 +193,28 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Link>
                             </DashboardCardButton>
                         </DashboardCard>
+                        <DashboardCard title="Grant Applications" icon="mail" color={theme.colors.red}
+                                       isLoading={false}>
+                            <Table>
+                                <TableRow>
+                                    <TableCell>In Progress</TableCell>
+                                    <TableCell textAlign="right">{apps.data.itemsInTotal}</TableCell>
+                                </TableRow>
+                            </Table>
+                            <DashboardCardButton>
+                                <Link to="/project/grants/ingoing">
+                                    <Button width="100%">Manage Applications</Button>
+                                </Link>
+                            </DashboardCardButton>
+                        </DashboardCard>
                         {isPersonalProjectActive(projectId) ? null : (
-                            <DashboardCard title="Settings" icon="properties" color={theme.colors.orange} isLoading={false}>
+                            <DashboardCard title="Settings" icon="properties" color={theme.colors.orange}
+                                           isLoading={false}>
                                 <Table>
                                     <TableRow>
                                         <TableCell>Archived</TableCell>
-                                        <TableCell textAlign="right">{projectDetails.data.archived ? "Yes" : "No"}</TableCell>
+                                        <TableCell
+                                            textAlign="right">{projectDetails.data.archived ? "Yes" : "No"}</TableCell>
                                     </TableRow>
                                 </Table>
                                 <DashboardCardButton>

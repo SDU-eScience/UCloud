@@ -145,7 +145,9 @@ data class Application(
     val id: Long,
     val resourcesOwnedByTitle: String,
     val grantRecipientPi: String,
-    val grantRecipientTitle: String
+    val grantRecipientTitle: String,
+    val createdAt: Long,
+    val updatedAt: Long
 )
 
 data class ViewApplicationRequest(val id: Long)
@@ -350,7 +352,7 @@ object Grants : CallDescriptionContainer("grant") {
 
                 path {
                     using(baseContext)
-                    +"ingoing"
+                    +"outgoing"
                 }
 
                 params {

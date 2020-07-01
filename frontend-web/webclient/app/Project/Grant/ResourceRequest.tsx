@@ -192,7 +192,9 @@ function useRequestInformation(target: RequestTarget) {
                         grantRecipientPi: Client.username ?? "",
                         id: 0,
                         resourcesOwnedByTitle: "unknown",
-                        grantRecipientTitle: ""
+                        grantRecipientTitle: "",
+                        createdAt: 0,
+                        updatedAt: 0
                     },
                     comments: [],
                     approver: false
@@ -349,7 +351,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             }));
 
             if (response) {
-                history.push(`/project/resource-request/view/${response.id}`);
+                history.push(`/project/grants/view/${response.id}`);
             }
         } else {
             await runWork(editGrantApplication({

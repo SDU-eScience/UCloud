@@ -49,6 +49,7 @@ import Subprojects from "Project/Subprojects";
 import {GrantApplicationEditor, RequestTarget} from "Project/Grant/ResourceRequest";
 import {DetailedNews} from "NewsPost/DetailedNews";
 import {NewsList} from "NewsPost/NewsList";
+import {IngoingApplications} from "Project/Grant/IngoingApplications";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
 
@@ -124,20 +125,21 @@ const Core = (): JSX.Element => (
                             <Route exact path="/project/subprojects" component={requireAuth(Subprojects)}/>
                             <Route
                                 exact
-                                path="/project/resource-request/existing"
+                                path="/project/grants/existing"
                                 component={requireAuth(GrantApplicationEditor(RequestTarget.EXISTING_PROJECT))}
                             />
                             <Route
                                 exact
-                                path="/project/resource-request/new/:projectId"
+                                path="/project/grants/new/:projectId"
                                 component={requireAuth(GrantApplicationEditor(RequestTarget.NEW_PROJECT))}
                             />
                             <Route
                                 exact
-                                path="/project/resource-request/view/:appId"
+                                path="/project/grants/view/:appId"
                                 component={requireAuth(GrantApplicationEditor(RequestTarget.VIEW_APPLICATION))}
                             />
                             <Route exact path="/project/members/:group?/:member?" component={requireAuth(ProjectMembers)}/>
+                            <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)}/>
                         </>
                     )
                     : null

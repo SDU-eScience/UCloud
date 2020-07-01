@@ -269,7 +269,7 @@ const Subprojects: React.FunctionComponent = () => {
                                             Click the button below to get started.
                                         </p>
                                         <Flex justifyContent={"flex-end"}>
-                                            <Link to={"/project/resource-request/existing"}><Button>Request resources</Button></Link>
+                                            <Link to={"/project/grants/existing"}><Button>Request resources</Button></Link>
                                         </Flex>
                                     </Box>
                                 </DashboardCard>
@@ -333,7 +333,7 @@ const Subprojects: React.FunctionComponent = () => {
                                                     );
                                                 }}
                                                 customEmptyPage={
-                                                    <Flex justifyContent="center" alignItems="center" height="200px">
+                                                    <Flex justifyContent={"center"} alignItems={"center"} height={"200px"}>
                                                         This project doesn&apos;t have any subprojects.
                                                         You can create one by using the &apos;Create&apos; button above.
                                                     </Flex>

@@ -390,7 +390,9 @@ class ApplicationService(
                         is GrantRecipient.ExistingProject ->
                             projects.ancestors.get(grantRecipient.projectId)?.last()?.title ?: grantRecipient.projectId
                         is GrantRecipient.NewProject -> grantRecipient.projectTitle
-                    }
+                    },
+                    it.getField(ApplicationTable.createdAt).toDate().time,
+                    it.getField(ApplicationTable.updatedAt).toDate().time
                 )
             }
             .groupingBy { it.id }
