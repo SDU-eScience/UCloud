@@ -240,39 +240,42 @@ const Subprojects: React.FunctionComponent = () => {
             main={(
                 <>
                     <Heading.h3>Resources</Heading.h3>
-                    <WalletContainer ref={walletContainer}>
-                        {projectWallets.map((w, i) =>
-                            <SelectableWallet
-                                key={i}
-                                wallet={w}
-                                selected={selectedWallet !== null && walletEquals(selectedWallet.wallet, w.wallet)}
-                                allocated={
-                                    wallets.data.wallets.reduce((prev, it) => (
-                                        it.wallet.id !== projectId && productCategoryEquals(w.wallet.paysFor, it.wallet.paysFor) ?
-                                            prev + it.balance : prev
-                                    ), 0)
-                                }
-                                quotaInBytes={isQuotaSupported(w.wallet.paysFor) ?
-                                    quota.data.quotaInBytes : undefined
-                                }
-                                onClick={() => setSelectedWallet(w)} />
-                        )}
+                    <LoadingBox height={"233px"} isLoading={wallets.loading}>
+                        <WalletContainer ref={walletContainer}>
 
-                        <div className="request-resources">
-                            <DashboardCard color={theme.colors.blue} isLoading={false}>
-                                <Box m={8} mt={0}>
-                                    <Heading.h3>Need more resources?</Heading.h3>
-                                    <p>
-                                        You can request more resources from your parent project.
-                                        Click the button below to get started.
-                                    </p>
-                                    <Flex justifyContent={"flex-end"}>
-                                        <Link to={"/project/resource-request/existing"}><Button>Request resources</Button></Link>
-                                    </Flex>
-                                </Box>
-                            </DashboardCard>
-                        </div>
-                    </WalletContainer>
+                            {projectWallets.map((w, i) =>
+                                <SelectableWallet
+                                    key={i}
+                                    wallet={w}
+                                    selected={selectedWallet !== null && walletEquals(selectedWallet.wallet, w.wallet)}
+                                    allocated={
+                                        wallets.data.wallets.reduce((prev, it) => (
+                                            it.wallet.id !== projectId && productCategoryEquals(w.wallet.paysFor, it.wallet.paysFor) ?
+                                                prev + it.balance : prev
+                                        ), 0)
+                                    }
+                                    quotaInBytes={isQuotaSupported(w.wallet.paysFor) ?
+                                        quota.data.quotaInBytes : undefined
+                                    }
+                                    onClick={() => setSelectedWallet(w)} />
+                            )}
+
+                            <div className="request-resources">
+                                <DashboardCard color={theme.colors.blue} isLoading={false}>
+                                    <Box m={8} mt={0}>
+                                        <Heading.h3>Need more resources?</Heading.h3>
+                                        <p>
+                                            You can request more resources from your parent project.
+                                            Click the button below to get started.
+                                        </p>
+                                        <Flex justifyContent={"flex-end"}>
+                                            <Link to={"/project/resource-request/existing"}><Button>Request resources</Button></Link>
+                                        </Flex>
+                                    </Box>
+                                </DashboardCard>
+                            </div>
+                        </WalletContainer>
+                    </LoadingBox>
 
                     <Heading.h3>Subprojects</Heading.h3>
                     <Box className="subprojects" maxWidth={850} ml="auto" mr="auto">
@@ -330,10 +333,10 @@ const Subprojects: React.FunctionComponent = () => {
                                                     );
                                                 }}
                                                 customEmptyPage={
-                                                    <Flex justifyContent={"center"} alignItems={"center"} height={"200px"}>
+                                                    <Flex justifyContent="center" alignItems="center" height="200px">
                                                         This project doesn&apos;t have any subprojects.
                                                         You can create one by using the &apos;Create&apos; button above.
-                                                </Flex>
+                                                    </Flex>
                                                 }
                                             />
                                         </tbody>
@@ -407,6 +410,11 @@ const SubprojectRowWrapper = styled(TableRow)`
         vertical-align: middle;
     }
 `;
+
+const LoadingBox = (props: React.PropsWithChildren<{height: string; isLoading: boolean}>): JSX.Element => {
+    if (props.isLoading) return <Flex alignItems="center" style={{minHeight: props.height}}><HexSpin /></Flex>;
+    else return <>{props.children}</>;
+};
 
 const SubprojectRow: React.FunctionComponent<{
     subproject: Project,
