@@ -2,6 +2,7 @@ package dk.sdu.cloud.mail.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupEmailRequest
+import dk.sdu.cloud.auth.api.LookupEmailResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.WantsEmailsRequest
 import dk.sdu.cloud.calls.RPCException
@@ -11,6 +12,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
 import java.io.File
+import java.io.FileOutputStream
 import java.nio.file.Files
 import javax.mail.*
 import javax.mail.internet.InternetAddress
@@ -21,7 +23,8 @@ import javax.mail.internet.MimeMultipart
 class MailService(
     private val authenticatedClient: AuthenticatedClient,
     private val fromAddress: String,
-    private val whitelist: List<String>
+    private val whitelist: List<String>,
+    private val devMode: Boolean = false
 ) {
     private val escienceLogoFile: File by lazy {
         val file = Files.createTempFile("", ".png").toFile()
@@ -80,7 +83,8 @@ class MailService(
         recipient: String,
         subject: String,
         text: String,
-        emailRequestedByUser: Boolean
+        emailRequestedByUser: Boolean,
+        testMail: Boolean = false
     ) {
         if (principal.username !in whitelist) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
@@ -99,10 +103,14 @@ class MailService(
             }
         }
 
-        val getEmail = UserDescriptions.lookupEmail.call(
-            LookupEmailRequest(recipient),
-            authenticatedClient
-        ).orThrow()
+        val getEmail = if (testMail) {
+            LookupEmailResponse("test@email.dk")
+        } else {
+            UserDescriptions.lookupEmail.call(
+                LookupEmailRequest(recipient),
+                authenticatedClient
+            ).orThrow()
+        }
 
         val recipientAddress = InternetAddress(getEmail.email)
 
@@ -143,11 +151,22 @@ class MailService(
             })
 
             message.setContent(multipart)
-
-            Transport.send(message)
+            if(devMode) {
+                fakeSend(message)
+            } else {
+                Transport.send(message)
+            }
         } catch (e: Throwable) {
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to send email")
         }
+    }
+
+    private fun fakeSend(message: MimeMessage) {
+        val file = createTempFile(suffix = ".html")
+        val out = FileOutputStream(file)
+        message.writeTo(out)
+        log.info("email written to ${file.absolutePath}")
+        out.close()
     }
 
     companion object : Loggable {

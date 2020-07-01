@@ -16,12 +16,16 @@ class Server(private val config: MailConfiguration, override val micro: Micro) :
 
     override fun start() {
         val authenticatedClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val mailService = MailService(authenticatedClient, config.fromAddress, config.whitelist)
+        val mailService = if (micro.developmentModeEnabled) {
+            MailService(authenticatedClient, config.fromAddress, config.whitelist, true)
+        } else {
+            MailService(authenticatedClient, config.fromAddress, config.whitelist)
+        }
         if (micro.commandLineArguments.contains("--send-test-mail")) {
             try {
                 val principal = SecurityPrincipal("_password-reset", Role.SERVICE, "", "", 0)
                 runBlocking {
-                    mailService.send(principal, "dthrane@imada.sdu.dk", "Test", "Testing...", true)
+                    mailService.send(principal, "dthrane@imada.sdu.dk", "Test", "Testing...", true, true)
                 }
             } finally {
                 exitProcess(0)
