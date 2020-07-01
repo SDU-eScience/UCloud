@@ -192,6 +192,16 @@ class ProjectController(
             )
         }
 
+        implement(Projects.countSubProjects) {
+            ok(
+                queries.subProjectsCount(
+                    db,
+                    ctx.securityPrincipal.username,
+                    ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                )
+            )
+        }
+
         implement(Projects.viewAncestors) {
             ok(
                 queries.viewAncestors(
@@ -200,6 +210,14 @@ class ProjectController(
                     ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
                 )
             )
+        }
+
+        implement(Projects.lookupPrincipalInvestigator) {
+            ok(queries.lookupPrincipalInvestigator(
+                db,
+                ctx.securityPrincipal.toActor(),
+                ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+            ))
         }
     }
 

@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.Grants
+import dk.sdu.cloud.grant.api.IsEnabledResponse
 import dk.sdu.cloud.grant.services.ApplicationService
 import dk.sdu.cloud.grant.services.CommentService
 import dk.sdu.cloud.grant.services.SettingsService
@@ -125,6 +126,15 @@ class GrantController(
 
         implement(Grants.viewApplication) {
             ok(comments.viewComments(db, ctx.securityPrincipal.toActor(), request.id))
+        }
+
+        implement(Grants.setEnabledStatus) {
+            settings.setEnabledStatus(db, ctx.securityPrincipal.toActor(), request.projectId, request.enabledStatus)
+            ok(Unit)
+        }
+
+        implement(Grants.isEnabled) {
+            ok(IsEnabledResponse(settings.isEnabled(db, request.projectId)))
         }
 
         return@with

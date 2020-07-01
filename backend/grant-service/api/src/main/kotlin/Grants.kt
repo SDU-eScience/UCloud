@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
@@ -82,7 +83,7 @@ data class ApplicationWithComments(val application: Application, val comments: L
 data class OutgoingApplicationsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
 typealias OutgoingApplicationsResponse = Page<Application>
 
-typealias SubmitApplicationRequest = Application
+typealias SubmitApplicationRequest = CreateApplication
 typealias SubmitApplicationResponse = FindByLongId
 
 data class EditApplicationRequest(
@@ -127,6 +128,13 @@ data class ResourceRequest(
     val quotaRequested: Long?
 )
 
+data class CreateApplication(
+    val resourcesOwnedBy: String, // Project ID of the project owning the resources
+    val grantRecipient: GrantRecipient,
+    val document: String,
+    val requestedResources: List<ResourceRequest> // This is _always_ additive to existing resources
+)
+
 data class Application(
     val status: ApplicationStatus,
     val resourcesOwnedBy: String, // Project ID of the project owning the resources
@@ -134,11 +142,22 @@ data class Application(
     val grantRecipient: GrantRecipient,
     val document: String,
     val requestedResources: List<ResourceRequest>, // This is _always_ additive to existing resources
-    val id: Long? = null
+    val id: Long,
+    val resourcesOwnedByTitle: String,
+    val grantRecipientPi: String,
+    val grantRecipientTitle: String,
+    val createdAt: Long,
+    val updatedAt: Long
 )
 
 data class ViewApplicationRequest(val id: Long)
 typealias ViewApplicationResponse = ApplicationWithComments
+
+data class SetEnabledStatusRequest(val projectId: String, val enabledStatus: Boolean)
+typealias SetEnabledStatusResponse = Unit
+
+data class IsEnabledRequest(val projectId: String)
+data class IsEnabledResponse(val enabled: Boolean)
 
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
@@ -333,7 +352,7 @@ object Grants : CallDescriptionContainer("grant") {
 
                 path {
                     using(baseContext)
-                    +"ingoing"
+                    +"outgoing"
                 }
 
                 params {
@@ -354,6 +373,44 @@ object Grants : CallDescriptionContainer("grant") {
             path {
                 using(baseContext)
                 +boundTo(ViewApplicationRequest::id)
+            }
+        }
+    }
+
+    val setEnabledStatus =
+        call<SetEnabledStatusRequest, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
+            auth {
+                access = AccessRight.READ_WRITE
+                roles = Roles.PRIVILEGED
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"set-enabled"
+                }
+
+                body { bindEntireRequestFromBody() }
+            }
+        }
+
+    val isEnabled = call<IsEnabledRequest, IsEnabledResponse, CommonErrorMessage>("isEnabled") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"is-enabled"
+            }
+
+            params {
+                +boundTo(IsEnabledRequest::projectId)
             }
         }
     }

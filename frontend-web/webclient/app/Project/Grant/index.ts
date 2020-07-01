@@ -1,5 +1,6 @@
 import {APICallParameters} from "Authentication/DataHook";
 import {buildQueryString} from "Utilities/URIUtilities";
+import {Page, PaginationRequest} from "Types";
 
 export interface ReadTemplatesRequest {
     projectId: string;
@@ -50,17 +51,29 @@ export enum GrantApplicationStatus {
     IN_PROGRESS = "IN_PROGRESS"
 }
 
-export interface GrantApplication {
-    status: GrantApplicationStatus;
+export interface CreateGrantApplication {
     resourcesOwnedBy: string;
-    requestedBy: string;
     grantRecipient: GrantRecipient;
     document: string;
     requestedResources: ResourceRequest[]
-    id?: number;
 }
 
-export type SubmitGrantApplicationRequest = GrantApplication;
+export interface GrantApplication {
+    resourcesOwnedBy: string;
+    grantRecipient: GrantRecipient;
+    document: string;
+    requestedResources: ResourceRequest[]
+    status: GrantApplicationStatus;
+    requestedBy: string;
+    resourcesOwnedByTitle: string;
+    grantRecipientPi: string;
+    grantRecipientTitle: string;
+    id: number;
+    updatedAt: number;
+    createdAt: number;
+}
+
+export type SubmitGrantApplicationRequest = CreateGrantApplication;
 
 export type SubmitGrantApplicationResponse = {};
 
@@ -179,6 +192,39 @@ export function rejectGrantApplication(
         path: "/grant/reject",
         parameters: request,
         payload: request,
+        reloadId: Math.random()
+    };
+}
+
+export interface ExternalApplicationsEnabledRequest {
+    projectId: string;
+}
+
+export interface ExternalApplicationsEnabledResponse {
+    enabled: boolean;
+}
+
+export function externalApplicationsEnabled(
+    request: ExternalApplicationsEnabledRequest
+): APICallParameters<ExternalApplicationsEnabledRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/is-enabled", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export type IngoingGrantApplicationsRequest = PaginationRequest;
+export type IngoingGrantApplicationsResponse = Page<GrantApplication>;
+
+export function ingoingGrantApplications(
+    request: IngoingGrantApplicationsRequest
+): APICallParameters<IngoingGrantApplicationsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/ingoing", request),
+        parameters: request,
         reloadId: Math.random()
     };
 }

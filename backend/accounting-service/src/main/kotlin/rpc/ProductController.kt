@@ -38,6 +38,18 @@ class ProductController(
             )
         }
 
+        implement(Products.listProductsByType) {
+            ok(
+                products.listByArea(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    request.area,
+                    request.provider,
+                    request.normalize()
+                )
+            )
+        }
+
         implement(Products.retrieveAllFromProvider) {
             ok(
                 products.listAllByProvider(db, ctx.securityPrincipal.toActor(), request.provider)

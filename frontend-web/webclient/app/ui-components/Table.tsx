@@ -5,7 +5,7 @@ import {
     minWidth,
     MinWidthProps,
     textAlign,
-    TextAlignProps,
+    TextAlignProps, verticalAlign, VerticalAlignProps,
     width,
     WidthProps
 } from "styled-system";
@@ -27,10 +27,10 @@ Table.defaultProps = {
     minWidth: "15em"
 };
 
-export const TableCell = styled.td<TextAlignProps>`
+export const TableCell = styled.td<TextAlignProps & VerticalAlignProps & MarginProps>`
     border: 0px;
     border-spacing: 0;
-    ${textAlign}
+    ${textAlign} ${verticalAlign} ${margin}
 `;
 
 TableCell.displayName = "TableCell";

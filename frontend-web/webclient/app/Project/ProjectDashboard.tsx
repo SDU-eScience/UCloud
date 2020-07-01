@@ -1,7 +1,12 @@
 import {MainContainer} from "MainContainer/MainContainer";
-import {useProjectManagementStatus, membersCountRequest, groupsCountRequest,} from "Project/index";
+import {
+    useProjectManagementStatus,
+    membersCountRequest,
+    groupsCountRequest,
+    subprojectsCountRequest
+} from "Project/index";
 import * as React from "react";
-import {Box, Button, Link, Flex, Icon, theme} from "ui-components";
+import {Box, Button, Link, Flex, theme, Card} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -10,10 +15,17 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import { useCloudAPI } from "Authentication/DataHook";
+import {useCloudAPI} from "Authentication/DataHook";
+import {ProductArea, UsageResponse, transformUsageChartForCharting, usage} from "Accounting";
+import {creditFormatter, durationOptions} from "./ProjectUsage";
+import Table, {TableCell, TableRow} from "ui-components/Table";
+import {Dictionary} from "Types";
+import styled from "styled-components";
+import {ingoingGrantApplications, IngoingGrantApplicationsResponse} from "Project/Grant";
+import {emptyPage} from "DefaultObjects";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
-    const {projectId, membersPage} = useProjectManagementStatus();
+    const {projectId, projectDetails} = useProjectManagementStatus();
 
     function isPersonalProjectActive(projectId: string): boolean {
         return projectId === undefined || projectId === "";
@@ -29,44 +41,117 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         0
     );
 
-    React.useEffect(() => {
-        setMembersCount(
-            membersCountRequest()
-        );
-    }, []);
+    const [subprojectsCount, setSubprojectsCount] = useCloudAPI<number>(
+        subprojectsCountRequest(),
+        0
+    );
+
+    const [apps] = useCloudAPI<IngoingGrantApplicationsResponse>(
+        ingoingGrantApplications({itemsPerPage: 10, page: 0}),
+        emptyPage
+    );
 
     React.useEffect(() => {
-        setGroupsCount(
-            groupsCountRequest()
-        );
+        setMembersCount(membersCountRequest());
+        setGroupsCount(groupsCountRequest());
+        setSubprojectsCount(subprojectsCountRequest());
     }, []);
 
+    const durationOption = durationOptions[3];
+    const now = new Date().getTime();
 
-    
+    const [usageResponse] = useCloudAPI<UsageResponse>(
+        usage({
+            bucketSize: durationOption.bucketSize,
+            periodStart: now - durationOption.timeInPast,
+            periodEnd: now
+        }),
+        {charts: []}
+    );
+
+    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.COMPUTE));
+
+    const computeCreditsUsedByWallet: Dictionary<Dictionary<number>> = {};
+    let computeCreditsUsedInPeriod = 0;
+
+    for (const chart of computeCharts) {
+        const usageByCurrentProvider: Dictionary<number> = {};
+        computeCreditsUsedByWallet[chart.provider] = usageByCurrentProvider;
+
+        for (let i = 0; i < chart.points.length; i++) {
+            let point = chart.points[i];
+            for (const category of Object.keys(point)) {
+                if (category === "time") continue;
+
+                const currentUsage = usageByCurrentProvider[category] ?? 0;
+                usageByCurrentProvider[category] = currentUsage + point[category];
+                computeCreditsUsedInPeriod += point[category];
+            }
+        }
+    }
+
+    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.STORAGE));
+
+    const storageCreditsUsedByWallet: Dictionary<Dictionary<number>> = {};
+    let storageCreditsUsedInPeriod = 0;
+
+    for (const chart of storageCharts) {
+        const usageByCurrentProvider: Dictionary<number> = {};
+        storageCreditsUsedByWallet[chart.provider] = usageByCurrentProvider;
+
+        for (let i = 0; i < chart.points.length; i++) {
+            const point = chart.points[i];
+            for (const category of Object.keys(point)) {
+                if (category === "time") continue;
+
+                const currentUsage = usageByCurrentProvider[category] ?? 0;
+                usageByCurrentProvider[category] = currentUsage + point[category];
+                storageCreditsUsedInPeriod += point[category];
+            }
+        }
+    }
+
+    const ProjectDashboardGrid = styled(GridCardGroup)`
+        & > ${Card} {
+            position: relative;
+            min-height: 200px;
+        }
+    `;
+
+    const DashboardCardButton = styled(Box)`
+        position: absolute;  
+        bottom: 10px;
+        left: 10px;
+        right: 10px;
+    `;
 
     return (
         <MainContainer
             header={<Flex>
-                <ProjectBreadcrumbs crumbs={[]} />
+                <ProjectBreadcrumbs crumbs={[]}/>
             </Flex>}
             sidebar={null}
             main={(
                 <>
-                    <GridCardGroup minmax={250}>
+                    <ProjectDashboardGrid minmax={300}>
                         {projectId !== undefined && projectId !== "" ? (
                             <>
                                 <DashboardCard title="Members" icon="user" color={theme.colors.blue} isLoading={false}>
-                                    <Box>
-                                        {membersCount.data} members
-                                    </Box>
-                                    <Box>
-                                        {groupsCount.data} groups
-                                    </Box>
-                                    <Box mt={20}>
+                                    <Table>
+                                        <TableRow>
+                                            <TableCell>Members</TableCell>
+                                            <TableCell textAlign="right">{membersCount.data}</TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell>Groups</TableCell>
+                                            <TableCell textAlign="right">{groupsCount.data}</TableCell>
+                                        </TableRow>
+                                    </Table>
+                                    <DashboardCardButton>
                                         <Link to="/project/members">
-                                            <Button mb="10px" width="100%">Manage Members</Button>
+                                            <Button width="100%">Manage Members</Button>
                                         </Link>
-                                    </Box>
+                                    </DashboardCardButton>
                                 </DashboardCard>
                                 <DashboardCard
                                     title="Subprojects"
@@ -74,40 +159,72 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                     color={theme.colors.purple}
                                     isLoading={false}
                                 >
-                                    <Box>
-                                        123 subprojects
-                                    </Box>
-                                    <Box mt={44}>
+                                    <Table>
+                                        <TableRow>
+                                            <TableCell>Subprojects</TableCell>
+                                            <TableCell textAlign="right">{subprojectsCount.data}</TableCell>
+                                        </TableRow>
+                                    </Table>
+                                    <DashboardCardButton>
                                         <Link to="/project/subprojects">
-                                            <Button mb="10px" width="100%">Manage Subprojects</Button>
+                                            <Button width="100%">Manage Subprojects</Button>
                                         </Link>
-                                    </Box>
+                                    </DashboardCardButton>
                                 </DashboardCard>
                             </>
-                        ) : (null)}
-                        <DashboardCard title="Usage" icon="hourglass" color={theme.colors.green} isLoading={false}>
-                            <Box>
-                                123 TB used
-                            </Box>
-                            <Box>
-                                123 credits remaining
-                            </Box>
-                            <Box mt={20}>
+                        ) : null}
+                        <DashboardCard title="Usage" subtitle="Past 30 days" icon="hourglass" color={theme.colors.green}
+                                       isLoading={false}>
+                            <Table>
+                                <TableRow>
+                                    <TableCell>Storage</TableCell>
+                                    <TableCell
+                                        textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
+                                </TableRow>
+                                <TableRow>
+                                    <TableCell>Compute</TableCell>
+                                    <TableCell
+                                        textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
+                                </TableRow>
+                            </Table>
+                            <DashboardCardButton>
                                 <Link to="/project/usage">
-                                    <Button mb="10px" width="100%">Manage Usage</Button>
+                                    <Button width="100%">Manage Usage</Button>
                                 </Link>
-                            </Box>
+                            </DashboardCardButton>
+                        </DashboardCard>
+                        <DashboardCard title="Grant Applications" icon="mail" color={theme.colors.red}
+                                       isLoading={false}>
+                            <Table>
+                                <TableRow>
+                                    <TableCell>In Progress</TableCell>
+                                    <TableCell textAlign="right">{apps.data.itemsInTotal}</TableCell>
+                                </TableRow>
+                            </Table>
+                            <DashboardCardButton>
+                                <Link to="/project/grants/ingoing">
+                                    <Button width="100%">Manage Applications</Button>
+                                </Link>
+                            </DashboardCardButton>
                         </DashboardCard>
                         {isPersonalProjectActive(projectId) ? null : (
-                            <DashboardCard title="Settings" icon="properties" color={theme.colors.orange} isLoading={false}>
-                                <Box mt={68}>
+                            <DashboardCard title="Settings" icon="properties" color={theme.colors.orange}
+                                           isLoading={false}>
+                                <Table>
+                                    <TableRow>
+                                        <TableCell>Archived</TableCell>
+                                        <TableCell
+                                            textAlign="right">{projectDetails.data.archived ? "Yes" : "No"}</TableCell>
+                                    </TableRow>
+                                </Table>
+                                <DashboardCardButton>
                                     <Link to="/project/settings">
-                                        <Button mb="10px" width="100%">Manage Settings</Button>
+                                        <Button width="100%">Manage Settings</Button>
                                     </Link>
-                                </Box>
+                                </DashboardCardButton>
                             </DashboardCard>
                         )}
-                    </GridCardGroup>
+                    </ProjectDashboardGrid>
                 </>
             )}
         />

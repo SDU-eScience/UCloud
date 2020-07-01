@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.GroupWithSummary
 import dk.sdu.cloud.project.api.IngoingInvite
 import dk.sdu.cloud.project.api.IsMemberQuery
+import dk.sdu.cloud.project.api.LookupPrincipalInvestigatorResponse
 import dk.sdu.cloud.project.api.OutgoingInvite
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectMember
@@ -841,6 +842,25 @@ class QueryService(
         }
     }
 
+    suspend fun subProjectsCount(
+        ctx: DBContext,
+        requestedBy: String,
+        projectId: String
+    ): Long {
+        return ctx.withSession { session ->
+            projects.requireRole(session, requestedBy, projectId, ProjectRole.ADMINS)
+
+            session.sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                    select count(*) from project.projects where parent = :projectId
+                """.trimIndent()
+            ).rows.singleOrNull()?.getLong(0) ?: 0
+        }
+    }
+
     suspend fun viewAncestors(
         ctx: DBContext,
         actor: Actor,
@@ -879,6 +899,25 @@ class QueryService(
             getFieldNullable(ProjectTable.parent),
             getField(ProjectTable.archived)
         )
+    }
+
+    suspend fun lookupPrincipalInvestigator(
+        ctx: DBContext,
+        actor: Actor,
+        projectId: String
+    ): LookupPrincipalInvestigatorResponse {
+        return ctx.withSession { session ->
+            findProject(session, actor, projectId)
+
+            val pi = session
+                .sendPreparedStatement(
+                    { setParameter("projectId", projectId)},
+                    "select username from project_members where project_id = :projectId and role = 'PI' limit 1"
+                )
+                .rows.firstOrNull()?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            LookupPrincipalInvestigatorResponse(pi)
+        }
     }
 
     companion object : Loggable {

@@ -285,16 +285,6 @@ export const defaultFileOperations: FileOperation[] = [
         repositoryMode: FileOperationRepositoryMode.REQUIRED
     },
     {
-        /* Update project sensitivity */
-        text: "Sensitivity",
-        onClick: (files, cb) =>
-            updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
-        disabled: (files, cb) => isAnyMockFile(files) || !cb.permissions.requireForAll(files, AccessRight.WRITE) ||
-            isAnyFixedFolder(files, Client),
-        icon: "sensitivity",
-        repositoryMode: FileOperationRepositoryMode.REQUIRED
-    },
-    {
         /* Update repo permissions */
         text: "Permissions",
         disabled: files => files.length !== 1,

@@ -89,6 +89,14 @@ export function groupsCountRequest(): APICallParameters {
     }
 }
 
+export function subprojectsCountRequest(): APICallParameters {
+    return {
+        method: "GET",
+        path: `${projectContext}sub-projects-count`,
+        reloadId: Math.random(),
+    }
+}
+
 export interface ShouldVerifyMembershipResponse {
     shouldVerify: boolean;
 }

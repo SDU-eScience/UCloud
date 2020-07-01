@@ -146,7 +146,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
                 if (ex is ClosedReceiveChannelException || ex is CancellationException) {
                     // Do nothing. It is expected that the channel will close down.
-                    log.debug("Channel was closed")
+                    log.trace("Channel was closed")
                     response = WSMessage.Response(streamId, null, HttpStatusCode.BadGateway.value)
                 } else {
                     throw ex

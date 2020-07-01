@@ -16,6 +16,7 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
+import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
 import java.util.*
 import kotlin.collections.HashMap
@@ -49,6 +50,31 @@ class VisualizationService(
             val allCreditsUsed = HashMap<RowKey, Long>()
             val allTimestamps = TreeSet<Long>()
 
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("periodStart", query.periodStart / 1000L)
+                        setParameter("periodEnd", query.periodEnd / 1000L)
+                        setParameter("bucketSize", "${query.bucketSize / 1000L } s")
+                    },
+                    """
+                        select
+                            extract(epoch from timestamps.ts)::bigint
+                        from (
+                             Select generate_series(
+                                     to_timestamp(?periodStart) :: timestamp,
+                                     to_timestamp(?periodEnd) :: timestamp,
+                                     ?bucketSize :: interval
+                              ) as ts
+                        ) as timestamps;
+                    """.trimIndent()
+                )
+                .rows
+                .forEach { row ->
+                    val timestamp = row.getLong(0)!! * 1000L
+                    allTimestamps.add(timestamp)
+
+                }
             session
                 .sendPreparedStatement(
                     {
@@ -99,8 +125,6 @@ class VisualizationService(
                 .rows
                 .forEach { row ->
                     val timestamp = row.getLong(4)!! * 1000L
-                    allTimestamps.add(timestamp)
-
                     val childAccountId = row.getString(0) ?: return@forEach
                     val productProvider = row.getString(1)!!
                     val productCategory = row.getString(2)!!
@@ -149,71 +173,88 @@ class VisualizationService(
             val pathToActiveProject = findProjectPath(accountId)
 
             val allProviders = relevantAccountsByProvider.keys
-            UsageResponse(
-                allProviders.map { provider ->
-                    val removedAccounts = HashSet<String>()
-                    val newAccounts = HashSet<String>()
+            if (allProviders.isEmpty()) {
+                val points = allTimestamps.map { ts ->
+                    UsagePoint(ts, 0L)
+                }
 
-                    if (accountType == WalletOwnerType.PROJECT) {
-                        // We only wish to display usage of direct children.
-                        // We start by moving our usage to the direct child level.
+                val lines = UsageLine(ProductArea.COMPUTE, "", null, null, points)
+
+                UsageResponse(
+                    listOf(
+                        UsageChart(
+                            "none",
+                            listOf(lines)
+                        )
+                    )
+                )
+            } else {
+                UsageResponse(
+                    allProviders.map { provider ->
+                        val removedAccounts = HashSet<String>()
+                        val newAccounts = HashSet<String>()
+
+                        if (accountType == WalletOwnerType.PROJECT) {
+                            // We only wish to display usage of direct children.
+                            // We start by moving our usage to the direct child level.
+
+                            val categories = relevantProductCategoriesByProvider.getValue(provider)
+                            val accounts = relevantAccountsByProvider.getValue(provider)
+                            for (category in categories) {
+                                for (account in accounts) {
+                                    val path = findProjectPath(account)
+                                    if (path.size > pathToActiveProject.size + 1) {
+                                        tsLoop@ for (ts in allTimestamps) {
+                                            // We need to move this to the direct child of the active project
+                                            val oldKey = RowKey(account, provider, category.id, ts)
+                                            val usage = allCreditsUsed[oldKey] ?: continue@tsLoop
+
+                                            val newKey = RowKey(
+                                                path[pathToActiveProject.size].id,
+                                                provider,
+                                                category.id,
+                                                ts
+                                            )
+
+                                            val newKeyExistingUsage = allCreditsUsed[newKey] ?: 0L
+                                            allCreditsUsed[newKey] = newKeyExistingUsage + usage
+                                            allCreditsUsed.remove(oldKey)
+                                            newAccounts.add(newKey.accountId)
+                                        }
+
+                                        removedAccounts.add(account)
+                                    }
+                                }
+                            }
+
+                            relevantAccountsByProvider.getValue(provider).apply {
+                                removeAll(removedAccounts)
+                                addAll(newAccounts)
+                            }
+                        }
 
                         val categories = relevantProductCategoriesByProvider.getValue(provider)
                         val accounts = relevantAccountsByProvider.getValue(provider)
-                        for (category in categories) {
-                            for (account in accounts) {
-                                val path = findProjectPath(account)
-                                if (path.size > pathToActiveProject.size + 1)  {
-                                    tsLoop@ for (ts in allTimestamps) {
-                                        // We need to move this to the direct child of the active project
-                                        val oldKey = RowKey(account, provider, category.id, ts)
-                                        val usage = allCreditsUsed[oldKey] ?: continue@tsLoop
-
-                                        val newKey = RowKey(
-                                            path[pathToActiveProject.size].id,
-                                            provider,
-                                            category.id,
-                                            ts
-                                        )
-
-                                        val newKeyExistingUsage = allCreditsUsed[newKey] ?: 0L
-                                        allCreditsUsed[newKey] = newKeyExistingUsage + usage
-                                        allCreditsUsed.remove(oldKey)
-                                        newAccounts.add(newKey.accountId)
-                                    }
-
-                                    removedAccounts.add(account)
+                        val lines = categories.flatMap { category ->
+                            accounts.map { account ->
+                                val points = allTimestamps.map { ts ->
+                                    UsagePoint(ts, allCreditsUsed[RowKey(account, provider, category.id, ts)] ?: 0L)
                                 }
+
+                                val projectPath: String? = if (accountType == WalletOwnerType.PROJECT) {
+                                    findProjectPath(account).joinToString("/") { it.title }
+                                } else {
+                                    null
+                                }
+
+                                UsageLine(productAreas.getValue(category), category.id, projectPath, account, points)
                             }
                         }
 
-                        relevantAccountsByProvider.getValue(provider).apply {
-                            removeAll(removedAccounts)
-                            addAll(newAccounts)
-                        }
+                        UsageChart(provider, lines)
                     }
-
-                    val categories = relevantProductCategoriesByProvider.getValue(provider)
-                    val accounts = relevantAccountsByProvider.getValue(provider)
-                    val lines = categories.flatMap { category ->
-                        accounts.map { account ->
-                            val points = allTimestamps.map { ts ->
-                                UsagePoint(ts, allCreditsUsed[RowKey(account, provider, category.id, ts)] ?: 0L)
-                            }
-
-                            val projectPath: String? = if (accountType == WalletOwnerType.PROJECT) {
-                                findProjectPath(account).joinToString("/") { it.title }
-                            } else {
-                                null
-                            }
-
-                            UsageLine(productAreas.getValue(category), category.id, projectPath, account, points)
-                        }
-                    }
-
-                    UsageChart(provider, lines)
-                }
-            )
+                )
+            }
         }
     }
 

@@ -241,7 +241,7 @@ class IngoingWebSocketInterceptor(
                                     throwable is ClosedSendChannelException
 
                         if (isChannelException(ex) || isChannelException(ex.cause)) {
-                            log.info("Channel was closed")
+                            log.trace("Channel was closed")
                         } else {
                             log.info("Caught exception in websocket server handler")
                             log.info(ex.stackTraceToString())

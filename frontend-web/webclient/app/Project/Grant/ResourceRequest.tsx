@@ -4,7 +4,7 @@ import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
-import {Box, Button, Flex, Grid, Icon, Input, Label, TextArea, theme} from "ui-components";
+import {Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Text, TextArea, theme} from "ui-components";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
     ProductArea,
@@ -25,7 +25,7 @@ import {
     Comment,
     commentOnGrantApplication,
     deleteGrantApplicationComment,
-    editGrantApplication,
+    editGrantApplication, GrantApplication,
     GrantApplicationStatus,
     GrantRecipient,
     readTemplates,
@@ -47,6 +47,7 @@ import {Toggle} from "ui-components/Toggle";
 import {doNothing} from "UtilityFunctions";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
+import {dialogStore} from "Dialog/DialogStore";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -109,11 +110,9 @@ function useRequestInformation(target: RequestTarget) {
         /* empty */
     };
     let recipient: GrantRecipient;
-    let applicationId: number | undefined;
-    let prefilledDocument: string | undefined;
+    let editingApplication: GrantApplication | undefined;
+    let approver: boolean = false;
     let comments: Comment[] = [];
-    let approver = false;
-    let status: GrantApplicationStatus = GrantApplicationStatus.IN_PROGRESS;
     const avatars = useAvatars();
 
     let availableProducts: { area: ProductArea, category: ProductCategoryId }[];
@@ -189,14 +188,19 @@ function useRequestInformation(target: RequestTarget) {
                         requestedBy: Client.username ?? "",
                         requestedResources: [],
                         resourcesOwnedBy: "unknown",
-                        status: GrantApplicationStatus.IN_PROGRESS
+                        status: GrantApplicationStatus.IN_PROGRESS,
+                        grantRecipientPi: Client.username ?? "",
+                        id: 0,
+                        resourcesOwnedByTitle: "unknown",
+                        grantRecipientTitle: "",
+                        createdAt: 0,
+                        updatedAt: 0
                     },
                     comments: [],
                     approver: false
                 }
             );
 
-            applicationId = parseInt(appId, 10);
             targetProject = grantApplication.data.application.resourcesOwnedBy;
             wallets = grantApplication.data.application.requestedResources.map(it => {
                 // Note: Some of these are simply placeholder values and are replaced later
@@ -214,10 +218,9 @@ function useRequestInformation(target: RequestTarget) {
                 };
             });
             recipient = grantApplication.data.application.grantRecipient;
-            prefilledDocument = grantApplication.data.application.document;
             comments = grantApplication.data.comments;
             approver = grantApplication.data.approver;
-            status = grantApplication.data.application.status;
+            editingApplication = grantApplication.data.application;
 
             reloadWallets = useCallback(() => {
                 fetchGrantApplication(viewGrantApplication({id: parseInt(appId, 10)}));
@@ -255,11 +258,11 @@ function useRequestInformation(target: RequestTarget) {
                     documentRef.current.value = templates.data.newProject;
                     break;
                 case RequestTarget.VIEW_APPLICATION:
-                    documentRef.current.value = prefilledDocument ?? "";
+                    documentRef.current.value = editingApplication?.document ?? "";
                     break;
             }
         }
-    }, [templates, documentRef.current, prefilledDocument]);
+    }, [templates, documentRef.current]);
 
     useEffect(() => {
         const usernames = comments.map(it => it.postedBy);
@@ -293,8 +296,8 @@ function useRequestInformation(target: RequestTarget) {
     }
 
     return {
-        wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, applicationId,
-        comments, avatars, reload, approver, status
+        wallets: mergedWallets, reloadWallets, targetProject, documentRef, templates, recipient, editingApplication,
+        comments, avatars, reload, approver
     };
 }
 
@@ -308,7 +311,7 @@ function productCategoryId(pid: ProductCategoryId): string {
 // the target property ensures a remount of the component.
 export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionComponent = target => () => {
     const state = useRequestInformation(target);
-    const [loading, runWork] = useAsyncCommand();
+    const [, runWork] = useAsyncCommand();
     const projectTitleRef = useRef<HTMLInputElement>(null);
     const history = useHistory();
 
@@ -339,46 +342,56 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
         }).filter(it => it !== null) as ResourceRequest[];
 
         const newDocument = state.documentRef.current!.value;
-        if (state.applicationId === undefined) {
+        if (state.editingApplication === undefined) {
             const response = await runWork<{ id: number }>(submitGrantApplication({
                 document: newDocument,
-                requestedBy: Client.username!,
                 resourcesOwnedBy: state.targetProject!,
-                status: GrantApplicationStatus.IN_PROGRESS, // This is ignored by the backend
                 requestedResources,
                 grantRecipient
             }));
 
             if (response) {
-                history.push(`/project/resource-request/view/${response.id}`);
+                history.push(`/project/grants/view/${response.id}`);
             }
         } else {
             await runWork(editGrantApplication({
-                id: state.applicationId!,
+                id: state.editingApplication.id!,
                 newDocument,
                 newResources: requestedResources
             }));
             state.reload();
         }
     }, [state.targetProject, state.documentRef, state.recipient, state.wallets, projectTitleRef,
-        state.applicationId, state.reload]);
+        state.editingApplication?.id, state.reload]);
 
     const approveRequest = useCallback(async () => {
-        if (state.applicationId !== undefined) {
-            await runWork(approveGrantApplication({requestId: state.applicationId}));
-            state.reload();
+        if (state.editingApplication !== undefined) {
+            addStandardDialog({
+                title: "Approve application?",
+                message: "Are you sure you wish to approve this application?",
+                onConfirm: async () => {
+                    await runWork(approveGrantApplication({requestId: state.editingApplication!.id}));
+                    state.reload();
+                }
+            });
         }
-    }, [state.applicationId]);
+    }, [state.editingApplication?.id]);
 
     const rejectRequest = useCallback(async () => {
-        if (state.applicationId !== undefined) {
-            await runWork(rejectGrantApplication({requestId: state.applicationId}));
-            state.reload();
+        if (state.editingApplication !== undefined) {
+            addStandardDialog({
+                title: "Reject application?",
+                message: "Are you sure you wish to reject this application?",
+                onConfirm: async () => {
+                    await runWork(rejectGrantApplication({requestId: state.editingApplication!.id}));
+                    state.reload();
+                }
+            });
         }
-    }, [state.applicationId]);
+    }, [state.editingApplication?.id]);
 
     useEffect(() => {
-        if (state.applicationId !== undefined) {
+        if (state.editingApplication !== undefined) {
             for (const wallet of state.wallets) {
                 const input = document.querySelector<HTMLInputElement>(
                     `input[data-target="${productCategoryId(wallet.wallet.paysFor)}"]`
@@ -400,9 +413,6 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             main={
                 <Flex justifyContent={"center"}>
                     <Box maxWidth={1400} width={"100%"}>
-                        {target !== RequestTarget.EXISTING_PROJECT ?
-                            <Heading.h4>Project Information</Heading.h4> : null
-                        }
                         {target !== RequestTarget.NEW_PROJECT ? null : (
                             <>
                                 <Label mb={16} mt={16}>
@@ -424,60 +434,86 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
 
                         {target !== RequestTarget.VIEW_APPLICATION ? null : (
                             <>
-                                <Label mb={16} mt={16}>
-                                    Project Title
-                                    <Input value={"Some Example Project Title"} disabled/>
-                                </Label>
+                                <DashboardCard color={"blue"} isLoading={false}>
+                                    <Heading.h4 mb={16}>Metadata</Heading.h4>
 
-                                <Label mb={16} mt={16}>
-                                    Principal Investigator (PI)
-                                    <Input value={"Some example PI"} disabled/>
-                                </Label>
+                                    <Text mb={16}>
+                                        <i>Application must be resubmitted to change the metadata.</i>
+                                    </Text>
+                                    <Table>
+                                        <tbody>
+                                        <TableRow>
+                                            <TableCell>Application Approver</TableCell>
+                                            <TableCell>{state.editingApplication!.resourcesOwnedByTitle}</TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell>Project Title</TableCell>
+                                            <TableCell>{state.editingApplication!.grantRecipientTitle}</TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell>Principal Investigator (PI)</TableCell>
+                                            <TableCell>{state.editingApplication!.grantRecipientPi}</TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell verticalAlign={"top"}>
+                                                Project Type
+                                            </TableCell>
+                                            <TableCell>
+                                                <table>
+                                                    <tbody>
+                                                    <tr>
+                                                        <td>Personal</td>
+                                                        <td width={"100%"}>
+                                                            <Toggle onChange={doNothing} scale={1.5}
+                                                                    checked={state.recipient.type === "personal"}/>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td width={"100%"}>New Project</td>
+                                                        <td>
+                                                            <Toggle onChange={doNothing} scale={1.5}
+                                                                    checked={state.recipient.type === "new_project"}/>
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td width={"100%"}>Existing Project</td>
+                                                        <td>
+                                                            <Toggle onChange={doNothing} scale={1.5}
+                                                                    checked={state.recipient.type === "existing_project"}/>
+                                                        </td>
+                                                    </tr>
+                                                    </tbody>
+                                                </table>
+                                            </TableCell>
+                                        </TableRow>
+                                        <TableRow>
+                                            <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
+                                            <TableCell>
+                                                {
+                                                    state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
+                                                        state.editingApplication!.status === GrantApplicationStatus.APPROVED ? "Approved" :
+                                                            "Rejected"
+                                                }
 
-                                <Label mb={16} mt={16}>
-                                    Current Status
-                                    <Input
-                                        value={
-                                            state.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
-                                                state.status === GrantApplicationStatus.APPROVED ? "Approved" :
-                                                    "Rejected"
-                                        }
-                                       disabled
-                                    />
-                                </Label>
+                                                <ButtonGroup>
 
-                                <Label mt={16}>
-                                    Project Type
-                                </Label>
-                                <Table mb={16}>
-                                    <tbody>
-                                    <TableRow>
-                                        <TableCell>Personal</TableCell>
-                                        <TableCell textAlign={"right"}>
-                                            <Toggle onChange={doNothing} scale={1.5}
-                                                    checked={state.recipient.type === "personal"}/>
-                                        </TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell>New Project</TableCell>
-                                        <TableCell textAlign={"right"}>
-                                            <Toggle onChange={doNothing} scale={1.5}
-                                                    checked={state.recipient.type === "new_project"}/>
-                                        </TableCell>
-                                    </TableRow>
-                                    <TableRow>
-                                        <TableCell>Existing Project</TableCell>
-                                        <TableCell textAlign={"right"}>
-                                            <Toggle onChange={doNothing} scale={1.5}
-                                                    checked={state.recipient.type === "existing_project"}/>
-                                        </TableCell>
-                                    </TableRow>
-                                    </tbody>
-                                </Table>
+                                                    {target === RequestTarget.VIEW_APPLICATION && state.approver &&
+                                                        state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
+                                                        <>
+                                                            <Button color={"green"} onClick={approveRequest}>Approve</Button>
+                                                            <Button color={"red"} onClick={rejectRequest}>Reject</Button>
+                                                        </> : null
+                                                    }
+                                                </ButtonGroup>
+                                            </TableCell>
+                                        </TableRow>
+                                        </tbody>
+                                    </Table>
+                                </DashboardCard>
                             </>
                         )}
 
-                        <Heading.h4>Resources Requested</Heading.h4>
+                        <Heading.h4 mt={32}>Resources Requested</Heading.h4>
 
                         <ResourceContainer>
                             {state.wallets.map((it, idx) => (
@@ -495,7 +531,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                     />
                                                 </td>
                                             </tr>
-                                            {state.applicationId !== undefined ? null : (
+                                            {state.editingApplication !== undefined ? null : (
                                                 <tr>
                                                     <th>Current balance</th>
                                                     <td>{creditFormatter(it.balance)}</td>
@@ -503,7 +539,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                             )}
                                             <tr>
                                                 <th>
-                                                    {state.applicationId !== undefined ?
+                                                    {state.editingApplication !== undefined ?
                                                         "Resources requested" :
                                                         "Request additional resources"
                                                     }
@@ -526,13 +562,18 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         </ResourceContainer>
 
                         <CommentApplicationWrapper>
-                            {state.applicationId === undefined ? null : (
+                            <RequestFormContainer>
+                                <Heading.h4>Application</Heading.h4>
+                                <TextArea rows={25} ref={state.documentRef}/>
+                            </RequestFormContainer>
+
+                            {state.editingApplication === undefined ? null : (
                                 <Box width={"100%"}>
                                     <Heading.h4>Comments</Heading.h4>
                                     {state.comments.length > 0 ? null : (
-                                        <>
+                                        <Box mt={16} mb={16}>
                                             No comments have been posted yet.
-                                        </>
+                                        </Box>
                                     )}
 
                                     {state.comments.map(it => (
@@ -545,17 +586,12 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                     ))}
 
                                     <PostCommentWidget
-                                        applicationId={state.applicationId}
+                                        applicationId={state.editingApplication.id!}
                                         avatar={state.avatars.cache[Client.username!] ?? defaultAvatar}
                                         reload={state.reload}
                                     />
                                 </Box>
                             )}
-
-                            <RequestFormContainer>
-                                <Heading.h4>Application</Heading.h4>
-                                <TextArea rows={25} ref={state.documentRef}/>
-                            </RequestFormContainer>
                         </CommentApplicationWrapper>
                         <Box p={32} pb={16}>
                             <Button fullWidth onClick={submitRequest}>
@@ -566,12 +602,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                             </Button>
                         </Box>
 
-                        {target === RequestTarget.VIEW_APPLICATION && state.approver ?
-                            <Grid gridTemplateColumns={"repeat(auto-fit, minmax(100px, auto))"} gridGap={16} pl={32} pr={32}>
-                                <Button color={"red"} fullWidth onClick={rejectRequest}>Reject</Button>
-                                <Button color={"green"} fullWidth onClick={approveRequest}>Approve</Button>
-                            </Grid> : null
-                        }
+
                     </Box>
                 </Flex>
             }
