@@ -32,8 +32,32 @@ function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
     return `${date.getDate()}/${date.getMonth() + 1} ` +
         `${date.getHours().toString().padStart(2, "0")}:` +
-        `${date.getMinutes().toString().padStart(2, "0")}:` +
-        `${date.getSeconds().toString().padStart(2, "0")}`;
+        `${date.getMinutes().toString().padStart(2, "0")}`
+}
+
+function dateFormatterDay(timestamp: number): string {
+    const date = new Date(timestamp);
+    return `${date.getDate()}/${date.getMonth() + 1} `
+}
+
+function dateFormatterMonth(timestamp: number): string {
+    const date = new Date(timestamp);
+    return `${date.getMonth() + 1}/${date.getFullYear()} `
+}
+
+function getDateFormatter(duration: Duration): (timestamp: number) => string {
+    switch (duration.text) {
+        case "Past 14 days":
+        case "Past 30 days":
+        case "Past 180 days":
+            return dateFormatterDay;
+        case "Past 365 days":
+            return dateFormatterMonth;
+        case "Past 7 days":
+        case "Today":
+        default:
+            return dateFormatter;
+    }
 }
 
 export function creditFormatter(credits: number, precision: number = 2): string {
@@ -125,7 +149,7 @@ export const durationOptions: Duration[] = [
         text: "Past 14 days",
         bucketSize: 1000 * 60 * 60 * 24,
         bucketSizeText: "every day",
-        timeInPast: 1000 * 60 * 60 * 24 * 7
+        timeInPast: 1000 * 60 * 60 * 24 * 14
     },
     {
         text: "Past 30 days",
@@ -156,7 +180,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
     const [includeInCharts, setIncludeInCharts] = useState<Dictionary<Dictionary<Dictionary<boolean>>>>({});
 
     const computeIncludeInCharts: Dictionary<Dictionary<boolean>> = includeInCharts[ProductArea.COMPUTE] ?? {};
-    const storageIncludeInCharts:  Dictionary<Dictionary<boolean>> = includeInCharts[ProductArea.STORAGE] ?? {};
+    const storageIncludeInCharts: Dictionary<Dictionary<boolean>> = includeInCharts[ProductArea.STORAGE] ?? {};
 
     const onIncludeInChart = (area: ProductArea) => (provider: string, lineName: string) => {
         const existingAtProvider: Dictionary<boolean> = (includeInCharts[area] ?? {})[provider] ?? {};
@@ -172,7 +196,70 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
         setIncludeInCharts(newState);
     };
 
-    const now = new Date().getTime();
+    function periodStartFunction(time: Date, duration: Duration): number {
+        switch (duration.text) {
+            case "Today":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate(),
+                    time.getHours() + 1,
+                    0,
+                    0
+                ).getTime();
+            case "Past week":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate(),
+                    time.getHours() + 1,
+                    0,
+                    0
+                ).getTime();
+            case "Past 14 days":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate() + 1,
+                    0,
+                    0,
+                    0
+                ).getTime();
+            case "Past 30 days":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate() + 1,
+                    0,
+                    0,
+                    0
+                ).getTime();
+            case "Past 180 days":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate() + 1,
+                    0,
+                    0,
+                    0
+                ).getTime();
+            case "Past 365 days":
+                return new Date(
+                    time.getFullYear(),
+                    time.getMonth(),
+                    time.getDate() + 1,
+                    0,
+                    0,
+                    0
+                ).getTime();
+            default:
+                return time.getTime();
+        }
+    }
+
+    const currentTime = new Date();
+    const now = periodStartFunction(currentTime, durationOption);
+
     const [balance, fetchBalance, balanceParams] = useCloudAPI<RetrieveBalanceResponse>(
         retrieveBalance({includeChildren: true}),
         {wallets: []}
@@ -212,7 +299,7 @@ const ProjectUsage: React.FunctionComponent<ProjectUsageOperations> = props => {
                 <Flex>
                     <ProjectBreadcrumbs crumbs={[{title: "Usage"}]}/>
                     <ClickableDropdown
-                        trigger={<Heading.h4>{durationOption.text} <Icon name={"chevronDown"} size={16} /></Heading.h4>}
+                        trigger={<Heading.h4>{durationOption.text} <Icon name={"chevronDown"} size={16}/></Heading.h4>}
                         onChange={opt => setDurationOption(durationOptions[parseInt(opt)])}
                         options={durationOptions.map((it, idx) => {
                             return {text: it.text, value: `${idx}`};
@@ -313,9 +400,11 @@ const VisualizationForArea: React.FunctionComponent<{
                                             }}
                                         >
                                             <CartesianGrid strokeDasharray="3 3"/>
-                                            <XAxis dataKey="time" tickFormatter={dateFormatter}/>
+                                            <XAxis dataKey="time" tickFormatter={getDateFormatter(durationOption)}/>
                                             <YAxis width={150} tickFormatter={creditFormatter}/>
-                                            <Tooltip labelFormatter={dateFormatter} formatter={n => creditFormatter(n as number, 2)}/>
+                                            <Tooltip labelFormatter={ getDateFormatter(durationOption)}
+                                                     formatter={n => creditFormatter(n as number, 2)}
+                                            />
                                             {chart.lineNames.map((id, idx) => {
                                                 if ((includeInCharts[chart.provider] ?? {})[id] ?? true) {
                                                     return <Bar
