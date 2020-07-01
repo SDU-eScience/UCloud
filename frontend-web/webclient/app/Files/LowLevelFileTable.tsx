@@ -815,7 +815,7 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
                                             </ClickableDropdown>
                                         )
                                     }
-                                    <SensitivityIcon sensitivity={f.sensitivityLevel} />
+                                    <SensitivityIcon isRepo={f.isRepo} sensitivity={f.sensitivityLevel} />
                                     {checkedFiles.size !== 0 ? <Box width="33px" /> :
                                         <FileOperations
                                             inDropdown={fileOperations.length > 1}
@@ -1053,7 +1053,8 @@ function RepositoryOperations(props: {
     return <Button width="100%" onClick={() => props.createFolder(true)}>New Folder</Button>;
 }
 
-const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null}): JSX.Element => {
+const SensitivityIcon = (props: {sensitivity: SensitivityLevelMap | null, isRepo?: boolean}): JSX.Element | null => {
+    if (props.isRepo) return null;
     interface IconDef {
         color: string;
         text: string;
