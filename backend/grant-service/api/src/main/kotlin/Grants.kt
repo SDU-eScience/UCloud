@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
@@ -149,6 +150,12 @@ data class Application(
 
 data class ViewApplicationRequest(val id: Long)
 typealias ViewApplicationResponse = ApplicationWithComments
+
+data class SetEnabledStatusRequest(val projectId: String, val enabledStatus: Boolean)
+typealias SetEnabledStatusResponse = Unit
+
+data class IsEnabledRequest(val projectId: String)
+data class IsEnabledResponse(val enabled: Boolean)
 
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
@@ -364,6 +371,44 @@ object Grants : CallDescriptionContainer("grant") {
             path {
                 using(baseContext)
                 +boundTo(ViewApplicationRequest::id)
+            }
+        }
+    }
+
+    val setEnabledStatus =
+        call<SetEnabledStatusRequest, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
+            auth {
+                access = AccessRight.READ_WRITE
+                roles = Roles.PRIVILEGED
+            }
+
+            http {
+                method = HttpMethod.Post
+
+                path {
+                    using(baseContext)
+                    +"set-enabled"
+                }
+
+                body { bindEntireRequestFromBody() }
+            }
+        }
+
+    val isEnabled = call<IsEnabledRequest, IsEnabledResponse, CommonErrorMessage>("isEnabled") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"is-enabled"
+            }
+
+            params {
+                +boundTo(IsEnabledRequest::projectId)
             }
         }
     }

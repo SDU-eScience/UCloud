@@ -1,6 +1,7 @@
 package dk.sdu.cloud.grant.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.AutomaticApprovalSettings
 import dk.sdu.cloud.grant.api.ProjectApplicationSettings
@@ -30,6 +31,11 @@ object AutomaticApprovalLimitsTable : SQLTable("automatic_approval_limits") {
     val maximumQuota = long("maximum_quota_bytes", notNull = false)
 }
 
+object EnabledTable : SQLTable("enabled") {
+    val projectId = text("project_id", notNull = true)
+    val enabled = bool("enabled", notNull = true)
+}
+
 class SettingsService(
     private val projects: ProjectCache
 ) {
@@ -42,6 +48,10 @@ class SettingsService(
         if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
         ctx.withSession { session ->
+            if (!isEnabled(session, projectId)) {
+                throw RPCException("This project is not allowed to update these settings", HttpStatusCode.Forbidden)
+            }
+
             session
                 .sendPreparedStatement(
                     { setParameter("projectId", projectId) },
@@ -71,6 +81,10 @@ class SettingsService(
         if (!projects.isAdminOfProject(projectId, actor)) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
         ctx.withSession { session ->
+            if (!isEnabled(session, projectId)) {
+                throw RPCException("This project is not allowed to update these settings", HttpStatusCode.Forbidden)
+            }
+
             session
                 .sendPreparedStatement(
                     { setParameter("projectId", projectId) },
@@ -151,6 +165,60 @@ class SettingsService(
                 .rows.map { it.toUserCriteria() }
 
             ProjectApplicationSettings(AutomaticApprovalSettings(automaticApprovalUsers, limits), allowFrom)
+        }
+    }
+
+    suspend fun setEnabledStatus(
+        ctx: DBContext,
+        actor: Actor,
+        projectId: String,
+        enabledStatus: Boolean
+    ) {
+        when (actor) {
+            Actor.System -> {
+                // Allow
+            }
+            is Actor.SystemOnBehalfOfUser -> {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            }
+            is Actor.User -> {
+                if (actor.principal.role !in Roles.PRIVILEGED) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                }
+            }
+        }
+
+        ctx.withSession { session ->
+            if (enabledStatus) {
+                session
+                    .sendPreparedStatement(
+                        { setParameter("projectId", projectId) },
+                            """
+                            insert into is_enabled (project_id) values (:projectId) 
+                            on conflict (project_id) do nothing
+                        """
+                    )
+            } else {
+                session
+                    .sendPreparedStatement(
+                        { setParameter("projectId", projectId) },
+                        "delete from is_enabled where project_id = :projectId"
+                    )
+            }
+        }
+    }
+
+    suspend fun isEnabled(
+        ctx: DBContext,
+        projectId: String
+    ): Boolean {
+        return ctx.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    { setParameter("projectId", projectId) },
+                    "select * from is_enabled where project_id = :projectId"
+                )
+                .rows.size > 0
         }
     }
 
