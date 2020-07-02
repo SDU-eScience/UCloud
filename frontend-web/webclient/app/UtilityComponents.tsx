@@ -151,6 +151,7 @@ export function shareDialog(paths: string[], client: HttpClient): void {
 interface ConfirmCancelButtonsProps {
     confirmText?: string;
     cancelText?: string;
+    height?: number | string;
     onConfirm(e: React.SyntheticEvent<HTMLButtonElement>): void;
     onCancel(e: React.SyntheticEvent<HTMLButtonElement>): void;
 }
@@ -159,13 +160,14 @@ export const ConfirmCancelButtons = ({
     confirmText = "Confirm",
     cancelText = "Cancel",
     onConfirm,
-    onCancel
+    onCancel,
+    height
 }: ConfirmCancelButtonsProps): JSX.Element => (
-        <ButtonGroup width="150px">
-            <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
-            <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
-        </ButtonGroup>
-    );
+    <ButtonGroup width="150px" height={height}>
+        <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
+        <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
+    </ButtonGroup>
+);
 
 const SharePromptWrapper = styled(Box)`
     overflow-y: auto;

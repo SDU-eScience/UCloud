@@ -107,6 +107,10 @@ class GrantController(
             ok(templates.fetchTemplates(db, ctx.securityPrincipal.toActor(), request.projectId))
         }
 
+        implement(Grants.readRequestSettings) {
+            ok(settings.fetchSettings(db, ctx.securityPrincipal.toActor(), request.projectId))
+        }
+
         implement(Grants.ingoingApplications) {
             ok(applications.listIngoingApplications(
                 db,

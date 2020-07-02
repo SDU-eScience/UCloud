@@ -43,7 +43,7 @@ class ApplicationService(
         if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         return ctx.withSession { session ->
-            val settings = settings.fetchSettings(session, application.resourcesOwnedBy)
+            val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
             if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
                 throw RPCException(
                     "You are not allowed to submit applications to this project",

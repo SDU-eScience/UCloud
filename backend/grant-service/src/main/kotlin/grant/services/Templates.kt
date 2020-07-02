@@ -71,7 +71,7 @@ class TemplateService(
         return ctx.withSession { session ->
             if (!isProjectAdmin && !isAdminOfChildProject) {
                 if (actor is Actor.User) {
-                    val settings = settings.fetchSettings(session, projectId)
+                    val settings = settings.fetchSettings(session, Actor.System, projectId)
                     if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
                         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
                     }

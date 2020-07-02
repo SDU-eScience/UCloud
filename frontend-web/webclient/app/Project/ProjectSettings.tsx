@@ -17,9 +17,10 @@ import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
+import {GrantProjectSettings} from "Project/Grant/Settings";
 
 const ActionContainer = styled.div`
-    & > ${Flex} {
+    & > * {
         margin-bottom: 16px;
     }
 `;
@@ -64,6 +65,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         projectId={projectId}
                         projectRole={projectRole}
                     />
+                    <GrantProjectSettings/>
                 </ActionContainer>
             }
             sidebar={null}
