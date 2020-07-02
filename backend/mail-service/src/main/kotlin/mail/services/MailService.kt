@@ -11,10 +11,13 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.HttpStatusCode
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
-import javax.mail.*
+import javax.mail.Message
+import javax.mail.Session
+import javax.mail.Transport
 import javax.mail.internet.InternetAddress
 import javax.mail.internet.MimeBodyPart
 import javax.mail.internet.MimeMessage
@@ -151,7 +154,7 @@ class MailService(
             })
 
             message.setContent(multipart)
-            if(devMode) {
+            if (devMode) {
                 fakeSend(message)
             } else {
                 Transport.send(message)
@@ -163,10 +166,30 @@ class MailService(
 
     private fun fakeSend(message: MimeMessage) {
         val file = createTempFile(suffix = ".html")
-        val out = FileOutputStream(file)
-        message.writeTo(out)
+        val fileOut = FileOutputStream(file).bufferedWriter()
+        val tmpOut = ByteArrayOutputStream()
+        message.writeTo(tmpOut)
+        val messageAsString = tmpOut.toByteArray().toString(Charsets.UTF_8)
+        val lines = messageAsString.lines()
+        val boundaryLine = lines.find { it.trim().startsWith("boundary=") }!!.trim()
+        val boundary = "--" + boundaryLine.substring(
+            boundaryLine.indexOfFirst { it == '"' } + 1,
+            boundaryLine.indexOfLast { it == '"' }
+        )
+        val parts = messageAsString.split(boundary)
+        parts.forEach { part ->
+            if (part.contains("text/html")) {
+                fileOut.append(part)
+            } else {
+                fileOut.appendln("<!--")
+                fileOut.append(part)
+                fileOut.appendln("--!>")
+            }
+        }
+
         log.info("email written to ${file.absolutePath}")
-        out.close()
+        tmpOut.close()
+        fileOut.close()
     }
 
     companion object : Loggable {
