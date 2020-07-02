@@ -228,3 +228,46 @@ export function ingoingGrantApplications(
         reloadId: Math.random()
     };
 }
+
+export interface ReadGrantRequestSettingsRequest {
+    projectId: string;
+}
+
+export type ReadGrantRequestSettingsResponse = ProjectGrantSettings;
+
+export type UserCriteria = UserCriteriaAnyone | UserCriteriaEmail | UserCriteriaWayf;
+
+export interface UserCriteriaAnyone {
+    type: "anyone"
+}
+
+export interface UserCriteriaEmail {
+    type: "email";
+    domain: string;
+}
+
+export interface UserCriteriaWayf {
+    type: "wayf";
+    org: string;
+}
+
+export interface AutomaticApprovalSettings {
+    from: UserCriteria[];
+    maxResources: ResourceRequest[];
+}
+
+export interface ProjectGrantSettings {
+    automaticApproval: AutomaticApprovalSettings;
+    allowRequestsFrom: UserCriteria[];
+}
+
+export function readGrantRequestSettings(
+    request: ReadGrantRequestSettingsRequest
+): APICallParameters<ReadGrantRequestSettingsRequest> {
+    return {
+        method: "GET",
+        path: "",
+        parameters: request,
+        reloadId: Math.random()
+    };
+}

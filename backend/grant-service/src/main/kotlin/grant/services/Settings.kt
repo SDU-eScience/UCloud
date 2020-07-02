@@ -130,8 +130,15 @@ class SettingsService(
 
     suspend fun fetchSettings(
         ctx: DBContext,
+        actor: Actor,
         projectId: String
     ): ProjectApplicationSettings {
+        if (actor != Actor.System && !(actor is Actor.User && actor.principal.role in Roles.PRIVILEGED)) {
+            if (!projects.isAdminOfProject(projectId, actor)) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+        }
+
         return ctx.withSession { session ->
             val allowFrom = session
                 .sendPreparedStatement(
