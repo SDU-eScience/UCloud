@@ -12,7 +12,7 @@ import {Acl, File, ProjectEntity} from "Files";
 import {ListRow} from "ui-components/List";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {Spacer} from "ui-components/Spacer";
-import {groupSummaryRequest, ProjectRole} from "Project";
+import {groupSummaryRequest, ProjectRole, ProjectName} from "Project";
 import {pathComponents} from "Utilities/FileUtilities";
 import styled from "styled-components";
 import {useHistory} from "react-router";
@@ -20,6 +20,7 @@ import {useCallback} from "react";
 import {GroupWithSummary} from "Project/GroupList";
 import {emptyPage} from "DefaultObjects";
 import * as Pagination from "Pagination";
+import {ProjectStatus} from "Project/cache";
 
 export function repositoryName(path: string): string {
     const components = pathComponents(path);
@@ -105,7 +106,7 @@ const InnerProjectPermissionBox = styled.div`
     overflow-y: auto;
 `;
 
-export function UpdatePermissionsDialog(props: { client: HttpClient; repository: string; rights: Acl[]; reload: () => void }): JSX.Element {
+export function UpdatePermissionsDialog(props: {client: HttpClient; repository: string; rights: Acl[]; reload: () => void}): JSX.Element {
     const [groups, fetchGroups, groupParams] = useCloudAPI<Page<GroupWithSummary>>(
         groupSummaryRequest({itemsPerPage: 25, page: 0}),
         emptyPage
@@ -120,7 +121,7 @@ export function UpdatePermissionsDialog(props: { client: HttpClient; repository:
     }, [history]);
     return (
         <Box width="auto" minWidth="300px">
-            {groups.loading ? <LoadingSpinner size={24}/> : null}
+            {groups.loading ? <LoadingSpinner size={24} /> : null}
             <InnerProjectPermissionBox>
                 <List height={"100%"}>
                     <Pagination.List
@@ -129,7 +130,7 @@ export function UpdatePermissionsDialog(props: { client: HttpClient; repository:
                         onPageChanged={(page) => fetchGroups(groupSummaryRequest({...groupParams.parameters, page}))}
                         customEmptyPage={(
                             <Flex width={"100%"} height={"100%"} alignItems={"center"} justifyContent={"center"}
-                                  flexDirection={"column"}>
+                                flexDirection={"column"}>
                                 <Box>
                                     No groups exist for this project.
                                 </Box>
@@ -215,4 +216,14 @@ export function isAdminOrPI(role: ProjectRole): boolean {
     return [ProjectRole.ADMIN, ProjectRole.PI].includes(role);
 }
 
-
+/**
+ * Extracts title and projectId from project status.
+ * Intended usage:
+ *  ```
+ *  const project = useProjectStatus();
+ *  const projectNames = getProjectNames(project);
+ *  ```
+ */
+export function getProjectNames(project: ProjectStatus): ProjectName[] {
+    return project.fetch().membership.map(it => ({title: it.title, projectId: it.projectId}));
+}

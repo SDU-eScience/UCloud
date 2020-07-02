@@ -154,8 +154,11 @@ export function groupSummaryRequest(payload: PaginationRequest): APICallParamete
     };
 }
 
-export interface UserStatusRequest {
+export type UserStatusRequest = {};
 
+export interface ProjectName {
+    title: string;
+    projectId: string;
 }
 
 export interface UserStatusResponse {
@@ -286,7 +289,7 @@ export const changeRoleInProject = (
     reloadId: Math.random()
 });
 
-export interface ListProjectsRequest extends PaginationRequest{
+export interface ListProjectsRequest extends PaginationRequest {
     archived?: boolean;
     noFavorites?: boolean;
 }
@@ -335,7 +338,7 @@ export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined
 };
 
 
-export interface ToggleProjectFavorite{
+export interface ToggleProjectFavorite {
     project: string;
 }
 

@@ -4,7 +4,7 @@ import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
-import {Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Text, TextArea, theme} from "ui-components";
+import {Box, Button, ButtonGroup, Flex, Icon, Input, Label, Text, TextArea, theme} from "ui-components";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
     ProductArea,
@@ -47,7 +47,6 @@ import {Toggle} from "ui-components/Toggle";
 import {doNothing} from "UtilityFunctions";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
-import {dialogStore} from "Dialog/DialogStore";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {

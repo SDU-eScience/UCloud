@@ -45,6 +45,8 @@ import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
 import {retrieveBalance, RetrieveBalanceResponse, Wallet, WalletBalance} from "Accounting";
 import {creditFormatter} from "Project/ProjectUsage";
+import {getProjectNames} from "Utilities/ProjectUtilities";
+import {useProjectStatus} from "Project/cache";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: string;
@@ -231,12 +233,13 @@ const NoEntries = (props: NoEntriesProps): JSX.Element => (
 
 const ListFileContent = ({file, pixelsWide}: {file: File; pixelsWide: number}): JSX.Element => {
     const iconType = UF.iconFromFilePath(file.path, file.fileType);
+    const projects = getProjectNames(useProjectStatus());
     return (
         <Flex alignItems="center">
             <FileIcon fileIcon={iconType} />
             <Link ml="0.5em" to={fileTablePage(isDirectory(file) ? file.path : getParentPath(file.path))}>
                 <EllipsedText fontSize={2} width={pixelsWide}>
-                    {getFilenameFromPath(replaceHomeOrProjectFolder(file.path, Client))}
+                    {getFilenameFromPath(file.path, projects)}
                 </EllipsedText>
             </Link>
         </Flex>

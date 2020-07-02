@@ -115,6 +115,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                 <ArchiveProject
                     onSuccess={() => dialogStore.success()}
                     isArchived={project.archived}
+                    title={project.title}
                     projectId={project.projectId}
                     projectRole={project.whoami.role}
                 />,
@@ -130,6 +131,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     onSuccess={() => dialogStore.success()}
                     isArchived={project.archived}
                     projectId={project.projectId}
+                    title={project.title}
                     projectRole={project.whoami.role}
                 />,
                 () => undefined

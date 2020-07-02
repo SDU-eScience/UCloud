@@ -22,7 +22,7 @@ import {
     isAnyMockFile,
     isArchiveExtension,
     isTrashFolder,
-    moveToTrash, resolvePath,
+    moveToTrash,
     shareFiles,
     updateSensitivity
 } from "Utilities/FileUtilities";
@@ -31,6 +31,7 @@ import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {promptDeleteRepository, repositoryName, updatePermissionsPrompt} from "Utilities/ProjectUtilities";
 import {FilePermissions} from "Files/permissions";
+import {ProjectName} from "Project";
 
 export interface FileOperationCallback {
     permissions: FilePermissions;
@@ -40,6 +41,7 @@ export interface FileOperationCallback {
     requestFileUpload: () => void;
     startRenaming: (file: File) => void;
     createNewUpload: (newUpload: Upload) => void;
+    projects: ProjectName[],
     requestFileSelector: (allowFolders: boolean, canOnlySelectFolders: boolean) => Promise<string | null>;
     history: H.History;
 }
@@ -92,7 +94,7 @@ export const defaultFileOperations: FileOperation[] = [
         disabled: (files, cb) => {
             if (files.length !== 1) return true;
             else if (isAnyMockFile(files)) return true;
-            else if (isAnyFixedFolder(files, Client)) return true;
+            else if (isAnyFixedFolder(files)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "rename"
@@ -140,7 +142,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files) => shareFiles({files, client: Client}),
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
-            else if (isAnyFixedFolder(files, Client)) return true;
+            else if (isAnyFixedFolder(files)) return true;
             else return !files.every(it => it.ownerName === Client.username);
         },
         icon: "share"
@@ -151,7 +153,7 @@ export const defaultFileOperations: FileOperation[] = [
             updateSensitivity({files, client: Client, onSensitivityChange: () => cb.requestReload()}),
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
-            else if (isAnyFixedFolder(files, Client)) return true;
+            else if (isAnyFixedFolder(files)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "sensitivity"
@@ -163,7 +165,7 @@ export const defaultFileOperations: FileOperation[] = [
             if (target === null) return;
             cb.invokeAsyncWork(async () => {
                 try {
-                    await copyOrMoveFilesNew(CopyOrMove.Copy, files, target);
+                    await copyOrMoveFilesNew(CopyOrMove.Copy, files, target, cb.projects);
                     cb.requestReload();
                 } catch (e) {
                     console.warn(e);
@@ -171,7 +173,7 @@ export const defaultFileOperations: FileOperation[] = [
             });
         },
         disabled: (files, cb) => {
-            if (isAnyFixedFolder(files, Client)) return true;
+            if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
@@ -184,7 +186,7 @@ export const defaultFileOperations: FileOperation[] = [
             if (target === null) return;
             cb.invokeAsyncWork(async () => {
                 try {
-                    await copyOrMoveFilesNew(CopyOrMove.Move, files, target);
+                    await copyOrMoveFilesNew(CopyOrMove.Move, files, target, cb.projects);
                     cb.requestReload();
                 } catch (e) {
                     console.warn(e);
@@ -193,7 +195,7 @@ export const defaultFileOperations: FileOperation[] = [
         },
         disabled: (files, cb) => {
             if (isAnyMockFile(files)) return true;
-            else if (isAnyFixedFolder(files, Client))  return true;
+            else if (isAnyFixedFolder(files)) return true;
             else return !cb.permissions.requireForAll(files, AccessRight.WRITE);
         },
         icon: "move",
@@ -235,11 +237,11 @@ export const defaultFileOperations: FileOperation[] = [
     {
         text: "Move to Trash",
         onClick: (files, cb) => {
-            moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload()});
+            moveToTrash({files, client: Client, setLoading: () => 42, callback: () => cb.requestReload(), projects: cb.projects});
         },
         disabled: (files, cb) => {
             if (!cb.permissions.requireForAll(files, AccessRight.WRITE)) return true;
-            else if (isAnyFixedFolder(files, Client)) return true;
+            else if (isAnyFixedFolder(files)) return true;
             else if (isAnyMockFile(files)) return true;
             else return files.every(({path}) => isTrashFolder(path) || isTrashFolder(getParentPath(path)));
         },
@@ -251,7 +253,7 @@ export const defaultFileOperations: FileOperation[] = [
         onClick: (files, cb) => {
             const paths = files.map(f => f.path);
             const message = paths.length > 1 ? `Delete ${paths.length} files?` :
-                `Delete file ${getFilenameFromPath(paths[0])}`;
+                `Delete file ${getFilenameFromPath(paths[0], cb.projects)}`;
 
             addStandardDialog({
                 title: "Delete files",

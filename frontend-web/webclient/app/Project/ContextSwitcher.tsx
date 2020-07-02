@@ -27,6 +27,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
         listProjects({page: 0, itemsPerPage: 10, archived: false}),
         emptyPage
     );
+
     let activeContext = "Personal Project";
     if (props.activeProject) {
         const membership = projectStatus.fetch().membership.find(it => it.projectId === props.activeProject);
