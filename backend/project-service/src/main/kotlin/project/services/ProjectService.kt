@@ -13,10 +13,14 @@ import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
 import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.events.EventProducer
+import dk.sdu.cloud.mail.api.MailDescriptions
+import dk.sdu.cloud.mail.api.SendBulkRequest
+import dk.sdu.cloud.mail.api.SendRequest
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.project.utils.userRoleChangeTemplate
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.stackTraceToString
@@ -63,7 +67,7 @@ class ProjectService(
         createdBy: SecurityPrincipal,
         title: String,
         parent: String?
-    ) {
+    ): String {
         if (parent == null && createdBy.role !in Roles.PRIVILEGED) throw ProjectException.Forbidden()
         if (parent != null) {
             // TODO Introduce setting for normal user project creation
@@ -100,6 +104,7 @@ class ProjectService(
         }
 
         eventProducer.produce(ProjectEvent.Created(id))
+        return id
     }
 
     suspend fun findRoleOfMember(ctx: DBContext, projectId: String, member: String): ProjectRole? {
@@ -228,6 +233,8 @@ class ProjectService(
                 set(ProjectMemberTable.createdAt, LocalDateTime.now())
                 set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
             }
+
+
         }
     }
 
@@ -381,6 +388,33 @@ class ProjectService(
                     ProjectMember(memberToUpdate, newRole)
                 )
             )
+
+            val (pi, admins) = getPIAndAdminsOfProject(ctx, projectId)
+            val projectTitle = getProjectTitle(ctx, projectId)
+            val requests = mutableListOf<SendRequest>()
+            //send to PI
+            requests.add(
+                SendRequest(
+                    pi,
+                    USER_ROLE_CHANGE,
+                    userRoleChangeTemplate(pi, memberToUpdate, newRole, projectTitle)
+                )
+            )
+            //send to admins
+            admins.forEach { admin ->
+                requests.add(
+                    SendRequest(
+                        admin,
+                        USER_ROLE_CHANGE,
+                        userRoleChangeTemplate(admin, memberToUpdate, newRole, projectTitle)
+                    )
+                )
+            }
+
+            MailDescriptions.sendBulk.call(
+                SendBulkRequest(requests.toList()),
+                serviceClient
+            )
         }
     }
 
@@ -411,6 +445,76 @@ class ProjectService(
                 set(ProjectMembershipVerified.verification, LocalDateTime.now())
                 set(ProjectMembershipVerified.verifiedBy, verifiedBy)
             }
+        }
+    }
+
+    suspend fun getPIOfProject(db: DBContext, projectId: String): String {
+        return db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                        setParameter("role", ProjectRole.PI.name)
+                    },
+                    """
+                        SELECT * FROM project_members
+                        WHERE project_id = :projectId AND role = :role
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?.getField(ProjectMemberTable.username)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "PI is not found")
+        }
+    }
+
+    //Returns a Pair<PI, listOf<Admins>>
+    suspend fun getPIAndAdminsOfProject(db: DBContext, projectId: String): Pair<String,List<String>> {
+        return db.withSession { session ->
+           val adminsAndPIs = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                        setParameter("piRole", ProjectRole.PI.name)
+                        setParameter("adminRole", ProjectRole.ADMIN.name)
+                    },
+                    """
+                        SELECT * FROM project_members
+                        WHERE project_id = :projectId AND (role = :piRole OR role = :adminRole)
+                    """
+                )
+                .rows
+            var pi = ""
+            val admins = mutableListOf<String>()
+            adminsAndPIs.forEach { rowData ->
+                if (rowData.getField(ProjectMemberTable.role) == ProjectRole.ADMIN.name) {
+                    admins.add(rowData.getField(ProjectMemberTable.username))
+                } else if (rowData.getField(ProjectMemberTable.role) == ProjectRole.PI.name) {
+                    pi = rowData.getField(ProjectMemberTable.username)
+                }
+            }
+            if (pi.isNullOrEmpty()) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "no PI found")
+            }
+            Pair(pi, admins)
+        }
+    }
+
+    suspend fun getProjectTitle(db: DBContext, projectId: String): String {
+        return db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("projectID", projectId)
+                    },
+                    """
+                        SELECT * FROM projects
+                        WHERE id = :projectID
+                    """
+                )
+                .rows
+                .singleOrNull()?.getField(ProjectTable.title)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Project not found")
         }
     }
 
@@ -456,5 +560,6 @@ class ProjectService(
 
     companion object : Loggable {
         override val log = logger()
+        const val USER_ROLE_CHANGE = "Role change in project"
     }
 }
