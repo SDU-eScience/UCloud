@@ -45,15 +45,19 @@ import {GridCardGroup} from "ui-components/Grid";
 import {Spacer} from "ui-components/Spacer";
 import {retrieveBalance, RetrieveBalanceResponse, Wallet, WalletBalance} from "Accounting";
 import {creditFormatter} from "Project/ProjectUsage";
+import {dateToString} from "Utilities/DateUtilities";
 
 export const DashboardCard: React.FunctionComponent<{
     title?: string;
-    subtitle?: string;
+    subtitle?: React.ReactNode;
     color: string;
     isLoading: boolean;
-    icon?: IconName
-}> = ({title, subtitle, color, isLoading, icon = undefined, children}) => (
-    <Card overflow="hidden" height="auto" width={1} boxShadow="sm" borderWidth={0} borderRadius={6}>
+    icon?: IconName,
+    height?: string,
+    minHeight?: string
+}> = ({title, subtitle, color, isLoading, icon = undefined, children, height = "auto", minHeight}) => (
+    <Card overflow="hidden" height={height} width={1} boxShadow="sm" borderWidth={0} borderRadius={6}
+          minHeight={minHeight}>
         <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid ${color}`}} >
             {icon !== undefined ? (
                 <Icon
@@ -144,42 +148,41 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     } = props;
 
     const main = (
-        <DashboardGrid minmax={315}>
+        <Flex alignItems={"flex-start"}>
             <DashboardMessageOfTheDay news={news.data.items} loading={news.loading} />
-            <DashboardFavoriteFiles
-                error={favoritePage.error?.why}
-                files={favoritePage.data.items}
-                isLoading={favoritePage.loading}
-                favorite={favoriteOrUnfavorite}
-            />
+            <DashboardGrid minmax={315} gridGap={16}>
+                <DashboardFavoriteFiles
+                    error={favoritePage.error?.why}
+                    files={favoritePage.data.items}
+                    isLoading={favoritePage.loading}
+                    favorite={favoriteOrUnfavorite}
+                />
 
-            <DashboardAnalyses
-                error={recentJobsError}
-                analyses={recentAnalyses}
-                isLoading={analysesLoading}
-            />
+                <DashboardAnalyses
+                    error={recentJobsError}
+                    analyses={recentAnalyses}
+                    isLoading={analysesLoading}
+                />
 
-            <DashboardNotifications
-                onNotificationAction={onNotificationAction}
-                notifications={notifications}
-                readAll={props.readAll}
-            />
+                <DashboardNotifications
+                    onNotificationAction={onNotificationAction}
+                    notifications={notifications}
+                    readAll={props.readAll}
+                />
 
-            <DashboardResources
-                wallets={wallets.data.wallets}
-                loading={wallets.loading}
-            />
-        </DashboardGrid>
+                <DashboardResources
+                    wallets={wallets.data.wallets}
+                    loading={wallets.loading}
+                />
+            </DashboardGrid>
+        </Flex>
     );
 
     return (<MainContainer main={main} />);
 }
 
 const DashboardGrid = styled(GridCardGroup)`
-    & > ${Card}:first-child {
-        grid-column: 1 / 3;
-        grid-row: 1 / 3;
-    }
+    margin-left: 16px;
 `;
 
 
@@ -189,7 +192,7 @@ const DashboardFavoriteFiles = ({
     favorite,
     error
 }: {files: File[]; isLoading: boolean; favorite: (file: File) => void; error?: string}): JSX.Element => (
-        <DashboardCard title="Favorite Files" color="blue" isLoading={isLoading}>
+        <DashboardCard title="Favorite Files" color="blue" isLoading={isLoading} icon={"starFilled"}>
             {files.length || error ? null : (
                 <NoEntries
                     text="Your favorite files will appear here"
@@ -248,7 +251,7 @@ const DashboardAnalyses = ({
     isLoading,
     error,
 }: {analyses: JobWithStatus[]; isLoading: boolean; error?: string}): JSX.Element => (
-        <DashboardCard title="Recent Runs" color="purple" isLoading={isLoading}>
+        <DashboardCard title="Recent Runs" color="purple" isLoading={isLoading} icon={"apps"}>
             {analyses.length || error ? null : (
                 <NoEntries
                     text="No recent runs"
@@ -289,10 +292,12 @@ interface DashboardNotificationProps {
 }
 
 const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element => (
-    <Card height="auto" width={1} overflow="hidden" boxShadow="sm" borderWidth={0} borderRadius={6}>
-        <Flex px={3} py={2} style={{borderTop: `5px solid ${getCssVar("darkGreen")}`}}>
-            <Heading.h3>Recent Notifications</Heading.h3>
-            <Box ml="auto" />
+    <DashboardCard
+        color={"darkGreen"}
+        isLoading={false}
+        icon={"notification"}
+        title={"Recent Notifications"}
+        subtitle={
             <Icon
                 name="checkDouble"
                 cursor="pointer"
@@ -301,16 +306,17 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
                 title="Mark all as read"
                 onClick={props.readAll}
             />
-        </Flex>
-        {props.notifications.length === 0 ? <Heading.h6 pl="16px" pt="10px">No notifications</Heading.h6> : null}
-        <List>
-            {props.notifications.slice(0, 7).map((n, i) => (
-                <Flex key={i}>
-                    <NotificationEntry notification={n} onAction={props.onNotificationAction} />
-                </Flex>
-            ))}
-        </List>
-    </Card>
+        }
+    >
+    {props.notifications.length === 0 ? <Heading.h6>No notifications</Heading.h6> : null}
+    <List>
+        {props.notifications.slice(0, 7).map((n, i) => (
+            <Flex key={i}>
+                <NotificationEntry notification={n} onAction={props.onNotificationAction} />
+            </Flex>
+        ))}
+    </List>
+    </DashboardCard>
 );
 
 export interface NewsPost {
@@ -341,12 +347,12 @@ export function newsRequest(payload: NewsRequestProps): APICallParameters<Pagina
 function DashboardResources({wallets, loading}: {wallets: WalletBalance[]; loading: boolean}): JSX.Element | null {
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
     return (
-        <DashboardCard title="Resources" color="red" isLoading={loading}>
+        <DashboardCard title="Resources" color="red" isLoading={loading} icon={"grant"}>
             <Box mx="8px" my="5px">
                 {wallets.length === 0 ? <Heading.h3> No wallets found</Heading.h3> :
                     wallets.slice(0,7).map((n, i) => (
                         <List key={i}>
-                            <Heading.h3> {n.wallet.paysFor.provider}-{n.wallet.paysFor.id}</Heading.h3>
+                            <Heading.h3>{n.wallet.paysFor.provider} / {n.wallet.paysFor.id}</Heading.h3>
                             <Heading.h3 style={{textAlign: "right"}}> {creditFormatter(n.balance)} </Heading.h3>
                         </List>
                         )
@@ -360,23 +366,40 @@ function DashboardResources({wallets, loading}: {wallets: WalletBalance[]; loadi
 function DashboardMessageOfTheDay({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
     const [newestPost] = news;
     return (
-        <DashboardCard title="Message of the Day" color="orange" isLoading={loading}>
+        <DashboardCard
+            title="News"
+            color="orange"
+            isLoading={loading}
+            minHeight={"calc(100vh - 100px)"}
+            icon={"favIcon"}
+        >
+            <Box>
+                {news.slice(0, 3).map(post => (
+                    <Box key={post.id} mb={32}>
+                        <Link to={`/news/detailed/${newestPost.id}`}>
+                            <Heading.h3>{newestPost.title} </Heading.h3>
+                        </Link>
+
+                        <Spacer
+                            left={<Heading.h5>{newestPost.subtitle}</Heading.h5>}
+                            right={<Heading.h5>{dateToString(post.showFrom)}</Heading.h5>}
+                        />
+
+                        <Box overflow="scroll" maxHeight={200}>
+                            <Markdown
+                                source={newestPost.body}
+                                unwrapDisallowed
+                            />
+                        </Box>
+                    </Box>
+                ))}
+                {news.length === 0 ? "No posts found" : null}
+            </Box>
+
             <Spacer
                 left={null}
                 right={<Link to="/news/list/">View more</Link>}
             />
-            <Box mx="8px" my="5px">
-                {newestPost ? <Link to={`/news/detailed/${newestPost.id}`}>
-                    <Heading.h3>{newestPost.title}</Heading.h3>
-                    <Heading.h5>{newestPost.subtitle}</Heading.h5>
-                    <Box overflow="scroll">
-                        <Markdown
-                            source={newestPost.body}
-                            unwrapDisallowed
-                        />
-                    </Box>
-                </Link> : "No posts found"}
-            </Box>
         </DashboardCard>
     );
 }
