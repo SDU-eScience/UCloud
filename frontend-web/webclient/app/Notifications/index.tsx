@@ -213,6 +213,12 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
                 return {name: "share", color: "black", color2: "black"};
             case "PROJECT_INVITE":
                 return {name: "projects", color: "black", color2: "black"};
+            case "PROJECT_ROLE_CHANGE":
+                return {name: "projects", color: "black", color2: "black"};
+            case "PROJECT_USER_LEFT":
+                return {name: "projects", color: "black", color2: "black"};
+            case "PROJECT_USER_REMOVED":
+                return {name: "projects", color: "black", color2: "black"};
             case "APP_COMPLETE":
             default:
                 return {name: "info", color: "white", color2: "black"};
