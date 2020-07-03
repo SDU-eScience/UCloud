@@ -19,10 +19,6 @@ import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
 import {useCloudAPI} from "Authentication/DataHook";
 import {ProjectName} from "Project";
 
-jest.mock("Utilities/ProjectUtilities", () => ({
-    getProjectNames: () => []
-}));
-
 interface StandardDialog {
     title?: string;
     message: string | JSX.Element;
