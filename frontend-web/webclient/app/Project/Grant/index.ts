@@ -266,7 +266,21 @@ export function readGrantRequestSettings(
 ): APICallParameters<ReadGrantRequestSettingsRequest> {
     return {
         method: "GET",
-        path: "",
+        path: buildQueryString("/grant/request-settings", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export type UploadGrantRequestSettingsRequest = ProjectGrantSettings;
+
+export function uploadGrantRequestSettings(
+    request: UploadGrantRequestSettingsRequest
+): APICallParameters<UploadGrantRequestSettingsRequest> {
+    return {
+        method: "POST",
+        path: "/grant/request-settings",
+        payload: request,
         parameters: request,
         reloadId: Math.random()
     };

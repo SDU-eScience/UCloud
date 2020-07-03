@@ -236,11 +236,10 @@ class ApplicationService(
 
                     """
                         select *    
-                        from "grant".applications a, requested_resources r
+                        from "grant".applications a left outer join requested_resources r on (a.id = r.application_id)
                         where 
                             a.resources_owned_by = :projectId and 
-                            a.status = 'IN_PROGRESS' and 
-                            a.id = r.application_id
+                            a.status = 'IN_PROGRESS'
                         order by a.updated_at
                         limit :l
                         offset :o

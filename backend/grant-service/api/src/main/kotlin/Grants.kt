@@ -38,7 +38,7 @@ typealias ReadTemplatesResponse = UploadTemplatesRequest
     JsonSubTypes.Type(value = UserCriteria.WayfOrganization::class, name = UserCriteria.WAYF_TYPE)
 )
 sealed class UserCriteria {
-    object Anyone : UserCriteria()
+    class Anyone : UserCriteria()
     data class EmailDomain(val domain: String) : UserCriteria()
     data class WayfOrganization(val org: String) : UserCriteria()
 
