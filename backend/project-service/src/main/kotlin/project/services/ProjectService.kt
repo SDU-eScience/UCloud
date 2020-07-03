@@ -9,6 +9,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
 import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
@@ -122,11 +123,11 @@ class ProjectService(
                         setParameter("project", projectId)
                     },
                     """
-                        select role
-                        from project_members
-                        where 
-                            username = ?username and
-                            project_id = ?project
+                        SELECT role
+                        FROM project_members
+                        WHERE 
+                            username = :username AND 
+                            project_id = :project
                     """
                 )
                 .rows
@@ -173,10 +174,8 @@ class ProjectService(
                 }
             }
             sendInviteNotifications(inviteFrom, invitesTo)
-
             val (pi, admins) = getPIAndAdminsOfProject(ctx, projectId)
             val projectTitle = getProjectTitle(ctx, projectId)
-
             //Notify admins and pi
             val notificationMessage = "$invitesTo has been invited to $projectTitle"
 
@@ -217,7 +216,7 @@ class ProjectService(
             MailDescriptions.sendBulk.call(
                 SendBulkRequest(requests.toList()),
                 serviceClient
-            )
+            ).orThrow()
         } catch (ex: GenericDatabaseException) {
             if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
                 throw ProjectException.AlreadyMember()
@@ -229,14 +228,14 @@ class ProjectService(
     }
 
     private suspend fun sendInviteNotifications(
-        invitedBy: String,
+    invitedBy: String,
         invitesTo: Set<String>
     ) {
         invitesTo.forEach { member ->
             ContactBookDescriptions.insert.call(
                 InsertRequest(invitedBy, listOf(member), ServiceOrigin.PROJECT_SERVICE),
                 serviceClient
-            )
+            ).orThrow()
 
             NotificationDescriptions.create.call(
                 CreateNotification(
@@ -250,7 +249,7 @@ class ProjectService(
                     )
                 ),
                 serviceClient
-            )
+            ).orThrow()
         }
     }
 
@@ -380,7 +379,7 @@ class ProjectService(
             MailDescriptions.sendBulk.call(
                 SendBulkRequest(requests.toList()),
                 serviceClient
-            )
+            ).orThrow()
         }
     }
 
@@ -394,7 +393,7 @@ class ProjectService(
                 )
             ),
             serviceClient
-        )
+        ).orThrow()
     }
 
     suspend fun deleteMember(
@@ -444,7 +443,7 @@ class ProjectService(
             admins.forEach { admin ->
                 notify(NotificationType.PROJECT_USER_REMOVED, admin, notificationMessage)
             }
-            notify(NotificationType.PROJECT_USER_REMOVED, userToDelete, "You have been removed from $projectTitle")
+            notify(NotificationType.PROJECT_USER_REMOVED, userToDelete, "You have been removed from project: $projectTitle")
 
             val requests = mutableListOf<SendRequest>()
             //send to PI
@@ -477,7 +476,7 @@ class ProjectService(
             MailDescriptions.sendBulk.call(
                 SendBulkRequest(requests.toList()),
                 serviceClient
-            )
+            ).orThrow()
         }
     }
 
@@ -566,7 +565,7 @@ class ProjectService(
             MailDescriptions.sendBulk.call(
                 SendBulkRequest(requests.toList()),
                 serviceClient
-            )
+            ).orThrow()
         }
     }
 
@@ -610,7 +609,7 @@ class ProjectService(
                     },
                     """
                         SELECT * FROM project_members
-                        WHERE project_id = :projectId AND role = :role
+                        WHERE project_id = :projectId AND "role" = :role
                     """
                 )
                 .rows
@@ -632,7 +631,7 @@ class ProjectService(
                     },
                     """
                         SELECT * FROM project_members
-                        WHERE project_id = :projectId AND (role = :piRole OR role = :adminRole)
+                        WHERE project_id = :projectId AND ("role" = :piRole OR "role" = :adminRole)
                     """
                 )
                 .rows

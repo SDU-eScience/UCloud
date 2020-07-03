@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
 import dk.sdu.cloud.events.EventStream
+import dk.sdu.cloud.mail.api.MailDescriptions
 import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.eventStreamService
@@ -121,6 +122,11 @@ class ProjectDaoTest {
             NotificationDescriptions.create,
             FindByNotificationId(1L)
         )
+
+        ClientMock.mockCallSuccess(
+            MailDescriptions.sendBulk,
+            Unit
+        )
         runBlocking {
             val id = projectService.create(db, TestUsers.admin, "Test Project", null)
             val id2 = projectService.create(db, TestUsers.admin2, "Another Test Project", null)
@@ -145,7 +151,11 @@ class ProjectDaoTest {
             assertTrue(adminsAfterUpdate.isNotEmpty())
             assertEquals(1, adminsAfterUpdate.size)
             assertEquals(TestUsers.admin.username, adminsAfterUpdate.first())
+
+            val title = projectService.getProjectTitle(db, id)
+            assertEquals("Test Project", title)
         }
+
     }
 
     /*private lateinit var micro: Micro

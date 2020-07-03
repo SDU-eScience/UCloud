@@ -89,10 +89,9 @@ class MailService(
         emailRequestedByUser: Boolean,
         testMail: Boolean = false
     ) {
-        if (principal.username !in whitelist) {
+        if (principal.username !in whitelist && !devMode) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
         }
-
         if (!emailRequestedByUser) {
             //IF expanded upon it should be moved out of AUTH
             val wantEmails = UserDescriptions.wantsEmails.call(
