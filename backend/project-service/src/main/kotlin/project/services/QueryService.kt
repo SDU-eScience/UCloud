@@ -901,6 +901,20 @@ class QueryService(
         )
     }
 
+    suspend fun lookupByTitle(
+        ctx: DBContext,
+        title: String
+    ): Project? {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("title", title) },
+                "select * from projects where title = :title"
+            )
+            .rows
+            .singleOrNull()?.toProject() ?: null
+        }
+    }
+
     suspend fun lookupPrincipalInvestigator(
         ctx: DBContext,
         actor: Actor,
