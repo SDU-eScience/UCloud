@@ -81,9 +81,9 @@ import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
 import {
-    createRepository, isAdminOrPI, isRepository, renameRepository, getProjectNames
+    createRepository, isRepository, renameRepository, getProjectNames
 } from "Utilities/ProjectUtilities";
-import {ProjectRole} from "Project";
+import {ProjectRole, isAdminOrPI} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
 import {ProjectStatus, useProjectStatus} from "Project/cache";

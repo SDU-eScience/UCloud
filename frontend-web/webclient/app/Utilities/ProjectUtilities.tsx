@@ -212,10 +212,6 @@ export async function updatePermissions(
     }
 }
 
-export function isAdminOrPI(role: ProjectRole): boolean {
-    return [ProjectRole.ADMIN, ProjectRole.PI].includes(role);
-}
-
 /**
  * Extracts title and projectId from project status.
  * Intended usage:

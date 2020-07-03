@@ -8,7 +8,6 @@ import {IconName} from "ui-components/Icon";
 import {useHistory, useParams} from "react-router";
 import {useSelector} from "react-redux";
 import {ReduxObject, emptyPage} from "DefaultObjects";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "./cache";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {GroupWithSummary} from "./GroupList";
@@ -241,6 +240,10 @@ export enum ProjectRole {
     PI = "PI",
     ADMIN = "ADMIN",
     USER = "USER"
+}
+
+export function isAdminOrPI(role: ProjectRole): boolean {
+    return [ProjectRole.ADMIN, ProjectRole.PI].includes(role);
 }
 
 export interface UserInProject {

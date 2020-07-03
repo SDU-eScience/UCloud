@@ -45,26 +45,26 @@ describe("File size to string", () => {
 
 describe("Get filename from path", () => {
     test("Filename from path", () =>
-        expect(getFilenameFromPath("/Home/folder")).toBe("folder")
+        expect(getFilenameFromPath("/Home/folder", [])).toBe("folder")
     );
 
     test("Filename from path with special character", () => {
-        expect(getFilenameFromPath("/Home/folder_2 (1)")).toBe("folder_2 (1)");
+        expect(getFilenameFromPath("/Home/folder_2 (1)", [])).toBe("folder_2 (1)");
     });
 });
 
 describe("Replace homefolder and project folder", () => {
     test("Replace homefolder", () =>
-        expect(replaceHomeOrProjectFolder("/home/test@test.dk/", Client)).toBe("Home/")
+        expect(replaceHomeOrProjectFolder("/home/test@test.dk/", Client, [])).toBe("Home/")
     );
 
     test("Replace homefolder subfolder", () =>
-        expect(replaceHomeOrProjectFolder("/home/test@test.dk/subFolder/withSomething", Client))
+        expect(replaceHomeOrProjectFolder("/home/test@test.dk/subFolder/withSomething", Client, []))
             .toBe("Home/subFolder/withSomething")
     );
 
     const noHomeFolder = "NotHomeFolder/subfolder/";
     test("Replace homefolder, no homefolder", () =>
-        expect(replaceHomeOrProjectFolder(noHomeFolder, Client)).toBe(`${noHomeFolder}`)
+        expect(replaceHomeOrProjectFolder(noHomeFolder, Client, [])).toBe(`${noHomeFolder}`)
     );
 });

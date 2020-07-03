@@ -970,6 +970,163 @@ Array [
 
 <span>
     <span>
+      cpu
+    </span>
+    : 
+    <svg
+      className="c0"
+      cursor="inherit"
+      fill="currentcolor"
+      height={24}
+      viewBox="0 0 79 79"
+      width={24}
+    >
+      <rect
+        fill="none"
+        height={47.49}
+        rx={4.523}
+        ry={7.894}
+        stroke="currentcolor"
+        strokeWidth={2.51}
+        width={47.49}
+        x={16.255}
+        y={16.48}
+      />
+      <rect
+        height={2.5}
+        rx={1.009}
+        width={16}
+        y={25.225}
+      />
+      <rect
+        height={2.5}
+        rx={1.009}
+        width={16}
+        y={35.225}
+      />
+      <rect
+        height={2.5}
+        rx={1.009}
+        width={16}
+        y={45.225}
+      />
+      <rect
+        height={2.5}
+        rx={1.009}
+        width={16}
+        y={55.225}
+      />
+      <rect
+        height={2.5}
+        rx={1.009}
+        width={16}
+        x={63}
+        y={25.225}
+      />
+      <rect
+        height={2.5}
+        rx={1.009}
+        width={16}
+        x={63}
+        y={35.225}
+      />
+      <rect
+        height={2.5}
+        rx={1.009}
+        width={16}
+        x={63}
+        y={45.225}
+      />
+      <rect
+        height={2.5}
+        rx={1.009}
+        width={16}
+        x={63}
+        y={55.225}
+      />
+      <rect
+        height={16}
+        ry={1.009}
+        width={2.5}
+        x={29.646}
+      />
+      <rect
+        height={16}
+        ry={1.009}
+        width={2.5}
+        x={39.646}
+      />
+      <rect
+        height={16}
+        ry={1.009}
+        width={2.5}
+        x={49.646}
+      />
+      <rect
+        height={16}
+        ry={1.009}
+        width={2.5}
+        x={29.646}
+        y={63.285}
+      />
+      <rect
+        height={16}
+        ry={1.009}
+        width={2.5}
+        x={39.646}
+        y={63.285}
+      />
+      <rect
+        height={16}
+        ry={1.009}
+        width={2.5}
+        x={49.646}
+        y={63.285}
+      />
+      <rect
+        fill="none"
+        height={37.992}
+        rx={3.619}
+        ry={6.315}
+        stroke="currentcolor"
+        strokeWidth={2.008}
+        width={37.992}
+        x={21.004}
+        y={21.246}
+      />
+      <text
+        fontFamily="sans-serif"
+        fontSize={16}
+        fontWeight={400}
+        strokeWidth={0.265}
+        style={
+          Object {
+            "lineHeight": 1.25,
+          }
+        }
+        x={23.855}
+        y={45.724}
+      >
+        <tspan
+          x={23.855}
+          y={45.724}
+        >
+          CPU
+        </tspan>
+      </text>
+    </svg>
+    , 
+  </span>,
+  .c0 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+}
+
+<span>
+    <span>
       dashboard
     </span>
     : 
@@ -1381,7 +1538,7 @@ Array [
           height={21}
           id="ftFileSystem_svg___Image2"
           width={24}
-          xlinkHref="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAVCAYAAABc6S4mAAAACXBIWXMAAA7EAAAOxAGVKw4bAAABYUlEQVQ4jY2Uy3XFMAhEZzguIA2l/5Ky8YMsjKTR188bW5bQABfg389vAARAkPkGAZp851vWgE17z7dBn8vjbkbxXBogCEcRBiz/EUGCQUD2nz3LtYsYcUV85KCLmF6sYkSk902s2fZixBVxV++Kt10Uk9jOe4htE7siboCGiExBiUKMT1HUtJCI8Ens8vi8GxcxceTIoIolgwpQUtD/s1lscOTIoPOeVsGN8DtjEgjf8BsZ7ACSYOwBMi8t1aT8GgN8wPiCAX0htoCfGShiUqbWNdGRAX1I4y4Dpo3WAwQt638PsKVxlwFvo0KNS+hvACuDRRUOVdQbT6FLXS+7feF9Ecs+cJAGxAvAarzp9ixdPb9gsIminMnZtO324kiKLRm0S04zyIdzCt81RTODdROtZpBEQRcxaTQACHjm/9smeplZMkYuDI+K9eN6bqLzzHqimARGuacI0AM8ed9Vl+MfWQ8XicMWet0AAAAASUVORK5CYII="
+          xlinkHref="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAVCAIAAADTi7lxAAAACXBIWXMAAC4jAAAuIwF4pT92AAAAB3RJTUUH5AYRCxsGauS3IAAAABl0RVh0Q29tbWVudABDcmVhdGVkIHdpdGggR0lNUFeBDhcAAAAUSURBVDjLY2AYBaNgFIyCUTDiAAAF/QABRKNDqQAAAABJRU5ErkJggg=="
         />
       </defs>
     </svg>

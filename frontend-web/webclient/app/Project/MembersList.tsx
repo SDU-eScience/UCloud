@@ -1,4 +1,4 @@
-import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole} from "Project/index";
+import {changeRoleInProject, ProjectMember, ProjectRole, transferPiRole, projectStringToRole, isAdminOrPI} from "Project/index";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {useAvatars} from "AvataaarLib/hook";
 import * as React from "react";
@@ -8,7 +8,6 @@ import {Flex, Icon, Text, Box, Button, RadioTile, RadioTilesContainer} from "ui-
 import {IconName} from "ui-components/Icon";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {errorMessageOrDefault} from "UtilityFunctions";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {addStandardDialog} from "UtilityComponents";
 import {UserAvatar} from "AvataaarLib/UserAvatar";
 import {RemoveButton} from "Files/FileInputSelector";
