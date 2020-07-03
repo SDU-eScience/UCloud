@@ -239,24 +239,6 @@ test("Download disallowed", () =>
     expect(UF.downloadAllowed(mockFilesSensitivityConfidential.items.concat([highSensitivityFile]))).toBe(false)
 );
 
-describe("sortingColumnToValue", () => {
-    const file = mockFilesSensitivityConfidential.items[0];
-    const favoritedFile = mockFilesSensitivityConfidential.items[1];
-
-    test("TYPE", () => expect(UF.sortingColumnToValue(SortBy.FILE_TYPE, file)).toBe(UF.capitalized(file.fileType)));
-    test("PATH", () => expect(UF.sortingColumnToValue(SortBy.PATH, file)).toBe(getFilenameFromPath(file.path)));
-    test("MODIFIED_AT", () =>
-        expect(UF.sortingColumnToValue(SortBy.MODIFIED_AT, file)).toBe(dateToString(file.modifiedAt as number)));
-    test("SIZE", () => expect(UF.sortingColumnToValue(SortBy.SIZE, file)).toBe(sizeToString(file.size as number)));
-    test("ACL", () => expect(UF.sortingColumnToValue(SortBy.ACL, file)).toBe(UF.getMembersString(file.acl as Acl[])));
-    test("ACL as null", () =>
-        expect(UF.sortingColumnToValue(SortBy.ACL, {...file, acl: null})).toBe(""));
-    test("SENSITIVITY", () =>
-        expect(UF.sortingColumnToValue(SortBy.SENSITIVITY_LEVEL, file))
-            .toBe(SensitivityLevel[file.sensitivityLevel as SensitivityLevelMap])
-    );
-});
-
 describe("If Present", () => {
     test("Present", () => {
         const fun = jest.fn();

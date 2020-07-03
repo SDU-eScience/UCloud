@@ -16,7 +16,6 @@ import PromiseKeeper from "PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Page} from "Types";
@@ -292,7 +291,7 @@ class Run extends React.Component<RunAppProps & RouterLocationProps, RunAppState
                                                                 }
                                                             }}
                                                         >
-                                                            {getFilenameFromPath(file.path)}
+                                                            {getFilenameFromPath(file.path, [])}
                                                         </BaseLink>
                                                     </Box>
                                                 ))

@@ -66,7 +66,10 @@ class SettingsService(
                             setParameter("type", applicant.toSqlType())
                             setParameter("applicantId", applicant.toSqlApplicantId())
                         },
-                        "insert into allow_applications_from (project_id, type, applicant_id) values (:projectId, :type, :applicantId)"
+                        """
+                            insert into allow_applications_from (project_id, type, applicant_id) 
+                            values (:projectId, :type, :applicantId) on conflict do nothing
+                        """
                     )
             }
         }
@@ -115,13 +118,13 @@ class SettingsService(
                             setParameter("projectId", projectId)
                             setParameter("productCategory", resources.productCategory)
                             setParameter("productProvider", resources.productProvider)
-                            setParameter("maximumCredits", resources.creditsRequested)
-                            setParameter("maximumQuota", resources.quotaRequested)
+                            setParameter("maximumCredits", resources.creditsRequested ?: 0)
+                            setParameter("maximumQuota", resources.quotaRequested ?: 0)
                         },
                         """
                             insert into automatic_approval_limits 
                                 (project_id, product_category, product_provider, maximum_credits, maximum_quota_bytes) 
-                            values (:projectId, :productCategory, :productProvider, :maximumCredits, :maxQuota)
+                            values (:projectId, :productCategory, :productProvider, :maximumCredits, :maximumQuota)
                         """
                     )
             }
@@ -130,8 +133,15 @@ class SettingsService(
 
     suspend fun fetchSettings(
         ctx: DBContext,
+        actor: Actor,
         projectId: String
     ): ProjectApplicationSettings {
+        if (actor != Actor.System && !(actor is Actor.User && actor.principal.role in Roles.PRIVILEGED)) {
+            if (!projects.isAdminOfProject(projectId, actor)) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+        }
+
         return ctx.withSession { session ->
             val allowFrom = session
                 .sendPreparedStatement(
@@ -222,9 +232,9 @@ class SettingsService(
         }
     }
 
-    private fun UserCriteria.toSqlApplicantId(): String? {
+    private fun UserCriteria.toSqlApplicantId(): String {
         return when (this) {
-            UserCriteria.Anyone -> null
+            is UserCriteria.Anyone -> ""
             is UserCriteria.EmailDomain -> domain
             is UserCriteria.WayfOrganization -> org
         }
@@ -232,7 +242,7 @@ class SettingsService(
 
     private fun UserCriteria.toSqlType(): String {
         return when (this) {
-            UserCriteria.Anyone -> UserCriteria.ANYONE_TYPE
+            is UserCriteria.Anyone -> UserCriteria.ANYONE_TYPE
             is UserCriteria.EmailDomain -> UserCriteria.EMAIL_TYPE
             is UserCriteria.WayfOrganization -> UserCriteria.WAYF_TYPE
         }
@@ -241,7 +251,7 @@ class SettingsService(
     private fun RowData.toUserCriteria(): UserCriteria {
         val id = getField(AllowApplicationsFromTable.applicantId)
         return when (getField(AllowApplicationsFromTable.type)) {
-            UserCriteria.ANYONE_TYPE -> UserCriteria.Anyone
+            UserCriteria.ANYONE_TYPE -> UserCriteria.Anyone()
             UserCriteria.EMAIL_TYPE -> UserCriteria.EmailDomain(id)
             UserCriteria.WAYF_TYPE -> UserCriteria.WayfOrganization(id)
             else -> throw IllegalArgumentException("Unknown type")

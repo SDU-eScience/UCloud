@@ -1,11 +1,9 @@
 import {Client as currentClient} from "Authentication/HttpClientInstance";
-import {SensitivityLevel} from "DefaultObjects";
 import {Acl, File, FileType, SortBy, UserEntity} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
-import {dateToString} from "Utilities/DateUtilities";
 import {
-    getFilenameFromPath, isDirectory, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
-    isSharesFolder, isTrashFolder, sizeToString
+    getFilenameFromPath, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
+    isSharesFolder, isTrashFolder
 } from "Utilities/FileUtilities";
 import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
 
@@ -83,26 +81,6 @@ export const getMembersString = (acls: Acl[]): string => {
         return "Only You";
     }
 };
-
-export function sortingColumnToValue(sortBy: SortBy, file: File): string {
-    switch (sortBy) {
-        case SortBy.FILE_TYPE:
-            return prettierString(file.fileType);
-        case SortBy.PATH:
-            return getFilenameFromPath(file.path);
-        case SortBy.MODIFIED_AT:
-            return dateToString(file.modifiedAt!);
-        case SortBy.SIZE:
-            return isDirectory({fileType: file.fileType}) ? "" : sizeToString(file.size!);
-        case SortBy.ACL:
-            if (file.acl !== null)
-                return getMembersString(file.acl);
-            else
-                return "";
-        case SortBy.SENSITIVITY_LEVEL:
-            return SensitivityLevel[file.sensitivityLevel!];
-    }
-}
 
 export const extensionTypeFromPath = (path: string): ExtensionType => extensionType(extensionFromPath(path));
 export const extensionFromPath = (path: string): string => {
@@ -286,7 +264,7 @@ export const iconFromFilePath = (
     filePath: string,
     type: FileType
 ): FtIconProps => {
-    const icon: FtIconProps = {type: "FILE", name: getFilenameFromPath(filePath)};
+    const icon: FtIconProps = {type: "FILE", name: getFilenameFromPath(filePath, [])};
 
     switch (type) {
         case "DIRECTORY":
@@ -310,7 +288,7 @@ export const iconFromFilePath = (
 
         case "FILE":
         default:
-            const filename = getFilenameFromPath(filePath);
+            const filename = getFilenameFromPath(filePath, []);
             if (!filename.includes(".")) {
                 return icon;
             }

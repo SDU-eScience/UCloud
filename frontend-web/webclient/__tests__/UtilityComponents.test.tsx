@@ -136,7 +136,8 @@ describe("Dialogs", () => {
             allowOverwrite: false,
             filesRemaining: 0,
             client: Client,
-            path: "path"
+            path: "path",
+            projects: []
         });
         expect(dialogCount).toBe(1);
         dialogStore.failure();
@@ -150,7 +151,8 @@ describe("Dialogs", () => {
             allowOverwrite: true,
             filesRemaining: 0,
             client: Client,
-            path: "path"
+            path: "path",
+            projects: []
         });
         expect(dialogCount).toBe(1);
         dialogStore.failure();

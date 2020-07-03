@@ -1,17 +1,17 @@
 import {Client} from "Authentication/HttpClientInstance";
 import HttpClient from "Authentication/lib";
 import {SensitivityLevelMap} from "DefaultObjects";
-import {File, FileType, UserEntity} from "Files";
-import {SnackType} from "Snackbar/Snackbars";
+import {File, FileType} from "Files";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import {UploadPolicy} from "Uploader/api";
 import {addStandardDialog, rewritePolicyDialog, sensitivityDialog, shareDialog} from "UtilityComponents";
 import * as UF from "UtilityFunctions";
 import {defaultErrorHandler, errorMessageOrDefault} from "UtilityFunctions";
 import {ErrorMessage, isError, unwrap} from "./XHRUtils";
+import {ProjectName} from "Project";
 
 function getNewPath(newParentPath: string, currentPath: string): string {
-    return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath))}`;
+    return `${UF.removeTrailingSlash(resolvePath(newParentPath))}/${getFilenameFromPath(resolvePath(currentPath), [])}`;
 }
 
 export enum CopyOrMove {
@@ -22,7 +22,8 @@ export enum CopyOrMove {
 export async function copyOrMoveFilesNew(
     operation: CopyOrMove,
     files: File[],
-    targetPathFolder: string
+    targetPathFolder: string,
+    projects: ProjectName[]
 ): Promise<void> {
     const copyOrMoveQuery = operation === CopyOrMove.Copy ? copyFileQuery : moveFileQuery;
     let successes = 0;
@@ -81,7 +82,8 @@ export async function copyOrMoveFilesNew(
                 path: newPathForFile,
                 client: Client,
                 filesRemaining: filesToCopy.length - i,
-                allowOverwrite
+                allowOverwrite,
+                projects
             });
             if ("cancelled" in result) {
                 if (result.applyToAll) return;
@@ -104,7 +106,7 @@ export async function copyOrMoveFilesNew(
             } catch (e) {
                 failures++;
                 failureMessages.push(errorMessageOrDefault(e, "Unknown"));
-                failurePaths.push(getFilenameFromPath(f.path));
+                failurePaths.push(getFilenameFromPath(f.path, projects));
             }
         }
     }
@@ -262,7 +264,6 @@ export const isInvalidPathName = ({path, filePaths}: IsInvalidPathname): boolean
 export const isFixedFolder = (filePath: string): boolean => {
     if (isTrashFolder(filePath)) return true;
     else if (isJobsFolder(filePath)) return true;
-    else if (isTrashFolder(filePath)) return true;
     else return false;
 };
 
@@ -287,10 +288,13 @@ export const reclassifyFile = async ({file, sensitivity, client}: ReclassifyFile
 
 export const isDirectory = (file: {fileType: FileType}): boolean => file.fileType === "DIRECTORY";
 
-export function replaceHomeOrProjectFolder(path: string, client: HttpClient): string {
-    const [,projectName] = pathComponents(path);
+export function replaceHomeOrProjectFolder(path: string, client: HttpClient, projects: ProjectName[]): string {
+    const [, projectId] = pathComponents(path);
     const replaced = path.replace(client.homeFolder, "Home/");
-    if (isProjectHome(path)) return replaced.replace(`/projects/${projectName}`, projectName);
+    if (isPartOfProject(path)) {
+        const title = projects.find(it => it.projectId === projectId)?.title ?? projectId;
+        return replaced.replace(`/projects/${projectId}`, title);
+    }
     else return replaced;
 }
 
@@ -364,8 +368,8 @@ const toFileName = (path: string): string => {
     }
 };
 
-export function getFilenameFromPath(path: string): string {
-    const replacedHome = replaceHomeOrProjectFolder(path, Client);
+export function getFilenameFromPath(path: string, projects: ProjectName[]): string {
+    const replacedHome = replaceHomeOrProjectFolder(path, Client, projects);
     const fileName = toFileName(replacedHome);
     if (fileName === "..") return `.. (${toFileName(goUpDirectory(2, replacedHome))})`;
     if (fileName === ".") return `. (Current folder)`;
@@ -464,10 +468,10 @@ export const shareFiles = async ({files, client}: ShareFiles): Promise<void> => 
     shareDialog(files.map(it => it.path), client);
 };
 
-const moveToTrashDialog = ({filePaths, onConfirm}: {onConfirm: () => void; filePaths: string[]}): void => {
-    const withEllipsis = getFilenameFromPath(filePaths[0]).length > 35;
+const moveToTrashDialog = ({filePaths, onConfirm, projects}: {onConfirm: () => void; filePaths: string[]; projects: ProjectName[]}): void => {
+    const withEllipsis = getFilenameFromPath(filePaths[0], projects).length > 35;
     const message = filePaths.length > 1 ? `Move ${filePaths.length} files to trash?` :
-        `Move file ${getFilenameFromPath(filePaths[0]).slice(0, 35)}${withEllipsis ? "..." : ""} to trash?`;
+        `Move file ${getFilenameFromPath(filePaths[0], projects).slice(0, 35)}${withEllipsis ? "..." : ""} to trash?`;
 
     addStandardDialog({
         title: "Move files to trash",
@@ -492,9 +496,10 @@ interface MoveToTrash {
     client: HttpClient;
     setLoading: () => void;
     callback: () => void;
+    projects: ProjectName[];
 }
 
-export const moveToTrash = ({files, client, setLoading, callback}: MoveToTrash): void => {
+export const moveToTrash = ({files, client, setLoading, callback, projects}: MoveToTrash): void => {
     const paths = files.map(f => f.path);
     moveToTrashDialog({
         filePaths: paths, onConfirm: async () => {
@@ -507,7 +512,8 @@ export const moveToTrash = ({files, client, setLoading, callback}: MoveToTrash):
                 snackbarStore.addFailure(e.why, false);
                 callback();
             }
-        }
+        },
+        projects
     });
 };
 
@@ -547,7 +553,7 @@ export function isAnyMockFile(files: File[]): boolean {
     return files.some(it => it.mockTag !== undefined);
 }
 
-export function isAnyFixedFolder(files: File[], client: HttpClient): boolean {
+export function isAnyFixedFolder(files: File[]): boolean {
     return files.some(it => isFixedFolder(it.path));
 }
 

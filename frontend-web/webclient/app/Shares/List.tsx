@@ -42,6 +42,8 @@ import {ListProps, ListSharesParams, loadAvatars, MinimalShare, SharesByPath, Sh
 import {acceptShare, createShare, findShare, listShares, revokeShare, updateShare} from "./index";
 import Warning from "ui-components/Warning";
 import {Toggle} from "ui-components/Toggle";
+import {useProjectStatus} from "Project/cache";
+import {getProjectNames} from "Utilities/ProjectUtilities";
 
 export const List: React.FunctionComponent<ListProps & ListOperations> = props => {
     const initialFetchParams = props.byPath === undefined ?
@@ -137,13 +139,14 @@ export const List: React.FunctionComponent<ListProps & ListOperations> = props =
 
     const shares = page.data.items.filter(it => it.sharedByMe === sharedByMe || props.byPath !== undefined);
     const simple = !!props.simple;
+    const projectNames = getProjectNames(useProjectStatus());
     const main = (
         <Pagination.List
             loading={page.loading}
             page={page.data}
             customEmptyPage={simple ? (
                 <div>
-                    No shares for <b>{getFilenameFromPath(props.byPath!)}</b>
+                    No shares for <b>{getFilenameFromPath(props.byPath!, projectNames)}</b>
                 </div>
             ) : <NoShares sharedByMe={sharedByMe} />}
             onPageChanged={(pageNumber, {itemsPerPage}) => setFetchParams(listShares({
@@ -256,6 +259,8 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
     const [newShareRights, setNewShareRights] = useState(AccessRights.READ_RIGHTS);
     const [confirmRevokeAll, setConfirmRevokeAll] = useState(false);
     const [fileType, setFileType] = useState<FileType>("DIRECTORY");
+    const project = useProjectStatus();
+    const projectNames = getProjectNames(project);
 
     const promises = usePromiseKeeper();
     const newShareUsername = useRef<HTMLInputElement>(null);
@@ -302,7 +307,7 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
         if (!props.simple) {
             addStandardDialog({
                 title: "Revoke?",
-                message: `Remove all shares for ${getFilenameFromPath(groupedShare.path)}?`,
+                message: `Remove all shares for ${getFilenameFromPath(groupedShare.path, projectNames)}?`,
                 onConfirm: revoke
             });
         } else {
@@ -319,9 +324,9 @@ const GroupedShareCard: React.FunctionComponent<ListEntryProperties> = props => 
                 Client.sharesFolder : isDirectory({fileType}) ?
                     path : getParentPath(path))}
         >
-            {getFilenameFromPath(path)}
+            {getFilenameFromPath(path, projectNames)}
         </Link>
-    ) : <Text>{getFilenameFromPath(groupedShare.path)}</Text>;
+    ) : <Text>{getFilenameFromPath(groupedShare.path, projectNames)}</Text>;
     return (
         <ShareCardBase
             title={<>

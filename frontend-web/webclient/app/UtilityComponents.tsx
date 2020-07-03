@@ -4,7 +4,6 @@ import {dialogStore} from "Dialog/DialogStore";
 import {SortOrder} from "Files";
 import * as React from "react";
 import List from "Shares/List";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {Absolute, Box, Button, Checkbox, Divider, Flex, FtIcon, Icon, Label, Select, Text, ButtonGroup} from "ui-components";
@@ -18,7 +17,7 @@ import {copyToClipboard, FtIconProps, inDevEnvironment, stopPropagationAndPreven
 import {usePromiseKeeper} from "PromiseKeeper";
 import {searchPreviousSharedUsers, ServiceOrigin} from "Shares";
 import {useCloudAPI} from "Authentication/DataHook";
-import {useRef} from "react";
+import {ProjectName} from "Project";
 
 interface StandardDialog {
     title?: string;
@@ -152,6 +151,7 @@ export function shareDialog(paths: string[], client: HttpClient): void {
 interface ConfirmCancelButtonsProps {
     confirmText?: string;
     cancelText?: string;
+    height?: number | string;
     onConfirm(e: React.SyntheticEvent<HTMLButtonElement>): void;
     onCancel(e: React.SyntheticEvent<HTMLButtonElement>): void;
 }
@@ -160,9 +160,10 @@ export const ConfirmCancelButtons = ({
     confirmText = "Confirm",
     cancelText = "Cancel",
     onConfirm,
-    onCancel
+    onCancel,
+    height
 }: ConfirmCancelButtonsProps): JSX.Element => (
-    <ButtonGroup width="150px">
+    <ButtonGroup width="150px" height={height}>
         <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
         <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>
     </ButtonGroup>
@@ -366,6 +367,7 @@ interface RewritePolicy {
     client: HttpClient;
     filesRemaining: number;
     allowOverwrite: boolean;
+    projects: ProjectName[]
 }
 
 type RewritePolicyResult = {applyToAll: boolean} & ({cancelled: true} | {policy: UploadPolicy});
@@ -374,7 +376,8 @@ export function rewritePolicyDialog({
     path,
     client,
     filesRemaining,
-    allowOverwrite
+    allowOverwrite,
+    projects
 }: RewritePolicy): Promise<RewritePolicyResult> {
     let policy = UploadPolicy.RENAME;
     let applyToAll = false;
@@ -383,7 +386,7 @@ export function rewritePolicyDialog({
             <div>
                 <Heading.h3>File exists</Heading.h3>
                 <Divider />
-                {replaceHomeOrProjectFolder(path, client)} already
+                {replaceHomeOrProjectFolder(path, client, projects)} already
                 exists. {allowOverwrite ? "How would you like to proceed?" :
                     "Do you wish to continue? Folders cannot be overwritten."}
                 <Box mt="10px">

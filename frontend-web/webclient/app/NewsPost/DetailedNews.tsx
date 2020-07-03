@@ -29,14 +29,17 @@ export const DetailedNews: React.FC = () => {
         <MainContainer
             headerSize={0}
             main={
-                <Box>
+                <Box  m={"0 auto"} maxWidth={"1200px"}>
                     <Heading.h2>{newsPost.data.title}</Heading.h2>
                     <Heading.h4>{newsPost.data.subtitle}</Heading.h4>
                     <Box>
                         <Text fontSize={1}><Flex>By: <Text mx="6px" bold>{newsPost.data.postedBy}</Text></Flex></Text>
                         <Text fontSize={1}><Flex>Posted {format(newsPost.data.showFrom, "HH:mm dd/MM/yy")}</Flex></Text>
                         <Link to={`/news/list/${newsPost.data.category}`}>
-                            <Tag label={newsPost.data.category} bg={theme.appColors[appColor(hashF(newsPost.data.category))][0]} />
+                            <Tag
+                                label={newsPost.data.category}
+                                bg={theme.appColors[appColor(hashF(newsPost.data.category))][0]}
+                            />
                         </Link>
                     </Box>
                     <Markdown

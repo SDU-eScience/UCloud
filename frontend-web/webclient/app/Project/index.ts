@@ -8,7 +8,6 @@ import {IconName} from "ui-components/Icon";
 import {useHistory, useParams} from "react-router";
 import {useSelector} from "react-redux";
 import {ReduxObject, emptyPage} from "DefaultObjects";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
 import {useProjectStatus} from "./cache";
 import {useGlobal} from "Utilities/ReduxHooks";
 import {GroupWithSummary} from "./GroupList";
@@ -154,8 +153,11 @@ export function groupSummaryRequest(payload: PaginationRequest): APICallParamete
     };
 }
 
-export interface UserStatusRequest {
+export type UserStatusRequest = {};
 
+export interface ProjectName {
+    title: string;
+    projectId: string;
 }
 
 export interface UserStatusResponse {
@@ -240,6 +242,10 @@ export enum ProjectRole {
     USER = "USER"
 }
 
+export function isAdminOrPI(role: ProjectRole): boolean {
+    return [ProjectRole.ADMIN, ProjectRole.PI].includes(role);
+}
+
 export interface UserInProject {
     projectId: string;
     title: string;
@@ -286,7 +292,7 @@ export const changeRoleInProject = (
     reloadId: Math.random()
 });
 
-export interface ListProjectsRequest extends PaginationRequest{
+export interface ListProjectsRequest extends PaginationRequest {
     archived?: boolean;
     noFavorites?: boolean;
 }
@@ -335,7 +341,7 @@ export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined
 };
 
 
-export interface ToggleProjectFavorite{
+export interface ToggleProjectFavorite {
     project: string;
 }
 

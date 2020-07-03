@@ -115,6 +115,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                 <ArchiveProject
                     onSuccess={() => dialogStore.success()}
                     isArchived={project.archived}
+                    title={project.title}
                     projectId={project.projectId}
                     projectRole={project.whoami.role}
                 />,
@@ -130,6 +131,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                     onSuccess={() => dialogStore.success()}
                     isArchived={project.archived}
                     projectId={project.projectId}
+                    title={project.title}
                     projectRole={project.whoami.role}
                 />,
                 () => undefined
@@ -260,11 +262,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         </Link>
                                     </Box>
                                 </>
-                            }
-                            leftSub={
-                                <Box color="grey">
-                                    2 TB used, 20 credits left
-                                </Box>
                             }
                             right={<>
                                 <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
@@ -397,13 +394,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 <Link to="/project/dashboard">
                                     {e.title}
                                 </Link>
-                            </Box>
-                        </>
-                    }
-                    leftSub={
-                        <>
-                            <Box color="grey">
-                                2 TB used, 20 credits left
                             </Box>
                         </>
                     }

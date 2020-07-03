@@ -17,9 +17,10 @@ import {Client} from "Authentication/HttpClientInstance";
 import {dialogStore} from "Dialog/DialogStore";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
+import {GrantProjectSettings} from "Project/Grant/Settings";
 
 const ActionContainer = styled.div`
-    & > ${Flex} {
+    & > * {
         margin-bottom: 16px;
     }
 `;
@@ -55,6 +56,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         isArchived={projectDetails.data.archived}
                         projectId={projectId}
                         projectRole={projectRole}
+                        title={projectDetails.data.title}
                         onSuccess={() => history.push("/projects")}
                     />
                     <LeaveProject
@@ -63,6 +65,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                         projectId={projectId}
                         projectRole={projectRole}
                     />
+                    <GrantProjectSettings/>
                 </ActionContainer>
             }
             sidebar={null}
@@ -74,6 +77,7 @@ interface ArchiveProjectProps {
     isArchived: boolean;
     projectRole: ProjectRole;
     projectId: string;
+    title: string;
     onSuccess: () => void;
 }
 
@@ -119,7 +123,7 @@ export const ArchiveProject: React.FC<ArchiveProjectProps> = props => {
                             addStandardDialog({
                                 title: "Are you sure?",
                                 message: `Are you sure you wish to ` +
-                                    `${props.isArchived ? "unarchive" : "archive"} ${props.projectId}?`,
+                                    `${props.isArchived ? "unarchive" : "archive"} ${props.title}?`,
                                 onConfirm: async () => {
                                     const success = await callAPIWithErrorHandler(
                                         setProjectArchiveStatus({

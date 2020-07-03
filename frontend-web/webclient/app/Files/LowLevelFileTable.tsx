@@ -38,9 +38,7 @@ import {
     OutlineButton,
     Text,
     Tooltip,
-    Truncate,
-    ButtonGroup,
-    Card
+    Truncate
 } from "ui-components";
 import BaseLink from "ui-components/BaseLink";
 import Box from "ui-components/Box";
@@ -82,8 +80,10 @@ import {addStandardDialog, FileIcon, ConfirmCancelButtons} from "UtilityComponen
 import * as UF from "UtilityFunctions";
 import {PREVIEW_MAX_SIZE} from "../../site.config.json";
 import {ListRow} from "ui-components/List";
-import {createRepository, isAdminOrPI, isRepository, renameRepository} from "Utilities/ProjectUtilities";
-import {ProjectRole} from "Project";
+import {
+    createRepository, isRepository, renameRepository, getProjectNames
+} from "Utilities/ProjectUtilities";
+import {ProjectRole, isAdminOrPI} from "Project";
 import {useFavoriteStatus} from "Files/favorite";
 import {useFilePermissions} from "Files/permissions";
 import {ProjectStatus, useProjectStatus} from "Project/cache";
@@ -369,9 +369,11 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
     }, []);
 
     const permissions = useFilePermissions();
+    const projectNames = getProjectNames(projects);
 
     // Callbacks for operations
     const callbacks: FileOperationCallback = {
+        projects: projectNames,
         permissions,
         invokeAsyncWork: fn => invokeWork(fn),
         requestReload: () => {
@@ -664,13 +666,13 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
             const file = allFiles.find(f => f.path === fileBeingRenamed);
             if (file === undefined) return;
             const isProjectRepo = file.mockTag === MOCK_REPO_CREATE_TAG || !!file.isRepo;
-            const fileNames = allFiles.map(f => getFilenameFromPath(f.path));
+            const fileNames = allFiles.map(f => getFilenameFromPath(f.path, []));
             if (isInvalidPathName({path: name, filePaths: fileNames})) return;
             if (isProjectRepo) {
                 if (file.mockTag === MOCK_REPO_CREATE_TAG) {
                     createRepository(Client, name, callbacks.requestReload);
                 } else {
-                    renameRepository(getFilenameFromPath(file.path), name, Client, callbacks.requestReload);
+                    renameRepository(getFilenameFromPath(file.path, []), name, Client, callbacks.requestReload);
                 }
             } else {
                 const fullPath = `${UF.addTrailingSlash(getParentPath(file.path))}${name}`;
@@ -908,10 +910,10 @@ function getFileNameForNameBox(path: string, projectStatus: ProjectStatus): stri
     } else if (isProjectHome(path)) {
         const projectId = projectIdFromPath(path);
         return projectStatus.fetch().membership.find(it => it.projectId === projectId)?.title
-            ?? getFilenameFromPath(path);
+            ?? getFilenameFromPath(path, []);
     }
 
-    return getFilenameFromPath(path);
+    return getFilenameFromPath(path, []);
 }
 
 interface NameBoxProps {
@@ -926,12 +928,13 @@ interface NameBoxProps {
 }
 
 const RenameBox = (props: {file: File; onRenameFile: (keycode: number, value: string) => void}): JSX.Element => {
+    const projectNames = getProjectNames(useProjectStatus());
     const ref = React.useRef<HTMLInputElement>(null);
     return (
         <Flex width={1} alignItems="center">
             <Input
-                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
-                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path)}
+                placeholder={props.file.mockTag ? "" : getFilenameFromPath(props.file.path, projectNames)}
+                defaultValue={props.file.mockTag ? "" : getFilenameFromPath(props.file.path, projectNames)}
                 pt="0px"
                 pb="0px"
                 pr="0px"

@@ -43,7 +43,7 @@ class ApplicationService(
         if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         return ctx.withSession { session ->
-            val settings = settings.fetchSettings(session, application.resourcesOwnedBy)
+            val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
             if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
                 throw RPCException(
                     "You are not allowed to submit applications to this project",
@@ -236,11 +236,10 @@ class ApplicationService(
 
                     """
                         select *    
-                        from "grant".applications a, requested_resources r
+                        from "grant".applications a left outer join requested_resources r on (a.id = r.application_id)
                         where 
                             a.resources_owned_by = :projectId and 
-                            a.status = 'IN_PROGRESS' and 
-                            a.id = r.application_id
+                            a.status = 'IN_PROGRESS'
                         order by a.updated_at
                         limit :l
                         offset :o

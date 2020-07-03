@@ -38,7 +38,7 @@ typealias ReadTemplatesResponse = UploadTemplatesRequest
     JsonSubTypes.Type(value = UserCriteria.WayfOrganization::class, name = UserCriteria.WAYF_TYPE)
 )
 sealed class UserCriteria {
-    object Anyone : UserCriteria()
+    class Anyone : UserCriteria()
     data class EmailDomain(val domain: String) : UserCriteria()
     data class WayfOrganization(val org: String) : UserCriteria()
 
@@ -61,6 +61,9 @@ data class ProjectApplicationSettings(
 
 typealias UploadRequestSettingsRequest = ProjectApplicationSettings
 typealias UploadRequestSettingsResponse = Unit
+
+data class ReadRequestSettingsRequest(val projectId: String)
+typealias ReadRequestSettingsResponse = ProjectApplicationSettings
 
 data class ApproveApplicationRequest(val requestId: Long)
 typealias ApproveApplicationResponse = Unit
@@ -209,10 +212,30 @@ object Grants : CallDescriptionContainer("grant") {
 
                 path {
                     using(baseContext)
-                    +"upload-request-settings"
+                    +"request-settings"
                 }
 
                 body { bindEntireRequestFromBody() }
+            }
+        }
+
+    val readRequestSettings =
+        call<ReadRequestSettingsRequest, ReadRequestSettingsResponse, CommonErrorMessage>("readRequestSettings") {
+            auth {
+                access = AccessRight.READ
+            }
+
+            http {
+                method = HttpMethod.Get
+
+                path {
+                    using(baseContext)
+                    +"request-settings"
+                }
+
+                params {
+                    +boundTo(ReadRequestSettingsRequest::projectId)
+                }
             }
         }
 

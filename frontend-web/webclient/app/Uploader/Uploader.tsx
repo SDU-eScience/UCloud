@@ -8,7 +8,6 @@ import * as Modal from "react-modal";
 import {connect} from "react-redux";
 import {RouteComponentProps, withRouter} from "react-router";
 import {Dispatch} from "redux";
-import {SnackType} from "Snackbar/Snackbars";
 import {snackbarStore} from "Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {
@@ -50,6 +49,8 @@ import {
 } from "UtilityFunctions";
 import {Upload, UploaderProps, UploaderStateProps, UploadOperations} from ".";
 import {bulkUpload, multipartUpload, UploadPolicy} from "./api";
+import {useProjectStatus} from "Project/cache";
+import {getProjectNames} from "Utilities/ProjectUtilities";
 
 const uploadsFinished = (uploads: Upload[]): boolean => uploads.every((it) => isFinishedUploading(it.uploadXHR));
 const finishedUploads = (uploads: Upload[]): number => uploads.filter((it) => isFinishedUploading(it.uploadXHR)).length;
@@ -456,12 +457,13 @@ const UploaderRow = (p: {
     setRewritePolicy?: (policy: UploadPolicy) => void;
     onCheck?: (checked: boolean) => void;
 }): JSX.Element => {
+    const projectNames = getProjectNames(useProjectStatus());
     const fileInfo = resolvePath(p.location) === resolvePath(getParentPath(p.upload.path)) ? null : (
         <Dropdown>
             <Icon cursor="pointer" ml="10px" name="info" color="white" color2="black" />
             <DropdownContent width="auto" visible colorOnHover={false} color="white" backgroundColor="black">
                 Will be uploaded
-                to: {replaceHomeOrProjectFolder(p.upload.path, Client)}
+                to: {replaceHomeOrProjectFolder(p.upload.path, Client, projectNames)}
             </DropdownContent>
         </Dropdown>
     );

@@ -1,10 +1,13 @@
 import styled from "styled-components";
 import Button from "./Button";
 import Flex from "./Flex";
+import {height, HeightProps} from "styled-system";
 
 const ButtonGroup = styled(Flex)`
+    ${height}
+    
     & ${Button} {
-        height: 35px;
+        height: 100%;
         width: 100%;
         padding: 0 0 0 0;
         padding-left: 0px;
@@ -24,5 +27,8 @@ const ButtonGroup = styled(Flex)`
 `;
 
 ButtonGroup.displayName = "ButtonGroup";
+ButtonGroup.defaultProps = {
+    height: "35px"
+};
 
 export default ButtonGroup;

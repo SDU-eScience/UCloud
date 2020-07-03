@@ -228,3 +228,72 @@ export function ingoingGrantApplications(
         reloadId: Math.random()
     };
 }
+
+export interface ReadGrantRequestSettingsRequest {
+    projectId: string;
+}
+
+export type ReadGrantRequestSettingsResponse = ProjectGrantSettings;
+
+export type UserCriteria = UserCriteriaAnyone | UserCriteriaEmail | UserCriteriaWayf;
+
+export interface UserCriteriaAnyone {
+    type: "anyone"
+}
+
+export interface UserCriteriaEmail {
+    type: "email";
+    domain: string;
+}
+
+export interface UserCriteriaWayf {
+    type: "wayf";
+    org: string;
+}
+
+export interface AutomaticApprovalSettings {
+    from: UserCriteria[];
+    maxResources: ResourceRequest[];
+}
+
+export interface ProjectGrantSettings {
+    automaticApproval: AutomaticApprovalSettings;
+    allowRequestsFrom: UserCriteria[];
+}
+
+export function readGrantRequestSettings(
+    request: ReadGrantRequestSettingsRequest
+): APICallParameters<ReadGrantRequestSettingsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/request-settings", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export type UploadGrantRequestSettingsRequest = ProjectGrantSettings;
+
+export function uploadGrantRequestSettings(
+    request: UploadGrantRequestSettingsRequest
+): APICallParameters<UploadGrantRequestSettingsRequest> {
+    return {
+        method: "POST",
+        path: "/grant/request-settings",
+        payload: request,
+        parameters: request,
+        reloadId: Math.random()
+    };
+}
+
+export type UploadTemplatesRequest = ReadTemplatesResponse;
+
+export function uploadTemplates(request: UploadTemplatesRequest): APICallParameters<UploadTemplatesRequest> {
+    return {
+        method: "POST",
+        path: "/grant/upload-templates",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
