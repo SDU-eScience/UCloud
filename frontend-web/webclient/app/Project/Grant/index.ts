@@ -285,3 +285,15 @@ export function uploadGrantRequestSettings(
         reloadId: Math.random()
     };
 }
+
+export type UploadTemplatesRequest = ReadTemplatesResponse;
+
+export function uploadTemplates(request: UploadTemplatesRequest): APICallParameters<UploadTemplatesRequest> {
+    return {
+        method: "POST",
+        path: "/grant/upload-templates",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}

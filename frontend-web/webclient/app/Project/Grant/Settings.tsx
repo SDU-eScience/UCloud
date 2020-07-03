@@ -3,12 +3,17 @@ import {APICallState, useAsyncCommand, useAsyncWork, useCloudAPI} from "Authenti
 import {
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
-    ProjectGrantSettings, readGrantRequestSettings, uploadGrantRequestSettings, UserCriteria
+    ProjectGrantSettings,
+    readGrantRequestSettings,
+    readTemplates,
+    ReadTemplatesResponse,
+    uploadGrantRequestSettings, uploadTemplates,
+    UserCriteria
 } from "Project/Grant/index";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useProjectManagementStatus} from "Project";
 import * as Heading from "ui-components/Heading";
-import {Box, Button, DataList, Flex, Grid, Icon, Input, Label, Text} from "ui-components";
+import {Box, Button, DataList, Flex, Grid, Icon, Input, Label, Text, TextArea} from "ui-components";
 import ClickableDropdown from "ui-components/ClickableDropdown";
 import {wayfIdps} from "./wayf-idps.json";
 import {snackbarStore} from "Snackbar/SnackbarStore";
@@ -38,10 +43,41 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         []
     );
 
+    const [templates, fetchTemplates] = useCloudAPI<ReadTemplatesResponse>(
+        {noop: true},
+        {existingProject: "", newProject: "", personalProject: ""}
+    );
+
+    const templatePersonal = useRef<HTMLTextAreaElement>(null);
+    const templateExisting = useRef<HTMLTextAreaElement>(null);
+    const templateNew = useRef<HTMLTextAreaElement>(null);
+
     useEffect(() => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
         fetchSettings(readGrantRequestSettings({projectId}));
+        fetchTemplates(readTemplates({projectId}));
     }, [projectId]);
+
+    useEffect(() => {
+        if (templatePersonal.current) {
+            templatePersonal.current.value = templates.data.personalProject;
+        }
+        if (templateExisting.current) {
+            templateExisting.current.value = templates.data.existingProject;
+        }
+        if (templateNew.current) {
+            templateNew.current.value = templates.data.newProject;
+        }
+    }, [templates, templatePersonal, templateExisting, templateNew]);
+
+    const onUploadTemplate = useCallback(async () => {
+        await runWork(uploadTemplates({
+            personalProject: templatePersonal.current!.value,
+            newProject: templateNew.current!.value,
+            existingProject: templateExisting.current!.value
+        }));
+        fetchTemplates(readTemplates({projectId}));
+    }, [templates, templatePersonal, templateExisting, templateNew, projectId]);
 
     const addAllowFrom = useCallback(async (criteria: UserCriteria) => {
         const settingsCopy = {...settings.data};
@@ -94,6 +130,14 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             showSubprojects={false}
             onSubmit={addAutomaticApproval}
             onRemove={removeAutomaticApproval}
+        />
+
+        <Heading.h4>Default Template for Grant Applications</Heading.h4>
+        <TemplateEditor
+            templatePersonal={templatePersonal}
+            templateExisting={templateExisting}
+            templateNew={templateNew}
+            onUploadTemplate={onUploadTemplate}
         />
     </Box>;
 };
@@ -190,7 +234,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
             </React.Fragment>;
         })}
     </Grid>;
-}
+};
 
 const UserCriteriaEditor: React.FunctionComponent<{
     onSubmit: (c: UserCriteria) => any,
@@ -354,3 +398,30 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
 function productCategoryId(pid: ProductCategoryId): string {
     return `${pid.id}/${pid.provider}`;
 }
+
+const TemplateEditor: React.FunctionComponent<{
+    templatePersonal: React.Ref<HTMLTextAreaElement>,
+    templateExisting: React.Ref<HTMLTextAreaElement>,
+    templateNew: React.Ref<HTMLTextAreaElement>,
+    onUploadTemplate: () => Promise<void>
+}> = ({templatePersonal, templateExisting, templateNew, onUploadTemplate}) => {
+    return <>
+        <Grid gridGap={32} gridTemplateColumns={"repeat(auto-fit, minmax(500px, 1fr))"}>
+            <Box>
+                <Heading.h5>Personal</Heading.h5>
+                <TextArea width={"100%"} rows={15} ref={templatePersonal}/>
+            </Box>
+            <Box>
+                <Heading.h5>Existing Project</Heading.h5>
+                <TextArea width={"100%"} rows={15} ref={templateExisting}/>
+            </Box>
+            <Box>
+                <Heading.h5>New Project</Heading.h5>
+                <TextArea width={"100%"} rows={15} ref={templateNew}/>
+            </Box>
+        </Grid>
+        <Flex justifyContent={"center"} mt={32}>
+            <Button width={"350px"} onClick={onUploadTemplate}>Update Templates</Button>
+        </Flex>
+    </>;
+};
