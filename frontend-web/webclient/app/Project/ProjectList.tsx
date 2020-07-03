@@ -263,11 +263,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     </Box>
                                 </>
                             }
-                            leftSub={
-                                <Box color="grey">
-                                    2 TB used, 20 credits left
-                                </Box>
-                            }
                             right={<>
                                 <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
                                     if (!props.project) return;
@@ -399,13 +394,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 <Link to="/project/dashboard">
                                     {e.title}
                                 </Link>
-                            </Box>
-                        </>
-                    }
-                    leftSub={
-                        <>
-                            <Box color="grey">
-                                2 TB used, 20 credits left
                             </Box>
                         </>
                     }

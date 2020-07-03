@@ -203,7 +203,7 @@ const DashboardFavoriteFiles = ({
             )}
             <Error error={error} />
             <List>
-                {files.map(file => (
+                {files.slice(0, 7).map(file => (
                     <Flex alignItems="center" key={file.path} pt="0.5em" pb="6.4px">
                         <ListFileContent file={file} pixelsWide={200} />
                         <Icon
@@ -263,7 +263,7 @@ const DashboardAnalyses = ({
             )}
             <Error error={error} />
             <List>
-                {analyses.map((analysis: JobWithStatus, index: number) => (
+                {analyses.slice(0, 7).map((analysis: JobWithStatus, index: number) => (
                     <Flex key={index} alignItems="center" pt="0.5em" pb="8.4px">
                         <JobStateIcon
                             size="1.2em"
@@ -354,8 +354,8 @@ function DashboardResources({wallets, loading}: {wallets: WalletBalance[]; loadi
                 {wallets.length === 0 ? <Heading.h3> No wallets found</Heading.h3> :
                     wallets.slice(0,7).map((n, i) => (
                         <List key={i}>
-                            <Heading.h3>{n.wallet.paysFor.provider} / {n.wallet.paysFor.id}</Heading.h3>
-                            <Heading.h3 style={{textAlign: "right"}}> {creditFormatter(n.balance)} </Heading.h3>
+                            <Heading.h5>{n.wallet.paysFor.provider} / {n.wallet.paysFor.id}</Heading.h5>
+                            <Heading.h5 style={{textAlign: "right"}}> {creditFormatter(n.balance)} </Heading.h5>
                         </List>
                         )
                     )
@@ -387,7 +387,7 @@ function DashboardMessageOfTheDay({news, loading}: {news: NewsPost[]; loading: b
                             right={<Heading.h5>{dateToString(post.showFrom)}</Heading.h5>}
                         />
 
-                        <Box overflow="scroll" maxHeight={200}>
+                        <Box overflow="scroll" maxHeight={150}>
                             <Markdown
                                 source={newestPost.body}
                                 unwrapDisallowed

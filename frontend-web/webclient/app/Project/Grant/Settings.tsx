@@ -1,9 +1,9 @@
 import * as React from "react";
-import {useCloudAPI} from "Authentication/DataHook";
+import {useAsyncCommand, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
 import {
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
-    ProjectGrantSettings, UserCriteria
+    ProjectGrantSettings, readGrantRequestSettings, uploadGrantRequestSettings, UserCriteria
 } from "Project/Grant/index";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {useProjectManagementStatus} from "Project";
@@ -15,12 +15,15 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import Table, {TableCell, TableHeaderCell, TableRow} from "ui-components/Table";
 import {ConfirmCancelButtons} from "UtilityComponents";
 import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
+import {creditFormatter} from "Project/ProjectUsage";
+import {dialogStore} from "Dialog/DialogStore";
 
 const wayfIdpsPairs = wayfIdps.map(it => ({value: it, content: it}));
 
 export const GrantProjectSettings: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus();
-    const [showRequestFromEditor, setShowRequestFromEditor] = useState<boolean>(false);
+    const [, runWork] = useAsyncCommand();
+    const [editingLimit, setEditingLimit] = useState<string | null>(null);
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
         {enabled: false}
@@ -37,7 +40,65 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
 
     useEffect(() => {
         fetchEnabled((externalApplicationsEnabled({projectId})));
+        fetchSettings(readGrantRequestSettings({projectId}));
     }, [projectId]);
+
+    const addAllowFrom = useCallback(async (criteria: UserCriteria) => {
+        const settingsCopy = {...settings.data};
+        settingsCopy.allowRequestsFrom.push(criteria);
+        await runWork(uploadGrantRequestSettings(settingsCopy));
+        fetchSettings(readGrantRequestSettings({projectId}));
+    }, [settings]);
+
+    const removeAllowFrom = useCallback(async (idx: number) => {
+        const settingsCopy = {...settings.data};
+        settingsCopy.allowRequestsFrom.splice(idx, 1);
+        await runWork(uploadGrantRequestSettings(settingsCopy));
+        fetchSettings(readGrantRequestSettings({projectId}));
+    }, [settings]);
+
+    const addAutomaticApproval = useCallback(async (criteria: UserCriteria) => {
+        const settingsCopy = {...settings.data};
+        settingsCopy.automaticApproval.from.push(criteria);
+        await runWork(uploadGrantRequestSettings(settingsCopy));
+        fetchSettings(readGrantRequestSettings({projectId}));
+    }, [settings]);
+
+    const removeAutomaticApproval = useCallback(async (idx: number) => {
+        const settingsCopy = {...settings.data};
+        settingsCopy.automaticApproval.from.splice(idx, 1);
+        await runWork(uploadGrantRequestSettings(settingsCopy));
+        fetchSettings(readGrantRequestSettings({projectId}));
+    }, [settings]);
+
+    const updateApprovalLimit = useCallback(async (category: ProductCategoryId, e?: React.SyntheticEvent) => {
+        e?.preventDefault();
+        const settingsCopy = {...settings.data};
+        const idx = settingsCopy.automaticApproval.maxResources
+            .findIndex(it =>
+                it.productCategory === category.id &&
+                it.productProvider === category.provider
+            );
+
+        if (idx !== -1) {
+            settingsCopy.automaticApproval.maxResources.splice(idx, 1);
+        }
+
+        const inputElement = document.getElementById(productCategoryId(category)) as HTMLInputElement;
+        const parsedValue = parseInt(inputElement.value, 10);
+        if (isNaN(parsedValue)) {
+            snackbarStore.addFailure("Automatic approval limit must be a valid number", false);
+            return;
+        }
+        settingsCopy.automaticApproval.maxResources.push({
+            productProvider: category.provider,
+            productCategory: category.id,
+            creditsRequested: parsedValue * 1000000
+        });
+        await runWork(uploadGrantRequestSettings(settingsCopy));
+        setEditingLimit(null);
+        fetchSettings(readGrantRequestSettings({projectId}));
+    }, [settings]);
 
     if (!enabled.data.enabled) return null;
 
@@ -46,38 +107,79 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         <Heading.h5>Allow Requests From</Heading.h5>
         <UserCriteriaEditor
             criteria={settings.data.allowRequestsFrom}
-            onSubmit={console.log}
+            onSubmit={addAllowFrom}
+            onRemove={removeAllowFrom}
             showSubprojects={true}
         />
 
         <Heading.h4>Automatic Approval</Heading.h4>
-        <Grid gridGap={"16px"} gridTemplateColumns={"repeat(auto-fit, minmax(auto, 350px))"} mb={32}>
+        <Grid gridGap={"32px"} gridTemplateColumns={"repeat(auto-fit, 500px)"} mb={32}>
             {products.data.map(it => {
                 const key = productCategoryId(it.category);
 
+                const credits = settings.data.automaticApproval
+                    .maxResources
+                    .find(
+                        mr => mr.productCategory === it.category.id &&
+                            mr.productProvider === it.category.provider
+                    )
+                    ?.creditsRequested ?? 0;
                 return <React.Fragment key={key}>
-                    <Box>
+                    <form onSubmit={(e) => updateApprovalLimit(it.category, e)}>
                         <Label htmlFor={key}>
                             {it.category.id} / {it.category.provider}
                         </Label>
                         <Flex alignItems={"center"}>
-                            <Input id={key}/>
-                            <Text ml={8}>DKK</Text>
+                            {editingLimit !== key ?
+                                <Text width={350} textAlign={"right"}>
+                                    {creditFormatter(credits, 0)}
+                                </Text> : null}
+                            {editingLimit !== key ?
+                                <Button
+                                    type={"button"}
+                                    ml={8}
+                                    disabled={editingLimit !== null}
+                                    onClick={() => {
+                                        setEditingLimit(key);
+                                        const inputField = document.getElementById(key) as HTMLInputElement;
+                                        inputField.value = (credits / 1000000).toString();
+                                    }}
+                                >
+                                    Edit
+                                </Button> : null}
+
+                            <Input type={editingLimit !== key ? "hidden" : "text"} id={key} width={328}/>
+
+                            {editingLimit === key ? (
+                                <>
+                                    <Text ml={8} mr={8}>DKK</Text>
+                                    <ConfirmCancelButtons
+                                        onConfirm={() => {
+                                            updateApprovalLimit(it.category);
+                                        }}
+                                        onCancel={() => {
+                                            setEditingLimit(null);
+                                        }}
+                                    />
+                                </>
+                            ) : null}
                         </Flex>
-                    </Box>
+                    </form>
                 </React.Fragment>;
             })}
         </Grid>
         <UserCriteriaEditor
             criteria={settings.data.automaticApproval.from}
             showSubprojects={false}
-            onSubmit={console.log}
+            onSubmit={addAutomaticApproval}
+            onRemove={removeAutomaticApproval}
         />
     </Box>;
 };
 
 const UserCriteriaEditor: React.FunctionComponent<{
-    onSubmit: () => void,
+    onSubmit: (c: UserCriteria) => any,
+    onRemove: (idx: number) => any,
     criteria: UserCriteria[],
     showSubprojects: boolean
 }> = props => {
@@ -88,6 +190,7 @@ const UserCriteriaEditor: React.FunctionComponent<{
             <TableRow>
                 <TableHeaderCell textAlign={"left"}>Type</TableHeaderCell>
                 <TableHeaderCell textAlign={"left"}>Constraint</TableHeaderCell>
+                <TableHeaderCell/>
             </TableRow>
             </thead>
             <tbody>
@@ -95,6 +198,7 @@ const UserCriteriaEditor: React.FunctionComponent<{
                 <TableRow>
                     <TableCell>Subprojects</TableCell>
                     <TableCell>None</TableCell>
+                    <TableCell/>
                 </TableRow>
             }
             {!props.showSubprojects && props.criteria.length === 0 && !showRequestFromEditor ? <>
@@ -105,7 +209,7 @@ const UserCriteriaEditor: React.FunctionComponent<{
                 </TableRow>
             </> : null}
 
-            {props.criteria.map(it => <>
+            {props.criteria.map((it, idx) => <>
                 <TableRow>
                     <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
                     <TableCell textAlign={"left"}>
@@ -113,13 +217,20 @@ const UserCriteriaEditor: React.FunctionComponent<{
                         {it.type === "email" ? it.domain : null}
                         {it.type === "anyone" ? "None" : null}
                     </TableCell>
-                    <TableCell>
-                        <Icon color={"red"} name={"trash"} cursor={"pointer"}/>
+                    <TableCell textAlign={"right"}>
+                        <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)}/>
                     </TableCell>
                 </TableRow>
             </>)}
             {showRequestFromEditor ?
-                <UserCriteriaRowEditor onSubmit={props.onSubmit} onCancel={() => setShowRequestFromEditor(false)}/> :
+                <UserCriteriaRowEditor
+                    onSubmit={(c) => {
+                        props.onSubmit(c);
+                        setShowRequestFromEditor(false);
+                    }}
+                    onCancel={() => setShowRequestFromEditor(false)}
+                    allowAnyone={props.criteria.find(it => it.type === "anyone") === undefined}
+                /> :
                 null
             }
             </tbody>
@@ -148,10 +259,11 @@ function userCriteriaTypePrettifier(t: string): string {
 }
 
 const UserCriteriaRowEditor: React.FunctionComponent<{
-    onSubmit: (c: UserCriteria) => void,
-    onCancel: () => void
+    onSubmit: (c: UserCriteria) => any,
+    onCancel: () => void,
+    allowAnyone: boolean
 }> = props => {
-    const [type, setType] = useState<Pick<UserCriteria, "type">>({type: "anyone"});
+    const [type, setType] = useState<Pick<UserCriteria, "type">>({type: "wayf"});
     const [selectedWayfOrg, setSelectedWayfOrg] = useState("");
     const inputRef = useRef<HTMLInputElement>(null);
     const onClick = useCallback((e) => {
@@ -183,16 +295,20 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
         }
     }, [props.onSubmit, type, selectedWayfOrg]);
 
+    const options: { text: string, value: string }[] = [];
+    if (props.allowAnyone) {
+        options.push({text: "Anyone", value: "anyone"});
+    }
+
+    options.push({text: "Email", value: "email"});
+    options.push({text: "WAYF", value: "wayf"});
+
     return <TableRow>
         <TableCell>
             <ClickableDropdown
                 trigger={userCriteriaTypePrettifier(type.type)}
-                options={[
-                    {text: "Anyone", value: "anyone"},
-                    {text: "Email", value: "email"},
-                    {text: "WAYF", value: "wayf"},
-                ]}
-                onChange={t => setType({type: t})}
+                options={options}
+                onChange={t => setType({type: t} as Pick<UserCriteria, "type">)}
                 chevron
             />
         </TableCell>
@@ -216,6 +332,7 @@ const UserCriteriaRowEditor: React.FunctionComponent<{
                 </Flex>
             </form>
         </TableCell>
+        <TableCell/>
     </TableRow>;
 };
 
