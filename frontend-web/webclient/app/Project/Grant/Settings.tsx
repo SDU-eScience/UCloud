@@ -1,5 +1,5 @@
 import * as React from "react";
-import {useAsyncCommand, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
+import {APICallState, useAsyncCommand, useAsyncWork, useCloudAPI} from "Authentication/DataHook";
 import {
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
@@ -16,14 +16,14 @@ import Table, {TableCell, TableHeaderCell, TableRow} from "ui-components/Table";
 import {ConfirmCancelButtons} from "UtilityComponents";
 import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "Accounting";
 import {creditFormatter} from "Project/ProjectUsage";
-import {dialogStore} from "Dialog/DialogStore";
 
 const wayfIdpsPairs = wayfIdps.map(it => ({value: it, content: it}));
+
+
 
 export const GrantProjectSettings: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus();
     const [, runWork] = useAsyncCommand();
-    const [editingLimit, setEditingLimit] = useState<string | null>(null);
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
         {enabled: false}
@@ -71,6 +71,41 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [settings]);
 
+    if (!enabled.data.enabled) return null;
+
+    return <Box>
+        <Heading.h4>Allow Grant Applications From</Heading.h4>
+        <UserCriteriaEditor
+            criteria={settings.data.allowRequestsFrom}
+            onSubmit={addAllowFrom}
+            onRemove={removeAllowFrom}
+            showSubprojects={true}
+        />
+
+        <Heading.h4>Automatic Approval of Grant Applications</Heading.h4>
+        <AutomaticApprovalLimits
+            products={products}
+            settings={settings}
+            reload={() => fetchSettings(readGrantRequestSettings({projectId}))}
+        />
+
+        <UserCriteriaEditor
+            criteria={settings.data.automaticApproval.from}
+            showSubprojects={false}
+            onSubmit={addAutomaticApproval}
+            onRemove={removeAutomaticApproval}
+        />
+    </Box>;
+};
+
+const AutomaticApprovalLimits: React.FunctionComponent<{
+    products: APICallState<RetrieveFromProviderResponse>,
+    settings: APICallState<ProjectGrantSettings>,
+    reload: () => void
+}> = ({products, settings, reload}) => {
+    const [editingLimit, setEditingLimit] = useState<string | null>(null);
+    const [, runWork] = useAsyncCommand();
+
     const updateApprovalLimit = useCallback(async (category: ProductCategoryId, e?: React.SyntheticEvent) => {
         e?.preventDefault();
         const settingsCopy = {...settings.data};
@@ -97,85 +132,65 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         });
         await runWork(uploadGrantRequestSettings(settingsCopy));
         setEditingLimit(null);
-        fetchSettings(readGrantRequestSettings({projectId}));
+        reload();
     }, [settings]);
 
-    if (!enabled.data.enabled) return null;
+    return <Grid gridGap={"32px"} gridTemplateColumns={"repeat(auto-fit, 500px)"} mb={32}>
+        {products.data.map(it => {
+            const key = productCategoryId(it.category);
 
-    return <Box>
-        <Heading.h4>Ingoing Applications</Heading.h4>
-        <Heading.h5>Allow Requests From</Heading.h5>
-        <UserCriteriaEditor
-            criteria={settings.data.allowRequestsFrom}
-            onSubmit={addAllowFrom}
-            onRemove={removeAllowFrom}
-            showSubprojects={true}
-        />
+            const credits = settings.data.automaticApproval
+                .maxResources
+                .find(
+                    mr => mr.productCategory === it.category.id &&
+                        mr.productProvider === it.category.provider
+                )
+                ?.creditsRequested ?? 0;
+            return <React.Fragment key={key}>
+                <form onSubmit={(e) => updateApprovalLimit(it.category, e)}>
+                    <Label htmlFor={key}>
+                        {it.category.id} / {it.category.provider}
+                    </Label>
+                    <Flex alignItems={"center"}>
+                        {editingLimit !== key ?
+                            <Text width={350} textAlign={"right"}>
+                                {creditFormatter(credits, 0)}
+                            </Text> : null}
+                        {editingLimit !== key ?
+                            <Button
+                                type={"button"}
+                                ml={8}
+                                disabled={editingLimit !== null}
+                                onClick={() => {
+                                    setEditingLimit(key);
+                                    const inputField = document.getElementById(key) as HTMLInputElement;
+                                    inputField.value = (credits / 1000000).toString();
+                                }}
+                            >
+                                Edit
+                            </Button> : null}
 
-        <Heading.h4>Automatic Approval</Heading.h4>
-        <Grid gridGap={"32px"} gridTemplateColumns={"repeat(auto-fit, 500px)"} mb={32}>
-            {products.data.map(it => {
-                const key = productCategoryId(it.category);
+                        <Input type={editingLimit !== key ? "hidden" : "text"} id={key} width={328}/>
 
-                const credits = settings.data.automaticApproval
-                    .maxResources
-                    .find(
-                        mr => mr.productCategory === it.category.id &&
-                            mr.productProvider === it.category.provider
-                    )
-                    ?.creditsRequested ?? 0;
-                return <React.Fragment key={key}>
-                    <form onSubmit={(e) => updateApprovalLimit(it.category, e)}>
-                        <Label htmlFor={key}>
-                            {it.category.id} / {it.category.provider}
-                        </Label>
-                        <Flex alignItems={"center"}>
-                            {editingLimit !== key ?
-                                <Text width={350} textAlign={"right"}>
-                                    {creditFormatter(credits, 0)}
-                                </Text> : null}
-                            {editingLimit !== key ?
-                                <Button
-                                    type={"button"}
-                                    ml={8}
-                                    disabled={editingLimit !== null}
-                                    onClick={() => {
-                                        setEditingLimit(key);
-                                        const inputField = document.getElementById(key) as HTMLInputElement;
-                                        inputField.value = (credits / 1000000).toString();
+                        {editingLimit === key ? (
+                            <>
+                                <Text ml={8} mr={8}>DKK</Text>
+                                <ConfirmCancelButtons
+                                    onConfirm={() => {
+                                        updateApprovalLimit(it.category);
                                     }}
-                                >
-                                    Edit
-                                </Button> : null}
-
-                            <Input type={editingLimit !== key ? "hidden" : "text"} id={key} width={328}/>
-
-                            {editingLimit === key ? (
-                                <>
-                                    <Text ml={8} mr={8}>DKK</Text>
-                                    <ConfirmCancelButtons
-                                        onConfirm={() => {
-                                            updateApprovalLimit(it.category);
-                                        }}
-                                        onCancel={() => {
-                                            setEditingLimit(null);
-                                        }}
-                                    />
-                                </>
-                            ) : null}
-                        </Flex>
-                    </form>
-                </React.Fragment>;
-            })}
-        </Grid>
-        <UserCriteriaEditor
-            criteria={settings.data.automaticApproval.from}
-            showSubprojects={false}
-            onSubmit={addAutomaticApproval}
-            onRemove={removeAutomaticApproval}
-        />
-    </Box>;
-};
+                                    onCancel={() => {
+                                        setEditingLimit(null);
+                                    }}
+                                />
+                            </>
+                        ) : null}
+                    </Flex>
+                </form>
+            </React.Fragment>;
+        })}
+    </Grid>;
+}
 
 const UserCriteriaEditor: React.FunctionComponent<{
     onSubmit: (c: UserCriteria) => any,
