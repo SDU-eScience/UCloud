@@ -276,7 +276,7 @@ export const inviteMember = (payload: {projectId: string; usernames: string[]}):
     reloadId: Math.random()
 });
 
-export const deleteMemberInProject = (payload: {project: string; member: string}): APICallParameters => ({
+export const deleteMemberInProject = (payload: {projectId: string; member: string}): APICallParameters => ({
     method: "DELETE",
     path: "/projects/members",
     payload,
@@ -284,7 +284,7 @@ export const deleteMemberInProject = (payload: {project: string; member: string}
 });
 
 export const changeRoleInProject = (
-    payload: {project: string; member: string; newRole: ProjectRole}
+    payload: {projectId: string; member: string; newRole: ProjectRole}
 ): APICallParameters => ({
     method: "POST",
     path: "/projects/members/change-role",
