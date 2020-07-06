@@ -8,7 +8,10 @@ import dk.sdu.cloud.grant.api.ProjectApplicationSettings
 import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.api.UserCriteria
 import dk.sdu.cloud.service.Actor
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.service.mapItems
 import io.ktor.http.HttpStatusCode
 
 object AllowApplicationsFromTable : SQLTable("allow_applications_from") {
@@ -229,6 +232,41 @@ class SettingsService(
                     "select * from is_enabled where project_id = :projectId"
                 )
                 .rows.size > 0
+        }
+    }
+
+    data class ProjectWithTitle(val projectId: String, val title: String)
+    suspend fun browse(
+        ctx: DBContext,
+        actor: Actor,
+        pagination: NormalizedPaginationRequest
+    ): Page<ProjectWithTitle> {
+        return ctx.withSession { session ->
+            session
+                .paginatedQuery(
+                    pagination,
+                    {
+                        setParameter("isSystem", actor is Actor.System)
+                        if (actor is Actor.User) {
+                            setParameter("wayfId", actor.principal.organization)
+                            setParameter("emailDomain", actor.principal.email?.substringAfter('@'))
+                        } else {
+                            setParameter("wayfId", null as String?)
+                            setParameter("emailDomain", null as String?)
+                        }
+                    },
+                    """
+                        from allow_applications_from a
+                        where
+                            :isSystem or
+                            (a.type = 'wayf' and a.applicant_id = :wayfId and :wayfId is not null) or
+                            (a.type = 'email' and a.applicant_id = :emailDomain and :emailDomain is not null)
+                    """
+                )
+                .mapItems { row ->
+                    val projectId = row.getField(AllowApplicationsFromTable.projectId)
+                    ProjectWithTitle(projectId, projects.ancestors.get(projectId)?.last()?.title ?: projectId)
+                }
         }
     }
 

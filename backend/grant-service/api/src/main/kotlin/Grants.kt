@@ -162,6 +162,9 @@ typealias SetEnabledStatusResponse = Unit
 data class IsEnabledRequest(val projectId: String)
 data class IsEnabledResponse(val enabled: Boolean)
 
+data class BrowseProjectsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
+typealias BrowseProjectsResponse = Page<ProjectApplicationSettings>
+
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
 
@@ -434,6 +437,26 @@ object Grants : CallDescriptionContainer("grant") {
 
             params {
                 +boundTo(IsEnabledRequest::projectId)
+            }
+        }
+    }
+
+    val browseProjects = call<BrowseProjectsRequest, BrowseProjectsResponse, CommonErrorMessage>("browseProjects") {
+        auth {
+            access = AccessRight.READ
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"browse-projects"
+            }
+
+            params {
+                +boundTo(BrowseProjectsRequest::itemsPerPage)
+                +boundTo(BrowseProjectsRequest::page)
             }
         }
     }
