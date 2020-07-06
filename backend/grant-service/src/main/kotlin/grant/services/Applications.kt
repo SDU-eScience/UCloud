@@ -230,9 +230,9 @@ class ApplicationService(
         id: Long,
         newStatus: ApplicationStatus
     ) {
-        require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED or REJECTED!" }
+        require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
         ctx.withSession { session ->
-            val updatedProjectId = session
+            val (updatedProjectId, requestedBy) = session
                 .sendPreparedStatement(
                     {
                         setParameter("id", id)
@@ -242,12 +242,19 @@ class ApplicationService(
                         update "grant".applications 
                         set status = :status
                         where id = :id
-                        returning resources_owned_by
+                        returning resources_owned_by, requested_by
                     """
                 )
-                .rows.singleOrNull()?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                .rows
+                .singleOrNull()
+                ?.let { Pair(it.getString(0)!!, it.getString(1)!!) }
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            if (!projects.isAdminOfParent(updatedProjectId, actor)) {
+            if (!projects.isAdminOfParent(updatedProjectId, actor) && newStatus != ApplicationStatus.CLOSED) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+
+            if (newStatus == ApplicationStatus.CLOSED && requestedBy != actor.safeUsername()) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
         }
@@ -256,15 +263,21 @@ class ApplicationService(
         ctx.withSession { session ->
             application = viewApplicationById(session, actor, id).first
         }
+        val statusTitle = when (newStatus) {
+            ApplicationStatus.APPROVED -> "Approved"
+            ApplicationStatus.REJECTED -> "Rejected"
+            ApplicationStatus.CLOSED -> "Closed"
+            ApplicationStatus.IN_PROGRESS -> "In Progress"
+        }
         notifications.notify(
             GrantNotification(
                 application,
                 GrantNotificationMessage(
-                    "Grant Application ${if (newStatus == ApplicationStatus.APPROVED) "Approved" else "Rejected"}",
+                    "Grant Application $statusTitle",
                     "GRANT_APPLICATION_RESPONSE",
                     message = { user, projectTitle ->
                         responseTemplate(
-                            newStatus == ApplicationStatus.APPROVED,
+                            newStatus,
                             user,
                             actor.safeUsername(),
                             projectTitle
