@@ -505,7 +505,8 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                 {
                                                     state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
                                                         state.editingApplication!.status === GrantApplicationStatus.APPROVED ? "Approved" :
-                                                            "Rejected"
+                                                            state.editingApplication!.status === GrantApplicationStatus.REJECTED ? "Rejected" :
+                                                            "Closed"
                                                 }
 
                                                 <ButtonGroup>

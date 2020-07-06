@@ -48,7 +48,8 @@ export interface ResourceRequest {
 export enum GrantApplicationStatus {
     APPROVED = "APPROVED",
     REJECTED = "REJECTED",
-    IN_PROGRESS = "IN_PROGRESS"
+    IN_PROGRESS = "IN_PROGRESS",
+    CLOSED = "CLOSED"
 }
 
 export interface CreateGrantApplication {
