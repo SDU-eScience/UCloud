@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.auth
 import dk.sdu.cloud.calls.call
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
@@ -119,7 +120,11 @@ enum class ApplicationStatus {
 sealed class GrantRecipient {
     class PersonalProject(val username: String) : GrantRecipient()
     class ExistingProject(val projectId: String) : GrantRecipient()
-    class NewProject(val projectTitle: String) : GrantRecipient()
+    class NewProject(val projectTitle: String) : GrantRecipient() {
+        init {
+            CreateProjectRequest(projectTitle, null) // Trigger validation
+        }
+    }
 
     companion object {
         const val PERSONAL_TYPE = "personal"

@@ -11,6 +11,7 @@ import io.ktor.http.HttpStatusCode
 
 data class CreateProjectRequest(val title: String, val parent: String?) {
     init {
+        if (title.isEmpty()) throw RPCException("Project title must not be empty", HttpStatusCode.BadRequest)
         if (!title.matches(regex)) {
             throw RPCException("Title must not contain special characters", HttpStatusCode.BadRequest)
         }
@@ -18,7 +19,7 @@ data class CreateProjectRequest(val title: String, val parent: String?) {
     }
 
     companion object {
-        val regex = Regex("[a-zA-Z0-9 -_]+")
+        val regex = Regex("[a-zA-Z0-9 _-]+")
         const val TITLE_MAX_LENGTH = 128
     }
 }
