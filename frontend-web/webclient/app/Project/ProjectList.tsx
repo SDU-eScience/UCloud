@@ -221,8 +221,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                             />
                         </>
                     ) : (
-                        <></>
-                    )}
+                            <></>
+                        )}
                     {favorites.data.items.length === 0 ? null : (<>
                         <Heading.h3>Favorites</Heading.h3>
                         <List mb="10px">
@@ -319,7 +319,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                         activeColor="green"
                                         checked={false}
                                         onChange={() => undefined}
-                                    /><Box width="28px" /> </>}
+                                    /><Box width="37px" /> </>}
                             /> : null}
                         <Pagination.List
                             page={response.data}
@@ -341,6 +341,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             )}
             sidebar={(<>
                 <VerticalButtonGroup>
+                    <Link to="/project/grants/outgoing"><Button color="green">Outgoing Applications</Button></Link>
                     <Button onClick={startCreateProject}>Create project</Button>
                     <Label fontSize={"100%"}>
                         <Checkbox size={24} checked={archived} onChange={() => setArchived(!archived)} />
