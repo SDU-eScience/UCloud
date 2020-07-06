@@ -3,10 +3,11 @@ import {
     useProjectManagementStatus,
     membersCountRequest,
     groupsCountRequest,
-    subprojectsCountRequest
+    subprojectsCountRequest,
+    ProjectRole
 } from "Project/index";
 import * as React from "react";
-import {Box, Button, Link, Flex, theme, Card} from "ui-components";
+import {Box, Button, Link, Flex, theme, Card, Text, Heading} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -23,12 +24,24 @@ import {Dictionary} from "Types";
 import styled from "styled-components";
 import {ingoingGrantApplications, IngoingGrantApplicationsResponse} from "Project/Grant";
 import {emptyPage} from "DefaultObjects";
+import {Client} from "Authentication/HttpClientInstance";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
-    const {projectId, projectDetails} = useProjectManagementStatus();
+    const {projectId, projectDetails} = Client.hasActiveProject ? useProjectManagementStatus() : {
+        projectId: "", projectDetails: {
+            data: {
+                projectId: "",
+                favorite: false,
+                needsVerification: false,
+                title: "",
+                whoami: {username: Client.username ?? "", role: ProjectRole.USER},
+                archived: false
+            }
+        }
+    };
 
-    function isPersonalProjectActive(projectId: string): boolean {
-        return projectId === undefined || projectId === "";
+    function isPersonalProjectActive(id: string): boolean {
+        return id === undefined || id === "";
     }
 
     const [membersCount, setMembersCount] = useCloudAPI<number>(
@@ -111,33 +124,19 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         }
     }
 
-    const ProjectDashboardGrid = styled(GridCardGroup)`
-        & > ${Card} {
-            position: relative;
-            min-height: 200px;
-        }
-    `;
-
-    const DashboardCardButton = styled(Box)`
-        position: absolute;  
-        bottom: 10px;
-        left: 10px;
-        right: 10px;
-    `;
-
     return (
         <MainContainer
             header={<Flex>
-                <ProjectBreadcrumbs crumbs={[]}/>
+                {isPersonalProjectActive(projectId) ? <Heading>Personal Project</Heading> : <ProjectBreadcrumbs crumbs={[]} />}
             </Flex>}
             sidebar={null}
             main={(
                 <>
                     <ProjectDashboardGrid minmax={300}>
                         {projectId !== undefined && projectId !== "" ? (
-                            <>
-                                <DashboardCard title="Members" icon="user" color={theme.colors.blue} isLoading={false}>
-                                    <Table>
+                            <DashboardCard title="Members" icon="user" color={theme.colors.blue} isLoading={false}>
+                                <Table>
+                                    <tbody>
                                         <TableRow>
                                             <TableCell>Members</TableCell>
                                             <TableCell textAlign="right">{membersCount.data}</TableCell>
@@ -146,46 +145,51 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                             <TableCell>Groups</TableCell>
                                             <TableCell textAlign="right">{groupsCount.data}</TableCell>
                                         </TableRow>
-                                    </Table>
-                                    <DashboardCardButton>
-                                        <Link to="/project/members">
-                                            <Button width="100%">Manage Members</Button>
-                                        </Link>
-                                    </DashboardCardButton>
-                                </DashboardCard>
-                                <DashboardCard
-                                    title="Subprojects"
-                                    icon="projects"
-                                    color={theme.colors.purple}
-                                    isLoading={false}
-                                >
-                                    <Table>
-                                        <TableRow>
-                                            <TableCell>Subprojects</TableCell>
-                                            <TableCell textAlign="right">{subprojectsCount.data}</TableCell>
-                                        </TableRow>
-                                    </Table>
-                                    <DashboardCardButton>
-                                        <Link to="/project/subprojects">
-                                            <Button width="100%">Manage Subprojects</Button>
-                                        </Link>
-                                    </DashboardCardButton>
-                                </DashboardCard>
-                            </>
+                                    </tbody>
+                                </Table>
+                                <DashboardCardButton>
+                                    <Link to="/project/members">
+                                        <Button width="100%">Manage Members</Button>
+                                    </Link>
+                                </DashboardCardButton>
+                            </DashboardCard>
                         ) : null}
-                        <DashboardCard title="Usage" subtitle="Past 30 days" icon="hourglass" color={theme.colors.green}
-                                       isLoading={false}>
+                        <DashboardCard
+                            title="Subprojects"
+                            icon="projects"
+                            color={theme.colors.purple}
+                            isLoading={false}
+                        >
                             <Table>
-                                <TableRow>
-                                    <TableCell>Storage</TableCell>
-                                    <TableCell
-                                        textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
-                                </TableRow>
-                                <TableRow>
-                                    <TableCell>Compute</TableCell>
-                                    <TableCell
-                                        textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
-                                </TableRow>
+                                <tbody>
+                                    <TableRow>
+                                        <TableCell>Subprojects</TableCell>
+                                        <TableCell textAlign="right">{subprojectsCount.data}</TableCell>
+                                    </TableRow>
+                                </tbody>
+                            </Table>
+                            <DashboardCardButton>
+                                <Link to="/project/subprojects">
+                                    <Button width="100%">Manage Subprojects</Button>
+                                </Link>
+                            </DashboardCardButton>
+                        </DashboardCard>
+
+                        <DashboardCard title="Usage" subtitle="Past 30 days" icon="hourglass" color={theme.colors.green}
+                            isLoading={false}>
+                            <Table>
+                                <tbody>
+                                    <TableRow>
+                                        <TableCell>Storage</TableCell>
+                                        <TableCell
+                                            textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
+                                    </TableRow>
+                                    <TableRow>
+                                        <TableCell>Compute</TableCell>
+                                        <TableCell
+                                            textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
+                                    </TableRow>
+                                </tbody>
                             </Table>
                             <DashboardCardButton>
                                 <Link to="/project/usage">
@@ -193,29 +197,34 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Link>
                             </DashboardCardButton>
                         </DashboardCard>
-                        <DashboardCard title="Grant Applications" icon="mail" color={theme.colors.red}
-                                       isLoading={false}>
-                            <Table>
-                                <TableRow>
-                                    <TableCell>In Progress</TableCell>
-                                    <TableCell textAlign="right">{apps.data.itemsInTotal}</TableCell>
-                                </TableRow>
-                            </Table>
-                            <DashboardCardButton>
-                                <Link to="/project/grants/ingoing">
-                                    <Button width="100%">Manage Applications</Button>
-                                </Link>
-                            </DashboardCardButton>
-                        </DashboardCard>
+                        {isPersonalProjectActive(projectId) ? null :
+                            <DashboardCard title="Grant Applications" icon="mail" color={theme.colors.red}
+                                isLoading={false}>
+                                <Table>
+                                    <tbody>
+                                        <TableRow>
+                                            <TableCell>In Progress</TableCell>
+                                            <TableCell textAlign="right">{apps.data.itemsInTotal}</TableCell>
+                                        </TableRow>
+                                    </tbody>
+                                </Table>
+                                <DashboardCardButton>
+                                    <Link to="/project/grants/ingoing">
+                                        <Button width="100%">Manage Applications</Button>
+                                    </Link>
+                                </DashboardCardButton>
+                            </DashboardCard>}
                         {isPersonalProjectActive(projectId) ? null : (
                             <DashboardCard title="Settings" icon="properties" color={theme.colors.orange}
-                                           isLoading={false}>
+                                isLoading={false}>
                                 <Table>
-                                    <TableRow>
-                                        <TableCell>Archived</TableCell>
-                                        <TableCell
-                                            textAlign="right">{projectDetails.data.archived ? "Yes" : "No"}</TableCell>
-                                    </TableRow>
+                                    <tbody>
+                                        <TableRow>
+                                            <TableCell>Archived</TableCell>
+                                            <TableCell
+                                                textAlign="right">{projectDetails.data.archived ? "Yes" : "No"}</TableCell>
+                                        </TableRow>
+                                    </tbody>
                                 </Table>
                                 <DashboardCardButton>
                                     <Link to="/project/settings">
@@ -230,6 +239,20 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         />
     );
 };
+
+const ProjectDashboardGrid = styled(GridCardGroup)`
+    & > ${Card} {
+        position: relative;
+        min-height: 200px;
+    }
+`;
+
+const DashboardCardButton = styled(Box)`
+    position: absolute;  
+    bottom: 10px;
+    left: 10px;
+    right: 10px;
+`;
 
 interface ProjectDashboardOperations {
     setRefresh: (refresh?: () => void) => void;
