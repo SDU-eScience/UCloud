@@ -196,6 +196,22 @@ export function rejectGrantApplication(
     };
 }
 
+export interface CloseGrantApplicationRequest {
+    requestId: number;
+}
+
+export function closeGrantApplication(
+    request: CloseGrantApplicationRequest
+): APICallParameters<CloseGrantApplicationRequest> {
+    return {
+        method: "POST",
+        path: "/grant/close",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
 export interface ExternalApplicationsEnabledRequest {
     projectId: string;
 }
@@ -294,6 +310,18 @@ export function uploadTemplates(request: UploadTemplatesRequest): APICallParamet
         path: "/grant/upload-templates",
         parameters: request,
         payload: request,
+        reloadId: Math.random()
+    };
+}
+
+export type BrowseProjectsRequest = PaginationRequest;
+export type BrowseProjectsResponse = Page<{ projectId: string, title: string }>;
+
+export function browseProjects(request: BrowseProjectsRequest): APICallParameters<BrowseProjectsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/browse-projects", request),
+        parameters: request,
         reloadId: Math.random()
     };
 }

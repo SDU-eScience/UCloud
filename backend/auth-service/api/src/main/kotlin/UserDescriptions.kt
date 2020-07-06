@@ -181,7 +181,7 @@ object UserDescriptions : CallDescriptionContainer("auth.users") {
 
     val lookupEmail = call<LookupEmailRequest, LookupEmailResponse, CommonErrorMessage>("lookupEmail") {
         auth {
-            roles = setOf(Role.SERVICE)
+            roles = Roles.PRIVILEGED
             access = AccessRight.READ
         }
 

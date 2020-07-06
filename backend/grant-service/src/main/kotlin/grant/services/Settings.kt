@@ -3,10 +3,7 @@ package dk.sdu.cloud.grant.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.grant.api.AutomaticApprovalSettings
-import dk.sdu.cloud.grant.api.ProjectApplicationSettings
-import dk.sdu.cloud.grant.api.ResourceRequest
-import dk.sdu.cloud.grant.api.UserCriteria
+import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -235,7 +232,6 @@ class SettingsService(
         }
     }
 
-    data class ProjectWithTitle(val projectId: String, val title: String)
     suspend fun browse(
         ctx: DBContext,
         actor: Actor,
@@ -259,8 +255,9 @@ class SettingsService(
                         from allow_applications_from a
                         where
                             :isSystem or
-                            (a.type = 'wayf' and a.applicant_id = :wayfId and :wayfId is not null) or
-                            (a.type = 'email' and a.applicant_id = :emailDomain and :emailDomain is not null)
+                            (a.type = 'anyone') or
+                            (a.type = 'wayf' and a.applicant_id = :wayfId::text and :wayfId::text is not null) or
+                            (a.type = 'email' and a.applicant_id = :emailDomain::text and :emailDomain::text is not null)
                     """
                 )
                 .mapItems { row ->

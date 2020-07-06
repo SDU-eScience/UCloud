@@ -21,8 +21,9 @@ class Server(override val micro: Micro) : CommonServer {
         val projects = ProjectCache(serviceClient)
         val settings = SettingsService(projects)
         val templates = TemplateService(projects, settings, "Default")
-        val applications = ApplicationService(projects, settings)
-        val comments = CommentService(projects, applications)
+        val notifications = NotificationService(projects, serviceClient)
+        val applications = ApplicationService(projects, settings, notifications)
+        val comments = CommentService(applications, notifications)
 
         with(micro.server) {
             configureControllers(GrantController(applications, comments, settings, templates, db))

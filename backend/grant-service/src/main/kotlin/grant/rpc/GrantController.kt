@@ -46,6 +46,16 @@ class GrantController(
             ok(Unit)
         }
 
+        implement(Grants.closeApplication) {
+            applications.updateStatus(
+                db,
+                ctx.securityPrincipal.toActor(),
+                request.requestId,
+                ApplicationStatus.CLOSED
+            )
+            ok(Unit)
+        }
+
         implement(Grants.commentOnApplication) {
             comments.addComment(db, ctx.securityPrincipal.toActor(), request.requestId, request.comment)
             ok(Unit)
@@ -139,6 +149,10 @@ class GrantController(
 
         implement(Grants.isEnabled) {
             ok(IsEnabledResponse(settings.isEnabled(db, request.projectId)))
+        }
+
+        implement(Grants.browseProjects) {
+            ok(settings.browse(db, ctx.securityPrincipal.toActor(), request.normalize()))
         }
 
         return@with

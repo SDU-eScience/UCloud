@@ -100,7 +100,7 @@ export function MembersList(props: Readonly<{
                                                         });
                                                     } else {
                                                         await runCommand(changeRoleInProject({
-                                                            project: props.projectId,
+                                                            projectId: props.projectId,
                                                             member: member.username,
                                                             newRole: projectStringToRole(event.currentTarget.value)
                                                         }));

@@ -45,6 +45,8 @@ class MailService(
         return@lazy file
     }
 
+    private val tempDirectory by lazy { createTempDir("mails") }
+
     private fun addTemplate(text: String): String {
         return """
         <!DOCTYPE HTML>
@@ -89,10 +91,9 @@ class MailService(
         emailRequestedByUser: Boolean,
         testMail: Boolean = false
     ) {
-        if (principal.username !in whitelist) {
+        if (principal.username !in whitelist && !devMode) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
         }
-
         if (!emailRequestedByUser) {
             //IF expanded upon it should be moved out of AUTH
             val wantEmails = UserDescriptions.wantsEmails.call(
@@ -165,7 +166,7 @@ class MailService(
     }
 
     private fun fakeSend(message: MimeMessage) {
-        val file = createTempFile(suffix = ".html")
+        val file = createTempFile(suffix = ".html", directory = tempDirectory)
         val fileOut = FileOutputStream(file).bufferedWriter()
         val tmpOut = ByteArrayOutputStream()
         message.writeTo(tmpOut)

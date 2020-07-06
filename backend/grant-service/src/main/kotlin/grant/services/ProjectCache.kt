@@ -6,16 +6,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
-import dk.sdu.cloud.project.api.ListAllGroupMembersRequest
-import dk.sdu.cloud.project.api.ListSubProjectsRequest
-import dk.sdu.cloud.project.api.LookupPrincipalInvestigatorRequest
-import dk.sdu.cloud.project.api.Project
-import dk.sdu.cloud.project.api.ProjectGroups
-import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.api.Projects
-import dk.sdu.cloud.project.api.UserStatusRequest
-import dk.sdu.cloud.project.api.UserStatusResponse
-import dk.sdu.cloud.project.api.ViewAncestorsRequest
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.SimpleCache
@@ -57,6 +48,13 @@ class ProjectCache(private val serviceClient: AuthenticatedClient) {
             ListSubProjectsRequest(PaginationRequest.FULL_READ),
             serviceClient.withProject(project)
         ).orThrow().items
+    }
+
+    val admins = SimpleCache<String, List<ProjectMember>> { project ->
+        ProjectMembers.lookupAdmins.call(
+            LookupAdminsRequest(project),
+            serviceClient
+        ).orThrow().admins
     }
 }
 

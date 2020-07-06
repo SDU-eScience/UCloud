@@ -5,11 +5,13 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.project.api.LookupAdminsResponse
 import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.project.services.QueryService
+import dk.sdu.cloud.service.toActor
 
 class MembershipController(
     private val db: DBContext,
@@ -48,6 +50,15 @@ class MembershipController(
                     db,
                     ctx.securityPrincipal.username,
                     project
+                )
+            )
+        }
+
+        implement(ProjectMembers.lookupAdmins) {
+            ok(
+                LookupAdminsResponse(
+                    queries.lookupAdmins(db, ctx.securityPrincipal.toActor(), request.projectId
+                    )
                 )
             )
         }

@@ -132,7 +132,7 @@ const MembersPanel: React.FunctionComponent = () => {
                 message: `Remove ${member}?`,
                 onConfirm: async () => {
                     await runCommand(deleteMemberInProject({
-                        project: projectId,
+                        projectId: projectId,
                         member
                     }));
 
