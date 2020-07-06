@@ -1,15 +1,17 @@
 package dk.sdu.cloud.project.api
 
-import dk.sdu.cloud.AccessRight
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.Roles
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 
-data class CreateProjectRequest(val title: String, val parent: String?) {
+data class CreateProjectRequest(
+    val title: String,
+    val parent: String?,
+    val principalInvestigator: String? = null
+) {
     init {
         if (title.isEmpty()) throw RPCException("Project title must not be empty", HttpStatusCode.BadRequest)
         if (!title.matches(regex)) {
@@ -24,7 +26,7 @@ data class CreateProjectRequest(val title: String, val parent: String?) {
     }
 }
 
-typealias CreateProjectResponse = Unit
+typealias CreateProjectResponse = FindByStringId
 
 data class ViewMemberInProjectRequest(val projectId: String, val username: String)
 data class ViewMemberInProjectResponse(val member: ProjectMember)

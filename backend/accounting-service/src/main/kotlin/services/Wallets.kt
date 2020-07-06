@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
@@ -115,6 +116,26 @@ class BalanceService(
             }
         }
         return false
+    }
+
+    suspend fun requirePermissionToTransferFromAccount(
+        ctx: DBContext,
+        initiatedBy: Actor,
+        accountId: String,
+        walletOwnerType: WalletOwnerType
+    ) {
+        if (initiatedBy == Actor.System) return
+        if (initiatedBy is Actor.User && initiatedBy.principal.role in Roles.PRIVILEGED) return
+        if (initiatedBy != Actor.System && initiatedBy.username.startsWith("_")) return
+
+        if (walletOwnerType == WalletOwnerType.PROJECT) {
+            val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
+                ?: throw RPCException("Could not lookup member status", HttpStatusCode.BadGateway)
+            val isAdmin = memberStatus.membership.any { it.projectId == accountId && it.whoami.role.isAdmin() }
+            if (isAdmin) return
+        }
+
+        throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
     suspend fun getWalletsForAccount(
@@ -492,10 +513,10 @@ class BalanceService(
     suspend fun transferToPersonal(
         ctx: DBContext,
         actor: Actor,
-        request: TransferToPersonalRequest
+        request: SingleTransferRequest
     ) {
         ctx.withSession { session ->
-            requirePermissionToWriteBalance(session, actor, request.sourceAccount.id, request.sourceAccount.type)
+            requirePermissionToTransferFromAccount(session, actor, request.sourceAccount.id, request.sourceAccount.type)
 
             val id = UUID.randomUUID().toString()
             reserveCredits(
@@ -523,13 +544,10 @@ class BalanceService(
                     },
 
                     """
-                        update wallets
-                        set balance = balance + :amount
-                        where 
-                            account_type = 'USER' and 
-                            account_id = :destId and 
-                            product_category = :prodCategory and
-                            product_provider = :prodProvider
+                        insert into wallets (account_id, account_type, product_category, product_provider, balance) 
+                        values (:destId, 'USER', :prodCategory, :prodProvider, :amount)
+                        on conflict (account_id, account_type, product_category, product_provider)
+                        do update set balance = wallets.balance + excluded.balance
                     """
                 )
                 .rowsAffected > 0L

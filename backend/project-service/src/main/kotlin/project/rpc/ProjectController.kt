@@ -1,11 +1,9 @@
 package dk.sdu.cloud.project.rpc
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.project
-import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.project.Configuration
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.project.services.ProjectException
@@ -27,8 +25,8 @@ class ProjectController(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {
             checkEnabled(configuration)
-            projects.create(db, ctx.securityPrincipal, request.title, request.parent)
-            ok(Unit)
+            val pi = request.principalInvestigator.takeIf { ctx.securityToken.extendedBy != null }
+            ok(FindByStringId(projects.create(db, ctx.securityPrincipal, request.title, request.parent, pi)))
         }
 
         implement(Projects.invite) {
@@ -214,11 +212,13 @@ class ProjectController(
         }
 
         implement(Projects.lookupPrincipalInvestigator) {
-            ok(queries.lookupPrincipalInvestigator(
-                db,
-                ctx.securityPrincipal.toActor(),
-                ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
-            ))
+            ok(
+                queries.lookupPrincipalInvestigator(
+                    db,
+                    ctx.securityPrincipal.toActor(),
+                    ctx.project ?: throw RPCException("No project", HttpStatusCode.BadRequest)
+                )
+            )
         }
     }
 

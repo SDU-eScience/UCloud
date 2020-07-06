@@ -72,7 +72,8 @@ class ProjectService(
         ctx: DBContext,
         createdBy: SecurityPrincipal,
         title: String,
-        parent: String?
+        parent: String?,
+        principalInvestigatorOverride: String?
     ): String {
         if (parent == null && createdBy.role !in Roles.PRIVILEGED) throw ProjectException.Forbidden()
         if (parent != null) {
@@ -92,7 +93,7 @@ class ProjectService(
                 }
 
                 session.insert(ProjectMemberTable) {
-                    set(ProjectMemberTable.username, createdBy.username)
+                    set(ProjectMemberTable.username, principalInvestigatorOverride ?: createdBy.username)
                     set(ProjectMemberTable.role, ProjectRole.PI.name)
                     set(ProjectMemberTable.project, id)
                     set(ProjectMemberTable.createdAt, LocalDateTime.now())

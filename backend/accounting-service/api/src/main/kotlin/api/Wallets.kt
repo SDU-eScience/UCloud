@@ -47,12 +47,18 @@ data class Wallet(
     val paysFor: ProductCategoryId
 )
 
-data class GrantCreditsRequest(
+data class AddToBalanceRequest(
     val wallet: Wallet,
     val credits: Long
 )
 
-typealias GrantCreditsResponse = Unit
+typealias AddToBalanceResponse = Unit
+
+data class AddToBalanceBulkRequest(
+    val requests: List<AddToBalanceRequest>
+)
+
+typealias AddToBalanceBulkResponse = Unit
 
 data class SetBalanceRequest(
     val wallet: Wallet,
@@ -96,7 +102,9 @@ typealias ReserveCreditsResponse = Unit
 data class ChargeReservationRequest(val name: String, val amount: Long, val productUnits: Long)
 typealias ChargeReservationResponse = Unit
 
-data class TransferToPersonalRequest(
+data class TransferToPersonalRequest(val transfers: List<SingleTransferRequest>)
+data class SingleTransferRequest(
+    val initiatedBy: String,
     val amount: Long,
     val sourceAccount: Wallet,
     val destinationAccount: Wallet
@@ -138,7 +146,7 @@ object Wallets : CallDescriptionContainer("wallets") {
         }
     }
 
-    val grantCredits = call<GrantCreditsRequest, GrantCreditsResponse, CommonErrorMessage>("grantCredits") {
+    val addToBalance = call<AddToBalanceRequest, AddToBalanceResponse, CommonErrorMessage>("addToBalance") {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -149,6 +157,23 @@ object Wallets : CallDescriptionContainer("wallets") {
             path {
                 using(baseContext)
                 +"add-credits"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val addToBalanceBulk = call<AddToBalanceBulkRequest, AddToBalanceBulkResponse, CommonErrorMessage>("addToBalanceBulk") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"add-credits-bulk"
             }
 
             body { bindEntireRequestFromBody() }
@@ -215,6 +240,7 @@ object Wallets : CallDescriptionContainer("wallets") {
     ) {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEGED
         }
 
         http {

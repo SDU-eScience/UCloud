@@ -301,6 +301,13 @@ bundle { ctx ->
                 listOf(
                     "files.updateProjectAcl:write"
                 )
+            ),
+            TokenExtension(
+                "_grant",
+                listOf(
+                    "project:write",
+                    "wallets:write"
+                )
             )
         )
 

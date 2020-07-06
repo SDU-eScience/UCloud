@@ -1,7 +1,11 @@
 package dk.sdu.cloud.grant.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.CreateApplication
@@ -10,6 +14,8 @@ import dk.sdu.cloud.grant.api.ResourceRequest
 import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
 import dk.sdu.cloud.grant.utils.responseTemplate
 import dk.sdu.cloud.grant.utils.updatedTemplate
+import dk.sdu.cloud.project.api.CreateProjectRequest
+import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
@@ -37,7 +43,8 @@ object RequestedResourceTable : SQLTable("requested_resources") {
 class ApplicationService(
     private val projects: ProjectCache,
     private val settings: SettingsService,
-    private val notifications: NotificationService
+    private val notifications: NotificationService,
+    private val serviceClient: AuthenticatedClient
 ) {
     suspend fun submit(
         ctx: DBContext,
@@ -228,9 +235,14 @@ class ApplicationService(
         ctx: DBContext,
         actor: Actor,
         id: Long,
-        newStatus: ApplicationStatus
+        newStatus: ApplicationStatus,
+        extendedUserClient: AuthenticatedClient? = null
     ) {
         require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
+        require(newStatus != ApplicationStatus.APPROVED || extendedUserClient != null) {
+            "Must extend client if approving"
+        }
+
         ctx.withSession { session ->
             val (updatedProjectId, requestedBy) = session
                 .sendPreparedStatement(
@@ -256,6 +268,10 @@ class ApplicationService(
 
             if (newStatus == ApplicationStatus.CLOSED && requestedBy != actor.safeUsername()) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+
+            if (newStatus == ApplicationStatus.APPROVED) {
+                onApplicationApproved(session, actor, id, extendedUserClient!!)
             }
         }
 
@@ -287,6 +303,83 @@ class ApplicationService(
             ),
             actor.safeUsername()
         )
+    }
+
+    private suspend fun onApplicationApproved(
+        session: AsyncDBConnection,
+        actor: Actor,
+        id: Long,
+        extendedUserClient: AuthenticatedClient
+    ) {
+        val (application) = viewApplicationById(session, actor, id)
+        when (val grantRecipient = application.grantRecipient) {
+            is GrantRecipient.PersonalProject -> {
+                val requests = application.requestedResources.mapNotNull { resource ->
+                    val creditsRequested = resource.creditsRequested ?: return@mapNotNull null // TODO Deal with quotas
+                    val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
+
+                    SingleTransferRequest(
+                        actor.safeUsername(),
+                        creditsRequested,
+                        Wallet(
+                            application.resourcesOwnedBy,
+                            WalletOwnerType.PROJECT,
+                            paysFor
+                        ),
+                        Wallet(
+                            grantRecipient.username,
+                            WalletOwnerType.USER,
+                            paysFor
+                        )
+                    )
+                }
+
+                Wallets.transferToPersonal.call(
+                    TransferToPersonalRequest(requests),
+                    serviceClient
+                ).orThrow()
+            }
+
+            is GrantRecipient.ExistingProject -> {
+                grantResourcesToProject(application, grantRecipient.projectId, extendedUserClient)
+            }
+
+            is GrantRecipient.NewProject -> {
+                val (newProjectId) = Projects.create.call(
+                    CreateProjectRequest(
+                        grantRecipient.projectTitle,
+                        application.resourcesOwnedBy,
+                        principalInvestigator = application.requestedBy
+                    ),
+                    extendedUserClient
+                ).orThrow()
+
+                grantResourcesToProject(application, newProjectId, extendedUserClient)
+            }
+        }
+    }
+
+    private suspend fun grantResourcesToProject(
+        application: Application,
+        projectId: String,
+        extendedUserClient: AuthenticatedClient
+    ) {
+        Wallets.addToBalanceBulk.call(
+            AddToBalanceBulkRequest(application.requestedResources.mapNotNull { resource ->
+                val creditsRequested = resource.creditsRequested ?: return@mapNotNull null // TODO Deal with quotas
+                val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
+
+                AddToBalanceRequest(
+                    Wallet(
+                        projectId,
+                        WalletOwnerType.PROJECT,
+                        paysFor
+                    ),
+                    creditsRequested
+                )
+            }),
+            extendedUserClient
+        ).orThrow()
     }
 
     suspend fun listIngoingApplications(
