@@ -6,16 +6,13 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.TYPE_PROPERTY
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
 
 data class UploadTemplatesRequest(
     val personalProject: String,
@@ -138,7 +135,16 @@ data class ResourceRequest(
     val productProvider: String,
     val creditsRequested: Long?,
     val quotaRequested: Long?
-)
+) {
+    init {
+        if (creditsRequested != null && creditsRequested < 0) {
+            throw RPCException("Cannot request a negative amount of resources", HttpStatusCode.BadRequest)
+        }
+        if (quotaRequested != null && quotaRequested < 0) {
+            throw RPCException("Cannot request a negative quota", HttpStatusCode.BadRequest)
+        }
+    }
+}
 
 data class CreateApplication(
     val resourcesOwnedBy: String, // Project ID of the project owning the resources
