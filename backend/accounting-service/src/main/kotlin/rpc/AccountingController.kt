@@ -41,6 +41,16 @@ class AccountingController(
             ok(Unit)
         }
 
+        implement(Wallets.transferToPersonal) {
+            balance.transferToPersonal(
+                db,
+                ctx.securityPrincipal.toActor(),
+                request
+            )
+
+            ok(Unit)
+        }
+
         implement(Wallets.retrieveBalance) {
             val project = ctx.project
             val accountId = request.id ?: (project ?: ctx.securityPrincipal.username)

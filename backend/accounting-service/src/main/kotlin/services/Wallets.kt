@@ -1,20 +1,17 @@
 package dk.sdu.cloud.accounting.services
 
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.api.ProductArea
-import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.ReserveCreditsRequest
-import dk.sdu.cloud.accounting.api.WalletOwnerType
-import dk.sdu.cloud.accounting.api.Wallet
-import dk.sdu.cloud.accounting.api.WalletBalance
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.service.safeUsername
 import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
+import java.util.*
 
 object WalletTable : SQLTable("wallets") {
     val accountId = text("account_id", notNull = true)
@@ -149,8 +146,8 @@ class BalanceService(
                         select w.*, pc.area
                         from wallets w, product_categories pc
                         where 
-                            w.account_id in (select unnest(?accountIds::text[])) and 
-                            w.account_type = ?accountType and
+                            w.account_id in (select unnest(:accountIds::text[])) and 
+                            w.account_type = :accountType and
                             pc.category = w.product_category and
                             pc.provider = w.product_provider
                     """
@@ -195,10 +192,10 @@ class BalanceService(
                         select balance 
                         from wallets 
                         where 
-                            account_id = ?accountId and 
-                            account_type = ?accountType and
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider
+                            account_id = :accountId and 
+                            account_type = :accountType and
+                            product_category = :productCategory and
+                            product_provider = :productProvider
                     """
                 )
                 .rows
@@ -259,12 +256,12 @@ class BalanceService(
 
                     """
                         update wallets
-                        set balance = ?amount
+                        set balance = :amount
                         where 
-                            account_id = ?accountId and 
-                            account_type = ?accountType and 
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider
+                            account_id = :accountId and 
+                            account_type = :accountType and 
+                            product_category = :productCategory and
+                            product_provider = :productProvider
                     """
                 )
         }
@@ -290,12 +287,12 @@ class BalanceService(
 
                     """
                         update wallets  
-                        set balance = balance + ?amount
+                        set balance = balance + :amount
                         where 
-                            account_id = ?accountId and 
-                            account_type = ?accountType and
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider
+                            account_id = :accountId and 
+                            account_type = :accountType and
+                            product_category = :productCategory and
+                            product_provider = :productProvider
                     """
                 )
                 .rowsAffected
@@ -325,10 +322,10 @@ class BalanceService(
                     """
                         delete from transactions 
                         where
-                            account_id = ?accountId and
-                            account_type = ?accountType and
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider and
+                            account_id = :accountId and
+                            account_type = :accountType and
+                            product_category = :productCategory and
+                            product_provider = :productProvider and
                             is_reserved = true and
                             expires_at is not null and
                             expires_at < timezone('utc', now())
@@ -343,10 +340,10 @@ class BalanceService(
                         select sum(amount)::bigint
                         from transactions
                         where
-                            account_id = ?accountId and
-                            account_type = ?accountType and
-                            product_category = ?productCategory and
-                            product_provider = ?productProvider and
+                            account_id = :accountId and
+                            account_type = :accountType and
+                            product_category = :productCategory and
+                            product_provider = :productProvider and
                             is_reserved = true
                     """
                 )
@@ -461,13 +458,13 @@ class BalanceService(
                     """
                         update transactions     
                         set
-                            amount = ?amount,
-                            units = ?units,
+                            amount = :amount,
+                            units = :units,
                             is_reserved = false,
                             completed_at = now(),
                             expires_at = null
                         where
-                            id = ?reservationId 
+                            id = :reservationId 
                     """
                 )
 
@@ -480,15 +477,64 @@ class BalanceService(
 
                     """
                         update wallets
-                        set balance = balance - ?amount
+                        set balance = balance - :amount
                         where
                             (account_id, account_type, product_category, product_provider) in (
                                 select t.account_id, t.account_type, t.product_category, t.product_provider
                                 from transactions t
-                                where t.id = ?reservationId
+                                where t.id = :reservationId
                             )
                     """
                 )
+        }
+    }
+
+    suspend fun transferToPersonal(
+        ctx: DBContext,
+        actor: Actor,
+        request: TransferToPersonalRequest
+    ) {
+        ctx.withSession { session ->
+            requirePermissionToWriteBalance(session, actor, request.sourceAccount.id, request.sourceAccount.type)
+
+            val id = UUID.randomUUID().toString()
+            reserveCredits(
+                session,
+                actor,
+                ReserveCreditsRequest(
+                    jobId = id,
+                    amount = request.amount,
+                    expiresAt = System.currentTimeMillis() + (1000L * 60),
+                    account = request.sourceAccount,
+                    jobInitiatedBy = actor.safeUsername(),
+                    productId = "",
+                    productUnits = 1L,
+                    chargeImmediately = true
+                )
+            )
+
+            val success = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("destId", request.destinationAccount.id)
+                        setParameter("amount", request.amount)
+                        setParameter("prodCategory", request.destinationAccount.paysFor.id)
+                        setParameter("prodProvider", request.destinationAccount.paysFor.provider)
+                    },
+
+                    """
+                        update wallets
+                        set balance = balance + :amount
+                        where 
+                            account_type = 'USER' and 
+                            account_id = :destId and 
+                            product_category = :prodCategory and
+                            product_provider = :prodProvider
+                    """
+                )
+                .rowsAffected > 0L
+
+            if (!success) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
     }
 

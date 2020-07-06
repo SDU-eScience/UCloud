@@ -96,6 +96,24 @@ typealias ReserveCreditsResponse = Unit
 data class ChargeReservationRequest(val name: String, val amount: Long, val productUnits: Long)
 typealias ChargeReservationResponse = Unit
 
+data class TransferToPersonalRequest(
+    val amount: Long,
+    val sourceAccount: Wallet,
+    val destinationAccount: Wallet
+) {
+    init {
+        if (destinationAccount.type != WalletOwnerType.USER) {
+            throw RPCException("Destination account must be a personal project!", HttpStatusCode.BadRequest)
+        }
+
+        if (sourceAccount.paysFor != destinationAccount.paysFor) {
+            throw RPCException("Both source and destination must target same wallet", HttpStatusCode.BadRequest)
+        }
+    }
+}
+
+typealias TransferToPersonalResponse = Unit
+
 object Wallets : CallDescriptionContainer("wallets") {
     const val baseContext = "/api/accounting/wallets"
 
@@ -186,6 +204,25 @@ object Wallets : CallDescriptionContainer("wallets") {
             path {
                 using(baseContext)
                 +"charge-reservation"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val transferToPersonal = call<TransferToPersonalRequest, TransferToPersonalResponse, CommonErrorMessage>(
+        "transferToPersonal"
+    ) {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"transfer"
             }
 
             body { bindEntireRequestFromBody() }
