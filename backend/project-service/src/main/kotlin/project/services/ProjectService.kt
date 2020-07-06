@@ -22,7 +22,6 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.project.api.*
-import dk.sdu.cloud.project.utils.userInvitedTemplate
 import dk.sdu.cloud.project.utils.userInvitedToInviteeTemplate
 import dk.sdu.cloud.project.utils.userLeftTemplate
 import dk.sdu.cloud.project.utils.userRemovedTemplate
@@ -77,7 +76,6 @@ class ProjectService(
     ): String {
         if (parent == null && createdBy.role !in Roles.PRIVILEGED) throw ProjectException.Forbidden()
         if (parent != null) {
-            // TODO Introduce setting for normal user project creation
             requireRole(ctx, createdBy.username, parent, ProjectRole.ADMINS)
         }
 
@@ -173,50 +171,8 @@ class ProjectService(
                     }
                 }
             }
-            sendInviteNotifications(inviteFrom, invitesTo)
-            val (pi, admins) = getPIAndAdminsOfProject(ctx, projectId)
-            val projectTitle = getProjectTitle(ctx, projectId)
-            //Notify admins and pi
-            val notificationMessage = "$invitesTo has been invited to $projectTitle"
+            sendInviteNotifications(ctx, projectId, inviteFrom, invitesTo)
 
-            notify(NotificationType.PROJECT_INVITE, pi, notificationMessage)
-            admins.forEach { admin ->
-                notify(NotificationType.PROJECT_INVITE, admin, notificationMessage)
-            }
-
-            val requests = mutableListOf<SendRequest>()
-            //send to PI
-            invitesTo.forEach { invitee ->
-                requests.add(
-                    SendRequest(
-                        pi,
-                        PROJECT_USER_INVITE,
-                        userInvitedTemplate(pi, invitee, projectTitle)
-                    )
-                )
-                //send to admins
-                admins.forEach { admin ->
-                    requests.add(
-                        SendRequest(
-                            admin,
-                            PROJECT_USER_INVITE,
-                            userInvitedTemplate(pi, invitee, projectTitle)
-                        )
-                    )
-                }
-                //Send to deleted user
-                requests.add(
-                    SendRequest(
-                        invitee,
-                        PROJECT_USER_INVITE,
-                        userInvitedToInviteeTemplate(invitee, projectTitle)
-                    )
-                )
-            }
-            MailDescriptions.sendBulk.call(
-                SendBulkRequest(requests.toList()),
-                serviceClient
-            ).orThrow()
         } catch (ex: GenericDatabaseException) {
             if (ex.errorCode == PostgresErrorCodes.UNIQUE_VIOLATION) {
                 throw ProjectException.AlreadyMember()
@@ -228,7 +184,9 @@ class ProjectService(
     }
 
     private suspend fun sendInviteNotifications(
-    invitedBy: String,
+        ctx: DBContext,
+        projectId: String,
+        invitedBy: String,
         invitesTo: Set<String>
     ) {
         invitesTo.forEach { member ->
@@ -237,17 +195,21 @@ class ProjectService(
                 serviceClient
             ).orThrow()
 
-            NotificationDescriptions.create.call(
-                CreateNotification(
-                    member,
-                    Notification(
-                        "PROJECT_INVITE",
-                        "$invitedBy has invited you to collaborate",
-                        meta = mapOf(
-                            "invitedBy" to invitedBy
-                        )
-                    )
-                ),
+            notify(NotificationType.PROJECT_INVITE, member, "$invitedBy has invited you to collaborate")
+        }
+
+        ctx.withSession { session ->
+            val projectTitle = getProjectTitle(ctx, projectId)
+            val messages = invitesTo.map { invitee ->
+                SendRequest(
+                    invitee,
+                    PROJECT_USER_INVITE,
+                    userInvitedToInviteeTemplate(invitee, projectTitle)
+                )
+            }
+
+            MailDescriptions.sendBulk.call(
+                SendBulkRequest(messages),
                 serviceClient
             ).orThrow()
         }
@@ -268,8 +230,8 @@ class ProjectService(
                     """
                         delete from invites
                         where
-                            username = ?username and
-                            project_id = ?project
+                            username = :username and
+                            project_id = :project
                     """
                 )
                 .rowsAffected > 0
@@ -283,8 +245,6 @@ class ProjectService(
                 set(ProjectMemberTable.createdAt, LocalDateTime.now())
                 set(ProjectMemberTable.modifiedAt, LocalDateTime.now())
             }
-
-
         }
     }
 
@@ -308,8 +268,8 @@ class ProjectService(
                     """
                         delete from invites
                         where
-                            username = ?username and
-                            project_id = ?project
+                            username = :username and
+                            project_id = :project
                     """
                 )
                 .rowsAffected > 0
@@ -323,8 +283,9 @@ class ProjectService(
         initiatedBy: String,
         projectId: String
     ) {
+        lateinit var existingRole: ProjectRole
         ctx.withSession { session ->
-            val existingRole = findRoleOfMember(session, projectId, initiatedBy) ?: throw ProjectException.NotFound()
+            existingRole = findRoleOfMember(session, projectId, initiatedBy) ?: throw ProjectException.NotFound()
             if (existingRole == ProjectRole.PI) throw ProjectException.CantDeleteUserFromProject()
 
             session
@@ -335,10 +296,12 @@ class ProjectService(
                     },
                     """
                         delete from project_members
-                        where project_id = ?project and username = ?username
+                        where project_id = :project and username = :username
                     """
                 )
+        }
 
+        ctx.withSession { session ->
             eventProducer.produce(
                 ProjectEvent.MemberDeleted(
                     projectId,
@@ -347,48 +310,33 @@ class ProjectService(
             )
 
             val (pi, admins) = getPIAndAdminsOfProject(ctx, projectId)
+            val allAdmins = (admins + pi)
             val projectTitle = getProjectTitle(ctx, projectId)
 
-            //Notify admins and pi
             val notificationMessage = "$initiatedBy has left project: $projectTitle"
-
-            notify(NotificationType.PROJECT_USER_LEFT, pi, notificationMessage)
-            admins.forEach { admin ->
+            allAdmins.forEach { admin ->
                 notify(NotificationType.PROJECT_USER_LEFT, admin, notificationMessage)
             }
 
-            val requests = mutableListOf<SendRequest>()
-            //send to PI
-            requests.add(
-                SendRequest(
-                    pi,
-                    USER_LEFT,
-                    userLeftTemplate(pi, initiatedBy, projectTitle)
-                )
-            )
-            //send to admins
-            admins.forEach { admin ->
-                requests.add(
+            MailDescriptions.sendBulk.call(
+                SendBulkRequest(allAdmins.map { admin ->
                     SendRequest(
                         admin,
                         USER_LEFT,
                         userLeftTemplate(pi, initiatedBy, projectTitle)
                     )
-                )
-            }
-            MailDescriptions.sendBulk.call(
-                SendBulkRequest(requests.toList()),
+                }),
                 serviceClient
             ).orThrow()
         }
     }
 
-    private suspend fun notify(notifcationType: NotificationType, reciever: String, message: String){
+    private suspend fun notify(notificationType: NotificationType, reciever: String, message: String) {
         NotificationDescriptions.create.call(
             CreateNotification(
                 reciever,
                 Notification(
-                    notifcationType.name,
+                    notificationType.name,
                     message
                 )
             ),
@@ -421,7 +369,7 @@ class ProjectService(
                     },
                     """
                         delete from project_members
-                        where project_id = ?project and username = ?username
+                        where project_id = :project and username = :username
                     """
                 )
 
@@ -434,47 +382,37 @@ class ProjectService(
 
 
             val (pi, admins) = getPIAndAdminsOfProject(ctx, projectId)
+            val allAdmins = (admins + pi)
             val projectTitle = getProjectTitle(ctx, projectId)
 
-            //Notify admins and pi
             val notificationMessage = "$userToDelete has been removed from project: $projectTitle"
-
-            notify(NotificationType.PROJECT_USER_REMOVED, pi, notificationMessage)
-            admins.forEach { admin ->
+            allAdmins.forEach { admin ->
                 notify(NotificationType.PROJECT_USER_REMOVED, admin, notificationMessage)
             }
-            notify(NotificationType.PROJECT_USER_REMOVED, userToDelete, "You have been removed from project: $projectTitle")
 
-            val requests = mutableListOf<SendRequest>()
-            //send to PI
-            requests.add(
-                SendRequest(
-                    pi,
-                    USER_LEFT,
-                    userRemovedTemplate(pi, userToDelete, projectTitle)
-                )
+            notify(
+                NotificationType.PROJECT_USER_REMOVED,
+                userToDelete,
+                "You have been removed from project: $projectTitle"
             )
-            //send to admins
-            admins.forEach { admin ->
-                requests.add(
+
+            val adminMessages = allAdmins
+                .map {
                     SendRequest(
-                        admin,
+                        pi,
                         USER_LEFT,
-                        userLeftTemplate(admin, userToDelete, projectTitle)
+                        userRemovedTemplate(pi, userToDelete, projectTitle)
                     )
-                )
-            }
-            //Send to deleted user
-            requests.add(
-                SendRequest(
-                    userToDelete,
-                    USER_LEFT,
-                    userRemovedToPersonRemovedTemplate(userToDelete, projectTitle)
-                )
+                }
+
+            val userMessage = SendRequest(
+                userToDelete,
+                USER_LEFT,
+                userRemovedToPersonRemovedTemplate(userToDelete, projectTitle)
             )
 
             MailDescriptions.sendBulk.call(
-                SendBulkRequest(requests.toList()),
+                SendBulkRequest(adminMessages + userMessage),
                 serviceClient
             ).orThrow()
         }
@@ -498,12 +436,10 @@ class ProjectService(
 
             if (!allowPiChange && oldRole == ProjectRole.PI) throw ProjectException.CantChangeRole()
             if (!allowPiChange && newRole == ProjectRole.PI) {
-                log.info("1")
                 throw ProjectException.Forbidden()
             }
             if (oldRole == newRole) return@withSession
             if (oldRole == ProjectRole.PI && updatedByRole != ProjectRole.PI) {
-                log.info("2")
                 throw ProjectException.Forbidden()
             }
 
@@ -518,10 +454,10 @@ class ProjectService(
                         update project_members  
                         set
                             modified_at = now(),
-                            role = ?role
+                            role = :role
                         where
-                            username = ?username and
-                            project_id = ?project
+                            username = :username and
+                            project_id = :project
                     """
                 )
 
@@ -535,35 +471,21 @@ class ProjectService(
 
             val (pi, admins) = getPIAndAdminsOfProject(ctx, projectId)
             val projectTitle = getProjectTitle(ctx, projectId)
+            val allAdmins = admins + pi
             val notificationMessage = "$memberToUpdate has changed role to $newRole in project: $projectTitle"
 
-
-            notify(NotificationType.PROJECT_ROLE_CHANGE, pi, notificationMessage)
-            admins.forEach { admin ->
+            allAdmins.forEach { admin ->
                 notify(NotificationType.PROJECT_ROLE_CHANGE, pi, notificationMessage)
-            }
-            val requests = mutableListOf<SendRequest>()
-            //send to PI
-            requests.add(
-                SendRequest(
-                    pi,
-                    USER_ROLE_CHANGE,
-                    userRoleChangeTemplate(pi, memberToUpdate, newRole, projectTitle)
-                )
-            )
-            //send to admins
-            admins.forEach { admin ->
-                requests.add(
-                    SendRequest(
-                        admin,
-                        USER_ROLE_CHANGE,
-                        userRoleChangeTemplate(admin, memberToUpdate, newRole, projectTitle)
-                    )
-                )
             }
 
             MailDescriptions.sendBulk.call(
-                SendBulkRequest(requests.toList()),
+                SendBulkRequest(allAdmins.map {
+                    SendRequest(
+                        pi,
+                        USER_ROLE_CHANGE,
+                        userRoleChangeTemplate(pi, memberToUpdate, newRole, projectTitle)
+                    )
+                }),
                 serviceClient
             ).orThrow()
         }
@@ -620,9 +542,9 @@ class ProjectService(
     }
 
     //Returns a Pair<PI, listOf<Admins>>
-    suspend fun getPIAndAdminsOfProject(db: DBContext, projectId: String): Pair<String,List<String>> {
+    suspend fun getPIAndAdminsOfProject(db: DBContext, projectId: String): Pair<String, List<String>> {
         return db.withSession { session ->
-           val adminsAndPIs = session
+            val adminsAndPIs = session
                 .sendPreparedStatement(
                     {
                         setParameter("projectId", projectId)
@@ -635,7 +557,7 @@ class ProjectService(
                     """
                 )
                 .rows
-            var pi = ""
+            var pi: String? = null
             val admins = mutableListOf<String>()
             adminsAndPIs.forEach { rowData ->
                 if (rowData.getField(ProjectMemberTable.role) == ProjectRole.ADMIN.name) {
@@ -644,10 +566,10 @@ class ProjectService(
                     pi = rowData.getField(ProjectMemberTable.username)
                 }
             }
-            if (pi.isNullOrEmpty()) {
+            if (pi == null) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "no PI found")
             }
-            Pair(pi, admins)
+            Pair(pi!!, admins)
         }
     }
 
@@ -686,8 +608,8 @@ class ProjectService(
                     },
                     """
                         update projects 
-                        set archived = ?archiveStatus
-                        where id = ?project
+                        set archived = :archiveStatus
+                        where id = :project
                     """
                 )
         }
@@ -714,6 +636,5 @@ class ProjectService(
         const val USER_ROLE_CHANGE = "Role change in project"
         const val USER_LEFT = "User left project"
         const val PROJECT_USER_INVITE = "User invited to project"
-
     }
 }
