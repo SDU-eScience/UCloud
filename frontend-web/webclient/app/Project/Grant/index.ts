@@ -196,6 +196,22 @@ export function rejectGrantApplication(
     };
 }
 
+export interface CloseGrantApplicationRequest {
+    requestId: number;
+}
+
+export function closeGrantApplication(
+    request: CloseGrantApplicationRequest
+): APICallParameters<CloseGrantApplicationRequest> {
+    return {
+        method: "POST",
+        path: "/grant/close",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
 export interface ExternalApplicationsEnabledRequest {
     projectId: string;
 }

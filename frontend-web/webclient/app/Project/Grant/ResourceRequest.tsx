@@ -21,11 +21,12 @@ import {creditFormatter} from "Project/ProjectUsage";
 import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {
-    approveGrantApplication,
+    approveGrantApplication, closeGrantApplication,
     Comment,
     commentOnGrantApplication,
     deleteGrantApplicationComment,
-    editGrantApplication, GrantApplication,
+    editGrantApplication,
+    GrantApplication,
     GrantApplicationStatus,
     GrantRecipient,
     readTemplates,
@@ -389,6 +390,19 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
         }
     }, [state.editingApplication?.id]);
 
+    const closeRequest = useCallback(async () => {
+        if (state.editingApplication !== undefined) {
+            addStandardDialog({
+                title: "Close application?",
+                message: "Are you sure you wish to close this application?",
+                onConfirm: async () => {
+                    await runWork(closeGrantApplication({requestId: state.editingApplication!.id}));
+                    state.reload();
+                }
+            });
+        }
+    }, [state.editingApplication?.id]);
+
     useEffect(() => {
         if (state.editingApplication !== undefined) {
             for (const wallet of state.wallets) {
@@ -501,6 +515,12 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                         <>
                                                             <Button color={"green"} onClick={approveRequest}>Approve</Button>
                                                             <Button color={"red"} onClick={rejectRequest}>Reject</Button>
+                                                        </> : null
+                                                    }
+                                                    {target === RequestTarget.VIEW_APPLICATION && !state.approver &&
+                                                        state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
+                                                        <>
+                                                            <Button color={"red"} onClick={closeRequest}>Close</Button>
                                                         </> : null
                                                     }
                                                 </ButtonGroup>

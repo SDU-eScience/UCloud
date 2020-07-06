@@ -1,5 +1,6 @@
 package dk.sdu.cloud.grant.utils
 
+import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.service.escapeHtml
 
 //TODO()
@@ -17,10 +18,17 @@ fun newIngoingApplicationTemplate(receiver: String, sender: String, projectTitle
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
-fun responseTemplate(approved: Boolean, receiver: String, sender: String, projectTitle: String) =
+fun responseTemplate(status: ApplicationStatus, receiver: String, sender: String, projectTitle: String) =
     """
         <p>Dear ${escapeHtml(receiver)}</p>
-        ${if (approved) approved(projectTitle) else rejected(projectTitle)}
+        ${
+            when {
+                status == ApplicationStatus.APPROVED -> approved(projectTitle)
+                status == ApplicationStatus.REJECTED -> rejected(projectTitle)
+                status == ApplicationStatus.CLOSED -> closed(projectTitle, sender)
+                else -> throw IllegalStateException()
+            }
+        }
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
@@ -35,6 +43,11 @@ private fun approved(projectTitle: String) =
 private fun rejected(projectTitle: String) =
     """
         <p>We are sorry, but your application for resources from ${escapeHtml(projectTitle)} has been rejected</p>
+    """.trimIndent()
+
+private fun closed(projectTitle: String, sender: String) =
+    """
+        <p>An application for ${escapeHtml(projectTitle)} has been closed by ${escapeHtml(sender)}</p>
     """.trimIndent()
 
 fun updatedTemplate(projectTitle: String, receiver: String, sender: String) =

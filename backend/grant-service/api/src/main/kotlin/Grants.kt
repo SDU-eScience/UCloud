@@ -71,6 +71,9 @@ typealias ApproveApplicationResponse = Unit
 data class RejectApplicationRequest(val requestId: Long)
 typealias RejectApplicationResponse = Unit
 
+data class CloseApplicationRequest(val requestId: Long)
+typealias CloseApplicationResponse = Unit
+
 data class CommentOnApplicationRequest(val requestId: Long, val comment: String)
 typealias CommentOnApplicationResponse = Unit
 
@@ -99,6 +102,7 @@ typealias EditApplicationResponse = Unit
 enum class ApplicationStatus {
     APPROVED,
     REJECTED,
+    CLOSED,
     IN_PROGRESS
 }
 
@@ -330,7 +334,9 @@ object Grants : CallDescriptionContainer("grant") {
         }
     }
 
-    val editApplication = call<EditApplicationRequest, EditApplicationResponse, CommonErrorMessage>("editApplication") {
+    val editApplication = call<EditApplicationRequest, EditApplicationResponse, CommonErrorMessage>(
+        "editApplication"
+    ) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -341,6 +347,25 @@ object Grants : CallDescriptionContainer("grant") {
             path {
                 using(baseContext)
                 +"edit"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
+    }
+
+    val closeApplication = call<CloseApplicationRequest, CloseApplicationResponse, CommonErrorMessage>(
+        "closeApplication"
+    ) {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"close"
             }
 
             body { bindEntireRequestFromBody() }

@@ -46,6 +46,16 @@ class GrantController(
             ok(Unit)
         }
 
+        implement(Grants.closeApplication) {
+            applications.updateStatus(
+                db,
+                ctx.securityPrincipal.toActor(),
+                request.requestId,
+                ApplicationStatus.CLOSED
+            )
+            ok(Unit)
+        }
+
         implement(Grants.commentOnApplication) {
             comments.addComment(db, ctx.securityPrincipal.toActor(), request.requestId, request.comment)
             ok(Unit)
