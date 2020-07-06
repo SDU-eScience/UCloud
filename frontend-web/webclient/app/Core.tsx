@@ -50,6 +50,7 @@ import {GrantApplicationEditor, RequestTarget} from "Project/Grant/ResourceReque
 import {DetailedNews} from "NewsPost/DetailedNews";
 import {NewsList} from "NewsPost/NewsList";
 import {IngoingApplications} from "Project/Grant/IngoingApplications";
+import {ProjectBrowser} from "Project/Grant/ProjectBrowser";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>}/>);
 
@@ -130,6 +131,11 @@ const Core = (): JSX.Element => (
                             />
                             <Route
                                 exact
+                                path="/project/grants/personal/:projectId"
+                                component={requireAuth(GrantApplicationEditor(RequestTarget.PERSONAL_PROJECT))}
+                            />
+                            <Route
+                                exact
                                 path="/project/grants/new/:projectId"
                                 component={requireAuth(GrantApplicationEditor(RequestTarget.NEW_PROJECT))}
                             />
@@ -138,8 +144,13 @@ const Core = (): JSX.Element => (
                                 path="/project/grants/view/:appId"
                                 component={requireAuth(GrantApplicationEditor(RequestTarget.VIEW_APPLICATION))}
                             />
-                            <Route exact path="/project/members/:group?/:member?" component={requireAuth(ProjectMembers)}/>
+                            <Route
+                                exact
+                                path="/project/members/:group?/:member?"
+                                component={requireAuth(ProjectMembers)}
+                            />
                             <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)}/>
+                            <Route exact path={"/projects/browser/:action"} component={requireAuth(ProjectBrowser)}/>
                         </>
                     )
                     : null

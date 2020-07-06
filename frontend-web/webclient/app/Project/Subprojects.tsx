@@ -1,6 +1,6 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
-import {createProject, listSubprojects, Project, useProjectManagementStatus, } from "Project/index";
+import {createProject, listSubprojects, Project, useProjectManagementStatus,} from "Project/index";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text, theme} from "ui-components";

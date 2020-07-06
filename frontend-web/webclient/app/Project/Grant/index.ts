@@ -297,3 +297,15 @@ export function uploadTemplates(request: UploadTemplatesRequest): APICallParamet
         reloadId: Math.random()
     };
 }
+
+export type BrowseProjectsRequest = PaginationRequest;
+export type BrowseProjectsResponse = Page<{ projectId: string, title: string }>;
+
+export function browseProjects(request: BrowseProjectsRequest): APICallParameters<BrowseProjectsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/browse-projects", request),
+        parameters: request,
+        reloadId: Math.random()
+    };
+}

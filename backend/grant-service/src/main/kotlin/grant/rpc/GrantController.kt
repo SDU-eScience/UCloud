@@ -141,6 +141,10 @@ class GrantController(
             ok(IsEnabledResponse(settings.isEnabled(db, request.projectId)))
         }
 
+        implement(Grants.browseProjects) {
+            ok(settings.browse(db, ctx.securityPrincipal.toActor(), request.normalize()))
+        }
+
         return@with
     }
 

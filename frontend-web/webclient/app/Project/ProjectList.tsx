@@ -1,12 +1,11 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {emptyPage, ReduxObject, KeyCode} from "DefaultObjects";
+import {emptyPage, ReduxObject} from "DefaultObjects";
 import {MainContainer} from "MainContainer/MainContainer";
 import * as Pagination from "Pagination";
 import {
     listProjects,
     ListProjectsRequest,
     UserInProject,
-    createProject,
     IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite, ListFavoriteProjectsRequest, listFavoriteProjects
 } from "Project/index";
 import * as React from "react";
@@ -14,7 +13,7 @@ import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {Page, Operation} from "Types";
 import Button from "ui-components/Button";
-import {Flex, Icon, List, Text, Input, Box, Checkbox, Label, Link, Tooltip} from "ui-components";
+import {Flex, Icon, List, Text, Box, Checkbox, Label, Link, Tooltip} from "ui-components";
 import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
 import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -66,11 +65,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         avatars.updateCache(usernames);
     }, [usernames]);
 
-
-    const [creatingProject, setCreatingProject] = React.useState(false);
-    const title = React.useRef<HTMLInputElement>(null);
     const [selectedProjects, setSelectedProjects] = React.useState(new Set());
-    const [commandLoading, runCommand] = useAsyncCommand();
+    const [, runCommand] = useAsyncCommand();
 
     useEffect(() => {
         props.setLoading(response.loading);
@@ -272,55 +268,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 <Box width="37px" />
                             </>}
                         />
-                        {creatingProject ?
-                            <ListRow
-                                icon={<Icon
-                                    cursor="pointer"
-                                    size="24"
-                                    name={"starEmpty"}
-                                    color={"midGray"}
-                                    hoverColor="blue"
-                                />}
-                                left={<form onSubmit={onCreateProject}>
-                                    <Flex height="38px">
-                                        <Input
-                                            my="3px"
-                                            pt="0px"
-                                            pb="0px"
-                                            pr="0px"
-                                            pl="0px"
-                                            noBorder
-                                            fontSize={20}
-                                            maxLength={1024}
-                                            onKeyDown={e => {
-                                                if (e.keyCode === KeyCode.ESC) {
-                                                    setCreatingProject(false);
-                                                }
-                                            }}
-                                            borderRadius="0px"
-                                            type="text"
-                                            width="100%"
-                                            autoFocus
-                                            ref={title}
-                                        />
-                                        <Icon
-                                            ml="10px"
-                                            mt="7px"
-                                            cursor="pointer"
-                                            name="close"
-                                            color="red"
-                                            onClick={() => setCreatingProject(false)}
-                                        />
-                                    </Flex>
-                                </form>}
-                                right={<>
-                                    <Toggle
-                                        scale={1.5}
-                                        activeColor="green"
-                                        checked={false}
-                                        onChange={() => undefined}
-                                    /><Box width="28px" /> </>}
-                            /> : null}
                         <Pagination.List
                             page={response.data}
                             pageRenderer={pageRenderer}
@@ -341,7 +288,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             )}
             sidebar={(<>
                 <VerticalButtonGroup>
-                    <Button onClick={startCreateProject}>Create project</Button>
+                    <Link to={`/projects/browser/new`}><Button>Create project</Button></Link>
                     <Label fontSize={"100%"}>
                         <Checkbox size={24} checked={archived} onChange={() => setArchived(!archived)} />
                         Show archived
@@ -464,25 +411,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                 />
             );
         });
-    }
-
-    function startCreateProject(): void {
-        setCreatingProject(true);
-    }
-
-    async function onCreateProject(e: React.FormEvent): Promise<void> {
-        e.preventDefault();
-        if (commandLoading) return;
-        const projectId = title.current?.value ?? "";
-        if (projectId === "") {
-            snackbarStore.addInformation("Project name can't be empty.", false);
-            return;
-        }
-
-        await runCommand(createProject({title: projectId}));
-        setCreatingProject(false);
-        props.setProject(projectId);
-        history.push("/project/dashboard");
     }
 
     async function onToggleFavorite(projectId: string): Promise<void> {

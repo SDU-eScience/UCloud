@@ -163,7 +163,8 @@ data class IsEnabledRequest(val projectId: String)
 data class IsEnabledResponse(val enabled: Boolean)
 
 data class BrowseProjectsRequest(override val itemsPerPage: Int?, override val page: Int?) : WithPaginationRequest
-typealias BrowseProjectsResponse = Page<ProjectApplicationSettings>
+typealias BrowseProjectsResponse = Page<ProjectWithTitle>
+data class ProjectWithTitle(val projectId: String, val title: String)
 
 object Grants : CallDescriptionContainer("grant") {
     val baseContext = "/api/grant"
@@ -388,21 +389,6 @@ object Grants : CallDescriptionContainer("grant") {
             }
         }
 
-    val viewApplication = call<ViewApplicationRequest, ViewApplicationResponse, CommonErrorMessage>("viewApplication") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +boundTo(ViewApplicationRequest::id)
-            }
-        }
-    }
-
     val setEnabledStatus =
         call<SetEnabledStatusRequest, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
             auth {
@@ -457,6 +443,22 @@ object Grants : CallDescriptionContainer("grant") {
             params {
                 +boundTo(BrowseProjectsRequest::itemsPerPage)
                 +boundTo(BrowseProjectsRequest::page)
+            }
+        }
+    }
+
+    // This needs to be last
+    val viewApplication = call<ViewApplicationRequest, ViewApplicationResponse, CommonErrorMessage>("viewApplication") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +boundTo(ViewApplicationRequest::id)
             }
         }
     }
