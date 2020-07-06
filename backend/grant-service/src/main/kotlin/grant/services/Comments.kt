@@ -1,8 +1,10 @@
 package dk.sdu.cloud.grant.services
 
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationWithComments
 import dk.sdu.cloud.grant.api.Comment
+import dk.sdu.cloud.grant.utils.newCommentTemplate
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.safeUsername
@@ -19,8 +21,8 @@ object CommentTable : SQLTable("comments") {
 }
 
 class CommentService(
-    private val projects: ProjectCache,
-    private val applications: ApplicationService
+    private val applications: ApplicationService,
+    private val notifications: NotificationService
 ) {
     suspend fun addComment(
         ctx: DBContext,
@@ -28,8 +30,9 @@ class CommentService(
         id: Long,
         comment: String
     ) {
+        lateinit var application: Application
         ctx.withSession { session ->
-            checkPermissions(session, id, actor)
+            application = checkPermissions(session, id, actor).first
 
             session
                 .sendPreparedStatement(
@@ -41,6 +44,20 @@ class CommentService(
                     "insert into comments (application_id, comment, posted_by) values (:id, :comment, :postedBy)"
                 )
         }
+
+        notifications.notify(
+            GrantNotification(
+                application,
+                GrantNotificationMessage(
+                    subject = "Comment on Application",
+                    type = "COMMENT_GRANT_APPLICATION",
+                    message = { user, projectTitle ->
+                        newCommentTemplate(user, actor.safeUsername(), projectTitle)
+                    }
+                )
+            ),
+            actor.safeUsername()
+        )
     }
 
     suspend fun deleteComment(
@@ -98,8 +115,8 @@ class CommentService(
         session: AsyncDBConnection,
         id: Long,
         actor: Actor
-    ) {
-        applications.viewApplicationById(session, actor, id)
+    ): Pair<Application, Boolean> {
+        return applications.viewApplicationById(session, actor, id)
     }
 
     private fun LocalDateTime.toTimestamp(): Long = toDateTime(DateTimeZone.UTC).millis

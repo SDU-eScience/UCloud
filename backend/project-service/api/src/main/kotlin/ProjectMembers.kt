@@ -39,6 +39,10 @@ typealias SearchResponse = Page<ProjectMember>
 typealias CountRequest = Unit
 typealias CountResponse = Long
 
+data class LookupAdminsRequest(val projectId: String)
+data class LookupAdminsResponse(
+    val admins: List<ProjectMember>
+)
 
 /**
  * A service only API for querying about a user's project membership
@@ -92,6 +96,26 @@ object ProjectMembers : CallDescriptionContainer("project.members") {
             path {
                 using(baseContext)
                 +"count"
+            }
+        }
+    }
+
+    val lookupAdmins = call<LookupAdminsRequest, LookupAdminsResponse, CommonErrorMessage>("lookupAdmins") {
+        auth {
+            access = AccessRight.READ_WRITE
+            roles = Roles.PRIVILEGED
+        }
+
+        http {
+            method = HttpMethod.Get
+
+            path {
+                using(baseContext)
+                +"lookup-admins"
+            }
+
+            params {
+                +boundTo(LookupAdminsRequest::projectId)
             }
         }
     }

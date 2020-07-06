@@ -7,6 +7,9 @@ import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.CreateApplication
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
+import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
+import dk.sdu.cloud.grant.utils.responseTemplate
+import dk.sdu.cloud.grant.utils.updatedTemplate
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
@@ -33,7 +36,8 @@ object RequestedResourceTable : SQLTable("requested_resources") {
 
 class ApplicationService(
     private val projects: ProjectCache,
-    private val settings: SettingsService
+    private val settings: SettingsService,
+    private val notifications: NotificationService
 ) {
     suspend fun submit(
         ctx: DBContext,
@@ -42,7 +46,7 @@ class ApplicationService(
     ): Long {
         if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
-        return ctx.withSession { session ->
+        val returnedId = ctx.withSession { session ->
             val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
             if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
                 throw RPCException(
@@ -101,6 +105,36 @@ class ApplicationService(
 
             id
         }
+
+        notifications.notify(
+            GrantNotification(
+                Application(
+                    ApplicationStatus.IN_PROGRESS,
+                    application.resourcesOwnedBy,
+                    actor.safeUsername(),
+                    application.grantRecipient,
+                    application.document,
+                    application.requestedResources,
+                    returnedId,
+                    "",
+                    "",
+                    "",
+                    0L,
+                    0L
+                ),
+                adminMessage = GrantNotificationMessage(
+                    "New Grant Application",
+                    "NEW_GRANT_APPLICATION",
+                    message = { user, projectTitle ->
+                        newIngoingApplicationTemplate(user, actor.safeUsername(), projectTitle)
+                    }
+                ),
+                userMessage = null
+            ),
+            actor.safeUsername()
+        )
+
+        return returnedId
     }
 
     private suspend fun insertResources(
@@ -170,6 +204,24 @@ class ApplicationService(
 
             insertResources(session, newResources, id)
         }
+
+        lateinit var application: Application
+        ctx.withSession { session ->
+            application = viewApplicationById(session, actor, id).first
+        }
+        notifications.notify(
+            GrantNotification(
+                application,
+                GrantNotificationMessage(
+                    "Grant Application Updated",
+                    "GRANT_APPLICATION_UPDATED",
+                    message = { user, projectTitle ->
+                        updatedTemplate(projectTitle, user, actor.safeUsername())
+                    }
+                )
+            ),
+            actor.safeUsername()
+        )
     }
 
     suspend fun updateStatus(
@@ -199,6 +251,29 @@ class ApplicationService(
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             }
         }
+
+        lateinit var application: Application
+        ctx.withSession { session ->
+            application = viewApplicationById(session, actor, id).first
+        }
+        notifications.notify(
+            GrantNotification(
+                application,
+                GrantNotificationMessage(
+                    "Grant Application ${if (newStatus == ApplicationStatus.APPROVED) "Approved" else "Rejected"}",
+                    "GRANT_APPLICATION_RESPONSE",
+                    message = { user, projectTitle ->
+                        responseTemplate(
+                            newStatus == ApplicationStatus.APPROVED,
+                            user,
+                            actor.safeUsername(),
+                            projectTitle
+                        )
+                    }
+                )
+            ),
+            actor.safeUsername()
+        )
     }
 
     suspend fun listIngoingApplications(

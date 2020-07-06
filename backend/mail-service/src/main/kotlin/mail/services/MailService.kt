@@ -45,6 +45,8 @@ class MailService(
         return@lazy file
     }
 
+    private val tempDirectory by lazy { createTempDir("mails") }
+
     private fun addTemplate(text: String): String {
         return """
         <!DOCTYPE HTML>
@@ -164,7 +166,7 @@ class MailService(
     }
 
     private fun fakeSend(message: MimeMessage) {
-        val file = createTempFile(suffix = ".html")
+        val file = createTempFile(suffix = ".html", directory = tempDirectory)
         val fileOut = FileOutputStream(file).bufferedWriter()
         val tmpOut = ByteArrayOutputStream()
         message.writeTo(tmpOut)
