@@ -53,6 +53,7 @@ data class OutgoingInvite(
 
 data class IngoingInvite(
     val project: String,
+    val title: String,
     val invitedBy: String,
     val timestamp: Long
 )
