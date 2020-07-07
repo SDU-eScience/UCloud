@@ -24,7 +24,7 @@ export interface ListGroupMembersRequestProps extends PaginationRequest {
     group: string;
 }
 
-export function createGroup(props: CreateGroupRequest): APICallParameters<{}> {
+export function createGroup(props: CreateGroupRequest): APICallParameters {
     return {
         reloadId: Math.random(),
         method: "PUT",
@@ -77,7 +77,7 @@ export function membersCountRequest(): APICallParameters {
         method: "GET",
         path: `${projectContext}membership/count`,
         reloadId: Math.random(),
-    }
+    };
 }
 
 export function groupsCountRequest(): APICallParameters {
@@ -85,7 +85,7 @@ export function groupsCountRequest(): APICallParameters {
         method: "GET",
         path: `${groupContext}count`,
         reloadId: Math.random(),
-    }
+    };
 }
 
 export function subprojectsCountRequest(): APICallParameters {
@@ -93,19 +93,6 @@ export function subprojectsCountRequest(): APICallParameters {
         method: "GET",
         path: `${projectContext}sub-projects-count`,
         reloadId: Math.random(),
-    }
-}
-
-export interface ShouldVerifyMembershipResponse {
-    shouldVerify: boolean;
-}
-
-export function shouldVerifyMembership(projectId: string): APICallParameters {
-    return {
-        method: "GET",
-        path: `${projectContext}should-verify`,
-        reloadId: Math.random(),
-        projectOverride: projectId
     };
 }
 
@@ -509,6 +496,7 @@ export function areProjectsEnabled(): boolean {
     return Client.userRole === "ADMIN";
 }
 
+// eslint-disable-next-line
 export function useProjectManagementStatus() {
     const history = useHistory();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
