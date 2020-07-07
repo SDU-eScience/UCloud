@@ -385,34 +385,25 @@ class ApplicationService(
     ) {
         when (val grantRecipient = application.grantRecipient) {
             is GrantRecipient.PersonalProject -> {
-                val requests = application.requestedResources.mapNotNull { resource ->
-                    val creditsRequested = resource.creditsRequested ?: return@mapNotNull null // TODO Deal with quotas
-                    val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
-
-                    SingleTransferRequest(
-                        actor.safeUsername(),
-                        creditsRequested,
-                        Wallet(
-                            application.resourcesOwnedBy,
-                            WalletOwnerType.PROJECT,
-                            paysFor
-                        ),
-                        Wallet(
-                            grantRecipient.username,
-                            WalletOwnerType.USER,
-                            paysFor
-                        )
-                    )
-                }
-
-                Wallets.transferToPersonal.call(
-                    TransferToPersonalRequest(requests),
-                    serviceClient
-                ).orThrow()
+                grantResourcesToProject(
+                    application.resourcesOwnedBy,
+                    application.requestedResources,
+                    grantRecipient.username,
+                    WalletOwnerType.USER,
+                    serviceClient,
+                    actor.safeUsername()
+                )
             }
 
             is GrantRecipient.ExistingProject -> {
-                grantResourcesToProject(application, grantRecipient.projectId)
+                grantResourcesToProject(
+                    application.resourcesOwnedBy,
+                    application.requestedResources,
+                    grantRecipient.projectId,
+                    WalletOwnerType.PROJECT,
+                    serviceClient,
+                    actor.safeUsername()
+                )
             }
 
             is GrantRecipient.NewProject -> {
@@ -425,32 +416,19 @@ class ApplicationService(
                     serviceClient
                 ).orThrow()
 
-                grantResourcesToProject(application, newProjectId)
+                grantResourcesToProject(
+                    application.resourcesOwnedBy,
+                    application.requestedResources,
+                    newProjectId,
+                    WalletOwnerType.PROJECT,
+                    serviceClient,
+                    actor.safeUsername()
+                )
             }
         }
     }
 
-    private suspend fun grantResourcesToProject(
-        application: Application,
-        projectId: String
-    ) {
-        Wallets.addToBalanceBulk.call(
-            AddToBalanceBulkRequest(application.requestedResources.mapNotNull { resource ->
-                val creditsRequested = resource.creditsRequested ?: return@mapNotNull null // TODO Deal with quotas
-                val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
 
-                AddToBalanceRequest(
-                    Wallet(
-                        projectId,
-                        WalletOwnerType.PROJECT,
-                        paysFor
-                    ),
-                    creditsRequested
-                )
-            }),
-            serviceClient
-        ).orThrow()
-    }
 
     suspend fun listIngoingApplications(
         ctx: DBContext,
@@ -666,5 +644,62 @@ class ApplicationService(
     companion object : Loggable {
         override val log = logger()
         private const val GRANT_APP_RESPONSE = "GRANT_APPLICATION_RESPONSE"
+    }
+}
+
+suspend fun grantResourcesToProject(
+    sourceProject: String,
+    resources: List<ResourceRequest>,
+    targetWallet: String,
+    targetWalletType: WalletOwnerType,
+    serviceClient: AuthenticatedClient,
+    initiatedBy: String = "_ucloud"
+) {
+    when (targetWalletType) {
+        WalletOwnerType.PROJECT -> {
+            Wallets.addToBalanceBulk.call(
+                AddToBalanceBulkRequest(resources.mapNotNull { resource ->
+                    val creditsRequested = resource.creditsRequested ?: return@mapNotNull null // TODO Deal with quotas
+                    val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
+
+                    AddToBalanceRequest(
+                        Wallet(
+                            targetWallet,
+                            WalletOwnerType.PROJECT,
+                            paysFor
+                        ),
+                        creditsRequested
+                    )
+                }),
+                serviceClient
+            ).orThrow()
+        }
+
+        WalletOwnerType.USER -> {
+            val requests = resources.mapNotNull { resource ->
+                val creditsRequested = resource.creditsRequested ?: return@mapNotNull null // TODO Deal with quotas
+                val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
+
+                SingleTransferRequest(
+                    initiatedBy,
+                    creditsRequested,
+                    Wallet(
+                        sourceProject,
+                        WalletOwnerType.PROJECT,
+                        paysFor
+                    ),
+                    Wallet(
+                        targetWallet,
+                        WalletOwnerType.USER,
+                        paysFor
+                    )
+                )
+            }
+
+            Wallets.transferToPersonal.call(
+                TransferToPersonalRequest(requests),
+                serviceClient
+            ).orThrow()
+        }
     }
 }

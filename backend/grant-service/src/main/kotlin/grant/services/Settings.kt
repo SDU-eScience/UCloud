@@ -267,23 +267,7 @@ class SettingsService(
         }
     }
 
-    private fun UserCriteria.toSqlApplicantId(): String {
-        return when (this) {
-            is UserCriteria.Anyone -> ""
-            is UserCriteria.EmailDomain -> domain
-            is UserCriteria.WayfOrganization -> org
-        }
-    }
-
-    private fun UserCriteria.toSqlType(): String {
-        return when (this) {
-            is UserCriteria.Anyone -> UserCriteria.ANYONE_TYPE
-            is UserCriteria.EmailDomain -> UserCriteria.EMAIL_TYPE
-            is UserCriteria.WayfOrganization -> UserCriteria.WAYF_TYPE
-        }
-    }
-
-    private fun RowData.toUserCriteria(): UserCriteria {
+   private fun RowData.toUserCriteria(): UserCriteria {
         val id = getField(AllowApplicationsFromTable.applicantId)
         return when (getField(AllowApplicationsFromTable.type)) {
             UserCriteria.ANYONE_TYPE -> UserCriteria.Anyone()
@@ -300,5 +284,21 @@ class SettingsService(
             getFieldNullable(AutomaticApprovalLimitsTable.maximumCredits),
             getFieldNullable(AutomaticApprovalLimitsTable.maximumQuota)
         )
+    }
+}
+
+fun UserCriteria.toSqlApplicantId(): String {
+    return when (this) {
+        is UserCriteria.Anyone -> ""
+        is UserCriteria.EmailDomain -> domain
+        is UserCriteria.WayfOrganization -> org
+    }
+}
+
+fun UserCriteria.toSqlType(): String {
+    return when (this) {
+        is UserCriteria.Anyone -> UserCriteria.ANYONE_TYPE
+        is UserCriteria.EmailDomain -> UserCriteria.EMAIL_TYPE
+        is UserCriteria.WayfOrganization -> UserCriteria.WAYF_TYPE
     }
 }
