@@ -7,7 +7,7 @@ import {
     ProjectRole
 } from "Project/index";
 import * as React from "react";
-import {Box, Button, Link, Flex, theme, Card, Text, Heading} from "ui-components";
+import {Box, Button, Link, Flex, theme, Card} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -24,21 +24,9 @@ import {Dictionary} from "Types";
 import styled from "styled-components";
 import {ingoingGrantApplications, IngoingGrantApplicationsResponse} from "Project/Grant";
 import {emptyPage} from "DefaultObjects";
-import {Client} from "Authentication/HttpClientInstance";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
-    const {projectId, projectDetails} = Client.hasActiveProject ? useProjectManagementStatus() : {
-        projectId: "", projectDetails: {
-            data: {
-                projectId: "",
-                favorite: false,
-                needsVerification: false,
-                title: "",
-                whoami: {username: Client.username ?? "", role: ProjectRole.USER},
-                archived: false
-            }
-        }
-    };
+    const {projectId, projectDetails} = useProjectManagementStatus(true);
 
     function isPersonalProjectActive(id: string): boolean {
         return id === undefined || id === "";
@@ -127,7 +115,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     return (
         <MainContainer
             header={<Flex>
-                {isPersonalProjectActive(projectId) ? <Heading>Personal Project</Heading> : <ProjectBreadcrumbs crumbs={[]} />}
+                <ProjectBreadcrumbs allowPersonalProject crumbs={[]} />
             </Flex>}
             sidebar={null}
             main={(

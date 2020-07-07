@@ -497,7 +497,7 @@ export function areProjectsEnabled(): boolean {
 }
 
 // eslint-disable-next-line
-export function useProjectManagementStatus() {
+export function useProjectManagementStatus(allowPersonalProject?: true) {
     const history = useHistory();
     const projectId = useSelector<ReduxObject, string | undefined>(it => it.project.project);
     const locationParams = useParams<{group: string; member?: string}>();
@@ -546,7 +546,7 @@ export function useProjectManagementStatus() {
     const [memberSearchQuery, setMemberSearchQuery] = useGlobal("projectManagementQuery", "");
     const [subprojectSearchQuery, setSubprojectSearchQuery] = useGlobal("projectManagementQuery", "");
 
-    if (projectId === undefined) {
+    if (projectId === undefined && !allowPersonalProject) {
         history.push("/");
     }
 
