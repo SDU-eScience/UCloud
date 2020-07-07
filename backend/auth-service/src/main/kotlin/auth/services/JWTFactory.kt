@@ -10,7 +10,8 @@ import java.util.*
 
 class JWTFactory(
     private val jwtAlg: JWTAlgorithm,
-    private val serviceLicenseAgreement: ServiceAgreementText? = null
+    private val serviceLicenseAgreement: ServiceAgreementText? = null,
+    private val disable2faCheck: Boolean = false
 ) : TokenGenerationService {
     override fun generate(contents: AccessTokenContents): String {
         val iat = Date(contents.createdAt)
@@ -44,7 +45,7 @@ class JWTFactory(
                 if (user.title != null) withClaim("title", user.title)
                 if (user.email != null) withClaim("email", user.email)
                 if (user is Person.ByWAYF) withClaim("orgId", user.organizationId)
-                withClaim("twoFactorAuthentication", user.twoFactorAuthentication)
+                withClaim("twoFactorAuthentication", if (!disable2faCheck) user.twoFactorAuthentication else true)
                 withClaim(
                     "serviceLicenseAgreement",
                     serviceLicenseAgreement == null || user.serviceLicenseAgreement == serviceLicenseAgreement.version

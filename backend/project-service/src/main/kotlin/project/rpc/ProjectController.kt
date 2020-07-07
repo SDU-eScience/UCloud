@@ -25,8 +25,8 @@ class ProjectController(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.create) {
             checkEnabled(configuration)
-            val pi = request.principalInvestigator.takeIf { ctx.securityToken.extendedBy != null }
-            ok(FindByStringId(projects.create(db, ctx.securityPrincipal, request.title, request.parent, pi)))
+            val pi = request.principalInvestigator.takeIf { ctx.securityPrincipal.role in Roles.PRIVILEGED }
+            ok(FindByStringId(projects.create(db, ctx.securityPrincipal.toActor(), request.title, request.parent, pi)))
         }
 
         implement(Projects.invite) {

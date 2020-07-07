@@ -1,6 +1,7 @@
 package dk.sdu.cloud.project.services
 
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.LookupUsersRequest
@@ -27,8 +28,10 @@ import dk.sdu.cloud.project.utils.userLeftTemplate
 import dk.sdu.cloud.project.utils.userRemovedTemplate
 import dk.sdu.cloud.project.utils.userRemovedToPersonRemovedTemplate
 import dk.sdu.cloud.project.utils.userRoleChangeTemplate
+import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.service.safeUsername
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import org.joda.time.LocalDateTime
@@ -70,14 +73,17 @@ class ProjectService(
 ) {
     suspend fun create(
         ctx: DBContext,
-        createdBy: SecurityPrincipal,
+        actor: Actor,
         title: String,
         parent: String?,
         principalInvestigatorOverride: String?
     ): String {
-        if (parent == null && createdBy.role !in Roles.PRIVILEGED) throw ProjectException.Forbidden()
-        if (parent != null) {
-            requireRole(ctx, createdBy.username, parent, ProjectRole.ADMINS)
+        if (actor !is Actor.System) {
+            val role = if (actor is Actor.User) actor.principal.role else Role.USER
+            if (role !in Roles.PRIVILEGED) {
+                if (parent == null) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                requireRole(ctx, actor.safeUsername(), parent, ProjectRole.ADMINS)
+            }
         }
 
         val id = UUID.randomUUID().toString()
@@ -93,7 +99,7 @@ class ProjectService(
                 }
 
                 session.insert(ProjectMemberTable) {
-                    set(ProjectMemberTable.username, principalInvestigatorOverride ?: createdBy.username)
+                    set(ProjectMemberTable.username, principalInvestigatorOverride ?: actor.safeUsername())
                     set(ProjectMemberTable.role, ProjectRole.PI.name)
                     set(ProjectMemberTable.project, id)
                     set(ProjectMemberTable.createdAt, LocalDateTime.now())

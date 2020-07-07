@@ -7,14 +7,24 @@ import dk.sdu.cloud.service.escapeHtml
 fun newCommentTemplate(receiver: String, sender: String, projectTitle: String) =
     """
         <p>Dear ${escapeHtml(receiver)}</p>
-        <p>You have received a new comment from ${escapeHtml(sender)} in ${escapeHtml(projectTitle)}. 
+        <p>You have received a new comment from ${escapeHtml(sender)} in ${escapeHtml(projectTitle)}.</p>
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 
 fun newIngoingApplicationTemplate(receiver: String, sender: String, projectTitle: String) =
     """
         <p>Dear ${escapeHtml(receiver)}</p>
-        <p>You have received a new application from ${escapeHtml(sender)} in ${escapeHtml(projectTitle)}. 
+        <p>You have received a new application from ${escapeHtml(sender)} in ${escapeHtml(projectTitle)}.</p>
+        $NO_NOTIFICATIONS_DISCLAIMER
+    """.trimIndent()
+
+fun autoApproveTemplate(receiver: String, sender: String, projectTitle: String) =
+    """
+        <p>Dear ${escapeHtml(receiver)}</p>
+        <p>
+            You have received a new application from ${escapeHtml(sender)} in ${escapeHtml(projectTitle)} 
+            which has been automatically approved by your project policy. 
+        </p>
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()
 

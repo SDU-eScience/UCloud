@@ -99,7 +99,7 @@ class Server(
             personService,
             userDao,
             refreshTokenDao,
-            JWTFactory(jwtAlg, config.serviceLicenseAgreement),
+            JWTFactory(jwtAlg, config.serviceLicenseAgreement, disable2faCheck = micro.developmentModeEnabled),
             userCreationService,
             tokenValidation,
             mergedExtensions,

@@ -11,6 +11,7 @@ import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.CreateApplication
 import dk.sdu.cloud.grant.api.GrantRecipient
 import dk.sdu.cloud.grant.api.ResourceRequest
+import dk.sdu.cloud.grant.utils.autoApproveTemplate
 import dk.sdu.cloud.grant.utils.newIngoingApplicationTemplate
 import dk.sdu.cloud.grant.utils.responseTemplate
 import dk.sdu.cloud.grant.utils.updatedTemplate
@@ -48,11 +49,9 @@ class ApplicationService(
 ) {
     suspend fun submit(
         ctx: DBContext,
-        actor: Actor,
+        actor: Actor.User,
         application: CreateApplication
     ): Long {
-        if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
         val returnedId = ctx.withSession { session ->
             val settings = settings.fetchSettings(session, Actor.System, application.resourcesOwnedBy)
             if (!settings.allowRequestsFrom.any { it.matches(actor.principal) }) {
@@ -72,17 +71,21 @@ class ApplicationService(
                             setParameter("document", document)
 
                             val grantRecipient = this.grantRecipient
-                            setParameter("grant_recipient", when (grantRecipient) {
-                                is GrantRecipient.PersonalProject -> grantRecipient.username
-                                is GrantRecipient.ExistingProject -> grantRecipient.projectId
-                                is GrantRecipient.NewProject -> grantRecipient.projectTitle
-                            })
+                            setParameter(
+                                "grant_recipient", when (grantRecipient) {
+                                    is GrantRecipient.PersonalProject -> grantRecipient.username
+                                    is GrantRecipient.ExistingProject -> grantRecipient.projectId
+                                    is GrantRecipient.NewProject -> grantRecipient.projectTitle
+                                }
+                            )
 
-                            setParameter("grant_recipient_type", when (grantRecipient) {
-                                is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
-                                is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
-                                is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
-                            })
+                            setParameter(
+                                "grant_recipient_type", when (grantRecipient) {
+                                    is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
+                                    is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
+                                    is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
+                                }
+                            )
                         }
                     },
                     //language=sql
@@ -113,22 +116,19 @@ class ApplicationService(
             id
         }
 
+        lateinit var returnedApplication: Application
+        ctx.withSession { session ->
+            returnedApplication = viewApplicationById(session, actor, returnedId).first
+        }
+
+        if (autoApproveApplication(ctx, actor, returnedApplication)) {
+            // Notifications are sent by autoApprover
+            return returnedId
+        }
+
         notifications.notify(
             GrantNotification(
-                Application(
-                    ApplicationStatus.IN_PROGRESS,
-                    application.resourcesOwnedBy,
-                    actor.safeUsername(),
-                    application.grantRecipient,
-                    application.document,
-                    application.requestedResources,
-                    returnedId,
-                    "",
-                    "",
-                    "",
-                    0L,
-                    0L
-                ),
+                returnedApplication,
                 adminMessage = GrantNotificationMessage(
                     "New Grant Application",
                     "NEW_GRANT_APPLICATION",
@@ -142,6 +142,80 @@ class ApplicationService(
         )
 
         return returnedId
+    }
+
+    private suspend fun autoApproveApplication(
+        ctx: DBContext,
+        actor: Actor.User,
+        application: Application
+    ): Boolean {
+        val settings = settings.fetchSettings(ctx, Actor.System, application.resourcesOwnedBy)
+        val matchesUserCriteria = settings.automaticApproval.from.any { it.matches(actor.principal) }
+        if (settings.automaticApproval.maxResources.isEmpty()) return false
+        if (!matchesUserCriteria) return false
+        val matchesResources = application
+            .requestedResources
+            .all { requested ->
+                settings.automaticApproval.maxResources.any { max ->
+                    val maxCredits = max.creditsRequested
+                    val maxQuota = max.quotaRequested
+                    if (maxCredits != null) {
+                        val creditsRequested = requested.creditsRequested
+                        creditsRequested != null && creditsRequested <= maxCredits
+                    } else {
+                        require(maxQuota != null)
+                        val quotaRequested = requested.quotaRequested
+                        quotaRequested != null && quotaRequested <= maxQuota
+                    }
+                }
+            }
+
+        if (!matchesResources) return false
+
+        try {
+            ctx.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("status", ApplicationStatus.APPROVED.name)
+                            setParameter("id", application.id)
+                        },
+                        """
+                            update applications set status = :status where id = :id
+                        """
+                    )
+
+                onApplicationApproved(
+                    Actor.System,
+                    application
+                )
+            }
+        } catch (ex: Throwable) {
+            log.warn("Failed to automatically approve application\n${ex.stackTraceToString()}")
+            return false
+        }
+
+        notifications.notify(
+            GrantNotification(
+                application,
+                adminMessage = GrantNotificationMessage(
+                    "Grant Application for Subproject Automatically Approved",
+                    GRANT_APP_RESPONSE,
+                    message = { user, title ->
+                        autoApproveTemplate(user, application.requestedBy, title)
+                    }
+                ),
+                userMessage = GrantNotificationMessage(
+                    "Grant Application Approved",
+                    GRANT_APP_RESPONSE,
+                    message = { user, title ->
+                        responseTemplate(ApplicationStatus.APPROVED, user, "UCloud", title)
+                    }
+                )
+            ),
+            "_ucloud"
+        )
+        return true
     }
 
     private suspend fun insertResources(
@@ -271,7 +345,7 @@ class ApplicationService(
             }
 
             if (newStatus == ApplicationStatus.APPROVED) {
-                onApplicationApproved(session, actor, id, extendedUserClient!!)
+                onApplicationApproved(actor, viewApplicationById(session, actor, id).first)
             }
         }
 
@@ -290,7 +364,7 @@ class ApplicationService(
                 application,
                 GrantNotificationMessage(
                     "Grant Application $statusTitle",
-                    "GRANT_APPLICATION_RESPONSE",
+                    GRANT_APP_RESPONSE,
                     message = { user, projectTitle ->
                         responseTemplate(
                             newStatus,
@@ -306,12 +380,9 @@ class ApplicationService(
     }
 
     private suspend fun onApplicationApproved(
-        session: AsyncDBConnection,
         actor: Actor,
-        id: Long,
-        extendedUserClient: AuthenticatedClient
+        application: Application
     ) {
-        val (application) = viewApplicationById(session, actor, id)
         when (val grantRecipient = application.grantRecipient) {
             is GrantRecipient.PersonalProject -> {
                 val requests = application.requestedResources.mapNotNull { resource ->
@@ -341,7 +412,7 @@ class ApplicationService(
             }
 
             is GrantRecipient.ExistingProject -> {
-                grantResourcesToProject(application, grantRecipient.projectId, extendedUserClient)
+                grantResourcesToProject(application, grantRecipient.projectId)
             }
 
             is GrantRecipient.NewProject -> {
@@ -351,18 +422,17 @@ class ApplicationService(
                         application.resourcesOwnedBy,
                         principalInvestigator = application.requestedBy
                     ),
-                    extendedUserClient
+                    serviceClient
                 ).orThrow()
 
-                grantResourcesToProject(application, newProjectId, extendedUserClient)
+                grantResourcesToProject(application, newProjectId)
             }
         }
     }
 
     private suspend fun grantResourcesToProject(
         application: Application,
-        projectId: String,
-        extendedUserClient: AuthenticatedClient
+        projectId: String
     ) {
         Wallets.addToBalanceBulk.call(
             AddToBalanceBulkRequest(application.requestedResources.mapNotNull { resource ->
@@ -378,7 +448,7 @@ class ApplicationService(
                     creditsRequested
                 )
             }),
-            extendedUserClient
+            serviceClient
         ).orThrow()
     }
 
@@ -545,36 +615,38 @@ class ApplicationService(
                 resourcesOwnedBy,
                 requestedBy,
                 grantRecipient,
-                    it.getField(ApplicationTable.document),
-                    buildList {
-                        val productCategory = it.getFieldNullable(RequestedResourceTable.productCategory)
-                        if (productCategory != null) {
-                            add(ResourceRequest(
+                it.getField(ApplicationTable.document),
+                buildList {
+                    val productCategory = it.getFieldNullable(RequestedResourceTable.productCategory)
+                    if (productCategory != null) {
+                        add(
+                            ResourceRequest(
                                 it.getField(RequestedResourceTable.productCategory),
                                 it.getField(RequestedResourceTable.productProvider),
                                 it.getFieldNullable(RequestedResourceTable.creditsRequested),
                                 it.getFieldNullable(RequestedResourceTable.quotaRequestedBytes)
-                            ))
-                        }
-                    },
-                    it.getField(ApplicationTable.id),
-                    projects.ancestors.get(resourcesOwnedBy)?.last()?.title ?: resourcesOwnedBy,
-                    when (grantRecipient) {
-                        is GrantRecipient.PersonalProject -> grantRecipient.username
-                        is GrantRecipient.ExistingProject ->
-                            projects.principalInvestigators.get(grantRecipient.projectId) ?: requestedBy
-                        is GrantRecipient.NewProject -> requestedBy
-                    },
-                    when (grantRecipient) {
-                        is GrantRecipient.PersonalProject -> grantRecipient.username
-                        is GrantRecipient.ExistingProject ->
-                            projects.ancestors.get(grantRecipient.projectId)?.last()?.title ?: grantRecipient.projectId
-                        is GrantRecipient.NewProject -> grantRecipient.projectTitle
-                    },
-                    it.getField(ApplicationTable.createdAt).toDate().time,
-                    it.getField(ApplicationTable.updatedAt).toDate().time
-                )
-            }
+                            )
+                        )
+                    }
+                },
+                it.getField(ApplicationTable.id),
+                projects.ancestors.get(resourcesOwnedBy)?.last()?.title ?: resourcesOwnedBy,
+                when (grantRecipient) {
+                    is GrantRecipient.PersonalProject -> grantRecipient.username
+                    is GrantRecipient.ExistingProject ->
+                        projects.principalInvestigators.get(grantRecipient.projectId) ?: requestedBy
+                    is GrantRecipient.NewProject -> requestedBy
+                },
+                when (grantRecipient) {
+                    is GrantRecipient.PersonalProject -> grantRecipient.username
+                    is GrantRecipient.ExistingProject ->
+                        projects.ancestors.get(grantRecipient.projectId)?.last()?.title ?: grantRecipient.projectId
+                    is GrantRecipient.NewProject -> grantRecipient.projectTitle
+                },
+                it.getField(ApplicationTable.createdAt).toDate().time,
+                it.getField(ApplicationTable.updatedAt).toDate().time
+            )
+        }
             .groupingBy { it.id }
             .reduce { _, accumulator, element ->
                 accumulator.copy(requestedResources = accumulator.requestedResources + element.requestedResources)
@@ -593,5 +665,6 @@ class ApplicationService(
 
     companion object : Loggable {
         override val log = logger()
+        private const val GRANT_APP_RESPONSE = "GRANT_APPLICATION_RESPONSE"
     }
 }
