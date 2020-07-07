@@ -33,42 +33,44 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     }
 
     const [membersCount, setMembersCount] = useCloudAPI<number>(
-        membersCountRequest(),
+        {noop: true},
         0
     );
 
     const [groupsCount, setGroupsCount] = useCloudAPI<number>(
-        groupsCountRequest(),
+        {noop: true},
         0
     );
 
     const [subprojectsCount, setSubprojectsCount] = useCloudAPI<number>(
-        subprojectsCountRequest(),
+        {noop: true},
         0
     );
 
-    const [apps] = useCloudAPI<IngoingGrantApplicationsResponse>(
-        ingoingGrantApplications({itemsPerPage: 10, page: 0}),
+    const [apps, setGrantParams] = useCloudAPI<IngoingGrantApplicationsResponse>(
+        {noop: true},
         emptyPage
+    );
+
+    const durationOption = durationOptions[3];
+    const now = new Date().getTime();
+
+    const [usageResponse, setUsageParams] = useCloudAPI<UsageResponse>(
+        {noop: true},
+        {charts: []}
     );
 
     React.useEffect(() => {
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
         setSubprojectsCount(subprojectsCountRequest());
-    }, []);
-
-    const durationOption = durationOptions[3];
-    const now = new Date().getTime();
-
-    const [usageResponse] = useCloudAPI<UsageResponse>(
-        usage({
+        setGrantParams(ingoingGrantApplications({itemsPerPage: apps.data.itemsPerPage, page: apps.data.pageNumber}));
+        setUsageParams(usage({
             bucketSize: durationOption.bucketSize,
             periodStart: now - durationOption.timeInPast,
             periodEnd: now
-        }),
-        {charts: []}
-    );
+        }));
+    }, [projectId]);
 
     const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, ProductArea.COMPUTE));
 
