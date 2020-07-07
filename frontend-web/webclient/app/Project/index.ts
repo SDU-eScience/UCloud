@@ -365,6 +365,7 @@ export function listOutgoingInvites(request: ListOutgoingInvitesRequest): APICal
 
 export interface IngoingInvite {
     project: string;
+    title: string;
     invitedBy: string;
     timestamp: string;
 }

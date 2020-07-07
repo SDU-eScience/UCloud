@@ -170,19 +170,28 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                 loading={ingoingInvites.loading}
                                 page={ingoingInvites.data}
                                 onPageChanged={newPage =>
-                                    fetchIngoingInvites(listIngoingInvites({...ingoingInvitesParams.parameters, page: newPage}))
+                                    fetchIngoingInvites(
+                                        listIngoingInvites({...ingoingInvitesParams.parameters, page: newPage})
+                                    )
                                 }
                                 pageRenderer={() => (
                                     <Box mb={32}>
                                         {ingoingInvites.data.items.map(invite => (
                                             <ShareCardBase
                                                 key={invite.project}
-                                                title={invite.project}
+                                                title={invite.title}
                                                 body={
                                                     <Spacer
                                                         left={<>
-                                                            <UserAvatar avatar={avatars.cache[invite.invitedBy] ?? defaultAvatar} mr="10px" />
-                                                            <Flex alignItems="center">Invited by {invite.invitedBy}</Flex>
+                                                            <UserAvatar
+                                                                avatar={
+                                                                    avatars.cache[invite.invitedBy] ?? defaultAvatar
+                                                                }
+                                                                mr="10px"
+                                                            />
+                                                            <Flex alignItems="center">
+                                                                Invited by {invite.invitedBy}
+                                                            </Flex>
                                                         </>}
                                                         right={<Flex alignItems="center">
                                                             <Button
@@ -190,7 +199,9 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                                 height="42px"
                                                                 mr={8}
                                                                 onClick={async () => {
-                                                                    await runCommand(acceptInvite({projectId: invite.project}));
+                                                                    await runCommand(
+                                                                        acceptInvite({projectId: invite.project})
+                                                                    );
                                                                     reload();
                                                                 }}
                                                             >
@@ -200,7 +211,9 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                                                 color="red"
                                                                 height="42px"
                                                                 onClick={async () => {
-                                                                    await runCommand(rejectInvite({projectId: invite.project}));
+                                                                    await runCommand(
+                                                                        rejectInvite({projectId: invite.project})
+                                                                    );
                                                                     reload();
                                                                 }}
                                                             >

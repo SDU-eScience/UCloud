@@ -691,24 +691,43 @@ class QueryService(
         pagination: NormalizedPaginationRequest
     ): Page<IngoingInvite> {
         return ctx.withSession { session ->
-            session
-                .paginatedQuery(
-                    pagination,
+            val count = session
+                .sendPreparedStatement(
+                    { setParameter("username", requestedBy) },
+                    "select count(*) from invites where username = :username"
+                )
+                .rows
+                .single()
+                .getLong(0) ?: 0L
+            val items = session
+                .sendPreparedStatement(
                     {
                         setParameter("username", requestedBy)
+                        setParameter("o", pagination.offset)
+                        setParameter("l", pagination.itemsPerPage)
                     },
                     """
-                        from invites 
-                        where username = :username
+                        select invites.*, projects.title as title
+                        from invites, projects
+                        where
+                            invites.project_id = projects.id and
+                            username = :username
+                        order by projects.title
+                        offset :o
+                        limit :l
                     """
                 )
-                .mapItems {
+                .rows
+                .map {
                     IngoingInvite(
                         it.getField(ProjectInvite.projectId),
+                        it.getString("title")!!,
                         it.getField(ProjectInvite.invitedBy),
                         it.getField(ProjectInvite.createdAt).toTimestamp()
                     )
                 }
+
+            Page.forRequest(pagination, count.toInt(), items)
         }
     }
 
