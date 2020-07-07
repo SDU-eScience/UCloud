@@ -70,7 +70,7 @@ class BalanceService(
             val memberStatus = projectCache.memberStatus.get(initiatedBy.username)
 
             val membershipOfThis = memberStatus?.membership?.find { it.projectId == accountId }
-            if (membershipOfThis != null && membershipOfThis.whoami.role.isAdmin()) {
+            if (membershipOfThis != null) {
                 return
             }
 
@@ -381,16 +381,13 @@ class BalanceService(
         initiatedBy: Actor,
         request: ReserveCreditsRequest,
         reserveForAncestors: Boolean = true,
-        origWallet: Wallet? = null
+        origWallet: Wallet? = null,
+        initiatedByUsername: String? = null
     ): Unit = with(request) {
         val wallet = request.account
         val originalWallet = origWallet ?: wallet
         require(originalWallet.paysFor == wallet.paysFor)
         require(originalWallet.type == wallet.type)
-
-        if (initiatedBy == Actor.System) {
-            throw IllegalStateException("System cannot initiate a reservation")
-        }
 
         try {
             ctx.withSession { session ->
@@ -409,7 +406,7 @@ class BalanceService(
                     set(TransactionTable.productProvider, wallet.paysFor.provider)
                     set(TransactionTable.amount, amount)
                     set(TransactionTable.expiresAt, LocalDateTime(expiresAt, DateTimeZone.UTC))
-                    set(TransactionTable.initiatedBy, initiatedBy.username)
+                    set(TransactionTable.initiatedBy, initiatedByUsername ?: initiatedBy.safeUsername())
                     set(TransactionTable.isReserved, true)
                     set(TransactionTable.productId, productId)
                     set(TransactionTable.units, productUnits)
@@ -423,10 +420,11 @@ class BalanceService(
                     // thrown too early
                     reserveCredits(
                         session,
-                        initiatedBy,
+                        Actor.System,
                         request.copy(account = ancestor, discardAfterLimitCheck = false),
                         reserveForAncestors = false,
-                        origWallet = wallet
+                        origWallet = wallet,
+                        initiatedByUsername = initiatedByUsername ?: initiatedBy.safeUsername()
                     )
                 }
 
