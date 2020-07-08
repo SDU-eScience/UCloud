@@ -618,6 +618,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                         <Input
                                                             placeholder={"0"}
                                                             data-target={productCategoryId(it.wallet.paysFor)}
+                                                            autoComplete="off"
                                                         />
                                                         <Box ml={10} width={32} flexShrink={0}>DKK</Box>
                                                     </Flex>
@@ -638,6 +639,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                                 data-target={
                                                                     "quota-" + productCategoryId(it.wallet.paysFor)
                                                                 }
+                                                                autoComplete="off"
                                                             />
                                                             <Box ml={10} width={32} flexShrink={0}>GB</Box>
                                                         </Flex>
