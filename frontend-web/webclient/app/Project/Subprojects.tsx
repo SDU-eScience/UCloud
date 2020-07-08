@@ -1,6 +1,6 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
-import {createProject, listSubprojects, Project, useProjectManagementStatus,} from "Project/index";
+import {createProject, listSubprojects, Project, useProjectManagementStatus, } from "Project/index";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text, theme} from "ui-components";
@@ -168,20 +168,20 @@ const Subprojects: React.FunctionComponent = () => {
         allowManagement,
         subprojectSearchQuery,
         setSubprojectSearchQuery
-    } = useProjectManagementStatus();
+    } = useProjectManagementStatus(true);
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
-        retrieveQuota({path: Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder}),
+        {noop: true},
         {quotaInBytes: 0}
     );
 
     const [wallets, setWalletParams] = useCloudAPI<RetrieveBalanceResponse>(
-        retrieveBalance({id: projectId, type: "PROJECT", includeChildren: true}),
+        {noop: true},
         {wallets: []}
     );
 
     const reloadWallets = useCallback(() => {
-        setWalletParams(retrieveBalance({id: projectId, type: "PROJECT", includeChildren: true}));
+        setWalletParams(retrieveBalance({includeChildren: true}));
         fetchQuota(retrieveQuota({path: Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder}));
     }, [setWalletParams, projectId]);
 
@@ -198,6 +198,8 @@ const Subprojects: React.FunctionComponent = () => {
     }, [walletContainer.current]);
 
     const projectWallets = wallets.data.wallets.filter(it => it.wallet.id === projectId);
+    const personalWallets = wallets.data.wallets.filter(it => !Client.hasActiveProject && it.wallet.id === Client.username);
+    const mainWallets = [...projectWallets, ...personalWallets];
     const subprojectWallets = wallets.data.wallets.filter(it =>
         it.wallet.id !== projectId &&
         selectedWallet !== null && productCategoryEquals(it.wallet.paysFor, selectedWallet.wallet.paysFor)
@@ -235,15 +237,15 @@ const Subprojects: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs crumbs={[{title: "Resource Allocation"}]} />}
+            header={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resource Allocation"}]} />}
             sidebar={null}
             main={(
                 <>
                     <Heading.h3>Resources</Heading.h3>
-                    <LoadingBox height={"233px"} isLoading={wallets.loading}>
+                    <LoadingBox height="233px" isLoading={wallets.loading}>
                         <WalletContainer ref={walletContainer}>
 
-                            {projectWallets.map((w, i) =>
+                            {mainWallets.map((w, i) =>
                                 <SelectableWallet
                                     key={i}
                                     wallet={w}
@@ -269,7 +271,7 @@ const Subprojects: React.FunctionComponent = () => {
                                             Click the button below to get started.
                                         </p>
                                         <Flex justifyContent={"flex-end"}>
-                                            <Link to={"/project/grants/existing"}><Button>Request resources</Button></Link>
+                                            <Link to={!Client.hasActiveProject ? "/projects/browser/personal" : "/project/grants/existing"}><Button>Request resources</Button></Link>
                                         </Flex>
                                     </Box>
                                 </DashboardCard>
@@ -277,74 +279,80 @@ const Subprojects: React.FunctionComponent = () => {
                         </WalletContainer>
                     </LoadingBox>
 
-                    <Heading.h3>Subprojects</Heading.h3>
-                    <Box className="subprojects" maxWidth={850} ml="auto" mr="auto">
-                        <Box ml={8} mr={8}>
-                            <SearchContainer>
-                                {!allowManagement ? null : (
-                                    <form onSubmit={onSubmit}>
-                                        <Input
-                                            id="new-project-subproject"
-                                            placeholder="Title of new project"
-                                            disabled={isLoading}
-                                            ref={newSubprojectRef}
-                                            onChange={e => {
-                                                newSubprojectRef.current!.value = e.target.value;
-                                            }}
-                                            rightLabel
-                                        />
-                                        <Button attached type={"submit"}>Create</Button>
-                                    </form>
-                                )}
-                                <form onSubmit={preventDefault}>
-                                    <Input
-                                        id="subproject-search"
-                                        placeholder="Filter this page..."
-                                        pr="30px"
-                                        autoComplete="off"
-                                        disabled={isLoading}
-                                        onChange={e => {
-                                            setSubprojectSearchQuery(e.target.value);
-                                        }}
-                                    />
-                                    <Relative>
-                                        <Absolute right="6px" top="10px">
-                                            <Label htmlFor="subproject-search">
-                                                <Icon name="search" size="24" />
-                                            </Label>
-                                        </Absolute>
-                                    </Relative>
-                                </form>
-                            </SearchContainer>
-                            <Box mt={20}>
-                                <>
-                                    <Table>
-                                        <tbody>
-                                            <Pagination.List
-                                                page={subprojects.data}
-                                                pageRenderer={pageRenderer}
-                                                loading={subprojects.loading}
-                                                onPageChanged={newPage => {
-                                                    setSubprojectParams(
-                                                        listSubprojects({
-                                                            page: newPage,
-                                                            itemsPerPage: 50,
-                                                        })
-                                                    );
+                    {!Client.hasActiveProject ? null : <>
+                        <Heading.h3>Subprojects</Heading.h3>
+                        <Box className="subprojects" maxWidth={850} ml="auto" mr="auto">
+                            <Box ml={8} mr={8}>
+                                <SearchContainer>
+                                    {!allowManagement ? null : (
+                                        <form onSubmit={onSubmit}>
+                                            <Input
+                                                id="new-project-subproject"
+                                                placeholder="Title of new project"
+                                                disabled={isLoading}
+                                                ref={newSubprojectRef}
+                                                onChange={e => {
+                                                    newSubprojectRef.current!.value = e.target.value;
                                                 }}
-                                                customEmptyPage={
-                                                    <Flex justifyContent={"center"} alignItems={"center"} height={"200px"}>
-                                                        This project doesn&apos;t have any subprojects.
-                                                        You can create one by using the &apos;Create&apos; button above.
-                                                    </Flex>
-                                                }
+                                                rightLabel
                                             />
-                                        </tbody>
-                                    </Table>
-                                </>
+                                            <Button attached type={"submit"}>Create</Button>
+                                        </form>
+                                    )}
+                                    <form onSubmit={preventDefault}>
+                                        <Input
+                                            id="subproject-search"
+                                            placeholder="Filter this page..."
+                                            pr="30px"
+                                            autoComplete="off"
+                                            disabled={isLoading}
+                                            onChange={e => {
+                                                setSubprojectSearchQuery(e.target.value);
+                                            }}
+                                        />
+                                        <Relative>
+                                            <Absolute right="6px" top="10px">
+                                                <Label htmlFor="subproject-search">
+                                                    <Icon name="search" size="24" />
+                                                </Label>
+                                            </Absolute>
+                                        </Relative>
+                                    </form>
+                                </SearchContainer>
+                                <Box mt={20}>
+                                    <>
+                                        <Table>
+                                            <tbody>
+                                                <tr>
+                                                    <td>
+                                                        <Pagination.List
+                                                            page={subprojects.data}
+                                                            pageRenderer={pageRenderer}
+                                                            loading={subprojects.loading}
+                                                            onPageChanged={newPage => {
+                                                                setSubprojectParams(
+                                                                    listSubprojects({
+                                                                        page: newPage,
+                                                                        itemsPerPage: 50,
+                                                                    })
+                                                                );
+                                                            }}
+                                                            customEmptyPage={
+                                                                <Flex justifyContent={"center"} alignItems={"center"} height={"200px"}>
+                                                                    This project doesn&apos;t have any subprojects.
+                                                                    You can create one by using the &apos;Create&apos; button above.
+                                                    </Flex>
+                                                            }
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </Table>
+                                    </>
+                                </Box>
                             </Box>
                         </Box>
-                    </Box>
+                    </>}
                 </>
             )}
         />
@@ -352,10 +360,10 @@ const Subprojects: React.FunctionComponent = () => {
 
     function pageRenderer(page: Page<Project>): JSX.Element[] {
         const filteredItems = (subprojectSearchQuery === "" ? page.items :
-            page.items.filter(it => {
-                return it.title.toLowerCase()
+            page.items.filter(it =>
+                it.title.toLowerCase()
                     .search(subprojectSearchQuery.toLowerCase().replace(/\W|_|\*/g, "")) !== -1
-            })
+            )
         );
 
         return filteredItems.map(subproject => {
