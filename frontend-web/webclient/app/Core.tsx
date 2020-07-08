@@ -46,7 +46,7 @@ import ProjectDashboard from "Project/ProjectDashboard";
 import {ProjectSettings} from "Project/ProjectSettings";
 import ProjectUsage from "Project/ProjectUsage";
 import Subprojects from "Project/Subprojects";
-import {GrantApplicationEditor, RequestTarget} from "Project/Grant/ResourceRequest";
+import {GrantApplicationEditor, RequestTarget} from "Project/Grant/GrantApplicationEditor";
 import {DetailedNews} from "NewsPost/DetailedNews";
 import {NewsList} from "NewsPost/NewsList";
 import {IngoingApplications} from "Project/Grant/IngoingApplications";
