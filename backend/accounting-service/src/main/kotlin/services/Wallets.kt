@@ -110,7 +110,7 @@ class BalanceService(
             val parentProject = ancestors[ancestors.lastIndex - 1]
             check(thisProject.parent == parentProject.id)
 
-            val membershipOfParent = memberStatus?.membership?.find { it.projectId == accountId }
+            val membershipOfParent = memberStatus?.membership?.find { it.projectId == parentProject.id }
             if (membershipOfParent != null && membershipOfParent.whoami.role.isAdmin()) {
                 return true
             }

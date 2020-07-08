@@ -5,7 +5,7 @@ import {
   minHeight, MinHeightProps, minWidth, MinWidthProps,
   overflow, OverflowProps, space, SpaceProps,
   textAlign, TextAlignProps, TopProps, width, WidthProps,
-  zIndex, ZIndexProps, background, BackgroundProps
+  zIndex, ZIndexProps, background, BackgroundProps, flexGrow, flexShrink
 } from "styled-system";
 import {cursor} from "Utilities/StyledComponentsUtilities";
 import {Cursor} from "./Types";
@@ -37,14 +37,11 @@ interface FlexShrinkProps {
   flexShrink?: number;
 }
 
-const useFlexGrow = ({flexGrow}: FlexGrowProps) => flexGrow ? {flexGrow} : null;
-const useFlexShrink = ({flexShrink}: FlexShrinkProps) => flexShrink ? {flexShrink} : null;
-
 const Box = styled.div<BoxProps>`
   ${cursor}
   ${zIndex}
-  ${useFlexGrow}
-  ${useFlexShrink}
+  ${flexGrow}
+  ${flexShrink}
   ${space}
   ${width}
   ${minWidth}

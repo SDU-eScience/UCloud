@@ -4,7 +4,7 @@ import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
-import {Box, Button, ButtonGroup, Flex, Icon, Input, Label, Text, TextArea, theme} from "ui-components";
+import {Box, Button, ButtonGroup, Card, Flex, Icon, Input, Label, Text, TextArea, theme} from "ui-components";
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {
     ProductArea,
@@ -21,7 +21,8 @@ import {creditFormatter} from "Project/ProjectUsage";
 import styled from "styled-components";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {
-    approveGrantApplication, closeGrantApplication,
+    approveGrantApplication,
+    closeGrantApplication,
     Comment,
     commentOnGrantApplication,
     deleteGrantApplicationComment,
@@ -55,21 +56,22 @@ export const RequestForSingleResourceWrapper = styled.div`
         margin-left: 10px;
     }
     
+    ${Card} {
+        height: 100%;
+    }
+    
     table {
-        max-width: 600px;
         margin: 16px;
     }
     
     th {
-        width: 200px;
-        min-width: 200px;
-        max-width: 200px;
+        width: 100%;
         text-align: left;
     }
     
     td {
         margin-left: 10px;
-        width: 100%;
+        min-width: 350px;
     }
     
     tr {
@@ -81,7 +83,7 @@ export const RequestForSingleResourceWrapper = styled.div`
 const ResourceContainer = styled.div`
     display: grid;
     grid-gap: 32px;
-    grid-template-columns: repeat(auto-fit, minmax(600px, auto));
+    grid-template-columns: repeat(auto-fit, minmax(500px, auto));
     margin: 32px 0;
 `;
 
@@ -305,6 +307,14 @@ function productCategoryId(pid: ProductCategoryId): string {
     return `${pid.id}/${pid.provider}`;
 }
 
+function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefined {
+    if (!input) return undefined;
+    const rawValue = input.value;
+    const parsed = parseInt(rawValue, 10);
+    if (isNaN(parsed)) return undefined;
+    return parsed;
+}
+
 // Note: target is baked into the component to make sure we follow the rules of hooks.
 //
 // We need to take wildly different paths depending on the target which causes us to use very different hooks. Baking
@@ -327,15 +337,27 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
         }
 
         const requestedResources = state.wallets.map(wb => {
-            const input = document.querySelector<HTMLInputElement>(
-                `input[data-target="${productCategoryId(wb.wallet.paysFor)}"]`
-            )!;
+            let creditsRequested = parseIntegerFromInput(
+                document.querySelector<HTMLInputElement>(
+                    `input[data-target="${productCategoryId(wb.wallet.paysFor)}"]`
+                )
+            );
+            if (creditsRequested) creditsRequested = creditsRequested * 1000000;
 
-            const rawInput = input.value;
-            const parsedInput = parseInt(rawInput, 10);
-            if (isNaN(parsedInput)) return null;
+            let quotaRequested = parseIntegerFromInput(
+                document.querySelector<HTMLInputElement>(
+                    `input[data-target="quota-${productCategoryId(wb.wallet.paysFor)}"]`
+                )
+            );
+            if (quotaRequested) quotaRequested = quotaRequested * (1000 * 1000 * 1000);
+
+            if (creditsRequested === undefined && quotaRequested === undefined) {
+                return null;
+            }
+
             return {
-                creditsRequested: parsedInput * 1000000,
+                creditsRequested,
+                quotaRequested,
                 productCategory: wb.wallet.paysFor.id,
                 productProvider: wb.wallet.paysFor.provider
             } as ResourceRequest;
@@ -405,17 +427,38 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
 
     useEffect(() => {
         if (state.editingApplication !== undefined) {
-            for (const wallet of state.wallets) {
-                const input = document.querySelector<HTMLInputElement>(
-                    `input[data-target="${productCategoryId(wallet.wallet.paysFor)}"]`
-                )!;
+            for (const resource of state.editingApplication.requestedResources) {
+                const credits = resource.creditsRequested;
+                const quota = resource.quotaRequested;
 
-                if (input) {
-                    input.value = (wallet.balance / 1000000).toFixed(0);
+                if (credits) {
+                    const input = document.querySelector<HTMLInputElement>(
+                        `input[data-target="${productCategoryId({
+                            provider: resource.productProvider,
+                            id: resource.productCategory
+                        })}"]`
+                    );
+
+                    if (input) {
+                        input.value = (credits / 1000000).toFixed(0);
+                    }
+                }
+
+                if (quota) {
+                    const input = document.querySelector<HTMLInputElement>(
+                        `input[data-target="quota-${productCategoryId({
+                            provider: resource.productProvider,
+                            id: resource.productCategory
+                        })}"]`
+                    );
+
+                    if (input) {
+                        input.value = (quota / (1000 * 1000 * 1000)).toFixed(0);
+                    }
                 }
             }
         }
-    }, [state.wallets]);
+    }, [state.editingApplication]);
 
     return (
         <MainContainer
@@ -432,8 +475,12 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                     Principal Investigator (PI)
                                     <Input
                                         value={
-                                            `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} ` +
+
+                                            `${Client.userInfo?.firstNames} ${Client.userInfo?.lastName} `
+                                            +
+
                                             `(${Client.username})`
+
                                         }
                                         disabled
                                     />
@@ -506,20 +553,22 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                     state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
                                                         state.editingApplication!.status === GrantApplicationStatus.APPROVED ? "Approved" :
                                                             state.editingApplication!.status === GrantApplicationStatus.REJECTED ? "Rejected" :
-                                                            "Closed"
+                                                                "Closed"
                                                 }
 
                                                 <ButtonGroup>
 
                                                     {target === RequestTarget.VIEW_APPLICATION && state.approver &&
-                                                        state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
+                                                    state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
                                                         <>
-                                                            <Button color={"green"} onClick={approveRequest}>Approve</Button>
-                                                            <Button color={"red"} onClick={rejectRequest}>Reject</Button>
+                                                            <Button color={"green"}
+                                                                    onClick={approveRequest}>Approve</Button>
+                                                            <Button color={"red"}
+                                                                    onClick={rejectRequest}>Reject</Button>
                                                         </> : null
                                                     }
                                                     {target === RequestTarget.VIEW_APPLICATION && !state.approver &&
-                                                        state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
+                                                    state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
                                                         <>
                                                             <Button color={"red"} onClick={closeRequest}>Close</Button>
                                                         </> : null
@@ -570,10 +619,31 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                             placeholder={"0"}
                                                             data-target={productCategoryId(it.wallet.paysFor)}
                                                         />
-                                                        <Box ml={10}>DKK</Box>
+                                                        <Box ml={10} width={32} flexShrink={0}>DKK</Box>
                                                     </Flex>
                                                 </td>
                                             </tr>
+                                            {it.area === ProductArea.STORAGE ? <>
+                                                <tr>
+                                                    <th>
+                                                        {state.editingApplication !== undefined ?
+                                                            "Additional quota requested" :
+                                                            "Request additional quota"
+                                                        }
+                                                    </th>
+                                                    <td>
+                                                        <Flex alignItems={"center"}>
+                                                            <Input
+                                                                placeholder={"0"}
+                                                                data-target={
+                                                                    "quota-" + productCategoryId(it.wallet.paysFor)
+                                                                }
+                                                            />
+                                                            <Box ml={10} width={32} flexShrink={0}>GB</Box>
+                                                        </Flex>
+                                                    </td>
+                                                </tr>
+                                            </> : null}
                                             </tbody>
                                         </table>
                                     </DashboardCard>
@@ -630,30 +700,34 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
     );
 };
 
-const CommentApplicationWrapper = styled.div`
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
-    grid-gap: 32px;
-    max-width: 1400px;
-`;
+const CommentApplicationWrapper = styled.div
+    `
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
+            grid-gap: 32px;
+            max-width: 1400px;
+            `
+;
 
-const CommentBoxWrapper = styled.div`
-    display: flex;
-    margin: 10px 0;
-    
-    .body {
-        flex-grow: 1;
-        margin: 0 6px;
-    }
-    
-    time {
-        color: var(--gray, #ff0);
-    }
-    
-    p {
-        margin: 0;
-    }
-`;
+const CommentBoxWrapper = styled.div
+    `
+            display: flex;
+            margin: 10px 0;
+
+            .body {
+            flex-grow: 1;
+            margin: 0 6px;
+            }
+
+            time {
+            color: var(--gray, #ff0);
+            }
+
+            p {
+            margin: 0;
+            }
+            `
+;
 
 const CommentBox: React.FunctionComponent<{
     comment: Comment,
@@ -693,22 +767,24 @@ const CommentBox: React.FunctionComponent<{
     </CommentBoxWrapper>;
 };
 
-const PostCommentWrapper = styled.form`
-    .wrapper {
-        display: flex;
-    }
-    
-    ${TextArea} {
-        flex-grow: 1;
-        margin-left: 6px;
-    }
-    
-    .buttons {
-        display: flex;
-        margin-top: 6px;
-        justify-content: flex-end;
-    }
-`;
+const PostCommentWrapper = styled.form
+    `
+            .wrapper {
+            display: flex;
+            }
+
+                ${TextArea} {
+            flex-grow: 1;
+            margin-left: 6px;
+            }
+
+            .buttons {
+            display: flex;
+            margin-top: 6px;
+            justify-content: flex-end;
+            }
+            `
+;
 
 const PostCommentWidget: React.FunctionComponent<{
     applicationId: number,

@@ -58,7 +58,22 @@ class LimitChecker(
                     if (actor is Actor.User && actor.principal.role == Role.SERVICE) {
                         // Allow
                     } else {
-                        aclService.requirePermission(path, actor.username, AccessRight.READ)
+                        val hasPermission = aclService.hasPermission(path, actor.username, AccessRight.READ)
+                        if (!hasPermission) {
+                            val directoryComponents = path.components()
+                            if (directoryComponents.size < 2) {
+                                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                            }
+
+                            if (directoryComponents[0] != "projects") {
+                                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                            }
+
+                            val memberStatus = projectCache.memberStatus.get(actor.username)
+                            if (!isAdminOfParentProject(directoryComponents[1], memberStatus)) {
+                                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                            }
+                        }
                     }
                 }
             }
@@ -67,7 +82,7 @@ class LimitChecker(
             session
                 .sendPreparedStatement(
                     { setParameter("homeDirectory", homeDirectory) },
-                    "select * from quotas where path = ?homeDirectory"
+                    "select * from quotas where path = :homeDirectory"
                 )
                 .rows
                 .singleOrNull()
@@ -89,7 +104,7 @@ class LimitChecker(
                     },
 
                     """
-                        insert into quotas values (?path, ?quota) 
+                        insert into quotas values (:path, :quota) 
                         on conflict (path) do update set quota_in_bytes = excluded.quota_in_bytes
                     """
                 )
@@ -123,7 +138,7 @@ class LimitChecker(
             val parentProject = ancestors[ancestors.lastIndex - 1]
             check(thisProject.parent == parentProject.id)
 
-            val membershipOfParent = memberStatus?.membership?.find { it.projectId == accountId }
+            val membershipOfParent = memberStatus?.membership?.find { it.projectId == parentProject.id }
             if (membershipOfParent != null && membershipOfParent.whoami.role.isAdmin()) {
                 return true
             }

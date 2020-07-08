@@ -309,13 +309,9 @@ class ApplicationService(
         ctx: DBContext,
         actor: Actor,
         id: Long,
-        newStatus: ApplicationStatus,
-        extendedUserClient: AuthenticatedClient? = null
+        newStatus: ApplicationStatus
     ) {
         require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
-        require(newStatus != ApplicationStatus.APPROVED || extendedUserClient != null) {
-            "Must extend client if approving"
-        }
 
         ctx.withSession { session ->
             val (updatedProjectId, requestedBy) = session
