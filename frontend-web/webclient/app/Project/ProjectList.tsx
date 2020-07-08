@@ -6,7 +6,7 @@ import {
     listProjects,
     ListProjectsRequest,
     UserInProject,
-    IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite, ListFavoriteProjectsRequest, listFavoriteProjects
+    IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite, ListFavoriteProjectsRequest, listFavoriteProjects, ProjectRole
 } from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -157,6 +157,16 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         }
     ];
 
+    const personalProjectOperations: ProjectOperation[] = [{
+        text: "Manage",
+        disabled: () => false,
+        icon: "properties",
+        onClick: () => {
+            props.setProject();
+            history.push("/project/dashboard");
+        }
+    }];
+
     return (
         <MainContainer
             headerSize={58}
@@ -272,14 +282,40 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                                     </Box>
                                 </>
                             }
-                            right={<>
+                            right={<Flex alignItems="center" height="36.25px">
                                 <Toggle scale={1.5} activeColor="green" checked={!props.project} onChange={() => {
                                     if (!props.project) return;
                                     snackbarStore.addInformation("Personal project is now the active.", false);
                                     props.setProject();
                                 }} />
-                                <Box width="37px" />
-                            </>}
+                                {selectedProjects.size === 0 && projectOperations.length > 0 ?
+                                    <ClickableDropdown
+                                        width="125px"
+                                        left="-105px"
+                                        trigger={(
+                                            <Icon
+                                                ml="0.5em"
+                                                mr="10px"
+                                                name="ellipsis"
+                                                size="1em"
+                                                rotation={90}
+                                            />
+                                        )}
+                                    >
+                                        <ProjectOperations
+                                            selectedProjects={[{
+                                                archived: false,
+                                                favorite: false,
+                                                needsVerification: false,
+                                                projectId: "",
+                                                title: "Personal Project",
+                                                whoami: {role: ProjectRole.ADMIN, username: Client.username!}
+                                            }]}
+                                            projectOperations={personalProjectOperations}
+                                        />
+                                    </ClickableDropdown>
+                                    : <Box width="37px" />}
+                            </Flex>}
                         />
                         <Pagination.List
                             page={response.data}
