@@ -329,7 +329,7 @@ export const roleInProject = (project: ProjectMember[]): ProjectRole | undefined
 
 
 export interface ToggleProjectFavorite {
-    project: string;
+    projectId: string;
 }
 
 export function toggleFavoriteProject(request: ToggleProjectFavorite): APICallParameters<ToggleProjectFavorite> {

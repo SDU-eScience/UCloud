@@ -464,7 +464,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     }
 
     async function onToggleFavorite(projectId: string): Promise<void> {
-        await runCommand(toggleFavoriteProject({project: projectId}));
+        await runCommand(toggleFavoriteProject({projectId: projectId}));
         reload();
     }
 };
