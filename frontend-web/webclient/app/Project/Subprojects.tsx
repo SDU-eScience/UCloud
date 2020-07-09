@@ -1,6 +1,6 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
-import {createProject, listSubprojects, Project, useProjectManagementStatus, } from "Project/index";
+import {createProject, listSubprojects, Project, useProjectManagementStatus, isAdminOrPI, } from "Project/index";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text, theme} from "ui-components";
@@ -167,7 +167,8 @@ const Subprojects: React.FunctionComponent = () => {
         projectId,
         allowManagement,
         subprojectSearchQuery,
-        setSubprojectSearchQuery
+        setSubprojectSearchQuery,
+        projectRole
     } = useProjectManagementStatus(true);
 
     const [quota, fetchQuota] = useCloudAPI<RetrieveQuotaResponse>(
@@ -262,20 +263,21 @@ const Subprojects: React.FunctionComponent = () => {
                                     onClick={() => setSelectedWallet(w)} />
                             )}
 
-                            <div className="request-resources">
-                                <DashboardCard color={theme.colors.blue} isLoading={false}>
-                                    <Box m={8} mt={0}>
-                                        <Heading.h3>Need more resources?</Heading.h3>
-                                        <p>
-                                            You can request more resources from your parent project.
-                                            Click the button below to get started.
+                            {isAdminOrPI(projectRole) ?
+                                <div className="request-resources">
+                                    <DashboardCard color={theme.colors.blue} isLoading={false}>
+                                        <Box m={8} mt={0}>
+                                            <Heading.h3>Need more resources?</Heading.h3>
+                                            <p>
+                                                You can request more resources from your parent project.
+                                                Click the button below to get started.
                                         </p>
-                                        <Flex justifyContent={"flex-end"}>
-                                            <Link to={!Client.hasActiveProject ? "/projects/browser/personal" : "/project/grants/existing"}><Button>Request resources</Button></Link>
-                                        </Flex>
-                                    </Box>
-                                </DashboardCard>
-                            </div>
+                                            <Flex justifyContent={"flex-end"}>
+                                                <Link to={!Client.hasActiveProject ? "/projects/browser/personal" : "/project/grants/existing"}><Button>Request resources</Button></Link>
+                                            </Flex>
+                                        </Box>
+                                    </DashboardCard>
+                                </div> : null}
                         </WalletContainer>
                     </LoadingBox>
 
@@ -338,10 +340,10 @@ const Subprojects: React.FunctionComponent = () => {
                                                                 );
                                                             }}
                                                             customEmptyPage={
-                                                                <Flex justifyContent={"center"} alignItems={"center"} height={"200px"}>
+                                                                <Flex justifyContent="center" alignItems="center" height="200px">
                                                                     This project doesn&apos;t have any subprojects.
-                                                                    You can create one by using the &apos;Create&apos; button above.
-                                                    </Flex>
+                                                                    {isAdminOrPI(projectRole) ? <>You can create one by using the &apos;Create&apos; button above.</> : ""}
+                                                                </Flex>
                                                             }
                                                         />
                                                     </td>

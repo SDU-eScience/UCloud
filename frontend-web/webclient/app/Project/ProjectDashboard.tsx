@@ -4,7 +4,8 @@ import {
     membersCountRequest,
     groupsCountRequest,
     subprojectsCountRequest,
-    ProjectRole
+    ProjectRole,
+    isAdminOrPI
 } from "Project/index";
 import * as React from "react";
 import {Box, Button, Link, Flex, theme, Card} from "ui-components";
@@ -27,7 +28,7 @@ import {emptyPage} from "DefaultObjects";
 import {Client} from "Authentication/HttpClientInstance";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
-    const {projectId, projectDetails} = useProjectManagementStatus(true);
+    const {projectId, projectDetails, projectRole} = useProjectManagementStatus(true);
 
     function isPersonalProjectActive(id: string): boolean {
         return id === undefined || id === "";
@@ -188,7 +189,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Link>
                             </DashboardCardButton>
                         </DashboardCard>
-                        {isPersonalProjectActive(projectId) ? null :
+                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
                             <DashboardCard title="Grant Applications" icon="mail" color={theme.colors.red}
                                 isLoading={false}>
                                 <Table>
@@ -205,7 +206,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                     </Link>
                                 </DashboardCardButton>
                             </DashboardCard>}
-                        {isPersonalProjectActive(projectId) ? null : (
+                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null : (
                             <DashboardCard title="Settings" icon="properties" color={theme.colors.orange}
                                 isLoading={false}>
                                 <Table>

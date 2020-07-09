@@ -395,7 +395,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         </>
                     }
                     right={
-                        <Flex alignItems={"center"}>
+                        <Flex alignItems="center" height="36.25px">
                             {!e.needsVerification ? null : (
                                 <Text fontSize={0} mr={8}>
                                     <Icon name={"warning"} /> Attention required
@@ -464,7 +464,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     }
 
     async function onToggleFavorite(projectId: string): Promise<void> {
-        await runCommand(toggleFavoriteProject({projectId: projectId}));
+        await runCommand(toggleFavoriteProject({projectId}));
         reload();
     }
 };
