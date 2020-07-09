@@ -24,6 +24,7 @@ import {Dictionary} from "Types";
 import styled from "styled-components";
 import {ingoingGrantApplications, IngoingGrantApplicationsResponse} from "Project/Grant";
 import {emptyPage} from "DefaultObjects";
+import {Client} from "Authentication/HttpClientInstance";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const {projectId, projectDetails} = useProjectManagementStatus(true);
@@ -145,22 +146,22 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             </DashboardCard>
                         ) : null}
                         <DashboardCard
-                            title="Subprojects"
+                            title={Client.hasActiveProject ? "Subprojects" : "Resource Allocation"}
                             icon="projects"
                             color={theme.colors.purple}
                             isLoading={false}
                         >
-                            <Table>
+                            {Client.hasActiveProject ? <Table>
                                 <tbody>
                                     <TableRow>
                                         <TableCell>Subprojects</TableCell>
                                         <TableCell textAlign="right">{subprojectsCount.data}</TableCell>
                                     </TableRow>
                                 </tbody>
-                            </Table>
+                            </Table> : null}
                             <DashboardCardButton>
                                 <Link to="/project/subprojects">
-                                    <Button width="100%">Manage Subprojects</Button>
+                                    <Button width="100%">Manage Resources</Button>
                                 </Link>
                             </DashboardCardButton>
                         </DashboardCard>

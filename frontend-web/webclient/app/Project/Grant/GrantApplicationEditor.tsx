@@ -365,7 +365,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
 
         const newDocument = state.documentRef.current!.value;
         if (state.editingApplication === undefined) {
-            const response = await runWork<{ id: number }>(submitGrantApplication({
+            const response = await runWork<{id: number}>(submitGrantApplication({
                 document: newDocument,
                 resourcesOwnedBy: state.targetProject!,
                 requestedResources,
@@ -619,6 +619,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                             placeholder={"0"}
                                                             data-target={productCategoryId(it.wallet.paysFor)}
                                                             autoComplete="off"
+                                                            type="number"
                                                         />
                                                         <Box ml={10} width={32} flexShrink={0}>DKK</Box>
                                                     </Flex>
@@ -640,6 +641,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                                     "quota-" + productCategoryId(it.wallet.paysFor)
                                                                 }
                                                                 autoComplete="off"
+                                                                type="number"
                                                             />
                                                             <Box ml={10} width={32} flexShrink={0}>GB</Box>
                                                         </Flex>
