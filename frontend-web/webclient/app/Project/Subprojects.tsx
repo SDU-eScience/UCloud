@@ -263,7 +263,7 @@ const Subprojects: React.FunctionComponent = () => {
                                     onClick={() => setSelectedWallet(w)} />
                             )}
 
-                            {isAdminOrPI(projectRole) ?
+                            {!Client.hasActiveProject || isAdminOrPI(projectRole) ?
                                 <div className="request-resources">
                                     <DashboardCard color={theme.colors.blue} isLoading={false}>
                                         <Box m={8} mt={0}>
@@ -273,7 +273,11 @@ const Subprojects: React.FunctionComponent = () => {
                                                 Click the button below to get started.
                                         </p>
                                             <Flex justifyContent={"flex-end"}>
-                                                <Link to={!Client.hasActiveProject ? "/projects/browser/personal" : "/project/grants/existing"}><Button>Request resources</Button></Link>
+                                                <Link to={
+                                                    !Client.hasActiveProject ?
+                                                        "/projects/browser/personal" :
+                                                        "/project/grants/existing"
+                                                }><Button>Request resources</Button></Link>
                                             </Flex>
                                         </Box>
                                     </DashboardCard>
