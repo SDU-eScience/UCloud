@@ -58,7 +58,7 @@ export const DashboardCard: React.FunctionComponent<{
     minHeight?: string
 }> = ({title, subtitle, color, isLoading, icon = undefined, children, height = "auto", minHeight}) => (
     <Card overflow="hidden" height={height} width={1} boxShadow="sm" borderWidth={0} borderRadius={6}
-          minHeight={minHeight}>
+        minHeight={minHeight}>
         <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid ${color}`}} >
             {icon !== undefined ? (
                 <Icon
@@ -93,11 +93,11 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     }), emptyPage);
 
     const [wallets, setWalletsParams] = useCloudAPI<RetrieveBalanceResponse>(
-        retrieveBalance( {
+        retrieveBalance({
             id: undefined,
             type: undefined,
             includeChildren: false
-        }), {wallets:[]}
+        }), {wallets: []}
     );
 
     React.useEffect(() => {
@@ -110,7 +110,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     function reload(loading: boolean): void {
         props.setAllLoading(loading);
         setFavoriteParams(listFavorites({itemsPerPage: 10, page: 0}));
-        setWalletsParams(retrieveBalance( {
+        setWalletsParams(retrieveBalance({
             id: undefined,
             type: undefined,
             includeChildren: false
@@ -310,14 +310,14 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
             />
         }
     >
-    {props.notifications.length === 0 ? <Heading.h6>No notifications</Heading.h6> : null}
-    <List>
-        {props.notifications.slice(0, 7).map((n, i) => (
-            <Flex key={i}>
-                <NotificationEntry notification={n} onAction={props.onNotificationAction} />
-            </Flex>
-        ))}
-    </List>
+        {props.notifications.length === 0 ? <Heading.h6>No notifications</Heading.h6> : null}
+        <List>
+            {props.notifications.slice(0, 7).map((n, i) => (
+                <Flex key={i}>
+                    <NotificationEntry notification={n} onAction={props.onNotificationAction} />
+                </Flex>
+            ))}
+        </List>
     </DashboardCard>
 );
 
@@ -352,12 +352,12 @@ function DashboardResources({wallets, loading}: {wallets: WalletBalance[]; loadi
         <DashboardCard title="Resources" color="red" isLoading={loading} icon={"grant"}>
             <Box mx="8px" my="5px">
                 {wallets.length === 0 ? <Heading.h3> No wallets found</Heading.h3> :
-                    wallets.slice(0,7).map((n, i) => (
+                    wallets.slice(0, 7).map((n, i) => (
                         <List key={i}>
                             <Heading.h5>{n.wallet.paysFor.provider} / {n.wallet.paysFor.id}</Heading.h5>
                             <Heading.h5 style={{textAlign: "right"}}> {creditFormatter(n.balance)} </Heading.h5>
                         </List>
-                        )
+                    )
                     )
                 }
             </Box>
@@ -366,7 +366,6 @@ function DashboardResources({wallets, loading}: {wallets: WalletBalance[]; loadi
 }
 
 function DashboardMessageOfTheDay({news, loading}: {news: NewsPost[]; loading: boolean}): JSX.Element | null {
-    const [newestPost] = news;
     return (
         <DashboardCard
             title="News"
@@ -378,18 +377,18 @@ function DashboardMessageOfTheDay({news, loading}: {news: NewsPost[]; loading: b
             <Box>
                 {news.slice(0, 3).map(post => (
                     <Box key={post.id} mb={32}>
-                        <Link to={`/news/detailed/${newestPost.id}`}>
-                            <Heading.h3>{newestPost.title} </Heading.h3>
+                        <Link to={`/news/detailed/${post.id}`}>
+                            <Heading.h3>{post.title} </Heading.h3>
                         </Link>
 
                         <Spacer
-                            left={<Heading.h5>{newestPost.subtitle}</Heading.h5>}
+                            left={<Heading.h5>{post.subtitle}</Heading.h5>}
                             right={<Heading.h5>{dateToString(post.showFrom)}</Heading.h5>}
                         />
 
                         <Box overflow="scroll" maxHeight={150}>
                             <Markdown
-                                source={newestPost.body}
+                                source={post.body}
                                 unwrapDisallowed
                             />
                         </Box>
