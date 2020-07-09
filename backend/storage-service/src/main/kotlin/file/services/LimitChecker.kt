@@ -14,20 +14,15 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.ProductConfiguration
 import dk.sdu.cloud.file.SERVICE_USER
-import dk.sdu.cloud.file.api.AccessRight
-import dk.sdu.cloud.file.api.NO_QUOTA
-import dk.sdu.cloud.file.api.bytesToString
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.findHomeDirectoryFromPath
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.file.services.acl.AclService
-import dk.sdu.cloud.file.services.acl.requirePermission
+import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Actor
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.long
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.withSession
@@ -47,7 +42,7 @@ class LimitChecker(
     private val serviceClient: AuthenticatedClient,
     private val productConfiguration: ProductConfiguration
 ) {
-    suspend fun retrieveQuota(actor: Actor, path: String, ctx: DBContext = db): Long {
+    suspend fun retrieveQuota(actor: Actor, path: String, ctx: DBContext = db): Quota {
         return ctx.withSession { session ->
             when (actor) {
                 Actor.System -> {
@@ -55,22 +50,16 @@ class LimitChecker(
                 }
 
                 is Actor.User, is Actor.SystemOnBehalfOfUser -> {
-                    if (actor is Actor.User && actor.principal.role == Role.SERVICE) {
+                    if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) {
                         // Allow
                     } else {
                         val hasPermission = aclService.hasPermission(path, actor.username, AccessRight.READ)
                         if (!hasPermission) {
-                            val directoryComponents = path.components()
-                            if (directoryComponents.size < 2) {
-                                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-                            }
-
-                            if (directoryComponents[0] != "projects") {
-                                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-                            }
+                            val projectId = projectIdFromPath(path)
+                                ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
                             val memberStatus = projectCache.memberStatus.get(actor.username)
-                            if (!isAdminOfParentProject(directoryComponents[1], memberStatus)) {
+                            if (fetchParentIfAdministrator(projectId, memberStatus) == null) {
                                 throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
                             }
                         }
@@ -82,68 +71,203 @@ class LimitChecker(
             session
                 .sendPreparedStatement(
                     { setParameter("homeDirectory", homeDirectory) },
-                    "select * from quotas where path = :homeDirectory"
+                    """
+                        with used_quota as (
+                            select coalesce(sum(allocation), 0)::bigint as used 
+                            from quota_allocation where from_directory = :homeDirectory
+                        )
+
+                        select used_quota.used, quotas.quota_in_bytes
+                        from quotas, used_quota
+                        where path = :homeDirectory
+                        limit 1
+                    """
                 )
                 .rows
                 .singleOrNull()
-                ?.getField(QuotaTable.quotaInBytes)
-                ?: productConfiguration.defaultQuota
+                ?.let {
+                    val used = it.getLong(0)!!
+                    val quotaInBytes = it.getLong(1)!!
+                    Quota(quotaInBytes, quotaInBytes - used, used)
+                }
+                ?: Quota(productConfiguration.defaultQuota, 0, 0)
         }
     }
 
-    suspend fun setQuota(actor: Actor, path: String, quotaInBytes: Long, ctx: DBContext = db) {
+    suspend fun setQuota(
+        actor: Actor,
+        path: String,
+        quotaInBytes: Long,
+        additive: Boolean,
+        ctx: DBContext = db
+    ) {
         ctx.withSession { session ->
-            val homeDirectory = findHomeDirectoryFromPath(path)
-            verifySetQuotaPermissions(actor, homeDirectory)
+            val toProject = findHomeDirectoryFromPath(path)
+            val projectId = projectIdFromPath(path)
+                ?: throw RPCException("This endpoint is only for projects", HttpStatusCode.BadRequest)
+            val (_, parentProject) = fetchProjectWithParent(projectId)
+            verifyPermissionsAndFindParentQuota(actor, toProject) // throws if permission denied.
+            if (parentProject != null) {
+                // This means that we are transferring from a project
+                val fromProject = projectHomeDirectory(parentProject.id)
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("fromProject", fromProject)
+                            setParameter("toProject", toProject)
+                            setParameter("quotaInBytes", quotaInBytes)
+                            setParameter("additive", additive)
+                        },
+
+                        """
+                            insert into quota_allocation (from_directory, to_directory, allocation)
+                            values (:fromProject, :toProject, :quotaInBytes)
+                            on conflict (from_directory, to_directory) do update set
+                                  allocation = excluded.allocation + (
+                                      case
+                                          when :additive then quota_allocation.allocation
+                                          else 0
+                                      end
+                                  )
+                        """
+                    )
+
+                val newQuotaForParent = retrieveQuota(actor, fromProject, session)
+                if (newQuotaForParent.quotaInBytes != NO_QUOTA && newQuotaForParent.quotaInBytes < 0) {
+                    throw RPCException(
+                        "This project does not have enough resources for this transfer",
+                        HttpStatusCode.PaymentRequired
+                    )
+                }
+            }
 
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("path", homeDirectory)
+                        setParameter("path", toProject)
                         setParameter("quota", quotaInBytes)
+                        setParameter("additive", additive)
                     },
 
                     """
                         insert into quotas values (:path, :quota) 
-                        on conflict (path) do update set quota_in_bytes = excluded.quota_in_bytes
+                        on conflict (path) do update set 
+                            quota_in_bytes = excluded.quota_in_bytes + (
+                                case
+                                    when :additive then quotas.quota_in_bytes
+                                    else 0
+                                end
+                            )
                     """
                 )
         }
     }
 
-    private suspend fun verifySetQuotaPermissions(actor: Actor, homeDirectory: String) {
+    suspend fun transferQuota(
+        actor: Actor,
+        fromPath: String,
+        toPath: String,
+        quotaInBytes: Long,
+        ctx: DBContext = db
+    ) {
+        ctx.withSession { session ->
+            val fromHome = findHomeDirectoryFromPath(fromPath)
+            verifyTransferQuotaPermissions(actor, fromHome)
+
+            usernameFromPath(toPath)
+                ?: throw RPCException("You can only transfer to personal projects", HttpStatusCode.Forbidden)
+
+            val quota = retrieveQuota(actor, fromHome, session)
+            if (quota.quotaInBytes < quotaInBytes) {
+                throw RPCException(
+                    "Your project does not have enough available quota to initiate this transfer",
+                    HttpStatusCode.PaymentRequired
+                )
+            }
+
+            val toHome = findHomeDirectoryFromPath(toPath)
+
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("toHome", toHome)
+                        setParameter("fromHome", fromHome)
+                        setParameter("allocation", quotaInBytes)
+                    },
+                    """
+                        insert into quota_allocation (from_directory, to_directory, allocation) 
+                        values (:fromHome, :toHome, :allocation)
+                        on conflict (from_directory, to_directory) do update set 
+                            allocation = quota_allocation.allocation + excluded.allocation
+                    """
+                )
+
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("toHome", toHome)
+                        setParameter("quotaInBytes", quotaInBytes)
+                    },
+                    """
+                        insert into quotas (path, quota_in_bytes) 
+                        values (:toHome, :quotaInBytes)
+                        on conflict (path) do update set 
+                            quota_in_bytes = excluded.quota_in_bytes + quotas.quota_in_bytes
+                    """
+                )
+        }
+    }
+
+    private suspend fun verifyTransferQuotaPermissions(actor: Actor, homeDirectory: String) {
         if (actor == Actor.System) return
         if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) return
-        val directoryComponents = homeDirectory.components()
-        check(directoryComponents.size == 2)
-
-        if (directoryComponents[0] == "projects") {
-            val memberStatus = projectCache.memberStatus.get(actor.username)
-            if (isAdminOfParentProject(directoryComponents[1], memberStatus)) return
+        val projectId = projectIdFromPath(homeDirectory) ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val memberStatus = projectCache.memberStatus.get(actor.username)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        if (memberStatus.membership.find { it.projectId == projectId }?.whoami?.role?.isAdmin() == true) {
+            return
         }
         throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
     }
 
-    private suspend fun isAdminOfParentProject(
+    private suspend fun verifyPermissionsAndFindParentQuota(actor: Actor, homeDirectory: String): String? {
+        if (actor == Actor.System) return null
+        if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) return null
+        val projectId = projectIdFromPath(homeDirectory) ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val memberStatus = projectCache.memberStatus.get(actor.username)
+        return fetchParentIfAdministrator(projectId, memberStatus) ?:
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+    }
+
+    private suspend fun fetchParentIfAdministrator(
         accountId: String,
         memberStatus: UserStatusResponse?
-    ): Boolean {
-        val ancestors = projectCache.ancestors.get(accountId)
+    ): String? {
+        val (_, parent) = fetchProjectWithParent(accountId)
+
+        if (parent != null) {
+            val membershipOfParent = memberStatus?.membership?.find { it.projectId == parent.id }
+            if (membershipOfParent != null && membershipOfParent.whoami.role.isAdmin()) {
+                return membershipOfParent.projectId
+            }
+        }
+        return null
+    }
+
+    private data class ChildAndParentProject(val child: Project, val parent: Project?)
+    private suspend fun fetchProjectWithParent(projectId: String): ChildAndParentProject {
+        val ancestors = projectCache.ancestors.get(projectId)
             ?: throw RPCException("Could not retrieve ancestors", HttpStatusCode.BadGateway)
 
         val thisProject = ancestors.last()
-        check(thisProject.id == accountId)
-
-        if (thisProject.parent != null) {
-            val parentProject = ancestors[ancestors.lastIndex - 1]
-            check(thisProject.parent == parentProject.id)
-
-            val membershipOfParent = memberStatus?.membership?.find { it.projectId == parentProject.id }
-            if (membershipOfParent != null && membershipOfParent.whoami.role.isAdmin()) {
-                return true
-            }
+        check(thisProject.id == projectId)
+        return if (thisProject.parent != null) {
+            val parent = ancestors[ancestors.lastIndex - 1]
+            check(thisProject.parent == parent.id)
+            ChildAndParentProject(thisProject, parent)
+        } else {
+            ChildAndParentProject(thisProject, null)
         }
-        return false
     }
 
     // Can't use Result since it doesn't encode null
@@ -267,14 +391,14 @@ class LimitChecker(
 
     private suspend fun internalPerformQuotaCheck(homeDirectory: String, usage: Long) {
         val quota = retrieveQuota(Actor.System, homeDirectory)
-        if (quota == NO_QUOTA) {
+        if (quota.quotaInBytes == NO_QUOTA) {
             log.debug("Owner of $homeDirectory has no storage quota")
             return
         }
 
-        if (usage > quota) {
+        if (usage > quota.quotaInBytes) {
             throw RPCException(
-                "Storage quota has been exceeded. ${bytesToString(usage)} of ${bytesToString(quota)} used",
+                "Storage quota has been exceeded. ${bytesToString(usage)} of ${bytesToString(quota.quotaInBytes)} used",
                 HttpStatusCode.PaymentRequired
             )
         }

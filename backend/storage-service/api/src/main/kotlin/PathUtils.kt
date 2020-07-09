@@ -5,6 +5,21 @@ import io.ktor.http.HttpStatusCode
 import java.io.File
 
 fun homeDirectory(user: String): String = "/home/$user/"
+fun projectHomeDirectory(projectId: String): String = "/projects/$projectId"
+
+fun projectIdFromPath(path: String): String? {
+    val normalizedComponents = path.normalize().components()
+    if (normalizedComponents.size < 2) return null
+    if (normalizedComponents[0] != "projects") return null
+    return normalizedComponents[1]
+}
+
+fun usernameFromPath(path: String): String? {
+    val normalizedComponents = path.normalize().components()
+    if (normalizedComponents.size < 2) return null
+    if (normalizedComponents[0] != "home") return null
+    return normalizedComponents[1]
+}
 
 fun findHomeDirectoryFromPath(path: String): String {
     val components = path.components()

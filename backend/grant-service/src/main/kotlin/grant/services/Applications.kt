@@ -6,6 +6,8 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.file.api.*
 import dk.sdu.cloud.grant.api.Application
 import dk.sdu.cloud.grant.api.ApplicationStatus
 import dk.sdu.cloud.grant.api.CreateApplication
@@ -655,7 +657,7 @@ suspend fun grantResourcesToProject(
         WalletOwnerType.PROJECT -> {
             Wallets.addToBalanceBulk.call(
                 AddToBalanceBulkRequest(resources.mapNotNull { resource ->
-                    val creditsRequested = resource.creditsRequested ?: return@mapNotNull null // TODO Deal with quotas
+                    val creditsRequested = resource.creditsRequested ?: return@mapNotNull null
                     val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
 
                     AddToBalanceRequest(
@@ -669,11 +671,23 @@ suspend fun grantResourcesToProject(
                 }),
                 serviceClient
             ).orThrow()
+
+            resources.forEach { resource ->
+                val quotaRequested = resource.quotaRequested ?: return@forEach
+                FileDescriptions.updateQuota.call(
+                    UpdateQuotaRequest(
+                        projectHomeDirectory(targetWallet),
+                        quotaRequested,
+                        additive = true
+                    ),
+                    serviceClient
+                ).orThrow()
+            }
         }
 
         WalletOwnerType.USER -> {
             val requests = resources.mapNotNull { resource ->
-                val creditsRequested = resource.creditsRequested ?: return@mapNotNull null // TODO Deal with quotas
+                val creditsRequested = resource.creditsRequested ?: return@mapNotNull null
                 val paysFor = ProductCategoryId(resource.productCategory, resource.productProvider)
 
                 SingleTransferRequest(
@@ -696,6 +710,17 @@ suspend fun grantResourcesToProject(
                 TransferToPersonalRequest(requests),
                 serviceClient
             ).orThrow()
+
+            resources.forEach { resource ->
+                val quotaRequested = resource.quotaRequested ?: return@forEach
+                FileDescriptions.transferQuota.call(
+                    TransferQuotaRequest(
+                        homeDirectory(targetWallet),
+                        quotaRequested
+                    ),
+                    serviceClient.withProject(sourceProject)
+                ).orThrow()
+            }
         }
     }
 }

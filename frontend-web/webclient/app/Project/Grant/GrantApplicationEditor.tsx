@@ -704,34 +704,30 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
     );
 };
 
-const CommentApplicationWrapper = styled.div
-    `
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
-            grid-gap: 32px;
-            max-width: 1400px;
-            `
-;
+const CommentApplicationWrapper = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
+    grid-gap: 32px;
+    max-width: 1400px;
+`;
 
-const CommentBoxWrapper = styled.div
-    `
-            display: flex;
-            margin: 10px 0;
+const CommentBoxWrapper = styled.div`
+    display: flex;
+    margin: 10px 0;
 
-            .body {
-            flex-grow: 1;
-            margin: 0 6px;
-            }
+    .body {
+        flex-grow: 1;
+        margin: 0 6px;
+    }
 
-            time {
-            color: var(--gray, #ff0);
-            }
+    time {
+        color: var(--gray, #ff0);
+    }
 
-            p {
-            margin: 0;
-            }
-            `
-;
+    p {
+        margin: 0;
+    }
+`;
 
 const CommentBox: React.FunctionComponent<{
     comment: Comment,
@@ -771,24 +767,22 @@ const CommentBox: React.FunctionComponent<{
     </CommentBoxWrapper>;
 };
 
-const PostCommentWrapper = styled.form
-    `
-            .wrapper {
-            display: flex;
-            }
+const PostCommentWrapper = styled.form`
+    .wrapper {
+        display: flex;
+    }
 
-                ${TextArea} {
-            flex-grow: 1;
-            margin-left: 6px;
-            }
+    ${TextArea} {
+        flex-grow: 1;
+        margin-left: 6px;
+    }
 
-            .buttons {
-            display: flex;
-            margin-top: 6px;
-            justify-content: flex-end;
-            }
-            `
-;
+    .buttons {
+        display: flex;
+        margin-top: 6px;
+        justify-content: flex-end;
+    }
+`;
 
 const PostCommentWidget: React.FunctionComponent<{
     applicationId: number,

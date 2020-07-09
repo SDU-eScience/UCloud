@@ -147,7 +147,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             </DashboardCard>
                         ) : null}
                         <DashboardCard
-                            title={Client.hasActiveProject ? "Subprojects" : "Resource Allocation"}
+                            title={"Resource Allocation"}
                             icon="projects"
                             color={theme.colors.purple}
                             isLoading={false}

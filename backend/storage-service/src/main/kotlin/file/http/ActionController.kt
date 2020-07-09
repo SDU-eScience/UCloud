@@ -4,6 +4,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.SERVICE_USER
 import dk.sdu.cloud.file.api.*
@@ -129,14 +130,24 @@ class ActionController<Ctx : FSUserContext>(
             limitChecker.setQuota(
                 ctx.securityPrincipal.toActor(),
                 request.path,
-                request.quotaInBytes
+                request.quotaInBytes,
+                request.additive
             )
-
             ok(Unit)
         }
 
         implement(FileDescriptions.retrieveQuota) {
-            ok(RetrieveQuotaResponse(limitChecker.retrieveQuota(ctx.securityPrincipal.toActor(), request.path)))
+            ok(limitChecker.retrieveQuota(ctx.securityPrincipal.toActor(), request.path))
+        }
+
+        implement(FileDescriptions.transferQuota) {
+            limitChecker.transferQuota(
+                ctx.securityPrincipal.toActor(),
+                projectHomeDirectory(ctx.project ?: throw RPCException("Missing project", HttpStatusCode.BadRequest)),
+                request.path,
+                request.quotaInBytes
+            )
+            ok(Unit)
         }
     }
 }
