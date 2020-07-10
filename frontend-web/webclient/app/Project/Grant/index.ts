@@ -52,6 +52,15 @@ export enum GrantApplicationStatus {
     CLOSED = "CLOSED"
 }
 
+export function isGrantFinalized(status?: GrantApplicationStatus): boolean {
+    if (status === undefined) return true;
+    return [
+        GrantApplicationStatus.APPROVED,
+        GrantApplicationStatus.REJECTED,
+        GrantApplicationStatus.CLOSED
+    ].includes(status);
+}
+
 export interface CreateGrantApplication {
     resourcesOwnedBy: string;
     grantRecipient: GrantRecipient;
@@ -99,7 +108,7 @@ export interface ViewGrantApplicationRequest {
     id: number;
 }
 
-export type ViewGrantApplicationResponse = { application: GrantApplication, comments: Comment[], approver: boolean } ;
+export type ViewGrantApplicationResponse = {application: GrantApplication, comments: Comment[], approver: boolean};
 
 export function viewGrantApplication(
     request: ViewGrantApplicationRequest
@@ -316,7 +325,7 @@ export function uploadTemplates(request: UploadTemplatesRequest): APICallParamet
 }
 
 export type BrowseProjectsRequest = PaginationRequest;
-export type BrowseProjectsResponse = Page<{ projectId: string, title: string }>;
+export type BrowseProjectsResponse = Page<{projectId: string, title: string}>;
 
 export function browseProjects(request: BrowseProjectsRequest): APICallParameters<BrowseProjectsRequest> {
     return {
