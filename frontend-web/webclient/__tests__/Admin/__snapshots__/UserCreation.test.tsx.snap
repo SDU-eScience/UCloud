@@ -106,6 +106,10 @@ exports[`UserCreation Mount 1`] = `
   background-color: transparent;
 }
 
+.c6:disabled {
+  background-color: var(--FtFolderColor2,#f00);
+}
+
 .c6:focus {
   outline: 0;
   border-color: #006aff;

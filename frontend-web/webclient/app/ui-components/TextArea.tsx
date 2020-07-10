@@ -16,6 +16,10 @@ export const TextArea = styled.textarea<{width?: string | number}>`
     &:focus {
         outline: none;
     }
+
+    &:disabled {
+        background-color: var(--FtFolderColor2, #f00);
+    }
 `;
 
 TextArea.displayName = "TextArea";

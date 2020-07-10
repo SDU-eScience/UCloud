@@ -141,6 +141,10 @@ exports[`Activity Page Mount Activity Page, without project 1`] = `
   background-color: transparent;
 }
 
+.c15:disabled {
+  background-color: var(--FtFolderColor2,#f00);
+}
+
 .c15:focus {
   outline: 0;
   border-color: #006aff;

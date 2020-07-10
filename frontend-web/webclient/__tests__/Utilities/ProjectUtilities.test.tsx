@@ -1,18 +1,11 @@
 import * as React from "react";
 import * as ProjectUtils from "../../app/Utilities/ProjectUtilities";
 import {ProjectRole} from "../../app/Project";
-import {emptyPage} from "../../app/DefaultObjects";
 import {Page} from "../../app/Types";
 import {create} from "react-test-renderer";
 import {Client} from "../../app/Authentication/HttpClientInstance";
 import {GroupWithSummary} from "../../app/Project/GroupList";
-
-/* GroupWithSummary {
-    group: string;
-    numberOfMembers: number;
-    members: string[];
-} */
-
+import {isAdminOrPI} from "../../app/Project";
 let groupCounter = 0;
 
 function newGroupWithSummary(): GroupWithSummary {
@@ -81,15 +74,15 @@ describe("isRepository", () => {
 
 describe("isAdminOrPI", () => {
     test("User", () => {
-        expect(ProjectUtils.isAdminOrPI(ProjectRole.USER)).toBe(false);
+        expect(isAdminOrPI(ProjectRole.USER)).toBe(false);
     });
 
     test("Admin", () => {
-        expect(ProjectUtils.isAdminOrPI(ProjectRole.ADMIN)).toBe(true);
+        expect(isAdminOrPI(ProjectRole.ADMIN)).toBe(true);
     });
 
     test("PI", () => {
-        expect(ProjectUtils.isAdminOrPI(ProjectRole.PI)).toBe(true);
+        expect(isAdminOrPI(ProjectRole.PI)).toBe(true);
     });
 });
 

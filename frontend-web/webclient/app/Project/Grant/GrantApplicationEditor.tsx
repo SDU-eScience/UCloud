@@ -36,7 +36,8 @@ import {
     ResourceRequest,
     submitGrantApplication,
     viewGrantApplication,
-    ViewGrantApplicationResponse
+    ViewGrantApplicationResponse,
+    isGrantFinalized
 } from "Project/Grant/index";
 import {useHistory, useParams} from "react-router";
 import {Client} from "Authentication/HttpClientInstance";
@@ -104,7 +105,6 @@ export enum RequestTarget {
     VIEW_APPLICATION = "view"
 }
 
-// eslint-disable-next-line
 function useRequestInformation(target: RequestTarget) {
     let targetProject: string | undefined;
     let wallets: WalletBalance[] = [];
@@ -321,6 +321,7 @@ function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefi
 // the target property ensures a remount of the component.
 export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionComponent = target => () => {
     const state = useRequestInformation(target);
+    const grantFinalized = isGrantFinalized(state.editingApplication?.status);
     const [, runWork] = useAsyncCommand();
     const isUser = !isAdminOrPI(useProjectManagementStatus().projectRole);
     const projectTitleRef = useRef<HTMLInputElement>(null);
@@ -468,8 +469,8 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             }
             sidebar={null}
             main={
-                <Flex justifyContent={"center"}>
-                    <Box maxWidth={1400} width={"100%"}>
+                <Flex justifyContent="center">
+                    <Box maxWidth={1400} width="100%">
                         {target !== RequestTarget.NEW_PROJECT || isUser ? null : (
                             <>
                                 <Label mb={16} mt={16}>
@@ -496,7 +497,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
 
                         {target !== RequestTarget.VIEW_APPLICATION || isUser ? null : (
                             <>
-                                <DashboardCard color={"blue"} isLoading={false}>
+                                <DashboardCard color="blue" isLoading={false}>
                                     <Heading.h4 mb={16}>Metadata</Heading.h4>
 
                                     <Text mb={16}>
@@ -517,7 +518,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                 <TableCell>{state.editingApplication!.grantRecipientPi}</TableCell>
                                             </TableRow>
                                             <TableRow>
-                                                <TableCell verticalAlign={"top"}>
+                                                <TableCell verticalAlign="top">
                                                     Project Type
                                             </TableCell>
                                                 <TableCell>
@@ -525,20 +526,20 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                         <tbody>
                                                             <tr>
                                                                 <td>Personal</td>
-                                                                <td width={"100%"}>
+                                                                <td width="100%">
                                                                     <Toggle onChange={doNothing} scale={1.5}
                                                                         checked={state.recipient.type === "personal"} />
                                                                 </td>
                                                             </tr>
                                                             <tr>
-                                                                <td width={"100%"}>New Project</td>
+                                                                <td width="100%">New Project</td>
                                                                 <td>
                                                                     <Toggle onChange={doNothing} scale={1.5}
                                                                         checked={state.recipient.type === "new_project"} />
                                                                 </td>
                                                             </tr>
                                                             <tr>
-                                                                <td width={"100%"}>Existing Project</td>
+                                                                <td width="100%">Existing Project</td>
                                                                 <td>
                                                                     <Toggle onChange={doNothing} scale={1.5}
                                                                         checked={state.recipient.type === "existing_project"} />
@@ -563,16 +564,16 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                         {target === RequestTarget.VIEW_APPLICATION && state.approver &&
                                                             state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
                                                             <>
-                                                                <Button color={"green"}
+                                                                <Button color="green"
                                                                     onClick={approveRequest}>Approve</Button>
-                                                                <Button color={"red"}
+                                                                <Button color="red"
                                                                     onClick={rejectRequest}>Reject</Button>
                                                             </> : null
                                                         }
                                                         {target === RequestTarget.VIEW_APPLICATION && !state.approver &&
                                                             state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
                                                             <>
-                                                                <Button color={"red"} onClick={closeRequest}>Close</Button>
+                                                                <Button color="red" onClick={closeRequest}>Close</Button>
                                                             </> : null
                                                         }
                                                     </ButtonGroup>
@@ -619,7 +620,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                         <Flex alignItems={"center"}>
                                                             <Input
                                                                 placeholder={"0"}
-                                                                disabled={isUser}
+                                                                disabled={isUser || grantFinalized}
                                                                 data-target={productCategoryId(it.wallet.paysFor)}
                                                                 autoComplete="off"
                                                                 type="number"
@@ -640,7 +641,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                                             <Flex alignItems={"center"}>
                                                                 <Input
                                                                     placeholder={"0"}
-                                                                    disabled={isUser}
+                                                                    disabled={isUser || grantFinalized}
                                                                     data-target={
                                                                         "quota-" + productCategoryId(it.wallet.paysFor)
                                                                     }
@@ -662,11 +663,11 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         <CommentApplicationWrapper>
                             <RequestFormContainer>
                                 <Heading.h4>Application</Heading.h4>
-                                <TextArea disabled={isUser} rows={25} ref={state.documentRef} />
+                                <TextArea disabled={isUser || grantFinalized} rows={25} ref={state.documentRef} />
                             </RequestFormContainer>
 
                             {state.editingApplication === undefined ? null : (
-                                <Box width={"100%"}>
+                                <Box width="100%">
                                     <Heading.h4>Comments</Heading.h4>
                                     {state.comments.length > 0 ? null : (
                                         <Box mt={16} mb={16}>
@@ -692,7 +693,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                             )}
                         </CommentApplicationWrapper>
                         <Box p={32} pb={16}>
-                            <Button fullWidth onClick={submitRequest}>
+                            <Button disabled={grantFinalized} fullWidth onClick={submitRequest}>
                                 {target === RequestTarget.VIEW_APPLICATION ?
                                     <>Edit Request {state.approver ? "(Does not approve/reject)" : null}</> :
                                     <>Submit request</>
