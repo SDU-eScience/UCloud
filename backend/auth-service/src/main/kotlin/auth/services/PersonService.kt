@@ -7,7 +7,7 @@ import dk.sdu.cloud.service.Loggable
 
 class PersonService(
     private val passwordHashingService: PasswordHashingService,
-    private val usernameGenerator: UniqueUsernameService<*>
+    private val usernameGenerator: UniqueUsernameService
 ) {
     fun createUserByPassword(
         firstNames: String,
@@ -47,8 +47,6 @@ class PersonService(
             ?: throw IllegalArgumentException("Missing schacHomeOrganization")
 
         val email = authenticatedUser.attributes["mail"]?.firstOrNull()
-
-//        if (organization != "sdu.dk") throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
         val role = Role.USER
 

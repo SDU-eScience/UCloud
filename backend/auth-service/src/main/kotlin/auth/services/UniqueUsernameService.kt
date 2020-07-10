@@ -2,14 +2,15 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.withTransaction
 import org.slf4j.Logger
 import java.security.SecureRandom
 import kotlin.math.absoluteValue
 
-class UniqueUsernameService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val userDAO: UserDAO<DBSession>
+class UniqueUsernameService(
+    private val db: DBContext,
+    private val userDAO: UserAsyncDAO
 ) {
     /**
      * Attempts to generate a unique username based on existing users.
@@ -21,9 +22,7 @@ class UniqueUsernameService<DBSession>(
         val normalizedUsername = idealUsername.lines().first().replace(SEPARATOR.toString(), "")
         if (normalizedUsername.length > 250) throw IllegalArgumentException("Username too long")
 
-        val existingNames = db.withTransaction { session ->
-            userDAO.findByUsernamePrefix(session, normalizedUsername + SEPARATOR)
-        }.map { it.id }.toSet()
+        val existingNames = userDAO.findByUsernamePrefix(db, normalizedUsername + SEPARATOR).map { it.id }.toSet()
 
         log.debug("Found ${existingNames.size} existing names!")
 

@@ -25,9 +25,9 @@ import io.ktor.util.date.GMTDate
 /**
  * Shared utility code for responding to successful login attempts.
  */
-class LoginResponder<DBSession>(
-    private val tokenService: TokenService<DBSession>,
-    private val twoFactorChallengeService: TwoFactorChallengeService<DBSession>
+class LoginResponder(
+    private val tokenService: TokenService,
+    private val twoFactorChallengeService: TwoFactorChallengeService
 ) {
     // Note: This is placed in the http package since it deals pure with http.
     // But it is functionally a service.
