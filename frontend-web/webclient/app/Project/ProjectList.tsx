@@ -6,7 +6,7 @@ import {
     listProjects,
     ListProjectsRequest,
     UserInProject,
-    IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite, ListFavoriteProjectsRequest, listFavoriteProjects, ProjectRole
+    IngoingInvite, listIngoingInvites, acceptInvite, rejectInvite, ListFavoriteProjectsRequest, listFavoriteProjects, ProjectRole, isAdminOrPI
 } from "Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -57,8 +57,6 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     );
 
     const usernames = ingoingInvites.data.items.map(it => it.invitedBy);
-
-
     const avatars = useAvatars();
 
     useEffect(() => {
@@ -105,7 +103,10 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     const projectOperations: ProjectOperation[] = [
         {
             text: "Archive",
-            disabled: projects => projects.length !== 1 || projects.every(it => it.archived),
+            disabled: projects =>
+                projects.length !== 1 ||
+                projects.every(it => it.archived) ||
+                projects.some(it => !isAdminOrPI(it.whoami.role)),
             icon: "tags",
             onClick: ([project]) => dialogStore.addDialog(
                 <ArchiveProject
