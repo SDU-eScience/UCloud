@@ -263,7 +263,7 @@ const Subprojects: React.FunctionComponent = () => {
                                     onClick={() => setSelectedWallet(w)} />
                             )}
 
-                            {isAdminOrPI(projectRole) ?
+                            {!Client.hasActiveProject || isAdminOrPI(projectRole) ?
                                 <div className="request-resources">
                                     <DashboardCard color={theme.colors.blue} isLoading={false}>
                                         <Box m={8} mt={0}>
@@ -273,7 +273,11 @@ const Subprojects: React.FunctionComponent = () => {
                                                 Click the button below to get started.
                                         </p>
                                             <Flex justifyContent={"flex-end"}>
-                                                <Link to={!Client.hasActiveProject ? "/projects/browser/personal" : "/project/grants/existing"}><Button>Request resources</Button></Link>
+                                                <Link to={
+                                                    !Client.hasActiveProject ?
+                                                        "/projects/browser/personal" :
+                                                        "/project/grants/existing"
+                                                }><Button>Request resources</Button></Link>
                                             </Flex>
                                         </Box>
                                     </DashboardCard>
@@ -379,7 +383,7 @@ const Subprojects: React.FunctionComponent = () => {
                     subprojectWallets.find(it => it.wallet.id === subproject.id) ??
                     {...selectedWallet, balance: 0, wallet: {...selectedWallet.wallet, id: subproject.id}}
                 }
-                hasPendingRequest={false}
+                allowManagement={allowManagement}
             />;
         });
     }
@@ -413,10 +417,11 @@ const AllocationForm = styled.form`
 const SubprojectRowWrapper = styled(TableRow)`
     td {
         vertical-align: top;
+        white-space: nowrap;
     }
 
     ${TableCell}.allocation {
-        width: 80%;
+        width: 100%;
         vertical-align: middle;
     }
 `;
@@ -431,8 +436,8 @@ const SubprojectRow: React.FunctionComponent<{
     walletBalance?: WalletBalance,
     shakeWallets?: () => void,
     requestReload?: () => void,
-    hasPendingRequest?: boolean
-}> = ({subproject, walletBalance, shakeWallets, requestReload, hasPendingRequest}) => {
+    allowManagement: boolean
+}> = ({subproject, walletBalance, shakeWallets, requestReload, allowManagement}) => {
     const balance = walletBalance?.balance;
     const [isEditing, setIsEditing] = useState<boolean>(false);
     const [isEditingQuota, setIsEditingQuota] = useState<boolean>(false);
@@ -515,20 +520,9 @@ const SubprojectRow: React.FunctionComponent<{
         <SubprojectRowWrapper>
             <TableCell>
                 <Text>{subproject.title}</Text>
-                {hasPendingRequest === true ?
-                    <Text bold fontSize={"10pt"}><Icon name={"grant"} size={16} /> Resources requested</Text> :
-                    null
-                }
             </TableCell>
             <TableCell className={"allocation"}>
-                {hasPendingRequest !== true ? null : (
-                    <Flex alignItems={"center"} justifyContent={"flex-end"}>
-                        <Button height="35px" width={"135px"} color={"orange"} onClick={() => setIsEditing(true)}>
-                            View request
-                        </Button>
-                    </Flex>
-                )}
-                {hasPendingRequest === true ? null : (
+                {!allowManagement ? null : (
                     <>
                         <Flex alignItems={"center"} justifyContent={"flex-end"}>
                             {balance === undefined ? (
