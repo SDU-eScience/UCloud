@@ -7,12 +7,6 @@ The projects feature allow for collaboration between different users across the 
 This project establishes the core abstractions for projects and establishes an event stream for receiving updates about
 changes. Other services extend the projects feature and subscribe to these changes to create the full project feature.
 
-## Interactions with other features
-
-- [Project Repositories](../project-repository-service/README.md): Learn about
-  how projects interact with the storage of UCloud.
-- [Accounting](../accounting-service/README.md)
-
 ## Definition
 
 A project in UCloud is a collection of `members` which is uniquely identified by an `id`. All `members` are 
@@ -39,19 +33,38 @@ A project is sub-divided into groups:
 Each project may have 0 or more groups. The groups can have 0 or more members. A group belongs to exactly one project,
 and the members of a group can only be from the project it belongs to.
 
-## Sub-Projects
+## Creating Projects and Sub-Projects
 
 All projects create by end-users have exactly one parent project. Only UCloud administrators can create root-level
-projects. This allows users of UCloud to create a hiearchy of projects. The project hierarchy plays a significant role
-in accounting.
+projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The 
+project hierarchy plays a significant role in accounting.
+
+A project can be uniquely identified by the path from the root project to the leaf-project. As a result, the `title` of
+a project must be unique within a single project. `title`s are case-insensitive.
 
 Permissions and memberships are _not_ hierarchical. This means that a user must be explicitly added to every project
 they need permissions in. UCloud administrators can always create a sub-project in any given project. A setting exists
 for every project which allows normal users to create sub-projects.
 
-A project can be uniquely identified by the path from the root project to the leaf-project. As a result, the `title` of
-a project must be unique within a single project. `title`s are case-insensitive.
+---
 
-## Default User Affiliation
+__Example:__ A project hierarchy with storage permissions
 
-All users have a primary project affiliation. Users will be added to this project when they join UCloud.
+```text
+SDU
+  - TEK
+  - SAMF
+  - SUND
+  - HUM
+  - NAT
+    - IMADA
+      - 
+```
+
+---
+
+## Interactions with other features
+
+- [Project Repositories](../project-repository-service/README.md): Learn about
+  how projects interact with the storage of UCloud.
+- [Accounting](../accounting-service/README.md)

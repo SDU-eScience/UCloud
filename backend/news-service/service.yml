@@ -1,7 +1,0 @@
----
-name: news
-
-namespaces:
-- news
-
-dependencies: []

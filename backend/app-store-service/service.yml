@@ -1,8 +1,0 @@
----
-name: app-store
-
-namespaces:
-  - hpc.apps
-  - hpc.tools
-
-dependencies: []

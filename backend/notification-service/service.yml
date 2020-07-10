@@ -1,7 +1,0 @@
----
-name: notification
-
-namespaces:
-  - notifications
-
-dependencies: []

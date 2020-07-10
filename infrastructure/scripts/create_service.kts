@@ -137,15 +137,3 @@ File(apiSrc, "Descriptions.kt").writeText("""
     }
 """.trimIndent())
 
-
-File(serviceDir, "service.yml").writeText(
-    """
-        ---
-        name: $service
-        
-        namespaces:
-        - $packageName
-        
-        dependencies: []
-    """.trimIndent()
-)

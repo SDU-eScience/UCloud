@@ -27,6 +27,7 @@ dependencies {
     api(group = "io.ktor", name = "ktor-websockets", version = ktorVersion)
 
     // db
+    api(group = "org.postgresql", name = "postgresql", version = "42.2.5")
     api("org.flywaydb:flyway-core:5.2.4")
 
     api("com.github.jasync-sql:jasync-common:$jasyncVersion")

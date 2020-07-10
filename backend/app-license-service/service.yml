@@ -1,7 +1,0 @@
----
-name: app-license
-
-namespaces:
-- app.license
-
-dependencies: []
