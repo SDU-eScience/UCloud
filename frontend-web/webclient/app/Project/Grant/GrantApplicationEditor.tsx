@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useRef} from "react";
-import {useProjectManagementStatus} from "Project";
+import {useProjectManagementStatus, isAdminOrPI} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
@@ -117,7 +117,7 @@ function useRequestInformation(target: RequestTarget) {
     let comments: Comment[] = [];
     const avatars = useAvatars();
 
-    let availableProducts: { area: ProductArea, category: ProductCategoryId }[];
+    let availableProducts: {area: ProductArea, category: ProductCategoryId}[];
     let reloadProducts: () => void;
     {
         const [products, fetchProducts] = useCloudAPI<RetrieveFromProviderResponse>(
@@ -125,10 +125,10 @@ function useRequestInformation(target: RequestTarget) {
             []
         );
 
-        const allCategories: { category: ProductCategoryId, area: "compute" | "storage" }[] =
+        const allCategories: {category: ProductCategoryId, area: "compute" | "storage"}[] =
             products.data.map(it => ({category: it.category, area: it.type}));
 
-        const uniqueCategories: { category: ProductCategoryId, area: "compute" | "storage" }[] = Array.from(
+        const uniqueCategories: {category: ProductCategoryId, area: "compute" | "storage"}[] = Array.from(
             new Set(allCategories.map(it => JSON.stringify(it))).values()
         ).map(it => JSON.parse(it));
 
@@ -322,6 +322,7 @@ function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefi
 export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionComponent = target => () => {
     const state = useRequestInformation(target);
     const [, runWork] = useAsyncCommand();
+    const isUser = !isAdminOrPI(useProjectManagementStatus().projectRole);
     const projectTitleRef = useRef<HTMLInputElement>(null);
     const history = useHistory();
 
@@ -384,7 +385,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
             state.reload();
         }
     }, [state.targetProject, state.documentRef, state.recipient, state.wallets, projectTitleRef,
-        state.editingApplication?.id, state.reload]);
+    state.editingApplication?.id, state.reload]);
 
     const approveRequest = useCallback(async () => {
         if (state.editingApplication !== undefined) {
@@ -463,13 +464,13 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
     return (
         <MainContainer
             header={target === RequestTarget.EXISTING_PROJECT ?
-                <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]}/> : null
+                <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
             }
             sidebar={null}
             main={
                 <Flex justifyContent={"center"}>
                     <Box maxWidth={1400} width={"100%"}>
-                        {target !== RequestTarget.NEW_PROJECT ? null : (
+                        {target !== RequestTarget.NEW_PROJECT || isUser ? null : (
                             <>
                                 <Label mb={16} mt={16}>
                                     Principal Investigator (PI)
@@ -487,12 +488,13 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                 </Label>
                                 <Label mb={16} mt={16}>
                                     Title
-                                    <Input ref={projectTitleRef}/>
+                                    <Input disabled={isUser} ref={projectTitleRef} />
+                                    disabled={isUser}
                                 </Label>
                             </>
                         )}
 
-                        {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                        {target !== RequestTarget.VIEW_APPLICATION || isUser ? null : (
                             <>
                                 <DashboardCard color={"blue"} isLoading={false}>
                                     <Heading.h4 mb={16}>Metadata</Heading.h4>
@@ -502,80 +504,80 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                     </Text>
                                     <Table>
                                         <tbody>
-                                        <TableRow>
-                                            <TableCell>Application Approver</TableCell>
-                                            <TableCell>{state.editingApplication!.resourcesOwnedByTitle}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell>Project Title</TableCell>
-                                            <TableCell>{state.editingApplication!.grantRecipientTitle}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell>Principal Investigator (PI)</TableCell>
-                                            <TableCell>{state.editingApplication!.grantRecipientPi}</TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell verticalAlign={"top"}>
-                                                Project Type
+                                            <TableRow>
+                                                <TableCell>Application Approver</TableCell>
+                                                <TableCell>{state.editingApplication!.resourcesOwnedByTitle}</TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell>Project Title</TableCell>
+                                                <TableCell>{state.editingApplication!.grantRecipientTitle}</TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell>Principal Investigator (PI)</TableCell>
+                                                <TableCell>{state.editingApplication!.grantRecipientPi}</TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell verticalAlign={"top"}>
+                                                    Project Type
                                             </TableCell>
-                                            <TableCell>
-                                                <table>
-                                                    <tbody>
-                                                    <tr>
-                                                        <td>Personal</td>
-                                                        <td width={"100%"}>
-                                                            <Toggle onChange={doNothing} scale={1.5}
-                                                                    checked={state.recipient.type === "personal"}/>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td width={"100%"}>New Project</td>
-                                                        <td>
-                                                            <Toggle onChange={doNothing} scale={1.5}
-                                                                    checked={state.recipient.type === "new_project"}/>
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td width={"100%"}>Existing Project</td>
-                                                        <td>
-                                                            <Toggle onChange={doNothing} scale={1.5}
-                                                                    checked={state.recipient.type === "existing_project"}/>
-                                                        </td>
-                                                    </tr>
-                                                    </tbody>
-                                                </table>
-                                            </TableCell>
-                                        </TableRow>
-                                        <TableRow>
-                                            <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
-                                            <TableCell>
-                                                {
-                                                    state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
-                                                        state.editingApplication!.status === GrantApplicationStatus.APPROVED ? "Approved" :
-                                                            state.editingApplication!.status === GrantApplicationStatus.REJECTED ? "Rejected" :
-                                                                "Closed"
-                                                }
+                                                <TableCell>
+                                                    <table>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td>Personal</td>
+                                                                <td width={"100%"}>
+                                                                    <Toggle onChange={doNothing} scale={1.5}
+                                                                        checked={state.recipient.type === "personal"} />
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td width={"100%"}>New Project</td>
+                                                                <td>
+                                                                    <Toggle onChange={doNothing} scale={1.5}
+                                                                        checked={state.recipient.type === "new_project"} />
+                                                                </td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td width={"100%"}>Existing Project</td>
+                                                                <td>
+                                                                    <Toggle onChange={doNothing} scale={1.5}
+                                                                        checked={state.recipient.type === "existing_project"} />
+                                                                </td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </TableCell>
+                                            </TableRow>
+                                            <TableRow>
+                                                <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
+                                                <TableCell>
+                                                    {
+                                                        state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
+                                                            state.editingApplication!.status === GrantApplicationStatus.APPROVED ? "Approved" :
+                                                                state.editingApplication!.status === GrantApplicationStatus.REJECTED ? "Rejected" :
+                                                                    "Closed"
+                                                    }
 
-                                                <ButtonGroup>
+                                                    <ButtonGroup>
 
-                                                    {target === RequestTarget.VIEW_APPLICATION && state.approver &&
-                                                    state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
-                                                        <>
-                                                            <Button color={"green"}
+                                                        {target === RequestTarget.VIEW_APPLICATION && state.approver &&
+                                                            state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
+                                                            <>
+                                                                <Button color={"green"}
                                                                     onClick={approveRequest}>Approve</Button>
-                                                            <Button color={"red"}
+                                                                <Button color={"red"}
                                                                     onClick={rejectRequest}>Reject</Button>
-                                                        </> : null
-                                                    }
-                                                    {target === RequestTarget.VIEW_APPLICATION && !state.approver &&
-                                                    state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
-                                                        <>
-                                                            <Button color={"red"} onClick={closeRequest}>Close</Button>
-                                                        </> : null
-                                                    }
-                                                </ButtonGroup>
-                                            </TableCell>
-                                        </TableRow>
+                                                            </> : null
+                                                        }
+                                                        {target === RequestTarget.VIEW_APPLICATION && !state.approver &&
+                                                            state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ?
+                                                            <>
+                                                                <Button color={"red"} onClick={closeRequest}>Close</Button>
+                                                            </> : null
+                                                        }
+                                                    </ButtonGroup>
+                                                </TableCell>
+                                            </TableRow>
                                         </tbody>
                                     </Table>
                                 </DashboardCard>
@@ -590,64 +592,66 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                                     <DashboardCard color={theme.colors.blue} isLoading={false}>
                                         <table>
                                             <tbody>
-                                            <tr>
-                                                <th>Product</th>
-                                                <td>
-                                                    {it.wallet.paysFor.id} / {it.wallet.paysFor.provider}
-                                                    <Icon
-                                                        name={it.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
-                                                        size={32}
-                                                    />
-                                                </td>
-                                            </tr>
-                                            {state.editingApplication !== undefined ? null : (
                                                 <tr>
-                                                    <th>Current balance</th>
-                                                    <td>{creditFormatter(it.balance)}</td>
-                                                </tr>
-                                            )}
-                                            <tr>
-                                                <th>
-                                                    {state.editingApplication !== undefined ?
-                                                        "Resources requested" :
-                                                        "Request additional resources"
-                                                    }
-                                                </th>
-                                                <td>
-                                                    <Flex alignItems={"center"}>
-                                                        <Input
-                                                            placeholder={"0"}
-                                                            data-target={productCategoryId(it.wallet.paysFor)}
-                                                            autoComplete="off"
-                                                            type="number"
+                                                    <th>Product</th>
+                                                    <td>
+                                                        {it.wallet.paysFor.id} / {it.wallet.paysFor.provider}
+                                                        <Icon
+                                                            name={it.area === ProductArea.COMPUTE ? "cpu" : "ftFileSystem"}
+                                                            size={32}
                                                         />
-                                                        <Box ml={10} width={32} flexShrink={0}>DKK</Box>
-                                                    </Flex>
-                                                </td>
-                                            </tr>
-                                            {it.area === ProductArea.STORAGE ? <>
+                                                    </td>
+                                                </tr>
+                                                {state.editingApplication !== undefined ? null : (
+                                                    <tr>
+                                                        <th>Current balance</th>
+                                                        <td>{creditFormatter(it.balance)}</td>
+                                                    </tr>
+                                                )}
                                                 <tr>
                                                     <th>
                                                         {state.editingApplication !== undefined ?
-                                                            "Additional quota requested" :
-                                                            "Request additional quota"
+                                                            "Resources requested" :
+                                                            "Request additional resources"
                                                         }
                                                     </th>
                                                     <td>
                                                         <Flex alignItems={"center"}>
                                                             <Input
                                                                 placeholder={"0"}
-                                                                data-target={
-                                                                    "quota-" + productCategoryId(it.wallet.paysFor)
-                                                                }
+                                                                disabled={isUser}
+                                                                data-target={productCategoryId(it.wallet.paysFor)}
                                                                 autoComplete="off"
                                                                 type="number"
                                                             />
-                                                            <Box ml={10} width={32} flexShrink={0}>GB</Box>
+                                                            <Box ml={10} width={32} flexShrink={0}>DKK</Box>
                                                         </Flex>
                                                     </td>
                                                 </tr>
-                                            </> : null}
+                                                {it.area === ProductArea.STORAGE ? <>
+                                                    <tr>
+                                                        <th>
+                                                            {state.editingApplication !== undefined ?
+                                                                "Additional quota requested" :
+                                                                "Request additional quota"
+                                                            }
+                                                        </th>
+                                                        <td>
+                                                            <Flex alignItems={"center"}>
+                                                                <Input
+                                                                    placeholder={"0"}
+                                                                    disabled={isUser}
+                                                                    data-target={
+                                                                        "quota-" + productCategoryId(it.wallet.paysFor)
+                                                                    }
+                                                                    autoComplete="off"
+                                                                    type="number"
+                                                                />
+                                                                <Box ml={10} width={32} flexShrink={0}>GB</Box>
+                                                            </Flex>
+                                                        </td>
+                                                    </tr>
+                                                </> : null}
                                             </tbody>
                                         </table>
                                     </DashboardCard>
@@ -658,7 +662,7 @@ export const GrantApplicationEditor: (target: RequestTarget) => React.FunctionCo
                         <CommentApplicationWrapper>
                             <RequestFormContainer>
                                 <Heading.h4>Application</Heading.h4>
-                                <TextArea rows={25} ref={state.documentRef}/>
+                                <TextArea disabled={isUser} rows={25} ref={state.documentRef} />
                             </RequestFormContainer>
 
                             {state.editingApplication === undefined ? null : (
@@ -750,7 +754,7 @@ const CommentBox: React.FunctionComponent<{
 
     return <CommentBoxWrapper>
         <div className="avatar">
-            <UserAvatar avatar={avatar} width={"48px"}/>
+            <UserAvatar avatar={avatar} width={"48px"} />
         </div>
 
         <div className={"body"}>
@@ -761,7 +765,7 @@ const CommentBox: React.FunctionComponent<{
 
         {comment.postedBy === Client.username ? (
             <div>
-                <Icon cursor={"pointer"} name={"trash"} color={"red"} onClick={onDelete}/>
+                <Icon cursor={"pointer"} name={"trash"} color={"red"} onClick={onDelete} />
             </div>
         ) : null}
     </CommentBoxWrapper>;
@@ -803,8 +807,8 @@ const PostCommentWidget: React.FunctionComponent<{
     }, [runWork, applicationId, commentBoxRef.current]);
     return <PostCommentWrapper onSubmit={submitComment}>
         <div className="wrapper">
-            <UserAvatar avatar={avatar} width={"48px"}/>
-            <TextArea rows={3} ref={commentBoxRef} placeholder={"Your comment"}/>
+            <UserAvatar avatar={avatar} width={"48px"} />
+            <TextArea rows={3} ref={commentBoxRef} placeholder={"Your comment"} />
         </div>
         <div className="buttons">
             <Button disabled={loading}>Send</Button>
