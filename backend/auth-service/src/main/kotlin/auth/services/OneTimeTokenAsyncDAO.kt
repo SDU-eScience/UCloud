@@ -12,7 +12,12 @@ object OTTBlackListTable : SQLTable("ott_black_list") {
     val claimedBy = text("claimed_by", notNull = true)
 }
 
-class OneTimeTokenAsyncDAO{
+class OneTimeTokenAsyncDAO {
+    /**
+     * Claims a one time token
+     *
+     * @return `true` if the token was successfully claimed otherwise `false`
+     */
     suspend fun claim(db: DBContext, jti: String, claimedBy: String): Boolean {
         val value = try {
             db.withSession { session ->

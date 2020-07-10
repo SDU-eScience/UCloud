@@ -48,8 +48,6 @@ class PersonService(
 
         val email = authenticatedUser.attributes["mail"]?.firstOrNull()
 
-//        if (organization != "sdu.dk") throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-
         val role = Role.USER
 
         return Person.ByWAYF(

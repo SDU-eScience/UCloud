@@ -57,6 +57,11 @@ fun RowData.toLoginCoolDown(): LoginCooldown {
 class LoginAttemptAsyncDao(
     private val timeSource: () -> Long = { System.currentTimeMillis() }
 ) {
+    /**
+     * Logs that a failed login attempt has taken place
+     *
+     * This will initiate a cooldown if too many attempts have taken place.
+     */
     suspend fun logAttempt(db: DBContext, username: String) {
         db.withSession { session ->
             val id = session.allocateId()
@@ -70,11 +75,17 @@ class LoginAttemptAsyncDao(
         timeUntilNextAllowedLogin(db, username) // Write cooldown entry if needed
     }
 
+    /**
+     * Fetches the time in milliseconds until the user is next allowed to login.
+     *
+     * This will initiate a cooldown period if it is needed.
+     */
     suspend fun timeUntilNextAllowedLogin(db: DBContext, username: String): Long? {
         val currentCooldown = findLastCooldown(db, username)
         if (currentCooldown != null && currentCooldown.allowLoginsAfter >= timeSource()) {
             return currentCooldown.allowLoginsAfter - timeSource()
         }
+
         val recentLoginAttempts = db.withSession { session ->
             val time = max(
                 LocalDateTime(timeSource() - OBSERVATION_WINDOW).toDateTime().millis,
@@ -91,10 +102,11 @@ class LoginAttemptAsyncDao(
                         FROM login_attempts
                         WHERE (username = ?username) AND
                                 (created_at >= to_timestamp(?time))
-                    """.trimIndent()
+                    """
                 ).rows.singleOrNull()?.getLong(0)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "SQL did not return a count")
         }
+
         if (recentLoginAttempts >= LOCKOUT_THRESHOLD) {
             val newSeverity = min(MAX_SEVERITY, findLastCooldown(db, username)?.severity?.plus(1) ?: 1)
             val allowLoginsAfter =
@@ -105,7 +117,10 @@ class LoginAttemptAsyncDao(
                     set(LoginCooldownTable.id, id)
                     set(LoginCooldownTable.username, username)
                     set(LoginCooldownTable.severity, newSeverity)
-                    set(LoginCooldownTable.expiresAt, LocalDateTime(allowLoginsAfter + COOLDOWN_EXPIRY, DateTimeZone.UTC))
+                    set(
+                        LoginCooldownTable.expiresAt,
+                        LocalDateTime(allowLoginsAfter + COOLDOWN_EXPIRY, DateTimeZone.UTC)
+                    )
                     set(LoginCooldownTable.allowLoginsAfter, LocalDateTime(allowLoginsAfter, DateTimeZone.UTC))
                 }
             }
@@ -114,6 +129,9 @@ class LoginAttemptAsyncDao(
         return null
     }
 
+    /**
+     * Fetches the latest valid cooldown which has not yet expired
+     */
     private suspend fun findLastCooldown(db: DBContext, username: String): LoginCooldown? {
         return db.withSession { session ->
             session
@@ -135,8 +153,8 @@ class LoginAttemptAsyncDao(
     companion object : Loggable {
         const val LOCKOUT_THRESHOLD = 5
         const val LOCKOUT_DURATION_BASE_SECONDS = 5
-        const val OBSERVATION_WINDOW =  60 * 5 * 1000L // 5 min
-        const val COOLDOWN_EXPIRY =   60 * 60 * 1000L // 1 hour
+        const val OBSERVATION_WINDOW = 60 * 5 * 1000L // 5 min
+        const val COOLDOWN_EXPIRY = 60 * 60 * 1000L // 1 hour
         const val MAX_SEVERITY = 5 // This should lead to a lockout period of roughly one hour
 
         override val log = logger()

@@ -73,7 +73,7 @@ class TwoFactorChallengeService(
                 )
             )
 
-             Create2FACredentialsResponse(otpAuthUri, qrData, newCredentials.secretBase32Encoded, challengeId)
+            Create2FACredentialsResponse(otpAuthUri, qrData, newCredentials.secretBase32Encoded, challengeId)
         }
     }
 
@@ -82,7 +82,7 @@ class TwoFactorChallengeService(
      */
     suspend fun verifyChallenge(challengeId: String, verificationCode: Int): Pair<Boolean, TwoFactorChallenge> {
         val challenge = twoFactorDAO.findActiveChallengeOrNull(db, challengeId)
-                ?: throw TwoFactorException.InvalidChallenge()
+            ?: throw TwoFactorException.InvalidChallenge()
 
 
         return Pair(

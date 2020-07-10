@@ -23,12 +23,12 @@ class SessionService(
 
         return refreshTokenDao.findUserSessions(db, user.principal.username, paging)
             .mapItems {
-            Session(
-                it.ip ?: "Unknown location",
-                it.userAgent ?: "Unknown device",
-                it.createdAt
-            )
-        }
+                Session(
+                    it.ip ?: "Unknown location",
+                    it.userAgent ?: "Unknown device",
+                    it.createdAt
+                )
+            }
     }
 
     suspend fun invalidateSessions(user: SecurityPrincipalToken) {

@@ -123,13 +123,12 @@ class UserIterationService(
         mutex.withLock {
             if (openIterators.size >= maxConnections) throw UserIteratorException.TooManyOpen()
 
-            //CursorID Must not start with number and contain "-"
             val id = UUID.randomUUID().toString()
             session.sendPreparedStatement(
                 """
                     DECLARE curs NO SCROLL CURSOR WITH HOLD
                     FOR SELECT * FROM principals;
-                """.trimIndent()
+                """
             )
             val state = CursorState(id, localhostName, localPort, nextExpiresAt())
             cursorStateDao.create(db, state)
@@ -285,7 +284,8 @@ class CursorStateAsyncDao {
             getField(CursorStateTable.id),
             getField(CursorStateTable.hostname),
             getField(CursorStateTable.port),
-            getField(CursorStateTable.expiresAt).toDateTime().millis)
+            getField(CursorStateTable.expiresAt).toDateTime().millis
+        )
     }
 }
 

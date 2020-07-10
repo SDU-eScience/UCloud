@@ -54,6 +54,7 @@ data class RefreshTokenAndUser(
 
     val createdAt: Long = System.currentTimeMillis()
 )
+
 /**
  * Updated in:
  *
@@ -79,7 +80,10 @@ object RefreshTokenTable : SQLTable("refresh_tokens") {
     val createdAt = timestamp("created_at")
 }
 
-class RefreshTokenAsyncDAO{
+class RefreshTokenAsyncDAO {
+    /**
+     * Finds a refresh token associated with a [user]
+     */
     suspend fun findTokenForUser(db: DBContext, user: String): RefreshTokenAndUser? {
         return db.withSession { session ->
             session
@@ -99,6 +103,9 @@ class RefreshTokenAsyncDAO{
         }
     }
 
+    /**
+     * Finds a user associated with a [token] (refresh)
+     */
     suspend fun findById(db: DBContext, token: String): RefreshTokenAndUser? {
         return db.withSession { session ->
             session
@@ -122,9 +129,14 @@ class RefreshTokenAsyncDAO{
         }
     }
 
+    /**
+     * Inserts a refresh [tokenAndUser] into the database
+     *
+     * This will verify that the user exists.
+     */
     suspend fun insert(db: DBContext, tokenAndUser: RefreshTokenAndUser) {
-       db.withSession { session ->
-           val principal = session
+        db.withSession { session ->
+            val principal = session
                 .sendPreparedStatement(
                     {
                         setParameter("user", tokenAndUser.associatedUser)
@@ -135,27 +147,34 @@ class RefreshTokenAsyncDAO{
                         WHERE id = ?user
                     """
                 )
-               .rows
-               .singleOrNull()
-               ?.getField(PrincipalTable.id) ?: throw UserException.NotFound()
-           session.insert(RefreshTokenTable) {
-               set(RefreshTokenTable.associatedUser, principal)
-               set(RefreshTokenTable.token, tokenAndUser.token)
-               set(RefreshTokenTable.csrf, tokenAndUser.csrf)
-               set(RefreshTokenTable.refreshTokenExpiry, tokenAndUser.refreshTokenExpiry)
-               set(RefreshTokenTable.publicSessionReference, tokenAndUser.publicSessionReference)
-               set(RefreshTokenTable.expiresAfter, tokenAndUser.expiresAfter)
-               set(RefreshTokenTable.scopes, defaultMapper.writeValueAsString(tokenAndUser.scopes.map { it.toString() }))
-               set(RefreshTokenTable.extendedBy, tokenAndUser.extendedBy)
-               set(RefreshTokenTable.extendedByChain, defaultMapper.writeValueAsString(tokenAndUser.extendedByChain))
-               set(RefreshTokenTable.userAgent, tokenAndUser.userAgent)
-               set(RefreshTokenTable.ip, tokenAndUser.ip)
-               set(RefreshTokenTable.createdAt, LocalDateTime(tokenAndUser.createdAt, DateTimeZone.UTC))
-
-           }
+                .rows
+                .singleOrNull()
+                ?.getField(PrincipalTable.id) ?: throw UserException.NotFound()
+            session.insert(RefreshTokenTable) {
+                set(RefreshTokenTable.associatedUser, principal)
+                set(RefreshTokenTable.token, tokenAndUser.token)
+                set(RefreshTokenTable.csrf, tokenAndUser.csrf)
+                set(RefreshTokenTable.refreshTokenExpiry, tokenAndUser.refreshTokenExpiry)
+                set(RefreshTokenTable.publicSessionReference, tokenAndUser.publicSessionReference)
+                set(RefreshTokenTable.expiresAfter, tokenAndUser.expiresAfter)
+                set(
+                    RefreshTokenTable.scopes,
+                    defaultMapper.writeValueAsString(tokenAndUser.scopes.map { it.toString() })
+                )
+                set(RefreshTokenTable.extendedBy, tokenAndUser.extendedBy)
+                set(RefreshTokenTable.extendedByChain, defaultMapper.writeValueAsString(tokenAndUser.extendedByChain))
+                set(RefreshTokenTable.userAgent, tokenAndUser.userAgent)
+                set(RefreshTokenTable.ip, tokenAndUser.ip)
+                set(RefreshTokenTable.createdAt, LocalDateTime(tokenAndUser.createdAt, DateTimeZone.UTC))
+            }
         }
     }
 
+    /**
+     * Updates the CSRF token associated with a [token] (refresh)
+     *
+     * This throws a [UserException.NotFound] exception if the token does not exist.
+     */
     suspend fun updateCsrf(db: DBContext, token: String, newCsrf: String) {
         val affected = db.withSession { session ->
             session.sendPreparedStatement(
@@ -175,6 +194,11 @@ class RefreshTokenAsyncDAO{
         }
     }
 
+    /**
+     * Invalidates (deletes) a refresh token from the database
+     *
+     * @return `true` if the token exists otherwise `false`
+     */
     suspend fun delete(db: DBContext, token: String): Boolean {
         return db.withSession { session ->
             session.sendPreparedStatement(
@@ -189,6 +213,9 @@ class RefreshTokenAsyncDAO{
         }
     }
 
+    /**
+     * Deletes all expires tokens from the database
+     */
     suspend fun deleteExpired(db: DBContext) {
         db.withSession { session ->
             session
@@ -204,6 +231,9 @@ class RefreshTokenAsyncDAO{
         }
     }
 
+    /**
+     * Finds all refresh tokens associated with a user
+     */
     suspend fun findUserSessions(
         db: DBContext,
         username: String,
@@ -230,6 +260,9 @@ class RefreshTokenAsyncDAO{
         }
     }
 
+    /**
+     * Invalidates all refresh tokens associated with a given user
+     */
     suspend fun invalidateUserSessions(db: DBContext, username: String) {
         db.withSession { session ->
             session

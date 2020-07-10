@@ -142,8 +142,8 @@ class TokenService(
             if (!allRequestedScopesAreCoveredByPolicy) {
                 throw ExtensionException.Unauthorized(
                     "Service $requestedBy is not allowed to ask for one " +
-                            "of the requested permissions. We were asked for: $requestedScopes, " +
-                            "but service is only allowed to $extensions"
+                        "of the requested permissions. We were asked for: $requestedScopes, " +
+                        "but service is only allowed to $extensions"
                 )
             }
 
@@ -151,7 +151,7 @@ class TokenService(
             log.debug("Checking for special scopes")
             val noSpecialScopes = requestedScopes.all {
                 it.segments.first() != SecurityScope.ALL_SCOPE &&
-                        it.segments.first() != SecurityScope.SPECIAL_SCOPE
+                    it.segments.first() != SecurityScope.SPECIAL_SCOPE
             }
 
             if (!noSpecialScopes) {
@@ -258,7 +258,7 @@ class TokenService(
             val user = userDao.findByIdOrNull(session, token.associatedUser) ?: run {
                 log.warn(
                     "Received a valid token, but was unable to resolve the associated user: " +
-                            token.associatedUser
+                        token.associatedUser
                 )
                 throw RefreshTokenException.InternalError()
             }

@@ -74,7 +74,7 @@ enum class USERTYPE {
     PASSWORD
 }
 
-fun RowData.toPrincipal(totpStatus: Boolean) : Principal{
+fun RowData.toPrincipal(totpStatus: Boolean): Principal {
     when {
         getField(PrincipalTable.type).contains(USERTYPE.SERVICE.name) -> {
             return ServicePrincipal(
@@ -135,7 +135,11 @@ class UserAsyncDAO(
     private val passwordHashingService: PasswordHashingService,
     private val twoFactorDAO: TwoFactorAsyncDAO
 ) {
-
+    /**
+     * Fetches [UserInformation] associated with a [username]
+     *
+     * @throws UserException.NotFound if the user does not exist
+     */
     suspend fun getUserInfo(db: DBContext, username: String): UserInformation {
         val user = db.withSession { session ->
             session
@@ -159,6 +163,13 @@ class UserAsyncDAO(
         )
     }
 
+    /**
+     * Updates information associated with a [username]
+     *
+     * Only the non-null fields will be updated
+     *
+     * @throws UserException.NotFound if the user does not exist
+     */
     suspend fun updateUserInfo(
         db: DBContext,
         username: String,
@@ -167,7 +178,7 @@ class UserAsyncDAO(
         email: String?
     ) {
         db.withSession { session ->
-            session
+            val success = session
                 .sendPreparedStatement(
                     {
                         setParameter("firstNames", firstNames)
@@ -176,23 +187,25 @@ class UserAsyncDAO(
                         setParameter("username", username)
                     },
                     """
-                        UPDATE principals
-                        SET first_names = (
-                                SELECT COALESCE (:firstNames, p.first_names)
-                            ), 
-                            last_name = (
-                                SELECT COALESCE (:lastName, p.last_name)
-                            ), 
-                            email = (
-                                SELECT COALESCE (:email, p.email)
-                            )
-                        FROM ( SELECT * FROM principals WHERE id = :username) AS p
-                        WHERE principals.id = p.id
+                        UPDATE principals p
+                        SET 
+                            first_names = (SELECT COALESCE (:firstNames, p.first_names)), 
+                            last_name = (SELECT COALESCE (:lastName, p.last_name)), 
+                            email = (SELECT COALESCE (:email, p.email))
+                        WHERE principals.id = :username
                     """
                 )
+                .rowsAffected > 0L
+
+            if (!success) throw UserException.NotFound()
         }
     }
 
+    /**
+     * Retrieves a [Principal] by [id]
+     *
+     * @throws UserException.NotFound If the principal does not exist
+     */
     suspend fun findById(db: DBContext, id: String): Principal {
         val status = twoFactorDAO.findStatusBatched(db, listOf(id))
         return db.withSession { session ->
@@ -213,6 +226,11 @@ class UserAsyncDAO(
         }
     }
 
+    /**
+     * Retrieves a [Principal] by [id]
+     *
+     * @return `null` if the user does not exist otherwise a [Principal]
+     */
     suspend fun findByIdOrNull(db: DBContext, id: String): Principal? {
         val status = twoFactorDAO.findStatusBatched(db, listOf(id))
         return db.withSession { session ->
@@ -233,6 +251,9 @@ class UserAsyncDAO(
         }
     }
 
+    /**
+     * Finds a set of [Principal]s by their [Principal.id] defined in [ids]
+     */
     suspend fun findAllByIds(db: DBContext, ids: List<String>): Map<String, Principal?> {
         val status = twoFactorDAO.findStatusBatched(db, ids)
         val usersWeFound = db.withSession { session ->
@@ -259,6 +280,9 @@ class UserAsyncDAO(
         return usersWeFound + nullEntries
     }
 
+    /**
+     * Fetches the [Person.email] for a user associated with [id]
+     */
     suspend fun findEmail(db: DBContext, id: String): String? {
         return db.withSession { session ->
             session
@@ -278,6 +302,9 @@ class UserAsyncDAO(
         }
     }
 
+    /**
+     * Finds a [Person] by an [email]
+     */
     suspend fun findByEmail(db: DBContext, email: String): UserIdAndName {
         val user = db.withSession { session ->
             session
@@ -298,6 +325,9 @@ class UserAsyncDAO(
         return UserIdAndName(user.getField(PrincipalTable.id), user.getField(PrincipalTable.firstNames))
     }
 
+    /**
+     * Finds all [Principal]s by their [Principal.uid]
+     */
     suspend fun findAllByUIDs(db: DBContext, uids: List<Long>): Map<Long, Principal?> {
         val users = db.withSession { session ->
             session
@@ -320,7 +350,8 @@ class UserAsyncDAO(
 
         val usersWeFound = users
             .map { rowData ->
-                rowData.toPrincipal(twoFactorStatus.getValue(rowData.getField(PrincipalTable.id))) }
+                rowData.toPrincipal(twoFactorStatus.getValue(rowData.getField(PrincipalTable.id)))
+            }
             .associateBy { it.uid }
 
         val usersWeDidntFind = uids.filter { it !in usersWeFound }
@@ -329,8 +360,11 @@ class UserAsyncDAO(
         return usersWeFound + nullEntires
     }
 
+    /**
+     * Finds all [Principal]s by [prefix]. This is used for username generation.
+     */
     suspend fun findByUsernamePrefix(db: DBContext, prefix: String): List<Principal> {
-        return db.withSession{ session ->
+        return db.withSession { session ->
             session
                 .sendPreparedStatement(
                     {
@@ -349,6 +383,9 @@ class UserAsyncDAO(
         }
     }
 
+    /**
+     * Finds a user by their [wayfId]
+     */
     suspend fun findByWayfId(db: DBContext, wayfId: String): Person.ByWAYF {
         return db.withSession { session ->
             session
@@ -368,6 +405,9 @@ class UserAsyncDAO(
         }
     }
 
+    /**
+     * Updates a users [Person.email] by their [wayfId]
+     */
     suspend fun findByWayfIdAndUpdateEmail(db: DBContext, wayfId: String, email: String?): Person.ByWAYF {
         val principal = db.withSession { session ->
             if (email != null) {
@@ -389,6 +429,9 @@ class UserAsyncDAO(
         return principal?.toPrincipal(false) as? Person.ByWAYF ?: throw UserException.NotFound()
     }
 
+    /**
+     * Inserts a [Principal] into the database
+     */
     suspend fun insert(db: DBContext, principal: Principal) {
         db.withSession { session ->
             val found = session.sendPreparedStatement(
@@ -461,6 +504,9 @@ class UserAsyncDAO(
         }
     }
 
+    /**
+     * Deletes a [Principal] by their [id]
+     */
     suspend fun delete(db: DBContext, id: String) {
         if (
             db.withSession { session ->
@@ -503,9 +549,10 @@ class UserAsyncDAO(
             if (!principal.getField(PrincipalTable.type).contains(USERTYPE.PASSWORD.name)) {
                 throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
-                    "User is not Password but: ${principal.getField(PrincipalTable.type)}")
+                    "User is not Password but: ${principal.getField(PrincipalTable.type)}"
+                )
             }
-            if(conditionalChange) {
+            if (conditionalChange) {
                 if (currentPasswordForVerification != null) {
                     val isInvalidPassword = !passwordHashingService.checkPassword(
                         principal.getField(PrincipalTable.hashedPassword),
@@ -515,8 +562,7 @@ class UserAsyncDAO(
                     if (isInvalidPassword) {
                         throw UserException.InvalidAuthentication()
                     }
-                }
-                else {
+                } else {
                     throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "No verification password given")
                 }
             }
@@ -579,6 +625,7 @@ class UserAsyncDAO(
         }
 
     }
+
     //Should be moved out of AUTH in case of expanding functionality of subscriptions
     suspend fun wantEmails(db: DBContext, username: String): Boolean {
         return db.withSession { session ->

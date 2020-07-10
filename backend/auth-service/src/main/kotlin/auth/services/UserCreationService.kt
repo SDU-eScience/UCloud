@@ -62,7 +62,7 @@ class UserCreationService(
         )
     }
 
-    suspend fun getUserInfo(username: String): UserInformation  {
+    suspend fun getUserInfo(username: String): UserInformation {
         return userDao.getUserInfo(db, username)
     }
 

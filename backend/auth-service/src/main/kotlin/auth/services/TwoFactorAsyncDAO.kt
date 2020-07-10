@@ -35,22 +35,22 @@ import javax.persistence.InheritanceType
 import javax.persistence.ManyToOne
 import javax.persistence.Table
 
-/**
- * A Hibernate implementation of [TwoFactorDAO]
- */
 class TwoFactorAsyncDAO {
+    /**
+     * Retrieves enforced two factor credentials associated with a [username]
+     *
+     * @return `null` if the enforced credentials for the [username] does not exist
+     */
     suspend fun findEnforcedCredentialsOrNull(db: DBContext, username: String): TwoFactorCredentials? {
         return db.withSession { session ->
             session
                 .sendPreparedStatement(
-                    {
-                        setParameter("enforced", true)
-                        setParameter("user", username)
-                    },
+                    { setParameter("user", username) },
                     """
                         SELECT *
                         FROM two_factor_credentials
-                        WHERE enforced = ?enforced AND
+                        WHERE 
+                            enforced = true AND
                             principal_id = ?user
                     """.trimIndent()
                 )
@@ -60,6 +60,11 @@ class TwoFactorAsyncDAO {
         }
     }
 
+    /**
+     * Finds the currently active challenge by a [challengeId]
+     *
+     * @return `null` if the active challenge does not exist
+     */
     suspend fun findActiveChallengeOrNull(db: DBContext, challengeId: String): TwoFactorChallenge? {
         return db.withSession { session ->
             session
@@ -80,6 +85,13 @@ class TwoFactorAsyncDAO {
         }
     }
 
+    /**
+     * Creates a set of credentials and inserts them into the database
+     *
+     * @throws TwoFactorException.AlreadyBound If the user already has an attached set of credentials
+     * @throws UserException.NotFound If the associated user does not exist
+     * @return the ID associated with the credentials
+     */
     suspend fun createCredentials(db: DBContext, twoFactorCredentials: TwoFactorCredentials): Long {
         if (hasCredentials(db, twoFactorCredentials.principal.id)) throw TwoFactorException.AlreadyBound()
         return db.withSession { session ->
@@ -91,13 +103,18 @@ class TwoFactorAsyncDAO {
                     set(TwoFactorCredentialsTable.enforced, twoFactorCredentials.enforced)
                     set(TwoFactorCredentialsTable.id, id)
                 }
-            } catch ( ex: Exception ) {
+            } catch (ex: Exception) {
                 throw UserException.NotFound()
             }
             id
         }
     }
 
+    /**
+     * Creates and inserts a two factor challenge
+     *
+     * @throws RPCException [HttpStatusCode.Conflict] If a challenge with this ID already exists
+     */
     suspend fun createChallenge(db: DBContext, challenge: TwoFactorChallenge) {
         db.withSession { session ->
             session.sendPreparedStatement(
@@ -109,7 +126,7 @@ class TwoFactorAsyncDAO {
                     FROM two_factor_credentials
                     WHERE id = ?id
                 """.trimIndent()
-            ).rows.singleOrNull() ?: RPCException.fromStatusCode(HttpStatusCode.Conflict)
+            ).rows.singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
             session.insert(TwoFactorChallengeTable) {
                 set(TwoFactorChallengeTable.type, challenge.type)
                 set(TwoFactorChallengeTable.challengeId, challenge.challengeId)
@@ -120,6 +137,11 @@ class TwoFactorAsyncDAO {
         }
     }
 
+    /**
+     * Retrieves the enforced status for a batch of user [ids]
+     *
+     * An entry for every [ids] will always be in the output [Map]
+     */
     suspend fun findStatusBatched(db: DBContext, ids: Collection<String>): Map<String, Boolean> {
         val result = HashMap<String, Boolean>()
         ids.forEach { result[it] = false }
@@ -202,7 +224,7 @@ fun RowData.toTwoFactorChallenge(db: DBContext): TwoFactorChallenge {
     )
 }
 
-fun RowData.toTwoFactorCredentials(db: DBContext) : TwoFactorCredentials {
+fun RowData.toTwoFactorCredentials(db: DBContext): TwoFactorCredentials {
     val principalID = getField(TwoFactorCredentialsTable.principal)
     val principal = runBlocking {
         db.withSession { session ->
