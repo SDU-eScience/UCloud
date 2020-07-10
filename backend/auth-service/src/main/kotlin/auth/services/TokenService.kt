@@ -17,19 +17,21 @@ import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import kotlinx.coroutines.delay
 import java.security.SecureRandom
 import java.util.*
 
-class TokenService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
+class TokenService(
+    private val db: DBContext,
     private val personService: PersonService,
-    private val userDao: UserDAO<DBSession>,
-    private val refreshTokenDao: RefreshTokenDAO<DBSession>,
+    private val userDao: UserAsyncDAO,
+    private val refreshTokenDao: RefreshTokenAsyncDAO,
     private val jwtFactory: JWTFactory,
-    private val userCreationService: UserCreationService<*>,
+    private val userCreationService: UserCreationService,
     private val tokenValidation: TokenValidation<DecodedJWT>,
     private val allowedServiceExtensionScopes: Map<String, Set<SecurityScope>> = emptyMap(),
     private val devMode: Boolean = false
@@ -98,10 +100,8 @@ class TokenService<DBSession>(
             createdAt = tokenTemplate.createdAt
         )
 
-        db.withTransaction {
-            log.debug(tokenAndUser.toString())
-            refreshTokenDao.insert(it, tokenAndUser)
-        }
+        log.debug(tokenAndUser.toString())
+        refreshTokenDao.insert(db, tokenAndUser)
 
         val (accessToken, newCsrf) = refresh(user, tokenAndUser)
         return AuthenticationTokens(accessToken, refreshToken, newCsrf)
@@ -142,8 +142,8 @@ class TokenService<DBSession>(
             if (!allRequestedScopesAreCoveredByPolicy) {
                 throw ExtensionException.Unauthorized(
                     "Service $requestedBy is not allowed to ask for one " +
-                            "of the requested permissions. We were asked for: $requestedScopes, " +
-                            "but service is only allowed to $extensions"
+                        "of the requested permissions. We were asked for: $requestedScopes, " +
+                        "but service is only allowed to $extensions"
                 )
             }
 
@@ -151,7 +151,7 @@ class TokenService<DBSession>(
             log.debug("Checking for special scopes")
             val noSpecialScopes = requestedScopes.all {
                 it.segments.first() != SecurityScope.ALL_SCOPE &&
-                        it.segments.first() != SecurityScope.SPECIAL_SCOPE
+                    it.segments.first() != SecurityScope.SPECIAL_SCOPE
             }
 
             if (!noSpecialScopes) {
@@ -174,9 +174,8 @@ class TokenService<DBSession>(
 
         // Find user
         log.debug("Looking up user")
-        val user = db.withTransaction {
-            userDao.findByIdOrNull(it, token.principal.username)
-        } ?: throw ExtensionException.InternalError("Could not find user in database (${token.principal.username}")
+        val user = userDao.findByIdOrNull(db, token.principal.username)
+            ?: throw ExtensionException.InternalError("Could not find user in database (${token.principal.username}")
 
         val tokenTemplate = AccessTokenContents(
             user = user,
@@ -207,9 +206,7 @@ class TokenService<DBSession>(
         log.debug("Requesting one-time token: audience=$audience jwt=$jwt")
 
         val validated = tokenValidation.validateOrNull(jwt) ?: throw RefreshTokenException.InvalidToken()
-        val user = db.withTransaction {
-            userDao.findByIdOrNull(it, validated.subject) ?: throw RefreshTokenException.InternalError()
-        }
+        val user = userDao.findByIdOrNull(db, validated.subject) ?: throw RefreshTokenException.InternalError()
 
         val currentScopes = validated.toSecurityToken().scopes
         val allScopesCovered = audience.all { requestedScope ->
@@ -251,8 +248,8 @@ class TokenService<DBSession>(
     }
 
     suspend fun refresh(rawToken: String, csrfToken: String? = null): AccessTokenAndCsrf {
-        return db.withTransaction { session ->
-            log.debug("Refreshing token: rawToken='$rawToken'")
+        log.debug("Refreshing token: rawToken='$rawToken'")
+        return db.withSession { session ->
             val token = refreshTokenDao.findById(session, rawToken) ?: run {
                 log.debug("Could not find token!")
                 throw RefreshTokenException.InvalidToken()
@@ -261,7 +258,7 @@ class TokenService<DBSession>(
             val user = userDao.findByIdOrNull(session, token.associatedUser) ?: run {
                 log.warn(
                     "Received a valid token, but was unable to resolve the associated user: " +
-                            token.associatedUser
+                        token.associatedUser
                 )
                 throw RefreshTokenException.InternalError()
             }
@@ -274,14 +271,14 @@ class TokenService<DBSession>(
     }
 
     suspend fun bulkLogout(tokens: List<RefreshTokenAndCsrf>, suppressExceptions: Boolean = false) {
-        db.withTransaction {
+        db.withSession { session ->
             tokens.forEach { (refreshToken, csrfToken) ->
                 if (csrfToken == null) {
-                    if (!refreshTokenDao.delete(it, refreshToken)) {
+                    if (!refreshTokenDao.delete(session, refreshToken)) {
                         if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
                     }
                 } else {
-                    val userAndToken = refreshTokenDao.findById(it, refreshToken) ?: run {
+                    val userAndToken = refreshTokenDao.findById(session, refreshToken) ?: run {
                         if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
                         else return@forEach
                     }
@@ -290,7 +287,7 @@ class TokenService<DBSession>(
                         if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
                         else return@forEach
                     }
-                    if (!refreshTokenDao.delete(it, refreshToken)) {
+                    if (!refreshTokenDao.delete(session, refreshToken)) {
                         if (!suppressExceptions) throw RefreshTokenException.InvalidToken()
                     }
                 }
@@ -311,7 +308,7 @@ class TokenService<DBSession>(
                 log.debug("User is authenticated with id $id")
 
                 try {
-                    return db.withTransaction { userDao.findByWayfIdAndUpdateEmail(it, id, email) }
+                    return userDao.findByWayfIdAndUpdateEmail(db, id, email)
                 } catch (ex: UserException.NotFound) {
                     log.debug("User not found. Creating new user...")
 
@@ -321,7 +318,7 @@ class TokenService<DBSession>(
                             // Alternatively, we can make PersonService a proper service (better choice?)
                             val userCreated = personService.createUserByWAYF(samlRequestProcessor)
                             userCreationService.createUser(userCreated)
-                            return db.withTransaction { userDao.findByWayfId(it, id) }
+                            return userDao.findByWayfId(db, id)
                         } catch (ex: Exception) {
                             if (i < 5) log.debug(ex.stackTraceToString())
                             else log.warn(ex.stackTraceToString())

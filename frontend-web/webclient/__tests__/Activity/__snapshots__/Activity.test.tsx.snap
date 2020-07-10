@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Mount Activity Page 1`] = `
+exports[`Activity Page Mount Activity Page, without project 1`] = `
 .c1 {
   margin-left: 190px;
   padding-top: 48px;
@@ -14,12 +14,12 @@ exports[`Mount Activity Page 1`] = `
   margin-bottom: 16px;
 }
 
-.c15 {
+.c17 {
   padding-top: 96px;
   padding-right: 340px;
 }
 
-.c18 {
+.c20 {
   font-smoothing: antialiased;
   display: -webkit-inline-box;
   display: -webkit-inline-flex;
@@ -51,15 +51,15 @@ exports[`Mount Activity Page 1`] = `
   padding: 9.5px 18px;
 }
 
-.c18:disabled {
+.c20:disabled {
   opacity: 0.25;
 }
 
-.c18:focus {
+.c20:focus {
   outline: none;
 }
 
-.c18:hover {
+.c20:hover {
   -webkit-transform: scale(1.03);
   -ms-transform: scale(1.03);
   transform: scale(1.03);
@@ -74,7 +74,7 @@ exports[`Mount Activity Page 1`] = `
   margin-left: .7em;
 }
 
-.c17 {
+.c19 {
   display: -webkit-box;
   display: -webkit-flex;
   display: -ms-flexbox;
@@ -101,6 +101,49 @@ exports[`Mount Activity Page 1`] = `
 
 .c11 {
   cursor: pointer;
+}
+
+.c15 {
+  display: block;
+  font-family: inherit;
+  background-color: transparent;
+  color: var(--black,#f00);
+  margin: 0;
+  border-width: 2px;
+  border-color: #c9d3df;
+  border-style: solid;
+  padding-top: 7px;
+  padding-bottom: 7px;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-radius: 5px;
+  width: 100%;
+}
+
+.c15::-webkit-input-placeholder {
+  color: var(--gray,#f00);
+}
+
+.c15::-moz-placeholder {
+  color: var(--gray,#f00);
+}
+
+.c15:-ms-input-placeholder {
+  color: var(--gray,#f00);
+}
+
+.c15::placeholder {
+  color: var(--gray,#f00);
+}
+
+.c15:focus {
+  outline: none;
+  background-color: transparent;
+}
+
+.c15:focus {
+  outline: 0;
+  border-color: #006aff;
 }
 
 .c9 {
@@ -159,7 +202,7 @@ exports[`Mount Activity Page 1`] = `
   flex: 1 1 auto;
 }
 
-.c13 .sc-fzokOt {
+.c13 .c14 {
   border: 0;
   box-shadow: none;
 }
@@ -193,7 +236,7 @@ exports[`Mount Activity Page 1`] = `
   z-index: 45;
 }
 
-.c14 {
+.c16 {
   -webkit-appearance: none;
   -moz-appearance: none;
   appearance: none;
@@ -214,23 +257,23 @@ exports[`Mount Activity Page 1`] = `
   margin: 0;
 }
 
-.c14::-webkit-input-placeholder {
+.c16::-webkit-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c14::-moz-placeholder {
+.c16::-moz-placeholder {
   color: var(--gray,#f00);
 }
 
-.c14:-ms-input-placeholder {
+.c16:-ms-input-placeholder {
   color: var(--gray,#f00);
 }
 
-.c14::placeholder {
+.c16::placeholder {
   color: var(--gray,#f00);
 }
 
-.c14::-ms-clear {
+.c16::-ms-clear {
   display: none;
 }
 
@@ -253,19 +296,19 @@ exports[`Mount Activity Page 1`] = `
 }
 
 @media screen and (min-width:768px) and (max-width:1023px) {
-  .c16 {
+  .c18 {
     display: none;
   }
 }
 
 @media screen and (min-width:1024px) and (max-width:1279px) {
-  .c16 {
+  .c18 {
     display: none;
   }
 }
 
 @media screen and (min-width:1280px) {
-  .c16 {
+  .c18 {
     display: none;
   }
 }
@@ -419,6 +462,30 @@ exports[`Mount Activity Page 1`] = `
           fontWeight="bold"
           width="100%"
         >
+          Filter by username
+        </label>
+        <div
+          className="c13"
+        >
+          <input
+            className="c14 c15"
+            id="default"
+            onKeyUp={[Function]}
+            placeholder="Don't filter"
+            width="100%"
+          />
+        </div>
+      </div>
+      <div
+        className="c0 c6"
+      >
+        <label
+          className="c9"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
           Event created after
         </label>
         <div
@@ -431,7 +498,7 @@ exports[`Mount Activity Page 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="c14"
+                className="c16"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -469,7 +536,7 @@ exports[`Mount Activity Page 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="c14"
+                className="c16"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -488,10 +555,10 @@ exports[`Mount Activity Page 1`] = `
     </div>
   </div>
   <div
-    className="c0 c15"
+    className="c0 c17"
   >
     <div
-      className="c0 c16"
+      className="c0 c18"
     >
       <div
         className="c0 c6"
@@ -618,6 +685,30 @@ exports[`Mount Activity Page 1`] = `
           fontWeight="bold"
           width="100%"
         >
+          Filter by username
+        </label>
+        <div
+          className="c13"
+        >
+          <input
+            className="c14 c15"
+            id="default"
+            onKeyUp={[Function]}
+            placeholder="Don't filter"
+            width="100%"
+          />
+        </div>
+      </div>
+      <div
+        className="c0 c6"
+      >
+        <label
+          className="c9"
+          color="black"
+          fontSize={1}
+          fontWeight="bold"
+          width="100%"
+        >
           Event created after
         </label>
         <div
@@ -630,7 +721,7 @@ exports[`Mount Activity Page 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="c14"
+                className="c16"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -668,7 +759,7 @@ exports[`Mount Activity Page 1`] = `
               className="react-datepicker__input-container"
             >
               <input
-                className="c14"
+                className="c16"
                 disabled={false}
                 onBlur={[Function]}
                 onChange={[Function]}
@@ -695,10 +786,10 @@ exports[`Mount Activity Page 1`] = `
       </h2>
     </div>
     <div
-      className="c17"
+      className="c19"
     >
       <button
-        className="c18"
+        className="c20"
         color="blue"
         disabled={false}
         onClick={[Function]}

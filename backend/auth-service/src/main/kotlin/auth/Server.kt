@@ -22,6 +22,7 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.HibernateSession
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.startServices
 import io.ktor.routing.route
@@ -48,17 +49,17 @@ class Server(
 
     override fun start() {
         log.info("Creating core services...")
-        val db = micro.hibernateDatabase
+        val db = AsyncDBSessionFactory(micro.databaseConfig)
         val tokenValidation = micro.tokenValidation as TokenValidationJWT
         val streams = micro.eventStreamService
 
         val passwordHashingService = PasswordHashingService()
-        val twoFactorDao = TwoFactorHibernateDAO()
-        val userDao = UserHibernateDAO(passwordHashingService, twoFactorDao)
-        val refreshTokenDao = RefreshTokenHibernateDAO()
+        val twoFactorDao = TwoFactorAsyncDAO()
+        val userDao = UserAsyncDAO(passwordHashingService, twoFactorDao)
+        val refreshTokenDao = RefreshTokenAsyncDAO()
         val usernameGenerator = UniqueUsernameService(db, userDao)
         val personService = PersonService(passwordHashingService, usernameGenerator)
-        val ottDao = OneTimeTokenHibernateDAO()
+        val ottDao = OneTimeTokenAsyncDAO()
         val userCreationService = UserCreationService(
             db,
             userDao,
@@ -67,7 +68,7 @@ class Server(
 
         val totpService = WSTOTPService()
         val qrService = ZXingQRService()
-        val cursorStateDao = CursorStateHibernateDao()
+        val cursorStateDao = CursorStateAsyncDao()
         userIterator = UserIterationService(
             micro.serviceInstance.ipAddress ?: "localhost",
             micro.serviceInstance.port,
@@ -168,7 +169,7 @@ class Server(
             )
 
             val loginService =
-                LoginService(db, passwordHashingService, userDao, LoginAttemptHibernateDao(), loginResponder)
+                LoginService(db, passwordHashingService, userDao, LoginAttemptAsyncDao(), loginResponder)
             val passwordController = PasswordController(loginService)
             log.info("HTTP controllers configured!")
 
@@ -222,8 +223,8 @@ class Server(
 
     private suspend fun createTestAccount(
         personService: PersonService,
-        userCreationService: UserCreationService<HibernateSession>,
-        tokenService: TokenService<HibernateSession>,
+        userCreationService: UserCreationService,
+        tokenService: TokenService,
 
         username: String,
         role: Role

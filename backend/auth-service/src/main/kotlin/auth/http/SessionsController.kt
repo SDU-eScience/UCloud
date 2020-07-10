@@ -11,7 +11,7 @@ import dk.sdu.cloud.service.Controller
 import io.ktor.application.call
 
 class SessionsController(
-    private val sessionService: SessionService<*>
+    private val sessionService: SessionService
 ) : Controller {
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AuthDescriptions.listUserSessions) {

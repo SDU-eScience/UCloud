@@ -19,8 +19,6 @@ const val MULTI_NODE_STORAGE = "multi-node-config"
 const val MULTI_NODE_CONTAINER = "init"
 const val USER_CONTAINER = "user-job"
 
-private const val disableKataContainers = true
-
 /**
  * Creates user jobs in Kubernetes.
  */
@@ -84,6 +82,9 @@ class K8JobCreationService(
 
     @Suppress("LongMethod", "ComplexMethod") // Just a DSL
     private fun createJobs(verifiedJob: VerifiedJob) {
+        val enableKataContainers = verifiedJob.application.invocation.container?.runAsRoot == true &&
+                (verifiedJob.reservation.gpu ?: 0) <= 0
+
         // We need to create and prepare some other resources as well
         networkPolicyService.createPolicy(verifiedJob.id, verifiedJob.peers.map { it.jobId })
         val hostAliases = hostAliasesService.findAliasesForPeers(verifiedJob.peers)
@@ -112,11 +113,11 @@ class K8JobCreationService(
                         val reservation = verifiedJob.reservation
                         val limits = HashMap<String, Quantity>()
                         if (reservation.cpu != null) {
-                            limits += "cpu" to Quantity("${reservation.cpu!! * 1000}m")
+                            limits += "cpu" to Quantity("${(reservation.cpu!! * 1000) - if (enableKataContainers) 1000 else 0}m")
                         }
 
                         if (reservation.memoryInGigs != null) {
-                            limits += "memory" to Quantity("${reservation.memoryInGigs}Gi")
+                            limits += "memory" to Quantity("${reservation.memoryInGigs!! - if (enableKataContainers) 6 else 0}Gi")
                         }
 
                         if (reservation.gpu != null) {
@@ -150,14 +151,12 @@ class K8JobCreationService(
                                     )
                                 )
 
-                                if (!disableKataContainers) {
-                                    if (containerConfig.runAsRoot) {
-                                        withAnnotations(
-                                            mapOf(
-                                                "io.kubernetes.cri.untrusted-workload" to "true"
-                                            )
+                                if (enableKataContainers) {
+                                    withAnnotations(
+                                        mapOf(
+                                            "io.kubernetes.cri.untrusted-workload" to "true"
                                         )
-                                    }
+                                    )
                                 }
                             }
 

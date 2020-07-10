@@ -5,6 +5,9 @@ import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.http.LoginResponder
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.application.ApplicationCall
 
@@ -14,15 +17,15 @@ private enum class LoginResponse {
     TOO_MANY_REQUESTS
 }
 
-class LoginService<Session>(
-    private val db: DBSessionFactory<Session>,
+class LoginService(
+    private val db: DBContext,
     private val passwordService: PasswordHashingService,
-    private val users: UserDAO<Session>,
-    private val loginAttempts: LoginAttemptDao<Session>,
-    private val loginResponder: LoginResponder<Session>
+    private val users: UserAsyncDAO,
+    private val loginAttempts: LoginAttemptAsyncDao,
+    private val loginResponder: LoginResponder
 ) {
     private suspend fun attemptLogin(username: String, password: String): Pair<Principal?, LoginResponse> {
-        return db.withTransaction { session ->
+        return db.withSession { session ->
             if (loginAttempts.timeUntilNextAllowedLogin(session, username) != null) {
                 Pair(null, LoginResponse.TOO_MANY_REQUESTS)
             } else {
@@ -59,10 +62,7 @@ class LoginService<Session>(
             LoginResponse.SUCCESS -> loginResponder.handleSuccessfulLogin(call, service, user!!)
             LoginResponse.TOO_MANY_REQUESTS -> loginResponder.handleTooManyAttempts()
             LoginResponse.BAD_CREDENTIALS -> {
-                db.withTransaction { session ->
-                    loginAttempts.logAttempt(session, username)
-                }
-
+                loginAttempts.logAttempt(db, username)
                 loginResponder.handleUnsuccessfulLogin()
             }
         }

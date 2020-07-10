@@ -10,7 +10,7 @@ import dk.sdu.cloud.service.db.HibernateSession
 
 class ProjectProcessor(
     private val streams: EventStreamService,
-    private val appLicenseService: AppLicenseService<HibernateSession>
+    private val appLicenseService: AppLicenseService
 ) {
     fun init() {
         streams.subscribe(ProjectEvents.events, EventConsumer.Immediate(this::handleEvent))

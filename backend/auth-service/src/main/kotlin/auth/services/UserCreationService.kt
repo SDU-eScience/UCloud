@@ -6,6 +6,8 @@ import dk.sdu.cloud.auth.api.UserEvent
 import dk.sdu.cloud.auth.api.UserEventProducer
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
@@ -17,9 +19,9 @@ sealed class UserException(why: String, httpStatusCode: HttpStatusCode) : RPCExc
     class InvalidAuthentication : UserException("Invalid username or password", HttpStatusCode.BadRequest)
 }
 
-class UserCreationService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val userDao: UserDAO<DBSession>,
+class UserCreationService(
+    private val db: DBContext,
+    private val userDao: UserAsyncDAO,
     private val userEventProducer: UserEventProducer
 ) {
     suspend fun createUser(user: Principal) {
@@ -27,20 +29,20 @@ class UserCreationService<DBSession>(
     }
 
     suspend fun createUsers(users: List<Principal>) {
-        db.withTransaction {
+        db.withSession { session ->
             users.forEach { user ->
-                val exists = userDao.findByIdOrNull(it, user.id) != null
+                val exists = userDao.findByIdOrNull(session, user.id) != null
                 if (exists) {
                     throw UserException.AlreadyExists()
                 } else {
                     log.info("Creating user: $user")
-                    userDao.insert(it, user)
+                    userDao.insert(session, user)
                 }
             }
-        }
 
-        users.forEach { user ->
-            userEventProducer.produce(UserEvent.Created(user.id, user))
+            users.forEach { user ->
+                userEventProducer.produce(UserEvent.Created(user.id, user))
+            }
         }
     }
 
@@ -51,21 +53,17 @@ class UserCreationService<DBSession>(
         lastName: String?,
         email: String?
     ) {
-        db.withTransaction {
-            userDao.updateUserInfo(
-                it,
-                username,
-                firstNames,
-                lastName,
-                email
-            )
-        }
+        userDao.updateUserInfo(
+            db,
+            username,
+            firstNames,
+            lastName,
+            email
+        )
     }
 
-    suspend fun getUserInfo(username: String): UserInformation  {
-        return db.withTransaction {
-            userDao.getUserInfo(it, username)
-        }
+    suspend fun getUserInfo(username: String): UserInformation {
+        return userDao.getUserInfo(db, username)
     }
 
     fun blockingCreateUser(user: Principal) {

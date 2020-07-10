@@ -24,7 +24,7 @@ class UserDAOTest {
         )
         assertEquals("FirstName Middle", person.firstNames)
         assertEquals("Lastname", person.lastName)
-        assertEquals(email, person.emailAddresses.first())
+        assertEquals(email, person.email)
         assertEquals(Role.ADMIN, person.role)
 
         assertTrue(passwordHashingService.checkPassword(person.password, person.salt, "ThisIsMyPassword"))

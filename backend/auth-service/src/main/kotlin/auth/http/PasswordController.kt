@@ -16,7 +16,7 @@ import io.ktor.request.receiveParameters
 import io.ktor.util.toMap
 
 class PasswordController(
-    private val loginService: LoginService<*>
+    private val loginService: LoginService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(AuthDescriptions.passwordLogin) {

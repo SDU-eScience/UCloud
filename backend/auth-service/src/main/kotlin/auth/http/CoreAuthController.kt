@@ -8,7 +8,7 @@ import dk.sdu.cloud.auth.api.AccessToken
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.RefreshTokenAndCsrf
 import dk.sdu.cloud.auth.api.TokenExtensionAudit
-import dk.sdu.cloud.auth.services.OneTimeTokenDAO
+import dk.sdu.cloud.auth.services.OneTimeTokenAsyncDAO
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.CallHandler
@@ -21,7 +21,7 @@ import dk.sdu.cloud.calls.server.toSecurityToken
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidation
-import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.application.Application
 import io.ktor.application.ApplicationCallPipeline
@@ -38,10 +38,10 @@ import org.slf4j.LoggerFactory
 import java.net.MalformedURLException
 import java.net.URL
 
-class CoreAuthController<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val ottDao: OneTimeTokenDAO<DBSession>,
-    private val tokenService: TokenService<DBSession>,
+class CoreAuthController(
+    private val db: AsyncDBSessionFactory,
+    private val ottDao: OneTimeTokenAsyncDAO,
+    private val tokenService: TokenService,
     private val tokenValidation: TokenValidation<DecodedJWT>,
     private val trustedOrigins: Set<String> = setOf("localhost", "cloud.sdu.dk"),
     private val ktor: Application? = null

@@ -6,6 +6,8 @@ import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
+import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
 import java.util.*
@@ -30,10 +32,10 @@ sealed class TwoFactorException(why: String, httpStatusCode: HttpStatusCode) : R
 /**
  * A service for handling 2FA
  */
-class TwoFactorChallengeService<DBSession>(
-    private val db: DBSessionFactory<DBSession>,
-    private val twoFactorDAO: TwoFactorDAO<DBSession>,
-    private val userDAO: UserDAO<DBSession>,
+class TwoFactorChallengeService(
+    private val db: DBContext,
+    private val twoFactorDAO: TwoFactorAsyncDAO,
+    private val userDAO: UserAsyncDAO,
     private val totpService: TOTPService,
     private val qrService: QRService
 ) {
@@ -44,26 +46,27 @@ class TwoFactorChallengeService<DBSession>(
      */
     suspend fun createSetupCredentialsAndChallenge(username: String): Create2FACredentialsResponse {
         val newCredentials = totpService.createSharedSecret()
-        return db.withTransaction { dbSession ->
-            val user = userDAO.findByIdOrNull(dbSession, username) ?: run {
+        return db.withSession { session ->
+            val user = userDAO.findByIdOrNull(session, username) ?: run {
                 log.warn("Could not lookup user in createSetupCredentialsAndChallenge: $username")
                 throw TwoFactorException.InternalError()
             }
 
             val person = user as? Person ?: throw TwoFactorException.InvalidPrincipalType()
 
-            val enforcedCredentials = twoFactorDAO.findEnforcedCredentialsOrNull(dbSession, username)
+            val enforcedCredentials = twoFactorDAO.findEnforcedCredentialsOrNull(session, username)
             if (enforcedCredentials != null) throw TwoFactorException.AlreadyBound()
 
             val otpAuthUri = newCredentials.toOTPAuthURI(person.displayName, ISSUER).toASCIIString()
             val qrData = qrService.encode(otpAuthUri, QR_WIDTH_PX, QR_HEIGHT_PX).toDataURI()
             val twoFactorCredentials = TwoFactorCredentials(user, newCredentials.secretBase32Encoded, false)
-            val credentialsId = twoFactorDAO.createCredentials(dbSession, twoFactorCredentials)
+            val credentialsId = twoFactorDAO.createCredentials(session, twoFactorCredentials)
 
             val challengeId = createChallengeId()
             twoFactorDAO.createChallenge(
-                dbSession,
-                TwoFactorChallenge.Setup(
+                session,
+                TwoFactorChallenge(
+                    TwoFactorChallengeType.SETUP.name,
                     challengeId,
                     createChallengeExpiryTimestamp(),
                     twoFactorCredentials.copy(id = credentialsId)
@@ -78,10 +81,9 @@ class TwoFactorChallengeService<DBSession>(
      * Verifies that a challenge has been completed successfully
      */
     suspend fun verifyChallenge(challengeId: String, verificationCode: Int): Pair<Boolean, TwoFactorChallenge> {
-        val challenge = db.withTransaction { dbSession ->
-            twoFactorDAO.findActiveChallengeOrNull(dbSession, challengeId)
-                ?: throw TwoFactorException.InvalidChallenge()
-        }
+        val challenge = twoFactorDAO.findActiveChallengeOrNull(db, challengeId)
+            ?: throw TwoFactorException.InvalidChallenge()
+
 
         return Pair(
             totpService.verify(challenge.credentials.sharedSecret, verificationCode),
@@ -91,23 +93,22 @@ class TwoFactorChallengeService<DBSession>(
 
     suspend fun upgradeCredentials(credentials: TwoFactorCredentials) {
         if (credentials.enforced) throw IllegalArgumentException("credentials are already enforced")
-        db.withTransaction { dbSession ->
-            twoFactorDAO.createCredentials(dbSession, credentials.copy(enforced = true, id = null))
-        }
+        twoFactorDAO.createCredentials(db, credentials.copy(enforced = true, id = null))
     }
 
     /**
      * Creates a login challenge for a [username] with an enforced 2FA device
      */
     suspend fun createLoginChallengeOrNull(username: String, service: String): String? {
-        return db.withTransaction { dbSession ->
-            val credentials = twoFactorDAO.findEnforcedCredentialsOrNull(dbSession, username)
-                ?: return@withTransaction null
+        return db.withSession { session ->
+            val credentials = twoFactorDAO.findEnforcedCredentialsOrNull(session, username)
+                ?: return@withSession null
 
             val challengeId = createChallengeId()
             twoFactorDAO.createChallenge(
-                dbSession,
-                TwoFactorChallenge.Login(
+                session,
+                TwoFactorChallenge(
+                    TwoFactorChallengeType.LOGIN.name,
                     challengeId,
                     createChallengeExpiryTimestamp(),
                     credentials,
@@ -120,9 +121,7 @@ class TwoFactorChallengeService<DBSession>(
     }
 
     suspend fun isConnected(username: String): Boolean {
-        return db.withTransaction { dbSession ->
-            twoFactorDAO.findEnforcedCredentialsOrNull(dbSession, username)
-        } != null
+        return twoFactorDAO.findEnforcedCredentialsOrNull(db, username) != null
     }
 
     private fun createChallengeId(): String = UUID.randomUUID().toString()
@@ -138,51 +137,6 @@ class TwoFactorChallengeService<DBSession>(
 
         private const val CHALLENGE_EXPIRES_IN_MS = 1000 * 60 * 10
     }
-}
-
-/**
- * A DAO for storing [TwoFactorCredentials] and [TwoFactorChallenge]
- */
-interface TwoFactorDAO<Session> {
-    /**
-     * Finds the enforced [TwoFactorCredentials] for a given user.
-     *
-     * If no such credentials exists `null` is returned
-     */
-    fun findEnforcedCredentialsOrNull(session: Session, username: String): TwoFactorCredentials?
-
-    /**
-     * Finds an active (meaning [System.currentTimeMillis] > [TwoFactorChallenge.expiresAt]) [TwoFactorChallenge].
-     *
-     * If no such challenge is found `null` is returned.
-     */
-    fun findActiveChallengeOrNull(session: Session, challengeId: String): TwoFactorChallenge?
-
-    /**
-     * Creates a set of [TwoFactorCredentials]
-     *
-     * Note: This function does not mutate [twoFactorCredentials]
-     *
-     * If a set of enforced credentials already exists for [TwoFactorCredentials.principal] already exists then this
-     * method will throw a relevant [RPCException]
-     *
-     * @return The newly created [TwoFactorCredentials.id]
-     */
-    fun createCredentials(session: Session, twoFactorCredentials: TwoFactorCredentials): Long
-
-    /**
-     * Creates a [TwoFactorChallenge]
-     *
-     * This requires [TwoFactorCredentials.id] to be non-null.
-     */
-    fun createChallenge(session: Session, challenge: TwoFactorChallenge)
-
-    /**
-     * Finds 2FA status for a collection of [ids]
-     *
-     * Returns a mapping of all [ids] to their status.
-     */
-    fun findStatusBatched(session: Session, ids: Collection<String>): Map<String, Boolean>
 }
 
 /**
@@ -205,39 +159,35 @@ interface TwoFactorDAO<Session> {
  *
  * @see [TOTPService]
  */
-sealed class TwoFactorChallenge {
-    abstract val challengeId: String
-    abstract val expiresAt: Long
-    abstract val credentials: TwoFactorCredentials
+enum class TwoFactorChallengeType {
+    LOGIN,
+    SETUP;
+}
 
-    /**
-     * A challenge presented during login.
-     *
-     * This requires the underlying challenge to be [TwoFactorCredentials.enforced]
-     */
-    data class Login(
-        override val challengeId: String,
-        override val expiresAt: Long,
-        override val credentials: TwoFactorCredentials,
-        val service: String
-    ) : TwoFactorChallenge() {
-        init {
-            if (!credentials.enforced) throw IllegalArgumentException("Bad challenge")
-        }
-    }
-
-    /**
-     * A challenge presented during setup of 2FA.
-     *
-     * This requires the underlying challenge to not be [TwoFactorCredentials.enforced]
-     */
-    data class Setup(
-        override val challengeId: String,
-        override val expiresAt: Long,
-        override val credentials: TwoFactorCredentials
-    ) : TwoFactorChallenge() {
-        init {
+data class TwoFactorChallenge(
+    val type: String,
+    val challengeId: String,
+    val expiresAt: Long,
+    val credentials: TwoFactorCredentials,
+    val service: String? = null
+) {
+    init {
+        /**
+         * A challenge presented during setup of 2FA.
+         *
+         * This requires the underlying challenge to not be [TwoFactorCredentials.enforced]
+         */
+        if (type.contains(TwoFactorChallengeType.SETUP.name)) {
             if (credentials.enforced) throw IllegalArgumentException("Bad challenge")
+        }
+        /**
+         * A challenge presented during login.
+         *
+         * This requires the underlying challenge to be [TwoFactorCredentials.enforced]
+         */
+        if (type.contains(TwoFactorChallengeType.LOGIN.name)) {
+            if (!credentials.enforced) throw IllegalArgumentException("Bad challenge")
+
         }
     }
 }

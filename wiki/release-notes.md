@@ -7,6 +7,15 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+# 29-06-20
+
+Re-enable kata containers
+
+
+```
+✅  Deployment(app-kubernetes, 0.18.5) (UP-TO-DATE)
+```
+
 ## 20-05-20
 
 Bug-fix for webdav.

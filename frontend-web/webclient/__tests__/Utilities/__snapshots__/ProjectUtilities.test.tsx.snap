@@ -1,0 +1,394 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`UpdatePermissionsDialog Mount 1`] = `
+.c0 {
+  width: auto;
+  min-width: 300px;
+}
+
+.c4 {
+  width: 4px;
+}
+
+.c6 {
+  margin-left: auto;
+}
+
+.c12 {
+  font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: var(--red,#f00);
+  color: var(--white,#f00);
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c12:disabled {
+  opacity: 0.25;
+}
+
+.c12:focus {
+  outline: none;
+}
+
+.c12:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c13 {
+  font-smoothing: antialiased;
+  display: -webkit-inline-box;
+  display: -webkit-inline-flex;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  -webkit-box-pack: center;
+  -webkit-justify-content: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  text-align: center;
+  -webkit-text-decoration: none;
+  text-decoration: none;
+  font-family: inherit;
+  font-weight: 700;
+  line-height: 1.5;
+  cursor: pointer;
+  border-radius: 5px;
+  background-color: var(--blue,#f00);
+  color: var(--white,#f00);
+  border-width: 0;
+  border-style: solid;
+  -webkit-transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  transition: cubic-bezier(0.5,0,0.25,1) 60ms;
+  font-size: 14px;
+  padding: 9.5px 18px;
+}
+
+.c13:disabled {
+  opacity: 0.25;
+}
+
+.c13:focus {
+  outline: none;
+}
+
+.c13:hover {
+  -webkit-transform: scale(1.03);
+  -ms-transform: scale(1.03);
+  transform: scale(1.03);
+}
+
+.c10 {
+  -webkit-flex: none;
+  -ms-flex: none;
+  flex: none;
+  vertical-align: middle;
+  cursor: inherit;
+  margin-left: .7em;
+}
+
+.c7 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-right: 8px;
+}
+
+.c11 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  margin-top: 25px;
+}
+
+.c9 {
+  cursor: pointer;
+}
+
+.c5 {
+  cursor: inherit;
+  width: 300px;
+  margin-right: 16px;
+  -webkit-flex: 1;
+  -ms-flex: 1;
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.c2 {
+  height: 100%;
+  font-size: large;
+}
+
+.c2 > * {
+  border-bottom: 1px solid lightGrey;
+}
+
+.c2 > *:last-child {
+  border-bottom: 0px;
+}
+
+.c3 {
+  display: -webkit-box;
+  display: -webkit-flex;
+  display: -ms-flexbox;
+  display: flex;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  width: 100%;
+  -webkit-align-items: center;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-transition: background-color 0.3s;
+  transition: background-color 0.3s;
+  background-color: var(--white);
+}
+
+.c3:hover {
+  background-color: var(--lightBlue,#f00);
+}
+
+.c8 {
+  position: relative;
+  display: inline-block;
+}
+
+.c8:hover > div {
+  display: block;
+}
+
+.c1 {
+  height: 300px;
+  overflow-y: auto;
+}
+
+<div
+  className="c0"
+  width="auto"
+>
+  <div
+    className="c1"
+  >
+    <div
+      className="c2"
+      fontSize="large"
+      height="100%"
+    >
+      <div
+        className="c3"
+        onClick={[Function]}
+        width="100%"
+      >
+        <div
+          className="c4"
+          width="4px"
+        />
+        <div
+          className="c5"
+          cursor="inherit"
+          title="Group 0"
+          width="300px"
+        >
+          Group 0
+        </div>
+        <div
+          className="c6"
+        />
+        <div
+          className="c7"
+        >
+          <div
+            className="c8"
+            data-tag="dropdown"
+          >
+            <span
+              className="c9"
+              cursor="pointer"
+              onClick={[Function]}
+            >
+              None
+              <svg
+                className="c10"
+                clipRule="evenodd"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height=".7em"
+                ml=".7em"
+                viewBox="0 0 24 20"
+                width=".7em"
+              >
+                <path
+                  d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+                  fillRule="nonzero"
+                />
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div
+        className="c3"
+        onClick={[Function]}
+        width="100%"
+      >
+        <div
+          className="c4"
+          width="4px"
+        />
+        <div
+          className="c5"
+          cursor="inherit"
+          title="Group 1"
+          width="300px"
+        >
+          Group 1
+        </div>
+        <div
+          className="c6"
+        />
+        <div
+          className="c7"
+        >
+          <div
+            className="c8"
+            data-tag="dropdown"
+          >
+            <span
+              className="c9"
+              cursor="pointer"
+              onClick={[Function]}
+            >
+              None
+              <svg
+                className="c10"
+                clipRule="evenodd"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height=".7em"
+                ml=".7em"
+                viewBox="0 0 24 20"
+                width=".7em"
+              >
+                <path
+                  d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+                  fillRule="nonzero"
+                />
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div
+        className="c3"
+        onClick={[Function]}
+        width="100%"
+      >
+        <div
+          className="c4"
+          width="4px"
+        />
+        <div
+          className="c5"
+          cursor="inherit"
+          title="Group 2"
+          width="300px"
+        >
+          Group 2
+        </div>
+        <div
+          className="c6"
+        />
+        <div
+          className="c7"
+        >
+          <div
+            className="c8"
+            data-tag="dropdown"
+          >
+            <span
+              className="c9"
+              cursor="pointer"
+              onClick={[Function]}
+            >
+              None
+              <svg
+                className="c10"
+                clipRule="evenodd"
+                cursor="inherit"
+                fill="currentcolor"
+                fillRule="evenodd"
+                height=".7em"
+                ml=".7em"
+                viewBox="0 0 24 20"
+                width=".7em"
+              >
+                <path
+                  d="M11.998 19.999c-.598 0-1.028-.61-1.028-.61L.365 2.268C-.453 1.02.153 0 1.703 0h20.593c1.554 0 2.156 1.02 1.34 2.27l-10.61 17.121c0-.002-.43.608-1.028.608z"
+                  fillRule="nonzero"
+                />
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div
+    className="c11"
+  >
+    <button
+      className="c12"
+      color="red"
+      onClick={[Function]}
+    >
+      Cancel
+    </button>
+    <div
+      className="c6"
+    />
+    <button
+      className="c13"
+      color="blue"
+      disabled={true}
+      onClick={[Function]}
+    >
+      Update
+    </button>
+  </div>
+</div>
+`;

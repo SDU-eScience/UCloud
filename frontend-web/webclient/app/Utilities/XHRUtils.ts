@@ -69,8 +69,12 @@ function unwrapError(e: any): ErrorMessage {
     const defaultStatusText = HTTP_STATUS_CODES[request.status] ?
         HTTP_STATUS_CODES[request.status] : "Internal Server Error";
 
-    if (!!e.response) return {statusCode: request.status, errorMessage: defaultStatusText};
-    if (!!e.response.why) return {statusCode: request.status, errorMessage: e.response.why};
+    if (e.response) {
+        if (e.response.why) {
+            return {statusCode: request.status, errorMessage: e.response.why};
+        }
+        return {statusCode: request.status, errorMessage: defaultStatusText};
+    }
 
     return {statusCode: request.status, errorMessage: defaultStatusText};
 }
@@ -85,7 +89,7 @@ export async function unwrap<T = any>(
     }
 }
 
-export function isError(obj): obj is ErrorMessage {
+export function isError(obj: any): obj is ErrorMessage {
     return obj.statusCode !== undefined && obj.errorMessage !== undefined;
 }
 // https://stackoverflow.com/a/30106551

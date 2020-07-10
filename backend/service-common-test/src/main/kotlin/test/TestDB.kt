@@ -10,8 +10,9 @@ import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import org.flywaydb.core.Flyway
 
 object TestDB {
+    lateinit var db: EmbeddedPostgres
     fun from(serviceDescription: ServiceDescription): Pair<AsyncDBSessionFactory, EmbeddedPostgres> {
-        val db = EmbeddedPostgres.start()
+        db = EmbeddedPostgres.start()
         val flyway = Flyway.configure().apply {
             dataSource(db.postgresDatabase)
             schemas(safeSchemaName(serviceDescription))
@@ -31,5 +32,9 @@ object TestDB {
             ),
             db
         )
+    }
+
+    fun getEmbeddedPostgresInfo(): String {
+        return db.getJdbcUrl("postgres", "postgres")
     }
 }
