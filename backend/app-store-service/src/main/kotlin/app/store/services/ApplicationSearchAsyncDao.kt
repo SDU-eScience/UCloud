@@ -155,7 +155,7 @@ class ApplicationSearchAsyncDao(
                         setParameter("project", project)
                         setParameter("groups", groups)
                         setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("privileged", Roles.PRIVILEGED.toList())
                     },
                     """
                     SELECT *
@@ -247,7 +247,7 @@ class ApplicationSearchAsyncDao(
                         setParameter("project", currentProject)
                         setParameter("groups", groups)
                         setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("privileged", Roles.PRIVILEGED.toList())
                     },
                     """
                         SELECT * 

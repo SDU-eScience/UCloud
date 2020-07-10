@@ -2,38 +2,22 @@ package dk.sdu.cloud.auth.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.SQLField
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.allocateId
 import dk.sdu.cloud.service.db.async.bool
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.insert
-import dk.sdu.cloud.service.db.async.int
 import dk.sdu.cloud.service.db.async.long
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
-import org.hibernate.annotations.NaturalId
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
-import java.nio.file.attribute.UserPrincipalNotFoundException
 import java.util.*
-import javax.persistence.Entity
-import javax.persistence.GeneratedValue
-import javax.persistence.Id
-import javax.persistence.Inheritance
-import javax.persistence.InheritanceType
-import javax.persistence.ManyToOne
-import javax.persistence.Table
 
 class TwoFactorAsyncDAO {
     /**

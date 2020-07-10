@@ -12,8 +12,6 @@ import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
-import java.util.*
-import javax.persistence.*
 
 object PasswordResetRequestTable : SQLTable("password_reset_requests") {
     val token = text("token", notNull = true)

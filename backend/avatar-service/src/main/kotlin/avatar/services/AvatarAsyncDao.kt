@@ -2,10 +2,6 @@ package dk.sdu.cloud.avatar.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.avatar.api.*
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.getField
@@ -13,15 +9,6 @@ import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.criteria
-import dk.sdu.cloud.service.db.get
-import io.ktor.http.HttpStatusCode
-import javax.persistence.Column
-import javax.persistence.Entity
-import javax.persistence.EnumType
-import javax.persistence.Enumerated
-import javax.persistence.Id
-import javax.persistence.Table
 
 object AvatarTable : SQLTable("avatars") {
     val username = text("username", notNull = true)

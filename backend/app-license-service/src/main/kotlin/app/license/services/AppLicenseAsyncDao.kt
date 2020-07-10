@@ -130,7 +130,7 @@ class AppLicenseAsyncDao {
         db: DBContext,
         user: SecurityPrincipal
     ): List<LicenseServerWithId>? {
-        if (user.role in Roles.PRIVILEDGED) {
+        if (user.role in Roles.PRIVILEGED) {
             return db.withSession { session ->
                 session
                     .sendPreparedStatement(

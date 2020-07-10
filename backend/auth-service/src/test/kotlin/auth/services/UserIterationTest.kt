@@ -10,6 +10,7 @@ import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.assertThatProperty
 import io.mockk.mockk
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres

@@ -1,7 +1,6 @@
 package dk.sdu.cloud.file.services
 
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.ReserveCreditsRequest

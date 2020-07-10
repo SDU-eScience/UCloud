@@ -4,7 +4,6 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.AccessEntity
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.EntityWithPermission
-import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.getField
@@ -12,8 +11,6 @@ import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.withSession
-import java.io.Serializable
-import javax.persistence.*
 
 object PermissionTable : SQLTable("permissions") {
     val user = text("username", notNull = true)

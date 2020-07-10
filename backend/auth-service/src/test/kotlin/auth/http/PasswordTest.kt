@@ -9,11 +9,7 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
-import dk.sdu.cloud.service.test.assertStatus
-import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.sendRequest
-import dk.sdu.cloud.service.test.withKtorTest
+import dk.sdu.cloud.service.test.*
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod

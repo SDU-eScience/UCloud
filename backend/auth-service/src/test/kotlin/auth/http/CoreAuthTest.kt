@@ -27,11 +27,7 @@ import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
-import dk.sdu.cloud.service.test.TokenValidationMock
-import dk.sdu.cloud.service.test.assertStatus
-import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.withKtorTest
+import dk.sdu.cloud.service.test.*
 import io.ktor.http.Cookie
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod

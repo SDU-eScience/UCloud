@@ -9,7 +9,6 @@ import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.Tool
-import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.test.ClientMock

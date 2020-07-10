@@ -26,7 +26,7 @@ import styled, {StyledComponent} from "styled-components";
 import {SpaceProps} from "styled-system";
 import {Page} from "Types";
 import {
-    Button,
+    Button, Card,
     Checkbox,
     Divider,
     Hide,

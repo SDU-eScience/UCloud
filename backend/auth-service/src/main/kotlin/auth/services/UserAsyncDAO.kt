@@ -20,22 +20,8 @@ import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
-import org.hibernate.annotations.NaturalId
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
-import java.util.*
-import javax.persistence.Column
-import javax.persistence.Entity
-import javax.persistence.EnumType
-import javax.persistence.Enumerated
-import javax.persistence.Id
-import javax.persistence.Index
-import javax.persistence.Inheritance
-import javax.persistence.InheritanceType
-import javax.persistence.Table
-import javax.persistence.Temporal
-import javax.persistence.TemporalType
-
 
 data class HashedPasswordAndSalt(val hashedPassword: ByteArray, val salt: ByteArray)
 data class UserIdAndName(val userId: String, val firstNames: String)

@@ -22,6 +22,7 @@ import dk.sdu.cloud.auth.testUtil.dbTruncate
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode

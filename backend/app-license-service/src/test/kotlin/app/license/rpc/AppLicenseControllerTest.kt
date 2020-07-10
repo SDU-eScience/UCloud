@@ -1,7 +1,6 @@
 package dk.sdu.cloud.app.license.rpc
 
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.sun.prism.impl.BaseContext
 import dk.sdu.cloud.app.license.api.AccessEntity
 import dk.sdu.cloud.app.license.api.AccessEntityWithPermission
 import dk.sdu.cloud.app.license.api.AclEntryRequest
@@ -34,15 +33,8 @@ import dk.sdu.cloud.project.api.UserStatusResponse
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.test.ClientMock
-import dk.sdu.cloud.service.test.KtorApplicationTestSetupContext
-import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.assertSuccess
-import dk.sdu.cloud.service.test.sendJson
-import dk.sdu.cloud.service.test.sendRequest
-import dk.sdu.cloud.service.test.withKtorTest
+import dk.sdu.cloud.service.test.*
 import io.ktor.http.HttpMethod
-import io.mockk.mockk
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
 import org.junit.AfterClass
@@ -51,7 +43,6 @@ import org.junit.Test
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class AppLicenseControllerTest {
 
@@ -138,7 +129,9 @@ class AppLicenseControllerTest {
                 listOf(
                     UserStatusInProject(
                         "projectId",
-                        ProjectMember(TestUsers.user.username, ProjectRole.ADMIN)
+                        "title",
+                        ProjectMember(TestUsers.user.username, ProjectRole.ADMIN),
+                        null
                     )
                 ),
                 listOf(

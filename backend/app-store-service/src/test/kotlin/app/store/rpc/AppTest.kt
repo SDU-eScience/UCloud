@@ -681,7 +681,6 @@ class AppTest {
     fun `clear Logo test`() {
         withKtorTest(
             setup = {
-                micro.install(HibernateFeature)
                 val elasticDAO = mockk<ElasticDao>()
 
                 val toolDao = ToolAsyncDao()

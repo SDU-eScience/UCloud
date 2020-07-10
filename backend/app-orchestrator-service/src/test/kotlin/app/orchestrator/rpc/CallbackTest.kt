@@ -21,7 +21,6 @@ import io.mockk.coEvery
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
-import org.hibernate.Session
 import org.junit.Test
 import java.util.*
 import kotlin.test.assertEquals

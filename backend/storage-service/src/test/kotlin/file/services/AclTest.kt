@@ -26,17 +26,9 @@ class AclTest {
     @BeforeTest
     fun initializeTest() {
         micro = initializeMicro()
-        micro.install(HibernateFeature)
         metadataService = MetadataService(AsyncDBSessionFactory(micro.databaseConfig), MetadataDao())
         aclService =
             AclService(metadataService, MockedHomeFolderService, ClientMock.authenticatedClient, mockk(relaxed = true))
-
-        runBlocking {
-            micro.hibernateDatabase.withTransaction {
-                it.createNativeQuery("CREATE ALIAS IF NOT EXISTS REVERSE AS \$\$ String reverse(String s) { return new StringBuilder(s).reverse().toString(); } \$\$;")
-                    .executeUpdate()
-            }
-        }
     }
 
     @Test

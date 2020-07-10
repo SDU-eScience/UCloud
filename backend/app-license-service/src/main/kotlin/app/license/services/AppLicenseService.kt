@@ -23,7 +23,7 @@ class AppLicenseService(
     suspend fun getLicenseServer(securityPrincipal: SecurityPrincipal, serverId: String, accessEntity: AccessEntity): LicenseServerWithId? {
         if (
             !aclService.hasPermission(serverId, accessEntity, ServerAccessRight.READ) &&
-            securityPrincipal.role !in Roles.PRIVILEDGED
+            securityPrincipal.role !in Roles.PRIVILEGED
         ) {
             throw RPCException("Unauthorized request to license server", HttpStatusCode.Unauthorized)
         }
@@ -43,7 +43,7 @@ class AppLicenseService(
     }
 
     suspend fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<AccessEntityWithPermission> {
-        return if (Roles.PRIVILEDGED.contains(user.role)) {
+        return if (Roles.PRIVILEGED.contains(user.role)) {
             aclService.listAcl(request.serverId)
         } else {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not allowed")
@@ -107,7 +107,7 @@ class AppLicenseService(
     suspend fun updateLicenseServer(securityPrincipal: SecurityPrincipal, request: UpdateServerRequest, accessEntity: AccessEntity): String {
         if (
             aclService.hasPermission(request.withId, accessEntity, ServerAccessRight.READ_WRITE) ||
-            securityPrincipal.role in Roles.PRIVILEDGED
+            securityPrincipal.role in Roles.PRIVILEGED
         ) {
             // Save information for existing license server
             appLicenseDao.update(
@@ -134,7 +134,7 @@ class AppLicenseService(
                 request.id,
                 AccessEntity(securityPrincipal.username, null, null),
                 ServerAccessRight.READ_WRITE
-            ) || securityPrincipal.role in Roles.PRIVILEDGED
+            ) || securityPrincipal.role in Roles.PRIVILEGED
         ) {
             // Delete Acl entries for the license server
             aclService.revokeAllServerPermissionsWithSession(request.id)

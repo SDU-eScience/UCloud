@@ -3,16 +3,11 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.testUtil.dbTruncate
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.initializeMicro
-import dk.sdu.cloud.service.test.withDatabase
+import dk.sdu.cloud.service.test.TestDB
 import io.mockk.mockk
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking

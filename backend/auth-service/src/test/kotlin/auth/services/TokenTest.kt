@@ -8,16 +8,12 @@ import dk.sdu.cloud.auth.api.AuthStreams
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.services.saml.SamlRequestProcessor
 import dk.sdu.cloud.auth.testUtil.dbTruncate
-import dk.sdu.cloud.micro.HibernateFeature
 import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.TokenValidationJWT
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
+import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TokenValidationMock
 import dk.sdu.cloud.service.test.createTokenForUser
 import dk.sdu.cloud.service.test.initializeMicro

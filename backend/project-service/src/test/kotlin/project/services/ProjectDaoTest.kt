@@ -4,38 +4,24 @@ import dk.sdu.cloud.auth.api.LookupUsersResponse
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.auth.api.UserLookup
 import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
-import dk.sdu.cloud.events.EventStream
 import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.notification.api.FindByNotificationId
 import dk.sdu.cloud.notification.api.NotificationDescriptions
-import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.project.api.ProjectServiceDescription
-import dk.sdu.cloud.service.PaginationRequest
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.ClientMock
-import dk.sdu.cloud.service.test.EventProducerMock
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.TestUsers
-import dk.sdu.cloud.service.test.assertThatProperty
 import dk.sdu.cloud.service.test.initializeMicro
-import io.mockk.mockk
+import dk.sdu.cloud.service.toActor
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
 import org.junit.AfterClass
 import org.junit.BeforeClass
-import org.junit.Ignore
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -128,8 +114,8 @@ class ProjectDaoTest {
             Unit
         )
         runBlocking {
-            val id = projectService.create(db, TestUsers.admin, "Test Project", null)
-            val id2 = projectService.create(db, TestUsers.admin2, "Another Test Project", null)
+            val id = projectService.create(db, TestUsers.admin.toActor(), "Test Project", null, null)
+            val id2 = projectService.create(db, TestUsers.admin2.toActor(), "Another Test Project", null, null)
             val pi = projectService.getPIOfProject(db, id)
             assertEquals(TestUsers.admin.username, pi)
 

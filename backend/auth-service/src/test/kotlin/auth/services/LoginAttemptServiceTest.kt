@@ -1,22 +1,12 @@
 package dk.sdu.cloud.auth.services
 
-import TestDB
 import dk.sdu.cloud.auth.api.AuthServiceDescription
 import dk.sdu.cloud.auth.testUtil.dbTruncate
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.hibernateDatabase
-import dk.sdu.cloud.micro.install
-import dk.sdu.cloud.service.db.DBSessionFactory
-import dk.sdu.cloud.service.db.HibernateSession
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.test.initializeMicro
+import dk.sdu.cloud.service.test.TestDB
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.runBlocking
-import org.joda.time.DateTimeZone
-import org.joda.time.LocalDateTime
 import org.junit.AfterClass
 import org.junit.BeforeClass
 import kotlin.math.pow

@@ -2,8 +2,6 @@ package dk.sdu.cloud.app.license.services
 
 import dk.sdu.cloud.app.license.services.acl.*
 import dk.sdu.cloud.auth.api.*
-import dk.sdu.cloud.micro.HibernateFeature
-import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.test.*
 import kotlinx.coroutines.runBlocking
 import kotlin.test.assertFalse

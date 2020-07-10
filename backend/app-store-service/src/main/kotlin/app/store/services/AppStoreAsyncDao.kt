@@ -44,7 +44,7 @@ class AppStoreAsyncDao(
                         setParameter("groups", memberGroups)
                         setParameter("tags", tags)
                         setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("privileged", Roles.PRIVILEGED.toList())
                     },
                     """
                     SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
@@ -95,7 +95,7 @@ class AppStoreAsyncDao(
                         setParameter("project", project)
                         setParameter("groups", memberGroups)
                         setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("privileged", Roles.PRIVILEGED.toList())
                     },
                     """
                 SELECT A.*
@@ -143,7 +143,7 @@ class AppStoreAsyncDao(
                     {
                         setParameter("query", "")
                         setParameter("role", user.role.toString())
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("privileged", Roles.PRIVILEGED.toList())
                         setParameter("user", user.username)
                     },
                     """
@@ -359,7 +359,7 @@ class AppStoreAsyncDao(
                         setParameter("role", cleanRole.toString())
                         setParameter("project", currentProject)
                         setParameter("groups", groups)
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("privileged", Roles.PRIVILEGED.toList())
                         setParameter("user", user?.username ?: "")
                     },
                     """
@@ -670,7 +670,7 @@ class AppStoreAsyncDao(
                         setParameter("role", user.role.toString())
                         setParameter("project", project)
                         setParameter("groups", groups)
-                        setParameter("privileged", Roles.PRIVILEDGED.toList())
+                        setParameter("privileged", Roles.PRIVILEGED.toList())
                     },
                     """
                         SELECT A.*

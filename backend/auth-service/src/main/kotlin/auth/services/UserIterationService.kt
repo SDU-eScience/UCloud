@@ -9,14 +9,9 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.HostInfo
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.outgoingTargetHost
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.db.HibernateEntity
-import dk.sdu.cloud.service.db.HibernateSession
-import dk.sdu.cloud.service.db.HibernateSessionFactory
-import dk.sdu.cloud.service.db.WithId
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
@@ -28,18 +23,11 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.service.db.get
-import dk.sdu.cloud.service.db.updateCriteria
-import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.stackTraceToString
 import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.hibernate.ScrollMode
-import org.hibernate.ScrollableResults
-import org.hibernate.StatelessSession
-import org.hibernate.annotations.NaturalId
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import org.slf4j.Logger
@@ -47,12 +35,6 @@ import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
-import javax.persistence.Entity
-import javax.persistence.Id
-import javax.persistence.Table
-import javax.persistence.Temporal
-import javax.persistence.TemporalType
-import kotlin.collections.ArrayList
 
 /**
  * A service for iterating all users in the database.
