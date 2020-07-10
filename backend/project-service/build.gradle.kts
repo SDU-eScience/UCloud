@@ -10,4 +10,3 @@ dependencies {
     implementation(project(":mail-service:api"))
     implementation(project(":notification-service:api"))
 }
-

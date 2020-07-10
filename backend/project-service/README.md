@@ -21,7 +21,7 @@ including adding and removing users.
 | `USER`         | Has no special privileges.                                                                         |
 
 **Table:** The possible roles of a project, and their privileges within project
-*management.
+management.
 
 A project can be updated by adding/removing/changing any of its `members`. Such an update will trigger a new message
 on the event stream.
@@ -39,6 +39,8 @@ All projects create by end-users have exactly one parent project. Only UCloud ad
 projects, that is a project without a parent. This allows users of UCloud to create a hierarchy of projects. The 
 project hierarchy plays a significant role in accounting.
 
+Normal users can create a project through the [grant application](../grant-service/README.md) feature.
+
 A project can be uniquely identified by the path from the root project to the leaf-project. As a result, the `title` of
 a project must be unique within a single project. `title`s are case-insensitive.
 
@@ -48,23 +50,51 @@ for every project which allows normal users to create sub-projects.
 
 ---
 
-__Example:__ A project hierarchy with storage permissions
+__Example:__ A project hierarchy
 
-```text
-SDU
-  - TEK
-  - SAMF
-  - SUND
-  - HUM
-  - NAT
-    - IMADA
-      - 
+![](wiki/subprojects.png)
+
+__Figure 1:__ A storage hierarchy
+
+Figure 1 shows a hierarchy of projects. Note that users deep in the hierarchy are not necessarily members of the 
+projects further up in the hierarchy. For example, being a member of "IMADA" does not imply membership of "NAT".
+A member of "IMADA" can be a member of "NAT" but they must be _explicitly_ added to both projects.
+
+None of the projects share _any_ resources. Each individual project will have their own home directory. The
+administrators, or any other user, of "NAT" will not be able to read/write any files of "IMADA" unless they have
+explicitly been added to the "IMADA" project.
+
+## The Project Context
+
+All requests in UCloud are executed in a particular context. The header of every request defines the context. For the
+HTTP backend this is done in the `Project` header. The absence of a project implies that the request is executed in the
+personal project context.
+
+![](wiki/context-switcher.png)
+
+__Figure 2:__ The UCloud user interface allows you to select context through a dropdown in the navigation header.
+
+---
+
+__Example:__ Accessing the project context from a microservice
+
+```kotlin
+implement(Descriptions.call) {
+    val project: String? = ctx.project // null implies the personal project
+    ok(service.doSomething(project))
+}
 ```
 
 ---
 
-## Interactions with other features
+## Interactions with Other Features
 
 - [Project Repositories](../project-repository-service/README.md): Learn about
   how projects interact with the storage of UCloud.
-- [Accounting](../accounting-service/README.md)
+- [Accounting](../accounting-service/README.md): Learn how subprojects and accounting of resources work.
+- [Grant Applications](../grant-service): Learn how end-users can create projects.
+
+## Internal Documentation
+
+- [Event streams](./wiki/eventstream.md): Certain actions trigger events on the event stream. Read more about them here.
+- [API Overview](./wiki/api/index.md): An overview of the UCloud project API.
