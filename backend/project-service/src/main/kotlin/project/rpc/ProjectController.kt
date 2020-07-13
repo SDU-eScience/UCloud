@@ -216,6 +216,10 @@ class ProjectController(
             ok(queries.lookupByTitle(db, request.title) ?: throw RPCException("No project with that name", HttpStatusCode.BadRequest))
         }
 
+        implement(Projects.lookupById) {
+            ok(queries.lookupById(db, request.id) ?: throw RPCException("No project with that id", HttpStatusCode.BadRequest))
+        }
+
         implement(Projects.lookupPrincipalInvestigator) {
             ok(queries.lookupPrincipalInvestigator(
                 db,

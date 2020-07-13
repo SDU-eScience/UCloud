@@ -5,7 +5,8 @@ import {
     UserEntityType,
     addLicenseServerTag,
     deleteLicenseServerTag,
-    AccessEntity
+    AccessEntity,
+    DetailedAccessEntity
 } from "Applications/api";
 import {useAsyncCommand} from "Authentication/DataHook";
 import {Client} from "Authentication/HttpClientInstance";
@@ -209,7 +210,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                 {
                     entity: {
                         user: accessEntryToDelete.entity.user,
-                        project: accessEntryToDelete.entity.project,
+                        project: accessEntryToDelete.entity.project ? accessEntryToDelete.entity.project.id : null,
                         group: accessEntryToDelete.entity.group
                     },
                     rights: accessEntryToDelete.permission,
@@ -421,7 +422,7 @@ function LicenseServerAclPrompt({licenseServer}: {licenseServer: LicenseServer |
                                             {accessEntry.entity.user ? (
                                                 accessEntry.entity.user
                                             ) : (
-                                                    accessEntry.entity.project + " " + accessEntry.entity.group
+                                                    accessEntry.entity.project?.title + " (" + accessEntry.entity.group + ")"
                                                 )}
                                         </TableCell>
                                         <TableCell>{prettifyAccessRight(accessEntry.permission)}</TableCell>
@@ -515,7 +516,7 @@ async function loadLicenseServers(): Promise<LicenseServer[]> {
 }
 
 interface AclEntry {
-    entity: AccessEntity;
+    entity: DetailedAccessEntity;
     permission: LicenseServerAccessRight;
 }
 

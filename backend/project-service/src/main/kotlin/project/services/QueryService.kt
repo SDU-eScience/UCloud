@@ -500,6 +500,7 @@ class QueryService(
                 setParameter("projectId", projectId)
                 setParameter("noFavorites", noFavorites)
             }
+
             val items = session
                 .sendPreparedStatement(
                     {
@@ -912,6 +913,20 @@ class QueryService(
             )
             .rows
             .singleOrNull()?.toProject() ?: null
+        }
+    }
+
+    suspend fun lookupById(
+        ctx: DBContext,
+        title: String
+    ): Project? {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("id", title) },
+                "select * from projects where id = :id"
+            )
+                .rows
+                .singleOrNull()?.toProject() ?: null
         }
     }
 

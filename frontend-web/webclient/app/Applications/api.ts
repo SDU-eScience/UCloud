@@ -6,6 +6,7 @@ import {snackbarStore} from "Snackbar/SnackbarStore";
 import {buildQueryString} from "Utilities/URIUtilities";
 import {b64EncodeUnicode} from "Utilities/XHRUtils";
 import {inSuccessRange} from "UtilityFunctions";
+import { Project } from "Project";
 
 export interface ListByNameProps {
     itemsPerPage: number;
@@ -111,9 +112,10 @@ export interface AccessEntity {
     group: string | null;
 }
 
-export interface UserEntity {
-    id: string;
-    type: UserEntityType;
+export interface DetailedAccessEntity {
+    user: string | null;
+    project: Project | null;
+    group: string | null;
 }
 
 export interface ApplicationPermissionEntry {

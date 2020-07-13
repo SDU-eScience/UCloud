@@ -3,13 +3,13 @@ package dk.sdu.cloud.app.license.services
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.license.api.*
+import dk.sdu.cloud.app.license.api.Project
 import dk.sdu.cloud.app.license.services.acl.*
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.project.api.ProjectMembers
-import dk.sdu.cloud.project.api.UserStatusRequest
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.HttpStatusCode
@@ -44,9 +44,36 @@ class AppLicenseService<Session>(
         aclService.revokeAllFromEntity(accessEntity)
     }
 
-    suspend fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<AccessEntityWithPermission> {
+    suspend fun listAcl(request: ListAclRequest, user: SecurityPrincipal): List<DetailedAccessEntityWithPermission> {
         return if (Roles.PRIVILEGED.contains(user.role)) {
-            aclService.listAcl(request.serverId)
+            aclService.listAcl(request.serverId).map {
+                if (!it.entity.project.isNullOrBlank()) {
+                    val projectInfo = Projects.lookupById.call(
+                        LookupByIdRequest(it.entity.project!!),
+                        authenticatedClient
+                    ).orRethrowAs {
+                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to fetch project entities")
+                    }
+
+                    DetailedAccessEntityWithPermission(
+                        DetailedAccessEntity(
+                            null,
+                            Project(projectInfo.id, projectInfo.title),
+                            it.entity.group
+                        ),
+                        it.permission
+                    )
+                } else {
+                    DetailedAccessEntityWithPermission(
+                        DetailedAccessEntity(
+                            it.entity.user,
+                            null,
+                            null
+                        ),
+                        it.permission
+                    )
+                }
+            }
         } else {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Not allowed")
         }
