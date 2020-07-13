@@ -21,7 +21,13 @@ jest.mock("Authentication/HttpClientInstance", () => ({
             }
             return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage});
         },
-        call: () => Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage}),
+        call: call => {
+            switch (call.path) {
+                case "/accounting/wallets/balance?includeChildren=false":
+                    return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: {wallets: []}});
+            }
+            return Promise.resolve({request: {status: 200} as XMLHttpRequest, response: emptyPage});
+        },
         homeFolder: "/home/test@test/"
     }
 }));
