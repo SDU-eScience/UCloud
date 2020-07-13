@@ -53,7 +53,7 @@ export enum GrantApplicationStatus {
 }
 
 export function isGrantFinalized(status?: GrantApplicationStatus): boolean {
-    if (status === undefined) return true;
+    if (status === undefined) return false;
     return [
         GrantApplicationStatus.APPROVED,
         GrantApplicationStatus.REJECTED,

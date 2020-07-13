@@ -196,7 +196,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Link>
                             </DashboardCardButton>
                         </DashboardCard>
-                        {isPersonalProjectActive(projectId) || (console.log(projectRole), !isAdminOrPI(projectRole)) || !noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings) ? null :
+                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || !noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings) ? null :
                             <DashboardCard title="Grant Applications" icon="mail" color={theme.colors.red}
                                 isLoading={false}>
                                 <Table>
@@ -243,8 +243,6 @@ function noSubprojectsAndGrantsAreDisallowed(
     subprojects: number,
     settings: APICallState<ProjectGrantSettings>
 ): boolean {
-    console.log("subprojects", subprojects);
-    console.log("allowRequests", settings.data.allowRequestsFrom);
     return settings.data.allowRequestsFrom.length === 0 && subprojects === 0;
 }
 
