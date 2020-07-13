@@ -4,7 +4,6 @@ import {
     membersCountRequest,
     groupsCountRequest,
     subprojectsCountRequest,
-    ProjectRole,
     isAdminOrPI
 } from "Project/index";
 import * as React from "react";
@@ -17,13 +16,15 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import {useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI, APICallState} from "Authentication/DataHook";
 import {ProductArea, UsageResponse, transformUsageChartForCharting, usage} from "Accounting";
 import {creditFormatter, durationOptions} from "./ProjectUsage";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {Dictionary} from "Types";
 import styled from "styled-components";
-import {ingoingGrantApplications, IngoingGrantApplicationsResponse} from "Project/Grant";
+import {
+    ingoingGrantApplications, IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings
+} from "Project/Grant";
 import {emptyPage} from "DefaultObjects";
 import {Client} from "Authentication/HttpClientInstance";
 
@@ -54,6 +55,11 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         emptyPage
     );
 
+    const [settings, fetchSettings] = useCloudAPI<ProjectGrantSettings>(
+        {noop: true},
+        {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}}
+    );
+
     const durationOption = durationOptions[3];
     const now = new Date().getTime();
 
@@ -67,6 +73,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         setGroupsCount(groupsCountRequest());
         setSubprojectsCount(subprojectsCountRequest());
         setGrantParams(ingoingGrantApplications({itemsPerPage: apps.data.itemsPerPage, page: apps.data.pageNumber}));
+        fetchSettings(readGrantRequestSettings({projectId}));
         setUsageParams(usage({
             bucketSize: durationOption.bucketSize,
             periodStart: now - durationOption.timeInPast,
@@ -189,7 +196,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Link>
                             </DashboardCardButton>
                         </DashboardCard>
-                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
+                        {isPersonalProjectActive(projectId) || (console.log(projectRole), !isAdminOrPI(projectRole)) || !noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings) ? null :
                             <DashboardCard title="Grant Applications" icon="mail" color={theme.colors.red}
                                 isLoading={false}>
                                 <Table>
@@ -231,6 +238,15 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         />
     );
 };
+
+function noSubprojectsAndGrantsAreDisallowed(
+    subprojects: number,
+    settings: APICallState<ProjectGrantSettings>
+): boolean {
+    console.log("subprojects", subprojects);
+    console.log("allowRequests", settings.data.allowRequestsFrom);
+    return settings.data.allowRequestsFrom.length === 0 && subprojects === 0;
+}
 
 const ProjectDashboardGrid = styled(GridCardGroup)`
     & > ${Card} {
