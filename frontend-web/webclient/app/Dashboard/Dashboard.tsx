@@ -56,8 +56,9 @@ export const DashboardCard: React.FunctionComponent<{
     icon?: IconName,
     height?: string,
     minHeight?: string
-}> = ({title, subtitle, color, isLoading, icon = undefined, children, height = "auto", minHeight}) => (
-    <Card overflow="hidden" height={height} width={1} boxShadow="sm" borderWidth={0} borderRadius={6}
+    onClick?: () => void;
+}> = ({title, subtitle, onClick, color, isLoading, icon = undefined, children, height = "auto", minHeight}) => (
+    <Card onClick={onClick} overflow="hidden" height={height} width={1} boxShadow="sm" borderWidth={0} borderRadius={6}
         minHeight={minHeight}>
         <Flex px={3} py={2} alignItems="center" style={{borderTop: `5px solid ${color}`}} >
             {icon !== undefined ? (

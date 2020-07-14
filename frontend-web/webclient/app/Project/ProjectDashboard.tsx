@@ -7,7 +7,7 @@ import {
     isAdminOrPI
 } from "Project/index";
 import * as React from "react";
-import {Box, Button, Link, Flex, theme, Card} from "ui-components";
+import {Flex, theme, Card, Icon, Text} from "ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
 import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
@@ -16,7 +16,7 @@ import {dispatchSetProjectAction} from "Project/Redux";
 import {DashboardCard} from "Dashboard/Dashboard";
 import {GridCardGroup} from "ui-components/Grid";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import {useCloudAPI, APICallState} from "Authentication/DataHook";
+import {useCloudAPI} from "Authentication/DataHook";
 import {ProductArea, UsageResponse, transformUsageChartForCharting, usage} from "Accounting";
 import {creditFormatter, durationOptions} from "./ProjectUsage";
 import Table, {TableCell, TableRow} from "ui-components/Table";
@@ -27,6 +27,9 @@ import {
 } from "Project/Grant";
 import {emptyPage} from "DefaultObjects";
 import {Client} from "Authentication/HttpClientInstance";
+import {useHistory} from "react-router";
+import {useTitle} from "Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const {projectId, projectDetails, projectRole} = useProjectManagementStatus(true);
@@ -34,6 +37,11 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     function isPersonalProjectActive(id: string): boolean {
         return id === undefined || id === "";
     }
+
+    useTitle("Project Dashboard");
+    useSidebarPage(SidebarPages.Projects);
+
+    const history = useHistory();
 
     const [membersCount, setMembersCount] = useCloudAPI<number>(
         {noop: true},
@@ -133,24 +141,19 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                 <>
                     <ProjectDashboardGrid minmax={300}>
                         {projectId !== undefined && projectId !== "" ? (
-                            <DashboardCard title="Members" icon="user" color={theme.colors.blue} isLoading={false}>
+                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/members")} title="Members" icon="user" color={theme.colors.blue} isLoading={false}>
                                 <Table>
                                     <tbody>
-                                        <TableRow>
+                                        <TableRow cursor="pointer">
                                             <TableCell>Members</TableCell>
                                             <TableCell textAlign="right">{membersCount.data}</TableCell>
                                         </TableRow>
-                                        <TableRow>
+                                        <TableRow cursor="pointer">
                                             <TableCell>Groups</TableCell>
                                             <TableCell textAlign="right">{groupsCount.data}</TableCell>
                                         </TableRow>
                                     </tbody>
                                 </Table>
-                                <DashboardCardButton>
-                                    <Link to="/project/members">
-                                        <Button width="100%">Manage Members</Button>
-                                    </Link>
-                                </DashboardCardButton>
                             </DashboardCard>
                         ) : null}
                         <DashboardCard
@@ -158,78 +161,64 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             icon="projects"
                             color={theme.colors.purple}
                             isLoading={false}
+                            onClick={() => history.push("/project/subprojects")}
+                            subtitle={<RightArrow />}
                         >
                             {Client.hasActiveProject ? <Table>
                                 <tbody>
-                                    <TableRow>
+                                    <TableRow cursor="pointer">
                                         <TableCell>Subprojects</TableCell>
                                         <TableCell textAlign="right">{subprojectsCount.data}</TableCell>
                                     </TableRow>
                                 </tbody>
                             </Table> : null}
-                            <DashboardCardButton>
-                                <Link to="/project/subprojects">
-                                    <Button width="100%">Manage Resources</Button>
-                                </Link>
-                            </DashboardCardButton>
                         </DashboardCard>
 
-                        <DashboardCard title="Usage" subtitle="Past 30 days" icon="hourglass" color={theme.colors.green}
-                            isLoading={false}>
+                        <DashboardCard title="Usage" icon="hourglass" color={theme.colors.green}
+                            isLoading={false}
+                            subtitle={<RightArrow />}
+                            onClick={() => history.push("/project/usage")}
+                        >
+                            <Text color="darkGray" fontSize={1}>Past 30 days</Text>
                             <Table>
                                 <tbody>
-                                    <TableRow>
+                                    <TableRow cursor="pointer">
                                         <TableCell>Storage</TableCell>
                                         <TableCell
                                             textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
                                     </TableRow>
-                                    <TableRow>
+                                    <TableRow cursor="pointer">
                                         <TableCell>Compute</TableCell>
                                         <TableCell
                                             textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
                                     </TableRow>
                                 </tbody>
                             </Table>
-                            <DashboardCardButton>
-                                <Link to="/project/usage">
-                                    <Button width="100%">Manage Usage</Button>
-                                </Link>
-                            </DashboardCardButton>
                         </DashboardCard>
-                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || !noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings) ? null :
-                            <DashboardCard title="Grant Applications" icon="mail" color={theme.colors.red}
+                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || !noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings.data) ? null :
+                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/grants/ingoing")} title="Grant Applications" icon="mail" color={theme.colors.red}
                                 isLoading={false}>
                                 <Table>
                                     <tbody>
-                                        <TableRow>
+                                        <TableRow cursor="pointer">
                                             <TableCell>In Progress</TableCell>
                                             <TableCell textAlign="right">{apps.data.itemsInTotal}</TableCell>
                                         </TableRow>
                                     </tbody>
                                 </Table>
-                                <DashboardCardButton>
-                                    <Link to="/project/grants/ingoing">
-                                        <Button width="100%">Manage Applications</Button>
-                                    </Link>
-                                </DashboardCardButton>
                             </DashboardCard>}
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null : (
-                            <DashboardCard title="Settings" icon="properties" color={theme.colors.orange}
+                            <DashboardCard subtitle={<RightArrow />} onClick={() => history.push("/project/settings")} title="Settings" icon="properties" color={theme.colors.orange}
                                 isLoading={false}>
                                 <Table>
                                     <tbody>
-                                        <TableRow>
+                                        <TableRow cursor="pointer">
                                             <TableCell>Archived</TableCell>
                                             <TableCell
                                                 textAlign="right">{projectDetails.data.archived ? "Yes" : "No"}</TableCell>
                                         </TableRow>
                                     </tbody>
                                 </Table>
-                                <DashboardCardButton>
-                                    <Link to="/project/settings">
-                                        <Button width="100%">Manage Settings</Button>
-                                    </Link>
-                                </DashboardCardButton>
                             </DashboardCard>
                         )}
                     </ProjectDashboardGrid>
@@ -239,25 +228,27 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     );
 };
 
+const RightArrow = (): JSX.Element => (
+    <Icon name="arrowDown" rotation={-90} size={18} color={"darkGray"} />
+);
+
 function noSubprojectsAndGrantsAreDisallowed(
     subprojects: number,
-    settings: APICallState<ProjectGrantSettings>
+    settings: ProjectGrantSettings
 ): boolean {
-    return settings.data.allowRequestsFrom.length === 0 && subprojects === 0;
+    return settings.allowRequestsFrom.length === 0 && subprojects === 0;
 }
 
 const ProjectDashboardGrid = styled(GridCardGroup)`
     & > ${Card} {
         position: relative;
         min-height: 200px;
+        cursor: pointer;
+        transition: transform 0.2s;
+        &:hover {
+            transform: scale(1.02);
+        }
     }
-`;
-
-const DashboardCardButton = styled(Box)`
-    position: absolute;  
-    bottom: 10px;
-    left: 10px;
-    right: 10px;
 `;
 
 interface ProjectDashboardOperations {
