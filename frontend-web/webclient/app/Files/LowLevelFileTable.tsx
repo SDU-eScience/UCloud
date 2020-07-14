@@ -431,7 +431,8 @@ const LowLevelFileTable_: React.FunctionComponent<LowLevelFileTableProps & LowLe
 
     // Aliases
     const forbidden = error === "Forbidden";
-    const notFound = error === "Not Found";
+    // At the time of writing, "Not found " provided by backend error is trailed by a space.
+    const notFound = error === "Not found ";
     const isForbiddenPath = forbidden || notFound;
     const isEmbedded = props.embedded !== false;
     const sortingSupported = !props.embedded;
