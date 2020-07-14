@@ -500,6 +500,7 @@ class QueryService(
                 setParameter("projectId", projectId)
                 setParameter("noFavorites", noFavorites)
             }
+
             val items = session
                 .sendPreparedStatement(
                     {
@@ -918,6 +919,34 @@ class QueryService(
             getFieldNullable(ProjectTable.parent),
             getField(ProjectTable.archived)
         )
+    }
+
+    suspend fun lookupByTitle(
+        ctx: DBContext,
+        title: String
+    ): Project? {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("title", title) },
+                "select * from projects where title = :title"
+            )
+            .rows
+            .singleOrNull()?.toProject() ?: null
+        }
+    }
+
+    suspend fun lookupById(
+        ctx: DBContext,
+        title: String
+    ): Project? {
+        return ctx.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("id", title) },
+                "select * from projects where id = :id"
+            )
+                .rows
+                .singleOrNull()?.toProject() ?: null
+        }
     }
 
     suspend fun lookupPrincipalInvestigator(

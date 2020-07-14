@@ -13,7 +13,9 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.project.api.GroupExistsRequest
+import dk.sdu.cloud.project.api.LookupByTitleRequest
 import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.http.HttpStatusCode
 
@@ -76,19 +78,28 @@ class AclService(
             if(!project.isNullOrBlank() && !group.isNullOrBlank()) {
                 AppLicenseController.log.debug("Verifying that project and group exists")
 
-                val lookup = ProjectGroups.groupExists.call(
-                    GroupExistsRequest(project, group),
+                val projectInfo = Projects.lookupByTitle.call(
+                        LookupByTitleRequest(project),
+                        authenticatedClient
+                ).orRethrowAs {
+                    throw RPCException("No project exists with that name", HttpStatusCode.BadRequest)
+                }
+
+                val groupExistsLookup = ProjectGroups.groupExists.call(
+                    GroupExistsRequest(projectInfo.id, group),
                     authenticatedClient
                 ).orRethrowAs {
                     throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
                 }
 
-                if (!lookup.exists) throw RPCException.fromStatusCode(
+                if (!groupExistsLookup.exists) throw RPCException.fromStatusCode(
                     HttpStatusCode.BadRequest,
                     "The project group does not exist"
                 )
 
-                dao.updatePermissions(db, serverId, entity, permissions)
+                val entityWithId = AccessEntity(entity.user, projectInfo.id, entity.group)
+
+                dao.updatePermissions(db, serverId, entityWithId, permissions)
             } else {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Neither user or project group defined")
             }
