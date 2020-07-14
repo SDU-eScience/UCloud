@@ -321,7 +321,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                 }}
                             >
                                 <Flex height={45}>
-                                    <InputLabel width={320} leftLabel>
+                                    <InputLabel width={350} leftLabel>
                                         <ClickableDropdown
                                             chevron
                                             width="180px"
