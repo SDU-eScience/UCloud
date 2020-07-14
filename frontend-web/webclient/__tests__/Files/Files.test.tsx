@@ -9,15 +9,20 @@ import theme from "../../app/ui-components/theme";
 import {store} from "../../app/Utilities/ReduxUtilities";
 
 jest.mock("Utilities/ProjectUtilities", () => ({
+    isAdminOrPI: () => true,
     getProjectNames: () => []
+}));
+
+jest.mock("Project/index", () => ({
+    ProjectRole: {USER: "USER"}
 }));
 
 test("Mount Files component", async () => {
     const history = createBrowserHistory();
     history.push("app/files?path=%2Fhome%2Fjonas%40hinchely.dk");
     let comp;
-    await act(async () => {
-        comp = await create(
+    act(() => {
+        comp = create(
             <Provider store={store}>
                 <ThemeProvider theme={theme}>
                     <Router history={history}>

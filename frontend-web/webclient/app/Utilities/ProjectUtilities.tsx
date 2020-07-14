@@ -223,3 +223,7 @@ export async function updatePermissions(
 export function getProjectNames(project: ProjectStatus): ProjectName[] {
     return project.fetch().membership.map(it => ({title: it.title, projectId: it.projectId}));
 }
+
+export function isAdminOrPI(role: ProjectRole): boolean {
+    return [ProjectRole.ADMIN, ProjectRole.PI].includes(role);
+}

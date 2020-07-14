@@ -3,9 +3,8 @@ import {
     useProjectManagementStatus,
     membersCountRequest,
     groupsCountRequest,
-    subprojectsCountRequest,
-    isAdminOrPI
-} from "Project/index";
+    subprojectsCountRequest
+} from "Project";
 import * as React from "react";
 import {Flex, theme, Card, Icon, Text} from "ui-components";
 import {connect} from "react-redux";
@@ -30,6 +29,7 @@ import {Client} from "Authentication/HttpClientInstance";
 import {useHistory} from "react-router";
 import {useTitle} from "Navigation/Redux/StatusActions";
 import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const {projectId, projectDetails, projectRole} = useProjectManagementStatus(true);

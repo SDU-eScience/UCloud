@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useCallback, useEffect, useRef} from "react";
-import {useProjectManagementStatus, isAdminOrPI} from "Project";
+import {useProjectManagementStatus} from "Project";
 import {MainContainer} from "MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
 import * as Heading from "ui-components/Heading";
@@ -50,6 +50,7 @@ import {Toggle} from "ui-components/Toggle";
 import {doNothing} from "UtilityFunctions";
 import Table, {TableCell, TableRow} from "ui-components/Table";
 import {addStandardDialog} from "UtilityComponents";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {

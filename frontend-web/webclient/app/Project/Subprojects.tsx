@@ -1,6 +1,6 @@
 import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
 import {MainContainer} from "MainContainer/MainContainer";
-import {createProject, listSubprojects, Project, useProjectManagementStatus, isAdminOrPI, } from "Project/index";
+import {createProject, listSubprojects, Project, useProjectManagementStatus} from "Project";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {Absolute, Box, Button, Card, Flex, Icon, Input, Label, Link, Relative, Text, theme} from "ui-components";
@@ -25,6 +25,7 @@ import {DashboardCard} from "Dashboard/Dashboard";
 import HexSpin, {HexSpinWrapper} from "LoadingIcon/LoadingIcon";
 import {Client} from "Authentication/HttpClientInstance";
 import {sizeToString} from "Utilities/FileUtilities";
+import {isAdminOrPI} from "Utilities/ProjectUtilities";
 
 const WalletContainer = styled.div`
     display: grid;
