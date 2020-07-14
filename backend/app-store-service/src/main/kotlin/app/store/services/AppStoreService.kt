@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.store.services
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.app.store.api.Project
 import dk.sdu.cloud.app.store.services.acl.*
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
@@ -10,8 +11,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.project.api.GroupExistsRequest
-import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -98,7 +98,7 @@ class AppStoreService(
     suspend fun listAcl(
         securityPrincipal: SecurityPrincipal,
         applicationName: String
-    ): List<EntityWithPermission> {
+    ): List<DetailedEntityWithPermission> {
         if (securityPrincipal.role != Role.ADMIN) throw RPCException(
             "Unable to access application permissions",
             HttpStatusCode.Unauthorized
@@ -107,7 +107,32 @@ class AppStoreService(
             aclDao.listAcl(
                 session,
                 applicationName
-            )
+            ).map { accessEntity ->
+                val projectLookup = if (!accessEntity.entity.project.isNullOrBlank()) {
+                    Projects.lookupById.call(
+                        LookupByIdRequest(accessEntity.entity.project!!),
+                        authenticatedClient
+                    ).orRethrowAs {
+                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                    }
+                } else {
+                    null
+                }
+
+                DetailedEntityWithPermission(
+                    DetailedAccessEntity(
+                        accessEntity.entity.user,
+                        if (projectLookup != null) {
+                            Project(
+                                projectLookup.id,
+                                projectLookup.title
+                            )
+                        } else { null },
+                        accessEntity.entity.group
+                    ),
+                    accessEntity.permission
+                )
+            }
         }
     }
 
@@ -157,10 +182,19 @@ class AppStoreService(
             }
             aclDao.updatePermissions(session, entity, applicationName, permissions)
         } else if(!entity.project.isNullOrBlank() && !entity.group.isNullOrBlank()) {
+            log.debug("Verifying that project exists")
+
+            val projectLookup = Projects.lookupByTitle.call(
+                LookupByTitleRequest(entity.project!!),
+                authenticatedClient
+            ).orRethrowAs {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+
             log.debug("Verifying that project group exists")
 
             val lookup = ProjectGroups.groupExists.call(
-                GroupExistsRequest(entity.project!!, entity.group!!),
+                GroupExistsRequest(projectLookup.id, entity.group!!),
                 authenticatedClient
             ).orRethrowAs {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
@@ -170,7 +204,14 @@ class AppStoreService(
                 HttpStatusCode.BadRequest,
                 "The project group does not exist"
             )
-            aclDao.updatePermissions(session, entity, applicationName, permissions)
+
+            val entityWithProjectId = AccessEntity(
+                null,
+                projectLookup.id,
+                entity.group
+            )
+
+            aclDao.updatePermissions(session, entityWithProjectId, applicationName, permissions)
         } else {
             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Neither user or project group defined")
         }
@@ -248,9 +289,6 @@ class AppStoreService(
         } else {
             retrieveUserProjectGroups(securityPrincipal, project, authenticatedClient)
         }
-
-
-        println(projectGroups)
 
         return db.withTransaction { session ->
             applicationDao.listLatestVersion(

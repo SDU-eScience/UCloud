@@ -20,6 +20,11 @@ data class UpdateServerRequest(
     val withId: String
 )
 
+data class DetailedAccessEntityWithPermission(
+    val entity: DetailedAccessEntity,
+    val permission: ServerAccessRight
+)
+
 data class AccessEntityWithPermission(
     val entity: AccessEntity,
     val permission: ServerAccessRight
@@ -28,6 +33,21 @@ data class AccessEntityWithPermission(
 enum class ServerAccessRight {
     READ,
     READ_WRITE
+}
+
+data class Project(
+    val id: String,
+    val title: String
+)
+
+data class DetailedAccessEntity(
+    val user: String?,
+    val project: Project?,
+    val group: String?
+) {
+    init {
+        require(!user.isNullOrBlank() || (project != null && !group.isNullOrBlank())) { "No access entity defined" }
+    }
 }
 
 data class AccessEntity(
@@ -44,7 +64,6 @@ data class ProjectAndGroup(
     val project: String,
     val group: String
 )
-
 
 data class DeleteServerRequest(
     val id: String
@@ -176,7 +195,7 @@ object AppLicenseDescriptions : CallDescriptionContainer("app.license") {
         }
     }
 
-    val listAcl = call<ListAclRequest, List<AccessEntityWithPermission>, CommonErrorMessage>("listAcl") {
+    val listAcl = call<ListAclRequest, List<DetailedAccessEntityWithPermission>, CommonErrorMessage>("listAcl") {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE

@@ -9,7 +9,8 @@ import {
     updateApplicationPermission,
     uploadLogo,
     AccessEntity,
-    AccessEntityType
+    AccessEntityType,
+    DetailedAccessEntity
 } from "Applications/api";
 import {AppToolLogo} from "Applications/AppToolLogo";
 import * as Actions from "Applications/Redux/BrowseActions";
@@ -81,11 +82,11 @@ function prettifyEntityType(entityType: AccessEntityType): string {
 
 async function loadApplicationPermissionEntries(appName: string): Promise<ApplicationPermissionEntry[]> {
     const {response} = await Client.get<Array<{
-        entity: AccessEntity;
+        entity: DetailedAccessEntity;
         permission: ApplicationAccessRight;
     }>>(`/hpc/apps/list-acl/${appName}`);
     return response.map(item => {
-        const entityObj: AccessEntity = { user: item.entity.user, project: item.entity.project, group: item.entity.group };
+        const entityObj: DetailedAccessEntity = { user: item.entity.user, project: item.entity.project, group: item.entity.group };
         const entry: ApplicationPermissionEntry = {
             entity: entityObj,
             permission: item.permission,
@@ -320,7 +321,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                 }}
                             >
                                 <Flex height={45}>
-                                    <InputLabel width={320} leftLabel>
+                                    <InputLabel width={350} leftLabel>
                                         <ClickableDropdown
                                             chevron
                                             width="180px"
@@ -393,7 +394,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                         {(permissionEntry.entity.user) ? (
                                                             permissionEntry.entity.user
                                                         ) : (
-                                                            `${permissionEntry.entity.project}/${permissionEntry.entity.group}`
+                                                            `${permissionEntry.entity.project?.title}/${permissionEntry.entity.group}`
                                                         )}</TableCell>
                                                     <TableCell>{prettifyAccessRight(permissionEntry.permission)}</TableCell>
                                                     <TableCell textAlign="right">
@@ -417,7 +418,7 @@ const App: React.FunctionComponent<RouteComponentProps<{name: string}> & AppOper
                                                                                 {
                                                                                     entity: {
                                                                                         user: permissionEntry.entity.user,
-                                                                                        project: permissionEntry.entity.project,
+                                                                                        project: permissionEntry.entity.project ? permissionEntry.entity.project.id : null,
                                                                                         group: permissionEntry.entity.group
                                                                                     },
                                                                                     rights: permissionEntry.permission,

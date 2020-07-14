@@ -136,7 +136,7 @@ class AclAsyncDao {
                             DELETE FROM permissions
                             WHERE (server_id = ?serverID) AND
                                 (project = ?project) AND
-                                (project_group =? ?group)
+                                (project_group = ?group)
                         """.trimIndent()
                     )
             } else {
