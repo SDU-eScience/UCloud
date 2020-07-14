@@ -119,7 +119,7 @@ export interface DetailedAccessEntity {
 }
 
 export interface ApplicationPermissionEntry {
-    entity: AccessEntity;
+    entity: DetailedAccessEntity;
     permission: ApplicationAccessRight;
 }
 

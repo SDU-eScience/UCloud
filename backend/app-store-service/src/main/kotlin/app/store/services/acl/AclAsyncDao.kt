@@ -1,9 +1,7 @@
 package dk.sdu.cloud.app.store.services.acl
 
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.app.store.api.AccessEntity
-import dk.sdu.cloud.app.store.api.ApplicationAccessRight
-import dk.sdu.cloud.app.store.api.EntityWithPermission
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.service.db.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable

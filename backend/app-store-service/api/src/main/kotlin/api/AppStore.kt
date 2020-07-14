@@ -15,6 +15,11 @@ import dk.sdu.cloud.service.PaginationRequest
 import dk.sdu.cloud.service.WithPaginationRequest
 import io.ktor.http.HttpMethod
 
+data class Project(
+    val id: String,
+    val title: String
+)
+
 data class AccessEntity(
     val user: String?,
     val project: String?,
@@ -25,8 +30,23 @@ data class AccessEntity(
     }
 }
 
+data class DetailedAccessEntity(
+    val user: String?,
+    val project: Project?,
+    val group: String?
+) {
+    init {
+        require(!user.isNullOrBlank() || (project != null && !group.isNullOrBlank())) { "No access entity defined" }
+    }
+}
+
 data class EntityWithPermission(
     val entity: AccessEntity,
+    val permission: ApplicationAccessRight
+)
+
+data class DetailedEntityWithPermission(
+    val entity: DetailedAccessEntity,
     val permission: ApplicationAccessRight
 )
 
@@ -343,7 +363,7 @@ object AppStore : CallDescriptionContainer("hpc.apps") {
 
     val listAcl = call<
             ListAclRequest,
-            List<EntityWithPermission>,
+            List<DetailedEntityWithPermission>,
             CommonErrorMessage>("listAcl") {
         auth {
             roles = Roles.PRIVILEGED
